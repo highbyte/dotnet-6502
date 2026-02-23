@@ -42,10 +42,7 @@ public static class BreakpointCommands
         addSubCommand.SetHandler((string memAddress) =>
         {
             var address = ushort.Parse(memAddress, NumberStyles.AllowHexSpecifier, null);
-            if (!monitor.BreakPoints.ContainsKey(address))
-                monitor.BreakPoints.Add(address, new BreakPoint { Enabled = true });
-            else
-                monitor.BreakPoints[address].Enabled = true;
+            monitor.Evaluator.InstructionBreakpoints.Add(address);
         }, addressArg);
 
         // b d
@@ -64,9 +61,7 @@ public static class BreakpointCommands
         delSubCommand.SetHandler((string memAddress) =>
         {
             var address = ushort.Parse(memAddress, NumberStyles.AllowHexSpecifier, null);
-            if (monitor.BreakPoints.ContainsKey(address))
-                monitor.BreakPoints.Remove(address);
-
+            monitor.Evaluator.InstructionBreakpoints.Remove(address);
         }, addressDelArg);
 
         // b da
@@ -75,7 +70,7 @@ public static class BreakpointCommands
         };
         delAllSubCommand.SetHandler(() =>
         {
-            monitor.BreakPoints.Clear();
+            monitor.Evaluator.InstructionBreakpoints.Clear();
         });
 
         // b
@@ -98,16 +93,14 @@ public static class BreakpointCommands
 
     private static Task<int> ListBreakpoints(MonitorBase monitor)
     {
-        if (monitor.BreakPoints.Count == 0)
+        if (monitor.Evaluator.InstructionBreakpoints.Count == 0)
             monitor.WriteOutput($"No breakpoints.");
         else
             monitor.WriteOutput($"Breakpoints:");
 
-        foreach (var bp in monitor.BreakPoints.Keys)
+        foreach (var addr in monitor.Evaluator.InstructionBreakpoints)
         {
-            var addr = bp.ToHex();
-            var status = monitor.BreakPoints[bp].Enabled ? "Enabled" : "Disabled";
-            monitor.WriteOutput($"{addr} : {status}");
+            monitor.WriteOutput($"{addr.ToHex()} : Enabled");
         }
         return Task.FromResult((int)CommandResult.Ok);
     }

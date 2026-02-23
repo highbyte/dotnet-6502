@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Debugger;
 using Highbyte.DotNet6502.Utils;
 using System.CommandLine;
 using System.CommandLine.Parsing;
@@ -14,17 +15,13 @@ public abstract class MonitorBase
     private readonly SystemRunner _systemRunner;
     public SystemRunner SystemRunner => _systemRunner;
 
-    private readonly BreakPointExecEvaluator _breakPointExecEvaluator;
-    public BreakPointExecEvaluator BreakPointExecEvaluator => _breakPointExecEvaluator;
+    private readonly DebuggerBreakpointEvaluator _evaluator;
+    public DebuggerBreakpointEvaluator Evaluator => _evaluator;
 
     public CPU Cpu => _systemRunner.System.CPU;
     public Memory Mem => _systemRunner.System.Mem;
 
     public ISystem System => _systemRunner.System;
-
-
-    private readonly Dictionary<ushort, BreakPoint> _breakPoints = new();
-    public Dictionary<ushort, BreakPoint> BreakPoints => _breakPoints;
 
     private readonly Parser _commandLineApp;
     private readonly MonitorConsole _console;
@@ -33,9 +30,11 @@ public abstract class MonitorBase
     {
         _systemRunner = systemRunner;
 
-        // Init systemrunner with a custom exec evaluator that can handle breakpoints
-        _breakPointExecEvaluator = new BreakPointExecEvaluator(_breakPoints);
-        _systemRunner.SetCustomExecEvaluator(_breakPointExecEvaluator);
+        // Init systemrunner with a shared pre-execution breakpoint evaluator.
+        // No OnTriggered callback needed: the trigger result propagates through
+        // RunEmulatorOneFrame() and is handled in OnAfterRunEmulatorOneFrame().
+        _evaluator = new DebuggerBreakpointEvaluator();
+        _systemRunner.SetCustomExecEvaluator(_evaluator);
 
         Options = options;
         ApplyOptionsOnBreakPointExecEvaluator();
@@ -77,8 +76,8 @@ public abstract class MonitorBase
 
     public void ApplyOptionsOnBreakPointExecEvaluator()
     {
-        _breakPointExecEvaluator.StopAfterBRKInstruction = Options.StopAfterBRKInstruction;
-        _breakPointExecEvaluator.StopAfterUnknownInstruction = Options.StopAfterUnknownInstruction;
+        _evaluator.StopAfterBRKInstruction = Options.StopAfterBRKInstruction;
+        _evaluator.StopAfterUnknownInstruction = Options.StopAfterUnknownInstruction;
     }
 
     public void ShowInfoAfterBreakTriggerEnabled(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)

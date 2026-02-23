@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Debugger;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.DebugAdapter;
@@ -25,12 +26,10 @@ public class DebugAdapterLogic
     // Source breakpoints are tracked per file because VSCode sends setBreakpoints
     // per source file (the full set for THAT file only).
     private readonly Dictionary<string, HashSet<ushort>> _sourceBreakpointsByFile = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<ushort> _instructionBreakpoints = new();
+    private readonly DebuggerBreakpointEvaluator _evaluator;
     // Map from address to breakpoint ID, used to populate hitBreakpointIds in stopped events
     private readonly Dictionary<ushort, int> _breakpointIdsByAddress = new();
     private int _nextBreakpointId = 1;
-    private ushort? _temporaryBreakpoint = null; // Temporary breakpoint for step over JSR
-    private bool _stepOutMode = false; // Flag to indicate we're stepping out (waiting for RTS)
     private readonly bool _builtInExecution; // When true, the adapter runs the CPU itself (no external execution engine)
     private CancellationTokenSource? _executionCts;
     private const int THREAD_ID = 1;
@@ -43,7 +42,6 @@ public class DebugAdapterLogic
     private const int DisassemblyCacheGapFillMinCount   = 2000; // minimum instructions returned near start
     private const int DisassemblyCacheGapFillExtra      = 500;  // instructions past target when expanding
 
-    private bool _stopOnBRK = true;
     private bool _stopOnOutOfBounds = false; // Disabled by default - don't stop when PC goes outside source range
     private Ca65DbgParser? _dbgParser;
     // Maps variablesReference IDs (100+) to segment names for multi-segment label scopes.
@@ -79,6 +77,12 @@ public class DebugAdapterLogic
         _system = system;
         IsStopped = initiallyPaused;
         _builtInExecution = builtInExecution;
+        _evaluator = new DebuggerBreakpointEvaluator
+        {
+            StopAfterBRKInstruction = true,
+            OnTriggered = HandleEvaluatorTrigger,
+            AdditionalBreakAtAddress = CheckSourceBreakpointsAtAddress
+        };
         if (system != null)
             _systemBoundTcs.TrySetResult();
     }
@@ -116,12 +120,6 @@ public class DebugAdapterLogic
     // Signals NotifyProgramReady() to pause the CPU immediately so that no
     // program instructions execute before HandleLaunchAsync sets PC.
     private volatile bool _stopOnEntryPending = false;
-
-    // Set to true by resume handlers (Continue, Next/JSR, StepOut) before IsStopped=false.
-    // Causes ShouldBreakAtCurrentPCAsync to skip the very next breakpoint check so that
-    // resuming from a breakpoint doesn't immediately re-trigger on the same address.
-    // The core evaluator is now called PRE-execution, so this skip is needed on resume.
-    private volatile bool _skipNextBreakpointCheck = false;
 
     /// <summary>
     /// Called by the host when automated startup is complete (KERNAL booted, PRG loaded, PC set).
@@ -175,7 +173,7 @@ public class DebugAdapterLogic
     /// </summary>
     public IExecEvaluator GetBreakpointEvaluator()
     {
-        return new BreakpointEvaluator(this);
+        return _evaluator;
     }
 
     /// <summary>
@@ -187,13 +185,13 @@ public class DebugAdapterLogic
         StopExecutionLoop();
         IsStopped = false;
         _sourceBreakpointsByFile.Clear();
-        _instructionBreakpoints.Clear();
+        _evaluator.InstructionBreakpoints.Clear();
+        _evaluator.TemporaryBreakpoint = null;
+        _evaluator.StepOutMode = false;
+        _evaluator.SkipNextBreakpointCheck = false;
         _breakpointIdsByAddress.Clear();
         _nextBreakpointId = 1;
-        _temporaryBreakpoint = null;
-        _stepOutMode = false;
         _stopOnEntryPending = false;
-        _skipNextBreakpointCheck = false;
         // Recreate TCS instances so a reused adapter starts fresh
         _systemBoundTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _programReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -227,15 +225,15 @@ public class DebugAdapterLogic
             LogSafe("[ExecutionLoop] Starting");
             try
             {
-                // The skip flag is set by the resume handlers (Continue, Next/JSR, StepOut)
-                // before IsStopped=false so the first pre-execution check in
-                // ShouldBreakAtCurrentPCAsync is skipped, preventing an immediate
-                // re-trigger at the breakpoint address we're resuming from.
+                // SkipNextBreakpointCheck is set by the resume handlers (Continue, Next/JSR, StepOut)
+                // before IsStopped=false so the first pre-execution check is skipped,
+                // preventing an immediate re-trigger at the breakpoint address we're resuming from.
                 int count = 0;
                 while (!IsStopped && !ct.IsCancellationRequested)
                 {
-                    // Check breakpoints before executing the next instruction (pre-execution)
-                    if (await ShouldBreakAtCurrentPCAsync())
+                    // Check breakpoints before executing the next instruction (pre-execution).
+                    // HandleEvaluatorTrigger is called synchronously inside ShouldBreak when triggered.
+                    if (_evaluator.ShouldBreak(cpu, memory).Triggered)
                         break;
 
                     cpu.ExecuteOneInstruction(memory);
@@ -262,71 +260,53 @@ public class DebugAdapterLogic
     }
 
     /// <summary>
-    /// Check if execution should stop at the current PC (called by BreakpointEvaluator).
-    /// The core evaluator is called pre-execution, so when resuming from a breakpoint the
-    /// caller must set <see cref="_skipNextBreakpointCheck"/> to avoid re-triggering at
-    /// the same address.
+    /// Synchronous callback invoked by DebuggerBreakpointEvaluator when a breakpoint or step
+    /// condition fires (pre-execution). Called BEFORE the evaluator clears StepOutMode /
+    /// TemporaryBreakpoint, so we can inspect them to determine the stop reason.
+    /// Sets IsStopped=true synchronously (required for the Avalonia run loop to pause)
+    /// then fire-and-forgets the async DAP stopped event.
     /// </summary>
-    internal async Task<bool> ShouldBreakAtCurrentPCAsync()
+    private void HandleEvaluatorTrigger(ExecEvaluatorTriggerResult result, CPU cpu, Memory memory)
     {
-        // Skip one check when resuming from a breakpoint/step so we don't immediately
-        // re-trigger at the address we just stopped at.
-        if (_skipNextBreakpointCheck)
+        string reason;
+        int[]? hitIds = null;
+
+        if (_evaluator.StepOutMode)
         {
-            _skipNextBreakpointCheck = false;
-            return false;
-        }
-
-        var cpu = _system?.CPU;
-        var memory = _system?.Mem;
-        if (cpu == null || memory == null)
-            return false;
-
-        var pc = cpu.PC;
-        byte currentOpcode = memory[pc];
-
-        // Check if we hit a temporary breakpoint (for step over JSR)
-        if (_temporaryBreakpoint.HasValue && _temporaryBreakpoint.Value == pc)
-        {
-            LogSafe($"[BreakpointHit] Temporary breakpoint hit at ${pc:X4}");
-            _temporaryBreakpoint = null; // Clear temporary breakpoint
-            IsStopped = true; // Pause emulator
-            await SendStoppedEventAsync("step");
-            return true;
-        }
-
-        // Check if we're in step out mode and about to execute RTS
-        if (_stepOutMode && currentOpcode == (byte)OpCodeId.RTS)
-        {
-            LogSafe($"[StepOut] RTS detected at ${pc:X4}, executing and stopping");
-            // Execute the RTS instruction
+            // Step-out: the evaluator detected RTS but has not yet cleared StepOutMode.
+            // Execute the RTS now so PC advances to the caller before we send the stopped event.
             cpu.ExecuteOneInstruction(memory);
             LogSafe($"[StepOut] After RTS, PC=${cpu.PC:X4}");
-            _stepOutMode = false; // Clear step out mode
-            IsStopped = true; // Pause emulator
-            await SendStoppedEventAsync("step");
-            return true;
+            reason = "step";
         }
-
-        // Check if we hit a breakpoint (from either source or instruction breakpoints)
-        if (_sourceBreakpointsByFile.Values.Any(bps => bps.Contains(pc)) || _instructionBreakpoints.Contains(pc))
+        else if (_evaluator.TemporaryBreakpoint.HasValue)
         {
-            LogSafe($"[BreakpointHit] Breakpoint hit at ${pc:X4}");
-            IsStopped = true; // Pause emulator
-            int[]? hitIds = _breakpointIdsByAddress.TryGetValue(pc, out var bpId) ? new[] { bpId } : null;
-            await SendStoppedEventAsync("breakpoint", hitBreakpointIds: hitIds);
-            return true;
+            LogSafe($"[BreakpointHit] Temporary breakpoint hit at ${cpu.PC:X4}");
+            reason = "step";
         }
-
-        if (_stopOnBRK && currentOpcode == (byte)OpCodeId.BRK)
+        else if (result.TriggerType == ExecEvaluatorTriggerReasonType.BRKInstruction)
         {
-            LogSafe($"[BreakpointHit] BRK instruction hit at ${pc:X4}");
-            IsStopped = true; // Pause emulator
-            await SendStoppedEventAsync("breakpoint");
-            return true;
+            LogSafe($"[BreakpointHit] BRK instruction hit at ${cpu.PC:X4}");
+            reason = "breakpoint";
+        }
+        else
+        {
+            LogSafe($"[BreakpointHit] Breakpoint hit at ${cpu.PC:X4}");
+            reason = "breakpoint";
+            hitIds = _breakpointIdsByAddress.TryGetValue(cpu.PC, out var bpId) ? new[] { bpId } : null;
         }
 
-        return false;
+        IsStopped = true;
+        _ = SendStoppedEventAsync(reason, hitBreakpointIds: hitIds);
+    }
+
+    /// <summary>
+    /// Called by DebuggerBreakpointEvaluator.AdditionalBreakAtAddress to check source-file
+    /// breakpoints. Returns true if the given PC has a source breakpoint set.
+    /// </summary>
+    private bool CheckSourceBreakpointsAtAddress(ushort pc)
+    {
+        return _sourceBreakpointsByFile.Values.Any(bps => bps.Contains(pc));
     }
 
     public async Task HandleMessageAsync(JsonObject message)
@@ -468,7 +448,7 @@ public class DebugAdapterLogic
     {
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? true;
         var loadAddress = args?["loadAddress"]?.GetValue<int?>();
-        _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
+        _evaluator.StopAfterBRKInstruction = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
         var programAlreadyLoaded = args?["__programAlreadyLoaded"]?.GetValue<bool>() ?? false;
 
         // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
@@ -510,7 +490,7 @@ public class DebugAdapterLogic
             }
         }
 
-        LogSafe($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}, programAlreadyLoaded={programAlreadyLoaded}");
+        LogSafe($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_evaluator.StopAfterBRKInstruction}, programAlreadyLoaded={programAlreadyLoaded}");
 
         var memory = _system?.Mem;
         var cpu = _system?.CPU;
@@ -643,7 +623,7 @@ public class DebugAdapterLogic
 
         if (cpu != null)
             await SendOutputAsync($"PC at ${cpu.PC:X4}\n");
-        if (!_stopOnBRK)
+        if (!_evaluator.StopAfterBRKInstruction)
         {
             await SendOutputAsync("Note: stopOnBRK is disabled - use Pause button to stop execution\n");
         }
@@ -766,7 +746,7 @@ public class DebugAdapterLogic
         LogSafe("[Attach] Starting attach sequence");
 
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? false;
-        _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
+        _evaluator.StopAfterBRKInstruction = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
 
         // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
         string? program = args?["program"]?.ToString();
@@ -809,7 +789,7 @@ public class DebugAdapterLogic
             }
         }
 
-        LogSafe($"[Attach] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}");
+        LogSafe($"[Attach] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_evaluator.StopAfterBRKInstruction}");
 
         // In attach mode, we don't create the emulator - it's already running in the desktop app
         // We just load the debug symbols to enable source-level debugging
@@ -1045,7 +1025,7 @@ public class DebugAdapterLogic
     private async Task HandleSetInstructionBreakpointsAsync(int seq, JsonObject? args)
     {
         // VSCode sends the FULL set of instruction breakpoints on each call,
-        // so we clear and rebuild _instructionBreakpoints.
+        // so we clear and rebuild _evaluator.InstructionBreakpoints.
         LogSafe("[SetInstructionBreakpoints] Called");
         LogSafe($"[SetInstructionBreakpoints] args: {args?.ToJsonString()}");
 
@@ -1095,7 +1075,7 @@ public class DebugAdapterLogic
         }
 
         // Remove IDs for addresses that are no longer in the new set
-        var addressesToRemove = _instructionBreakpoints.Except(newAddresses).ToList();
+        var addressesToRemove = _evaluator.InstructionBreakpoints.Except(newAddresses).ToList();
         foreach (var addr in addressesToRemove)
         {
             _breakpointIdsByAddress.Remove(addr);
@@ -1103,9 +1083,9 @@ public class DebugAdapterLogic
         }
 
         // Update the active instruction breakpoints set
-        _instructionBreakpoints.Clear();
+        _evaluator.InstructionBreakpoints.Clear();
         foreach (var addr in newAddresses)
-            _instructionBreakpoints.Add(addr);
+            _evaluator.InstructionBreakpoints.Add(addr);
 
         var body = new JsonObject
         {
@@ -2420,7 +2400,7 @@ public class DebugAdapterLogic
 
             // Skip the first pre-execution check to avoid re-triggering on the
             // breakpoint address we're resuming from.
-            _skipNextBreakpointCheck = true;
+            _evaluator.SkipNextBreakpointCheck = true;
             IsStopped = false; // Resume emulator
             StartExecutionLoop();
         }
@@ -2451,12 +2431,12 @@ public class DebugAdapterLogic
                     // JSR is 3 bytes: opcode (1) + address (2)
                     // Set temporary breakpoint at return address (PC + 3)
                     ushort returnAddress = (ushort)(cpu.PC + 3);
-                    _temporaryBreakpoint = returnAddress;
+                    _evaluator.TemporaryBreakpoint = returnAddress;
                     LogSafe($"[HandleNext] JSR detected, setting temporary breakpoint at ${returnAddress:X4}");
 
                     // Resume execution - the breakpoint evaluator will stop at the return address.
                     // Skip the first pre-execution check so we don't re-trigger on the JSR itself.
-                    _skipNextBreakpointCheck = true;
+                    _evaluator.SkipNextBreakpointCheck = true;
                     IsStopped = false;
                     StartExecutionLoop();
                 }
@@ -2526,10 +2506,10 @@ public class DebugAdapterLogic
         {
             LogSafe($"[HandleStepOut] Enabling step out mode, will run until RTS at PC=${cpu.PC:X4}");
             // Enable step out mode - execution will continue until RTS is found
-            _stepOutMode = true;
+            _evaluator.StepOutMode = true;
             // Resume execution - the breakpoint evaluator will stop at RTS.
             // Skip the first pre-execution check so we don't re-trigger on the current PC.
-            _skipNextBreakpointCheck = true;
+            _evaluator.SkipNextBreakpointCheck = true;
             IsStopped = false;
             StartExecutionLoop();
         }
