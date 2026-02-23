@@ -36,6 +36,13 @@ public class DebugAdapterLogic
     private const int THREAD_ID = 1;
     private const int FRAME_ID = 0;
 
+    // Disassembly cache gap-fill: when the disassembly window starts near the beginning
+    // of memory, return a larger slice so VS Code's cache is pre-filled and no gaps appear
+    // when the PC jumps around.
+    private const int DisassemblyCacheGapFillThreshold = 1000; // rawStartIndex below this triggers expansion
+    private const int DisassemblyCacheGapFillMinCount   = 2000; // minimum instructions returned near start
+    private const int DisassemblyCacheGapFillExtra      = 500;  // instructions past target when expanding
+
     private bool _stopOnBRK = true;
     private bool _stopOnOutOfBounds = false; // Disabled by default - don't stop when PC goes outside source range
     private Ca65DbgParser? _dbgParser;
@@ -2667,12 +2674,117 @@ public class DebugAdapterLogic
     }
 
     /// <summary>
+    /// Builds a complete (address, instructionLength) list by walking memory from $0000
+    /// through $FFFF. The full walk ensures consistent instruction boundaries for the
+    /// variable-length 6502 instruction set regardless of which address is requested.
+    /// </summary>
+    private List<(ushort addr, int len)> BuildInstructionList(Memory memory)
+    {
+        var instrList = new List<(ushort addr, int len)>();
+        int addr = 0;
+        while (addr <= 0xFFFF)
+        {
+            var opcode = memory[(ushort)addr];
+            var len = GetInstructionLength(opcode);
+            instrList.Add(((ushort)addr, len));
+            addr += len;
+            if (addr > 0xFFFF) break;
+        }
+        return instrList;
+    }
+
+    /// <summary>
+    /// Returns the index in <paramref name="instrList"/> of the instruction at or
+    /// containing <paramref name="targetAddr"/>. If the target lies between two
+    /// instructions the earlier one is returned; if it is past the last instruction
+    /// the last index is returned.
+    /// </summary>
+    private static int FindTargetIndex(List<(ushort addr, int len)> instrList, int targetAddr)
+    {
+        for (int i = 0; i < instrList.Count; i++)
+        {
+            var (iAddr, iLen) = instrList[i];
+            if (iAddr >= targetAddr)
+                return iAddr > targetAddr ? Math.Max(0, i - 1) : i;
+            if (iAddr + iLen > targetAddr)
+                return i; // target falls inside this instruction's bytes
+        }
+        return instrList.Count - 1;
+    }
+
+    /// <summary>
+    /// Returns the number of instructions to include in the response.
+    /// When the window starts near the beginning of memory the count is expanded so that
+    /// VS Code's disassembly cache is pre-filled and no gaps appear when the PC jumps.
+    /// </summary>
+    private static int AdjustCountForCacheGapFill(int requestedCount, int rawStartIndex, int targetIndex)
+    {
+        if (rawStartIndex >= DisassemblyCacheGapFillThreshold)
+            return requestedCount;
+
+        return Math.Max(requestedCount,
+               Math.Max(DisassemblyCacheGapFillMinCount, targetIndex + DisassemblyCacheGapFillExtra));
+    }
+
+    /// <summary>
+    /// Prepends synthetic "before memory" instructions to <paramref name="instructions"/>
+    /// for negative offsets (i.e. when VS Code asks for instructions before $0000).
+    /// Uses wrapped addresses in the $FFxx range so VS Code can track position counts.
+    /// </summary>
+    private static void AddPrePaddingInstructions(JsonArray instructions, int rawStartIndex, int adjustedCount)
+    {
+        for (int p = rawStartIndex; p < 0 && instructions.Count < adjustedCount; p++)
+        {
+            instructions.Add(new JsonObject
+            {
+                ["address"] = $"0x{(0x10000 + p):x4}", // e.g. 0xffce for position -50
+                ["instructionBytes"] = "--",
+                ["instruction"] = "; (before memory)",
+                ["presentationHint"] = "invalid"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Appends real disassembled instructions from <paramref name="instrList"/> starting
+    /// at <paramref name="startIndex"/> until <paramref name="adjustedCount"/> total entries
+    /// have been added to <paramref name="instructions"/>.
+    /// </summary>
+    private static void AddRealInstructions(
+        JsonArray instructions,
+        List<(ushort addr, int len)> instrList,
+        CPU cpu,
+        Memory memory,
+        int startIndex,
+        int adjustedCount)
+    {
+        for (int i = startIndex; i < instrList.Count && instructions.Count < adjustedCount; i++)
+        {
+            var (instrAddr, instrLen) = instrList[i];
+
+            var bytes = new List<byte>();
+            for (int j = 0; j < instrLen && (instrAddr + j) <= 0xFFFF; j++)
+                bytes.Add(memory[(ushort)(instrAddr + j)]);
+
+            var instructionText = StripAddressPrefix(
+                OutputGen.GetInstructionDisassembly(cpu, memory, instrAddr));
+
+            instructions.Add(new JsonObject
+            {
+                ["address"] = FormatAddress(instrAddr),
+                ["instructionBytes"] = BitConverter.ToString(bytes.ToArray()).Replace("-", " "),
+                ["instruction"] = instructionText
+            });
+        }
+    }
+
+    /// <summary>
     /// Handles the disassemble request according to DAP specification.
-    /// 
+    ///
     /// For 6502 with variable-length instructions, we MUST always disassemble from a fixed
     /// starting point (0x0000) to ensure consistent instruction boundaries. VS Code caches
     /// disassembly by address, so the same address must always map to the same instruction.
-    /// 
+    ///
     /// To avoid gaps in VS Code's cached disassembly when PC jumps around, we always return
     /// a contiguous range starting from 0x0000 when the start index would be low anyway.
     /// This ensures VS Code always has complete coverage.
@@ -2696,126 +2808,35 @@ public class DebugAdapterLogic
         {
             try
             {
-                // Parse base address and apply byte offset
                 var baseAddress = ParseAddress(memoryReference);
-                int targetAddr = baseAddress + offset;
-
-                // Clamp to valid address range
-                if (targetAddr < 0) targetAddr = 0;
-                if (targetAddr > 0xFFFF) targetAddr = 0xFFFF;
+                int targetAddr = Math.Clamp(baseAddress + offset, 0, 0xFFFF);
 
                 LogSafe($"[HandleDisassemble] baseAddress=${baseAddress:X4}, targetAddr=${targetAddr:X4}");
 
-                // Build complete instruction list from 0x0000 - this ensures consistent boundaries
-                var instrList = new List<(ushort addr, int len)>();
-                int addr = 0;
-                while (addr <= 0xFFFF)
-                {
-                    var opcode = memory[(ushort)addr];
-                    var len = GetInstructionLength(opcode);
-                    instrList.Add(((ushort)addr, len));
-                    addr += len;
-                    if (addr > 0xFFFF) break;
-                }
-
-                // Find the index of the target address (or nearest instruction containing it)
-                int targetIndex = 0;
-                for (int i = 0; i < instrList.Count; i++)
-                {
-                    var (iAddr, iLen) = instrList[i];
-                    if (iAddr == targetAddr)
-                    {
-                        targetIndex = i;
-                        break;
-                    }
-                    if (iAddr + iLen > targetAddr)
-                    {
-                        // Target is within this instruction
-                        targetIndex = i;
-                        break;
-                    }
-                    if (iAddr > targetAddr)
-                    {
-                        // Passed it, use previous
-                        targetIndex = Math.Max(0, i - 1);
-                        break;
-                    }
-                    targetIndex = i;
-                }
-
-                // Calculate start index with instruction offset
+                var instrList = BuildInstructionList(memory);
+                int targetIndex = FindTargetIndex(instrList, targetAddr);
                 int rawStartIndex = targetIndex + instructionOffset;
 
                 LogSafe($"[HandleDisassemble] targetIndex={targetIndex}, rawStartIndex={rawStartIndex}, totalInstr={instrList.Count}");
 
-                // Determine how many instructions to return
-                // If the request would start near 0, return a large range to fill VS Code's cache gaps
-                int adjustedRequestedCount = requestedCount;
-                if (rawStartIndex < 1000)
-                {
-                    // Return at least 2000 instructions to fill any gaps from previous requests
-                    adjustedRequestedCount = Math.Max(requestedCount, Math.Max(2000, targetIndex + 500));
-                    LogSafe($"[HandleDisassemble] Adjusted count to {adjustedRequestedCount} to fill cache gaps");
-                }
+                int adjustedCount = AdjustCountForCacheGapFill(requestedCount, rawStartIndex, targetIndex);
+                if (adjustedCount != requestedCount)
+                    LogSafe($"[HandleDisassemble] Adjusted count to {adjustedCount} to fill cache gaps");
 
-                // If startIndex is negative, we need to pad with synthetic instructions
-                // so VS Code gets exactly the number of "before" instructions it expects.
-                // This is necessary for correct highlighting of the target instruction.
-                int paddingNeededBefore = 0;
                 if (rawStartIndex < 0)
                 {
-                    paddingNeededBefore = -rawStartIndex;
-                    LogSafe($"[HandleDisassemble] Need {paddingNeededBefore} padding for negative offset");
-
-                    // Add synthetic instructions for addresses "before" 0x0000 at the START of array
-                    // Use wrapped addresses that VS Code can track for position counting
-                    for (int p = rawStartIndex; p < 0 && instructions.Count < adjustedRequestedCount; p++)
-                    {
-                        instructions.Add(new JsonObject
-                        {
-                            ["address"] = $"0x{(0x10000 + p):x4}", // e.g., 0xffce for position -50
-                            ["instructionBytes"] = "--",
-                            ["instruction"] = "; (before memory)",
-                            ["presentationHint"] = "invalid"
-                        });
-                    }
+                    LogSafe($"[HandleDisassemble] Need {-rawStartIndex} padding for negative offset");
+                    AddPrePaddingInstructions(instructions, rawStartIndex, adjustedCount);
                 }
 
-                // Start from index 0 (or wherever is valid)
-                int startIndex = Math.Max(0, rawStartIndex);
-                if (startIndex >= instrList.Count) startIndex = instrList.Count - 1;
+                int startIndex = Math.Max(0, Math.Min(rawStartIndex, instrList.Count - 1));
+                LogSafe($"[HandleDisassemble] startIndex={startIndex}");
 
-                LogSafe($"[HandleDisassemble] startIndex={startIndex}, paddingNeededBefore={paddingNeededBefore}");
-
-                // Generate real instructions - use adjustedRequestedCount to fill gaps
-                for (int i = startIndex; i < instrList.Count && instructions.Count < adjustedRequestedCount; i++)
-                {
-                    var (instrAddr, instrLen) = instrList[i];
-
-                    // Get instruction bytes
-                    var bytes = new List<byte>();
-                    for (int j = 0; j < instrLen && (instrAddr + j) <= 0xFFFF; j++)
-                    {
-                        bytes.Add(memory[(ushort)(instrAddr + j)]);
-                    }
-
-                    // Get disassembly text
-                    var disasm = OutputGen.GetInstructionDisassembly(cpu, memory, instrAddr);
-                    var instructionText = StripAddressPrefix(disasm);
-
-                    instructions.Add(new JsonObject
-                    {
-                        ["address"] = FormatAddress(instrAddr),
-                        ["instructionBytes"] = BitConverter.ToString(bytes.ToArray()).Replace("-", " "),
-                        ["instruction"] = instructionText
-                    });
-                }
+                AddRealInstructions(instructions, instrList, cpu, memory, startIndex, adjustedCount);
 
                 LogSafe($"[HandleDisassemble] Generated {instructions.Count} instructions");
                 if (instructions.Count > 0)
-                {
                     LogSafe($"[HandleDisassemble] First: {instructions[0]?["address"]}, Last: {instructions[instructions.Count - 1]?["address"]}");
-                }
             }
             catch (Exception ex)
             {
@@ -2867,7 +2888,7 @@ public class DebugAdapterLogic
     /// Strip the address prefix from disassembly output.
     /// OutputGen returns something like "c000  LDA #$00" and we want just "LDA #$00"
     /// </summary>
-    private string StripAddressPrefix(string disasm)
+    private static string StripAddressPrefix(string disasm)
     {
         // OutputGen format is typically "XXXX  instruction"
         if (disasm.Length >= 6 && disasm.Substring(4, 2) == "  ")
