@@ -154,6 +154,13 @@ public sealed class TcpDebugServerManager : IDisposable
     /// </summary>
     private PropertyChangedEventHandler CreateEmulatorStateHandler(DebugAdapterLogic adapter)
     {
+        // Set to true when the emulated system is stopped from the UI (Uninitialized state).
+        // Prevents a race where the user quickly restarts the system: if Running fires before
+        // CleanupDebugSession has unsubscribed this handler, we must not re-install the
+        // stale adapter. Both Uninitialized and Running fire on the UI thread, so this flag
+        // is written and read on the same thread — no locking needed.
+        bool sessionEnded = false;
+
         return (s, args) =>
         {
             if (args.PropertyName != nameof(IHostApp.EmulatorState))
@@ -163,6 +170,15 @@ public sealed class TcpDebugServerManager : IDisposable
             if (currentHostApp?.EmulatorState == EmulatorState.Running
                 && currentHostApp.CurrentRunningSystem != null)
             {
+                // If the session already ended (system was stopped), do nothing.
+                // CleanupDebugSession will unsubscribe us shortly, but the user may
+                // have restarted the system before that cleanup runs.
+                if (sessionEnded)
+                {
+                    _debugLogWriter.WriteLine("EmulatorState became Running but session already ended — ignoring");
+                    return;
+                }
+
                 _debugLogWriter.WriteLine("EmulatorState became Running, binding/re-binding debug adapter");
 
                 // Capture WaitForExternalDebugger BEFORE SetExternalDebugAdapter clears it.
@@ -180,6 +196,14 @@ public sealed class TcpDebugServerManager : IDisposable
                 // breakpoint evaluator on the (possibly new) CurrentSystemRunner.
                 _environment.RunOnUiThread(() =>
                 {
+                    // Guard again inside the UI-thread lambda: session may have ended
+                    // between when this post was queued and when it actually runs.
+                    if (sessionEnded)
+                    {
+                        _debugLogWriter.WriteLine("RunOnUiThread: session ended before SetExternalDebugAdapter could run — skipping");
+                        return;
+                    }
+
                     var hostApp = _environment.GetHostApp();
                     if (hostApp != null)
                     {
@@ -191,6 +215,9 @@ public sealed class TcpDebugServerManager : IDisposable
             }
             else if (currentHostApp?.EmulatorState == EmulatorState.Uninitialized)
             {
+                // Mark session as ended before sending the terminated event so that any
+                // subsequent Running event (user restarting the system) is ignored.
+                sessionEnded = true;
                 _debugLogWriter.WriteLine("EmulatorState became Uninitialized (system stopped from UI), sending terminated event");
                 _ = adapter.SendTerminatedEventAsync();
             }
