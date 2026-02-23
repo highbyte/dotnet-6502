@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -110,8 +111,10 @@ internal static class AutomatedStartupHandler
             var hostApp = Core.App.Current.HostApp;
             logger.LogInformation("Avalonia app initialized.");
 
-            // Set flag to skip default system selection in UI initialization
-            hostApp.SkipDefaultSystemSelection = true;
+            // SkipDefaultSystemSelection is an Avalonia-specific automation concern
+            // not part of IDebuggableHostApp — cast to the concrete type to set it.
+            if (hostApp is AvaloniaHostApp avaloniaHostApp)
+                avaloniaHostApp.SkipDefaultSystemSelection = true;
 
             // All HostApp operations must run on the UI thread
             await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -250,7 +253,7 @@ internal static class AutomatedStartupHandler
     /// Waits for the system to be ready.
     /// For C64, waits until Basic prompt appears (simplified: wait 3 seconds).
     /// </summary>
-    private static async Task WaitForSystemReady(AvaloniaHostApp hostApp, string systemName, ILogger logger)
+    private static async Task WaitForSystemReady(IDebuggableHostApp hostApp, string systemName, ILogger logger)
     {
         // TODO: Implement proper system-ready detection based on system type
         // For C64, could check for Basic prompt in screen memory

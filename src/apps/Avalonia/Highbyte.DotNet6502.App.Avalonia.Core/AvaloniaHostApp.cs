@@ -27,7 +27,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;

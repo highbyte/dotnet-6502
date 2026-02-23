@@ -11,6 +11,7 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
+using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
@@ -43,9 +44,9 @@ public partial class App : Application
     private IServiceProvider _serviceProvider = default!;
 
     /// <summary>
-    /// Exposes the AvaloniaHostApp instance for external access (e.g., debug adapter integration).
+    /// Exposes the host app's debuggable interface for external access (e.g., debug adapter integration).
     /// </summary>
-    public AvaloniaHostApp HostApp => _hostApp;
+    public IDebuggableHostApp HostApp => _hostApp;
 
     /// <summary>
     /// Static reference to the current App instance (for debug adapter integration).
