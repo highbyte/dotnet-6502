@@ -60,7 +60,7 @@
       "dbgFiles": [ // Additional .dbg files in addition to the main one specified by dbgFile, or as in this example automatically derived from the built program from preLaunchTask.
         "${userHome}/source/public-repos/c64rom/rom.dbg",        
       ],
-      "stopOnEntry": true, // Debug from first CPU instruction (kernal) if the emulator has not been started yet.
+      "stopOnEntry": true, // Debug from first CPU instruction after the emulator has been attached
       "stopOnBRK": true
     },    
     {

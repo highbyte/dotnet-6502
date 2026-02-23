@@ -162,7 +162,7 @@ There are three ways to use the debugger, each with different launch.json config
 | `dbgFile` | string | — | Yes | Yes | Yes | Path to ca65 .dbg file for source-level debugging. Auto-detected from `program` path or `preLaunchTask` output. |
 | `dbgFiles` | string[] | — | Yes | Yes | Yes | Additional .dbg files to merge for multi-component source debugging (e.g., ROM debug symbols alongside your program's .dbg file). If `dbgFile` is omitted, the first entry becomes the primary. |
 | `loadAddress` | number | — | Yes | — | — | Override load address (normally read from .prg file header). |
-| `stopOnEntry` | boolean | `true` | Yes | Yes | Yes | Stop at program entry point after launch/attach. |
+| ` ` | boolean | `true` | Yes | Yes | Yes | Stop at first instruction executed after after launch/attach. |
 | `stopOnBRK` | boolean | `true` | Yes | Yes | Yes | Stop when BRK instruction ($00) is encountered. |
 | `preLaunchTask` | string | — | Yes | Yes | Yes | VSCode task to run before launching/attaching (e.g., build task). When used with attach, the program and .dbg file paths are auto-detected from task output. |
 | `debugAdapter` | string | `"minimal"` | Yes | Yes | — | `"minimal"` for standalone adapter, `"emulator"` to launch emulator host app. |
