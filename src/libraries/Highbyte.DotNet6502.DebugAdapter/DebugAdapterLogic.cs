@@ -48,6 +48,7 @@ public class DebugAdapterLogic
     private const int DisassemblyCacheGapFillExtra      = 500;  // instructions past target when expanding
 
     private bool _stopOnOutOfBounds = false; // Disabled by default - don't stop when PC goes outside source range
+    private bool _skipInterrupts = true; // When true, automatically skip over hardware interrupt handlers (IRQ/NMI) that have no source mapping during stepping
     private Ca65DbgParser? _dbgParser;
     // Maps variablesReference IDs (100+) to segment names for multi-segment label scopes.
     private readonly Dictionary<int, string> _labelSegmentScopes = new();
@@ -463,6 +464,7 @@ public class DebugAdapterLogic
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? true;
         var loadAddress = args?["loadAddress"]?.GetValue<int?>();
         _evaluator.StopAfterBRKInstruction = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
+        _skipInterrupts = args?["skipInterrupts"]?.GetValue<bool>() ?? true;
         var programAlreadyLoaded = args?["__programAlreadyLoaded"]?.GetValue<bool>() ?? false;
 
         // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
@@ -761,6 +763,7 @@ public class DebugAdapterLogic
 
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? false;
         _evaluator.StopAfterBRKInstruction = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
+        _skipInterrupts = args?["skipInterrupts"]?.GetValue<bool>() ?? true;
 
         // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
         string? program = args?["program"]?.ToString();
@@ -1993,6 +1996,74 @@ public class DebugAdapterLogic
         return false;
     }
 
+    /// <summary>
+    /// Detects if a hardware interrupt (IRQ/NMI) occurred after an instruction was executed
+    /// during a single-step operation, and if the interrupt handler has no source mapping,
+    /// automatically continues execution through the ISR to the return address.
+    /// 
+    /// Detection: after ExecuteOneInstruction, the CPU's ProcessInterrupts method may have
+    /// pushed a 3-byte interrupt frame (PCH, PCL, status with B=0) and jumped PC to the
+    /// vector target. We detect this by checking:
+    /// 1. PC is at the IRQ vector target ($FFFE/$FFFF) or NMI vector target ($FFFA/$FFFB)
+    /// 2. The pushed status byte on the stack has B flag (bit 4) clear (hardware interrupt, not BRK)
+    /// 3. The ISR address has no source mapping in the loaded .dbg files
+    /// 
+    /// If all conditions hold, a temporary breakpoint is set at the return address (read from
+    /// the interrupt frame on the stack) and execution resumes, effectively "stepping over"
+    /// the transparent interrupt handler.
+    /// 
+    /// Returns true if an interrupt was detected and auto-skip was initiated (caller should
+    /// NOT send a stopped event). Returns false if no interrupt was detected or skip was not
+    /// applicable (caller should proceed normally).
+    /// </summary>
+    private async Task<bool> TrySkipInterruptAsync(CPU cpu, Memory memory)
+    {
+        if (!_skipInterrupts)
+            return false;
+
+        // Read the interrupt vector targets from the current memory view
+        // (respects ROM/RAM banking since we use the same Memory interface as the CPU)
+        ushort irqTarget = (ushort)(memory[CPU.BrkIRQHandlerVector] | (memory[(ushort)(CPU.BrkIRQHandlerVector + 1)] << 8));
+        ushort nmiTarget = (ushort)(memory[CPU.NonMaskableIRQHandlerVector] | (memory[(ushort)(CPU.NonMaskableIRQHandlerVector + 1)] << 8));
+
+        bool isIrq = cpu.PC == irqTarget;
+        bool isNmi = cpu.PC == nmiTarget;
+
+        if (!isIrq && !isNmi)
+            return false; // PC is not at an interrupt handler entry point
+
+        // Verify the stack has an interrupt frame: the pushed status byte at SP+1
+        // should have the B flag (bit 4) clear for hardware interrupts.
+        // BRK sets B=1, hardware IRQ/NMI sets B=0.
+        byte pushedStatus = memory[(ushort)(CPU.StackBaseAddress + cpu.SP + 1)];
+        if ((pushedStatus & 0x10) != 0)
+            return false; // B flag set = BRK instruction, not hardware interrupt
+
+        // If the ISR address has source mapping (e.g. user loaded Kernal .dbg symbols),
+        // let the user step through it normally — don't skip.
+        if (_dbgParser?.AddressToSource.ContainsKey(cpu.PC) == true)
+            return false;
+
+        // Read the return address from the interrupt frame on the stack.
+        // Stack layout after IRQ/NMI: [SP+1]=status, [SP+2]=PCL, [SP+3]=PCH
+        byte returnLo = memory[(ushort)(CPU.StackBaseAddress + cpu.SP + 2)];
+        byte returnHi = memory[(ushort)(CPU.StackBaseAddress + cpu.SP + 3)];
+        ushort returnAddress = (ushort)(returnLo | (returnHi << 8));
+
+        string interruptType = isNmi ? "NMI" : "IRQ";
+        LogSafe($"[SkipInterrupt] Detected {interruptType} at ${cpu.PC:X4}, return address ${returnAddress:X4}, skipping ISR");
+        await SendOutputAsync($"Skipping {interruptType} handler at ${cpu.PC:X4} → resuming at ${returnAddress:X4}\n");
+
+        // Set temporary breakpoint at the return address and resume execution.
+        // The breakpoint evaluator will stop when RTI returns to returnAddress.
+        _evaluator.TemporaryBreakpoint = returnAddress;
+        _evaluator.SkipNextBreakpointCheck = true; // Skip check at current ISR address
+        IsStopped = false;
+        StartExecutionLoop();
+
+        return true;
+    }
+
     private string HandleSetCommand(string args, CPU? cpu, Memory? memory)
     {
         // Parse: "<target> <value>" where target is a register name (A, X, Y, SP, PC) or address ($c000, 0xc000, decimal)
@@ -2582,6 +2653,13 @@ public class DebugAdapterLogic
                     _system?.ExecuteOneInstruction(out _);
                     LogSafe($"[HandleNext] New PC: ${cpu.PC:X4}");
 
+                    // If a hardware interrupt fired and the ISR has no source mapping, skip it
+                    if (await TrySkipInterruptAsync(cpu, memory))
+                    {
+                        await _protocol.SendResponseAsync(seq, "next");
+                        return;
+                    }
+
                     // Check if PC moved out of bounds after execution
                     if (IsOutOfBounds(cpu.PC))
                     {
@@ -2615,6 +2693,13 @@ public class DebugAdapterLogic
         if (cpu != null && memory != null)
         {
             _system?.ExecuteOneInstruction(out _);
+
+            // If a hardware interrupt fired and the ISR has no source mapping, skip it
+            if (await TrySkipInterruptAsync(cpu, memory))
+            {
+                await _protocol.SendResponseAsync(seq, "stepIn");
+                return;
+            }
 
             // Check if PC moved out of bounds after execution
             if (IsOutOfBounds(cpu.PC))

@@ -29,6 +29,7 @@ A VSCode debugger for 6502 machine code programs using the dotnet-6502 emulator.
   - Goto (set PC to source line or address)
   - Source address map for editor decorations
   - `stopOnBRK` option to break on BRK instructions
+  - `skipInterrupts` option to auto-skip hardware IRQ/NMI handlers with no source mapping during stepping
   - Auto-detection of `.prg` and `.dbg` files from `preLaunchTask`
 
 ### Debug Adapter Console App (C#)

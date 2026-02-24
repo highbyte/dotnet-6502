@@ -151,6 +151,11 @@
                 "description": "Automatically stop when BRK instruction is encountered",
                 "default": true
               },
+              "skipInterrupts": {
+                "type": "boolean",
+                "description": "When stepping (F10/F11), automatically skip over hardware interrupt handlers (IRQ/NMI) that have no source mapping. The debugger detects when an interrupt diverts execution into unmapped code (e.g. Kernal ROM) and transparently runs through the ISR, resuming at the instruction after the interrupt.",
+                "default": true
+              },
               "debugAdapter": {
                 "type": "string",
                 "enum": ["minimal", "emulator"],
@@ -231,6 +236,11 @@
               "stopOnBRK": {
                 "type": "boolean",
                 "description": "Automatically stop when BRK instruction is encountered",
+                "default": true
+              },
+              "skipInterrupts": {
+                "type": "boolean",
+                "description": "When stepping (F10/F11), automatically skip over hardware interrupt handlers (IRQ/NMI) that have no source mapping. The debugger detects when an interrupt diverts execution into unmapped code (e.g. Kernal ROM) and transparently runs through the ISR, resuming at the instruction after the interrupt.",
                 "default": true
               }
             }

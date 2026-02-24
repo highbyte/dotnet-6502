@@ -166,6 +166,7 @@ There are three ways to use the debugger, each with different launch.json config
 | `loadAddress` | number | — | Yes | — | — | Override load address (normally read from .prg file header). |
 | ` ` | boolean | `true` | Yes | Yes | Yes | Stop at first instruction executed after after launch/attach. |
 | `stopOnBRK` | boolean | `true` | Yes | Yes | Yes | Stop when BRK instruction ($00) is encountered. |
+| `skipInterrupts` | boolean | `true` | Yes | Yes | Yes | When stepping (F10/F11), automatically skip over hardware interrupt handlers (IRQ/NMI) that have no source mapping. Prevents stepping into ROM ISR code during single-step debugging. |
 | `preLaunchTask` | string | — | Yes | Yes | Yes | VSCode task to run before launching/attaching (e.g., build task). When used with attach, the program and .dbg file paths are auto-detected from task output. |
 | `debugAdapter` | string | `"minimal"` | Yes | Yes | — | `"minimal"` for standalone adapter, `"emulator"` to launch emulator host app. |
 | `emulatorExecutable` | string | *(auto)* | Yes | Yes | — | Executable path or name. Defaults to `Highbyte.DotNet6502.DebugAdapter.ConsoleApp` (minimal) or `Highbyte.DotNet6502.App.Avalonia.Desktop` (emulator). Resolved via PATH, then repo build output. |
@@ -357,6 +358,24 @@ PC == $C080             ; Stop when PC reaches a specific address
 - Flags are treated as integers: `1` = set, `0` = clear
 - Memory addresses wrap at the 64 KB boundary
 - If the expression cannot be parsed, the debugger always stops (fail-safe)
+
+### Interrupt Handling During Stepping
+
+When single-stepping through code on a system like the C64, hardware interrupts (IRQ/NMI) can fire between any two instructions. Without special handling, pressing F10/F11 could land you inside the Kernal's interrupt service routine — deep in ROM code with no source mapping.
+
+By default, the debugger **automatically skips** these interrupt handlers:
+
+1. After each step, it detects if the CPU entered an IRQ or NMI handler
+2. If the handler has **no source mapping** (e.g., ROM code), it sets a temporary breakpoint at the return address and continues execution
+3. When the ISR completes (`RTI`), the debugger stops at your original code — as if the interrupt never happened
+
+This makes stepping behave predictably even on interrupt-heavy systems.
+
+**When skipping does NOT apply:**
+- If you've loaded debug symbols for the ISR (e.g., Kernal `.dbg` file via `dbgFiles`), the debugger lets you step through it normally
+- `BRK` instructions are never skipped (they are treated as software breakpoints, not hardware interrupts)
+
+**To disable:** Set `"skipInterrupts": false` in your launch configuration if you want to step into every interrupt handler regardless of source mapping.
 
 ### Stepping Outside Source Code Boundaries
 
