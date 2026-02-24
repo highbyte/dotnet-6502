@@ -27,6 +27,11 @@ public class DebugAdapterLogic
     // per source file (the full set for THAT file only).
     private readonly Dictionary<string, HashSet<ushort>> _sourceBreakpointsByFile = new(StringComparer.OrdinalIgnoreCase);
     private readonly DebuggerBreakpointEvaluator _evaluator;
+    // Track instruction and function breakpoint addresses separately so that each
+    // protocol message only replaces its own category without wiping the other.
+    // _evaluator.InstructionBreakpoints is rebuilt as the union of both sets.
+    private readonly HashSet<ushort> _instructionBpAddresses = new();
+    private readonly HashSet<ushort> _functionBpAddresses = new();
     // Map from address to breakpoint ID, used to populate hitBreakpointIds in stopped events
     private readonly Dictionary<ushort, int> _breakpointIdsByAddress = new();
     private int _nextBreakpointId = 1;
@@ -185,6 +190,8 @@ public class DebugAdapterLogic
         StopExecutionLoop();
         IsStopped = false;
         _sourceBreakpointsByFile.Clear();
+        _instructionBpAddresses.Clear();
+        _functionBpAddresses.Clear();
         _evaluator.InstructionBreakpoints.Clear();
         _evaluator.TemporaryBreakpoint = null;
         _evaluator.StepOutMode = false;
@@ -343,6 +350,9 @@ public class DebugAdapterLogic
                     case "setInstructionBreakpoints":
                         await HandleSetInstructionBreakpointsAsync(seq, arguments);
                         break;
+                    case "setFunctionBreakpoints":
+                        await HandleSetFunctionBreakpointsAsync(seq, arguments);
+                        break;
                     case "disassemble":
                         await HandleDisassembleAsync(seq, arguments);
                         break;
@@ -429,6 +439,7 @@ public class DebugAdapterLogic
             ["supportTerminateDebuggee"] = true,
             ["supportsTerminateRequest"] = true,
             ["supportsInstructionBreakpoints"] = true,
+            ["supportsFunctionBreakpoints"] = true,
             ["supportsDisassembleRequest"] = true,
             ["supportsSteppingGranularity"] = true,
             ["supportsReadMemoryRequest"] = true,
@@ -1061,30 +1072,39 @@ public class DebugAdapterLogic
                         LogSafe($"[SetInstructionBreakpoints] Reusing existing id={bpId} for instruction breakpoint at ${actualAddress:X4}");
                     }
 
-                    // Return the same instructionReference and offset that VSCode sent
-                    // This ensures VSCode can properly match breakpoints when toggling them in the UI
+                    // Normalize instructionReference to our canonical address format so VSCode
+                    // can locate the breakpoint in the disassembly cache and show the red caret.
+                    // Toggling still works because VSCode tracks breakpoints by id, not by reference string.
                     breakpoints.Add(new JsonObject
                     {
                         ["id"] = bpId,
                         ["verified"] = true,
-                        ["instructionReference"] = instructionReference,
-                        ["offset"] = offset
+                        ["instructionReference"] = FormatAddress(actualAddress),
+                        ["offset"] = 0
                     });
                 }
             }
         }
 
-        // Remove IDs for addresses that are no longer in the new set
-        var addressesToRemove = _evaluator.InstructionBreakpoints.Except(newAddresses).ToList();
+        // Remove IDs for instruction BPs that are no longer requested.
+        // Only compare against _instructionBpAddresses (not function BPs) so function BP IDs survive.
+        var addressesToRemove = _instructionBpAddresses.Except(newAddresses).ToList();
         foreach (var addr in addressesToRemove)
         {
             _breakpointIdsByAddress.Remove(addr);
             LogSafe($"[SetInstructionBreakpoints] Removed id for instruction breakpoint at ${addr:X4}");
         }
 
-        // Update the active instruction breakpoints set
-        _evaluator.InstructionBreakpoints.Clear();
+        // Update the instruction BP set and rebuild the evaluator's active set as the union
+        // of instruction BPs and function BPs (so function BPs survive this call).
+        _instructionBpAddresses.Clear();
         foreach (var addr in newAddresses)
+            _instructionBpAddresses.Add(addr);
+
+        _evaluator.InstructionBreakpoints.Clear();
+        foreach (var addr in _instructionBpAddresses)
+            _evaluator.InstructionBreakpoints.Add(addr);
+        foreach (var addr in _functionBpAddresses)
             _evaluator.InstructionBreakpoints.Add(addr);
 
         var body = new JsonObject
@@ -1093,6 +1113,95 @@ public class DebugAdapterLogic
         };
 
         await _protocol.SendResponseAsync(seq, "setInstructionBreakpoints", body);
+    }
+
+    private async Task HandleSetFunctionBreakpointsAsync(int seq, JsonObject? args)
+    {
+        // VSCode sends the full set of function breakpoints on each call.
+        // "Function breakpoints" in this adapter are hex addresses entered via the
+        // Breakpoints panel "+" button (e.g. "$C0D5", "0xc0d5", "C0D5").
+        LogSafe("[SetFunctionBreakpoints] Called");
+        LogSafe($"[SetFunctionBreakpoints] args: {args?.ToJsonString()}");
+
+        var newAddresses = new HashSet<ushort>();
+        var breakpoints = new JsonArray();
+
+        if (args?["breakpoints"] is JsonArray requestedBps)
+        {
+            foreach (var bp in requestedBps)
+            {
+                var name = bp?["name"]?.ToString() ?? "";
+                LogSafe($"[SetFunctionBreakpoints] Processing breakpoint name: '{name}'");
+
+                // Try the standard prefixed formats first, then bare hex
+                var address = ParseNumericValue(name);
+                if (address == null)
+                {
+                    // Accept bare hex digits without prefix (e.g. "C0D5")
+                    try { address = Convert.ToUInt16(name.Trim(), 16); } catch { }
+                }
+
+                if (address == null)
+                {
+                    LogSafe($"[SetFunctionBreakpoints] Could not parse address from name '{name}', marking unverified");
+                    breakpoints.Add(new JsonObject
+                    {
+                        ["verified"] = false,
+                        ["message"] = $"'{name}' is not a valid hex address (use $C0D5, 0xC0D5, or C0D5)"
+                    });
+                    continue;
+                }
+
+                var actualAddress = address.Value;
+                newAddresses.Add(actualAddress);
+
+                if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
+                {
+                    bpId = _nextBreakpointId++;
+                    _breakpointIdsByAddress[actualAddress] = bpId;
+                    LogSafe($"[SetFunctionBreakpoints] Assigned new id={bpId} for function breakpoint at ${actualAddress:X4}");
+                }
+                else
+                {
+                    LogSafe($"[SetFunctionBreakpoints] Reusing existing id={bpId} for function breakpoint at ${actualAddress:X4}");
+                }
+
+                breakpoints.Add(new JsonObject
+                {
+                    ["id"] = bpId,
+                    ["verified"] = true,
+                    ["instructionReference"] = FormatAddress(actualAddress)
+                });
+            }
+        }
+
+        // Remove IDs for function BPs that are no longer requested.
+        // Only compare against _functionBpAddresses (not instruction BPs) so instruction BP IDs survive.
+        var addressesToRemove = _functionBpAddresses.Except(newAddresses).ToList();
+        foreach (var addr in addressesToRemove)
+        {
+            _breakpointIdsByAddress.Remove(addr);
+            LogSafe($"[SetFunctionBreakpoints] Removed id for function breakpoint at ${addr:X4}");
+        }
+
+        // Update the function BP set and rebuild the evaluator's active set as the union
+        // of instruction BPs and function BPs (so instruction BPs survive this call).
+        _functionBpAddresses.Clear();
+        foreach (var addr in newAddresses)
+            _functionBpAddresses.Add(addr);
+
+        _evaluator.InstructionBreakpoints.Clear();
+        foreach (var addr in _instructionBpAddresses)
+            _evaluator.InstructionBreakpoints.Add(addr);
+        foreach (var addr in _functionBpAddresses)
+            _evaluator.InstructionBreakpoints.Add(addr);
+
+        LogSafe($"[SetFunctionBreakpoints] Active BPs: instruction={_instructionBpAddresses.Count}, function={_functionBpAddresses.Count}, total={_evaluator.InstructionBreakpoints.Count}");
+
+        await _protocol.SendResponseAsync(seq, "setFunctionBreakpoints", new JsonObject
+        {
+            ["breakpoints"] = breakpoints
+        });
     }
 
     private async Task HandleThreadsAsync(int seq)
