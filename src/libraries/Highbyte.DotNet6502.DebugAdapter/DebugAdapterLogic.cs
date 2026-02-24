@@ -34,6 +34,8 @@ public class DebugAdapterLogic
     private readonly HashSet<ushort> _functionBpAddresses = new();
     // Map from address to breakpoint ID, used to populate hitBreakpointIds in stopped events
     private readonly Dictionary<ushort, int> _breakpointIdsByAddress = new();
+    // Map from address to log message template for logpoints
+    private readonly Dictionary<ushort, string> _logMessages = new();
     private int _nextBreakpointId = 1;
     private readonly bool _builtInExecution; // When true, the adapter runs the CPU itself (no external execution engine)
     private CancellationTokenSource? _executionCts;
@@ -87,7 +89,9 @@ public class DebugAdapterLogic
         {
             StopAfterBRKInstruction = true,
             OnTriggered = HandleEvaluatorTrigger,
-            AdditionalBreakAtAddress = CheckSourceBreakpointsAtAddress
+            AdditionalBreakAtAddress = CheckSourceBreakpointsAtAddress,
+            IsLogpoint = addr => _logMessages.ContainsKey(addr),
+            OnLogpointHit = HandleLogpointHit
         };
         if (system != null)
             _systemBoundTcs.TrySetResult();
@@ -199,6 +203,7 @@ public class DebugAdapterLogic
         _evaluator.StepOutMode = false;
         _evaluator.SkipNextBreakpointCheck = false;
         _breakpointIdsByAddress.Clear();
+        _logMessages.Clear();
         _nextBreakpointId = 1;
         _stopOnEntryPending = false;
         // Recreate TCS instances so a reused adapter starts fresh
@@ -317,6 +322,76 @@ public class DebugAdapterLogic
     private bool CheckSourceBreakpointsAtAddress(ushort pc)
     {
         return _sourceBreakpointsByFile.Values.Any(bps => bps.Contains(pc));
+    }
+
+    /// <summary>
+    /// Synchronous callback invoked by the evaluator when a logpoint fires.
+    /// Emits the interpolated log message to the debug console without stopping execution.
+    /// </summary>
+    private void HandleLogpointHit(ushort pc, CPU cpu, Memory memory)
+    {
+        if (!_logMessages.TryGetValue(pc, out var template))
+            return;
+
+        var message = InterpolateLogMessage(template, cpu, memory);
+        LogSafe($"[Logpoint] ${pc:X4}: {message}");
+        _ = SendOutputAsync(message + "\n");
+    }
+
+    /// <summary>
+    /// Interpolates a logpoint message template, replacing {expr} placeholders with
+    /// evaluated values. Supports the same expressions as the Watch/Hover evaluator:
+    /// registers (A, X, Y, SP, PC), hex addresses ($C000, 0xC000), decimal addresses,
+    /// and ca65 symbol names.
+    /// </summary>
+    private string InterpolateLogMessage(string template, CPU cpu, Memory memory)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(template, @"\{([^}]+)\}", match =>
+        {
+            var expr = match.Groups[1].Value.Trim();
+            try
+            {
+                // Registers
+                if (expr.Equals("PC", StringComparison.OrdinalIgnoreCase)) return $"${cpu.PC:X4}";
+                if (expr.Equals("A", StringComparison.OrdinalIgnoreCase)) return $"${cpu.A:X2}";
+                if (expr.Equals("X", StringComparison.OrdinalIgnoreCase)) return $"${cpu.X:X2}";
+                if (expr.Equals("Y", StringComparison.OrdinalIgnoreCase)) return $"${cpu.Y:X2}";
+                if (expr.Equals("SP", StringComparison.OrdinalIgnoreCase)) return $"${cpu.SP:X2}";
+
+                // Flags
+                if (expr.Equals("C", StringComparison.OrdinalIgnoreCase)) return cpu.ProcessorStatus.Carry ? "1" : "0";
+                if (expr.Equals("Z", StringComparison.OrdinalIgnoreCase)) return cpu.ProcessorStatus.Zero ? "1" : "0";
+                if (expr.Equals("N", StringComparison.OrdinalIgnoreCase)) return cpu.ProcessorStatus.Negative ? "1" : "0";
+                if (expr.Equals("V", StringComparison.OrdinalIgnoreCase)) return cpu.ProcessorStatus.Overflow ? "1" : "0";
+                if (expr.Equals("I", StringComparison.OrdinalIgnoreCase)) return cpu.ProcessorStatus.InterruptDisable ? "1" : "0";
+                if (expr.Equals("D", StringComparison.OrdinalIgnoreCase)) return cpu.ProcessorStatus.Decimal ? "1" : "0";
+
+                // Memory address: $C000, 0xC000, or decimal
+                ushort? numericValue = ParseNumericValue(expr);
+                if (numericValue.HasValue)
+                {
+                    var val = memory[numericValue.Value];
+                    return $"${val:X2}";
+                }
+
+                // ca65 symbol
+                if (_dbgParser?.Symbols.TryGetValue(expr, out var symbol) == true)
+                {
+                    if (symbol.Type == "lab")
+                    {
+                        var memByte = memory[symbol.Value];
+                        return $"${symbol.Value:X4}[${memByte:X2}]";
+                    }
+                    return $"${symbol.Value:X4}";
+                }
+
+                return match.Value; // Unrecognized — leave as-is
+            }
+            catch
+            {
+                return match.Value;
+            }
+        });
     }
 
     public async Task HandleMessageAsync(JsonObject message)
@@ -444,6 +519,7 @@ public class DebugAdapterLogic
             ["supportsInstructionBreakpoints"] = true,
             ["supportsFunctionBreakpoints"] = true,
             ["supportsConditionalBreakpoints"] = true,
+            ["supportsLogPoints"] = true,
             ["supportsDisassembleRequest"] = true,
             ["supportsSteppingGranularity"] = true,
             ["supportsReadMemoryRequest"] = true,
@@ -938,7 +1014,10 @@ public class DebugAdapterLogic
         if (_sourceBreakpointsByFile.TryGetValue(fileKey, out var existingBps))
         {
             foreach (var addr in existingBps)
+            {
                 _breakpointIdsByAddress.Remove(addr);
+                _logMessages.Remove(addr);
+            }
             existingBps.Clear();
         }
 
@@ -1012,6 +1091,13 @@ public class DebugAdapterLogic
                         _evaluator.BreakpointConditions[address] = condition;
                     else
                         _evaluator.BreakpointConditions.Remove(address);
+
+                    // Store or clear log message for this address (logpoints)
+                    var logMessage = bp?["logMessage"]?.ToString();
+                    if (!string.IsNullOrEmpty(logMessage))
+                        _logMessages[address] = logMessage;
+                    else
+                        _logMessages.Remove(address);
                 }
 
                 // Create a new source object instead of reusing the one from the request
@@ -1079,6 +1165,13 @@ public class DebugAdapterLogic
                     else
                         _evaluator.BreakpointConditions.Remove(actualAddress);
 
+                    // Store or clear log message for this address (logpoints)
+                    var logMessage = bp?["logMessage"]?.ToString();
+                    if (!string.IsNullOrEmpty(logMessage))
+                        _logMessages[actualAddress] = logMessage;
+                    else
+                        _logMessages.Remove(actualAddress);
+
                     // Reuse existing ID if this address already has one, otherwise assign new ID
                     // This keeps IDs stable so VSCode can properly track breakpoints for toggling
                     if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
@@ -1113,6 +1206,7 @@ public class DebugAdapterLogic
         {
             _breakpointIdsByAddress.Remove(addr);
             _evaluator.BreakpointConditions.Remove(addr);
+            _logMessages.Remove(addr);
             LogSafe($"[SetInstructionBreakpoints] Removed id for instruction breakpoint at ${addr:X4}");
         }
 
@@ -1183,6 +1277,13 @@ public class DebugAdapterLogic
                 else
                     _evaluator.BreakpointConditions.Remove(actualAddress);
 
+                // Store or clear log message for this address (logpoints)
+                var logMessage = bp?["logMessage"]?.ToString();
+                if (!string.IsNullOrEmpty(logMessage))
+                    _logMessages[actualAddress] = logMessage;
+                else
+                    _logMessages.Remove(actualAddress);
+
                 if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
                 {
                     bpId = _nextBreakpointId++;
@@ -1210,6 +1311,7 @@ public class DebugAdapterLogic
         {
             _breakpointIdsByAddress.Remove(addr);
             _evaluator.BreakpointConditions.Remove(addr);
+            _logMessages.Remove(addr);
             LogSafe($"[SetFunctionBreakpoints] Removed id for function breakpoint at ${addr:X4}");
         }
 

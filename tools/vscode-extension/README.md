@@ -72,6 +72,7 @@ The generated files look like this:
 - **Address-based breakpoints**: Set breakpoints at specific memory addresses
 - **Source breakpoints**: Set breakpoints in .asm source files (with .dbg file)
 - **Conditional breakpoints**: Stop only when a register, flag, or memory condition is true
+- **Logpoints**: Log messages to the debug console without stopping execution
 - **Step through instructions**: Step, step in, step out, and continue execution
 - **Register inspection**: View CPU registers (PC, SP, A, X, Y) and flags in Variables panel
 - **Register and flag editing**: Double-click registers or flags in the Variables panel to modify values
@@ -358,6 +359,48 @@ PC == $C080             ; Stop when PC reaches a specific address
 - Flags are treated as integers: `1` = set, `0` = clear
 - Memory addresses wrap at the 64 KB boundary
 - If the expression cannot be parsed, the debugger always stops (fail-safe)
+
+### Logpoints
+
+Logpoints let you print messages to the Debug Console without pausing execution — like `printf` debugging without modifying your code.
+
+**Setting a logpoint:**
+
+1. Set a breakpoint by clicking the gutter
+2. **Right-click** the breakpoint dot → **"Edit Breakpoint..."**
+3. Change the dropdown from **"Expression"** to **"Log Message"**
+4. Type your message and press **Enter**
+
+The breakpoint dot turns into a **diamond** shape to indicate a logpoint.
+
+**Expression interpolation:**
+
+Use `{expr}` inside the message to evaluate expressions. The same values available in Watch/Hover are supported:
+
+| Placeholder | Evaluates to | Example output |
+|-------------|-------------|----------------|
+| `{A}` | Accumulator (hex) | `$FF` |
+| `{X}`, `{Y}` | X/Y register (hex) | `$0A` |
+| `{PC}` | Program counter (hex) | `$C012` |
+| `{SP}` | Stack pointer (hex) | `$FB` |
+| `{C}`, `{Z}`, `{N}`, `{V}`, `{I}`, `{D}` | Flag (0 or 1) | `1` |
+| `{$C000}`, `{0xC000}` | Memory byte at address (hex) | `$42` |
+| `{symbolname}` | ca65 symbol address + value | `$C000[$42]` |
+
+**Examples:**
+
+```
+Loop iteration: A={A} X={X}
+Border color is {$D020}
+Screen pointer at {screenptr}
+PC={PC} SP={SP} flags: C={C} Z={Z} N={N}
+```
+
+**Notes:**
+
+- Logpoints can also have a condition — the message is only logged when the condition is true
+- Unrecognized `{expr}` placeholders are left as-is in the output
+- Logpoints work with source breakpoints, instruction breakpoints, and function breakpoints
 
 ### Interrupt Handling During Stepping
 

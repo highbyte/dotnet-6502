@@ -84,6 +84,24 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
     public Func<ushort, bool>? AdditionalBreakAtAddress { get; set; }
 
     // -------------------------------------------------------------------------
+    // Logpoint support
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Returns true if the given address is a logpoint (should log a message but not stop).
+    /// When set and returns true for a breakpoint address, execution continues and
+    /// <see cref="OnLogpointHit"/> is invoked instead of <see cref="OnTriggered"/>.
+    /// </summary>
+    public Func<ushort, bool>? IsLogpoint { get; set; }
+
+    /// <summary>
+    /// Callback invoked synchronously when a logpoint fires.
+    /// The address parameter is the PC where the logpoint matched.
+    /// Unlike <see cref="OnTriggered"/>, this does NOT stop execution.
+    /// </summary>
+    public Action<ushort, CPU, Memory>? OnLogpointHit { get; set; }
+
+    // -------------------------------------------------------------------------
     // Callback invoked synchronously inside CheckPreExecution when a trigger fires.
     // Called BEFORE the triggering flags (StepOutMode, TemporaryBreakpoint) are cleared,
     // so the callback can inspect them.
@@ -171,6 +189,13 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
             if (ConditionIsFalse(pc, cpu, mem))
                 return ExecEvaluatorTriggerResult.NotTriggered;
 
+            // Logpoint: log message but don't stop execution
+            if (IsLogpoint?.Invoke(pc) == true)
+            {
+                OnLogpointHit?.Invoke(pc, cpu, mem);
+                return ExecEvaluatorTriggerResult.NotTriggered;
+            }
+
             var result = ExecEvaluatorTriggerResult.CreateTrigger(
                 ExecEvaluatorTriggerReasonType.DebugBreakPoint,
                 $"Breakpoint at ${pc:X4}");
@@ -204,6 +229,13 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
             // Skip if a condition is attached and evaluates to false.
             if (ConditionIsFalse(pc, cpu, mem))
                 return ExecEvaluatorTriggerResult.NotTriggered;
+
+            // Logpoint: log message but don't stop execution
+            if (IsLogpoint?.Invoke(pc) == true)
+            {
+                OnLogpointHit?.Invoke(pc, cpu, mem);
+                return ExecEvaluatorTriggerResult.NotTriggered;
+            }
 
             var result = ExecEvaluatorTriggerResult.CreateTrigger(
                 ExecEvaluatorTriggerReasonType.DebugBreakPoint,
