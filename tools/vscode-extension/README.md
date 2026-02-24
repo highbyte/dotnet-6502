@@ -402,6 +402,43 @@ PC={PC} SP={SP} flags: C={C} Z={Z} N={N}
 - Unrecognized `{expr}` placeholders are left as-is in the output
 - Logpoints work with source breakpoints, instruction breakpoints, and function breakpoints
 
+### Hit Count Breakpoints
+
+Hit count breakpoints let you stop (or log) only after a breakpoint has been reached a certain number of times — useful for breaking on the Nth iteration of a loop.
+
+**Setting a hit count:**
+
+1. Set a breakpoint by clicking the gutter
+2. **Right-click** the breakpoint dot → **"Edit Breakpoint..."**
+3. Change the dropdown to **"Hit Count"**
+4. Type a hit count expression and press **Enter**
+
+**Supported syntax:**
+
+| Expression | Meaning | Example |
+|------------|---------|--------|
+| `N` | Break when hit count equals N | `5` — break on the 5th hit |
+| `= N` | Break when hit count equals N (explicit) | `= 10` |
+| `>= N` | Break when hit count is N or more | `>= 3` |
+| `> N` | Break when hit count exceeds N | `> 100` |
+| `% N` | Break on every Nth hit (modulo) | `% 10` — break every 10th hit |
+
+**Examples:**
+
+```
+5            ; Break on exactly the 5th hit
+>= 100       ; Break from the 100th hit onward
+% 8          ; Break every 8th hit
+= 1          ; Break on the first hit only (same as a normal breakpoint)
+```
+
+**Notes:**
+
+- Hit counts reset when the debug session is restarted or when breakpoints are reconfigured
+- Hit counts combine with expression conditions — the hit count only increments when the expression condition passes
+- Hit counts combine with logpoints — a logpoint with a hit count only logs on matching hits
+- Hit count breakpoints work with source breakpoints, instruction breakpoints, and function breakpoints
+
 ### Interrupt Handling During Stepping
 
 When single-stepping through code on a system like the C64, hardware interrupts (IRQ/NMI) can fire between any two instructions. Without special handling, pressing F10/F11 could land you inside the Kernal's interrupt service routine — deep in ROM code with no source mapping.

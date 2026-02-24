@@ -198,6 +198,8 @@ public class DebugAdapterLogic
         _instructionBpAddresses.Clear();
         _functionBpAddresses.Clear();
         _evaluator.BreakpointConditions.Clear();
+        _evaluator.HitConditions.Clear();
+        _evaluator.HitCounts.Clear();
         _evaluator.InstructionBreakpoints.Clear();
         _evaluator.TemporaryBreakpoint = null;
         _evaluator.StepOutMode = false;
@@ -519,6 +521,7 @@ public class DebugAdapterLogic
             ["supportsInstructionBreakpoints"] = true,
             ["supportsFunctionBreakpoints"] = true,
             ["supportsConditionalBreakpoints"] = true,
+            ["supportsHitConditionalBreakpoints"] = true,
             ["supportsLogPoints"] = true,
             ["supportsDisassembleRequest"] = true,
             ["supportsSteppingGranularity"] = true,
@@ -1017,6 +1020,8 @@ public class DebugAdapterLogic
             {
                 _breakpointIdsByAddress.Remove(addr);
                 _logMessages.Remove(addr);
+                _evaluator.HitConditions.Remove(addr);
+                _evaluator.HitCounts.Remove(addr);
             }
             existingBps.Clear();
         }
@@ -1098,6 +1103,16 @@ public class DebugAdapterLogic
                         _logMessages[address] = logMessage;
                     else
                         _logMessages.Remove(address);
+
+                    // Store or clear hit count condition for this address
+                    var hitCondition = bp?["hitCondition"]?.ToString();
+                    if (!string.IsNullOrEmpty(hitCondition))
+                        _evaluator.HitConditions[address] = hitCondition;
+                    else
+                    {
+                        _evaluator.HitConditions.Remove(address);
+                        _evaluator.HitCounts.Remove(address);
+                    }
                 }
 
                 // Create a new source object instead of reusing the one from the request
@@ -1172,6 +1187,16 @@ public class DebugAdapterLogic
                     else
                         _logMessages.Remove(actualAddress);
 
+                    // Store or clear hit count condition for this address
+                    var hitCondition = bp?["hitCondition"]?.ToString();
+                    if (!string.IsNullOrEmpty(hitCondition))
+                        _evaluator.HitConditions[actualAddress] = hitCondition;
+                    else
+                    {
+                        _evaluator.HitConditions.Remove(actualAddress);
+                        _evaluator.HitCounts.Remove(actualAddress);
+                    }
+
                     // Reuse existing ID if this address already has one, otherwise assign new ID
                     // This keeps IDs stable so VSCode can properly track breakpoints for toggling
                     if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
@@ -1206,6 +1231,8 @@ public class DebugAdapterLogic
         {
             _breakpointIdsByAddress.Remove(addr);
             _evaluator.BreakpointConditions.Remove(addr);
+            _evaluator.HitConditions.Remove(addr);
+            _evaluator.HitCounts.Remove(addr);
             _logMessages.Remove(addr);
             LogSafe($"[SetInstructionBreakpoints] Removed id for instruction breakpoint at ${addr:X4}");
         }
@@ -1284,6 +1311,16 @@ public class DebugAdapterLogic
                 else
                     _logMessages.Remove(actualAddress);
 
+                // Store or clear hit count condition for this address
+                var hitCondition = bp?["hitCondition"]?.ToString();
+                if (!string.IsNullOrEmpty(hitCondition))
+                    _evaluator.HitConditions[actualAddress] = hitCondition;
+                else
+                {
+                    _evaluator.HitConditions.Remove(actualAddress);
+                    _evaluator.HitCounts.Remove(actualAddress);
+                }
+
                 if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
                 {
                     bpId = _nextBreakpointId++;
@@ -1311,6 +1348,8 @@ public class DebugAdapterLogic
         {
             _breakpointIdsByAddress.Remove(addr);
             _evaluator.BreakpointConditions.Remove(addr);
+            _evaluator.HitConditions.Remove(addr);
+            _evaluator.HitCounts.Remove(addr);
             _logMessages.Remove(addr);
             LogSafe($"[SetFunctionBreakpoints] Removed id for function breakpoint at ${addr:X4}");
         }

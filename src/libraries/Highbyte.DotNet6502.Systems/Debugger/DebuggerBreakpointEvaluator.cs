@@ -37,6 +37,24 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
     /// </summary>
     public Dictionary<ushort, string?> BreakpointConditions { get; } = new();
 
+    /// <summary>
+    /// Optional hit count condition per breakpoint address.
+    /// Syntax: a comparison operator followed by an integer:
+    ///   "= N" or "N" — break when hit count equals N
+    ///   ">= N"        — break when hit count is N or more
+    ///   "> N"         — break when hit count exceeds N
+    ///   "% N"         — break on every Nth hit (modulo)
+    /// Absent or null/empty = no hit count filter.
+    /// </summary>
+    public Dictionary<ushort, string?> HitConditions { get; } = new();
+
+    /// <summary>
+    /// Running hit count per breakpoint address.
+    /// Incremented each time the breakpoint address is reached (after expression condition passes).
+    /// Reset when breakpoints are cleared or the debugger resets.
+    /// </summary>
+    public Dictionary<ushort, int> HitCounts { get; } = new();
+
     // -------------------------------------------------------------------------
     // Post-execution equivalent flags — now checked pre-execution.
     // Replaces Monitor's StopAfterBRKInstruction / StopAfterUnknownInstruction
@@ -189,6 +207,10 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
             if (ConditionIsFalse(pc, cpu, mem))
                 return ExecEvaluatorTriggerResult.NotTriggered;
 
+            // Skip if a hit count condition is attached and not yet satisfied.
+            if (HitConditionIsFalse(pc))
+                return ExecEvaluatorTriggerResult.NotTriggered;
+
             // Logpoint: log message but don't stop execution
             if (IsLogpoint?.Invoke(pc) == true)
             {
@@ -230,6 +252,10 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
             if (ConditionIsFalse(pc, cpu, mem))
                 return ExecEvaluatorTriggerResult.NotTriggered;
 
+            // Skip if a hit count condition is attached and not yet satisfied.
+            if (HitConditionIsFalse(pc))
+                return ExecEvaluatorTriggerResult.NotTriggered;
+
             // Logpoint: log message but don't stop execution
             if (IsLogpoint?.Invoke(pc) == true)
             {
@@ -256,4 +282,53 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
         => BreakpointConditions.TryGetValue(pc, out var cond)
            && !string.IsNullOrEmpty(cond)
            && !BreakpointConditionEvaluator.Evaluate(cond, cpu, mem);
+
+    /// <summary>
+    /// Increments the hit count for <paramref name="pc"/> and returns true when a
+    /// hit count condition is attached and the current count does NOT satisfy it
+    /// (meaning the breakpoint should be skipped).
+    /// Returns false when there is no hit condition or the condition is satisfied.
+    /// </summary>
+    private bool HitConditionIsFalse(ushort pc)
+    {
+        if (!HitConditions.TryGetValue(pc, out var hitCond) || string.IsNullOrWhiteSpace(hitCond))
+            return false; // No hit condition — don't skip
+
+        // Increment the running count for this address
+        HitCounts.TryGetValue(pc, out var count);
+        count++;
+        HitCounts[pc] = count;
+
+        // Parse the hit condition: optional operator followed by integer
+        var cond = hitCond.Trim();
+
+        if (cond.StartsWith(">="))
+        {
+            if (int.TryParse(cond.Substring(2).Trim(), out var n))
+                return count < n; // skip while count < n
+        }
+        else if (cond.StartsWith(">"))
+        {
+            if (int.TryParse(cond.Substring(1).Trim(), out var n))
+                return count <= n; // skip while count <= n
+        }
+        else if (cond.StartsWith("%"))
+        {
+            if (int.TryParse(cond.Substring(1).Trim(), out var n) && n > 0)
+                return (count % n) != 0; // skip unless count is a multiple of n
+        }
+        else if (cond.StartsWith("="))
+        {
+            if (int.TryParse(cond.Substring(1).Trim(), out var n))
+                return count != n; // skip unless count equals n
+        }
+        else
+        {
+            // Bare number: treat as "= N"
+            if (int.TryParse(cond, out var n))
+                return count != n;
+        }
+
+        return false; // Unparseable — don't skip (fail-safe)
+    }
 }
