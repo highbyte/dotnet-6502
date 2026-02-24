@@ -1133,7 +1133,7 @@ public class DebugAdapterLogic
         }
 
         var pc = cpu.PC;
-        var disasm = OutputGen.GetInstructionDisassembly(cpu, memory, pc);
+        var disasm = OutputGen.BuildInstructionString(cpu, memory, pc);
 
         LogSafe($"[HandleStackTrace] PC=${pc:X4}, instructionPointerReference={FormatAddress(pc)}");
 
@@ -2704,8 +2704,7 @@ public class DebugAdapterLogic
             for (int j = 0; j < instrLen && (instrAddr + j) <= 0xFFFF; j++)
                 bytes.Add(memory[(ushort)(instrAddr + j)]);
 
-            var instructionText = StripAddressPrefix(
-                OutputGen.GetInstructionDisassembly(cpu, memory, instrAddr));
+            var instructionText = OutputGen.BuildInstructionString(cpu, memory, instrAddr);
 
             instructions.Add(new JsonObject
             {
@@ -2823,26 +2822,12 @@ public class DebugAdapterLogic
     }
 
     /// <summary>
-    /// Strip the address prefix from disassembly output.
-    /// OutputGen returns something like "c000  LDA #$00" and we want just "LDA #$00"
-    /// </summary>
-    private static string StripAddressPrefix(string disasm)
-    {
-        // OutputGen format is typically "XXXX  instruction"
-        if (disasm.Length >= 6 && disasm.Substring(4, 2) == "  ")
-        {
-            return disasm.Substring(6);
-        }
-        return disasm;
-    }
-
-    /// <summary>
     /// Format an address for DAP protocol (must use "0x" prefix for BigInt parsing)
-    /// Use lowercase hex like other DAP implementations (e.g., RetroC64)
+    /// Uppercase hex digits match 6502 retro convention ($C000, not $c000).
     /// </summary>
     private static string FormatAddress(ushort address)
     {
-        return $"0x{address:x4}";
+        return $"0x{address:X4}";
     }
 
     /// <summary>
