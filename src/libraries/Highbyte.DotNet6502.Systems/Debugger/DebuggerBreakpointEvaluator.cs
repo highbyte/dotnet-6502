@@ -10,6 +10,7 @@ namespace Highbyte.DotNet6502.Systems.Debugger;
 /// - Monitor's BRK / unknown-instruction stop flags (converted to pre-execution checks)
 /// - DebugAdapter's skip-first-check, step-over (temporary breakpoint at JSR return),
 ///   step-out (RTS detection), and HashSet-based address breakpoints.
+/// - Optional per-address condition expressions evaluated by <see cref="BreakpointConditionEvaluator"/>.
 ///
 /// All checks are pre-execution (reads mem[cpu.PC] before the instruction executes).
 ///
@@ -25,6 +26,16 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
     // Replaces Monitor's Dictionary<ushort, BreakPoint> and DAP's HashSet<ushort> _instructionBreakpoints.
     // -------------------------------------------------------------------------
     public HashSet<ushort> InstructionBreakpoints { get; } = new();
+
+    /// <summary>
+    /// Optional condition expressions per breakpoint address.
+    /// When an address in <see cref="InstructionBreakpoints"/> (or matched by
+    /// <see cref="AdditionalBreakAtAddress"/>) also has an entry here, the expression is
+    /// evaluated by <see cref="BreakpointConditionEvaluator"/> before triggering.
+    /// If the expression evaluates to <c>false</c> the breakpoint is skipped silently.
+    /// Absent or null/empty = unconditional (always stop).
+    /// </summary>
+    public Dictionary<ushort, string?> BreakpointConditions { get; } = new();
 
     // -------------------------------------------------------------------------
     // Post-execution equivalent flags — now checked pre-execution.
@@ -156,6 +167,10 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
         // --- User-set instruction breakpoints ---
         if (InstructionBreakpoints.Contains(pc))
         {
+            // Skip if a condition is attached and evaluates to false.
+            if (ConditionIsFalse(pc, cpu, mem))
+                return ExecEvaluatorTriggerResult.NotTriggered;
+
             var result = ExecEvaluatorTriggerResult.CreateTrigger(
                 ExecEvaluatorTriggerReasonType.DebugBreakPoint,
                 $"Breakpoint at ${pc:X4}");
@@ -186,6 +201,10 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
         // --- Additional check (source breakpoints in DAP; null in Monitor) ---
         if (AdditionalBreakAtAddress?.Invoke(pc) == true)
         {
+            // Skip if a condition is attached and evaluates to false.
+            if (ConditionIsFalse(pc, cpu, mem))
+                return ExecEvaluatorTriggerResult.NotTriggered;
+
             var result = ExecEvaluatorTriggerResult.CreateTrigger(
                 ExecEvaluatorTriggerReasonType.DebugBreakPoint,
                 $"Source breakpoint at ${pc:X4}");
@@ -195,4 +214,14 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
+
+    /// <summary>
+    /// Returns true when a condition string is attached to <paramref name="pc"/> and
+    /// evaluates to false (meaning the breakpoint should be skipped).
+    /// Returns false when there is no condition or the condition evaluates to true.
+    /// </summary>
+    private bool ConditionIsFalse(ushort pc, CPU cpu, Memory mem)
+        => BreakpointConditions.TryGetValue(pc, out var cond)
+           && !string.IsNullOrEmpty(cond)
+           && !BreakpointConditionEvaluator.Evaluate(cond, cpu, mem);
 }

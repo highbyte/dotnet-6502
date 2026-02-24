@@ -192,6 +192,7 @@ public class DebugAdapterLogic
         _sourceBreakpointsByFile.Clear();
         _instructionBpAddresses.Clear();
         _functionBpAddresses.Clear();
+        _evaluator.BreakpointConditions.Clear();
         _evaluator.InstructionBreakpoints.Clear();
         _evaluator.TemporaryBreakpoint = null;
         _evaluator.StepOutMode = false;
@@ -310,6 +311,7 @@ public class DebugAdapterLogic
     /// <summary>
     /// Called by DebuggerBreakpointEvaluator.AdditionalBreakAtAddress to check source-file
     /// breakpoints. Returns true if the given PC has a source breakpoint set.
+    /// Condition evaluation (if any) is handled by DebuggerBreakpointEvaluator itself.
     /// </summary>
     private bool CheckSourceBreakpointsAtAddress(ushort pc)
     {
@@ -440,6 +442,7 @@ public class DebugAdapterLogic
             ["supportsTerminateRequest"] = true,
             ["supportsInstructionBreakpoints"] = true,
             ["supportsFunctionBreakpoints"] = true,
+            ["supportsConditionalBreakpoints"] = true,
             ["supportsDisassembleRequest"] = true,
             ["supportsSteppingGranularity"] = true,
             ["supportsReadMemoryRequest"] = true,
@@ -999,6 +1002,13 @@ public class DebugAdapterLogic
                     bpId = _nextBreakpointId++;
                     _breakpointIdsByAddress[address] = bpId;
                     LogSafe($"[SetBreakpoints] Added source breakpoint id={bpId} at ${address:X4} for {fileKey}");
+
+                    // Store or clear condition for this address
+                    var condition = bp?["condition"]?.ToString();
+                    if (!string.IsNullOrEmpty(condition))
+                        _evaluator.BreakpointConditions[address] = condition;
+                    else
+                        _evaluator.BreakpointConditions.Remove(address);
                 }
 
                 // Create a new source object instead of reusing the one from the request
@@ -1059,6 +1069,13 @@ public class DebugAdapterLogic
                     var actualAddress = (ushort)(baseAddress + offset);
                     newAddresses.Add(actualAddress);
 
+                    // Store or clear condition for this address
+                    var condition = bp?["condition"]?.ToString();
+                    if (!string.IsNullOrEmpty(condition))
+                        _evaluator.BreakpointConditions[actualAddress] = condition;
+                    else
+                        _evaluator.BreakpointConditions.Remove(actualAddress);
+
                     // Reuse existing ID if this address already has one, otherwise assign new ID
                     // This keeps IDs stable so VSCode can properly track breakpoints for toggling
                     if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
@@ -1086,12 +1103,13 @@ public class DebugAdapterLogic
             }
         }
 
-        // Remove IDs for instruction BPs that are no longer requested.
+        // Remove IDs and conditions for instruction BPs that are no longer requested.
         // Only compare against _instructionBpAddresses (not function BPs) so function BP IDs survive.
         var addressesToRemove = _instructionBpAddresses.Except(newAddresses).ToList();
         foreach (var addr in addressesToRemove)
         {
             _breakpointIdsByAddress.Remove(addr);
+            _evaluator.BreakpointConditions.Remove(addr);
             LogSafe($"[SetInstructionBreakpoints] Removed id for instruction breakpoint at ${addr:X4}");
         }
 
@@ -1155,6 +1173,13 @@ public class DebugAdapterLogic
                 var actualAddress = address.Value;
                 newAddresses.Add(actualAddress);
 
+                // Store or clear condition for this address
+                var condition = bp?["condition"]?.ToString();
+                if (!string.IsNullOrEmpty(condition))
+                    _evaluator.BreakpointConditions[actualAddress] = condition;
+                else
+                    _evaluator.BreakpointConditions.Remove(actualAddress);
+
                 if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
                 {
                     bpId = _nextBreakpointId++;
@@ -1175,12 +1200,13 @@ public class DebugAdapterLogic
             }
         }
 
-        // Remove IDs for function BPs that are no longer requested.
+        // Remove IDs and conditions for function BPs that are no longer requested.
         // Only compare against _functionBpAddresses (not instruction BPs) so instruction BP IDs survive.
         var addressesToRemove = _functionBpAddresses.Except(newAddresses).ToList();
         foreach (var addr in addressesToRemove)
         {
             _breakpointIdsByAddress.Remove(addr);
+            _evaluator.BreakpointConditions.Remove(addr);
             LogSafe($"[SetFunctionBreakpoints] Removed id for function breakpoint at ${addr:X4}");
         }
 

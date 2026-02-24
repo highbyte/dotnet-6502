@@ -129,11 +129,10 @@ dotnet-6502/
 
 1. **No source-level debugging**: Must use memory addresses
 2. **No memory inspection**: Only registers visible
-3. **No conditional breakpoints**: Address-only
-4. **No watch expressions**: Predefined variables only
-5. **Single-step only for stepping**: No "step over subroutine" logic
-6. **No reverse debugging**: Forward execution only
-7. **No hot reload**: Must restart to reload program
+3. **No watch expressions**: Predefined variables only
+4. **Single-step only for stepping**: No "step over subroutine" logic
+5. **No reverse debugging**: Forward execution only
+6. **No hot reload**: Must restart to reload program
 
 ## Future Enhancements (Post-MVP)
 
@@ -141,7 +140,7 @@ dotnet-6502/
 - [ ] Source-level debugging (.asm file support)
 - [ ] Memory view/editing
 - [ ] Symbol file support (.lst, .sym files)
-- [ ] Conditional breakpoints
+- [x] Conditional breakpoints
 
 ### Medium Priority
 - [ ] Watch expressions
