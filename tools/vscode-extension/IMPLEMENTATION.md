@@ -17,6 +17,7 @@ A VSCode debugger for 6502 machine code programs using the dotnet-6502 emulator.
   - Conditional breakpoints (expression conditions per address)
   - Logpoints (log message to debug console without stopping, with `{expr}` interpolation)
   - Hit count breakpoints (`= N`, `>= N`, `> N`, `% N` syntax)
+  - Source-line stepping (step over macro expansions in one F10/F11, with instruction granularity fallback in Disassembly view)
   - Step in, step over (JSR detection with temp breakpoint at return address), step out (run until RTS)
   - Continue / pause execution
   - Register inspection and editing (PC, SP, A, X, Y)

@@ -34,6 +34,14 @@ public class Ca65DbgParser
     public Dictionary<ushort, (string FileName, int LineNumber)> AddressToSource { get; } = new();
 
     /// <summary>
+    /// <summary>
+    /// All addresses that map to a given source line, keyed by (file, lineNumber).
+    /// Used for source-line stepping: the debugger keeps executing while PC stays in this set.
+    /// Built alongside <see cref="AddressToSource"/> in <see cref="BuildAddressMap"/>.
+    /// </summary>
+    public Dictionary<(string FileName, int LineNumber), HashSet<ushort>> SourceLineAddresses { get; } = new();
+
+    /// <summary>
     /// All symbols from the .dbg file. Key is symbol name.
     /// Type "lab" = code/data label with memory address; "equ" = symbolic constant.
     /// </summary>
@@ -143,6 +151,17 @@ public class Ca65DbgParser
         foreach (var (addr, source) in other.AddressToSource)
             AddressToSource.TryAdd(addr, source);
 
+        // SourceLineAddresses — source-line stepping lookup
+        foreach (var (key, addrs) in other.SourceLineAddresses)
+        {
+            if (!SourceLineAddresses.TryGetValue(key, out var existing))
+            {
+                existing = new HashSet<ushort>();
+                SourceLineAddresses[key] = existing;
+            }
+            existing.UnionWith(addrs);
+        }
+
         // Symbols — label/constant table; primary parser takes precedence
         foreach (var (name, sym) in other.Symbols)
             Symbols.TryAdd(name, sym);
@@ -212,12 +231,15 @@ public class Ca65DbgParser
             values.TryGetValue("seg", out var seg) && 
             values.TryGetValue("start", out var start))
         {
-            _spans[int.Parse(id)] = new SpanInfo
+            var spanInfo = new SpanInfo
             {
                 Id = int.Parse(id),
                 SegmentId = int.Parse(seg),
                 Start = int.Parse(start)
             };
+            if (values.TryGetValue("size", out var size))
+                spanInfo.Size = int.Parse(size);
+            _spans[spanInfo.Id] = spanInfo;
         }
     }
 
@@ -285,65 +307,119 @@ public class Ca65DbgParser
 
     private void BuildAddressMap()
     {
-        foreach (var lineInfo in _lines)
+        // === Pass 1: Process non-macro (type!=2) lines first ===
+        // This lets invocation-site records claim addresses in AddressToSource
+        // before macro body records.  Also record "container ranges" for macro
+        // invocations — non-macro spans whose size > 3 bytes, meaning they cover
+        // multiple instructions (i.e., a macro expansion).
+        //
+        // The longest 6502 instruction is 3 bytes, so any span with size > 3
+        // necessarily contains multiple instructions and is a container.
+        var invocationRanges = new List<(ushort Start, ushort End, string FileName, int LineNumber)>();
+
+        foreach (var lineInfo in _lines.Where(l => !l.IsMacroExpansion))
         {
-            // Get the source file name
             if (!_files.TryGetValue(lineInfo.FileId, out var fileName))
                 continue;
-
-            // Get the span
             if (!_spans.TryGetValue(lineInfo.SpanId, out var span))
                 continue;
-
-            // Get the segment
             if (!_segments.TryGetValue(span.SegmentId, out var segment))
                 continue;
 
-            // Calculate the actual address
             var address = (ushort)(segment.Start + span.Start);
 
-            // Always populate the full map (used for forward lookup: line→address, e.g. setting breakpoints)
+            // Forward lookup: line → address (breakpoints, etc.)
             if (!SourceLineToAddress.ContainsKey(fileName))
                 SourceLineToAddress[fileName] = new Dictionary<int, ushort>();
-
             SourceLineToAddress[fileName][lineInfo.LineNumber] = address;
 
-            // Populate the reverse map (address→source) for O(1) PC→source lookup.
-            // Keyed by the unique 6502 address, so multiple macro invocations at
-            // different addresses all get their own entry — no last-write-wins problem.
-            //
-            // Also add every *additional* span from the same line record: when a macro
-            // is called N times, ca65 puts all N invocation spans in a single line record
-            // (e.g. span=199+37+20).  We must add each one so the debugger can resolve
-            // the PC for any invocation back to the correct source line.
-            //
-            // Use TryAdd (first-write-wins): when two line records share the same spans
-            // (e.g. the .macro header line and the first body instruction both get assigned
-            // the same span because the header generates no code), the first record in the
-            // .dbg file is the actual instruction and should win; the header record comes
-            // later with a higher id and must NOT overwrite the instruction mapping.
+            // Reverse lookup: address → source.
+            // Use TryAdd (first-write-wins): when two non-macro line records share
+            // the same span (e.g. .macro header + first body instruction), the first
+            // record in the .dbg file is the actual instruction and should win.
             AddressToSource.TryAdd(address, (fileName, lineInfo.LineNumber));
+
+            // Extra spans (multi-invocation macros: each span = different call site)
             foreach (var extraSpanId in lineInfo.AllSpanIds)
             {
-                if (extraSpanId == lineInfo.SpanId) continue; // already handled above
+                if (extraSpanId == lineInfo.SpanId) continue;
                 if (!_spans.TryGetValue(extraSpanId, out var extraSpan)) continue;
                 if (!_segments.TryGetValue(extraSpan.SegmentId, out var extraSeg)) continue;
                 var extraAddress = (ushort)(extraSeg.Start + extraSpan.Start);
                 AddressToSource.TryAdd(extraAddress, (fileName, lineInfo.LineNumber));
             }
 
-            // Also populate the non-macro map (used for after-line address decorations).
-            // Exclude two categories so decorations only appear on plain, unambiguous lines:
-            //   1. type=2 lines — macro call-site / expansion-marker lines
-            //   2. Multi-span lines (AllSpanIds.Length > 1) — lines inside a .repeat or
-            //      macro body that were expanded multiple times; they map to many different
-            //      addresses so there is no single meaningful address to show as decoration.
-            if (!lineInfo.IsMacroExpansion && lineInfo.AllSpanIds.Length <= 1)
+            // Detect macro invocation container spans.
+            // A span with size > 3 covers multiple instructions → macro expansion.
+            if (span.Size > 3)
+            {
+                var rangeStart = (ushort)(segment.Start + span.Start);
+                var rangeEnd = (ushort)(segment.Start + span.Start + span.Size);
+                invocationRanges.Add((rangeStart, rangeEnd, fileName, lineInfo.LineNumber));
+            }
+
+            // Non-macro address decorations (excludes type=2 and multi-span lines)
+            if (lineInfo.AllSpanIds.Length <= 1)
             {
                 if (!NonMacroSourceLineToAddress.ContainsKey(fileName))
                     NonMacroSourceLineToAddress[fileName] = new Dictionary<int, ushort>();
                 NonMacroSourceLineToAddress[fileName][lineInfo.LineNumber] = address;
             }
+        }
+
+        // Sort invocation ranges innermost-first (smallest size first) so that
+        // nested macro expansions are remapped to their immediate invocation,
+        // not an outer one.
+        invocationRanges.Sort((a, b) => (a.End - a.Start).CompareTo(b.End - b.Start));
+
+        // === Pass 2: Process type=2 (macro expansion) lines ===
+        // If an address falls within an invocation container range, override its
+        // AddressToSource mapping to the invocation line.  This ensures the debugger
+        // resolves the PC to the macro call site, not the body definition.
+        foreach (var lineInfo in _lines.Where(l => l.IsMacroExpansion))
+        {
+            if (!_files.TryGetValue(lineInfo.FileId, out var fileName))
+                continue;
+
+            // Process all spans (primary + extra invocation spans)
+            foreach (var spanId in lineInfo.AllSpanIds)
+            {
+                if (!_spans.TryGetValue(spanId, out var span)) continue;
+                if (!_segments.TryGetValue(span.SegmentId, out var segment)) continue;
+
+                var address = (ushort)(segment.Start + span.Start);
+
+                // Forward lookup for body lines (used when setting breakpoints in macro file)
+                if (!SourceLineToAddress.ContainsKey(fileName))
+                    SourceLineToAddress[fileName] = new Dictionary<int, ushort>();
+                SourceLineToAddress[fileName][lineInfo.LineNumber] = address;
+
+                // Check if this address falls within a macro invocation container range.
+                // If so, override AddressToSource to point to the invocation line.
+                var invocation = invocationRanges
+                    .FirstOrDefault(r => address >= r.Start && address < r.End);
+
+                if (invocation != default)
+                {
+                    // Remap to the invocation line — this overwrites any previous
+                    // body-line mapping (or is a no-op if the invocation already claimed it).
+                    AddressToSource[address] = (invocation.FileName, invocation.LineNumber);
+                }
+                else
+                {
+                    // Not within any container — normal type=2 handling.
+                    AddressToSource.TryAdd(address, (fileName, lineInfo.LineNumber));
+                }
+            }
+        }
+
+        // === Build SourceLineAddresses from the final AddressToSource ===
+        // This ensures consistency: all addresses mapping to the same (file, line)
+        // are grouped together, so source-line stepping works correctly across
+        // macro invocations.
+        foreach (var (addr, (fn, ln)) in AddressToSource)
+        {
+            AddToSourceLineAddresses(fn, ln, addr);
         }
     }
 
@@ -370,6 +446,17 @@ public class Ca65DbgParser
         return result;
     }
 
+    private void AddToSourceLineAddresses(string fileName, int lineNumber, ushort address)
+    {
+        var key = (fileName, lineNumber);
+        if (!SourceLineAddresses.TryGetValue(key, out var set))
+        {
+            set = new HashSet<ushort>();
+            SourceLineAddresses[key] = set;
+        }
+        set.Add(address);
+    }
+
     private ushort ParseHexValue(string value)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
@@ -389,6 +476,8 @@ public class Ca65DbgParser
         public int Id { get; set; }
         public int SegmentId { get; set; }
         public int Start { get; set; }
+        /// <summary>Size in bytes. Used to detect macro invocation container spans (size > 3).</summary>
+        public int Size { get; set; }
     }
 
     private class LineInfo

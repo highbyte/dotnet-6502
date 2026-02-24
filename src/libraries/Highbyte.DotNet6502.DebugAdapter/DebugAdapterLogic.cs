@@ -203,6 +203,8 @@ public class DebugAdapterLogic
         _evaluator.InstructionBreakpoints.Clear();
         _evaluator.TemporaryBreakpoint = null;
         _evaluator.StepOutMode = false;
+        _evaluator.SourceLineStepAddresses = null;
+        _evaluator.SourceLineStepIsOver = false;
         _evaluator.SkipNextBreakpointCheck = false;
         _breakpointIdsByAddress.Clear();
         _logMessages.Clear();
@@ -298,6 +300,11 @@ public class DebugAdapterLogic
         else if (_evaluator.TemporaryBreakpoint.HasValue)
         {
             LogSafe($"[BreakpointHit] Temporary breakpoint hit at ${cpu.PC:X4}");
+            reason = "step";
+        }
+        else if (_evaluator.SourceLineStepAddresses != null)
+        {
+            LogSafe($"[SourceLineStep] Step complete at ${cpu.PC:X4}");
             reason = "step";
         }
         else if (result.TriggerType == ExecEvaluatorTriggerReasonType.BRKInstruction)
@@ -2205,6 +2212,23 @@ public class DebugAdapterLogic
         return true;
     }
 
+    /// <summary>
+    /// Returns the set of all addresses that map to the same source line as <paramref name="pc"/>,
+    /// or null if there is no source mapping for the address.
+    /// Used for source-line stepping: the debugger keeps running while PC stays in this set.
+    /// </summary>
+    private HashSet<ushort>? GetSourceLineAddresses(ushort pc)
+    {
+        if (_dbgParser == null)
+            return null;
+        if (!_dbgParser.AddressToSource.TryGetValue(pc, out var sourceInfo))
+            return null;
+        if (!_dbgParser.SourceLineAddresses.TryGetValue((sourceInfo.FileName, sourceInfo.LineNumber), out var addrs))
+            return null;
+        // Only useful for source-line stepping when the line maps to more than one address.
+        return addrs.Count > 1 ? addrs : null;
+    }
+
     private string HandleSetCommand(string args, CPU? cpu, Memory? memory)
     {
         // Parse: "<target> <value>" where target is a register name (A, X, Y, SP, PC) or address ($c000, 0xc000, decimal)
@@ -2745,6 +2769,10 @@ public class DebugAdapterLogic
         {
             LogSafe($"[Continue] Resuming emulator execution at PC=${cpu.PC:X4}");
 
+            // Clear any active source-line step state from a previous step command
+            _evaluator.SourceLineStepAddresses = null;
+            _evaluator.SourceLineStepIsOver = false;
+
             // Skip the first pre-execution check to avoid re-triggering on the
             // breakpoint address we're resuming from.
             _evaluator.SkipNextBreakpointCheck = true;
@@ -2769,6 +2797,14 @@ public class DebugAdapterLogic
         {
             if (cpu != null && memory != null)
             {
+                var granularity = args?["granularity"]?.ToString();
+                bool instructionGranularity = string.Equals(granularity, "instruction", StringComparison.OrdinalIgnoreCase);
+
+                // Look up source-line addresses for the current PC (when not in instruction mode)
+                HashSet<ushort>? sourceLineAddrs = null;
+                if (!instructionGranularity)
+                    sourceLineAddrs = GetSourceLineAddresses(cpu.PC);
+
                 // Check if current instruction is JSR (Jump to Subroutine)
                 byte opCode = memory[cpu.PC];
                 LogSafe($"[HandleNext] Instruction at ${cpu.PC:X4}: opcode=${opCode:X2}");
@@ -2781,7 +2817,17 @@ public class DebugAdapterLogic
                     _evaluator.TemporaryBreakpoint = returnAddress;
                     LogSafe($"[HandleNext] JSR detected, setting temporary breakpoint at ${returnAddress:X4}");
 
-                    // Resume execution - the breakpoint evaluator will stop at the return address.
+                    // If source-line stepping is applicable, also set it so execution
+                    // continues through remaining same-line instructions after the JSR returns.
+                    if (sourceLineAddrs != null && sourceLineAddrs.Count > 1)
+                    {
+                        _evaluator.SourceLineStepAddresses = sourceLineAddrs;
+                        _evaluator.SourceLineStepIsOver = true;
+                        LogSafe($"[HandleNext] Source-line step-over active ({sourceLineAddrs.Count} addrs on line)");
+                    }
+
+                    // Resume execution - the breakpoint evaluator will stop at the return address
+                    // (or when the source line changes if source-line stepping is active).
                     // Skip the first pre-execution check so we don't re-trigger on the JSR itself.
                     _evaluator.SkipNextBreakpointCheck = true;
                     IsStopped = false;
@@ -2797,6 +2843,19 @@ public class DebugAdapterLogic
                     // If a hardware interrupt fired and the ISR has no source mapping, skip it
                     if (await TrySkipInterruptAsync(cpu, memory))
                     {
+                        await _protocol.SendResponseAsync(seq, "next");
+                        return;
+                    }
+
+                    // Source-line stepping: if PC is still on the same source line, keep going
+                    if (sourceLineAddrs != null && sourceLineAddrs.Contains(cpu.PC))
+                    {
+                        _evaluator.SourceLineStepAddresses = sourceLineAddrs;
+                        _evaluator.SourceLineStepIsOver = true;
+                        _evaluator.SkipNextBreakpointCheck = true;
+                        IsStopped = false;
+                        StartExecutionLoop();
+                        LogSafe($"[HandleNext] Still on same source line, continuing source-line step ({sourceLineAddrs.Count} addrs)");
                         await _protocol.SendResponseAsync(seq, "next");
                         return;
                     }
@@ -2833,11 +2892,34 @@ public class DebugAdapterLogic
 
         if (cpu != null && memory != null)
         {
+            var granularity = args?["granularity"]?.ToString();
+            bool instructionGranularity = string.Equals(granularity, "instruction", StringComparison.OrdinalIgnoreCase);
+
+            // Look up source-line addresses for the current PC (when not in instruction mode)
+            HashSet<ushort>? sourceLineAddrs = null;
+            if (!instructionGranularity)
+                sourceLineAddrs = GetSourceLineAddresses(cpu.PC);
+
             _system?.ExecuteOneInstruction(out _);
 
             // If a hardware interrupt fired and the ISR has no source mapping, skip it
             if (await TrySkipInterruptAsync(cpu, memory))
             {
+                await _protocol.SendResponseAsync(seq, "stepIn");
+                return;
+            }
+
+            // Source-line stepping: if PC is still on the same source line, keep going.
+            // For step-in, SourceLineStepIsOver is false so JSR within the line will
+            // cause a stop at the subroutine entry (the address won't be in the set).
+            if (sourceLineAddrs != null && sourceLineAddrs.Contains(cpu.PC))
+            {
+                _evaluator.SourceLineStepAddresses = sourceLineAddrs;
+                _evaluator.SourceLineStepIsOver = false;
+                _evaluator.SkipNextBreakpointCheck = true;
+                IsStopped = false;
+                StartExecutionLoop();
+                LogSafe($"[HandleStepIn] Still on same source line, continuing source-line step ({sourceLineAddrs.Count} addrs)");
                 await _protocol.SendResponseAsync(seq, "stepIn");
                 return;
             }
@@ -2866,6 +2948,9 @@ public class DebugAdapterLogic
         if (cpu != null && memory != null)
         {
             LogSafe($"[HandleStepOut] Enabling step out mode, will run until RTS at PC=${cpu.PC:X4}");
+            // Clear any active source-line step state
+            _evaluator.SourceLineStepAddresses = null;
+            _evaluator.SourceLineStepIsOver = false;
             // Enable step out mode - execution will continue until RTS is found
             _evaluator.StepOutMode = true;
             // Resume execution - the breakpoint evaluator will stop at RTS.

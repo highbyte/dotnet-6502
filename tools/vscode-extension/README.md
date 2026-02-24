@@ -439,6 +439,32 @@ Hit count breakpoints let you stop (or log) only after a breakpoint has been rea
 - Hit counts combine with logpoints — a logpoint with a hit count only logs on matching hits
 - Hit count breakpoints work with source breakpoints, instruction breakpoints, and function breakpoints
 
+### Source-Line Stepping
+
+In 6502 assembly, a single source line usually maps to one CPU instruction. But with ca65 macros, one source line (the macro invocation) can expand to multiple instructions. Without source-line stepping, pressing F10/F11 would advance by one instruction at a time, requiring multiple key presses to get past a macro call.
+
+The debugger automatically detects multi-instruction source lines and steps through them in one action:
+
+| Context | F10 (Step Over) | F11 (Step In) |
+|---------|-----------------|---------------|
+| Normal instruction (1:1 mapping) | Advance one instruction | Advance one instruction |
+| Macro invocation (N instructions on one line) | Execute all N instructions, stop at next source line | Execute until a JSR enters a subroutine (stops at entry), or until the next source line |
+| JSR inside a macro (step-over) | Step over the JSR **and** continue through remaining same-line instructions | Enter the subroutine |
+| Disassembly view (`instruction` granularity) | Always one instruction | Always one instruction |
+
+**How it works:**
+
+1. When you press F10/F11 from the source editor, the debugger looks up all addresses mapped to the current source line
+2. If multiple addresses share the same line (macro expansion), it keeps executing until PC moves to a different source line
+3. Breakpoints within the same source line are still respected — if an intermediate instruction has a breakpoint, execution stops there
+4. In the Disassembly view, stepping always advances one instruction regardless of source mapping
+
+**Notes:**
+
+- Source-line stepping requires a ca65 `.dbg` file — without debug symbols, stepping is always instruction-level
+- Standard single-instruction source lines (the common case) behave identically to before — no performance overhead
+- Combines with interrupt skipping: if an IRQ fires during source-line stepping, it is auto-skipped as usual
+
 ### Interrupt Handling During Stepping
 
 When single-stepping through code on a system like the C64, hardware interrupts (IRQ/NMI) can fire between any two instructions. Without special handling, pressing F10/F11 could land you inside the Kernal's interrupt service routine — deep in ROM code with no source mapping.
@@ -491,7 +517,7 @@ The Disassembly view shows:
 
 **Stepping through disassembly:**
 
-Once the Disassembly view is open, you can continue stepping with **F10** (Step Over) or **F11** (Step Into). The disassembly view will update to show your current position, and the Variables view continues to show register values.
+Once the Disassembly view is open, you can continue stepping with **F10** (Step Over) or **F11** (Step Into). VS Code automatically sends `instruction` granularity for steps in this view, so each press advances exactly one CPU instruction. The Variables view continues to show register values.
 
 **Returning to source code:**
 

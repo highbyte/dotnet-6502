@@ -91,6 +91,24 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
     public bool StepOutMode { get; set; } = false;
 
     // -------------------------------------------------------------------------
+    // Source-line stepping (step until source line changes)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// When non-null, the evaluator is in source-line stepping mode: execution continues
+    /// as long as PC stays within this set of addresses (all belonging to the current source line).
+    /// When PC leaves the set, execution stops. Set by the DAP step handlers.
+    /// </summary>
+    public HashSet<ushort>? SourceLineStepAddresses { get; set; }
+
+    /// <summary>
+    /// When true (step-over) and source-line stepping is active, JSR instructions within
+    /// the source line set a temporary breakpoint at the return address so the subroutine
+    /// is skipped. When false (step-in), execution stops at the subroutine entry.
+    /// </summary>
+    public bool SourceLineStepIsOver { get; set; } = false;
+
+    // -------------------------------------------------------------------------
     // Extension point for callers that need additional checks (e.g. source breakpoints)
     // -------------------------------------------------------------------------
 
@@ -191,13 +209,25 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
         // --- Step-over: temporary breakpoint at JSR return address ---
         if (TemporaryBreakpoint.HasValue && pc == TemporaryBreakpoint.Value)
         {
-            var result = ExecEvaluatorTriggerResult.CreateTrigger(
-                ExecEvaluatorTriggerReasonType.DebugBreakPoint,
-                $"Step-over complete at ${pc:X4}");
-            // Invoke callback BEFORE clearing flag so it can detect this was step-over.
-            OnTriggered?.Invoke(result, cpu, mem);
-            TemporaryBreakpoint = null;
-            return result;
+            // If source-line stepping is active and PC is still on the same line,
+            // absorb the temp breakpoint and fall through to the source-line check.
+            if (SourceLineStepAddresses != null && SourceLineStepAddresses.Contains(pc))
+            {
+                TemporaryBreakpoint = null;
+                // Fall through — the source-line check at the end will continue stepping.
+            }
+            else
+            {
+                var result = ExecEvaluatorTriggerResult.CreateTrigger(
+                    ExecEvaluatorTriggerReasonType.DebugBreakPoint,
+                    $"Step-over complete at ${pc:X4}");
+                // Invoke callback BEFORE clearing flags so it can detect this was step-over.
+                OnTriggered?.Invoke(result, cpu, mem);
+                TemporaryBreakpoint = null;
+                SourceLineStepAddresses = null;
+                SourceLineStepIsOver = false;
+                return result;
+            }
         }
 
         // --- User-set instruction breakpoints ---
@@ -268,6 +298,34 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
                 $"Source breakpoint at ${pc:X4}");
             OnTriggered?.Invoke(result, cpu, mem);
             return result;
+        }
+
+        // --- Source-line stepping: keep running while PC is on the same source line ---
+        if (SourceLineStepAddresses != null)
+        {
+            if (SourceLineStepAddresses.Contains(pc))
+            {
+                // Still on the same source line.
+                // For step-over, handle JSR by setting a temp breakpoint at the return address
+                // so the subroutine is skipped.
+                if (SourceLineStepIsOver && opcode == (byte)OpCodeId.JSR)
+                {
+                    TemporaryBreakpoint = (ushort)(pc + 3);
+                }
+                return ExecEvaluatorTriggerResult.NotTriggered;
+            }
+            else
+            {
+                // Execution has moved to a different source line — stop.
+                // Invoke callback BEFORE clearing so it can detect source-line step.
+                var result = ExecEvaluatorTriggerResult.CreateTrigger(
+                    ExecEvaluatorTriggerReasonType.DebugBreakPoint,
+                    $"Source-line step complete at ${pc:X4}");
+                OnTriggered?.Invoke(result, cpu, mem);
+                SourceLineStepAddresses = null;
+                SourceLineStepIsOver = false;
+                return result;
+            }
         }
 
         return ExecEvaluatorTriggerResult.NotTriggered;
