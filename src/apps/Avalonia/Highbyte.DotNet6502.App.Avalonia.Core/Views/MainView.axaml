@@ -58,7 +58,7 @@
                         ItemsSource="{Binding AvailableSystems}"
                         SelectedItem="{Binding SelectedSystemName}"
                         SelectionChanged="OnSystemSelectionChanged"
-                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                        IsEnabled="{Binding IsEmulatorUninitialized}"
                         Classes="small"
                         MinWidth="100"/>
 
@@ -72,7 +72,7 @@
                         ItemsSource="{Binding AvailableSystemVariants}"
                         SelectedItem="{Binding SelectedSystemVariant}"
                         SelectionChanged="OnSystemVariantSelectionChanged"
-                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                        IsEnabled="{Binding IsEmulatorUninitialized}"
                         Classes="small"
                         MinWidth="100"/>
 
@@ -482,7 +482,7 @@
 
                             <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                 <Button Click="OpenSoundDebug_Click"
-                                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                                        IsEnabled="{Binding IsEmulatorUninitialized}"
                                         Classes="small"
                                         MinWidth="60"
                                         Height="20"
@@ -490,7 +490,7 @@
                                     Debug sound
                                 </Button>
                                 <Button Click="OpenGamepadDebug_Click"
-                                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                                        IsEnabled="{Binding IsEmulatorUninitialized}"
                                         Classes="small"
                                         MinWidth="60"
                                         Height="20"

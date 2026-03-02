@@ -71,7 +71,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     // Computed properties for control enabled states based on EmulatorState
     public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
-    public bool IsEmulatorUninitialzied => EmulatorState == EmulatorState.Uninitialized;
+    public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
     // Debug tab visibility from config
     public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTab;
@@ -340,7 +340,7 @@ public class MainViewModel : ViewModelBase, IDisposable
               {
                   // Notify all computed properties that depend on EmulatorState
                   this.RaisePropertyChanged(nameof(IsEmulatorRunning));
-                  this.RaisePropertyChanged(nameof(IsEmulatorUninitialzied));
+                  this.RaisePropertyChanged(nameof(IsEmulatorUninitialized));
                   this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
               });
 
