@@ -481,7 +481,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 x => x.IsExternalDebuggerAttached,
-                (state, isExternalDebuggerAttached) => state != EmulatorState.Uninitialized && !isExternalDebuggerAttached),
+                (state, isExternalDebuggerAttached) => state == EmulatorState.Running && !isExternalDebuggerAttached),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         StatsCommand = ReactiveCommandHelper.CreateSafeCommand(
