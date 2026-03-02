@@ -1,10 +1,23 @@
 # 6502 Debugger for dotnet-6502
 
-A Visual Studio Code extension for debugging 6502 machine code programs using the dotnet-6502 emulator.
+A Visual Studio Code extension for debugging 6502 assembly source and machine code programs using the dotnet-6502 emulator.
+
+> Currently the extension is not available in an extension store. The only way to run it is to build and run it from source.
+
+## Requirements
+
+- .NET SDK v10.0 or later.
+- The dotnet-6502.sln solution built on your machine.
+- Node.js v20 or later.
+- The tools/vscode-extension (Node) project built on your machine.
+
+_Extra requirements for source debugging_:
+- [cc65](https://github.com/cc65/cc65) toolchain (for building .asm files and generating source debug .dbg files). 
+- The cc65 tools (specifically ca65 and cl65 executables) are expected to be in system path.
 
 ## Quick Start
 
-### For Source-Level Debugging with ca65
+### For Source-Level Debugging with ca65 assembler for a C64 program
 
 1. **Right-click your .asm file** in Explorer
 2. Select **"Generate C64 Build Task (ca65)"**
@@ -19,7 +32,7 @@ That's it! The extension creates both the build task and launch configuration fo
 You can also generate the build task and launch configuration separately:
 
 1. Right-click .asm file → **"Generate C64 Build Task (ca65)"** → Enter start address
-2. Right-click .asm file → **"Generate Launch Config (DotNet6502)"** → Select the task
+2. Right-click .prg file → **"Generate Launch Config for C64 emulator (DotNet6502)"** → Select the task
 
 ### Example Configuration
 
@@ -85,57 +98,78 @@ The generated files look like this:
 - **Disassembly view**: See the disassembled instruction at the current PC
 - **Problem matcher**: Compiler errors appear in Problems panel with inline squiggles
 
-## Requirements
 
-- .NET 10.0 or later
-- cc65 toolchain (for building .asm files)
-- The dotnet-6502 project built on your machine
 
 ## Usage
 
+### Building the VSCode extension
+
+1. **Install extension dependencies** (first time only):
+   ```bash
+   cd vscode-extension
+   npm install
+   ```
+2. **Compile the extension**:
+   ```bash
+   npm run compile
+   ```
+
+3. **Build the .NET debug adapters** (from repo root):
+   ```bash
+   cd ../../
+   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
+   dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
+   ```
+
+### Starting VSCode extension
 1. **Open the vscode-extension folder in VSCode**:
    ```bash
    cd vscode-extension
    code .
    ```
 
-2. **Install dependencies** (first time only):
-   ```bash
-   npm install
-   ```
-
-3. **Compile the extension**:
-   ```bash
-   npm run compile
-   ```
-
-4. **Build the debug adapter** (from repo root):
-   ```bash
-   cd ../../
-   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
-   ```
-
-5. **Launch Extension Development Host**:
+2. **Launch Extension Development Host**:
    - In VSCode (with vscode-extension folder open), press **F5**
    - A new "Extension Development Host" window opens with your extension loaded
 
-6. **In the Extension Development Host, open a test folder** with .asm files
 
-7. **Generate build task and launch config**:
+### Source debugging
+1. **In the Extension Development Host, open a test folder** with .asm files
+
+2. **Generate build task and launch config**:
    - Right-click an .asm file → **"Generate C64 Build Task (ca65)"**
    - Enter start address (e.g., `0xc000`)
    - Click **"Create Launch Config"** when prompted
+   - Note: For more info on the Build task, see [here](GENERATE_BUILD_TASK.md)
 
-8. **Start debugging**: Press **F5** to build and debug
+3. **Start debugging**: Press **F5** to build and debug
 
-9. **Set breakpoints**:
+4. **Set breakpoints**:
    - Click in the gutter of your .asm source file (with .dbg support)
-   - Or click in the **Disassembly view** to set address breakpoints
    - Right-click a breakpoint → **"Edit Breakpoint..."** to add a condition expression
+
+### Disassembly debugging
+1. **In the Extension Development Host, open a test folder** with .prg (or other binary) files
+
+2. **Create launch config**:
+For full emulator debugging of a C64 .prg program, there is built-in option to create a launch.json configuration.
+- Right-click an .prg file → **"Generate Launch Config for C64 emulator (DotNet6502)"**
+
+Or create a manual launch.json configuration for other scenarios (see below).
+
+3. **Start debugging**: Press **F5** to build and debug
+
+4. **Set breakpoints**:
+- Manually add a breakpoint at an address via the + sign in the **Breakpoints** section
+- Or click in gutter of the **Disassembly view** to toggle address breakpoints
+- Right-click a breakpoint → **"Edit Breakpoint..."** to add a condition expression
+
+5. **Open Disassembly view**:
+After pausing execution in VSCode debugger, or a breakpoint is hit, the Disassembly view (with the current instruction) may not be shown by default. If that's the case, expand the **Call stack** section in the right pane, right click the single entry and select **Open Dissassembly View**.  
 
 ## Manual Launch Configuration
 
-For debugging pre-built .prg files without source:
+Example for debugging pre-built .prg files without source. See full configuration reference below for all options.
 
 ```json
 {
@@ -179,7 +213,7 @@ There are three ways to use the debugger, each with different launch.json config
 | `loadProgram` | boolean | `true` | — | Yes | — | Load the program file into emulator memory. |
 | `runProgram` | boolean | `false` | — | Yes | — | Set PC to load address to run program immediately. |
 
-### Example Configurations
+### Example `launch.json` Configurations
 
 **Minimal (standalone debug adapter):**
 ```json

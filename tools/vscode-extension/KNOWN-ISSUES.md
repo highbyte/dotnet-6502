@@ -24,7 +24,7 @@
 
 **Technical details**: VS Code's disassembly view uses a `WorkbenchTable` widget with `headerRowHeight: 0` (no header). When calling `reveal(index)` with index 0, the widget fails to scroll correctly. This cannot be fixed from the debug adapter side.
 
-### Variables Panel Clears After Stepping
+### Disassembly View - Variables Panel Clears After Stepping
 
 **Symptom**: After pressing F10 (step), the VARIABLES panel becomes empty until you click on "current" in the CALL STACK panel again.
 
@@ -39,22 +39,6 @@
 **Why we can't fix this**: This is VSCode's UI behavior, not something the debug adapter can control. The DAP protocol has no way to tell VSCode "keep this frame selected" or "auto-select the first frame". Other debuggers (gdb, lldb, etc.) have the same behavior.
 
 **Future improvement**: We could potentially add a VSCode extension command or configuration to auto-select the frame, but that would require changes to the extension, not the debug adapter.
-
-## MVP Limitations (By Design)
-
-### No Source-Level Debugging
-- Must use memory addresses instead of source line numbers
-- Line number in breakpoints = hex memory address
-- Example: Line 49152 = address 0xc000
-
-### No Memory Inspection
-- Can only view registers and flags
-- No memory view/editor yet
-
-### Address-Only Breakpoints
-- No conditional breakpoints
-- No data breakpoints (memory watchpoints)
-- No breakpoint conditions or hit counts
 
 ### Manual Breakpoint Entry Limitation
 **Symptom**: Clicking the "+" button in the Breakpoints panel and entering an address like "0x0609" doesn't work - the breakpoint never triggers.
@@ -75,10 +59,6 @@
 
 The debug adapter correctly supports instruction breakpoints via the `setInstructionBreakpoints` DAP command. VS Code sends these when you toggle breakpoints in the Disassembly view, and they work perfectly. There is no manual text entry UI for instruction breakpoints in VS Code's standard Breakpoints panel.
 
-### Simple Step Semantics
-- Step In/Out/Over all do the same thing (single instruction step)
-- No "step over JSR" (subroutine calls)
-- No call stack tracking beyond current PC
 
 ### Single Thread Model
 - Always one thread: "6502 CPU"
@@ -91,17 +71,3 @@ This is the only stack frame because 6502 code runs in a single execution contex
 
 ### Frame ID 0
 Using frame ID 0 for the top/only frame is standard DAP practice.
-
-### Breakpoint Line Numbers
-Line numbers correspond to memory addresses by design in MVP. This is intentional for simplicity. Future versions will add source file support.
-
-## Workarounds
-
-### Keep Variables Visible
-After each step (F10), click "current" in CALL STACK to re-select the frame and refresh variables.
-
-### Better: Use Debug Console
-You can see register values in the Debug Console output if you add logging to the debug adapter (future enhancement).
-
-### Alternative: Use Step + Hover
-Some debuggers let you hover over values to inspect them. This could be added in the future for register names in the disassembly.

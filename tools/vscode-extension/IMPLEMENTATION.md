@@ -62,10 +62,10 @@ A VSCode debugger for 6502 machine code programs using the dotnet-6502 emulator.
 │  - extension.ts: Activation, config, cmds    │
 │  - memoryViewer.ts: Memory hex dump viewer   │
 │  - debugAdapter.ts: Session handler (legacy) │
-└──────────┬──────────────────┬────────────────┘
+└──────────┬───────────────────┬───────────────┘
            │ DAP (stdin/stdout)│ DAP (TCP)
-           │   minimal mode   │  emulator mode
-┌──────────▼──────────┐ ┌─────▼────────────────────────┐
+           │   minimal mode    │  emulator mode
+┌──────────▼───────────┐ ┌─────▼────────────────────────┐
 │ Debug Adapter        │ │ Emulator Host App            │
 │ Console App (STDIO)  │ │ (Avalonia Desktop, etc.)     │
 │ - Program.cs         │ │ - TcpDebugAdapterServer      │
@@ -225,7 +225,7 @@ dotnet-6502/
 - [x] Step out (run until RTS)
 - [x] Hover to inspect memory addresses and symbols
 - [ ] Multiple disassembly lines in stack trace (call stack reconstruction)
-- [ ] Stepping granularity for source-level lines (step over multi-instruction source lines)
+- [x] Stepping granularity for source-level lines (step over multi-instruction source lines)
 
 ### Low Priority
 - [ ] Data breakpoints (memory watch)
@@ -233,31 +233,6 @@ dotnet-6502/
 - [ ] Hot reload
 - [ ] Integrated assembler
 
-## Testing Strategy
-
-### Unit Testing (Future)
-- DAP message serialization/deserialization
-- Breakpoint management logic
-- CPU state inspection
-
-### Integration Testing
-1. **Manual**: Use Extension Development Host
-2. **Automated** (Future): VSCode extension test framework
-
-### Test Scenarios
-- [x] Load .prg file and stop at entry
-- [x] Set breakpoint and hit it
-- [x] Step through instructions (step in, step over JSR, step out)
-- [x] Continue execution
-- [x] Inspect registers and flags
-- [x] Edit registers, flags, and memory
-- [x] View disassembly
-- [x] Source-level debugging with .dbg file
-- [x] Memory inspection (read/write/dump)
-- [x] Watch expressions and hover evaluation
-- [x] Conditional breakpoints
-- [x] Emulator mode (TCP) launch and attach
-- [x] Goto / Set PC
 
 ## Performance Considerations
 
