@@ -234,13 +234,13 @@
                     <views:EmulatorView Name="EmulatorView"
                         DataContext="{Binding EmulatorViewModel}"
                         Scale="{Binding $parent[UserControl].DataContext.Scale}"
-                        IsVisible="{Binding $parent[UserControl].DataContext.IsEmulatorRunning}"/>
+                        IsVisible="{Binding !$parent[UserControl].DataContext.IsEmulatorUninitialized}"/>                        
 
                 <!-- Overlay message when not running -->
                    <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"
                         DataContext="{Binding EmulatorPlaceholderViewModel}"
                         Scale="{Binding $parent[UserControl].DataContext.Scale}"
-                        IsVisible="{Binding !$parent[UserControl].DataContext.IsEmulatorRunning}"/>
+                        IsVisible="{Binding $parent[UserControl].DataContext.IsEmulatorUninitialized}"/>
                 </Grid>
 
                 <!-- Information Area - Tabbed Interface -->
