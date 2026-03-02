@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor
+public class C64 : ISystem, ISystemMonitor, ISystemState
 {
     public const string SystemName = "C64";
     public string Name => SystemName;
@@ -644,8 +644,11 @@ public class C64 : ISystem, ISystemMonitor
         // Check TXTAB pointer (0x002B-0x002C): Start of BASIC program text area
         // After BASIC initialization, this should point to 0x0801 (standard BASIC program start address)
         var txtabPointer = Mem.FetchWord(0x2B);
-        
+
         // During startup, this pointer is 0x0000. After BASIC initialization, it's set to BASIC_LOAD_ADDRESS (0x0801)
         return txtabPointer == BASIC_LOAD_ADDRESS;
     }
+
+    /// <inheritdoc/>
+    bool ISystemState.IsSystemReady() => HasBasicStarted();
 }

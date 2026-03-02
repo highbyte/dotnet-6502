@@ -1,4 +1,5 @@
 using System.IO;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -163,7 +164,7 @@ public static class AutomatedStartupHandler
                     if (waitForSystemReady)
                     {
                         logger.LogInformation("Waiting for system to be ready...");
-                        await WaitForSystemReady(hostApp, systemName, logger);
+                        await WaitForSystemReady(hostApp, logger);
                     }
 
                     // Load PRG if specified
@@ -242,16 +243,36 @@ public static class AutomatedStartupHandler
 
     /// <summary>
     /// Waits for the system to be ready.
-    /// For C64, waits until Basic prompt appears (simplified: wait 3 seconds).
+    /// If the running system implements <see cref="ISystemState"/>, polls
+    /// <see cref="ISystemState.IsSystemReady"/> until it returns true or the
+    /// timeout expires. Otherwise falls back to a fixed delay.
     /// </summary>
-    private static async Task WaitForSystemReady(IDebuggableHostApp hostApp, string systemName, ILogger logger)
+    private static async Task WaitForSystemReady(IDebuggableHostApp hostApp, ILogger logger)
     {
-        // TODO: Implement proper system-ready detection based on system type
-        // For C64, could check for Basic prompt in screen memory
-        // For now, use a simple delay
-        const int delayMs = 3000;
-        logger.LogInformation($"Waiting {delayMs}ms for system to be ready...");
-        await Task.Delay(delayMs);
-        logger.LogInformation("System should be ready.");
+        if (hostApp.CurrentRunningSystem is ISystemState systemState)
+        {
+            const int maxWaitMs = 30_000;
+            const int pollIntervalMs = 100;
+            var elapsed = 0;
+            logger.LogInformation("Waiting for system to be ready (polling ISystemState.IsSystemReady)...");
+            while (!systemState.IsSystemReady())
+            {
+                if (elapsed >= maxWaitMs)
+                {
+                    logger.LogWarning("Timed out after {MaxWaitMs}ms waiting for system to be ready.", maxWaitMs);
+                    return;
+                }
+                await Task.Delay(pollIntervalMs);
+                elapsed += pollIntervalMs;
+            }
+            logger.LogInformation("System is ready.");
+        }
+        else
+        {
+            const int delayMs = 3000;
+            logger.LogInformation("System does not implement ISystemState. Waiting 3000ms as fallback...");
+            await Task.Delay(delayMs);
+            logger.LogInformation("System should be ready.");
+        }
     }
 }
