@@ -1,18 +1,15 @@
-using System;
 using System.IO;
-using System.Threading.Tasks;
-using Avalonia.Threading;
-using Highbyte.DotNet6502.App.Avalonia.Core;
-using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
+namespace Highbyte.DotNet6502.DebugAdapter;
 
 /// <summary>
-/// Handles automated startup of the emulator from command-line parameters.
+/// Handles automated startup of an emulator host from command-line parameters.
+/// Host-app-independent: all Avalonia/UI specifics are supplied by the caller
+/// via the <paramref name="uiThreadInvoker"/> delegate.
 /// </summary>
-internal static class AutomatedStartupHandler
+public static class AutomatedStartupHandler
 {
     /// <summary>
     /// Parses a string argument from command line arguments.
@@ -86,7 +83,14 @@ internal static class AutomatedStartupHandler
     /// <summary>
     /// Handles automated system startup, load, and run operations.
     /// </summary>
+    /// <param name="hostApp">The already-initialized debuggable host app.</param>
+    /// <param name="uiThreadInvoker">
+    /// Optional delegate that runs an async action on the host app's required thread
+    /// (e.g. <c>f =&gt; Dispatcher.UIThread.InvokeAsync(f)</c> for Avalonia).
+    /// When <see langword="null"/>, the action is called directly on the current thread.
+    /// </param>
     public static async Task ExecuteAsync(
+        IDebuggableHostApp hostApp,
         string systemName,
         string? systemVariant,
         bool autoStart,
@@ -95,29 +99,16 @@ internal static class AutomatedStartupHandler
         bool runLoadedProgram,
         bool enableExternalDebug,
         Action? onStartupComplete,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        Func<Func<Task>, Task>? uiThreadInvoker = null)
     {
         var logger = loggerFactory.CreateLogger(nameof(AutomatedStartupHandler));
+        Func<Func<Task>, Task> invoke = uiThreadInvoker ?? (f => f());
 
         try
         {
-            // Wait for the Avalonia app to be fully initialized
-            logger.LogInformation("Waiting for Avalonia app to initialize...");
-            while (Core.App.Current?.HostApp == null)
-            {
-                await Task.Delay(100);
-            }
-
-            var hostApp = Core.App.Current.HostApp;
-            logger.LogInformation("Avalonia app initialized.");
-
-            // SkipDefaultSystemSelection is an Avalonia-specific automation concern
-            // not part of IDebuggableHostApp — cast to the concrete type to set it.
-            if (hostApp is AvaloniaHostApp avaloniaHostApp)
-                avaloniaHostApp.SkipDefaultSystemSelection = true;
-
-            // All HostApp operations must run on the UI thread
-            await Dispatcher.UIThread.InvokeAsync(async () =>
+            // All HostApp operations run via the provided invoker (e.g. UI thread for Avalonia)
+            await invoke(async () =>
             {
                 // Select the system
                 logger.LogInformation($"Selecting system: {systemName}");

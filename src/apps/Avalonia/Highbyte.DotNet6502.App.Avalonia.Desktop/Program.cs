@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.ReactiveUI;
+using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
@@ -259,16 +260,33 @@ internal sealed partial class Program
         // If automated startup is requested, handle it after the app starts
         if (systemName != null)
         {
-            _ = Task.Run(async () => await AutomatedStartupHandler.ExecuteAsync(
-                systemName,
-                systemVariant,
-                autoStart,
-                waitForSystemReady,
-                loadPrgPath,
-                runLoadedProgram,
-                enableExternalDebug,
-                onStartupComplete: () => debugServerManager?.SignalProgramReady(),
-                loggerFactory));
+            _ = Task.Run(async () =>
+            {
+                // Wait for the Avalonia app to be fully initialized (Avalonia-specific lifecycle)
+                var startupLogger = loggerFactory.CreateLogger(nameof(Program));
+                startupLogger.LogInformation("Waiting for Avalonia app to initialize...");
+                while (Core.App.Current?.HostApp == null)
+                    await Task.Delay(100);
+                var hostApp = Core.App.Current.HostApp;
+                startupLogger.LogInformation("Avalonia app initialized.");
+
+                // Suppress default system selection in the Avalonia UI (automated startup handles it)
+                if (hostApp is AvaloniaHostApp avaloniaHostApp)
+                    avaloniaHostApp.SkipDefaultSystemSelection = true;
+
+                await AutomatedStartupHandler.ExecuteAsync(
+                    hostApp,
+                    systemName,
+                    systemVariant,
+                    autoStart,
+                    waitForSystemReady,
+                    loadPrgPath,
+                    runLoadedProgram,
+                    enableExternalDebug,
+                    onStartupComplete: () => debugServerManager?.SignalProgramReady(),
+                    loggerFactory: loggerFactory,
+                    uiThreadInvoker: f => Dispatcher.UIThread.InvokeAsync(f));
+            });
         }
 
         app.StartWithClassicDesktopLifetime(args);
