@@ -15,7 +15,38 @@ _Extra requirements for source debugging_:
 - [cc65](https://github.com/cc65/cc65) toolchain (for building .asm files and generating source debug .dbg files). 
 - The cc65 tools (specifically ca65 and cl65 executables) are expected to be in system path.
 
-## Quick Start
+## Building the VSCode extension
+
+1. **Install extension dependencies** (first time only):
+   ```bash
+   cd vscode-extension
+   npm install
+   ```
+2. **Compile the extension**:
+   ```bash
+   npm run compile
+   ```
+
+3. **Build the .NET debug adapters** (from repo root):
+   ```bash
+   cd ../../
+   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
+   dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
+   ```
+
+## Starting VSCode extension
+1. **Open the vscode-extension folder in VSCode**:
+   ```bash
+   cd vscode-extension
+   code .
+   ```
+
+2. **Launch Extension Development Host**:
+   - In VSCode (with vscode-extension folder open), press **F5**
+   - A new "Extension Development Host" window opens with your extension loaded
+
+
+## Debug Quick Start
 
 ### For Source-Level Debugging with ca65 assembler for a C64 program
 
@@ -101,37 +132,6 @@ The generated files look like this:
 
 
 ## Usage
-
-### Building the VSCode extension
-
-1. **Install extension dependencies** (first time only):
-   ```bash
-   cd vscode-extension
-   npm install
-   ```
-2. **Compile the extension**:
-   ```bash
-   npm run compile
-   ```
-
-3. **Build the .NET debug adapters** (from repo root):
-   ```bash
-   cd ../../
-   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
-   dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
-   ```
-
-### Starting VSCode extension
-1. **Open the vscode-extension folder in VSCode**:
-   ```bash
-   cd vscode-extension
-   code .
-   ```
-
-2. **Launch Extension Development Host**:
-   - In VSCode (with vscode-extension folder open), press **F5**
-   - A new "Extension Development Host" window opens with your extension loaded
-
 
 ### Source debugging
 1. **In the Extension Development Host, open a test folder** with .asm files
