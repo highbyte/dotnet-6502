@@ -1,11 +1,13 @@
 <h1 align="center">Highbyte.DotNet6502.Monitor</h1>
 
 # Overview
-A library that provides a base for common machine code monitor functionality for the [Highbyte.DotNet6502](CPU_LIBRARY.md).
+A library that provides a base for common built-in machine code monitor functionality for the [Highbyte.DotNet6502](CPU_LIBRARY.md).
 
 The library need to be implemented for a specific UI technology, see the different [host applications ](APPS.md).
 
 Specific emulated "Systems" (computers) can also implement additional commands that are specific for that System, see [here](#system-specific-commands).
+
+> Note: There is also the [VS Code debugger extension](../tools/vscode-extension/README.md) that can be used for debugging both assembly source and raw disassembly. It's a lost more powerful than the built-in machine code monitor described here.
 
 # General monitor commands
 Type `?|help|-?|--help` to list commands.

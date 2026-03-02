@@ -4,6 +4,8 @@ A Visual Studio Code extension for debugging 6502 assembly source and machine co
 
 > Currently the extension is not available in an extension store. The only way to run it is to build and run it from source.
 
+> There is also a built-in simpler [machine code monitor](../../doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than the VS Code extenision described here. 
+
 ## Requirements
 
 - .NET SDK v10.0 or later.
