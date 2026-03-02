@@ -262,13 +262,19 @@ internal sealed partial class Program
         {
             _ = Task.Run(async () =>
             {
-                // Wait for the Avalonia app to be fully initialized (Avalonia-specific lifecycle)
                 var startupLogger = loggerFactory.CreateLogger(nameof(Program));
-                startupLogger.LogInformation("Waiting for Avalonia app to initialize...");
-                while (Core.App.Current?.HostApp == null)
-                    await Task.Delay(100);
-                var hostApp = Core.App.Current.HostApp;
-                startupLogger.LogInformation("Avalonia app initialized.");
+
+                // The App object is created lazily by Avalonia during StartWithClassicDesktopLifetime,
+                // so we need App.Current to exist before we can await WhenHostAppReadyAsync.
+                startupLogger.LogInformation("Waiting for Avalonia App instance...");
+                while (Core.App.Current == null)
+                    await Task.Delay(10);
+
+                // Await proper readiness — the TCS guarantees all writes made before TrySetResult
+                // (including full HostApp construction) are visible to the continuation here.
+                startupLogger.LogInformation("Awaiting HostApp initialization...");
+                var hostApp = await Core.App.WhenHostAppReadyAsync.ConfigureAwait(false);
+                startupLogger.LogInformation("HostApp initialized.");
 
                 // Suppress default system selection in the Avalonia UI (automated startup handles it)
                 if (hostApp is AvaloniaHostApp avaloniaHostApp)

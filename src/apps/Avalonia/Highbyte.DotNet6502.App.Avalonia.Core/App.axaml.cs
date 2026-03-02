@@ -53,6 +53,15 @@ public partial class App : Application
     /// </summary>
     public static App? Current { get; private set; }
 
+    /// <summary>
+    /// Completes when <see cref="HostApp"/> has been fully initialized and is ready for use.
+    /// Awaiting this from a background thread is safe: the TPL guarantees that all writes
+    /// made before <c>TrySetResult</c> are visible to the continuation.
+    /// </summary>
+    public static Task<IDebuggableHostApp> WhenHostAppReadyAsync => s_hostAppReady.Task;
+    private static readonly TaskCompletionSource<IDebuggableHostApp> s_hostAppReady =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     // Guard to prevent multiple error overlays from being shown simultaneously
     private Panel? _currentErrorOverlay;
 
@@ -287,6 +296,9 @@ public partial class App : Application
                 _saveCustomConfigSection,
                 _gamepad);
 
+            // Signal waiters (e.g. automated startup on a background thread) that HostApp is ready.
+            // TrySetResult guarantees all writes above are visible to awaiters before they resume.
+            s_hostAppReady.TrySetResult(_hostApp);
         }
         catch (Exception ex)
         {
