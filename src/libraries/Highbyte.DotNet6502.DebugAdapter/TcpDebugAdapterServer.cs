@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.DebugAdapter;
 
@@ -13,6 +14,7 @@ public class TcpDebugAdapterServer : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
     private readonly StreamWriter _log;
+    private readonly ILogger<TcpDebugAdapterServer>? _logger;
     private bool _disposed;
 
     public event EventHandler<ClientConnectedEventArgs>? ClientConnected;
@@ -27,9 +29,10 @@ public class TcpDebugAdapterServer : IDisposable
     /// </summary>
     public bool IsListening { get; private set; }
 
-    public TcpDebugAdapterServer(StreamWriter log)
+    public TcpDebugAdapterServer(StreamWriter log, ILoggerFactory? loggerFactory = null)
     {
         _log = log;
+        _logger = loggerFactory?.CreateLogger<TcpDebugAdapterServer>();
     }
 
     /// <summary>
@@ -48,8 +51,7 @@ public class TcpDebugAdapterServer : IDisposable
         // Get the actual port (useful when port=0)
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
 
-        _log.WriteLine($"[TCP Server] Started listening on port {Port}");
-        _log.Flush();
+        SafeLog($"[TCP Server] Started listening on port {Port}", LogLevel.Information);
 
         _cts = new CancellationTokenSource();
         // Run on the thread pool to avoid capturing the UI synchronization context.
@@ -70,13 +72,11 @@ public class TcpDebugAdapterServer : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                _log.WriteLine("[TCP Server] Waiting for client connection...");
-                _log.Flush();
+                SafeLog("[TCP Server] Waiting for client connection...");
 
                 var client = await _listener!.AcceptTcpClientAsync(cancellationToken);
 
-                _log.WriteLine($"[TCP Server] Client connected from {client.Client.RemoteEndPoint}");
-                _log.Flush();
+                SafeLog($"[TCP Server] Client connected from {client.Client.RemoteEndPoint}", LogLevel.Information);
 
                 // Create transport and fire event
                 var transport = new TcpTransport(client, _log);
@@ -85,21 +85,22 @@ public class TcpDebugAdapterServer : IDisposable
         }
         catch (OperationCanceledException)
         {
-            SafeLog("[TCP Server] Listen cancelled");
+            SafeLog("[TCP Server] Listen cancelled", LogLevel.Information);
         }
         catch (Exception ex)
         {
-            SafeLog($"[TCP Server] Error: {ex.Message}");
+            SafeLog($"[TCP Server] Error: {ex.Message}", LogLevel.Warning);
         }
     }
 
     /// <summary>
-    /// Writes to the log, silently swallowing ObjectDisposedException.
-    /// Used in long-running background tasks where the writer may be closed
-    /// concurrently if Stop() times out waiting for the task.
+    /// Writes to the log file and ILogger, silently swallowing ObjectDisposedException.
+    /// Used throughout to ensure log writes never throw even if the StreamWriter is
+    /// closed concurrently (e.g. if Stop() times out waiting for a background task).
     /// </summary>
-    private void SafeLog(string message)
+    private void SafeLog(string message, LogLevel level = LogLevel.Debug)
     {
+        _logger?.Log(level, "{Message}", message);
         try
         {
             _log.WriteLine(message);
@@ -113,8 +114,7 @@ public class TcpDebugAdapterServer : IDisposable
     /// </summary>
     public void Stop()
     {
-        _log.WriteLine("[TCP Server] Stopping...");
-        _log.Flush();
+        SafeLog("[TCP Server] Stopping...", LogLevel.Information);
 
         _cts?.Cancel();
         _listener?.Stop();
@@ -134,8 +134,7 @@ public class TcpDebugAdapterServer : IDisposable
         _listenTask = null;
         IsListening = false;
 
-        _log.WriteLine("[TCP Server] Stopped");
-        _log.Flush();
+        SafeLog("[TCP Server] Stopped", LogLevel.Information);
     }
 
     public void Dispose()

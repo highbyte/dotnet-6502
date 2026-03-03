@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.DebugAdapter;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -13,6 +14,8 @@ namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 internal sealed class AvaloniaExternalDebugController : IExternalDebugController
 {
     private readonly ITcpDebugServerEnvironment _environment;
+    private readonly ILoggerFactory? _loggerFactory;
+    private readonly ILogger<AvaloniaExternalDebugController>? _logger;
     private TcpDebugServerManager? _serverManager;
 
     private bool _isListening;
@@ -36,9 +39,11 @@ internal sealed class AvaloniaExternalDebugController : IExternalDebugController
 
     public event EventHandler? StateChanged;
 
-    public AvaloniaExternalDebugController(ITcpDebugServerEnvironment environment)
+    public AvaloniaExternalDebugController(ITcpDebugServerEnvironment environment, ILoggerFactory? loggerFactory = null)
     {
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory?.CreateLogger<AvaloniaExternalDebugController>();
     }
 
     /// <inheritdoc/>
@@ -53,9 +58,11 @@ internal sealed class AvaloniaExternalDebugController : IExternalDebugController
             Path.GetTempPath(),
             $"dotnet6502-debugadapter-avalonia-{DateTime.Now:yyyyMMdd-HHmmss}.log");
         var debugLogWriter = new StreamWriter(debugLogFilePath, append: true) { AutoFlush = true };
-        debugLogWriter.WriteLine($"Debug adapter server started at {DateTime.Now}");
+        var startedAt = DateTime.Now;
+        _logger?.LogInformation("Debug adapter server started at {StartedAt}", startedAt);
+        debugLogWriter.WriteLine($"Debug adapter server started at {startedAt}");
 
-        _serverManager = new TcpDebugServerManager(debugLogWriter, _environment);
+        _serverManager = new TcpDebugServerManager(debugLogWriter, _environment, _loggerFactory);
         _serverManager.StateChanged += OnServerManagerStateChanged;
 
         await _serverManager.StartAsync(port);

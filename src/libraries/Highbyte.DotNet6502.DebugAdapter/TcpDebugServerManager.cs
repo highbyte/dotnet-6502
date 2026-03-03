@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.DebugAdapter;
 
@@ -13,6 +14,8 @@ public sealed class TcpDebugServerManager : IDisposable
     private readonly TcpDebugAdapterServer _debugServer;
     private readonly StreamWriter _debugLogWriter;
     private readonly ITcpDebugServerEnvironment _environment;
+    private readonly ILoggerFactory? _loggerFactory;
+    private readonly ILogger<TcpDebugServerManager>? _logger;
     private bool _debugClientConnected;
     private int _activeConnectionCount = 0;
     private readonly object _connectionLock = new object();
@@ -22,11 +25,13 @@ public sealed class TcpDebugServerManager : IDisposable
     private volatile bool _startupCompleted = false;
     private DebugAdapterLogic? _activeAdapter;
 
-    public TcpDebugServerManager(StreamWriter debugLogWriter, ITcpDebugServerEnvironment environment)
+    public TcpDebugServerManager(StreamWriter debugLogWriter, ITcpDebugServerEnvironment environment, ILoggerFactory? loggerFactory = null)
     {
         _debugLogWriter = debugLogWriter ?? throw new ArgumentNullException(nameof(debugLogWriter));
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
-        _debugServer = new TcpDebugAdapterServer(debugLogWriter);
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory?.CreateLogger<TcpDebugServerManager>();
+        _debugServer = new TcpDebugAdapterServer(debugLogWriter, loggerFactory);
 
         // Subscribe to client connection events
         _debugServer.ClientConnected += OnClientConnected;
@@ -69,7 +74,7 @@ public sealed class TcpDebugServerManager : IDisposable
     /// </summary>
     public Task StopAsync()
     {
-        SafeLog("StopAsync: stopping TCP server (no new connections will be accepted)");
+        SafeLog("StopAsync: stopping TCP server (no new connections will be accepted)", LogLevel.Information);
         _debugServer.Stop();
         return Task.CompletedTask;
     }
@@ -97,7 +102,7 @@ public sealed class TcpDebugServerManager : IDisposable
     {
         _startupCompleted = true;
         _activeAdapter?.NotifyProgramReady();
-        SafeLog("SignalProgramReady: automated startup complete, notified active adapter");
+        SafeLog("SignalProgramReady: automated startup complete, notified active adapter", LogLevel.Information);
     }
 
     private void OnClientConnected(object? sender, ClientConnectedEventArgs e)
@@ -111,7 +116,7 @@ public sealed class TcpDebugServerManager : IDisposable
         lock (_connectionLock)
         {
             _activeConnectionCount++;
-            SafeLog($"TCP connection accepted at {DateTime.Now} (total active connections: {_activeConnectionCount})");
+            SafeLog($"TCP connection accepted at {DateTime.Now} (total active connections: {_activeConnectionCount})", LogLevel.Information);
         }
 
         var protocol = new DapProtocol(e.Transport, _debugLogWriter);
@@ -140,13 +145,13 @@ public sealed class TcpDebugServerManager : IDisposable
         // This ensures no gap between SetExternalDebugAdapter clearing WaitForExternalDebugger
         // and HandleLaunchAsync setting IsStopped — the adapter is already paused.
         bool initiallyPaused = hostApp?.WaitForExternalDebugger == true;
-        var adapter = new DebugAdapterLogic(protocol, _debugLogWriter, system, initiallyPaused);
+        var adapter = new DebugAdapterLogic(protocol, _debugLogWriter, system, initiallyPaused, loggerFactory: _loggerFactory);
 
         // If automated startup already completed before this client connected, mark program ready now.
         if (_startupCompleted)
             adapter.NotifyProgramReady();
 
-        SafeLog($"Debug adapter created (system available: {system != null}, initiallyPaused: {initiallyPaused}, startupCompleted: {_startupCompleted})");
+        SafeLog($"Debug adapter created (system available: {system != null}, initiallyPaused: {initiallyPaused}, startupCompleted: {_startupCompleted})", LogLevel.Information);
         return adapter;
     }
 
@@ -161,7 +166,7 @@ public sealed class TcpDebugServerManager : IDisposable
         {
             _debugClientConnected = true;
             _activeAdapter = adapter;
-            SafeLog("DAP initialize received — marked as active debug client");
+            SafeLog("DAP initialize received — marked as active debug client", LogLevel.Information);
             StateChanged?.Invoke(this, EventArgs.Empty);
 
             _environment.RunOnUiThread(() =>
@@ -171,7 +176,7 @@ public sealed class TcpDebugServerManager : IDisposable
                 {
                     currentHostApp.SetExternalDebugAdapter(adapter);
                     adapter.NotifyInstalledInHost();
-                    SafeLog("Debug adapter set in host app (DAP initialize received)");
+                    SafeLog("Debug adapter set in host app (DAP initialize received)", LogLevel.Information);
                 }
             });
         };
@@ -208,7 +213,7 @@ public sealed class TcpDebugServerManager : IDisposable
                     return;
                 }
 
-                SafeLog("EmulatorState became Running, binding/re-binding debug adapter");
+                SafeLog("EmulatorState became Running, binding/re-binding debug adapter", LogLevel.Information);
 
                 // Capture WaitForExternalDebugger BEFORE SetExternalDebugAdapter clears it.
                 bool wasWaitingForDebugger = currentHostApp.WaitForExternalDebugger;
@@ -218,7 +223,7 @@ public sealed class TcpDebugServerManager : IDisposable
                 if (wasWaitingForDebugger)
                 {
                     adapter.MarkAsStopped();
-                    SafeLog("WaitForExternalDebugger was set — adapter marked as stopped");
+                    SafeLog("WaitForExternalDebugger was set — adapter marked as stopped", LogLevel.Information);
                 }
 
                 // Must be on UI thread — SetExternalDebugAdapter installs the
@@ -238,7 +243,7 @@ public sealed class TcpDebugServerManager : IDisposable
                     {
                         hostApp.SetExternalDebugAdapter(adapter);
                         adapter.NotifyInstalledInHost();
-                        SafeLog("Debug adapter installed in host app (emulator started/restarted)");
+                        SafeLog("Debug adapter installed in host app (emulator started/restarted)", LogLevel.Information);
                     }
                 });
             }
@@ -247,7 +252,7 @@ public sealed class TcpDebugServerManager : IDisposable
                 // Mark session as ended before sending the terminated event so that any
                 // subsequent Running event (user restarting the system) is ignored.
                 sessionEnded = true;
-                SafeLog("EmulatorState became Uninitialized (system stopped from UI), sending terminated event");
+                SafeLog("EmulatorState became Uninitialized (system stopped from UI), sending terminated event", LogLevel.Information);
                 _ = adapter.SendTerminatedEventAsync();
             }
         };
@@ -328,7 +333,7 @@ public sealed class TcpDebugServerManager : IDisposable
         {
             if (terminateDebuggee)
             {
-                SafeLog("terminateDebuggee=true (launch mode), terminating application");
+                SafeLog("terminateDebuggee=true (launch mode), terminating application", LogLevel.Information);
                 _environment.TerminateApplication();
             }
         };
@@ -343,7 +348,7 @@ public sealed class TcpDebugServerManager : IDisposable
                 var message = await protocol.ReadMessageAsync();
                 if (message == null)
                 {
-                    SafeLog("Received null message, debug client disconnected");
+                    SafeLog("Received null message, debug client disconnected", LogLevel.Information);
                     break;
                 }
                 await adapter.HandleMessageAsync(message);
@@ -351,7 +356,7 @@ public sealed class TcpDebugServerManager : IDisposable
         }
         catch (Exception ex)
         {
-            SafeLog($"Debug adapter error: {ex}");
+            SafeLog($"Debug adapter error: {ex}", LogLevel.Warning);
         }
         finally
         {
@@ -372,7 +377,7 @@ public sealed class TcpDebugServerManager : IDisposable
         lock (_connectionLock)
         {
             _activeConnectionCount--;
-            SafeLog($"Connection closed at {DateTime.Now} (remaining active connections: {_activeConnectionCount}, wasRealSession: {wasRealSession})");
+            SafeLog($"Connection closed at {DateTime.Now} (remaining active connections: {_activeConnectionCount}, wasRealSession: {wasRealSession})", LogLevel.Information);
 
             // Only set flag to false if this is the last connection
             if (_activeConnectionCount <= 0)
@@ -419,7 +424,7 @@ public sealed class TcpDebugServerManager : IDisposable
                 if (hostApp != null)
                 {
                     hostApp.ClearExternalDebugAdapter();
-                    SafeLog("External debug adapter cleared on UI thread (all connections closed)");
+                    SafeLog("External debug adapter cleared on UI thread (all connections closed)", LogLevel.Information);
                 }
             });
             _debugClientConnected = false;
@@ -428,13 +433,14 @@ public sealed class TcpDebugServerManager : IDisposable
     }
 
     /// <summary>
-    /// Writes to the log, silently swallowing ObjectDisposedException.
+    /// Writes to the log file and ILogger, silently swallowing ObjectDisposedException.
     /// Used everywhere in this class so that log writes never throw — the StreamWriter
     /// may be closed (via Dispose) while background tasks or event handler closures
     /// (e.g. emulator state handlers, DAP initialization callbacks) are still running.
     /// </summary>
-    private void SafeLog(string message)
+    private void SafeLog(string message, LogLevel level = LogLevel.Debug)
     {
+        _logger?.Log(level, "{Message}", message);
         try
         {
             _debugLogWriter.WriteLine(message);

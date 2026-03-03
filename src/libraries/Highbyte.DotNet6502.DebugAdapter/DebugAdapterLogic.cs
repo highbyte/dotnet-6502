@@ -3,6 +3,7 @@ using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Debugger;
 using Highbyte.DotNet6502.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.DebugAdapter;
 
@@ -19,6 +20,7 @@ public class DebugAdapterLogic
 {
     private readonly DapProtocol _protocol;
     private readonly StreamWriter _log;
+    private readonly ILogger<DebugAdapterLogic>? _logger;
     private ISystem? _system;
     // Track source and instruction breakpoints separately, because VSCode
     // sends setBreakpoints (source) and setInstructionBreakpoints (disassembly)
@@ -78,10 +80,11 @@ public class DebugAdapterLogic
     /// Set to true for standalone hosts (e.g. ConsoleApp) that have no external execution engine.
     /// Set to false (default) for hosts with their own execution loop (e.g. Avalonia emulator).
     /// </param>
-    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem? system, bool initiallyPaused = false, bool builtInExecution = false)
+    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem? system, bool initiallyPaused = false, bool builtInExecution = false, ILoggerFactory? loggerFactory = null)
     {
         _protocol = protocol;
         _log = log;
+        _logger = loggerFactory?.CreateLogger<DebugAdapterLogic>();
         _system = system;
         IsStopped = initiallyPaused;
         _builtInExecution = builtInExecution;
@@ -106,7 +109,7 @@ public class DebugAdapterLogic
     {
         _system = system;
         _systemBoundTcs.TrySetResult();
-        LogSafe($"[SetSystem] System bound, PC=${system.CPU?.PC:X4}");
+        LogSafe($"[SetSystem] System bound, PC=${system.CPU?.PC:X4}", LogLevel.Information);
     }
 
     // Async coordination for DeferredStopOnEntryAsync prerequisites.
@@ -123,7 +126,7 @@ public class DebugAdapterLogic
     public void NotifyInstalledInHost()
     {
         _installedInHostTcs.TrySetResult();
-        LogSafe("[NotifyInstalledInHost] Adapter installed in host, IsStopped is now effective");
+        LogSafe("[NotifyInstalledInHost] Adapter installed in host, IsStopped is now effective", LogLevel.Information);
     }
 
     // Set to true at the start of the stopOnEntry block in HandleLaunchAsync.
@@ -141,10 +144,10 @@ public class DebugAdapterLogic
         if (_stopOnEntryPending)
         {
             IsStopped = true;
-            LogSafe("[NotifyProgramReady] Pausing CPU immediately for pending stopOnEntry");
+            LogSafe("[NotifyProgramReady] Pausing CPU immediately for pending stopOnEntry", LogLevel.Information);
         }
         _programReadyTcs.TrySetResult();
-        LogSafe("[NotifyProgramReady] Program setup complete, stopOnEntry will now proceed");
+        LogSafe("[NotifyProgramReady] Program setup complete, stopOnEntry will now proceed", LogLevel.Information);
     }
 
     /// <summary>
@@ -155,14 +158,15 @@ public class DebugAdapterLogic
     public void MarkAsStopped()
     {
         IsStopped = true;
-        LogSafe("[MarkAsStopped] Adapter marked as stopped");
+        LogSafe("[MarkAsStopped] Adapter marked as stopped", LogLevel.Information);
     }
 
     /// <summary>
-    /// Safe logging that checks if the writer is still open
+    /// Safe logging that writes to ILogger and to the file writer (if still open).
     /// </summary>
-    private void LogSafe(string message)
+    private void LogSafe(string message, LogLevel level = LogLevel.Debug)
     {
+        _logger?.Log(level, "{Message}", message);
         try
         {
             if (_log.BaseStream != null && _log.BaseStream.CanWrite)
@@ -217,7 +221,7 @@ public class DebugAdapterLogic
         _configurationDoneTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         if (_system != null)
             _systemBoundTcs.TrySetResult();
-        LogSafe("[Reset] Debug adapter reset, emulator will resume");
+        LogSafe("[Reset] Debug adapter reset, emulator will resume", LogLevel.Information);
     }
 
     /// <summary>
@@ -240,7 +244,7 @@ public class DebugAdapterLogic
             if (cpu == null || memory == null)
                 return;
 
-            LogSafe("[ExecutionLoop] Starting");
+            LogSafe("[ExecutionLoop] Starting", LogLevel.Information);
             try
             {
                 // SkipNextBreakpointCheck is set by the resume handlers (Continue, Next/JSR, StepOut)
@@ -265,9 +269,9 @@ public class DebugAdapterLogic
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                LogSafe($"[ExecutionLoop] Error: {ex.Message}");
+                LogSafe($"[ExecutionLoop] Error: {ex.Message}", LogLevel.Warning);
             }
-            LogSafe("[ExecutionLoop] Stopped");
+            LogSafe("[ExecutionLoop] Stopped", LogLevel.Information);
         });
     }
 
@@ -309,12 +313,12 @@ public class DebugAdapterLogic
         }
         else if (result.TriggerType == ExecEvaluatorTriggerReasonType.BRKInstruction)
         {
-            LogSafe($"[BreakpointHit] BRK instruction hit at ${cpu.PC:X4}");
+            LogSafe($"[BreakpointHit] BRK instruction hit at ${cpu.PC:X4}", LogLevel.Information);
             reason = "breakpoint";
         }
         else
         {
-            LogSafe($"[BreakpointHit] Breakpoint hit at ${cpu.PC:X4}");
+            LogSafe($"[BreakpointHit] Breakpoint hit at ${cpu.PC:X4}", LogLevel.Information);
             reason = "breakpoint";
             hitIds = _breakpointIdsByAddress.TryGetValue(cpu.PC, out var bpId) ? new[] { bpId } : null;
         }
@@ -504,7 +508,7 @@ public class DebugAdapterLogic
                         await HandleGetSourceAddressMapAsync(seq, arguments);
                         break;
                     default:
-                        LogSafe($"[Handler] Unknown command: {command}");
+                        LogSafe($"[Handler] Unknown command: {command}", LogLevel.Warning);
                         await _protocol.SendResponseAsync(seq, command ?? "unknown");
                         break;
                 }
@@ -512,8 +516,7 @@ public class DebugAdapterLogic
             }
             catch (Exception ex)
             {
-                LogSafe($"[Handler] Exception in {command}: {ex}");
-                _log.Flush();
+                LogSafe($"[Handler] Exception in {command}: {ex}", LogLevel.Warning);
             }
         }
     }
@@ -574,7 +577,7 @@ public class DebugAdapterLogic
             {
                 var recentPrg = prgFiles.First();
                 program = recentPrg.FullName;
-                LogSafe($"[Launch] Auto-detected recently built program: {program} (modified: {recentPrg.LastWriteTime})");
+                LogSafe($"[Launch] Auto-detected recently built program: {program} (modified: {recentPrg.LastWriteTime})", LogLevel.Information);
                 await SendOutputAsync($"Auto-detected program: {Path.GetFileName(program)}\n");
 
                 // Also look for corresponding .dbg file
@@ -582,17 +585,17 @@ public class DebugAdapterLogic
                 if (File.Exists(dbgPath))
                 {
                     dbgFile = dbgPath;
-                    LogSafe($"[Launch] Auto-detected debug file: {dbgFile}");
+                    LogSafe($"[Launch] Auto-detected debug file: {dbgFile}", LogLevel.Information);
                     await SendOutputAsync($"Auto-detected debug file: {Path.GetFileName(dbgFile)}\n");
                 }
             }
             else
             {
-                LogSafe($"[Launch] No .prg files found in workspace");
+                LogSafe($"[Launch] No .prg files found in workspace", LogLevel.Warning);
             }
         }
 
-        LogSafe($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_evaluator.StopAfterBRKInstruction}, programAlreadyLoaded={programAlreadyLoaded}");
+        LogSafe($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_evaluator.StopAfterBRKInstruction}, programAlreadyLoaded={programAlreadyLoaded}", LogLevel.Information);
 
         var memory = _system?.Mem;
         var cpu = _system?.CPU;
@@ -601,7 +604,7 @@ public class DebugAdapterLogic
         // path for debug symbols and program bounds, but skip loading into memory.
         if (programAlreadyLoaded)
         {
-            LogSafe("[Launch] Program already loaded by emulator host, skipping memory load");
+            LogSafe("[Launch] Program already loaded by emulator host, skipping memory load", LogLevel.Information);
 
             if (!string.IsNullOrEmpty(program) && File.Exists(program))
             {
@@ -757,7 +760,7 @@ public class DebugAdapterLogic
                 }
                 catch (Exception ex)
                 {
-                    LogSafe($"[Launch] DeferredStopOnEntry error: {ex}");
+                    LogSafe($"[Launch] DeferredStopOnEntry error: {ex}", LogLevel.Warning);
                 }
             });
         }
@@ -773,12 +776,12 @@ public class DebugAdapterLogic
         // 1. Wait for system to be bound (SetSystem called by emulatorStateHandler).
         try
         {
-            LogSafe("[StopOnEntry] Waiting for system to start...");
+            LogSafe("[StopOnEntry] Waiting for system to start...", LogLevel.Information);
             await _systemBoundTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
         }
         catch (TimeoutException)
         {
-            LogSafe("[StopOnEntry] Timeout waiting for system — sending stopped anyway");
+            LogSafe("[StopOnEntry] Timeout waiting for system — sending stopped anyway", LogLevel.Warning);
             IsStopped = true;
             await SendStoppedEventAsync("entry");
             _stopOnEntryPending = false;
@@ -791,35 +794,35 @@ public class DebugAdapterLogic
         {
             try
             {
-                LogSafe("[StopOnEntry] Waiting for automated startup to complete...");
+                LogSafe("[StopOnEntry] Waiting for automated startup to complete...", LogLevel.Information);
                 await _programReadyTcs.Task.WaitAsync(TimeSpan.FromSeconds(30));
             }
             catch (TimeoutException)
             {
-                LogSafe("[StopOnEntry] Warning: program-ready signal not received — stopOnEntry may be early");
+                LogSafe("[StopOnEntry] Warning: program-ready signal not received — stopOnEntry may be early", LogLevel.Warning);
             }
         }
 
         // 3. Wait for SetExternalDebugAdapter to complete in the host.
         try
         {
-            LogSafe("[StopOnEntry] Waiting for adapter to be installed in host...");
+            LogSafe("[StopOnEntry] Waiting for adapter to be installed in host...", LogLevel.Information);
             await _installedInHostTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
         }
         catch (TimeoutException)
         {
-            LogSafe("[StopOnEntry] Warning: adapter not installed in host after timeout");
+            LogSafe("[StopOnEntry] Warning: adapter not installed in host after timeout", LogLevel.Warning);
         }
 
         // 4. Wait for configurationDone from VSCode (DAP spec requirement).
         try
         {
-            LogSafe("[StopOnEntry] Waiting for configurationDone...");
+            LogSafe("[StopOnEntry] Waiting for configurationDone...", LogLevel.Information);
             await _configurationDoneTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
         }
         catch (TimeoutException)
         {
-            LogSafe("[StopOnEntry] Warning: configurationDone not received after timeout");
+            LogSafe("[StopOnEntry] Warning: configurationDone not received after timeout", LogLevel.Warning);
         }
 
         // NOW pause the emulator. All prerequisites met.
@@ -838,14 +841,14 @@ public class DebugAdapterLogic
             cpu.PC = _programStartAddress;
         }
 
-        LogSafe("[StopOnEntry] Sending stopped event (entry)");
+        LogSafe("[StopOnEntry] Sending stopped event (entry)", LogLevel.Information);
         await SendStoppedEventAsync("entry");
         _stopOnEntryPending = false;
     }
 
     private async Task HandleAttachAsync(int seq, JsonObject? args)
     {
-        LogSafe("[Attach] Starting attach sequence");
+        LogSafe("[Attach] Starting attach sequence", LogLevel.Information);
 
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? false;
         _evaluator.StopAfterBRKInstruction = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
@@ -871,7 +874,7 @@ public class DebugAdapterLogic
             {
                 var recentPrg = prgFiles.First();
                 program = recentPrg.FullName;
-                LogSafe($"[Attach] Auto-detected recently built program: {program} (modified: {recentPrg.LastWriteTime})");
+                LogSafe($"[Attach] Auto-detected recently built program: {program} (modified: {recentPrg.LastWriteTime})", LogLevel.Information);
                 await SendOutputAsync($"Auto-detected program: {Path.GetFileName(program)}\n");
 
                 // Also look for corresponding .dbg file
@@ -881,18 +884,18 @@ public class DebugAdapterLogic
                     if (File.Exists(dbgPath))
                     {
                         dbgFile = dbgPath;
-                        LogSafe($"[Attach] Auto-detected debug file: {dbgFile}");
+                        LogSafe($"[Attach] Auto-detected debug file: {dbgFile}", LogLevel.Information);
                         await SendOutputAsync($"Auto-detected debug file: {Path.GetFileName(dbgFile)}\n");
                     }
                 }
             }
             else
             {
-                LogSafe($"[Attach] No .prg files found in workspace");
+                LogSafe($"[Attach] No .prg files found in workspace", LogLevel.Warning);
             }
         }
 
-        LogSafe($"[Attach] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_evaluator.StopAfterBRKInstruction}");
+        LogSafe($"[Attach] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_evaluator.StopAfterBRKInstruction}", LogLevel.Information);
 
         // In attach mode, we don't create the emulator - it's already running in the desktop app
         // We just load the debug symbols to enable source-level debugging
@@ -929,7 +932,7 @@ public class DebugAdapterLogic
                         {
                             _programStartAddress = allAddresses.Min();
                             _programEndAddress = allAddresses.Max();
-                            LogSafe($"[Attach] Program bounds from debug symbols: ${_programStartAddress:X4} - ${_programEndAddress:X4}");
+                            LogSafe($"[Attach] Program bounds from debug symbols: ${_programStartAddress:X4} - ${_programEndAddress:X4}", LogLevel.Information);
                         }
                     }
 
@@ -940,25 +943,25 @@ public class DebugAdapterLogic
                     {
                         await SendOutputAsync($"  Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
                     }
-                    LogSafe($"[Attach] Loaded {_dbgParser.SourceLineToAddress.Sum(kvp => kvp.Value.Count)} source line mappings");
+                    LogSafe($"[Attach] Loaded {_dbgParser.SourceLineToAddress.Sum(kvp => kvp.Value.Count)} source line mappings", LogLevel.Information);
                 }
                 catch (Exception ex)
                 {
                     await SendOutputAsync($"Warning: Failed to load debug symbols: {ex.Message}\n");
-                    LogSafe($"[Attach] Failed to load debug symbols: {ex}");
+                    LogSafe($"[Attach] Failed to load debug symbols: {ex}", LogLevel.Warning);
                     _dbgParser = null;
                 }
             }
             else
             {
                 await SendOutputAsync($"Warning: Debug file not found: {dbgFile}\n");
-                LogSafe($"[Attach] Debug file not found: {dbgFile}");
+                LogSafe($"[Attach] Debug file not found: {dbgFile}", LogLevel.Warning);
             }
         }
         else
         {
             await SendOutputAsync($"Note: No debug symbols loaded - only instruction-level debugging available\n");
-            LogSafe($"[Attach] No debug file specified");
+            LogSafe($"[Attach] No debug file specified", LogLevel.Information);
         }
 
         // Merge any additional .dbg files (dbgFiles array)
@@ -985,16 +988,16 @@ public class DebugAdapterLogic
             IsStopped = true;
             _stopOnEntryPending = true;
             await SendOutputAsync("stopOnEntry: waiting for emulator to start — will pause at first instruction\n");
-            LogSafe("[Attach] stopOnEntry pending — IsStopped=true, deferring stopped event until system starts");
+            LogSafe("[Attach] stopOnEntry pending — IsStopped=true, deferring stopped event until system starts", LogLevel.Information);
             _ = DeferredStopOnEntryAsync(waitForProgramReady: false, resetProgramCounter: false);
         }
         else
         {
             await SendOutputAsync("Waiting for emulator to start...\n");
-            LogSafe("[Attach] No system available yet, will bind when emulator starts");
+            LogSafe("[Attach] No system available yet, will bind when emulator starts", LogLevel.Information);
         }
 
-        LogSafe("[Attach] Attach sequence complete");
+        LogSafe("[Attach] Attach sequence complete", LogLevel.Information);
     }
 
     private async Task HandleConfigurationDoneAsync(int seq)
@@ -1008,7 +1011,7 @@ public class DebugAdapterLogic
         // This handles source-level breakpoints.
         // VSCode sends the FULL set of source breakpoints on each call,
         // so we clear and rebuild _sourceBreakpoints.
-        LogSafe("[SetBreakpoints] Called");
+        LogSafe("[SetBreakpoints] Called", LogLevel.Information);
         LogSafe($"[SetBreakpoints] args: {args?.ToJsonString()}");
 
         var breakpoints = new JsonArray();
@@ -1158,7 +1161,7 @@ public class DebugAdapterLogic
     {
         // VSCode sends the FULL set of instruction breakpoints on each call,
         // so we clear and rebuild _evaluator.InstructionBreakpoints.
-        LogSafe("[SetInstructionBreakpoints] Called");
+        LogSafe("[SetInstructionBreakpoints] Called", LogLevel.Information);
         LogSafe($"[SetInstructionBreakpoints] args: {args?.ToJsonString()}");
 
         // Build new set of addresses from the request
@@ -1269,7 +1272,7 @@ public class DebugAdapterLogic
         // VSCode sends the full set of function breakpoints on each call.
         // "Function breakpoints" in this adapter are hex addresses entered via the
         // Breakpoints panel "+" button (e.g. "$C0D5", "0xc0d5", "C0D5").
-        LogSafe("[SetFunctionBreakpoints] Called");
+        LogSafe("[SetFunctionBreakpoints] Called", LogLevel.Information);
         LogSafe($"[SetFunctionBreakpoints] args: {args?.ToJsonString()}");
 
         var newAddresses = new HashSet<ushort>();
@@ -1373,7 +1376,7 @@ public class DebugAdapterLogic
         foreach (var addr in _functionBpAddresses)
             _evaluator.InstructionBreakpoints.Add(addr);
 
-        LogSafe($"[SetFunctionBreakpoints] Active BPs: instruction={_instructionBpAddresses.Count}, function={_functionBpAddresses.Count}, total={_evaluator.InstructionBreakpoints.Count}");
+        LogSafe($"[SetFunctionBreakpoints] Active BPs: instruction={_instructionBpAddresses.Count}, function={_functionBpAddresses.Count}, total={_evaluator.InstructionBreakpoints.Count}", LogLevel.Information);
 
         await _protocol.SendResponseAsync(seq, "setFunctionBreakpoints", new JsonObject
         {
@@ -1623,7 +1626,7 @@ public class DebugAdapterLogic
         }
         else
         {
-            LogSafe($"[HandleVariables] WARNING: _cpu is null!");
+            LogSafe($"[HandleVariables] WARNING: _cpu is null!", LogLevel.Warning);
         }
 
         var body = new JsonObject
@@ -1670,7 +1673,7 @@ public class DebugAdapterLogic
                 memory[symbol.Value] = (byte)parsed.Value;
                 var memByte = memory[symbol.Value];
                 resultValue = $"${symbol.Value:X4} [${memByte:X2}]";
-                LogSafe($"[HandleSetExpression] Set memory at label {expression} (${symbol.Value:X4}) = ${memByte:X2}");
+                LogSafe($"[HandleSetExpression] Set memory at label {expression} (${symbol.Value:X4}) = ${memByte:X2}", LogLevel.Information);
             }
             else
             {
@@ -1682,7 +1685,7 @@ public class DebugAdapterLogic
                 }
                 memory[addr.Value] = (byte)parsed.Value;
                 resultValue = $"${memory[addr.Value]:X2} ({memory[addr.Value]})";
-                LogSafe($"[HandleSetExpression] Set memory ${addr.Value:X4} = ${memory[addr.Value]:X2}");
+                LogSafe($"[HandleSetExpression] Set memory ${addr.Value:X4} = ${memory[addr.Value]:X2}", LogLevel.Information);
             }
 
             var body = new JsonObject
@@ -1738,7 +1741,7 @@ public class DebugAdapterLogic
             if (!File.Exists(path))
             {
                 await SendOutputAsync($"Warning: dbgFiles entry not found: {path}\n");
-                LogSafe($"[DbgFiles] File not found: {path}");
+                LogSafe($"[DbgFiles] File not found: {path}", LogLevel.Warning);
                 continue;
             }
 
@@ -1759,21 +1762,21 @@ public class DebugAdapterLogic
                     _dbgParser = extraParser;
                     _dbgFileDirectory = extraDir;
                     await SendOutputAsync($"Loaded primary debug symbols from {Path.GetFileName(path)}\n");
-                    LogSafe($"[DbgFiles] Loaded primary from {path}");
+                    LogSafe($"[DbgFiles] Loaded primary from {path}", LogLevel.Information);
                 }
                 else
                 {
                     _dbgParser.MergeFrom(extraParser);
                     await SendOutputAsync($"Merged debug symbols from {Path.GetFileName(path)}\n");
-                    LogSafe($"[DbgFiles] Merged from {path}");
+                    LogSafe($"[DbgFiles] Merged from {path}", LogLevel.Information);
                 }
 
-                LogSafe($"[DbgFiles] After merge: {_dbgParser.SourceLineToAddress.Count} source files, {_dbgParser.Symbols.Count} symbols");
+                LogSafe($"[DbgFiles] After merge: {_dbgParser.SourceLineToAddress.Count} source files, {_dbgParser.Symbols.Count} symbols", LogLevel.Information);
             }
             catch (Exception ex)
             {
                 await SendOutputAsync($"Warning: Failed to load dbgFiles entry '{path}': {ex.Message}\n");
-                LogSafe($"[DbgFiles] Error loading {path}: {ex}");
+                LogSafe($"[DbgFiles] Error loading {path}: {ex}", LogLevel.Warning);
             }
         }
     }
@@ -1879,7 +1882,7 @@ public class DebugAdapterLogic
                 }
 
                 resultType = name.Equals("PC", StringComparison.OrdinalIgnoreCase) ? "ushort" : "byte";
-                LogSafe($"[HandleSetVariable] Set register {name} = {resultValue}");
+                LogSafe($"[HandleSetVariable] Set register {name} = {resultValue}", LogLevel.Information);
             }
             else if (variablesReference == 2) // Flags
             {
@@ -1915,7 +1918,7 @@ public class DebugAdapterLogic
 
                 resultValue = flagValue ? "1" : "0";
                 resultType = "bool";
-                LogSafe($"[HandleSetVariable] Set flag {name} = {resultValue}");
+                LogSafe($"[HandleSetVariable] Set flag {name} = {resultValue}", LogLevel.Information);
             }
             else if (variablesReference == 3 || _labelSegmentScopes.ContainsKey(variablesReference)) // Labels — write byte at label address
             {
@@ -1942,7 +1945,7 @@ public class DebugAdapterLogic
                     var memByte = memory[addr];
                     resultValue = $"${addr:X4} [${memByte:X2}]";
                     resultType = "label";
-                    LogSafe($"[HandleSetVariable] Set memory at label {name} (${addr:X4}) = ${memByte:X2}");
+                    LogSafe($"[HandleSetVariable] Set memory at label {name} (${addr:X4}) = ${memByte:X2}", LogLevel.Information);
                 }
                 else
                 {
@@ -2086,7 +2089,7 @@ public class DebugAdapterLogic
     {
         var targetId = args?["targetId"]?.GetValue<int>() ?? -1;
 
-        LogSafe($"[Goto] targetId={targetId}");
+        LogSafe($"[Goto] targetId={targetId}", LogLevel.Information);
 
         var cpu = _system?.CPU;
         if (cpu == null)
@@ -2104,7 +2107,7 @@ public class DebugAdapterLogic
         cpu.PC = (ushort)targetId;
         IsStopped = true;
 
-        LogSafe($"[Goto] Set PC to ${cpu.PC:X4}");
+        LogSafe($"[Goto] Set PC to ${cpu.PC:X4}", LogLevel.Information);
 
         await _protocol.SendResponseAsync(seq, "goto");
         await SendStoppedEventAsync("goto");
@@ -2199,7 +2202,7 @@ public class DebugAdapterLogic
         ushort returnAddress = (ushort)(returnLo | (returnHi << 8));
 
         string interruptType = isNmi ? "NMI" : "IRQ";
-        LogSafe($"[SkipInterrupt] Detected {interruptType} at ${cpu.PC:X4}, return address ${returnAddress:X4}, skipping ISR");
+        LogSafe($"[SkipInterrupt] Detected {interruptType} at ${cpu.PC:X4}, return address ${returnAddress:X4}, skipping ISR", LogLevel.Information);
         await SendOutputAsync($"Skipping {interruptType} handler at ${cpu.PC:X4} → resuming at ${returnAddress:X4}\n");
 
         // Set temporary breakpoint at the return address and resume execution.
@@ -2458,7 +2461,7 @@ public class DebugAdapterLogic
         }
         catch (Exception ex)
         {
-            LogSafe($"[GetMemoryDump] Error: {ex.Message}");
+            LogSafe($"[GetMemoryDump] Error: {ex.Message}", LogLevel.Warning);
             await _protocol.SendResponseAsync(seq, "getMemoryDump", new JsonObject
             {
                 ["success"] = false,
@@ -2638,11 +2641,10 @@ public class DebugAdapterLogic
             var offset = args?["offset"]?.GetValue<int>() ?? 0;
 
             LogSafe($"[HandleReadMemory] memoryReference={memoryReference}, count={count}, offset={offset}");
-            _log.Flush();
 
             if (string.IsNullOrEmpty(memoryReference))
             {
-                LogSafe("[HandleReadMemory] memoryReference is empty!");
+                LogSafe("[HandleReadMemory] memoryReference is empty!", LogLevel.Warning);
                 await _protocol.SendResponseAsync(seq, "readMemory");
                 return;
             }
@@ -2651,7 +2653,7 @@ public class DebugAdapterLogic
             var parsedAddress = ParseNumericValue(memoryReference);
             if (parsedAddress == null)
             {
-                LogSafe($"[HandleReadMemory] Failed to parse memoryReference: {memoryReference}");
+                LogSafe($"[HandleReadMemory] Failed to parse memoryReference: {memoryReference}", LogLevel.Warning);
                 await _protocol.SendResponseAsync(seq, "readMemory");
                 return;
             }
@@ -2692,13 +2694,12 @@ public class DebugAdapterLogic
             };
 
             LogSafe($"[HandleReadMemory] Returning address={offset} (offset), actualMemoryAddress=0x{address:X4}");
-            _log.Flush();
 
             await _protocol.SendResponseAsync(seq, "readMemory", body);
         }
         catch (Exception ex)
         {
-            LogSafe($"[ReadMemory] Error: {ex.Message}");
+            LogSafe($"[ReadMemory] Error: {ex.Message}", LogLevel.Warning);
             await _protocol.SendResponseAsync(seq, "readMemory");
         }
     }
@@ -2742,7 +2743,7 @@ public class DebugAdapterLogic
                 memory[(ushort)((address + i) & 0xFFFF)] = data[i];
             }
 
-            LogSafe($"[HandleWriteMemory] Wrote {data.Length} bytes at ${address:X4}");
+            LogSafe($"[HandleWriteMemory] Wrote {data.Length} bytes at ${address:X4}", LogLevel.Information);
 
             var body = new JsonObject
             {
@@ -2753,21 +2754,21 @@ public class DebugAdapterLogic
         }
         catch (Exception ex)
         {
-            LogSafe($"[WriteMemory] Error: {ex.Message}");
+            LogSafe($"[WriteMemory] Error: {ex.Message}", LogLevel.Warning);
             await _protocol.SendErrorResponseAsync(seq, "writeMemory", $"Error: {ex.Message}");
         }
     }
 
     private async Task HandleContinueAsync(int seq, JsonObject? args)
     {
-        LogSafe("[HandleContinue] Called");
+        LogSafe("[HandleContinue] Called", LogLevel.Information);
 
         var cpu = _system?.CPU;
         var memory = _system?.Mem;
 
         if (cpu != null && memory != null)
         {
-            LogSafe($"[Continue] Resuming emulator execution at PC=${cpu.PC:X4}");
+            LogSafe($"[Continue] Resuming emulator execution at PC=${cpu.PC:X4}", LogLevel.Information);
 
             // Clear any active source-line step state from a previous step command
             _evaluator.SourceLineStepAddresses = null;
@@ -2790,7 +2791,7 @@ public class DebugAdapterLogic
 
     private async Task HandleNextAsync(int seq, JsonObject? args)
     {
-        LogSafe("[HandleNext] Starting...");
+        LogSafe("[HandleNext] Starting...", LogLevel.Information);
         var cpu = _system?.CPU;
         var memory = _system?.Mem;
         try
@@ -2863,7 +2864,7 @@ public class DebugAdapterLogic
                     // Check if PC moved out of bounds after execution
                     if (IsOutOfBounds(cpu.PC))
                     {
-                        LogSafe($"[HandleNext] Stepped outside program bounds to ${cpu.PC:X4}");
+                        LogSafe($"[HandleNext] Stepped outside program bounds to ${cpu.PC:X4}", LogLevel.Information);
                         await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${cpu.PC:X4}\n");
                         await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
                     }
@@ -2877,15 +2878,14 @@ public class DebugAdapterLogic
         }
         catch (Exception ex)
         {
-            LogSafe($"[HandleNext] EXCEPTION: {ex}");
-            _log.Flush();
+            LogSafe($"[HandleNext] EXCEPTION: {ex}", LogLevel.Warning);
             throw;
         }
     }
 
     private async Task HandleStepInAsync(int seq, JsonObject? args)
     {
-        LogSafe("[HandleStepIn] Starting...");
+        LogSafe("[HandleStepIn] Starting...", LogLevel.Information);
 
         var cpu = _system?.CPU;
         var memory = _system?.Mem;
@@ -2940,14 +2940,14 @@ public class DebugAdapterLogic
 
     private async Task HandleStepOutAsync(int seq, JsonObject? args)
     {
-        LogSafe("[HandleStepOut] Starting...");
+        LogSafe("[HandleStepOut] Starting...", LogLevel.Information);
 
         var cpu = _system?.CPU;
         var memory = _system?.Mem;
 
         if (cpu != null && memory != null)
         {
-            LogSafe($"[HandleStepOut] Enabling step out mode, will run until RTS at PC=${cpu.PC:X4}");
+            LogSafe($"[HandleStepOut] Enabling step out mode, will run until RTS at PC=${cpu.PC:X4}", LogLevel.Information);
             // Clear any active source-line step state
             _evaluator.SourceLineStepAddresses = null;
             _evaluator.SourceLineStepIsOver = false;
@@ -2965,7 +2965,7 @@ public class DebugAdapterLogic
 
     private async Task HandlePauseAsync(int seq, JsonObject? args)
     {
-        LogSafe("[HandlePause] Pause requested");
+        LogSafe("[HandlePause] Pause requested", LogLevel.Information);
 
         IsStopped = true; // Pause the emulator's run loop
         StopExecutionLoop();
@@ -2980,7 +2980,7 @@ public class DebugAdapterLogic
     /// </summary>
     public async Task SendTerminatedEventAsync()
     {
-        LogSafe("[SendTerminatedEvent] Emulator system was stopped externally, sending terminated event");
+        LogSafe("[SendTerminatedEvent] Emulator system was stopped externally, sending terminated event", LogLevel.Information);
         await _protocol.SendEventAsync("terminated");
     }
 
@@ -2998,7 +2998,7 @@ public class DebugAdapterLogic
         // VSCode sends true for "launch" sessions and false for "attach" sessions.
         // Default to true if not specified (DAP spec default for launch).
         bool terminateDebuggee = args?["terminateDebuggee"]?.GetValue<bool>() ?? true;
-        LogSafe($"[Disconnect] terminateDebuggee={terminateDebuggee}");
+        LogSafe($"[Disconnect] terminateDebuggee={terminateDebuggee}", LogLevel.Information);
         StopExecutionLoop();
 
         await _protocol.SendResponseAsync(seq, "disconnect");
@@ -3051,7 +3051,7 @@ public class DebugAdapterLogic
             body["preserveFocusHint"] = true;
         }
 
-        LogSafe($"[SendStoppedEvent] reason={reason}, text={text}, preserveFocusHint={preserveFocusHint}, PC=${cpu?.PC:X4}");
+        LogSafe($"[SendStoppedEvent] reason={reason}, text={text}, preserveFocusHint={preserveFocusHint}, PC=${cpu?.PC:X4}", LogLevel.Information);
         LogSafe($"[SendStoppedEvent] Event body: {body.ToJsonString()}");
 
         await _protocol.SendEventAsync("stopped", body);
@@ -3223,7 +3223,7 @@ public class DebugAdapterLogic
             }
             catch (Exception ex)
             {
-                LogSafe($"[HandleDisassemble] Error: {ex.Message}");
+                LogSafe($"[HandleDisassemble] Error: {ex.Message}", LogLevel.Warning);
             }
         }
 

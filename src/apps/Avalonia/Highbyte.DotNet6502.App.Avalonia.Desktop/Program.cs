@@ -209,7 +209,7 @@ internal sealed partial class Program
         // ----------
         // Set up external debug controller (always created on Desktop so the UI toggle is available)
         // ----------
-        var debugController = new AvaloniaExternalDebugController(new AvaloniaDebugServerEnvironment());
+        var debugController = new AvaloniaExternalDebugController(new AvaloniaDebugServerEnvironment(), loggerFactory);
 
         if (enableExternalDebug)
         {
