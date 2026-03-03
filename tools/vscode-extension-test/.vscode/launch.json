@@ -14,8 +14,8 @@
     //   "type": "dotnet6502",
     //   "request": "launch",
     //   "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
-    //   "program": "${workspaceFolder}/test-program.bin",
-    //   "dbgFile": "${workspaceFolder}/test-program.dbg",
+    //   "program": "${workspaceFolder}/samples/test-program.bin",
+    //   "dbgFile": "${workspaceFolder}/samples/test-program.dbg",
     //   "stopOnEntry": true,
     //   "stopOnBRK": true
     //   // Uses minimal debug adapter by default (debugAdapter: "minimal")
@@ -24,8 +24,8 @@
       "type": "dotnet6502",
       "request": "launch",
       "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
-      "program": "${workspaceFolder}/test-program.prg",
-      "dbgFile": "${workspaceFolder}/test-program.dbg",
+      "program": "${workspaceFolder}/samples/test-program.prg",
+      "dbgFile": "${workspaceFolder}/samples/test-program.dbg",
       "stopOnEntry": true,
       "stopOnBRK": true
       // Uses minimal debug adapter by default (debugAdapter: "minimal")
@@ -55,8 +55,8 @@
       "request": "attach",
       "name": "Attach to Full Emulator Host with C64 to Source Debug smooth_scroller_and_raster2.asm",
       "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",
-      // "program": "${workspaceFolder}/smooth_scroller_and_raster2.prg",
-      // "dbgFile": "${workspaceFolder}/smooth_scroller_and_raster2.dbg",
+      // "program": "${workspaceFolder}/samples/smooth_scroller_and_raster2.prg",
+      // "dbgFile": "${workspaceFolder}/samples/smooth_scroller_and_raster2.dbg",
       "dbgFiles": [ // Additional .dbg files in addition to the main one specified by dbgFile, or as in this example automatically derived from the built program from preLaunchTask.
         "${userHome}/source/public-repos/c64rom/rom.dbg",        
       ],

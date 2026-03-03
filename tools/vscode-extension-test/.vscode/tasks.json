@@ -31,7 +31,7 @@
         }
       ],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/samples"
       },
       "problemMatcher": "$ca65",
       "group": {
@@ -63,7 +63,7 @@
       "command": "cl65",
       "args": [
         "-g",
-        "${workspaceFolder}/smooth_scroller_and_raster2.asm",
+        "smooth_scroller_and_raster2.asm",
         "-o",
         "smooth_scroller_and_raster2.prg",
         "-C",
@@ -87,7 +87,7 @@
         }
       ],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/samples"
       },
       "problemMatcher": "$ca65",
       "group": {

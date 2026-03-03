@@ -346,23 +346,45 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                 if (task) {
                     // For shell tasks, args might be in definition.args or in task execution
                     let args = task.definition.args;
-                    
+
                     // If not in definition, might be a ShellExecution
                     if (!args && task.execution && 'args' in task.execution) {
                         args = (task.execution as any).args;
                     }
-                    
+
                     console.log(`[6502 Debug] Task args: ${JSON.stringify(args)}`);
-                    
+
+                    // Determine the task's working directory so output files can be
+                    // resolved relative to it (e.g. cwd="${workspaceFolder}/samples").
+                    const executionCwd: string | undefined =
+                        (task.execution as any)?.options?.cwd ?? task.definition.options?.cwd;
+                    const taskCwd = executionCwd
+                        ? executionCwd.replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath)
+                        : folder.uri.fsPath;
+                    console.log(`[6502 Debug] Task cwd (resolved): ${taskCwd}`);
+
                     if (args && Array.isArray(args)) {
                         // Look for -o argument in cl65 task
                         const oIndex = args.indexOf('-o');
                         if (oIndex >= 0 && oIndex + 1 < args.length) {
                             const outputFile = args[oIndex + 1];
-                            programPath = path.join(folder.uri.fsPath, outputFile);
+                            programPath = path.join(taskCwd, outputFile);
                             console.log(`[6502 Debug] Extracted program path from task: ${programPath}`);
                         } else {
                             console.log(`[6502 Debug] Could not find -o argument in task args`);
+                        }
+
+                        // Auto-detect dbgFile from -Wl --dbgfile,<file> arg if not set in launch config
+                        if (!config.dbgFile) {
+                            for (const arg of args) {
+                                const argStr = typeof arg === 'string' ? arg : (arg as any)?.value;
+                                if (typeof argStr === 'string' && argStr.startsWith('--dbgfile,')) {
+                                    const dbgFileName = argStr.slice('--dbgfile,'.length);
+                                    config.dbgFile = path.join(taskCwd, dbgFileName);
+                                    console.log(`[6502 Debug] Extracted dbgFile from task: ${config.dbgFile}`);
+                                    break;
+                                }
+                            }
                         }
                     } else {
                         console.log(`[6502 Debug] Task has no args array`);
@@ -373,6 +395,12 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
             }
 
             console.log(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
+
+            // Propagate the auto-detected (or config-supplied) program path back onto
+            // config so the debug adapter receives it for .dbg file resolution.
+            if (programPath && !config.program) {
+                config.program = programPath;
+            }
 
             // The emulator host handles loading the program into memory, so tell the
             // debug adapter not to load it again (but still use the path for debug symbols

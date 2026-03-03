@@ -1,8 +1,8 @@
 version	major=2,minor=0
 info	csym=0,file=698,lib=1,line=289,mod=2,scope=5,seg=7,span=537,sym=80,type=4
-file	id=0,name="/Users/highbyte/source/repos/dotnet-6502/tools/vscode-extension-test/smooth_scroller_and_raster2.asm",size=10681,mtime=0x6995A297,mod=0
-file	id=1,name="/Users/highbyte/source/repos/dotnet-6502/tools/vscode-extension-test/smooth_scroller_and_raster2_init.asm",size=509,mtime=0x698F0C33,mod=0
-file	id=2,name="/Users/highbyte/source/repos/dotnet-6502/tools/vscode-extension-test/smooth_scroller_and_raster2_data.asm",size=3099,mtime=0x6995A297,mod=0
+file	id=0,name="smooth_scroller_and_raster2.asm",size=10681,mtime=0x699C5A08,mod=0
+file	id=1,name="smooth_scroller_and_raster2_init.asm",size=509,mtime=0x698F0C33,mod=0
+file	id=2,name="smooth_scroller_and_raster2_data.asm",size=3099,mtime=0x6995A297,mod=0
 file	id=3,name="cbm/loadaddr.s",size=399,mtime=0x5ED2ADF3,mod=1
 lib	id=0,name="/opt/homebrew/Cellar/cc65/2.19/share/cc65/lib/c64.lib"
 line	id=0,file=0,line=204
