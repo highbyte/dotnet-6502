@@ -38,12 +38,40 @@ public sealed class TcpDebugServerManager : IDisposable
     public bool IsClientConnected => _debugClientConnected;
 
     /// <summary>
+    /// Gets whether the TCP server is currently listening for connections.
+    /// </summary>
+    public bool IsListening => _debugServer.IsListening;
+
+    /// <summary>
+    /// Gets the port the TCP server is listening on (0 if not listening).
+    /// </summary>
+    public int Port => _debugServer.Port;
+
+    /// <summary>
+    /// Raised when <see cref="IsClientConnected"/> changes (client connected or disconnected).
+    /// May be fired from a background thread; subscribers should dispatch to the UI thread if needed.
+    /// </summary>
+    public event EventHandler? StateChanged;
+
+    /// <summary>
     /// Starts the TCP debug adapter server on the specified port.
     /// Begins accepting connections immediately — no waiting for automated startup.
     /// </summary>
     public async Task StartAsync(int port)
     {
         await _debugServer.StartAsync(port);
+    }
+
+    /// <summary>
+    /// Stops the TCP server. Any in-progress debug session continues until the client
+    /// disconnects; no new connections will be accepted. The server can be restarted
+    /// by calling <see cref="StartAsync"/> again.
+    /// </summary>
+    public Task StopAsync()
+    {
+        _debugLogWriter.WriteLine("StopAsync: stopping TCP server (no new connections will be accepted)");
+        _debugServer.Stop();
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -134,6 +162,7 @@ public sealed class TcpDebugServerManager : IDisposable
             _debugClientConnected = true;
             _activeAdapter = adapter;
             _debugLogWriter.WriteLine("DAP initialize received — marked as active debug client");
+            StateChanged?.Invoke(this, EventArgs.Empty);
 
             _environment.RunOnUiThread(() =>
             {
@@ -314,7 +343,7 @@ public sealed class TcpDebugServerManager : IDisposable
                 var message = await protocol.ReadMessageAsync();
                 if (message == null)
                 {
-                    _debugLogWriter.WriteLine("Received null message, debug client disconnected");
+                    SafeLog("Received null message, debug client disconnected");
                     break;
                 }
                 await adapter.HandleMessageAsync(message);
@@ -322,7 +351,7 @@ public sealed class TcpDebugServerManager : IDisposable
         }
         catch (Exception ex)
         {
-            _debugLogWriter.WriteLine($"Debug adapter error: {ex}");
+            SafeLog($"Debug adapter error: {ex}");
         }
         finally
         {
@@ -343,7 +372,7 @@ public sealed class TcpDebugServerManager : IDisposable
         lock (_connectionLock)
         {
             _activeConnectionCount--;
-            _debugLogWriter.WriteLine($"Connection closed at {DateTime.Now} (remaining active connections: {_activeConnectionCount}, wasRealSession: {wasRealSession})");
+            SafeLog($"Connection closed at {DateTime.Now} (remaining active connections: {_activeConnectionCount}, wasRealSession: {wasRealSession})");
 
             // Only set flag to false if this is the last connection
             if (_activeConnectionCount <= 0)
@@ -356,7 +385,7 @@ public sealed class TcpDebugServerManager : IDisposable
         if (!wasRealSession)
         {
             // Probe connection — no DAP initialize was received. Minimal cleanup only.
-            _debugLogWriter.WriteLine("Probe connection cleaned up (no DAP session was established)");
+            SafeLog("Probe connection cleaned up (no DAP session was established)");
             sessionCts.Dispose();
             return;
         }
@@ -370,7 +399,7 @@ public sealed class TcpDebugServerManager : IDisposable
             if (hostApp is INotifyPropertyChanged notifier)
             {
                 notifier.PropertyChanged -= emulatorStateHandler;
-                _debugLogWriter.WriteLine("Unsubscribed from EmulatorState changes (debug session ended)");
+                SafeLog("Unsubscribed from EmulatorState changes (debug session ended)");
             }
         }
 
@@ -390,11 +419,26 @@ public sealed class TcpDebugServerManager : IDisposable
                 if (hostApp != null)
                 {
                     hostApp.ClearExternalDebugAdapter();
-                    _debugLogWriter.WriteLine("External debug adapter cleared on UI thread (all connections closed)");
+                    SafeLog("External debug adapter cleared on UI thread (all connections closed)");
                 }
             });
             _debugClientConnected = false;
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>
+    /// Writes to the log, silently swallowing ObjectDisposedException.
+    /// Used in fire-and-forget background tasks (ProcessMessagesAsync, CleanupDebugSession)
+    /// where the StreamWriter may be closed if StopAsync is called while a connection is active.
+    /// </summary>
+    private void SafeLog(string message)
+    {
+        try
+        {
+            _debugLogWriter.WriteLine(message);
+        }
+        catch (ObjectDisposedException) { }
     }
 
     public void Dispose()

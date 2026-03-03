@@ -202,45 +202,22 @@ internal sealed partial class Program
         var gamepad = new Sdl2Gamepad(loggerFactory);
 
         // ----------
-        // Start debug adapter server if requested
+        // Set up external debug controller (always created on Desktop so the UI toggle is available)
         // ----------
-        TcpDebugServerManager? debugServerManager = null;
+        var debugController = new AvaloniaExternalDebugController(new AvaloniaDebugServerEnvironment());
+
         if (enableExternalDebug)
         {
             WriteBootstrapLog($"Starting TCP debug adapter server on port {debugPort}.");
 
-            // Create debug log file
-            var debugLogFilePath = Path.Combine(Path.GetTempPath(), $"dotnet6502-debugadapter-avalonia-{DateTime.Now:yyyyMMdd-HHmmss}.log");
-            var debugLogWriter = new StreamWriter(debugLogFilePath, append: true) { AutoFlush = true };
-            debugLogWriter.WriteLine($"Debug adapter server started at {DateTime.Now}");
-
-            debugServerManager = new TcpDebugServerManager(debugLogWriter, new AvaloniaDebugServerEnvironment());
-
-            //// If loading a PRG for debugging (not running it), set the pending PC before debugger connects
-            //if (loadPrgPath != null && !runLoadedProgram)
-            //{
-            //    var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath);
-            //    if (File.Exists(expandedPrgPath))
-            //    {
-            //        var prgBytes = File.ReadAllBytes(expandedPrgPath);
-            //        if (prgBytes.Length >= 2)
-            //        {
-            //            // Read load address (first two bytes, little-endian)
-            //            ushort loadAddress = (ushort)(prgBytes[0] | (prgBytes[1] << 8));
-            //            debugLogWriter.WriteLine($"Setting pending PC to 0x{loadAddress:X4} from PRG file (before debugger connects)");
-            //            debugServerManager.SetPendingProgramCounter(loadAddress);
-            //        }
-            //    }
-            //}
-
             // Start listening immediately — the adapter handles connecting before a system is running.
-            _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort));
+            Task.Run(async () => await debugController.StartAsync(debugPort)).Wait();
 
             if (debugWait)
             {
                 WriteBootstrapLog("Waiting for debug client to connect (--debug-wait specified)...");
 
-                if (debugServerManager.WaitForClientConnection(timeoutSeconds: 30))
+                if (debugController.WaitForClientConnection(timeoutSeconds: 30))
                 {
                     WriteBootstrapLog("Debug client connected, continuing startup.");
                 }
@@ -255,7 +232,7 @@ internal sealed partial class Program
         // Start Avalonia app
         // ----------
         WriteBootstrapLog($"Starting Avalonia app.");
-        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad);
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController);
 
         // If automated startup is requested, handle it after the app starts
         if (systemName != null)
@@ -289,7 +266,7 @@ internal sealed partial class Program
                     loadPrgPath,
                     runLoadedProgram,
                     enableExternalDebug,
-                    onStartupComplete: () => debugServerManager?.SignalProgramReady(),
+                    onStartupComplete: () => debugController.SignalProgramReady(),
                     loggerFactory: loggerFactory,
                     uiThreadInvoker: f => Dispatcher.UIThread.InvokeAsync(f));
             });
@@ -323,7 +300,8 @@ internal sealed partial class Program
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge,
-        IGamepad? gamepad = null)
+        IGamepad? gamepad = null,
+        IExternalDebugController? externalDebugController = null)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
@@ -332,7 +310,8 @@ internal sealed partial class Program
                 loggerFactory,
                 saveCustomConfigString: null,
                 saveCustomConfigSection: null,
-                gamepad: gamepad))
+                gamepad: gamepad,
+                externalDebugController: externalDebugController))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()

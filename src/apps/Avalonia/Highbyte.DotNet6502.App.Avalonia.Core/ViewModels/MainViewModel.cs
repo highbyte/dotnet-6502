@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Timers;
+using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -226,6 +227,44 @@ public class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // External debug server properties (Desktop only; null controller → all false/zero)
+    private readonly IExternalDebugController? _externalDebugController;
+
+    public bool IsExternalDebugServerAvailable => _externalDebugController != null;
+
+    private bool _isExternalDebugListening;
+    public bool IsExternalDebugListening
+    {
+        get => _isExternalDebugListening;
+        private set => this.RaiseAndSetIfChanged(ref _isExternalDebugListening, value);
+    }
+
+    private bool _isExternalDebugClientConnected;
+    public bool IsExternalDebugClientConnected
+    {
+        get => _isExternalDebugClientConnected;
+        private set => this.RaiseAndSetIfChanged(ref _isExternalDebugClientConnected, value);
+    }
+
+    private int _externalDebugPort = 6502;
+    public int ExternalDebugPort
+    {
+        get => _externalDebugPort;
+        set => this.RaiseAndSetIfChanged(ref _externalDebugPort, value);
+    }
+
+    public string ExternalDebugStatusText => _externalDebugController switch
+    {
+        null => "",
+        { IsClientConnected: true } => "Connected",
+        { IsListening: true } => $"Listening on :{_externalDebugController.Port}",
+        _ => "Off"
+    };
+
+    public string ExternalDebugToggleButtonText => _isExternalDebugListening ? "Stop" : "Start";
+
+    public ReactiveCommand<Unit, Unit> ToggleExternalDebugCommand { get; }
+
     public void ClearMonitorViewModel()
     {
         MonitorViewModel = null;
@@ -418,6 +457,29 @@ public class MainViewModel : ViewModelBase, IDisposable
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
             .Select(config => GetAudioToolTip(config))
             .ToProperty(this, x => x.AudioTooltip);
+
+        // External debug server (Desktop only — null on Browser)
+        _externalDebugController = App.Current?.ExternalDebugController;
+        if (_externalDebugController != null)
+        {
+            _isExternalDebugListening = _externalDebugController.IsListening;
+            _isExternalDebugClientConnected = _externalDebugController.IsClientConnected;
+            _externalDebugPort = _externalDebugController.Port;
+            _externalDebugController.StateChanged += OnExternalDebugControllerStateChanged;
+        }
+
+        ToggleExternalDebugCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () =>
+            {
+                if (_externalDebugController!.IsListening)
+                    await _externalDebugController.StopAsync();
+                else
+                    await _externalDebugController.StartAsync(Math.Max(1, _externalDebugPort));
+            },
+            this.WhenAnyValue(
+                x => x.IsExternalDebugClientConnected,
+                connected => !connected),
+            RxApp.MainThreadScheduler);
 
         // Initialize ReactiveCommands for ComboBox selections
         SelectSystemCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
@@ -695,6 +757,23 @@ public class MainViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Handles StateChanged events from the external debug controller.
+    /// Fired from a background thread; dispatches property notifications to the UI thread.
+    /// </summary>
+    private void OnExternalDebugControllerStateChanged(object? sender, EventArgs e)
+    {
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            IsExternalDebugListening = _externalDebugController?.IsListening ?? false;
+            IsExternalDebugClientConnected = _externalDebugController?.IsClientConnected ?? false;
+            if (_externalDebugController != null)
+                ExternalDebugPort = _externalDebugController.Port;
+            this.RaisePropertyChanged(nameof(ExternalDebugStatusText));
+            this.RaisePropertyChanged(nameof(ExternalDebugToggleButtonText));
+        });
+    }
+
+    /// <summary>
     /// Handles PropertyChanged events from the AvaloniaMonitor.
     /// Updates IsMonitorVisible which will trigger MainView to show/hide the monitor UI.
     /// </summary>
@@ -711,6 +790,10 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        // Unsubscribe from external debug controller events
+        if (_externalDebugController != null)
+            _externalDebugController.StateChanged -= OnExternalDebugControllerStateChanged;
+
         // Unsubscribe from monitor events
         if (_currentMonitor != null)
         {

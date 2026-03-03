@@ -49,6 +49,12 @@ public partial class App : Application
     public IDebuggableHostApp HostApp => _hostApp;
 
     /// <summary>
+    /// Runtime controller for the external TCP debug server.
+    /// Non-null only on Desktop; null on Browser (where TCP is unavailable).
+    /// </summary>
+    public IExternalDebugController? ExternalDebugController { get; private set; }
+
+    /// <summary>
     /// Static reference to the current App instance (for debug adapter integration).
     /// </summary>
     public static App? Current { get; private set; }
@@ -84,7 +90,8 @@ public partial class App : Application
         ILoggerFactory loggerFactory,
         Func<string, string, string?, Task>? saveCustomConfigString = null,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null,
-        IGamepad? gamepad = null)
+        IGamepad? gamepad = null,
+        IExternalDebugController? externalDebugController = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -99,6 +106,7 @@ public partial class App : Application
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
+        ExternalDebugController = externalDebugController;
 
         // Initialize static logger factory for use in Views and other classes where DI is not available
         AppLogger.Factory = loggerFactory;

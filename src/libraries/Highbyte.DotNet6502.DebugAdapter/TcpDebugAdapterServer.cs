@@ -22,6 +22,11 @@ public class TcpDebugAdapterServer : IDisposable
     /// </summary>
     public int Port { get; private set; }
 
+    /// <summary>
+    /// Gets whether the server is currently listening for connections.
+    /// </summary>
+    public bool IsListening { get; private set; }
+
     public TcpDebugAdapterServer(StreamWriter log)
     {
         _log = log;
@@ -29,11 +34,12 @@ public class TcpDebugAdapterServer : IDisposable
 
     /// <summary>
     /// Starts the TCP server listening for connections.
+    /// Can be called again after <see cref="Stop"/> to restart the server.
     /// </summary>
     /// <param name="port">Port to listen on. Use 0 for a random available port.</param>
     public async Task StartAsync(int port = 0)
     {
-        if (_listener != null)
+        if (IsListening)
             throw new InvalidOperationException("Server is already started");
 
         _listener = new TcpListener(IPAddress.Loopback, port);
@@ -46,7 +52,16 @@ public class TcpDebugAdapterServer : IDisposable
         _log.Flush();
 
         _cts = new CancellationTokenSource();
-        _listenTask = ListenForClientsAsync(_cts.Token);
+        // Run on the thread pool to avoid capturing the UI synchronization context.
+        // Without Task.Run, if StartAsync is called from the UI thread, the async
+        // continuations inside ListenForClientsAsync would be scheduled back onto the
+        // UI thread. Then calling _listenTask.Wait() on the UI thread in Stop() would
+        // deadlock: Wait() blocks the UI thread, while the continuation needs the UI
+        // thread to run. The 5-second timeout would expire, Dispose() would close the
+        // StreamWriter, and the finally-running continuation would throw
+        // ObjectDisposedException.
+        _listenTask = Task.Run(() => ListenForClientsAsync(_cts.Token));
+        IsListening = true;
     }
 
     private async Task ListenForClientsAsync(CancellationToken cancellationToken)
@@ -70,18 +85,31 @@ public class TcpDebugAdapterServer : IDisposable
         }
         catch (OperationCanceledException)
         {
-            _log.WriteLine("[TCP Server] Listen cancelled");
-            _log.Flush();
+            SafeLog("[TCP Server] Listen cancelled");
         }
         catch (Exception ex)
         {
-            _log.WriteLine($"[TCP Server] Error: {ex.Message}");
-            _log.Flush();
+            SafeLog($"[TCP Server] Error: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Stops the TCP server.
+    /// Writes to the log, silently swallowing ObjectDisposedException.
+    /// Used in long-running background tasks where the writer may be closed
+    /// concurrently if Stop() times out waiting for the task.
+    /// </summary>
+    private void SafeLog(string message)
+    {
+        try
+        {
+            _log.WriteLine(message);
+            _log.Flush();
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    /// <summary>
+    /// Stops the TCP server. The server can be restarted by calling <see cref="StartAsync"/> again.
     /// </summary>
     public void Stop()
     {
@@ -99,6 +127,12 @@ public class TcpDebugAdapterServer : IDisposable
             }
             catch { }
         }
+
+        // Reset state to allow restart via StartAsync
+        _listener = null;
+        _cts = null;
+        _listenTask = null;
+        IsListening = false;
 
         _log.WriteLine("[TCP Server] Stopped");
         _log.Flush();

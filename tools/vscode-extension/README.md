@@ -191,7 +191,7 @@ There are three ways to use the debugger, each with different launch.json config
 |------|-----------|----------------|-------------|
 | **Launch (minimal)** | `launch` | `minimal` (default) | Launches a standalone 6502 debug adapter. No system emulation — just CPU, memory, and your program. Communicates via STDIO. |
 | **Launch (emulator)** | `launch` | `emulator` | Launches an emulator host app (e.g., Avalonia Desktop with C64 emulation), loads your program, and connects the debugger via TCP. |
-| **Attach** | `attach` | — | Connects to an already-running emulator host app via TCP. You start the emulator manually with `--enableExternalDebug`. |
+| **Attach** | `attach` | — | Connects to an already-running emulator host app via TCP. Start the emulator manually via command line (`--enableExternalDebug`) or via the **VSCode Debug Server** toggle in the Avalonia app's Debug tab. |
 
 ### Launch Configuration Parameters
 
@@ -282,7 +282,16 @@ There are three ways to use the debugger, each with different launch.json config
 }
 ```
 
-For attach mode, start the emulator manually first:
+For attach mode, enable the TCP debug server in the emulator first — there are two ways:
+
+**Option A — Via the Avalonia app UI** (recommended):
+1. Start `Highbyte.DotNet6502.App.Avalonia.Desktop` normally (no extra arguments needed)
+2. Start a system (e.g. C64) from the emulator
+3. Go to the **Debug** tab in the Information Area (middle column)
+4. In the **VSCode Debug Server** section, set the port (default: `6502`) and click **Start**
+5. Press **F5** in VSCode to attach
+
+**Option B — Via command line**:
 ```bash
 Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --system C64 --start
 ```
@@ -754,7 +763,7 @@ When using `"debugAdapter": "emulator"` (launch) or `"request": "attach"`:
 5. Optionally runs the program by setting the CPU PC to the load address
 6. VSCode connects the debugger via TCP
 
-In **launch (emulator)** mode, steps 1-5 are handled automatically by the extension. In **attach** mode, you start the emulator manually and the extension only does step 6.
+In **launch (emulator)** mode, steps 1-5 are handled automatically by the extension. In **attach** mode, you start the emulator manually (or use the UI toggle — see [Attach mode examples above](#example-launchjson-configurations)) and the extension only does step 6.
 
 **Note:** Set `runProgram: true` if you want the program to start automatically. Otherwise, the program is loaded but you'll need to manually start it (e.g., `SYS 49152` in C64 BASIC, or step through with the debugger).
 

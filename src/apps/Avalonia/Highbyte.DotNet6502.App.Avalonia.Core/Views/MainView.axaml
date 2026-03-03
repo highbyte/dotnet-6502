@@ -192,7 +192,7 @@
                                 <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            
+
                             <!-- General Emulator Options Button -->
                             <Button Grid.Column="0"
                                     Content="Options"
@@ -479,25 +479,81 @@
 
                         <!-- Debug  -->
                         <TabItem Name="DebugTabItem" Header="Debug" IsVisible="{Binding IsDebugTabVisible}">
+                            <Border Classes="tab-content">
+                                <ScrollViewer Classes="auto-scroll">
+                                    <StackPanel Classes="spacing-tight">
 
-                            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
-                                <Button Click="OpenSoundDebug_Click"
-                                        IsEnabled="{Binding IsEmulatorUninitialized}"
-                                        Classes="small"
-                                        MinWidth="60"
-                                        Height="20"
-                                        FontSize="10">
-                                    Debug sound
-                                </Button>
-                                <Button Click="OpenGamepadDebug_Click"
-                                        IsEnabled="{Binding IsEmulatorUninitialized}"
-                                        Classes="small"
-                                        MinWidth="60"
-                                        Height="20"
-                                        FontSize="10">
-                                    Debug gamepad
-                                </Button>
-                            </StackPanel>
+                                        <!-- External Debug Server (Desktop only; hidden on Browser via IsExternalDebugServerAvailable) -->
+                                        <StackPanel Classes="spacing-tight"
+                                                    IsVisible="{Binding IsExternalDebugServerAvailable}">
+                                            <TextBlock Text="VSCode Debug Server"
+                                                       Classes="accent bold"
+                                                       FontSize="11"/>
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+                                                <!-- Start/Stop toggle button -->
+                                                <Button Content="{Binding ExternalDebugToggleButtonText}"
+                                                        Command="{Binding ToggleExternalDebugCommand}"
+                                                        Classes="small"
+                                                        MinWidth="46"
+                                                        Height="20"
+                                                        FontSize="10"
+                                                        ToolTip.Tip="Start or stop the TCP debug adapter server"/>
+                                                <!-- Port label + number (no spinners, fixed width) -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Port:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <NumericUpDown Value="{Binding ExternalDebugPort}"
+                                                                  IsEnabled="{Binding !IsExternalDebugListening}"
+                                                                  Minimum="0" Maximum="65535"
+                                                                  FormatString="0"
+                                                                  ShowButtonSpinner="False"
+                                                                  Width="56"
+                                                                  Classes="small"
+                                                                  ToolTip.Tip="TCP port for the debug adapter server (default: 6502)"/>
+                                                </StackPanel>
+                                                <!-- Status text -->
+                                                <TextBlock Text="{Binding ExternalDebugStatusText}"
+                                                           FontSize="10"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Debug tool buttons -->
+                                        <StackPanel Classes="spacing-tight"
+                                                    IsVisible="{Binding IsExternalDebugServerAvailable}">
+
+                                            <TextBlock Text="Misc. Debug Tools"
+                                                       Classes="accent bold"
+                                                       FontSize="11"/>
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+
+
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <Button Click="OpenSoundDebug_Click"
+                                                            IsEnabled="{Binding IsEmulatorUninitialized}"
+                                                            Classes="small"
+                                                            MinWidth="60"
+                                                            Height="20"
+                                                            FontSize="10">
+                                                        Debug sound
+                                                    </Button>
+                                                    <Button Click="OpenGamepadDebug_Click"
+                                                            IsEnabled="{Binding IsEmulatorUninitialized}"
+                                                            Classes="small"
+                                                            MinWidth="60"
+                                                            Height="20"
+                                                            FontSize="10">
+                                                        Debug gamepad
+                                                    </Button>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
                         </TabItem>
                     </TabControl>
                 </Border>
