@@ -93,7 +93,12 @@ internal sealed partial class Program
         // Create a new console window for logging if enabled.
         // Note: This creates a separate console window rather than attaching to the parent terminal,
         // which avoids cursor/prompt synchronization issues with PowerShell/cmd.
-        if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        // Skip if --no-console-window is passed (e.g. when launched by VSCode, which redirects stdout
+        // to its own pipe — in that case logs flow through the pipe and a console window would be blank).
+        // Note: Console.IsOutputRedirected cannot be used here because Windows Terminal's ConPTY also
+        // makes stdout appear as a pipe handle even in interactive sessions.
+        bool noConsoleWindow = args.Contains("--no-console-window");
+        if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !noConsoleWindow)
         {
             AllocConsole();
             Console.Title = "DotNet6502 Emulator - Log Output";

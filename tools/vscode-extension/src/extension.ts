@@ -411,7 +411,8 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
             const args = [
                 '--enableExternalDebug',
                 '--debug-port', debugPort.toString(),
-                '--console-log',  // Enable console logging to see errors
+                '--console-log',        // Enable console logging (stdout is piped to VSCode)
+                '--no-console-window',  // Suppress the separate log window; logs flow via the pipe
                 '--system', system,
                 '--start'
             ];
