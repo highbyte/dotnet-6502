@@ -288,6 +288,18 @@ For attach mode, enable the TCP debug server in the emulator first — there are
 1. Start `Highbyte.DotNet6502.App.Avalonia.Desktop` normally (no extra arguments needed)
 2. Start a system (e.g. C64) from the emulator
 3. Go to the **Debug** tab in the Information Area (middle column)
+
+   > **Note:** The **Debug** tab must be enabled first. Go to **Options → Developer Options** and check **Show Debug Tab**.
+   >
+   > To make this permanent, set `"ShowDebugTab": true` in the `"Highbyte.DotNet6502.AvaloniaConfig"` section of `appsettings.json`:
+   > ```json
+   > {
+   >   "Highbyte.DotNet6502.AvaloniaConfig": {
+   >     "ShowDebugTab": true
+   >   }
+   > }
+   > ```
+
 4. In the **VSCode Debug Server** section, set the port (default: `6502`) and click **Start**
 5. Press **F5** in VSCode to attach
 
