@@ -903,6 +903,7 @@ async function generateLaunchConfig(
         request: 'launch',
         name: `Debug ${fileBasename}.asm`,
         preLaunchTask: taskLabel,
+        system: 'C64',
         stopOnEntry: true,
         stopOnBRK: true
     }, 'launch');
