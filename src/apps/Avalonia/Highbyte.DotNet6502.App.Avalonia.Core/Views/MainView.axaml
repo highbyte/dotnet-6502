@@ -522,14 +522,12 @@
                                         </StackPanel>
 
                                         <!-- Debug tool buttons -->
-                                        <StackPanel Classes="spacing-tight"
-                                                    IsVisible="{Binding IsExternalDebugServerAvailable}">
+                                        <StackPanel Classes="spacing-tight">
 
                                             <TextBlock Text="Misc. Debug Tools"
                                                        Classes="accent bold"
                                                        FontSize="11"/>
                                             <StackPanel Orientation="Horizontal" Classes="spacing-normal">
-
 
                                                 <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                                     <Button Click="OpenSoundDebug_Click"
