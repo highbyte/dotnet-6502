@@ -203,7 +203,8 @@ function resolveExecutable(executablePath: string): string | undefined {
     // Bare executable name - try PATH first
     const findCmd = process.platform === 'win32' ? 'where' : 'which';
     try {
-        child_process.execSync(`${findCmd} "${executablePath}"`, { stdio: 'ignore' });
+        const result = child_process.spawnSync(findCmd, [executablePath], { stdio: 'ignore' });
+        if (result.status !== 0) { throw new Error('not found'); }
         console.log(`[6502 Debug] Found '${executablePath}' in system PATH`);
         return executablePath;
     } catch {
