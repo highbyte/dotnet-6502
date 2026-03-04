@@ -658,6 +658,19 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
         return; // User cancelled
     }
 
+    // Compute cwd: use ${workspaceFolder}-relative path when possible, else absolute
+    const fileDir = path.dirname(uri.fsPath);
+    const wsRoot = workspaceFolder.uri.fsPath;
+    let taskCwd: string;
+    if (fileDir === wsRoot) {
+        taskCwd = '${workspaceFolder}';
+    } else if (fileDir.startsWith(wsRoot + path.sep)) {
+        const relDir = path.relative(wsRoot, fileDir).split(path.sep).join('/');
+        taskCwd = `\${workspaceFolder}/${relDir}`;
+    } else {
+        taskCwd = fileDir;
+    }
+
     // Create the task definition
     const taskLabel = `Build ${fileBasename}.asm (C64)`;
     const newTask = {
@@ -678,7 +691,7 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
             '-Wl', { value: `-m,${fileBasename}.map`, quoting: 'strong' }
         ],
         options: {
-            cwd: path.dirname(uri.fsPath)
+            cwd: taskCwd
         },
         problemMatcher: '$ca65',
         group: {
