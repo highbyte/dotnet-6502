@@ -93,9 +93,19 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _debugAdapter = debugAdapter;
         WaitForExternalDebugger = false; // Debugger has taken over, clear the wait flag
         IsExternalDebuggerAttached = true;
+
+        // Pause audio when debugger stops (breakpoint/pause), resume only on Continue (F5).
+        // Audio intentionally stays paused during stepping (F10/F11).
+        debugAdapter.OnDebuggerPaused = () => CurrentSystemRunner?.AudioHandler.PausePlaying();
+        debugAdapter.OnDebuggerResumed = () => CurrentSystemRunner?.AudioHandler.StartPlaying();
     }
     public void ClearExternalDebugAdapter()
     {
+        if (_debugAdapter != null)
+        {
+            _debugAdapter.OnDebuggerPaused = null;
+            _debugAdapter.OnDebuggerResumed = null;
+        }
         _debugAdapter = null;
         CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
         IsExternalDebuggerAttached = false;

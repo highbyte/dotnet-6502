@@ -75,6 +75,19 @@ public class DebugAdapterLogic
     public event Action<bool>? OnExit;
     public event Action? OnInitialized;
 
+    /// <summary>
+    /// Fired when the debugger stops execution (breakpoint hit or explicit pause).
+    /// The host should pause audio output when this fires.
+    /// </summary>
+    public Action? OnDebuggerPaused { get; set; }
+
+    /// <summary>
+    /// Fired when the user continues execution (F5 / Continue).
+    /// The host should resume audio output when this fires.
+    /// NOT fired on step commands (F10/F11) — audio stays paused during stepping.
+    /// </summary>
+    public Action? OnDebuggerResumed { get; set; }
+
     /// <param name="builtInExecution">
     /// When true, the adapter runs the CPU itself in a background task on continue/step-over-JSR/step-out.
     /// Set to true for standalone hosts (e.g. ConsoleApp) that have no external execution engine.
@@ -324,6 +337,7 @@ public class DebugAdapterLogic
         }
 
         IsStopped = true;
+        OnDebuggerPaused?.Invoke();
         _ = SendStoppedEventAsync(reason, hitBreakpointIds: hitIds);
     }
 
@@ -2778,6 +2792,7 @@ public class DebugAdapterLogic
             // breakpoint address we're resuming from.
             _evaluator.SkipNextBreakpointCheck = true;
             IsStopped = false; // Resume emulator
+            OnDebuggerResumed?.Invoke();
             StartExecutionLoop();
         }
 
@@ -2968,6 +2983,7 @@ public class DebugAdapterLogic
         LogSafe("[HandlePause] Pause requested", LogLevel.Information);
 
         IsStopped = true; // Pause the emulator's run loop
+        OnDebuggerPaused?.Invoke();
         StopExecutionLoop();
 
         await _protocol.SendResponseAsync(seq, "pause");
