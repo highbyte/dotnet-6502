@@ -172,7 +172,7 @@ public partial class EmulatorView : UserControl
             avaloniaBitmapRenderTarget,
             Scale,  // Use current Scale value
             true,
-            () => HostApp.EmulatorState == EmulatorState.Running);
+            () => HostApp.EmulatorState != EmulatorState.Uninitialized);
         control.SetDisplaySize(320, 200);
         return control;
     }
@@ -184,7 +184,7 @@ public partial class EmulatorView : UserControl
             avaloniaCommandTarget,
             Scale,  // Use current Scale value
             true,
-            () => HostApp.EmulatorState == EmulatorState.Running);
+            () => HostApp.EmulatorState != EmulatorState.Uninitialized);
         control.SetDisplaySize(320, 200);
         return control;
     }
