@@ -673,9 +673,9 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
             'c64-asm.cfg',
             '--start-addr',
             startAddress,
-            '-Wl', `-Ln,${fileBasename}.lbl`,
-            '-Wl', `--dbgfile,${fileBasename}.dbg`,
-            '-Wl', `-m,${fileBasename}.map`
+            '-Wl', { value: `-Ln,${fileBasename}.lbl`, quoting: 'strong' },
+            '-Wl', { value: `--dbgfile,${fileBasename}.dbg`, quoting: 'strong' },
+            '-Wl', { value: `-m,${fileBasename}.map`, quoting: 'strong' }
         ],
         options: {
             cwd: path.dirname(uri.fsPath)
@@ -766,60 +766,42 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
 }
 
 /**
- * Generate a launch configuration that uses the build task
+ * Reads (or creates) launch.json, upserts a configuration by name using
+ * jsonc.modify to preserve comments, writes the file and opens it in the editor.
  */
-async function generateLaunchConfig(
+async function upsertLaunchConfiguration(
     workspaceFolder: vscode.WorkspaceFolder,
-    taskLabel: string,
-    fileBasename: string
+    newConfig: Record<string, unknown>,
+    logContext: string
 ): Promise<void> {
+    const configName = newConfig.name as string;
     const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
     let launchConfig: any;
     let content: string;
-    let fileExists = fs.existsSync(launchJsonPath);
+    const fileExists = fs.existsSync(launchJsonPath);
 
     try {
         if (fileExists) {
             content = fs.readFileSync(launchJsonPath, 'utf8');
             launchConfig = jsonc.parse(content);
         } else {
-            launchConfig = {
-                version: '0.2.0',
-                configurations: []
-            };
+            launchConfig = { version: '0.2.0', configurations: [] };
             content = JSON.stringify(launchConfig, null, 2);
         }
-
-        const configName = `Debug ${fileBasename}.asm`;
-        const newConfig = {
-            type: 'dotnet6502',
-            request: 'launch',
-            name: configName,
-            preLaunchTask: taskLabel,
-            stopOnEntry: true,
-            stopOnBRK: true
-        };
 
         if (!launchConfig.configurations) {
             launchConfig.configurations = [];
         }
 
         const existingIndex = launchConfig.configurations.findIndex((c: any) => c.name === configName);
-        if (existingIndex >= 0) {
-            // Update existing configuration using jsonc.modify to preserve comments
-            const edits = jsonc.modify(content, ['configurations', existingIndex], newConfig, {
-                formattingOptions: { tabSize: 2, insertSpaces: true }
-            });
-            content = jsonc.applyEdits(content, edits);
-        } else {
-            // Add new configuration using jsonc.modify to preserve comments
-            const edits = jsonc.modify(content, ['configurations', -1], newConfig, {
-                formattingOptions: { tabSize: 2, insertSpaces: true }
-            });
-            content = jsonc.applyEdits(content, edits);
-        }
+        const jsonPath = existingIndex >= 0
+            ? ['configurations', existingIndex]
+            : ['configurations', -1];
+        const edits = jsonc.modify(content, jsonPath, newConfig, {
+            formattingOptions: { tabSize: 2, insertSpaces: true }
+        });
+        content = jsonc.applyEdits(content, edits);
 
-        // Write launch.json with preserved comments
         fs.writeFileSync(launchJsonPath, content, 'utf8');
 
         vscode.window.showInformationMessage(
@@ -828,130 +810,23 @@ async function generateLaunchConfig(
 
         const doc = await vscode.workspace.openTextDocument(launchJsonPath);
         await vscode.window.showTextDocument(doc);
-
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to create launch config: ${error}`);
-        console.error('[6502 Debug] Error generating launch config:', error);
+        console.error(`[6502 Debug] Error generating ${logContext} launch config:`, error);
     }
 }
 
 /**
- * Command to generate launch config - prompts user to select an existing task
+ * Reads tasks.json and returns the best-matching build task label for the
+ * given .asm file, optionally prompting the user. Returns undefined if no
+ * task is selected (user cancelled or no tasks exist).
  */
-async function generateLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
-    if (!uri || !uri.fsPath.endsWith('.asm')) {
-        vscode.window.showErrorMessage('Please select a .asm file');
-        return;
-    }
-
-    const fileName = path.basename(uri.fsPath);
-    const fileBasename = path.basename(uri.fsPath, '.asm');
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-    
-    if (!workspaceFolder) {
-        vscode.window.showErrorMessage('File must be in a workspace folder');
-        return;
-    }
-
-    // Try to find existing build tasks for this file
-    const tasksJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'tasks.json');
-    let availableTasks: string[] = [];
-    let suggestedTask: string | undefined;
-
-    if (fs.existsSync(tasksJsonPath)) {
-        try {
-            const content = fs.readFileSync(tasksJsonPath, 'utf8');
-            const tasksConfig = jsonc.parse(content);
-            
-            if (tasksConfig.tasks) {
-                // Find tasks that might be for this file
-                availableTasks = tasksConfig.tasks.map((t: any) => t.label);
-                
-                // Try to find a task that matches this file with priority:
-                // 1. Label contains "Build <filename>.asm (C64)" - extension-generated pattern
-                // 2. Label contains the base filename
-                // 3. Args contain the filename
-                
-                // Priority 1: Extension-generated task pattern
-                suggestedTask = tasksConfig.tasks.find((t: any) => 
-                    t.label === `Build ${fileName} (C64)`
-                )?.label;
-                
-                // Priority 2: Label contains base filename
-                if (!suggestedTask) {
-                    suggestedTask = tasksConfig.tasks.find((t: any) => 
-                        t.label.toLowerCase().includes(fileBasename.toLowerCase())
-                    )?.label;
-                }
-                
-                // Priority 3: Command or args contain filename
-                if (!suggestedTask) {
-                    suggestedTask = tasksConfig.tasks.find((t: any) =>
-                        (t.command && typeof t.command === 'string' && t.command.includes(fileName)) ||
-                        (t.args && t.args.some((arg: string) => arg.includes(fileName)))
-                    )?.label;
-                }
-            }
-        } catch (error) {
-            // Ignore parse errors
-        }
-    }
-
-    let taskLabel: string | undefined;
-
-    if (availableTasks.length === 0) {
-        // No tasks found - suggest creating one first
-        const result = await vscode.window.showWarningMessage(
-            `No build tasks found. Would you like to create one first?`,
-            'Generate Build Task',
-            'Cancel'
-        );
-        
-        if (result === 'Generate Build Task') {
-            await generateBuildTask(uri);
-        }
-        return;
-    } else if (availableTasks.length === 1) {
-        // Only one task - use it automatically
-        taskLabel = availableTasks[0];
-    } else if (suggestedTask) {
-        // Multiple tasks but we found a good match - use it automatically
-        taskLabel = suggestedTask;
-    } else {
-        // Multiple tasks, no clear match - let user choose
-        taskLabel = await vscode.window.showQuickPick(availableTasks, {
-            placeHolder: 'Select a build task to use as preLaunchTask',
-            canPickMany: false
-        });
-        
-        if (!taskLabel) {
-            return; // User cancelled
-        }
-    }
-
-    // Generate the launch config
-    await generateLaunchConfig(workspaceFolder, taskLabel, fileBasename);
-}
-
-/**
- * Command to generate emulator launch config - prompts user to select an existing task
- */
-async function generateEmulatorLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
-    if (!uri || !uri.fsPath.endsWith('.asm')) {
-        vscode.window.showErrorMessage('Please select a .asm file');
-        return;
-    }
-
-    const fileName = path.basename(uri.fsPath);
-    const fileBasename = path.basename(uri.fsPath, '.asm');
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-
-    if (!workspaceFolder) {
-        vscode.window.showErrorMessage('File must be in a workspace folder');
-        return;
-    }
-
-    // Try to find existing build tasks for this file
+async function findBuildTaskForFile(
+    workspaceFolder: vscode.WorkspaceFolder,
+    uri: vscode.Uri,
+    fileName: string,
+    fileBasename: string
+): Promise<string | undefined> {
     const tasksJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'tasks.json');
     let availableTasks: string[] = [];
     let suggestedTask: string | undefined;
@@ -962,13 +837,7 @@ async function generateEmulatorLaunchConfigCommand(uri: vscode.Uri): Promise<voi
             const tasksConfig = jsonc.parse(content);
 
             if (tasksConfig.tasks) {
-                // Find tasks that might be for this file
                 availableTasks = tasksConfig.tasks.map((t: any) => t.label);
-
-                // Try to find a task that matches this file with priority:
-                // 1. Label contains "Build <filename>.asm (C64)" - extension-generated pattern
-                // 2. Label contains the base filename
-                // 3. Args contain the filename
 
                 // Priority 1: Extension-generated task pattern
                 suggestedTask = tasksConfig.tasks.find((t: any) =>
@@ -990,44 +859,100 @@ async function generateEmulatorLaunchConfigCommand(uri: vscode.Uri): Promise<voi
                     )?.label;
                 }
             }
-        } catch (error) {
+        } catch {
             // Ignore parse errors
         }
     }
 
-    let taskLabel: string | undefined;
-
     if (availableTasks.length === 0) {
-        // No tasks found - suggest creating one first
         const result = await vscode.window.showWarningMessage(
             `No build tasks found. Would you like to create one first?`,
             'Generate Build Task',
             'Cancel'
         );
-
         if (result === 'Generate Build Task') {
             await generateBuildTask(uri);
         }
-        return;
-    } else if (availableTasks.length === 1) {
-        // Only one task - use it automatically
-        taskLabel = availableTasks[0];
-    } else if (suggestedTask) {
-        // Multiple tasks but we found a good match - use it automatically
-        taskLabel = suggestedTask;
-    } else {
-        // Multiple tasks, no clear match - let user choose
-        taskLabel = await vscode.window.showQuickPick(availableTasks, {
-            placeHolder: 'Select a build task to use as preLaunchTask',
-            canPickMany: false
-        });
-
-        if (!taskLabel) {
-            return; // User cancelled
-        }
+        return undefined;
     }
 
-    // Generate the emulator launch config
+    if (availableTasks.length === 1) {
+        return availableTasks[0];
+    }
+
+    if (suggestedTask) {
+        return suggestedTask;
+    }
+
+    return vscode.window.showQuickPick(availableTasks, {
+        placeHolder: 'Select a build task to use as preLaunchTask',
+        canPickMany: false
+    });
+}
+
+/**
+ * Generate a launch configuration that uses the build task
+ */
+async function generateLaunchConfig(
+    workspaceFolder: vscode.WorkspaceFolder,
+    taskLabel: string,
+    fileBasename: string
+): Promise<void> {
+    await upsertLaunchConfiguration(workspaceFolder, {
+        type: 'dotnet6502',
+        request: 'launch',
+        name: `Debug ${fileBasename}.asm`,
+        preLaunchTask: taskLabel,
+        stopOnEntry: true,
+        stopOnBRK: true
+    }, 'launch');
+}
+
+/**
+ * Command to generate launch config - prompts user to select an existing task
+ */
+async function generateLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
+    if (!uri || !uri.fsPath.endsWith('.asm')) {
+        vscode.window.showErrorMessage('Please select a .asm file');
+        return;
+    }
+
+    const fileName = path.basename(uri.fsPath);
+    const fileBasename = path.basename(uri.fsPath, '.asm');
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+    
+    if (!workspaceFolder) {
+        vscode.window.showErrorMessage('File must be in a workspace folder');
+        return;
+    }
+
+    const taskLabel = await findBuildTaskForFile(workspaceFolder, uri, fileName, fileBasename);
+    if (!taskLabel) { return; }
+
+    await generateLaunchConfig(workspaceFolder, taskLabel, fileBasename);
+}
+
+/**
+ * Command to generate emulator launch config - prompts user to select an existing task
+ */
+async function generateEmulatorLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
+    if (!uri || !uri.fsPath.endsWith('.asm')) {
+        vscode.window.showErrorMessage('Please select a .asm file');
+        return;
+    }
+
+    const fileName = path.basename(uri.fsPath);
+    const fileBasename = path.basename(uri.fsPath, '.asm');
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+
+    if (!workspaceFolder) {
+        vscode.window.showErrorMessage('File must be in a workspace folder');
+        return;
+    }
+
+    const taskLabel = await findBuildTaskForFile(workspaceFolder, uri, fileName, fileBasename);
+    if (!taskLabel) { return; }
+
     await generateEmulatorLaunchConfig(workspaceFolder, taskLabel, fileBasename);
 }
 
@@ -1039,71 +964,19 @@ async function generateEmulatorLaunchConfig(
     taskLabel: string,
     fileBasename: string
 ): Promise<void> {
-    const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
-    let launchConfig: any;
-    let content: string;
-    let fileExists = fs.existsSync(launchJsonPath);
-
-    try {
-        if (fileExists) {
-            content = fs.readFileSync(launchJsonPath, 'utf8');
-            launchConfig = jsonc.parse(content);
-        } else {
-            launchConfig = {
-                version: '0.2.0',
-                configurations: []
-            };
-            content = JSON.stringify(launchConfig, null, 2);
-        }
-
-        const configName = `Launch Full Emulator Host with C64 to Source Debug ${fileBasename}.asm`;
-        const newConfig = {
-            type: 'dotnet6502',
-            request: 'launch',
-            name: configName,
-            preLaunchTask: taskLabel,
-            debugAdapter: 'emulator',
-            system: 'C64',
-            waitForSystemReady: true,
-            loadProgram: true,
-            runProgram: true,
-            stopOnEntry: false,
-            stopOnBRK: true
-        };
-
-        if (!launchConfig.configurations) {
-            launchConfig.configurations = [];
-        }
-
-        const existingIndex = launchConfig.configurations.findIndex((c: any) => c.name === configName);
-        if (existingIndex >= 0) {
-            // Update existing configuration using jsonc.modify to preserve comments
-            const edits = jsonc.modify(content, ['configurations', existingIndex], newConfig, {
-                formattingOptions: { tabSize: 2, insertSpaces: true }
-            });
-            content = jsonc.applyEdits(content, edits);
-        } else {
-            // Add new configuration using jsonc.modify to preserve comments
-            const edits = jsonc.modify(content, ['configurations', -1], newConfig, {
-                formattingOptions: { tabSize: 2, insertSpaces: true }
-            });
-            content = jsonc.applyEdits(content, edits);
-        }
-
-        // Write launch.json with preserved comments
-        fs.writeFileSync(launchJsonPath, content, 'utf8');
-
-        vscode.window.showInformationMessage(
-            `Launch configuration "${configName}" created! Press F5 to debug.`
-        );
-
-        const doc = await vscode.workspace.openTextDocument(launchJsonPath);
-        await vscode.window.showTextDocument(doc);
-
-    } catch (error) {
-        vscode.window.showErrorMessage(`Failed to create launch config: ${error}`);
-        console.error('[6502 Debug] Error generating emulator launch config:', error);
-    }
+    await upsertLaunchConfiguration(workspaceFolder, {
+        type: 'dotnet6502',
+        request: 'launch',
+        name: `Launch Full Emulator Host with C64 to Source Debug ${fileBasename}.asm`,
+        preLaunchTask: taskLabel,
+        debugAdapter: 'emulator',
+        system: 'C64',
+        waitForSystemReady: true,
+        loadProgram: true,
+        runProgram: true,
+        stopOnEntry: false,
+        stopOnBRK: true
+    }, 'emulator');
 }
 
 /**
@@ -1135,71 +1008,19 @@ async function generatePrgLaunchConfig(
     fileName: string,
     fileBasename: string
 ): Promise<void> {
-    const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
-    let launchConfig: any;
-    let content: string;
-    let fileExists = fs.existsSync(launchJsonPath);
-
-    try {
-        if (fileExists) {
-            content = fs.readFileSync(launchJsonPath, 'utf8');
-            launchConfig = jsonc.parse(content);
-        } else {
-            launchConfig = {
-                version: '0.2.0',
-                configurations: []
-            };
-            content = JSON.stringify(launchConfig, null, 2);
-        }
-
-        const configName = `Launch C64 emulator with ${fileBasename}.prg`;
-        const newConfig = {
-            type: 'dotnet6502',
-            request: 'launch',
-            name: configName,
-            debugAdapter: 'emulator',
-            program: `\${workspaceFolder}/${fileName}`,
-            system: 'C64',
-            waitForSystemReady: true,
-            loadProgram: true,
-            runProgram: true,
-            stopOnEntry: false,
-            stopOnBRK: false
-        };
-
-        if (!launchConfig.configurations) {
-            launchConfig.configurations = [];
-        }
-
-        const existingIndex = launchConfig.configurations.findIndex((c: any) => c.name === configName);
-        if (existingIndex >= 0) {
-            // Update existing configuration using jsonc.modify to preserve comments
-            const edits = jsonc.modify(content, ['configurations', existingIndex], newConfig, {
-                formattingOptions: { tabSize: 2, insertSpaces: true }
-            });
-            content = jsonc.applyEdits(content, edits);
-        } else {
-            // Add new configuration using jsonc.modify to preserve comments
-            const edits = jsonc.modify(content, ['configurations', -1], newConfig, {
-                formattingOptions: { tabSize: 2, insertSpaces: true }
-            });
-            content = jsonc.applyEdits(content, edits);
-        }
-
-        // Write launch.json with preserved comments
-        fs.writeFileSync(launchJsonPath, content, 'utf8');
-
-        vscode.window.showInformationMessage(
-            `Launch configuration "${configName}" created! Press F5 to debug.`
-        );
-
-        const doc = await vscode.workspace.openTextDocument(launchJsonPath);
-        await vscode.window.showTextDocument(doc);
-
-    } catch (error) {
-        vscode.window.showErrorMessage(`Failed to create launch config: ${error}`);
-        console.error('[6502 Debug] Error generating .prg launch config:', error);
-    }
+    await upsertLaunchConfiguration(workspaceFolder, {
+        type: 'dotnet6502',
+        request: 'launch',
+        name: `Launch C64 emulator with ${fileBasename}.prg`,
+        debugAdapter: 'emulator',
+        program: `\${workspaceFolder}/${fileName}`,
+        system: 'C64',
+        waitForSystemReady: true,
+        loadProgram: true,
+        runProgram: true,
+        stopOnEntry: false,
+        stopOnBRK: false
+    }, '.prg');
 }
 
 /**
