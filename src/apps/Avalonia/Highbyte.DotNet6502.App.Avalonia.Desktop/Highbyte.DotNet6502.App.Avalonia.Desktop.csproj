@@ -35,6 +35,7 @@
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.SilkNet.SDL\Highbyte.DotNet6502.Impl.SilkNet.SDL.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.DebugAdapter\Highbyte.DotNet6502.DebugAdapter.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Scripting.MoonSharp\Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -44,6 +45,10 @@
     </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <!-- Copy Lua scripts to output directory so they are found at runtime -->
+    <None Update="scripts\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 </Project>

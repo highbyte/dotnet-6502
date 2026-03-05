@@ -19,6 +19,7 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using Highbyte.DotNet6502.Scripting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -43,6 +44,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly WavePlayerFactory _wavePlayerFactory;
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
+
+    private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
 
     private PeriodicAsyncTimer? _updateTimer;
 
@@ -109,6 +112,16 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _debugAdapter = null;
         CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
         IsExternalDebuggerAttached = false;
+    }
+
+    /// <summary>
+    /// Sets the Lua scripting engine to be called each emulator frame.
+    /// Call this before starting the emulator.
+    /// Pass a <see cref="NoScriptingEngine"/> (or null) to disable scripting.
+    /// </summary>
+    public void SetScriptingEngine(IScriptingEngine engine)
+    {
+        _scriptingEngine = engine;
     }
 
     private bool _skipDefaultSystemSelection;
@@ -283,6 +296,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _monitor = new AvaloniaMonitor(CurrentSystemRunner!, _emulatorConfig.Monitor);
             // Notify subscribers that a new Monitor instance is available
             OnPropertyChanged(nameof(Monitor));
+
+            // Initialize Lua scripting engine with the newly started system
+            _scriptingEngine.Initialize(CurrentRunningSystem!);
         }
 
         // _logger.LogTrace("Test trace");
@@ -590,6 +606,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             shouldReceiveInput = false;
             return;
         }
+
+        // Invoke Lua scripting before-frame hook (no-op if scripting is disabled)
+        _scriptingEngine.InvokeBeforeFrame();
     }
 
     public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
@@ -602,7 +621,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _monitor?.Enable(execEvaluatorTriggerResult);
         }
 
-   }
+        // Invoke Lua scripting after-frame hook (no-op if scripting is disabled)
+        _scriptingEngine.InvokeAfterFrame();
+    }
 
     internal float Scale
     {

@@ -12,6 +12,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
@@ -40,6 +41,7 @@ public partial class App : Application
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
     private readonly IGamepad? _gamepad;
+    private readonly IScriptingEngine? _scriptingEngine;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -82,6 +84,7 @@ public partial class App : Application
     /// <param name="saveCustomConfigString"></param>
     /// <param name="saveCustomConfigSection"></param>
     /// <param name="gamepad">Optional gamepad provider. Pass null to use a NullAvaloniaGamepad.</param>
+    /// <param name="scriptingEngine">Optional Lua scripting engine. Pass null to disable scripting (e.g. in WASM).</param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
@@ -91,7 +94,8 @@ public partial class App : Application
         Func<string, string, string?, Task>? saveCustomConfigString = null,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null,
         IGamepad? gamepad = null,
-        IExternalDebugController? externalDebugController = null)
+        IExternalDebugController? externalDebugController = null,
+        IScriptingEngine? scriptingEngine = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -103,6 +107,7 @@ public partial class App : Application
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
         _gamepad = gamepad;
+        _scriptingEngine = scriptingEngine;
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
@@ -303,6 +308,9 @@ public partial class App : Application
                 _saveCustomConfigString,
                 _saveCustomConfigSection,
                 _gamepad);
+
+            // Wire Lua scripting engine (NoScriptingEngine used when null, e.g. in WASM)
+            _hostApp.SetScriptingEngine(_scriptingEngine ?? new NoScriptingEngine());
 
             // Signal waiters (e.g. automated startup on a background thread) that HostApp is ready.
             // TrySetResult guarantees all writes above are visible to awaiters before they resume.

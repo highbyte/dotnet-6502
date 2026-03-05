@@ -17,6 +17,8 @@ using System.Threading;
 using Highbyte.DotNet6502.Utils;
 using System.Diagnostics;
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Scripting;
+using Highbyte.DotNet6502.Scripting.MoonSharp;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -234,10 +236,15 @@ internal sealed partial class Program
         }
 
         // ----------
+        // Initialize Lua scripting engine
+        // ----------
+        var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory);
+
+        // ----------
         // Start Avalonia app
         // ----------
         WriteBootstrapLog($"Starting Avalonia app.");
-        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController);
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, scriptingEngine);
 
         // If automated startup is requested, handle it after the app starts
         if (systemName != null)
@@ -306,7 +313,8 @@ internal sealed partial class Program
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge,
         IGamepad? gamepad = null,
-        IExternalDebugController? externalDebugController = null)
+        IExternalDebugController? externalDebugController = null,
+        IScriptingEngine? scriptingEngine = null)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
@@ -316,7 +324,8 @@ internal sealed partial class Program
                 saveCustomConfigString: null,
                 saveCustomConfigSection: null,
                 gamepad: gamepad,
-                externalDebugController: externalDebugController))
+                externalDebugController: externalDebugController,
+                scriptingEngine: scriptingEngine))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
