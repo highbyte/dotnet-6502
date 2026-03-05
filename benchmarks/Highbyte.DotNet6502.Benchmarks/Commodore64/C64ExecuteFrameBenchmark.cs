@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Jobs;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -17,8 +16,6 @@ public class C64ExecuteFrameBenchmark
 {
     private C64 _c64WithInstrumentation = default!;
     private C64 _c64WithoutInstrumentation = default!;
-    private SystemRunner _systemRunnerWithInstrumentation = default!;
-    private SystemRunner _systemRunnerWithoutInstrumentation = default!;
     private ushort _startAddress;
 
     [Params(1)]
@@ -50,8 +47,6 @@ public class C64ExecuteFrameBenchmark
         LoadProgram(_c64WithInstrumentation.Mem, _startAddress);
         LoadProgram(_c64WithoutInstrumentation.Mem, _startAddress);
 
-        _systemRunnerWithInstrumentation = new SystemRunner(_c64WithInstrumentation);
-        _systemRunnerWithoutInstrumentation = new SystemRunner(_c64WithoutInstrumentation);
     }
 
     private void LoadProgram(Memory mem, ushort startAddress)
@@ -96,7 +91,7 @@ public class C64ExecuteFrameBenchmark
         _c64WithoutInstrumentation.CPU.PC = _startAddress;
         for (var i = 0; i < NumberOfFramesToExecute; i++)
         {
-            var execEvaluatorTriggerResult = _c64WithoutInstrumentation.ExecuteOneFrame(_systemRunnerWithoutInstrumentation);
+            var execEvaluatorTriggerResult = _c64WithoutInstrumentation.ExecuteOneFrame();
         }
     }
 
@@ -106,7 +101,7 @@ public class C64ExecuteFrameBenchmark
         _c64WithInstrumentation.CPU.PC = _startAddress;
         for (var i = 0; i < NumberOfFramesToExecute; i++)
         {
-            var execEvaluatorTriggerResult = _c64WithInstrumentation.ExecuteOneFrame(_systemRunnerWithInstrumentation);
+            var execEvaluatorTriggerResult = _c64WithInstrumentation.ExecuteOneFrame();
         }
     }
 }

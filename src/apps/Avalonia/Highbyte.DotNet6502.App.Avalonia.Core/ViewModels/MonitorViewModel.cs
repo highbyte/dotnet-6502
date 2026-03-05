@@ -12,6 +12,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 public class MonitorViewModel : ViewModelBase
 {
     private readonly AvaloniaMonitor _monitor;
+    private readonly AvaloniaHostApp _hostApp;
 
     private string _inputText = string.Empty;
 
@@ -20,9 +21,16 @@ public class MonitorViewModel : ViewModelBase
     /// </summary>
     public AvaloniaMonitor Monitor => _monitor;
 
-    public MonitorViewModel(AvaloniaMonitor monitor)
+    /// <summary>
+    /// Gets whether an external debugger is currently attached.
+    /// When true, the built-in monitor should not respond to F12 key presses.
+    /// </summary>
+    public bool IsExternalDebuggerAttached => _hostApp.IsExternalDebuggerAttached;
+
+    public MonitorViewModel(AvaloniaMonitor monitor, AvaloniaHostApp hostApp)
     {
         _monitor = monitor;
+        _hostApp = hostApp;
 
         // Initialize ReactiveUI commands
         SendCommand = ReactiveCommandHelper.CreateSafeCommand(

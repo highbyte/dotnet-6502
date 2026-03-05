@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Highbyte.DotNet6502.DebugAdapter.Core</AssemblyName>
+    <RootNamespace>Highbyte.DotNet6502.DebugAdapter</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StreamJsonRpc" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+  </ItemGroup>
+
+</Project>

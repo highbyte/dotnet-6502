@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Tests.Helpers;
@@ -52,6 +53,17 @@ public class FunctionalTestCompiler
     }
     public string Get6502FunctionalTestBinary(bool disableDecimalTests = false, string? downloadDir = null)
     {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // The AS65 assembler is a Windows-only executable.
+            // On non-Windows platforms, use the pre-assembled binary from the repo.
+            // Note: the pre-built binary has decimal mode enabled (disableDecimalTests = false).
+            if (disableDecimalTests)
+                throw new PlatformNotSupportedException("Assembling with decimal tests disabled requires Windows (AS65 assembler is Windows-only). The pre-built binary always has decimal mode enabled.");
+
+            return GetPrebuilt6502FunctionalTestBinary(downloadDir);
+        }
+
         // Get source code file path (with modified contents to suit our test purpose)
         var sourceCodeFilePath = Get6502FunctionalTestSourceCode(disableDecimalTests, downloadDir);
         // Download AS65 assembler .zip file, extract it, and return full file path to as65.exe
@@ -60,6 +72,37 @@ public class FunctionalTestCompiler
         var functionalTestBinary = Compile6502FunctionalTestBinary(as65exeFilePath, sourceCodeFilePath);
         // Return full path to the compiled 6502 functional test binary
         return functionalTestBinary;
+    }
+
+    private string GetPrebuilt6502FunctionalTestBinary(string? downloadDir = null)
+    {
+        if (string.IsNullOrEmpty(downloadDir))
+            downloadDir = Directory.GetCurrentDirectory();
+
+        var url = "https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/bin_files/6502_functional_test.bin?raw=true";
+        var filePath = Path.Join(downloadDir, "6502_functional_test.bin");
+
+        _logger.LogInformation("Non-Windows platform detected. Downloading pre-built binary from {Url}", url);
+        DownloadFile(url, filePath);
+
+        // The 6502 functional test source code uses the assembler directive "*= $000A" to set
+        // the code origin, meaning the first 10 bytes ($0000-$0009) are never written by the
+        // program and exist only as zero-padding in the full 64KB pre-built image.
+        //
+        // When AS65 assembles the source on Windows, it outputs only the bytes starting from
+        // the origin ($000A), producing a 65526-byte file. The test then loads that file at
+        // address $000A via BinaryLoader (forceLoadAddress: 0x000A in Functional_test.cs).
+        //
+        // To make the pre-built 64KB image compatible with that same load address, strip the
+        // leading 10 zero-bytes so the resulting file has the same layout as the AS65 output.
+        const ushort originAddress = 0x000A;
+        var fullImage = File.ReadAllBytes(filePath);
+        if (fullImage.Length == 65536)
+        {
+            File.WriteAllBytes(filePath, fullImage[originAddress..]);
+        }
+
+        return filePath;
     }
     private string Compile6502FunctionalTestBinary(string as65exeFilePath, string sourceCodeFilePath)
     {

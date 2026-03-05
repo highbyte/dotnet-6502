@@ -8,6 +8,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Platform;
 using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
+using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
@@ -26,7 +27,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -59,6 +60,75 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     private AvaloniaMonitor? _monitor;
     internal AvaloniaMonitor? Monitor => _monitor;
+
+    /// <summary>
+    /// When true, the emulator will not execute any instructions until an external debugger connects.
+    /// Set before system start when debugging from the very first instruction is desired.
+    /// Cleared automatically when the debugger attaches.
+    /// </summary>
+    public bool WaitForExternalDebugger { get; set; }
+
+    private bool _isExternalDebuggerAttached;
+    /// <summary>
+    /// Flag to indicate if an external debugger (e.g., VSCode) is attached.
+    /// When true, the built-in monitor should not activate on breakpoints.
+    /// </summary>
+    public bool IsExternalDebuggerAttached
+    {
+        get => _isExternalDebuggerAttached;
+        private set
+        {
+            if (_isExternalDebuggerAttached != value)
+            {
+                _isExternalDebuggerAttached = value;
+                OnPropertyChanged(nameof(IsExternalDebuggerAttached));
+            }
+        }
+    }
+    private DebugAdapterLogic? _debugAdapter;
+    public void SetExternalDebugAdapter(DebugAdapterLogic debugAdapter)
+    {
+        _originalBreakpointEvaluator = CurrentSystemRunner?.CustomExecEvaluator;
+        CurrentSystemRunner?.SetCustomExecEvaluator(debugAdapter.GetBreakpointEvaluator());
+        _debugAdapter = debugAdapter;
+        WaitForExternalDebugger = false; // Debugger has taken over, clear the wait flag
+        IsExternalDebuggerAttached = true;
+
+        // Pause audio when debugger stops (breakpoint/pause), resume only on Continue (F5).
+        // Audio intentionally stays paused during stepping (F10/F11).
+        debugAdapter.OnDebuggerPaused = () => CurrentSystemRunner?.AudioHandler.PausePlaying();
+        debugAdapter.OnDebuggerResumed = () => CurrentSystemRunner?.AudioHandler.StartPlaying();
+    }
+    public void ClearExternalDebugAdapter()
+    {
+        if (_debugAdapter != null)
+        {
+            _debugAdapter.OnDebuggerPaused = null;
+            _debugAdapter.OnDebuggerResumed = null;
+        }
+        _debugAdapter = null;
+        CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+        IsExternalDebuggerAttached = false;
+    }
+
+    private bool _skipDefaultSystemSelection;
+
+    /// <summary>
+    /// Flag to indicate if default system selection should be skipped.
+    /// Used when automated startup from command-line is handling system selection.
+    /// </summary>
+    public bool SkipDefaultSystemSelection
+    {
+        get => _skipDefaultSystemSelection;
+        set
+        {
+            if (_skipDefaultSystemSelection != value)
+            {
+                _skipDefaultSystemSelection = value;
+                OnPropertyChanged(nameof(SkipDefaultSystemSelection));
+            }
+        }
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -497,19 +567,42 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             return;
         }
 
+        // If using built-in monitor, don't update emulator state when monitor is visible. This allows stepping through code and inspecting state in the monitor without the state changing under you.
         if (_monitor?.IsVisible == true)
         {
             shouldRun = false;
             shouldReceiveInput = false;
+            return;
+        }
+
+        // Block execution until external debugger connects (for boot sequence debugging)
+        if (WaitForExternalDebugger)
+        {
+            shouldRun = false;
+            shouldReceiveInput = false;
+            return;
+        }
+
+        // Pause emulator when VSCode debugger is stopped (at breakpoint or stepping)
+        if (IsExternalDebuggerAttached && _debugAdapter?.IsStopped == true)
+        {
+            shouldRun = false;
+            shouldReceiveInput = false;
+            return;
         }
     }
 
     public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
     {
         // Show monitor if we encounter breakpoint or other break
-        if (execEvaluatorTriggerResult.Triggered)
+        // BUT: Skip if an external debugger (e.g., VSCode) is attached
+        // The external debugger handles breakpoints, not the built-in monitor
+        if (execEvaluatorTriggerResult.Triggered && !IsExternalDebuggerAttached)
+        {
             _monitor?.Enable(execEvaluatorTriggerResult);
-    }
+        }
+
+   }
 
     internal float Scale
     {
@@ -525,6 +618,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     }
 
     private ObservableCollection<string> _validationErrors = new();
+    private IExecEvaluator? _originalBreakpointEvaluator;
+
     internal ObservableCollection<string> ValidationErrors
     {
         get => _validationErrors;
@@ -650,7 +745,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
         // If F12 is pressed without Ctrl or Shift modifier, toggle monitor
         else if (key == Key.F12 && (modifiers & KeyModifiers.Control) == 0 && (modifiers & KeyModifiers.Shift) == 0
-                 && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
+                 && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
+                 && !IsExternalDebuggerAttached)
         {
             _logger.LogInformation("F12 pressed - toggling monitor");
             _monitor?.Toggle();

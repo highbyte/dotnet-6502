@@ -1,0 +1,117 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch Simple Emulator Host to Source Debug test-program.asm",
+      "preLaunchTask": "Build test-program.asm (C64)",
+      "stopOnEntry": true,
+      "stopOnBRK": true,
+      // Uses minimal debug adapter by default (debugAdapter: "minimal")
+    },
+    // {
+    //   "type": "dotnet6502",
+    //   "request": "launch",
+    //   "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
+    //   "program": "${workspaceFolder}/samples/test-program.bin",
+    //   "dbgFile": "${workspaceFolder}/samples/test-program.dbg",
+    //   "stopOnEntry": true,
+    //   "stopOnBRK": true
+    //   // Uses minimal debug adapter by default (debugAdapter: "minimal")
+    // },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
+      "program": "${workspaceFolder}/samples/test-program.prg",
+      "dbgFile": "${workspaceFolder}/samples/test-program.dbg",
+      "stopOnEntry": true,
+      "stopOnBRK": true
+      // Uses minimal debug adapter by default (debugAdapter: "minimal")
+    },
+    {
+      "type": "dotnet6502",
+      "request": "attach",
+      "name": "Attach to Full Emulator Host (TCP debug adapter) without any debug info",
+      // Uses TCP connection to already-running emulator host app.
+      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
+    },    
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch Full Emulator Host with C64 to Source Debug smooth_scroller_and_raster2.asm",
+      "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",
+      "debugAdapter": "emulator",
+      "system": "C64",
+      "waitForSystemReady": true,
+      "loadProgram": true,
+      "runProgram": true,
+      "stopOnEntry": false,
+      "stopOnBRK": true
+    },
+    {
+      "type": "dotnet6502",
+      "request": "attach",
+      "name": "Attach to Full Emulator Host with C64 to Source Debug smooth_scroller_and_raster2.asm",
+      "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",
+      // "program": "${workspaceFolder}/samples/smooth_scroller_and_raster2.prg",
+      // "dbgFile": "${workspaceFolder}/samples/smooth_scroller_and_raster2.dbg",
+      "dbgFiles": [ // Additional .dbg files in addition to the main one specified by dbgFile, or as in this example automatically derived from the built program from preLaunchTask.
+        "${userHome}/source/public-repos/c64rom/rom.dbg",        
+      ],
+      "stopOnEntry": true, // Debug from first CPU instruction after the emulator has been attached
+      "stopOnBRK": true
+    },    
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch Full Emulator Host with C64 to Disassembly Debug smooth_scroller_and_raster.prg (without .asm source)",
+      // Uses emulator host app as debug adapter (full emulation support).
+      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
+      "debugAdapter": "emulator",
+
+      "program": "${workspaceFolder}/../../samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg",
+
+      // Emulator host configuration:
+      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
+      // Override with a full path if not in PATH, e.g.:
+      //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
+      "system": "C64",
+      "waitForSystemReady": true,
+      "loadProgram": true,
+      "runProgram": false,
+      "stopOnEntry": true,
+      "stopOnBRK": true
+    },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch to Full Emulator Host with C64 to Debug Kernal startup without source",
+      "debugAdapter": "emulator",
+      "system": "C64",
+      "stopOnEntry": true,
+      "loadProgram": false,
+      "waitForSystemReady": false
+    },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch to Full Emulator Host with C64 to Source Debug Kernal and Basic ROMs",
+      "debugAdapter": "emulator",
+      "system": "C64",
+      "dbgFile": "${userHome}/source/public-repos/c64rom/rom.dbg", // Debug artifacts for C64 Kernal and Basic ROMs, used https://github.com/mist64/c64rom and modified Makefile to produce a .dbg file
+      "stopOnEntry": true,
+      "loadProgram": false,
+      "waitForSystemReady": false
+    },    
+    {
+      "type": "dotnet6502",
+      "request": "attach",
+      "name": "Attach to Full Emulator Host with C64 to Source Debug Kernal and Basic ROMs",
+      "dbgFile": "${userHome}/source/public-repos/c64rom/rom.dbg", // Debug artifacts for C64 Kernal and Basic ROMs, used https://github.com/mist64/c64rom and modified Makefile to produce a .dbg file
+      "stopOnEntry": true,
+      "stopOnBRK": false
+    }
+  ]
+}

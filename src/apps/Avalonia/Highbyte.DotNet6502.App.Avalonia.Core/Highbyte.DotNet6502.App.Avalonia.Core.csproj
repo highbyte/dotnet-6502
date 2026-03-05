@@ -56,6 +56,7 @@
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.DebugAdapter\Highbyte.DotNet6502.DebugAdapter.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />

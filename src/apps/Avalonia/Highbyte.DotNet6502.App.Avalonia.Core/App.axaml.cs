@@ -11,6 +11,7 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
+using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
@@ -42,6 +43,31 @@ public partial class App : Application
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
+    /// <summary>
+    /// Exposes the host app's debuggable interface for external access (e.g., debug adapter integration).
+    /// </summary>
+    public IDebuggableHostApp HostApp => _hostApp;
+
+    /// <summary>
+    /// Runtime controller for the external TCP debug server.
+    /// Non-null only on Desktop; null on Browser (where TCP is unavailable).
+    /// </summary>
+    public IExternalDebugController? ExternalDebugController { get; private set; }
+
+    /// <summary>
+    /// Static reference to the current App instance (for debug adapter integration).
+    /// </summary>
+    public static App? Current { get; private set; }
+
+    /// <summary>
+    /// Completes when <see cref="HostApp"/> has been fully initialized and is ready for use.
+    /// Awaiting this from a background thread is safe: the TPL guarantees that all writes
+    /// made before <c>TrySetResult</c> are visible to the continuation.
+    /// </summary>
+    public static Task<IDebuggableHostApp> WhenHostAppReadyAsync => s_hostAppReady.Task;
+    private static readonly TaskCompletionSource<IDebuggableHostApp> s_hostAppReady =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     // Guard to prevent multiple error overlays from being shown simultaneously
     private Panel? _currentErrorOverlay;
 
@@ -64,7 +90,8 @@ public partial class App : Application
         ILoggerFactory loggerFactory,
         Func<string, string, string?, Task>? saveCustomConfigString = null,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null,
-        IGamepad? gamepad = null)
+        IGamepad? gamepad = null,
+        IExternalDebugController? externalDebugController = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -76,6 +103,10 @@ public partial class App : Application
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
         _gamepad = gamepad;
+
+        // Set static reference for external access (e.g., debug adapter)
+        Current = this;
+        ExternalDebugController = externalDebugController;
 
         // Initialize static logger factory for use in Views and other classes where DI is not available
         AppLogger.Factory = loggerFactory;
@@ -273,6 +304,9 @@ public partial class App : Application
                 _saveCustomConfigSection,
                 _gamepad);
 
+            // Signal waiters (e.g. automated startup on a background thread) that HostApp is ready.
+            // TrySetResult guarantees all writes above are visible to awaiters before they resume.
+            s_hostAppReady.TrySetResult(_hostApp);
         }
         catch (Exception ex)
         {

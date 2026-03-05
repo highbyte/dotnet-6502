@@ -1,0 +1,31 @@
+Modules list:
+-------------
+test-program.o:
+    CODE              Offs=000000  Size=00001C  Align=00001  Fill=0000
+/opt/homebrew/Cellar/cc65/2.19/share/cc65/lib/c64.lib(loadaddr.o):
+    LOADADDR          Offs=000000  Size=000002  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+LOADADDR              00BFFE  00BFFF  000002  00001
+CODE                  00C000  00C01B  00001C  00001
+
+
+Exports list by name:
+---------------------
+__LOADADDR__              000001 REA    
+
+
+Exports list by value:
+----------------------
+__LOADADDR__              000001 REA    
+
+
+Imports list:
+-------------
+__LOADADDR__ (loadaddr.o):
+    [linker generated]        /opt/homebrew/Cellar/cc65/2.19/share/cc65/cfg/c64-asm.cfg(5)
+

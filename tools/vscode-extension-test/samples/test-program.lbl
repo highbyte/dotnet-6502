@@ -1,0 +1,10 @@
+al 00C01C .__BSS_LOAD__
+al 00C01C .__BSS_RUN__
+al 000000 .__BSS_SIZE__
+al 000001 .__LOADADDR__
+al 000000 .__ZP_FILEOFFS__
+al 000002 .__ZP_LAST__
+al 0000FE .__ZP_SIZE__
+al 000002 .__ZP_START__
+al 00C013 .loop
+al 00C000 .start

@@ -55,12 +55,12 @@ public class LegacyExecEvaluator : IExecEvaluator
             execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
             triggerDescription = "MaxNumberOfInstruction";
         }
-        if (!instructionExecutionResult.UnknownInstruction && ExecOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == ExecOptions.ExecuteUntilInstruction.Value.ToByte())
+        if (instructionExecutionResult.IsValid && !instructionExecutionResult.UnknownInstruction && ExecOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == ExecOptions.ExecuteUntilInstruction.Value.ToByte())
         {
             execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
             triggerDescription = "Specified instruction encountered";
         }
-        if (ExecOptions.ExecuteUntilInstructions.Count > 0 && ExecOptions.ExecuteUntilInstructions.Contains(instructionExecutionResult.OpCodeByte))
+        if (instructionExecutionResult.IsValid && ExecOptions.ExecuteUntilInstructions.Count > 0 && ExecOptions.ExecuteUntilInstructions.Contains(instructionExecutionResult.OpCodeByte))
         {
             execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
             triggerDescription = "One of the specified instructions encountered";
@@ -70,7 +70,7 @@ public class LegacyExecEvaluator : IExecEvaluator
             execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
             triggerDescription = "PC reached (after)";
         }
-        if (ExecOptions.ExecuteUntilExecutedInstructionAtPC.HasValue && execState.PCBeforeLastOpCodeExecuted == ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value)
+        if (instructionExecutionResult.IsValid && ExecOptions.ExecuteUntilExecutedInstructionAtPC.HasValue && execState.PCBeforeLastOpCodeExecuted == ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value)
         {
             execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
             triggerDescription = "PC reached (before)";

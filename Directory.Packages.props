@@ -75,6 +75,8 @@
     <PackageVersion Include="SkiaSharp.Views.Blazor" Version="3.119.1" />
     <!-- SourceLink -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <!-- StreamJsonRpc for Debug Adapter Protocol -->
+    <PackageVersion Include="StreamJsonRpc" Version="2.19.27" />
     <!-- System packages -->
     <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageVersion Include="System.Net.Http.Json" Version="10.0.0" />

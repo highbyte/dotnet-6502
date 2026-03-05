@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor
+public class C64 : ISystem, ISystemMonitor, ISystemState
 {
     public const string SystemName = "C64";
     public string Name => SystemName;
@@ -91,7 +91,6 @@ public class C64 : ISystem, ISystemMonitor
     /// <param name="execEvaluator"></param>
     /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
         _postInstructionAudioCallbackStat.Reset(); // Reset stat, will be continuously updated after each instruction
@@ -103,7 +102,7 @@ public class C64 : ISystem, ISystemMonitor
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, execEvaluator);
+            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(out InstructionExecResult instructionExecResult, execEvaluator);
             totalCyclesConsumed += instructionExecResult.CyclesConsumed;
 
             if (execEvaluatorTriggerResult.Triggered)
@@ -140,10 +139,29 @@ public class C64 : ISystem, ISystemMonitor
     /// <param name="execEvaluator"></param>
     /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
-        SystemRunner systemRunner,
         out InstructionExecResult instructionExecResult,
         IExecEvaluator? execEvaluator = null)
     {
+        // Check BEFORE executing the instruction so that breakpoints trigger at the
+        // correct address (i.e. before the instruction at that address runs).
+        // Build a pre-execution result with the opcode at the current PC so evaluators
+        // that check for BRK or unknown instructions work correctly pre-execution.
+        if (execEvaluator != null)
+        {
+            byte opcodeAtPC = Mem[CPU.PC];
+            bool isUnknown = !CPU.InstructionList.OpCodeDictionary.ContainsKey(opcodeAtPC);
+            var preExecResult = isUnknown
+                ? InstructionExecResult.UnknownInstructionResult(opcodeAtPC, CPU.PC)
+                : InstructionExecResult.KnownInstructionResult(opcodeAtPC, CPU.PC, 0);
+
+            var preCheckResult = execEvaluator.Check(preExecResult, CPU, Mem);
+            if (preCheckResult.Triggered)
+            {
+                instructionExecResult = preExecResult;
+                return preCheckResult;
+            }
+        }
+
         // Execute one CPU instruction
         instructionExecResult = CPU.ExecuteOneInstructionMinimal(Mem);
 
@@ -174,15 +192,6 @@ public class C64 : ISystem, ISystemMonitor
         _renderProvider?.OnAfterInstruction();
         _renderProviderPerInstructionStat.Stop(cont: true);
 
-        // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
-        if (execEvaluator != null)
-        {
-            var execEvaluatorTriggerResult = execEvaluator.Check(instructionExecResult, CPU, Mem);
-            if (execEvaluatorTriggerResult.Triggered)
-            {
-                return execEvaluatorTriggerResult;
-            }
-        }
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
@@ -635,8 +644,11 @@ public class C64 : ISystem, ISystemMonitor
         // Check TXTAB pointer (0x002B-0x002C): Start of BASIC program text area
         // After BASIC initialization, this should point to 0x0801 (standard BASIC program start address)
         var txtabPointer = Mem.FetchWord(0x2B);
-        
+
         // During startup, this pointer is 0x0000. After BASIC initialization, it's set to BASIC_LOAD_ADDRESS (0x0801)
         return txtabPointer == BASIC_LOAD_ADDRESS;
     }
+
+    /// <inheritdoc/>
+    bool ISystemState.IsSystemReady() => HasBasicStarted();
 }

@@ -89,8 +89,13 @@ public partial class MonitorUserControl : UserControl
                 e.Handled = true;
                 break;
             case Key.F12:
-                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
-                _viewModel.CloseCommand.Execute();
+                // Don't toggle monitor if external debugger is attached
+                if (!_viewModel.IsExternalDebuggerAttached)
+                {
+                    // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                    _viewModel.CloseCommand.Execute();
+                }
+                e.Handled = true;
                 break;
         }
     }

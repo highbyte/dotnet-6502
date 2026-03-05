@@ -14,11 +14,9 @@ public interface ISystem
     IScreen Screen { get; }
 
     ExecEvaluatorTriggerResult ExecuteOneFrame(
-        SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null);
 
     ExecEvaluatorTriggerResult ExecuteOneInstruction(
-        SystemRunner systemRunner,
         out InstructionExecResult instructionExecResult,
         IExecEvaluator? execEvaluator = null);
 

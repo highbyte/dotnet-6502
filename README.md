@@ -45,6 +45,12 @@
 
 See [Desktop Apps](doc/DESKTOP_APPS.md) for download links for pre-built executables and instructions for Windows, Linux, and macOS.
 
+## VS Code debugger extension
+
+| [VSCode source debugging](tools/vscode-extension/README.md)| [VSCode disassembly debugging](tools/vscode-extension/README.md) |
+| ----------------------------------------------- | ------------------------------------------------- |
+| <img src="doc/Screenshots/VSCode_source_debug.png" title="VSCode source debug"/> | <img src="doc/Screenshots/VSCode_disassembly_debug.png" title="VSCode disassembly debug"/> | 
+
 ## Other features
 
 | [Run 6502 machine code in your own .NET apps](doc/CPU_LIBRARY.md)  | [Machine code monitor](doc/MONITOR.md) | [C64 Basic AI code completion](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md) | 

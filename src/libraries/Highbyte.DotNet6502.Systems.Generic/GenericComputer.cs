@@ -114,7 +114,6 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     }
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
         _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continuously updated after each instruction
@@ -155,7 +154,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
             SetFrameCompleted();
 
             // Wait for CPU 6502 code has acknowledged that it knows a frame has completed.
-            bool waitOk = WaitFrameCompletedAcknowledged(systemRunner);
+            bool waitOk = WaitFrameCompletedAcknowledged();
             if (!waitOk)
                 return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
         }
@@ -173,10 +172,27 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     }
 
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
-        SystemRunner systemRunner,
         out InstructionExecResult instructionExecResult,
         IExecEvaluator? execEvaluator = null)
     {
+        // Check BEFORE executing the instruction so that breakpoints trigger at the
+        // correct address (i.e. before the instruction at that address runs).
+        if (execEvaluator != null)
+        {
+            byte opcodeAtPC = Mem[CPU.PC];
+            bool isUnknown = !CPU.InstructionList.OpCodeDictionary.ContainsKey(opcodeAtPC);
+            var preExecResult = isUnknown
+                ? InstructionExecResult.UnknownInstructionResult(opcodeAtPC, CPU.PC)
+                : InstructionExecResult.KnownInstructionResult(opcodeAtPC, CPU.PC, 0);
+
+            var preCheckResult = execEvaluator.Check(preExecResult, CPU, Mem);
+            if (preCheckResult.Triggered)
+            {
+                instructionExecResult = preExecResult;
+                return preCheckResult;
+            }
+        }
+
         var execState = CPU.ExecuteOneInstruction(Mem);
 
         instructionExecResult = execState.LastInstructionExecResult;
@@ -184,16 +200,6 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         _renderProviderPerInstructionStat.Start(cont: true);
         _renderProvider?.OnAfterInstruction();
         _renderProviderPerInstructionStat.Stop(cont: true);
-
-        // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
-        if (execEvaluator != null)
-        {
-            var execEvaluatorTriggerResult = execEvaluator.Check(execState, CPU, Mem);
-            if (execEvaluatorTriggerResult.Triggered)
-            {
-                return execEvaluatorTriggerResult;
-            }
-        }
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -203,12 +209,12 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         Mem.SetBit(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame);
     }
 
-    private bool WaitFrameCompletedAcknowledged(SystemRunner systemRunner)
+    private bool WaitFrameCompletedAcknowledged()
     {
         // Keep on executing instructions until CPU 6502 code has cleared bit 0 in ScreenRefreshStatusAddress
         while (Mem.IsBitSet(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame))
         {
-            var execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out _);
+            var execEvaluatorTriggerResult = ExecuteOneInstruction(out _);
             // If an unhandled instruction or other configured trigger has activated, return false
             if (execEvaluatorTriggerResult.Triggered)
                 return false;

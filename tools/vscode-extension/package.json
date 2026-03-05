@@ -1,0 +1,336 @@
+{
+  "name": "dotnet-6502-debugger",
+  "displayName": "6502 Debugger for dotnet-6502",
+  "version": "0.1.0",
+  "publisher": "highbyte",
+  "description": "Debug 6502 machine code programs using the dotnet-6502 emulator",
+  "author": {
+    "name": "highbyte"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onDebugResolve:dotnet6502",
+    "onDebugDynamicConfigurations:dotnet6502"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "dotnet6502.generateBuildTask",
+        "title": "Generate C64 Build Task (ca65)"
+      },
+      {
+        "command": "dotnet6502.generateLaunchConfig",
+        "title": "Generate Launch Config for simple emulator (DotNet6502)"
+      },
+      {
+        "command": "dotnet6502.generateEmulatorLaunchConfig",
+        "title": "Generate Launch Config for C64 emulator (DotNet6502)"
+      },
+      {
+        "command": "dotnet6502.generatePrgLaunchConfig",
+        "title": "Generate Launch Config for C64 emulator (DotNet6502)"
+      },
+      {
+        "command": "dotnet6502.viewMemory",
+        "title": "View Memory",
+        "icon": "$(symbol-array)"
+      },
+      {
+        "command": "dotnet6502.jumpToLine",
+        "title": "Jump to Line (Set PC)",
+        "icon": "$(debug-step-into)"
+      }
+    ],
+    "menus": {
+      "debug/toolBar": [
+        {
+          "command": "dotnet6502.viewMemory",
+          "when": "debugType == 'dotnet6502'",
+          "group": "navigation"
+        }
+      ],
+      "editor/lineNumber/context": [
+        {
+          "command": "dotnet6502.jumpToLine",
+          "when": "debugType == 'dotnet6502' && debugState == 'stopped'",
+          "group": "debug@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .asm",
+          "command": "dotnet6502.generateBuildTask",
+          "group": "2_workspace@1"
+        },
+        {
+          "when": "resourceExtname == .asm",
+          "command": "dotnet6502.generateLaunchConfig",
+          "group": "2_workspace@2"
+        },
+        {
+          "when": "resourceExtname == .asm",
+          "command": "dotnet6502.generateEmulatorLaunchConfig",
+          "group": "2_workspace@3"
+        },
+        {
+          "when": "resourceExtname == .prg",
+          "command": "dotnet6502.generatePrgLaunchConfig",
+          "group": "2_workspace@1"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "asm",
+        "aliases": ["Assembly", "asm"],
+        "extensions": [".asm"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "asm"
+      },
+      {
+        "language": "kickass"
+      },
+      {
+        "language": "acme"
+      },
+      {
+        "language": "ca65"
+      },
+      {
+        "language": "dasm"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "dotnet6502",
+        "label": "dotnet-6502 Debugger",
+        "languages": ["asm", "kickass", "acme", "ca65", "dasm"],
+        "configurationAttributes": {
+          "launch": {
+            "required": [],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to the .prg file to debug (optional if preLaunchTask is specified, will auto-detect from task output)",
+                "default": "${workspaceFolder}/program.prg"
+              },
+              "dbgFile": {
+                "type": "string",
+                "description": "Path to ca65 .dbg file for source-level debugging (optional, auto-detected from program path)",
+                "default": null
+              },
+              "dbgFiles": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Additional ca65 .dbg files to merge for multi-component source debugging (e.g. add ROM debug symbols alongside your program's .dbg file). If dbgFile is omitted, the first entry here becomes the primary.",
+                "default": null
+              },
+              "loadAddress": {
+                "type": "number",
+                "description": "Override load address (optional, normally read from .prg file)",
+                "default": null
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch",
+                "default": true
+              },
+              "stopOnBRK": {
+                "type": "boolean",
+                "description": "Automatically stop when BRK instruction is encountered",
+                "default": true
+              },
+              "skipInterrupts": {
+                "type": "boolean",
+                "description": "When stepping (F10/F11), automatically skip over hardware interrupt handlers (IRQ/NMI) that have no source mapping. The debugger detects when an interrupt diverts execution into unmapped code (e.g. Kernal ROM) and transparently runs through the ISR, resuming at the instruction after the interrupt.",
+                "default": true
+              },
+              "debugAdapter": {
+                "type": "string",
+                "enum": ["minimal", "emulator"],
+                "description": "Debug adapter mode: 'minimal' launches a standalone 6502 debug adapter (STDIO), 'emulator' launches a full emulator host app (TCP)",
+                "default": "minimal"
+              },
+              "emulatorExecutable": {
+                "type": "string",
+                "description": "Path or name of the executable. Default depends on debugAdapter mode: 'minimal' uses Highbyte.DotNet6502.DebugAdapter.ConsoleApp, 'emulator' uses Highbyte.DotNet6502.App.Avalonia.Desktop. Resolved via system PATH, then repo-relative build output paths.",
+                "default": null
+              },
+              "debugPort": {
+                "type": "number",
+                "description": "TCP port for debug adapter communication (emulator mode only)",
+                "default": 6502
+              },
+              "system": {
+                "type": "string",
+                "description": "System to start in emulator host (emulator mode only)",
+                "default": "C64"
+              },
+              "systemVariant": {
+                "type": "string",
+                "description": "System variant to use (emulator mode only, uses first variant if not specified)",
+                "default": null
+              },
+              "startupTimeout": {
+                "type": "number",
+                "description": "Timeout in seconds to wait for emulator host TCP server to start (emulator mode only)",
+                "default": 120
+              },
+              "waitForSystemReady": {
+                "type": "boolean",
+                "description": "Wait for system to be ready before connecting debugger (emulator mode only)",
+                "default": true
+              },
+              "loadProgram": {
+                "type": "boolean",
+                "description": "Automatically load the program file into emulator memory (emulator mode only)",
+                "default": true
+              },
+              "runProgram": {
+                "type": "boolean",
+                "description": "Automatically run the loaded program by setting PC to load address (emulator mode only)",
+                "default": false
+              }
+            }
+          },
+          "attach": {
+            "required": [],
+            "properties": {
+              "debugPort": {
+                "type": "number",
+                "description": "TCP port to connect to the emulator host debug adapter server",
+                "default": 6502
+              },
+              "program": {
+                "type": "string",
+                "description": "Path to the .prg file being debugged (for debug symbols and program bounds)",
+                "default": "${workspaceFolder}/program.prg"
+              },
+              "dbgFile": {
+                "type": "string",
+                "description": "Path to ca65 .dbg file for source-level debugging",
+                "default": null
+              },
+              "dbgFiles": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Additional ca65 .dbg files to merge for multi-component source debugging (e.g. add ROM debug symbols alongside your program's .dbg file). If dbgFile is omitted, the first entry here becomes the primary.",
+                "default": null
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after attaching",
+                "default": true
+              },
+              "stopOnBRK": {
+                "type": "boolean",
+                "description": "Automatically stop when BRK instruction is encountered",
+                "default": true
+              },
+              "skipInterrupts": {
+                "type": "boolean",
+                "description": "When stepping (F10/F11), automatically skip over hardware interrupt handlers (IRQ/NMI) that have no source mapping. The debugger detects when an interrupt diverts execution into unmapped code (e.g. Kernal ROM) and transparently runs through the ISR, resuming at the instruction after the interrupt.",
+                "default": true
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "dotnet6502",
+            "request": "launch",
+            "name": "Debug 6502 Program (dotnet-6502)",
+            "program": "${workspaceFolder}/program.prg",
+            "stopOnEntry": true
+          },
+          {
+            "type": "dotnet6502",
+            "request": "attach",
+            "name": "Attach to Emulator Host (dotnet-6502)",
+            "debugPort": 6502,
+            "program": "${workspaceFolder}/program.prg",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "dotnet-6502: Launch (minimal)",
+            "description": "Debug a 6502 program with the standalone minimal debug adapter",
+            "body": {
+              "type": "dotnet6502",
+              "request": "launch",
+              "name": "Debug 6502 Program (dotnet-6502)",
+              "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true
+            }
+          },
+          {
+            "label": "dotnet-6502: Launch (emulator)",
+            "description": "Launch emulator host app and attach debugger. Currently only Avalonia Desktop is supported.",
+            "body": {
+              "type": "dotnet6502",
+              "request": "launch",
+              "name": "Launch Emulator Host (dotnet-6502)",
+              "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true,
+              "debugAdapter": "emulator",
+              "system": "C64",
+              "debugPort": 6502,
+              "waitForSystemReady": true,
+              "loadProgram": true,
+              "runProgram": false
+            }
+          },
+          {
+            "label": "dotnet-6502: Attach",
+            "description": "Attach to a running emulator host app with debug adapter enabled",
+            "body": {
+              "type": "dotnet6502",
+              "request": "attach",
+              "name": "Attach to Emulator Host (dotnet-6502)",
+              "debugPort": 6502,
+              "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true
+            }
+          }
+        ]
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "ca65",
+        "required": [],
+        "properties": {}
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.0.0"
+  },
+  "dependencies": {
+    "@vscode/debugadapter": "^1.65.0",
+    "@vscode/debugprotocol": "^1.65.0",
+    "jsonc-parser": "^3.2.0"
+  }
+}
