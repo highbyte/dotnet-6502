@@ -165,12 +165,12 @@ public class TestSystem : ISystem
 
     public Instrumentations Instrumentations { get; } = new();
 
-    public ExecEvaluatorTriggerResult ExecuteOneFrame(SystemRunner systemRunner, IExecEvaluator? execEvaluator = null)
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
     {
         return new ExecEvaluatorTriggerResult();
     }
 
-    public ExecEvaluatorTriggerResult ExecuteOneInstruction(SystemRunner systemRunner, out InstructionExecResult instructionExecResult, IExecEvaluator? execEvaluator = null)
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(out InstructionExecResult instructionExecResult, IExecEvaluator? execEvaluator = null)
     {
         instructionExecResult = new InstructionExecResult();
         return new ExecEvaluatorTriggerResult();
@@ -199,12 +199,12 @@ public class TestSystem2 : ISystem
 
     public Instrumentations Instrumentations { get; } = new();
 
-    public ExecEvaluatorTriggerResult ExecuteOneFrame(SystemRunner systemRunner, IExecEvaluator? execEvaluator = null)
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
     {
         return new ExecEvaluatorTriggerResult();
     }
 
-    public ExecEvaluatorTriggerResult ExecuteOneInstruction(SystemRunner systemRunner, out InstructionExecResult instructionExecResult, IExecEvaluator? execEvaluator = null)
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(out InstructionExecResult instructionExecResult, IExecEvaluator? execEvaluator = null)
     {
         instructionExecResult = new InstructionExecResult();
         return new ExecEvaluatorTriggerResult();

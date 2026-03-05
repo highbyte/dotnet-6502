@@ -12,7 +12,7 @@ public class Functional_test
         _output = testOutputHelper;
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void Can_Run_6502_Functional_Test_Program_With_Decimal_Mode_Disabled_Successfully()
     {
         // Arrange
