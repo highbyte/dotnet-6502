@@ -14,11 +14,18 @@ public interface IScriptingEngine
     bool IsEnabled { get; }
 
     /// <summary>
-    /// Called once when the emulator system starts (or restarts after reset).
-    /// Should load all scripts from the configured directory and register the emulator API.
+    /// Called once at application startup (before any system starts) to load and initialize scripts.
+    /// Scripts may call emulator control operations (<c>emu.start()</c> etc.) from their top-level code.
+    /// CPU and memory globals exist but return safe defaults until <see cref="OnSystemStarted"/> is called.
+    /// </summary>
+    void LoadScripts();
+
+    /// <summary>
+    /// Called each time the emulator system starts (including after a reset).
+    /// Updates the <c>cpu</c> and <c>mem</c> script globals to reflect the running system.
     /// </summary>
     /// <param name="system">The running emulator system (provides access to CPU and memory).</param>
-    void Initialize(ISystem system);
+    void OnSystemStarted(ISystem system);
 
     /// <summary>
     /// Called by the host app before each emulator frame executes.
@@ -27,8 +34,24 @@ public interface IScriptingEngine
     void InvokeBeforeFrame();
 
     /// <summary>
+    /// Resumes only coroutines that last yielded via <c>emu.yield()</c>.
+    /// These coroutines tick on every timer interval regardless of emulator state,
+    /// allowing them to observe state and request control operations (e.g. <c>emu.start()</c>)
+    /// while the emulator is paused.
+    /// Coroutines that yielded via <c>emu.frameadvance()</c> are not resumed.
+    /// </summary>
+    void ResumeCoroutines();
+
+    /// <summary>
     /// Called by the host app after each emulator frame completes.
     /// Scripts may define an <c>on_after_frame()</c> function that will be invoked here.
     /// </summary>
     void InvokeAfterFrame();
+
+    /// <summary>
+    /// Provides the scripting engine with an <see cref="IEmulatorControl"/> so that scripts can
+    /// request emulator operations (start, stop, pause, reset, select system).
+    /// Call this before <see cref="LoadScripts"/>. Pass <c>null</c> to disconnect.
+    /// </summary>
+    void SetEmulatorControl(IEmulatorControl? control);
 }

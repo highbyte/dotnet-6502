@@ -10,7 +10,10 @@ namespace Highbyte.DotNet6502.Scripting;
 public class NoScriptingEngine : IScriptingEngine
 {
     public bool IsEnabled => false;
-    public void Initialize(ISystem system) { }
+    public void LoadScripts() { }
+    public void OnSystemStarted(ISystem system) { }
     public void InvokeBeforeFrame() { }
+    public void ResumeCoroutines() { }
     public void InvokeAfterFrame() { }
+    public void SetEmulatorControl(IEmulatorControl? control) { }
 }
