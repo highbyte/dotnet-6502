@@ -11,17 +11,23 @@ namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 /// log.warn("message")
 /// log.error("message")
 /// </code>
-/// All messages are prefixed with <c>[Lua]</c> in the log output.
+/// Messages are prefixed with <c>[Lua:filename.lua]</c> in the log output.
+/// The current script file is set by <see cref="MoonSharpScriptingEngine"/> before invoking each hook.
 /// </summary>
 [MoonSharpUserData]
 public class LuaLogProxy
 {
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Set by the engine before invoking a hook so log messages include the originating script filename.
+    /// </summary>
+    internal string CurrentScriptFile { get; set; } = "?";
+
     internal LuaLogProxy(ILogger logger) => _logger = logger;
 
-    public void info(string msg) => _logger.LogInformation("[Lua] {Message}", msg);
-    public void debug(string msg) => _logger.LogDebug("[Lua] {Message}", msg);
-    public void warn(string msg) => _logger.LogWarning("[Lua] {Message}", msg);
-    public void error(string msg) => _logger.LogError("[Lua] {Message}", msg);
+    public void info(string msg) => _logger.Log(LogLevel.Information, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
+    public void debug(string msg) => _logger.Log(LogLevel.Debug, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
+    public void warn(string msg) => _logger.Log(LogLevel.Warning, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
+    public void error(string msg) => _logger.Log(LogLevel.Error, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
 }
