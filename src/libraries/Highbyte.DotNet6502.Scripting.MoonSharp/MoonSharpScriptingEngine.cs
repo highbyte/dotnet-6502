@@ -23,29 +23,58 @@ namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 ///   </item>
 /// </list>
 ///
+/// Coroutines support two yield primitives:
+/// <list type="bullet">
+///   <item><c>emu.frameadvance()</c> — yields until the next emulator frame executes. Frozen while paused.</item>
+///   <item><c>emu.yield()</c> — yields until the next timer tick, regardless of emulator state. Keeps ticking during pause.</item>
+/// </list>
+///
 /// Lua globals available to scripts:
 /// <list type="bullet">
 ///   <item><c>cpu</c> — CPU state (pc, a, x, y, sp, carry, zero, negative, overflow, interrupt_disable, decimal_mode)</item>
 ///   <item><c>mem</c> — Memory access (mem.read(addr), mem.write(addr, value))</item>
 ///   <item><c>log</c> — Logging (log.info, log.debug, log.warn, log.error)</item>
-///   <item><c>emu</c> — Emulator control (emu.frameadvance(), emu.framecount())</item>
+///   <item><c>emu</c> — Emulator control (emu.frameadvance(), emu.yield(), emu.framecount(), emu.time())</item>
 /// </list>
 /// </summary>
 public class MoonSharpScriptingEngine : IScriptingEngine
 {
+    /// <summary>
+    /// Distinguishes how a coroutine last yielded, determining when it should be resumed.
+    /// </summary>
+    private enum YieldType
+    {
+        /// <summary>Yielded via <c>emu.frameadvance()</c> — only resumed on actual emulator frames.</summary>
+        FrameAdvance,
+        /// <summary>Yielded via <c>emu.yield()</c> — resumed on every timer tick, even while paused.</summary>
+        Tick
+    }
+
     private readonly ScriptingConfig _config;
     private readonly ILogger _logger;
     private Script? _script;
     private LuaLogProxy? _logProxy;
+    private LuaCpuProxy? _cpuProxy;
+    private LuaMemProxy? _memProxy;
     private int _frameCount;
+    private readonly Stopwatch _wallClock = new();
     // Per-file coroutines: each file's body runs as its own coroutine
     private readonly List<(Coroutine Coroutine, string FileName)> _fileCoroutines = new();
+    // Tracks how each coroutine last yielded
+    private readonly Dictionary<Coroutine, YieldType> _coroutineYieldType = new();
     // Maps hook function name -> filename of the script that last defined it
     private readonly Dictionary<string, string> _hookSourceFiles = new();
+    private IEmulatorControl? _emulatorControl;
+
+    // Sentinel strings passed through DynValue.NewYieldReq to distinguish yield types
+    private const string FrameAdvanceSentinel = "frameadvance";
+    private const string TickSentinel = "yield";
 
     private static readonly string[] s_hookNames = ["on_before_frame", "on_after_frame"];
 
     public bool IsEnabled => true;
+
+    public void SetEmulatorControl(IEmulatorControl? control) => _emulatorControl = control;
 
     public MoonSharpScriptingEngine(ScriptingConfig config, ILoggerFactory loggerFactory)
     {
@@ -54,12 +83,19 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     }
 
     /// <summary>
-    /// Initializes the Lua runtime, registers proxy types, loads all .lua files as coroutines,
-    /// and performs the initial resume of each (running top-level code and suspending at the
-    /// first <c>emu.frameadvance()</c> call if present).
+    /// Loads all .lua files as coroutines and performs the initial resume of each (running
+    /// top-level code and suspending at the first <c>emu.frameadvance()</c> call if present).
+    /// The <c>cpu</c> and <c>mem</c> globals are present but return safe defaults until
+    /// <see cref="OnSystemStarted"/> is called. Scripts may call <c>emu.start()</c> etc. here.
     /// </summary>
-    public void Initialize(ISystem system)
+    public void LoadScripts()
     {
+        _fileCoroutines.Clear();
+        _coroutineYieldType.Clear();
+        _hookSourceFiles.Clear();
+        _frameCount = 0;
+        _wallClock.Restart();
+
         // Create a sandboxed Lua environment: safe standard libs only, no file I/O from scripts
         _script = new Script(CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table);
 
@@ -68,20 +104,85 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         UserData.RegisterType<LuaMemProxy>();
         UserData.RegisterType<LuaLogProxy>();
 
-        // Set global objects accessible from all scripts
-        _script.Globals["cpu"] = new LuaCpuProxy(system.CPU);
-        _script.Globals["mem"] = new LuaMemProxy(system.Mem);
+        // cpu/mem proxies start with null references (safe defaults) until OnSystemStarted is called
+        _cpuProxy = new LuaCpuProxy();
+        _memProxy = new LuaMemProxy();
+        _script.Globals["cpu"] = _cpuProxy;
+        _script.Globals["mem"] = _memProxy;
         _logProxy = new LuaLogProxy(_logger);
         _script.Globals["log"] = _logProxy;
 
-        // emu table: frameadvance() yields the file coroutine back to the host; framecount() returns the current frame number
+        // emu table: frame control + emulator control operations
         var emuTable = new Table(_script);
-        emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => DynValue.NewYieldReq(Array.Empty<DynValue>()));
+        emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) =>
+            DynValue.NewYieldReq(new[] { DynValue.NewString(FrameAdvanceSentinel) }));
+        emuTable["yield"] = DynValue.NewCallback((ctx, args) =>
+            DynValue.NewYieldReq(new[] { DynValue.NewString(TickSentinel) }));
         emuTable["framecount"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(_frameCount));
+        emuTable["time"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(_wallClock.Elapsed.TotalSeconds));
+
+        // Emulator state queries
+        emuTable["state"] = DynValue.NewCallback((ctx, args) =>
+            DynValue.NewString(_emulatorControl?.CurrentState ?? "unknown"));
+        emuTable["systems"] = DynValue.NewCallback((ctx, args) =>
+        {
+            var t = new Table(_script!);
+            var systems = _emulatorControl?.AvailableSystems ?? [];
+            for (int i = 0; i < systems.Count; i++)
+                t[i + 1] = systems[i];
+            return DynValue.NewTable(t);
+        });
+        emuTable["selected_system"] = DynValue.NewCallback((ctx, args) =>
+            DynValue.NewString(_emulatorControl?.SelectedSystem ?? ""));
+        emuTable["selected_variant"] = DynValue.NewCallback((ctx, args) =>
+            DynValue.NewString(_emulatorControl?.SelectedVariant ?? ""));
+
+        // Emulator control operations (deferred by the host)
+        emuTable["start"] = DynValue.NewCallback((ctx, args) =>
+        {
+            _emulatorControl?.RequestStart();
+            return DynValue.Void;
+        });
+        emuTable["pause"] = DynValue.NewCallback((ctx, args) =>
+        {
+            _emulatorControl?.RequestPause();
+            return DynValue.Void;
+        });
+        emuTable["stop"] = DynValue.NewCallback((ctx, args) =>
+        {
+            _emulatorControl?.RequestStop();
+            return DynValue.Void;
+        });
+        emuTable["reset"] = DynValue.NewCallback((ctx, args) =>
+        {
+            _emulatorControl?.RequestReset();
+            return DynValue.Void;
+        });
+        emuTable["select"] = DynValue.NewCallback((ctx, args) =>
+        {
+            var systemName = args.Count > 0 ? args[0].CastToString() : null;
+            var variant = args.Count > 1 && args[1].Type == DataType.String ? args[1].String : null;
+            if (systemName != null)
+                _emulatorControl?.RequestSelectSystem(systemName, variant);
+            return DynValue.Void;
+        });
+
         _script.Globals["emu"] = emuTable;
 
         LoadScriptFiles();
         RunInitialResumes();
+    }
+
+    /// <summary>
+    /// Called each time the emulator system starts (including after reset).
+    /// Updates the <c>cpu</c> and <c>mem</c> globals to point to the live system.
+    /// </summary>
+    public void OnSystemStarted(ISystem system)
+    {
+        if (_cpuProxy == null || _memProxy == null)
+            return; // LoadScripts was not called yet
+        _cpuProxy.SetCpu(system.CPU);
+        _memProxy.SetMem(system.Mem);
     }
 
     private void LoadScriptFiles()
@@ -123,7 +224,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     /// <summary>
     /// Performs the first resume of each file coroutine. This runs top-level code (e.g. function
     /// definitions, variable initialisation) and suspends at the first <c>emu.frameadvance()</c>
-    /// call. Hook registrations are detected here so log messages carry the correct filename.
+    /// or <c>emu.yield()</c> call. Hook registrations are detected here so log messages carry
+    /// the correct filename.
     /// </summary>
     private void RunInitialResumes()
     {
@@ -133,7 +235,23 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             _logProxy!.CurrentScriptFile = fileName;
             try
             {
-                coroutine.Resume();
+                var result = coroutine.Resume();
+
+                // Track how the coroutine yielded so we know when to resume it next
+                if (coroutine.State == CoroutineState.Suspended && result.Type == DataType.Tuple)
+                {
+                    var yieldArgs = result.Tuple;
+                    if (yieldArgs.Length > 0 && yieldArgs[0].Type == DataType.String)
+                    {
+                        _coroutineYieldType[coroutine] = yieldArgs[0].String switch
+                        {
+                            FrameAdvanceSentinel => YieldType.FrameAdvance,
+                            TickSentinel => YieldType.Tick,
+                            _ => YieldType.FrameAdvance
+                        };
+                    }
+                }
+
                 // Record which file defined each hook (last definition wins)
                 foreach (var hook in s_hookNames)
                 {
@@ -156,24 +274,46 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     public void InvokeBeforeFrame()
     {
         _frameCount++;
-        ResumeFileCoroutines();
+        ResumeFileCoroutines(YieldType.FrameAdvance);
+        ResumeFileCoroutines(YieldType.Tick);
         InvokeHook("on_before_frame");
     }
 
+    public void ResumeCoroutines() => ResumeFileCoroutines(YieldType.Tick);
+
     public void InvokeAfterFrame() => InvokeHook("on_after_frame");
 
-    private void ResumeFileCoroutines()
+    private void ResumeFileCoroutines(YieldType filterYieldType)
     {
         foreach (var (coroutine, fileName) in _fileCoroutines)
         {
             if (coroutine.State == CoroutineState.Dead)
                 continue;
 
+            // Only resume coroutines that last yielded with the matching type
+            if (_coroutineYieldType.TryGetValue(coroutine, out var lastYield) && lastYield != filterYieldType)
+                continue;
+
             _logProxy!.CurrentScriptFile = fileName;
             var sw = Stopwatch.StartNew();
             try
             {
-                coroutine.Resume();
+                var result = coroutine.Resume();
+
+                // Track how the coroutine yielded so we know when to resume it next
+                if (coroutine.State == CoroutineState.Suspended && result.Type == DataType.Tuple)
+                {
+                    var yieldArgs = result.Tuple;
+                    if (yieldArgs.Length > 0 && yieldArgs[0].Type == DataType.String)
+                    {
+                        _coroutineYieldType[coroutine] = yieldArgs[0].String switch
+                        {
+                            FrameAdvanceSentinel => YieldType.FrameAdvance,
+                            TickSentinel => YieldType.Tick,
+                            _ => YieldType.FrameAdvance // default to frame-bound
+                        };
+                    }
+                }
             }
             catch (ScriptRuntimeException ex)
             {

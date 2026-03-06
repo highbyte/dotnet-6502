@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -19,6 +21,7 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using Avalonia.Threading;
 using Highbyte.DotNet6502.Scripting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -28,7 +31,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp, IEmulatorControl
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -46,6 +49,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
     private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
+    // Script-requested actions deferred until after the current frame completes
+    private readonly List<Func<Task>> _pendingScriptActions = new();
 
     private PeriodicAsyncTimer? _updateTimer;
 
@@ -122,7 +127,48 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public void SetScriptingEngine(IScriptingEngine engine)
     {
         _scriptingEngine = engine;
+        _scriptingEngine.SetEmulatorControl(this);
+        _scriptingEngine.LoadScripts();
+        // Drain any actions enqueued during initial script execution (e.g., emu.start())
+        // Posted so it runs after the current synchronous call chain returns.
+        _ = Dispatcher.UIThread.InvokeAsync(DrainPendingScriptActionsAsync);
     }
+
+    // --- IEmulatorControl implementation ---
+
+    IReadOnlyList<string> IEmulatorControl.AvailableSystems =>
+        _systemList.Systems.ToList();
+
+    string IEmulatorControl.SelectedSystem => SelectedSystemName;
+
+    string IEmulatorControl.SelectedVariant => SelectedSystemConfigurationVariant;
+
+    string IEmulatorControl.CurrentState => EmulatorState switch
+    {
+        EmulatorState.Running => "running",
+        EmulatorState.Paused => "paused",
+        _ => "stopped"
+    };
+
+    void IEmulatorControl.RequestStart() =>
+        _pendingScriptActions.Add(async () => { if (EmulatorState != EmulatorState.Running) await Start(); });
+
+    void IEmulatorControl.RequestPause() =>
+        _pendingScriptActions.Add(() => { Pause(); return Task.CompletedTask; });
+
+    void IEmulatorControl.RequestStop() =>
+        _pendingScriptActions.Add(() => { Stop(); return Task.CompletedTask; });
+
+    void IEmulatorControl.RequestReset() =>
+        _pendingScriptActions.Add(() => Reset());
+
+    void IEmulatorControl.RequestSelectSystem(string systemName, string? variant) =>
+        _pendingScriptActions.Add(async () =>
+        {
+            await SelectSystem(systemName);
+            if (variant != null)
+                await SelectSystemConfigurationVariant(variant);
+        });
 
     private bool _skipDefaultSystemSelection;
 
@@ -297,9 +343,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             // Notify subscribers that a new Monitor instance is available
             OnPropertyChanged(nameof(Monitor));
 
-            // Initialize Lua scripting engine with the newly started system
-            _scriptingEngine.Initialize(CurrentRunningSystem!);
         }
+
+        // Update scripting engine cpu/mem globals to the newly started system (called on every start, including reset)
+        _scriptingEngine.OnSystemStarted(CurrentRunningSystem!);
 
         // _logger.LogTrace("Test trace");
         // _logger.LogDebug("Test debug");
@@ -311,7 +358,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public override void OnAfterPause()
     {
-        _updateTimer?.Stop();
+        // When scripting is enabled, keep the timer running so Lua coroutines
+        // can observe the paused state and request resume via emu.start().
+        // RunEmulatorOneFrame() already no-ops when not Running.
+        if (!_scriptingEngine.IsEnabled)
+            _updateTimer?.Stop();
     }
 
     public override void OnBeforeStop()
@@ -565,9 +616,35 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
     }
 
-    private void UpdateTimerElapsed(object? sender, EventArgs e)
+    private async void UpdateTimerElapsed(object? sender, EventArgs e)
     {
         RunEmulatorOneFrame();
+
+        // When paused, the emulator frame loop doesn't execute, but we still
+        // need to tick scripting coroutines so they can observe the paused
+        // state and request resume via emu.start().  Only coroutines are
+        // resumed — frame count and hooks (on_before_frame etc.) are not
+        // advanced, since no emulator frame is being executed.
+        if (EmulatorState == EmulatorState.Paused && _scriptingEngine.IsEnabled)
+            _scriptingEngine.ResumeCoroutines();
+
+        await DrainPendingScriptActionsAsync();
+    }
+
+    private async Task DrainPendingScriptActionsAsync()
+    {
+        if (_pendingScriptActions.Count == 0)
+            return;
+        var actions = _pendingScriptActions.ToList();
+        _pendingScriptActions.Clear();
+        foreach (var action in actions)
+        {
+            try { await action(); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Scripting] Error executing deferred script action");
+            }
+        }
     }
 
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
