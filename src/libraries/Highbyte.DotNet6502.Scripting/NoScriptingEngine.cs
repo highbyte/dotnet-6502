@@ -17,4 +17,6 @@ public class NoScriptingEngine : IScriptingEngine
     public void InvokeAfterFrame() { }
     public void InvokeEvent(string hookName, params object[] args) { }
     public void SetEmulatorControl(IEmulatorControl? control) { }
+    public IReadOnlyList<ScriptStatus> GetScriptStatuses() => Array.Empty<ScriptStatus>();
+    public event EventHandler? ScriptStatusChanged { add { } remove { } }
 }

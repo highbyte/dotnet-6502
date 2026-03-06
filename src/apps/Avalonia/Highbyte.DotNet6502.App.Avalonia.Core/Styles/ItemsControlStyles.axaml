@@ -15,6 +15,10 @@
         <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
     </Style>
 
+    <Style Selector="TabItem.disabled-scripts">
+        <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+    </Style>
+
     <!-- ========================================== -->
     <!-- ITEMSCONTROL PANEL STYLES                  -->
     <!-- ========================================== -->

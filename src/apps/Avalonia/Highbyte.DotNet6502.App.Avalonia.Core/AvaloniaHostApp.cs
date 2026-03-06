@@ -49,6 +49,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
     private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
+    internal IScriptingEngine ScriptingEngine => _scriptingEngine;
     // Script-requested actions deferred until after the current frame completes
     private readonly List<Func<Task>> _pendingScriptActions = new();
 

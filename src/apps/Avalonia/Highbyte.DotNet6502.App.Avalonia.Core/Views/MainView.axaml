@@ -393,6 +393,114 @@
                             </Border>
                         </TabItem>
 
+                        <!-- Scripts Tab -->
+                        <TabItem Name="ScriptsTabItem"
+                                 Header="{Binding ScriptsTabHeader}"
+                                 Classes.disabled-scripts="{Binding HasDisabledScripts}">
+                            <Border Classes="tab-content">
+                                <ScrollViewer Classes="auto-scroll">
+                                    <StackPanel Classes="spacing-tight">
+                                        <!-- Scripting enabled/disabled status -->
+                                        <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                            <TextBlock Text="Scripting:"
+                                                       Classes="small bold"/>
+                                            <TextBlock Text="Enabled"
+                                                       Classes="small"
+                                                       Foreground="{DynamicResource SuccessColor}"
+                                                       IsVisible="{Binding IsScriptingEnabled}"/>
+                                            <TextBlock Text="Disabled"
+                                                       Classes="small"
+                                                       Foreground="{DynamicResource SecondaryText}"
+                                                       IsVisible="{Binding !IsScriptingEnabled}"/>
+                                        </StackPanel>
+
+                                        <!-- Script list -->
+                                        <ItemsControl ItemsSource="{Binding ScriptEntries}"
+                                                      Classes="vertical-tight"
+                                                      IsVisible="{Binding IsScriptingEnabled}">
+                                            <ItemsControl.Styles>
+                                                <Style Selector="TextBlock.script-status-dot">
+                                                    <Setter Property="FontSize" Value="10"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="Margin" Value="0,0,4,0"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
+                                                </Style>
+                                                <Style Selector="TextBlock.script-disabled">
+                                                    <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+                                                </Style>
+                                                <Style Selector="TextBlock.script-completed">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+                                                </Style>
+                                            </ItemsControl.Styles>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="16"/>
+                                                            <ColumnDefinition Width="Auto" MinWidth="180"/>
+                                                            <ColumnDefinition Width="Auto" MinWidth="70"/>
+                                                            <ColumnDefinition Width="Auto" MinWidth="90"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Status indicator dot -->
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="●"
+                                                                   Classes="script-status-dot"
+                                                                   Classes.script-disabled="{Binding IsDisabled}"
+                                                                   Classes.script-completed="{Binding IsCompleted}"/>
+
+                                                        <!-- File name -->
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding FileName}"
+                                                                   Classes="small"
+                                                                   FontFamily="Consolas,Monaco,'Courier New',monospace"
+                                                                   FontSize="10"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"/>
+
+                                                        <!-- Status -->
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding Status}"
+                                                                   Classes="small"
+                                                                   FontSize="10"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"
+                                                                   Classes.script-disabled="{Binding IsDisabled}"/>
+
+                                                        <!-- Yield Type -->
+                                                        <TextBlock Grid.Column="3"
+                                                                   Text="{Binding YieldType}"
+                                                                   Classes="small"
+                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource SecondaryText}"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"/>
+
+                                                        <!-- Hooks -->
+                                                        <TextBlock Grid.Column="4"
+                                                                   Text="{Binding Hooks}"
+                                                                   Classes="small"
+                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource SecondaryText}"
+                                                                   VerticalAlignment="Center"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <!-- Empty state -->
+                                        <TextBlock Text="No scripts loaded."
+                                                   Classes="small secondary-text"
+                                                   FontStyle="Italic"
+                                                   IsVisible="{Binding !ScriptEntries.Count}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+
                         <!-- General info -->
                         <TabItem Name="GeneralInfoTabItem" Header="General info">
                             <ScrollViewer Classes="auto-scroll">

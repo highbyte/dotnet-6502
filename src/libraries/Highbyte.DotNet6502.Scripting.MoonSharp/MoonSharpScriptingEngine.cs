@@ -82,6 +82,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
     public bool IsEnabled => true;
 
+    public event EventHandler? ScriptStatusChanged;
+
     public void SetEmulatorControl(IEmulatorControl? control) => _emulatorControl = control;
 
     public MoonSharpScriptingEngine(ScriptingConfig config, ILoggerFactory loggerFactory)
@@ -179,6 +181,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
         LoadScriptFiles();
         RunInitialResumes();
+        ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -255,6 +258,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                     _logger.LogError("[Scripting] {File} exceeded instruction limit ({Limit}) during initial load without calling emu.yield() or emu.frameadvance(). Script disabled.",
                         fileName, _config.MaxInstructionsPerResume);
                     _coroutineYieldType[coroutine] = YieldType.Disabled;
+                    ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
                 }
                 // Normal yield — track which yield primitive was used
                 else if (coroutine.State == CoroutineState.Suspended)
@@ -295,6 +299,58 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     public void InvokeAfterFrame() => InvokeHook("on_after_frame");
 
     public void InvokeEvent(string hookName, params object[] args) => InvokeHook(hookName, args);
+
+    public IReadOnlyList<ScriptStatus> GetScriptStatuses()
+    {
+        // Build reverse lookup: fileName -> list of hooks defined by that file
+        var hooksPerFile = new Dictionary<string, List<string>>();
+        foreach (var (hookName, fileName) in _hookSourceFiles)
+        {
+            if (!hooksPerFile.TryGetValue(fileName, out var list))
+            {
+                list = new List<string>();
+                hooksPerFile[fileName] = list;
+            }
+            list.Add(hookName);
+        }
+
+        var statuses = new List<ScriptStatus>();
+        foreach (var (coroutine, fileName) in _fileCoroutines)
+        {
+            var hooks = (IReadOnlyList<string>)(hooksPerFile.GetValueOrDefault(fileName) ?? new List<string>());
+            var yieldType = _coroutineYieldType.GetValueOrDefault(coroutine);
+
+            ScriptExecutionState state;
+            ScriptYieldType? yieldTypeDto = null;
+
+            if (yieldType == YieldType.Disabled || coroutine.State == CoroutineState.ForceSuspended)
+            {
+                state = ScriptExecutionState.Disabled;
+            }
+            else if (coroutine.State == CoroutineState.Dead)
+            {
+                state = hooks.Count > 0 ? ScriptExecutionState.HookOnly : ScriptExecutionState.Completed;
+            }
+            else if (coroutine.State == CoroutineState.Suspended)
+            {
+                state = ScriptExecutionState.Running;
+                yieldTypeDto = yieldType switch
+                {
+                    YieldType.FrameAdvance => ScriptYieldType.FrameAdvance,
+                    YieldType.Tick => ScriptYieldType.Tick,
+                    _ => null
+                };
+            }
+            else
+            {
+                state = ScriptExecutionState.Running;
+            }
+
+            statuses.Add(new ScriptStatus(fileName, state, yieldTypeDto, hooks));
+        }
+
+        return statuses;
+    }
 
     /// <summary>
     /// Extracts the yield type from a coroutine resume result.
@@ -344,6 +400,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                     _logger.LogError("[Scripting] {File} exceeded instruction limit ({Limit}) without calling emu.yield() or emu.frameadvance(). Script disabled.",
                         fileName, _config.MaxInstructionsPerResume);
                     _coroutineYieldType[coroutine] = YieldType.Disabled;
+                    ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
                 }
                 // Normal yield — track which yield primitive was used
                 else if (coroutine.State == CoroutineState.Suspended)

@@ -71,4 +71,16 @@ public interface IScriptingEngine
     /// Call this before <see cref="LoadScripts"/>. Pass <c>null</c> to disconnect.
     /// </summary>
     void SetEmulatorControl(IEmulatorControl? control);
+
+    /// <summary>
+    /// Returns a snapshot of all loaded scripts and their current status.
+    /// Returns an empty list if scripting is disabled or no scripts are loaded.
+    /// </summary>
+    IReadOnlyList<ScriptStatus> GetScriptStatuses();
+
+    /// <summary>
+    /// Raised when any script's status changes (e.g., a script is disabled due to exceeding the instruction limit).
+    /// UI consumers can subscribe to refresh the scripts display.
+    /// </summary>
+    event EventHandler? ScriptStatusChanged;
 }
