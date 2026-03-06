@@ -14,4 +14,10 @@ public class ScriptingConfig
     /// Can be absolute or relative to the application working directory.
     /// </summary>
     public string ScriptDirectory { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Log a warning if a script hook (on_before_frame / on_after_frame) takes longer than this many milliseconds.
+    /// Set to 0 to disable the warning. Default is 5ms.
+    /// </summary>
+    public int MaxExecutionWarningMs { get; set; } = 5;
 }
