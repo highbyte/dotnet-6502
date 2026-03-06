@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
+using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -103,6 +104,31 @@ public class MainViewModel : ViewModelBase, IDisposable
         get => _hasLogErrors;
         private set => this.RaiseAndSetIfChanged(ref _hasLogErrors, value);
     }
+
+    // Scripts tab properties
+    private string _scriptsTabHeader = "Scripts";
+    public string ScriptsTabHeader
+    {
+        get => _scriptsTabHeader;
+        private set => this.RaiseAndSetIfChanged(ref _scriptsTabHeader, value);
+    }
+
+    private bool _hasDisabledScripts = false;
+    public bool HasDisabledScripts
+    {
+        get => _hasDisabledScripts;
+        private set => this.RaiseAndSetIfChanged(ref _hasDisabledScripts, value);
+    }
+
+    private bool _isScriptingEnabled;
+    public bool IsScriptingEnabled
+    {
+        get => _isScriptingEnabled;
+        private set => this.RaiseAndSetIfChanged(ref _isScriptingEnabled, value);
+    }
+
+    private readonly ObservableCollection<ScriptDisplayEntry> _scriptEntries = new();
+    public ObservableCollection<ScriptDisplayEntry> ScriptEntries => _scriptEntries;
 
     // Tab tracking for performance optimization
     private string _selectedTabName = "";
@@ -604,6 +630,10 @@ public class MainViewModel : ViewModelBase, IDisposable
         // System-specific ViewModel initializations
         this.WhenAnyValue(x => x.SelectedSystemName)
                  .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
+
+        // Initialize scripts tab data and subscribe to status changes
+        RefreshScriptStatuses();
+        _hostApp.ScriptingEngine.ScriptStatusChanged += OnScriptStatusChanged;
     }
 
     private string GetAudioToolTip(IHostSystemConfig config)
@@ -743,6 +773,39 @@ public class MainViewModel : ViewModelBase, IDisposable
         HasLogErrors = errorCount > 0;
     }
 
+    private void RefreshScriptStatuses()
+    {
+        var engine = _hostApp.ScriptingEngine;
+        IsScriptingEnabled = engine.IsEnabled;
+
+        var statuses = engine.GetScriptStatuses();
+        _scriptEntries.Clear();
+        foreach (var status in statuses)
+            _scriptEntries.Add(new ScriptDisplayEntry(status));
+
+        UpdateScriptsTabHeader();
+    }
+
+    private void UpdateScriptsTabHeader()
+    {
+        var total = _scriptEntries.Count;
+        var disabledCount = _scriptEntries.Count(s => s.IsDisabled);
+
+        if (total == 0)
+            ScriptsTabHeader = "Scripts";
+        else if (disabledCount > 0)
+            ScriptsTabHeader = $"Scripts ({total}, {disabledCount} disabled)";
+        else
+            ScriptsTabHeader = $"Scripts ({total})";
+
+        HasDisabledScripts = disabledCount > 0;
+    }
+
+    private void OnScriptStatusChanged(object? sender, EventArgs e)
+    {
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() => RefreshScriptStatuses());
+    }
+
     /// <summary>
     /// Creates a MonitorViewModel for the current monitor instance.
     /// This method should be called by views that need to display the monitor.
@@ -790,6 +853,9 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        // Unsubscribe from scripting engine events
+        _hostApp.ScriptingEngine.ScriptStatusChanged -= OnScriptStatusChanged;
+
         // Unsubscribe from external debug controller events
         if (_externalDebugController != null)
             _externalDebugController.StateChanged -= OnExternalDebugControllerStateChanged;
@@ -858,5 +924,51 @@ public class LogDisplayEntry
             LogLevel.None => "○",         // Hollow circle for general/none (can be colored)
             _ => "?"                      // Question mark for unknown
         };
+    }
+}
+
+/// <summary>
+/// Display wrapper for a single script entry in the Scripts tab.
+/// </summary>
+public class ScriptDisplayEntry
+{
+    public string FileName { get; }
+    public string Status { get; }
+    public string YieldType { get; }
+    public string Hooks { get; }
+
+    public bool IsDisabled { get; }
+    public bool IsRunning { get; }
+    public bool IsCompleted { get; }
+    public bool IsHookOnly { get; }
+
+    public ScriptDisplayEntry(ScriptStatus scriptStatus)
+    {
+        FileName = scriptStatus.FileName;
+
+        IsRunning = scriptStatus.State == ScriptExecutionState.Running;
+        IsDisabled = scriptStatus.State == ScriptExecutionState.Disabled;
+        IsCompleted = scriptStatus.State == ScriptExecutionState.Completed;
+        IsHookOnly = scriptStatus.State == ScriptExecutionState.HookOnly;
+
+        Status = scriptStatus.State switch
+        {
+            ScriptExecutionState.Running => "Running",
+            ScriptExecutionState.Disabled => "Disabled",
+            ScriptExecutionState.Completed => "Completed",
+            ScriptExecutionState.HookOnly => "Hook-only",
+            _ => "Unknown"
+        };
+
+        YieldType = scriptStatus.YieldType switch
+        {
+            ScriptYieldType.FrameAdvance => "FrameAdvance",
+            ScriptYieldType.Tick => "Tick",
+            _ => "-"
+        };
+
+        Hooks = scriptStatus.Hooks.Count > 0
+            ? string.Join(", ", scriptStatus.Hooks)
+            : "-";
     }
 }
