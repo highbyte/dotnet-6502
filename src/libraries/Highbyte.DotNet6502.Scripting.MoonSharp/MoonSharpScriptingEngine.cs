@@ -10,10 +10,17 @@ namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 /// Loads all .lua files from the configured <see cref="ScriptingConfig.ScriptDirectory"/> and
 /// invokes hooks each emulator frame.
 ///
-/// Two scripting styles are supported:
+/// Two scripting styles are supported and can be mixed across files:
 /// <list type="bullet">
-///   <item>Per-frame hooks: define <c>on_before_frame()</c> and/or <c>on_after_frame()</c> functions.</item>
-///   <item>Linear loop style: define <c>on_start()</c> and call <c>emu.frameadvance()</c> to yield to the next frame.</item>
+///   <item>
+///     Per-frame hooks: define <c>on_before_frame()</c> and/or <c>on_after_frame()</c> functions.
+///     The host calls these once per frame.
+///   </item>
+///   <item>
+///     Linear loop style (BizHawk-style): write a top-level <c>while true do ... emu.frameadvance() end</c> loop.
+///     Each file runs as its own coroutine; <c>emu.frameadvance()</c> suspends it until the next frame.
+///     No wrapper function is needed.
+///   </item>
 /// </list>
 ///
 /// Lua globals available to scripts:
@@ -30,10 +37,13 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     private readonly ILogger _logger;
     private Script? _script;
     private LuaLogProxy? _logProxy;
-    private Coroutine? _onStartCoroutine;
     private int _frameCount;
+    // Per-file coroutines: each file's body runs as its own coroutine
+    private readonly List<(Coroutine Coroutine, string FileName)> _fileCoroutines = new();
     // Maps hook function name -> filename of the script that last defined it
     private readonly Dictionary<string, string> _hookSourceFiles = new();
+
+    private static readonly string[] s_hookNames = ["on_before_frame", "on_after_frame"];
 
     public bool IsEnabled => true;
 
@@ -44,8 +54,9 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     }
 
     /// <summary>
-    /// Initializes the Lua runtime, registers proxy types, and loads all .lua files
-    /// from the configured script directory.
+    /// Initializes the Lua runtime, registers proxy types, loads all .lua files as coroutines,
+    /// and performs the initial resume of each (running top-level code and suspending at the
+    /// first <c>emu.frameadvance()</c> call if present).
     /// </summary>
     public void Initialize(ISystem system)
     {
@@ -63,24 +74,15 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         _logProxy = new LuaLogProxy(_logger);
         _script.Globals["log"] = _logProxy;
 
-        // emu table: frameadvance() yields the on_start coroutine back to the host; framecount() returns the current frame number
+        // emu table: frameadvance() yields the file coroutine back to the host; framecount() returns the current frame number
         var emuTable = new Table(_script);
         emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => DynValue.NewYieldReq(Array.Empty<DynValue>()));
         emuTable["framecount"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(_frameCount));
         _script.Globals["emu"] = emuTable;
 
         LoadScriptFiles();
-
-        // If on_start is defined, run it as a host-driven coroutine resumed once per frame
-        var onStartFn = _script.Globals.Get("on_start");
-        if (onStartFn.Type == DataType.Function)
-        {
-            _onStartCoroutine = _script.CreateCoroutine(onStartFn).Coroutine;
-            _logger.LogInformation("[Scripting] on_start coroutine registered.");
-        }
+        RunInitialResumes();
     }
-
-    private static readonly string[] s_hookNames = ["on_before_frame", "on_after_frame", "on_start"];
 
     private void LoadScriptFiles()
     {
@@ -99,27 +101,17 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         foreach (var file in luaFiles)
         {
             var fileName = Path.GetFileName(file);
-            // Snapshot hook function references before loading so we can detect new/changed definitions
-            var prevHooks = s_hookNames.ToDictionary(h => h, h => _script!.Globals.Get(h).Function);
             try
             {
-                _script!.DoFile(file);
+                // Compile without executing — each file body will run as a coroutine
+                var chunk = _script!.LoadFile(file);
+                var coroutine = _script.CreateCoroutine(chunk).Coroutine;
+                _fileCoroutines.Add((coroutine, fileName));
                 _logger.LogInformation("[Scripting] Loaded: {File}", fileName);
-                // Record which file defined each hook (last definition wins)
-                foreach (var hook in s_hookNames)
-                {
-                    var fn = _script.Globals.Get(hook);
-                    if (fn.Type == DataType.Function && fn.Function != prevHooks[hook])
-                        _hookSourceFiles[hook] = fileName;
-                }
             }
             catch (SyntaxErrorException ex)
             {
                 _logger.LogError("[Scripting] Syntax error in {File}: {Message}", fileName, ex.DecoratedMessage);
-            }
-            catch (ScriptRuntimeException ex)
-            {
-                _logger.LogError("[Scripting] Runtime error loading {File}: {Message}", fileName, ex.DecoratedMessage);
             }
             catch (Exception ex)
             {
@@ -128,44 +120,77 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         }
     }
 
+    /// <summary>
+    /// Performs the first resume of each file coroutine. This runs top-level code (e.g. function
+    /// definitions, variable initialisation) and suspends at the first <c>emu.frameadvance()</c>
+    /// call. Hook registrations are detected here so log messages carry the correct filename.
+    /// </summary>
+    private void RunInitialResumes()
+    {
+        foreach (var (coroutine, fileName) in _fileCoroutines)
+        {
+            var prevHooks = s_hookNames.ToDictionary(h => h, h => _script!.Globals.Get(h).Function);
+            _logProxy!.CurrentScriptFile = fileName;
+            try
+            {
+                coroutine.Resume();
+                // Record which file defined each hook (last definition wins)
+                foreach (var hook in s_hookNames)
+                {
+                    var fn = _script!.Globals.Get(hook);
+                    if (fn.Type == DataType.Function && fn.Function != prevHooks[hook])
+                        _hookSourceFiles[hook] = fileName;
+                }
+            }
+            catch (ScriptRuntimeException ex)
+            {
+                _logger.LogError("[Scripting] Runtime error in {File}: {Message}", fileName, ex.DecoratedMessage);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Scripting] Unexpected error in {File}", fileName);
+            }
+        }
+    }
+
     public void InvokeBeforeFrame()
     {
         _frameCount++;
-        ResumeOnStartCoroutine();
+        ResumeFileCoroutines();
         InvokeHook("on_before_frame");
     }
 
     public void InvokeAfterFrame() => InvokeHook("on_after_frame");
 
-    private void ResumeOnStartCoroutine()
+    private void ResumeFileCoroutines()
     {
-        if (_onStartCoroutine == null || _onStartCoroutine.State == CoroutineState.Dead)
-            return;
+        foreach (var (coroutine, fileName) in _fileCoroutines)
+        {
+            if (coroutine.State == CoroutineState.Dead)
+                continue;
 
-        var sw = Stopwatch.StartNew();
-        _logProxy!.CurrentScriptFile = _hookSourceFiles.GetValueOrDefault("on_start", "?");
-        try
-        {
-            _onStartCoroutine.Resume();
-        }
-        catch (ScriptRuntimeException ex)
-        {
-            _logger.LogError("[Scripting] Runtime error in 'on_start': {Message}", ex.DecoratedMessage);
-            _onStartCoroutine = null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[Scripting] Unexpected error in 'on_start' coroutine");
-            _onStartCoroutine = null;
-        }
-        finally
-        {
-            sw.Stop();
-            if (_config.MaxExecutionWarningMs > 0 && sw.ElapsedMilliseconds > _config.MaxExecutionWarningMs)
+            _logProxy!.CurrentScriptFile = fileName;
+            var sw = Stopwatch.StartNew();
+            try
             {
-                var scriptFile = _hookSourceFiles.GetValueOrDefault("on_start", "?");
-                _logger.LogWarning("[Scripting] 'on_start' ({Script}) took {Ms}ms (threshold: {Threshold}ms)",
-                    scriptFile, sw.ElapsedMilliseconds, _config.MaxExecutionWarningMs);
+                coroutine.Resume();
+            }
+            catch (ScriptRuntimeException ex)
+            {
+                _logger.LogError("[Scripting] Runtime error in {File}: {Message}", fileName, ex.DecoratedMessage);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Scripting] Unexpected error in {File}", fileName);
+            }
+            finally
+            {
+                sw.Stop();
+                if (_config.MaxExecutionWarningMs > 0 && sw.ElapsedMilliseconds > _config.MaxExecutionWarningMs)
+                {
+                    _logger.LogWarning("[Scripting] {File} took {Ms}ms (threshold: {Threshold}ms)",
+                        fileName, sw.ElapsedMilliseconds, _config.MaxExecutionWarningMs);
+                }
             }
         }
     }
