@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
@@ -97,6 +98,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         if (_script == null)
             return;
 
+        var sw = Stopwatch.StartNew();
         try
         {
             var fn = _script.Globals.Get(functionName);
@@ -110,6 +112,13 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         catch (Exception ex)
         {
             _logger.LogError(ex, "[Scripting] Unexpected error invoking Lua hook '{Hook}'", functionName);
+        }
+        finally
+        {
+            sw.Stop();
+            if (_config.MaxExecutionWarningMs > 0 && sw.ElapsedMilliseconds > _config.MaxExecutionWarningMs)
+                _logger.LogWarning("[Scripting] '{Hook}' took {Ms}ms (threshold: {Threshold}ms)",
+                    functionName, sw.ElapsedMilliseconds, _config.MaxExecutionWarningMs);
         }
     }
 }
