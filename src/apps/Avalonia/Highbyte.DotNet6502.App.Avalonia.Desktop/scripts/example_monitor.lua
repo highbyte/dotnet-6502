@@ -10,12 +10,12 @@
 --
 -- To enable scripting, set "Enabled": true in appsettings.json under "Highbyte.DotNet6502.Scripting".
 
-local frame_count = 0
 
 -- Called before each emulator frame executes (~50 times/sec for C64)
 function on_before_frame()
-    frame_count = frame_count + 1
 
+    local frame_count = emu.framecount()
+    
     -- Log CPU state every 60 frames (~once per second)
     if frame_count % 60 == 0 then
         log.info(string.format(
