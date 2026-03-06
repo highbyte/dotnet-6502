@@ -244,18 +244,11 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                 var result = coroutine.Resume();
 
                 // Track how the coroutine yielded so we know when to resume it next
-                if (coroutine.State == CoroutineState.Suspended && result.Type == DataType.Tuple)
+                if (coroutine.State == CoroutineState.Suspended)
                 {
-                    var yieldArgs = result.Tuple;
-                    if (yieldArgs.Length > 0 && yieldArgs[0].Type == DataType.String)
-                    {
-                        _coroutineYieldType[coroutine] = yieldArgs[0].String switch
-                        {
-                            FrameAdvanceSentinel => YieldType.FrameAdvance,
-                            TickSentinel => YieldType.Tick,
-                            _ => YieldType.FrameAdvance
-                        };
-                    }
+                    var yieldType = DetectYieldType(result);
+                    if (yieldType.HasValue)
+                        _coroutineYieldType[coroutine] = yieldType.Value;
                 }
 
                 // Record which file defined each hook (last definition wins)
@@ -281,7 +274,6 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     {
         _frameCount++;
         ResumeFileCoroutines(YieldType.FrameAdvance);
-        ResumeFileCoroutines(YieldType.Tick);
         InvokeHook("on_before_frame");
     }
 
@@ -291,6 +283,28 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
     public void InvokeEvent(string hookName, params object[] args) => InvokeHook(hookName, args);
 
+    /// <summary>
+    /// Extracts the yield type from a coroutine resume result.
+    /// Handles both <c>DataType.Tuple</c> (array of yield args) and <c>DataType.String</c>
+    /// (MoonSharp may unwrap a single-element yield).
+    /// </summary>
+    private static YieldType? DetectYieldType(DynValue result)
+    {
+        string? sentinel = null;
+
+        if (result.Type == DataType.Tuple && result.Tuple.Length > 0 && result.Tuple[0].Type == DataType.String)
+            sentinel = result.Tuple[0].String;
+        else if (result.Type == DataType.String)
+            sentinel = result.String;
+
+        return sentinel switch
+        {
+            FrameAdvanceSentinel => YieldType.FrameAdvance,
+            TickSentinel => YieldType.Tick,
+            _ => null
+        };
+    }
+
     private void ResumeFileCoroutines(YieldType filterYieldType)
     {
         foreach (var (coroutine, fileName) in _fileCoroutines)
@@ -298,8 +312,10 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             if (coroutine.State == CoroutineState.Dead)
                 continue;
 
-            // Only resume coroutines that last yielded with the matching type
-            if (_coroutineYieldType.TryGetValue(coroutine, out var lastYield) && lastYield != filterYieldType)
+            // Only resume coroutines that last yielded with the matching type.
+            // Default to FrameAdvance so untracked coroutines are not picked up by the Tick timer.
+            var lastYield = _coroutineYieldType.GetValueOrDefault(coroutine, YieldType.FrameAdvance);
+            if (lastYield != filterYieldType)
                 continue;
 
             _logProxy!.CurrentScriptFile = fileName;
@@ -309,18 +325,11 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                 var result = coroutine.Resume();
 
                 // Track how the coroutine yielded so we know when to resume it next
-                if (coroutine.State == CoroutineState.Suspended && result.Type == DataType.Tuple)
+                if (coroutine.State == CoroutineState.Suspended)
                 {
-                    var yieldArgs = result.Tuple;
-                    if (yieldArgs.Length > 0 && yieldArgs[0].Type == DataType.String)
-                    {
-                        _coroutineYieldType[coroutine] = yieldArgs[0].String switch
-                        {
-                            FrameAdvanceSentinel => YieldType.FrameAdvance,
-                            TickSentinel => YieldType.Tick,
-                            _ => YieldType.FrameAdvance // default to frame-bound
-                        };
-                    }
+                    var yieldType = DetectYieldType(result);
+                    if (yieldType.HasValue)
+                        _coroutineYieldType[coroutine] = yieldType.Value;
                 }
             }
             catch (ScriptRuntimeException ex)

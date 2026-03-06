@@ -53,6 +53,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly List<Func<Task>> _pendingScriptActions = new();
 
     private PeriodicAsyncTimer? _updateTimer;
+    private PeriodicAsyncTimer? _scriptingTickTimer;
 
     private EmulatorDisplayControlBase? _renderControl;
 
@@ -129,6 +130,15 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _scriptingEngine = engine;
         _scriptingEngine.SetEmulatorControl(this);
         _scriptingEngine.LoadScripts();
+
+        // Start the independent scripting tick timer so emu.yield() coroutines
+        // keep ticking regardless of emulator state (running, paused, stopped).
+        if (_scriptingEngine.IsEnabled)
+        {
+            _scriptingTickTimer = CreateScriptingTickTimer();
+            _scriptingTickTimer.Start();
+        }
+
         // Drain any actions enqueued during initial script execution (e.g., emu.start())
         // Posted so it runs after the current synchronous call chain returns.
         _ = Dispatcher.UIThread.InvokeAsync(DrainPendingScriptActionsAsync);
@@ -362,12 +372,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public override void OnAfterPause()
     {
         _scriptingEngine.InvokeEvent("on_paused");
-
-        // When scripting is enabled, keep the timer running so Lua coroutines
-        // can observe the paused state and request resume via emu.start().
-        // RunEmulatorOneFrame() already no-ops when not Running.
-        if (!_scriptingEngine.IsEnabled)
-            _updateTimer?.Stop();
+        _updateTimer?.Stop();
     }
 
     public override void OnBeforeStop()
@@ -391,6 +396,15 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public override void OnAfterClose()
     {
+        // Cleanup scripting tick timer
+        if (_scriptingTickTimer != null)
+        {
+            _scriptingTickTimer.Elapsed -= ScriptingTickTimerElapsed;
+            _scriptingTickTimer.Stop();
+            _scriptingTickTimer.Dispose();
+            _scriptingTickTimer = null;
+        }
+
         // Cleanup contexts
         _inputHandlerContext?.Cleanup();
         _audioHandlerContext?.Cleanup();
@@ -622,18 +636,26 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
     }
 
+    private PeriodicAsyncTimer CreateScriptingTickTimer()
+    {
+        var timer = new PeriodicAsyncTimer
+        {
+            IntervalMilliseconds = 16.0 // ~60 Hz, independent of system refresh rate
+        };
+        timer.Elapsed += ScriptingTickTimerElapsed;
+        return timer;
+    }
+
+    private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
+    {
+        if (_scriptingEngine.IsEnabled)
+            _scriptingEngine.ResumeCoroutines();
+        await DrainPendingScriptActionsAsync();
+    }
+
     private async void UpdateTimerElapsed(object? sender, EventArgs e)
     {
         RunEmulatorOneFrame();
-
-        // When paused, the emulator frame loop doesn't execute, but we still
-        // need to tick scripting coroutines so they can observe the paused
-        // state and request resume via emu.start().  Only coroutines are
-        // resumed — frame count and hooks (on_before_frame etc.) are not
-        // advanced, since no emulator frame is being executed.
-        if (EmulatorState == EmulatorState.Paused && _scriptingEngine.IsEnabled)
-            _scriptingEngine.ResumeCoroutines();
-
         await DrainPendingScriptActionsAsync();
     }
 
