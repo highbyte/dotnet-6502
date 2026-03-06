@@ -1,5 +1,6 @@
 -- example_emulator_control.lua
--- Demonstrates emu control API: querying state and requesting emulator operations.
+-- Demonstrates emu control API: querying state, requesting operations, and
+-- reacting to state-change events.
 --
 -- This script uses emu.yield() instead of emu.frameadvance() because it needs
 -- to keep ticking while the emulator is paused (to observe state and resume).
@@ -20,6 +21,37 @@
 --   emu.stop()             -- request stop
 --   emu.reset()            -- request stop + restart
 --   emu.select(name [, variant]) -- request system selection (emulator must be stopped)
+--
+-- State-change event hooks (define as global functions):
+--   on_started()                -- emulator started or resumed
+--   on_paused()                 -- emulator paused
+--   on_stopped()                -- emulator stopped
+--   on_system_selected(name)    -- system selection changed
+--   on_variant_selected(name)   -- system variant changed
+
+-- ── State-change event hooks ──────────────────────────────────────────
+
+function on_started()
+    log.info("[event] Emulator started")
+end
+
+function on_paused()
+    log.info("[event] Emulator paused")
+end
+
+function on_stopped()
+    log.info("[event] Emulator stopped")
+end
+
+function on_system_selected(name)
+    log.info(string.format("[event] System selected: %s", name))
+end
+
+function on_variant_selected(name)
+    log.info(string.format("[event] Variant selected: %s", name))
+end
+
+-- ── Top-level init ────────────────────────────────────────────────────
 
 local function list_systems()
     local systems = emu.systems()
@@ -37,6 +69,8 @@ log.info(string.format(
     emu.selected_variant(),
     list_systems()
 ))
+
+-- ── Main loop (uses emu.yield to keep ticking while paused) ───────────
 
 local paused_at_time = nil
 

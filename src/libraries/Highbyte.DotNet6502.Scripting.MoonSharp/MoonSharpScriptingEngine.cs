@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
@@ -70,7 +71,12 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     private const string FrameAdvanceSentinel = "frameadvance";
     private const string TickSentinel = "yield";
 
-    private static readonly string[] s_hookNames = ["on_before_frame", "on_after_frame"];
+    private static readonly string[] s_hookNames =
+    [
+        "on_before_frame", "on_after_frame",
+        "on_started", "on_paused", "on_stopped",
+        "on_system_selected", "on_variant_selected"
+    ];
 
     public bool IsEnabled => true;
 
@@ -283,6 +289,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
     public void InvokeAfterFrame() => InvokeHook("on_after_frame");
 
+    public void InvokeEvent(string hookName, params object[] args) => InvokeHook(hookName, args);
+
     private void ResumeFileCoroutines(YieldType filterYieldType)
     {
         foreach (var (coroutine, fileName) in _fileCoroutines)
@@ -335,7 +343,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         }
     }
 
-    private void InvokeHook(string functionName)
+    private void InvokeHook(string functionName, params object[] args)
     {
         if (_script == null)
             return;
@@ -347,7 +355,12 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         {
             var fn = _script.Globals.Get(functionName);
             if (fn.Type == DataType.Function)
-                _script.Call(fn);
+            {
+                if (args.Length == 0)
+                    _script.Call(fn);
+                else
+                    _script.Call(fn, args.Select(a => DynValue.FromObject(_script, a)).ToArray());
+            }
         }
         catch (ScriptRuntimeException ex)
         {
