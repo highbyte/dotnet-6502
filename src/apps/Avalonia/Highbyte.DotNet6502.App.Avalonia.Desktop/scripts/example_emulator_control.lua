@@ -71,23 +71,32 @@ log.info(string.format(
 ))
 
 -- ── Main loop (uses emu.yield to keep ticking while paused) ───────────
-
+local emulator_start_time = emu.time()
 local paused_at_time = nil
+local pause_demo_done = false
 
 while true do
+
+    -- Write a log message every 5 seconds independent of emulator state, using wall-clock time (emu.yield() at end of loop ensures this keeps ticking while paused)
+    if emu.time() - emulator_start_time >= 5.0 then
+        log.info(string.format("5 seconds elapsed (wall-clock)"))
+        emulator_start_time = emu.time()
+    end
+
     local frame = emu.framecount()
 
     -- Pause at frame 300 (~5 seconds on C64), then resume after 3 seconds
-    if frame == 300 and emu.state() == "running" then
+    if not pause_demo_done and frame >= 300 and emu.state() == "running" then
         log.info("Frame 300 reached — requesting pause")
         emu.pause()
         paused_at_time = emu.time()
     end
 
-    if paused_at_time ~= nil and emu.time() - paused_at_time >= 3.0 then
+    if emu.state() == "paused" and paused_at_time ~= nil and emu.time() - paused_at_time >= 3.0 then
         log.info(string.format("Resuming after %.1fs pause", emu.time() - paused_at_time))
         emu.start()
         paused_at_time = nil
+        pause_demo_done = true
     end
 
     -- Log state every 60 frames (only when running, since framecount doesn't advance while paused)
