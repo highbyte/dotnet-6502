@@ -49,6 +49,23 @@ public interface IScriptingEngine
     void InvokeAfterFrame();
 
     /// <summary>
+    /// Invokes a named event hook function if defined by a loaded script.
+    /// <para>
+    /// Standard event hooks:
+    /// <list type="bullet">
+    ///   <item><c>on_started()</c> — emulator started or resumed</item>
+    ///   <item><c>on_paused()</c> — emulator paused</item>
+    ///   <item><c>on_stopped()</c> — emulator stopped</item>
+    ///   <item><c>on_system_selected(name)</c> — system selection changed</item>
+    ///   <item><c>on_variant_selected(name)</c> — system variant changed</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    /// <param name="hookName">The Lua function name to invoke (e.g. <c>"on_started"</c>).</param>
+    /// <param name="args">Optional arguments passed to the Lua function.</param>
+    void InvokeEvent(string hookName, params object[] args);
+
+    /// <summary>
     /// Provides the scripting engine with an <see cref="IEmulatorControl"/> so that scripts can
     /// request emulator operations (start, stop, pause, reset, select system).
     /// Call this before <see cref="LoadScripts"/>. Pass <c>null</c> to disconnect.

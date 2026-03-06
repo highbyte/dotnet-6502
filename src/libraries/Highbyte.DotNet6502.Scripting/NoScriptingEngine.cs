@@ -15,5 +15,6 @@ public class NoScriptingEngine : IScriptingEngine
     public void InvokeBeforeFrame() { }
     public void ResumeCoroutines() { }
     public void InvokeAfterFrame() { }
+    public void InvokeEvent(string hookName, params object[] args) { }
     public void SetEmulatorControl(IEmulatorControl? control) { }
 }

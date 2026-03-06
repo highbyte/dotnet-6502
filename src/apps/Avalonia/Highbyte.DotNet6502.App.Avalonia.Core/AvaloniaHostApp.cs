@@ -291,6 +291,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         OnPropertyChanged(nameof(CurrentHostSystemConfig));
 
         ValidateConfigAsync();
+        _scriptingEngine.InvokeEvent("on_system_selected", SelectedSystemName);
     }
 
     public override void OnAfterAllSystemConfigurationVariantsChanged()
@@ -301,6 +302,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public override void OnAfterSelectedSystemVariantChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemConfigurationVariant));
+        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
     }
 
     public void SetVolumePercent(float volumePercent)
@@ -347,6 +349,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
         // Update scripting engine cpu/mem globals to the newly started system (called on every start, including reset)
         _scriptingEngine.OnSystemStarted(CurrentRunningSystem!);
+        _scriptingEngine.InvokeEvent("on_started");
 
         // _logger.LogTrace("Test trace");
         // _logger.LogDebug("Test debug");
@@ -358,6 +361,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public override void OnAfterPause()
     {
+        _scriptingEngine.InvokeEvent("on_paused");
+
         // When scripting is enabled, keep the timer running so Lua coroutines
         // can observe the paused state and request resume via emu.start().
         // RunEmulatorOneFrame() already no-ops when not Running.
@@ -381,6 +386,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public override void OnAfterStop()
     {
         StopAndDisposeUpdateTimer();
+        _scriptingEngine.InvokeEvent("on_stopped");
     }
 
     public override void OnAfterClose()
