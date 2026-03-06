@@ -48,7 +48,9 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         /// <summary>Yielded via <c>emu.frameadvance()</c> — only resumed on actual emulator frames.</summary>
         FrameAdvance,
         /// <summary>Yielded via <c>emu.yield()</c> — resumed on every timer tick, even while paused.</summary>
-        Tick
+        Tick,
+        /// <summary>Coroutine disabled due to exceeding instruction limit (runaway script).</summary>
+        Disabled
     }
 
     private readonly ScriptingConfig _config;
@@ -189,6 +191,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             return; // LoadScripts was not called yet
         _cpuProxy.SetCpu(system.CPU);
         _memProxy.SetMem(system.Mem);
+        _frameCount = 0;
     }
 
     private void LoadScriptFiles()
@@ -213,6 +216,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                 // Compile without executing — each file body will run as a coroutine
                 var chunk = _script!.LoadFile(file);
                 var coroutine = _script.CreateCoroutine(chunk).Coroutine;
+                if (_config.MaxInstructionsPerResume > 0)
+                    coroutine.AutoYieldCounter = _config.MaxInstructionsPerResume;
                 _fileCoroutines.Add((coroutine, fileName));
                 _logger.LogInformation("[Scripting] Loaded: {File}", fileName);
             }
@@ -243,8 +248,16 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             {
                 var result = coroutine.Resume();
 
-                // Track how the coroutine yielded so we know when to resume it next
-                if (coroutine.State == CoroutineState.Suspended)
+                // AutoYieldCounter causes ForceSuspended — the script ran too many
+                // instructions without calling emu.yield() or emu.frameadvance().
+                if (coroutine.State == CoroutineState.ForceSuspended)
+                {
+                    _logger.LogError("[Scripting] {File} exceeded instruction limit ({Limit}) during initial load without calling emu.yield() or emu.frameadvance(). Script disabled.",
+                        fileName, _config.MaxInstructionsPerResume);
+                    _coroutineYieldType[coroutine] = YieldType.Disabled;
+                }
+                // Normal yield — track which yield primitive was used
+                else if (coroutine.State == CoroutineState.Suspended)
                 {
                     var yieldType = DetectYieldType(result);
                     if (yieldType.HasValue)
@@ -309,7 +322,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     {
         foreach (var (coroutine, fileName) in _fileCoroutines)
         {
-            if (coroutine.State == CoroutineState.Dead)
+            if (coroutine.State == CoroutineState.Dead || coroutine.State == CoroutineState.ForceSuspended)
                 continue;
 
             // Only resume coroutines that last yielded with the matching type.
@@ -324,8 +337,16 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             {
                 var result = coroutine.Resume();
 
-                // Track how the coroutine yielded so we know when to resume it next
-                if (coroutine.State == CoroutineState.Suspended)
+                // AutoYieldCounter causes ForceSuspended — the script ran too many
+                // instructions without calling emu.yield() or emu.frameadvance().
+                if (coroutine.State == CoroutineState.ForceSuspended)
+                {
+                    _logger.LogError("[Scripting] {File} exceeded instruction limit ({Limit}) without calling emu.yield() or emu.frameadvance(). Script disabled.",
+                        fileName, _config.MaxInstructionsPerResume);
+                    _coroutineYieldType[coroutine] = YieldType.Disabled;
+                }
+                // Normal yield — track which yield primitive was used
+                else if (coroutine.State == CoroutineState.Suspended)
                 {
                     var yieldType = DetectYieldType(result);
                     if (yieldType.HasValue)

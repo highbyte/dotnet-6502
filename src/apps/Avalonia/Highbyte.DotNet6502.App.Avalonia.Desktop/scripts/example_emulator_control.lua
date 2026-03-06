@@ -71,6 +71,9 @@ log.info(string.format(
 ))
 
 -- ── Main loop (uses emu.yield to keep ticking while paused) ───────────
+
+log.info(string.format("Script start"))
+
 local emulator_start_time = emu.time()
 local paused_at_time = nil
 local pause_demo_done = false

@@ -20,4 +20,12 @@ public class ScriptingConfig
     /// Set to 0 to disable the warning. Default is 5ms.
     /// </summary>
     public int MaxExecutionWarningMs { get; set; } = 5;
+
+    /// <summary>
+    /// Maximum number of Lua VM instructions a coroutine may execute per resume before it is
+    /// considered a runaway script and forcibly terminated. This prevents scripts that forget to
+    /// call <c>emu.yield()</c> or <c>emu.frameadvance()</c> from hanging the emulator.
+    /// Set to 0 to disable the limit. Default is 1,000,000.
+    /// </summary>
+    public int MaxInstructionsPerResume { get; set; } = 1_000_000;
 }
