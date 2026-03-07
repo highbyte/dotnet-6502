@@ -92,4 +92,11 @@ public interface IScriptingEngine
     /// <param name="fileName">The script file name (e.g. "example_monitor.lua").</param>
     /// <param name="enabled">True to enable, false to disable.</param>
     void SetScriptEnabled(string fileName, bool enabled);
+
+    /// <summary>
+    /// Reloads a single script from disk: re-compiles, creates a new coroutine, and runs the initial resume.
+    /// Only allowed for scripts that are not currently running.
+    /// </summary>
+    /// <param name="fileName">The script file name (e.g. "example_monitor.lua").</param>
+    void ReloadScript(string fileName);
 }
