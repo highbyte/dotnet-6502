@@ -69,6 +69,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     private readonly Dictionary<string, string> _hookSourceFiles = new();
     // Tracks which files the user has explicitly disabled at runtime
     private readonly HashSet<string> _userDisabledFiles = new(StringComparer.OrdinalIgnoreCase);
+    // Tracks scripts that failed to load (syntax error or other compile failure)
+    private readonly List<string> _failedFiles = new();
     private IEmulatorControl? _emulatorControl;
 
     // Sentinel strings passed through DynValue.NewYieldReq to distinguish yield types
@@ -127,6 +129,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         _coroutineYieldType.Clear();
         _hookSourceFiles.Clear();
         _userDisabledFiles.Clear();
+        _failedFiles.Clear();
         _frameCount = 0;
         _wallClock.Restart();
 
@@ -259,10 +262,12 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             catch (SyntaxErrorException ex)
             {
                 _logger.LogError("[Scripting] Syntax error in {File}: {Message}", fileName, ex.DecoratedMessage);
+                _failedFiles.Add(fileName);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Scripting] Failed to load {File}", fileName);
+                _failedFiles.Add(fileName);
             }
         }
     }
@@ -398,6 +403,12 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                          && state != ScriptExecutionState.Completed;
 
             statuses.Add(new ScriptStatus(fileName, state, yieldTypeDto, hooks, canToggle));
+        }
+
+        // Include scripts that failed to load (syntax errors, etc.) as system-disabled
+        foreach (var failedFileName in _failedFiles)
+        {
+            statuses.Add(new ScriptStatus(failedFileName, ScriptExecutionState.Disabled, null, Array.Empty<string>(), false));
         }
 
         return statuses;
