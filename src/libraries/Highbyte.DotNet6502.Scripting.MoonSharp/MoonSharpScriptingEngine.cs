@@ -205,6 +205,14 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
         LoadScriptFiles();
         RunInitialResumes();
+
+        // If EnableScriptsAtStart is false, mark all loaded scripts as user-disabled
+        if (!_config.EnableScriptsAtStart)
+        {
+            foreach (var (_, fileName) in _fileCoroutines)
+                _userDisabledFiles.Add(fileName);
+        }
+
         ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
