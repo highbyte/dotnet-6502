@@ -165,11 +165,31 @@ The engine is implemented in three layers:
 
 | Layer | Project | Description |
 |-------|---------|-------------|
-| Interface | `Highbyte.DotNet6502.Scripting` | Defines `IScriptingEngine`, `ScriptStatus`, `ScriptingConfig`, and other abstractions. No dependency on MoonSharp. |
-| Engine | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngine` implements the interface using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`). |
-| Host | `Highbyte.DotNet6502.App.Avalonia.Core` | The Avalonia host app (AvaloniaHostApp) wires the engine into the emulator lifecycle and UI (MainViewModel). |
+| Abstraction | `Highbyte.DotNet6502.Scripting` | Defines `IScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). No dependency on MoonSharp. |
+| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`). `MoonSharpScriptingConfigurator` is the factory entry point. |
+| Host | `Highbyte.DotNet6502.App.Avalonia.Core` | The Avalonia host app (`AvaloniaHostApp`) wires the engine into the emulator lifecycle and UI (`MainViewModel`). |
 
-Each `.lua` file is compiled into a MoonSharp `DynValue` chunk and wrapped in a coroutine. The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`).
+### ScriptingEngine + IScriptingEngineAdapter design
+
+`ScriptingEngine` (concrete class, in the abstraction project) implements `IScriptingEngine` and contains all engine-agnostic orchestration: script file tracking, enable/disable state, hook routing, `ScriptStatus` building, and event firing. It delegates all Lua-VM-specific operations to an `IScriptingEngineAdapter`.
+
+`IScriptingEngineAdapter` covers the operations that differ per Lua engine: VM initialization, script compilation, coroutine creation and resume, yield-type detection, hook function caching, and hook invocation.
+
+`MoonSharpScriptingEngineAdapter` is the MoonSharp-specific implementation. It wraps each `.lua` file in a MoonSharp `Coroutine` (held in a `MoonSharpScriptHandle`). The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`).
+
+To support a different Lua engine, implement `IScriptingEngineAdapter` and a matching `AdapterScriptHandle` subclass, then pass the adapter to `new ScriptingEngine(adapter, config, loggerFactory)`. No changes to `IScriptingEngine`, `NoScriptingEngine`, or any host-app code are required.
+
+### Portability: NLua validation
+
+The `IScriptingEngineAdapter` interface was validated against [NLua](https://github.com/NLua/NLua) (the most popular .NET Lua library, wrapping the native Lua C API via KeraLua) to confirm all methods map cleanly. Key implementation notes for a future NLua adapter:
+
+- **VM setup** — `new Lua()` replaces `new Script(...)`. Object globals use `lua["name"] = obj` (NLua exposes all public members by default; use `[LuaHide]` to opt out, inverse of MoonSharp's `[MoonSharpUserData]` opt-in). Functions use `lua.RegisterFunction(...)`.
+- **Script loading** — `lua.LoadFile(filePath)` returns a `LuaFunction` chunk; `lua.NewThread(fn, out thread)` creates the coroutine. The handle would wrap the resulting `KeraLua.Lua` thread state.
+- **Coroutine resume** — `threadState.Resume(mainState, 0, out nResults)` on the `KeraLua.Lua` thread object. Yield/dead/error state is read from the `LuaStatus` enum return value.
+- **`ForceSuspended` (runaway protection)** — MoonSharp's `AutoYieldCounter` has no direct equivalent. Implement via `threadState.SetHook(CountHook, LuaHookMask.Count, N)`: set a `bool WasKilledByHook` flag on the handle _before_ calling `threadState.Error(...)` inside the hook to distinguish it from genuine runtime errors (both surface as `LuaStatus.ErrRun`).
+- **`emu.frameadvance()` yield** — for Lua 5.4 correctness, implement at KeraLua level using `threadState.YieldK(1, ctx, continuation)` rather than `RegisterFunction` + `Yield()`, since NLua's `RegisterFunction` wraps methods as `lua_CFunction` without continuation support.
+- **Hook cache** — cache `LuaFunction` references (from `lua.GetFunction(name)`) instead of MoonSharp `DynValue` references.
+- **Proxy classes** — `LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy` are MoonSharp-specific. A NLua adapter would provide equivalent proxy classes with NLua-compatible attribute conventions.
 
 ## Script lifecycle
 
