@@ -86,6 +86,8 @@ while true do
         emulator_start_time = emu.time()
     end
 
+    --local x = nil; x() -- test error handling (uncomment to test)
+
     local frame = emu.framecount()
 
     -- Pause at frame 300 (~5 seconds on C64), then resume after 3 seconds

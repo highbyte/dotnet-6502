@@ -71,6 +71,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     private readonly HashSet<string> _userDisabledFiles = new(StringComparer.OrdinalIgnoreCase);
     // Tracks scripts that failed to load (syntax error or other compile failure)
     private readonly List<string> _failedFiles = new();
+    // Tracks scripts whose coroutines died due to a runtime error
+    private readonly HashSet<string> _runtimeErrorFiles = new(StringComparer.OrdinalIgnoreCase);
     private IEmulatorControl? _emulatorControl;
 
     // Sentinel strings passed through DynValue.NewYieldReq to distinguish yield types
@@ -130,6 +132,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         _hookSourceFiles.Clear();
         _userDisabledFiles.Clear();
         _failedFiles.Clear();
+        _runtimeErrorFiles.Clear();
         _frameCount = 0;
         _wallClock.Restart();
 
@@ -316,10 +319,14 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             catch (ScriptRuntimeException ex)
             {
                 _logger.LogError("[Scripting] Runtime error in {File}: {Message}", fileName, ex.DecoratedMessage);
+                _runtimeErrorFiles.Add(fileName);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Scripting] Unexpected error in {File}", fileName);
+                _runtimeErrorFiles.Add(fileName);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -376,6 +383,10 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                 }
             }
             else if (yieldType == YieldType.Disabled || coroutine.State == CoroutineState.ForceSuspended)
+            {
+                state = ScriptExecutionState.Disabled;
+            }
+            else if (_runtimeErrorFiles.Contains(fileName))
             {
                 state = ScriptExecutionState.Disabled;
             }
@@ -479,10 +490,14 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             catch (ScriptRuntimeException ex)
             {
                 _logger.LogError("[Scripting] Runtime error in {File}: {Message}", fileName, ex.DecoratedMessage);
+                _runtimeErrorFiles.Add(fileName);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Scripting] Unexpected error in {File}", fileName);
+                _runtimeErrorFiles.Add(fileName);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
             }
             finally
             {
