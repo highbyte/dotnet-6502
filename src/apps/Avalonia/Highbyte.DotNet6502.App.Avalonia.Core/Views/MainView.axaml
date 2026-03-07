@@ -400,18 +400,14 @@
                             <Border Classes="tab-content">
                                 <ScrollViewer Classes="auto-scroll">
                                     <StackPanel Classes="spacing-tight">
-                                        <!-- Scripting enabled/disabled status -->
-                                        <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                        <!-- Scripting disabled status (only shown when scripting is off) -->
+                                        <StackPanel Orientation="Horizontal" Classes="spacing-tight"
+                                                    IsVisible="{Binding !IsScriptingEnabled}">
                                             <TextBlock Text="Scripting:"
                                                        Classes="small bold"/>
-                                            <TextBlock Text="Enabled"
-                                                       Classes="small"
-                                                       Foreground="{DynamicResource SuccessColor}"
-                                                       IsVisible="{Binding IsScriptingEnabled}"/>
                                             <TextBlock Text="Disabled"
                                                        Classes="small"
-                                                       Foreground="{DynamicResource SecondaryText}"
-                                                       IsVisible="{Binding !IsScriptingEnabled}"/>
+                                                       Foreground="{DynamicResource SecondaryText}"/>
                                         </StackPanel>
 
                                         <!-- Script table -->
@@ -478,6 +474,7 @@
                                                                       Padding="0"
                                                                       MinWidth="0"
                                                                       MinHeight="0"
+                                                                      Margin="0,-8,0,-8"
                                                                       RenderTransformOrigin="50%,50%"
                                                                       RenderTransform="scale(0.7)"/>
 
