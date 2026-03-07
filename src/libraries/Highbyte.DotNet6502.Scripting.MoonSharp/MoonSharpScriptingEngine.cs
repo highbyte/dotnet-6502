@@ -79,6 +79,13 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     private const string FrameAdvanceSentinel = "frameadvance";
     private const string TickSentinel = "yield";
 
+    // Pre-allocated yield DynValues — returned from emu.frameadvance()/emu.yield() callbacks
+    // to avoid allocating new DynValue + string + array on every frame.
+    private static readonly DynValue s_frameAdvanceYield =
+        DynValue.NewYieldReq(new[] { DynValue.NewString(FrameAdvanceSentinel) });
+    private static readonly DynValue s_tickYield =
+        DynValue.NewYieldReq(new[] { DynValue.NewString(TickSentinel) });
+
     private static readonly string[] s_hookNames =
     [
         "on_before_frame", "on_after_frame",
@@ -229,6 +236,9 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             _runtimeErrorFiles.Add(fileName);
         }
 
+        // Refresh cached hook DynValues since reload may have changed hook registrations
+        CacheHookDynValues();
+
         ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -249,6 +259,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         _fileCoroutines.Clear();
         _coroutineYieldType.Clear();
         _hookSourceFiles.Clear();
+        _hookDynValueCache.Clear();
         _userDisabledFiles.Clear();
         _failedFiles.Clear();
         _runtimeErrorFiles.Clear();
@@ -273,10 +284,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
         // emu table: frame control + emulator control operations
         var emuTable = new Table(_script);
-        emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) =>
-            DynValue.NewYieldReq(new[] { DynValue.NewString(FrameAdvanceSentinel) }));
-        emuTable["yield"] = DynValue.NewCallback((ctx, args) =>
-            DynValue.NewYieldReq(new[] { DynValue.NewString(TickSentinel) }));
+        emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => s_frameAdvanceYield);
+        emuTable["yield"] = DynValue.NewCallback((ctx, args) => s_tickYield);
         emuTable["framecount"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(_frameCount));
         emuTable["time"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(_wallClock.Elapsed.TotalSeconds));
 
@@ -330,6 +339,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
         LoadScriptFiles();
         RunInitialResumes();
+        CacheHookDynValues();
 
         // If EnableScriptsAtStart is false, mark all loaded scripts as user-disabled
         if (!_config.EnableScriptsAtStart)
@@ -461,7 +471,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
     public void InvokeAfterFrame() => InvokeHook("on_after_frame");
 
-    public void InvokeEvent(string hookName, params object[] args) => InvokeHook(hookName, args);
+    public void InvokeEvent(string hookName, params object[] args) => InvokeHookWithArgs(hookName, args);
 
     public IReadOnlyList<ScriptStatus> GetScriptStatuses()
     {
@@ -480,7 +490,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         var statuses = new List<ScriptStatus>();
         foreach (var (coroutine, fileName) in _fileCoroutines)
         {
-            var hooks = (IReadOnlyList<string>)(hooksPerFile.GetValueOrDefault(fileName) ?? new List<string>());
+            var hooks = (IReadOnlyList<string>)(hooksPerFile.GetValueOrDefault(fileName) ?? (IReadOnlyList<string>)Array.Empty<string>());
             var yieldType = _coroutineYieldType.GetValueOrDefault(coroutine);
 
             ScriptExecutionState state;
@@ -587,7 +597,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                 continue;
 
             _logProxy!.CurrentScriptFile = fileName;
-            var sw = Stopwatch.StartNew();
+            var startTimestamp = Stopwatch.GetTimestamp();
             try
             {
                 var result = coroutine.Resume();
@@ -623,17 +633,43 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             }
             finally
             {
-                sw.Stop();
-                if (_config.MaxExecutionWarningMs > 0 && sw.ElapsedMilliseconds > _config.MaxExecutionWarningMs)
+                if (_config.MaxExecutionWarningMs > 0)
                 {
-                    _logger.LogWarning("[Scripting] {File} took {Ms}ms (threshold: {Threshold}ms)",
-                        fileName, sw.ElapsedMilliseconds, _config.MaxExecutionWarningMs);
+                    var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                    if (elapsedMs > _config.MaxExecutionWarningMs)
+                    {
+                        _logger.LogWarning("[Scripting] {File} took {Ms:F1}ms (threshold: {Threshold}ms)",
+                            fileName, elapsedMs, _config.MaxExecutionWarningMs);
+                    }
                 }
             }
         }
     }
 
-    private void InvokeHook(string functionName, params object[] args)
+    // Cached DynValue references for per-frame hooks, to avoid Globals.Get() lookup every frame.
+    // Populated by CacheHookDynValues(), invalidated by script reload/load.
+    private readonly Dictionary<string, DynValue> _hookDynValueCache = new();
+
+    /// <summary>
+    /// Rebuilds the cached <see cref="DynValue"/> references for all known hook functions.
+    /// Called after scripts are loaded/reloaded.
+    /// </summary>
+    private void CacheHookDynValues()
+    {
+        _hookDynValueCache.Clear();
+        if (_script == null) return;
+        foreach (var hookName in s_hookNames)
+        {
+            var fn = _script.Globals.Get(hookName);
+            if (fn.Type == DataType.Function)
+                _hookDynValueCache[hookName] = fn;
+        }
+    }
+
+    /// <summary>
+    /// Zero-arg fast path for per-frame hooks (no params array allocation).
+    /// </summary>
+    private void InvokeHook(string functionName)
     {
         if (_script == null)
             return;
@@ -646,18 +682,15 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         if (_runtimeErrorFiles.Contains(scriptFile))
             return;
 
-        var sw = Stopwatch.StartNew();
+        // Use cached DynValue to avoid per-frame Globals.Get() allocation
+        if (!_hookDynValueCache.TryGetValue(functionName, out var fn))
+            return;
+
+        var startTimestamp = Stopwatch.GetTimestamp();
         _logProxy!.CurrentScriptFile = scriptFile;
         try
         {
-            var fn = _script.Globals.Get(functionName);
-            if (fn.Type == DataType.Function)
-            {
-                if (args.Length == 0)
-                    _script.Call(fn);
-                else
-                    _script.Call(fn, args.Select(a => DynValue.FromObject(_script, a)).ToArray());
-            }
+            _script.Call(fn);
         }
         catch (ScriptRuntimeException ex)
         {
@@ -679,10 +712,68 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         }
         finally
         {
-            sw.Stop();
-            if (_config.MaxExecutionWarningMs > 0 && sw.ElapsedMilliseconds > _config.MaxExecutionWarningMs)
-                _logger.LogWarning("[Scripting] '{Hook}' ({Script}) took {Ms}ms (threshold: {Threshold}ms)",
-                    functionName, scriptFile, sw.ElapsedMilliseconds, _config.MaxExecutionWarningMs);
+            if (_config.MaxExecutionWarningMs > 0)
+            {
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                if (elapsedMs > _config.MaxExecutionWarningMs)
+                    _logger.LogWarning("[Scripting] '{Hook}' ({Script}) took {Ms:F1}ms (threshold: {Threshold}ms)",
+                        functionName, scriptFile, elapsedMs, _config.MaxExecutionWarningMs);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Overload for hooks with arguments (state-change events). Not a hot path.
+    /// </summary>
+    private void InvokeHookWithArgs(string functionName, params object[] args)
+    {
+        if (_script == null)
+            return;
+
+        var scriptFile = _hookSourceFiles.GetValueOrDefault(functionName, "?");
+
+        // Skip hooks from user-disabled or runtime-errored scripts
+        if (_userDisabledFiles.Contains(scriptFile))
+            return;
+        if (_runtimeErrorFiles.Contains(scriptFile))
+            return;
+
+        if (!_hookDynValueCache.TryGetValue(functionName, out var fn))
+            return;
+
+        var startTimestamp = Stopwatch.GetTimestamp();
+        _logProxy!.CurrentScriptFile = scriptFile;
+        try
+        {
+            _script.Call(fn, args.Select(a => DynValue.FromObject(_script, a)).ToArray());
+        }
+        catch (ScriptRuntimeException ex)
+        {
+            _logger.LogError("[Scripting] Runtime error in '{Hook}': {Message}", functionName, ex.DecoratedMessage);
+            if (scriptFile != "?")
+            {
+                _runtimeErrorFiles.Add(scriptFile);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Scripting] Unexpected error invoking Lua hook '{Hook}'", functionName);
+            if (scriptFile != "?")
+            {
+                _runtimeErrorFiles.Add(scriptFile);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        finally
+        {
+            if (_config.MaxExecutionWarningMs > 0)
+            {
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                if (elapsedMs > _config.MaxExecutionWarningMs)
+                    _logger.LogWarning("[Scripting] '{Hook}' ({Script}) took {Ms:F1}ms (threshold: {Threshold}ms)",
+                        functionName, scriptFile, elapsedMs, _config.MaxExecutionWarningMs);
+            }
         }
     }
 }
