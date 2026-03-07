@@ -26,8 +26,8 @@ public class LuaLogProxy
 
     internal LuaLogProxy(ILogger logger) => _logger = logger;
 
-    public void info(string msg) => _logger.Log(LogLevel.Information, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
-    public void debug(string msg) => _logger.Log(LogLevel.Debug, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
-    public void warn(string msg) => _logger.Log(LogLevel.Warning, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
-    public void error(string msg) => _logger.Log(LogLevel.Error, "[Lua:{File}] {Message}", CurrentScriptFile, msg);
+    public void info(string msg) => _logger.LogInformation("[Lua:{File}] {Message}", CurrentScriptFile, msg);
+    public void debug(string msg) => _logger.LogDebug("[Lua:{File}] {Message}", CurrentScriptFile, msg);
+    public void warn(string msg) => _logger.LogWarning("[Lua:{File}] {Message}", CurrentScriptFile, msg);
+    public void error(string msg) => _logger.LogError("[Lua:{File}] {Message}", CurrentScriptFile, msg);
 }
