@@ -19,4 +19,5 @@ public class NoScriptingEngine : IScriptingEngine
     public void SetEmulatorControl(IEmulatorControl? control) { }
     public IReadOnlyList<ScriptStatus> GetScriptStatuses() => Array.Empty<ScriptStatus>();
     public event EventHandler? ScriptStatusChanged { add { } remove { } }
+    public void SetScriptEnabled(string fileName, bool enabled) { }
 }

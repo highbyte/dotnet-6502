@@ -317,6 +317,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
+    public ReactiveCommand<string, Unit> ToggleScriptEnabledCommand { get; }
 
     // Event for requesting the emulator options overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
@@ -600,6 +601,17 @@ public class MainViewModel : ViewModelBase, IDisposable
                 count => count > 0),
             RxApp.MainThreadScheduler);
 
+        ToggleScriptEnabledCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            (fileName) =>
+            {
+                var entry = _scriptEntries.FirstOrDefault(e => e.FileName == fileName);
+                if (entry == null) return;
+                bool newEnabled = entry.IsUserDisabled;
+                _hostApp.ScriptingEngine.SetScriptEnabled(fileName, newEnabled);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
         // Emulator Options command - only enabled when emulator is uninitialized
         EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -788,17 +800,22 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private void UpdateScriptsTabHeader()
     {
-        var total = _scriptEntries.Count;
-        var disabledCount = _scriptEntries.Count(s => s.IsDisabled);
+        var systemDisabledCount = _scriptEntries.Count(s => s.IsDisabled);
+        var activeCount = _scriptEntries.Count(s => s.IsScriptEnabled);
 
-        if (total == 0)
+        if (_scriptEntries.Count == 0)
             ScriptsTabHeader = "Scripts";
-        else if (disabledCount > 0)
-            ScriptsTabHeader = $"Scripts ({total}, {disabledCount} disabled)";
+        else if (systemDisabledCount > 0 && activeCount > 0)
+            ScriptsTabHeader = $"Scripts ({activeCount}, {systemDisabledCount} disabled)";
+        else if (systemDisabledCount > 0)
+            ScriptsTabHeader = $"Scripts ({systemDisabledCount} disabled)";
+        else if (activeCount > 0)
+            ScriptsTabHeader = $"Scripts ({activeCount})";
         else
-            ScriptsTabHeader = $"Scripts ({total})";
+            ScriptsTabHeader = "Scripts";
 
-        HasDisabledScripts = disabledCount > 0;
+        // Only flag red styling for system-disabled scripts (errors), not user-disabled
+        HasDisabledScripts = systemDisabledCount > 0;
     }
 
     private void OnScriptStatusChanged(object? sender, EventArgs e)
@@ -941,6 +958,9 @@ public class ScriptDisplayEntry
     public bool IsRunning { get; }
     public bool IsCompleted { get; }
     public bool IsHookOnly { get; }
+    public bool IsUserDisabled { get; }
+    public bool CanToggle { get; }
+    public bool IsScriptEnabled { get; }
 
     public ScriptDisplayEntry(ScriptStatus scriptStatus)
     {
@@ -948,13 +968,17 @@ public class ScriptDisplayEntry
 
         IsRunning = scriptStatus.State == ScriptExecutionState.Running;
         IsDisabled = scriptStatus.State == ScriptExecutionState.Disabled;
+        IsUserDisabled = scriptStatus.State == ScriptExecutionState.UserDisabled;
         IsCompleted = scriptStatus.State == ScriptExecutionState.Completed;
         IsHookOnly = scriptStatus.State == ScriptExecutionState.HookOnly;
+        CanToggle = scriptStatus.CanToggle;
+        IsScriptEnabled = !IsUserDisabled && !IsDisabled;
 
         Status = scriptStatus.State switch
         {
             ScriptExecutionState.Running => "Running",
             ScriptExecutionState.Disabled => "Disabled",
+            ScriptExecutionState.UserDisabled => "Disabled (user)",
             ScriptExecutionState.Completed => "Completed",
             ScriptExecutionState.HookOnly => "Hook-only",
             _ => "Unknown"
