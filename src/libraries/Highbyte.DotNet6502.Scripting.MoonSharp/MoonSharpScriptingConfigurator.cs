@@ -30,6 +30,7 @@ public static class MoonSharpScriptingConfigurator
         }
 
         logger.LogInformation("[Scripting] MoonSharp engine enabled. ScriptDirectory: {Dir}", config.ScriptDirectory);
-        return new MoonSharpScriptingEngine(config, loggerFactory);
+        var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory);
+        return new ScriptingEngine(adapter, config, loggerFactory);
     }
 }
