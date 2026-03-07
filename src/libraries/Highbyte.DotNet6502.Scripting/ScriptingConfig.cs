@@ -28,4 +28,11 @@ public class ScriptingConfig
     /// Set to 0 to disable the limit. Default is 1,000,000.
     /// </summary>
     public int MaxInstructionsPerResume { get; set; } = 1_000_000;
+
+    /// <summary>
+    /// Whether individual scripts should start enabled when loaded.
+    /// When false (default), all scripts are loaded but user-disabled at startup
+    /// and must be enabled manually via the Scripts tab.
+    /// </summary>
+    public bool EnableScriptsAtStart { get; set; } = false;
 }
