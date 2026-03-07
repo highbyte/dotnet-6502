@@ -20,4 +20,5 @@ public class NoScriptingEngine : IScriptingEngine
     public IReadOnlyList<ScriptStatus> GetScriptStatuses() => Array.Empty<ScriptStatus>();
     public event EventHandler? ScriptStatusChanged { add { } remove { } }
     public void SetScriptEnabled(string fileName, bool enabled) { }
+    public void ReloadScript(string fileName) { }
 }

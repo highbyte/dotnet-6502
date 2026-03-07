@@ -13,7 +13,9 @@ public record ScriptStatus(
     /// <summary>Hook function names that this script defines (e.g. "on_before_frame", "on_after_frame").</summary>
     IReadOnlyList<string> Hooks,
     /// <summary>Whether the user can toggle this script's enabled state.</summary>
-    bool CanToggle
+    bool CanToggle,
+    /// <summary>Whether this script can be reloaded from disk (not currently running).</summary>
+    bool CanReload
 );
 
 /// <summary>

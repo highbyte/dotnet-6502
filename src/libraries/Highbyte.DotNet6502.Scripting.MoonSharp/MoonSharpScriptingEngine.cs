@@ -113,6 +113,125 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void ReloadScript(string fileName)
+    {
+        if (_script == null)
+            return;
+
+        var filePath = Path.Combine(_config.ScriptDirectory, fileName);
+        if (!File.Exists(filePath))
+        {
+            _logger.LogError("[Scripting] Cannot reload {File}: file not found at {Path}", fileName, filePath);
+            return;
+        }
+
+        // Don't reload scripts that are actively running (Suspended coroutine that is not user-disabled or runtime-errored)
+        var existingEntry = _fileCoroutines.FirstOrDefault(fc => fc.FileName == fileName);
+        if (existingEntry.FileName != null
+            && existingEntry.Coroutine.State == CoroutineState.Suspended
+            && !_userDisabledFiles.Contains(fileName)
+            && !_runtimeErrorFiles.Contains(fileName))
+        {
+            _logger.LogWarning("[Scripting] Cannot reload {File}: script is currently running", fileName);
+            return;
+        }
+
+        _logger.LogInformation("[Scripting] Reloading: {File}", fileName);
+
+        // Clean up old state, preserving the original position in the list
+        var insertIdx = -1;
+        if (existingEntry.FileName != null)
+        {
+            _coroutineYieldType.Remove(existingEntry.Coroutine);
+            insertIdx = _fileCoroutines.IndexOf(existingEntry);
+            _fileCoroutines.RemoveAt(insertIdx);
+        }
+        _failedFiles.Remove(fileName);
+        _runtimeErrorFiles.Remove(fileName);
+        _userDisabledFiles.Remove(fileName);
+
+        // Remove hook registrations from the old version of this script
+        var hooksToRemove = _hookSourceFiles.Where(kv => kv.Value == fileName).Select(kv => kv.Key).ToList();
+        foreach (var hook in hooksToRemove)
+            _hookSourceFiles.Remove(hook);
+
+        // Compile and create new coroutine
+        try
+        {
+            var chunk = _script.LoadFile(filePath);
+            var coroutine = _script.CreateCoroutine(chunk).Coroutine;
+            if (_config.MaxInstructionsPerResume > 0)
+                coroutine.AutoYieldCounter = _config.MaxInstructionsPerResume;
+            if (insertIdx >= 0)
+                _fileCoroutines.Insert(insertIdx, (coroutine, fileName));
+            else
+                _fileCoroutines.Add((coroutine, fileName));
+            _logger.LogInformation("[Scripting] Reloaded: {File}", fileName);
+        }
+        catch (SyntaxErrorException ex)
+        {
+            _logger.LogError("[Scripting] Syntax error in {File}: {Message}", fileName, ex.DecoratedMessage);
+            _failedFiles.Add(fileName);
+            ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Scripting] Failed to reload {File}", fileName);
+            _failedFiles.Add(fileName);
+            ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        // Run initial resume for the new coroutine
+        var newEntry = _fileCoroutines.First(fc => fc.FileName == fileName);
+        try
+        {
+            // Snapshot current hooks to detect new registrations
+            var prevHooks = new Dictionary<string, Closure?>();
+            foreach (var hook in s_hookNames)
+            {
+                var fn = _script.Globals.Get(hook);
+                prevHooks[hook] = fn.Type == DataType.Function ? fn.Function : null;
+            }
+
+            _logProxy!.CurrentScriptFile = fileName;
+            var result = newEntry.Coroutine.Resume();
+
+            if (newEntry.Coroutine.State == CoroutineState.ForceSuspended)
+            {
+                _logger.LogError("[Scripting] {File} exceeded instruction limit on initial resume — disabled.", fileName);
+                _coroutineYieldType[newEntry.Coroutine] = YieldType.Disabled;
+            }
+            else if (newEntry.Coroutine.State == CoroutineState.Suspended)
+            {
+                var yt = DetectYieldType(result);
+                if (yt.HasValue)
+                    _coroutineYieldType[newEntry.Coroutine] = yt.Value;
+            }
+
+            // Record hook registrations
+            foreach (var hook in s_hookNames)
+            {
+                var fn = _script.Globals.Get(hook);
+                if (fn.Type == DataType.Function && fn.Function != prevHooks[hook])
+                    _hookSourceFiles[hook] = fileName;
+            }
+        }
+        catch (ScriptRuntimeException ex)
+        {
+            _logger.LogError("[Scripting] Runtime error in {File}: {Message}", fileName, ex.DecoratedMessage);
+            _runtimeErrorFiles.Add(fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Scripting] Unexpected error in {File}", fileName);
+            _runtimeErrorFiles.Add(fileName);
+        }
+
+        ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public MoonSharpScriptingEngine(ScriptingConfig config, ILoggerFactory loggerFactory)
     {
         _config = config;
@@ -413,13 +532,16 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             var canToggle = state != ScriptExecutionState.Disabled
                          && state != ScriptExecutionState.Completed;
 
-            statuses.Add(new ScriptStatus(fileName, state, yieldTypeDto, hooks, canToggle));
+            // CanReload: allowed for any script that is not currently running
+            var canReload = state != ScriptExecutionState.Running;
+
+            statuses.Add(new ScriptStatus(fileName, state, yieldTypeDto, hooks, canToggle, canReload));
         }
 
         // Include scripts that failed to load (syntax errors, etc.) as system-disabled
         foreach (var failedFileName in _failedFiles)
         {
-            statuses.Add(new ScriptStatus(failedFileName, ScriptExecutionState.Disabled, null, Array.Empty<string>(), false));
+            statuses.Add(new ScriptStatus(failedFileName, ScriptExecutionState.Disabled, null, Array.Empty<string>(), false, true));
         }
 
         return statuses;
@@ -518,8 +640,10 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
         var scriptFile = _hookSourceFiles.GetValueOrDefault(functionName, "?");
 
-        // Skip hooks from user-disabled scripts
+        // Skip hooks from user-disabled or runtime-errored scripts
         if (_userDisabledFiles.Contains(scriptFile))
+            return;
+        if (_runtimeErrorFiles.Contains(scriptFile))
             return;
 
         var sw = Stopwatch.StartNew();
@@ -538,10 +662,20 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         catch (ScriptRuntimeException ex)
         {
             _logger.LogError("[Scripting] Runtime error in '{Hook}': {Message}", functionName, ex.DecoratedMessage);
+            if (scriptFile != "?")
+            {
+                _runtimeErrorFiles.Add(scriptFile);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[Scripting] Unexpected error invoking Lua hook '{Hook}'", functionName);
+            if (scriptFile != "?")
+            {
+                _runtimeErrorFiles.Add(scriptFile);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
         finally
         {

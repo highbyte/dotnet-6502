@@ -416,17 +416,18 @@
                                             <!-- Header row -->
                                             <Grid Margin="0,0,0,2">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="28"/>
                                                     <ColumnDefinition Width="18"/>
+                                                    <ColumnDefinition Width="28"/>
+                                                    <ColumnDefinition Width="30"/>
                                                     <ColumnDefinition Width="200"/>
                                                     <ColumnDefinition Width="100"/>
                                                     <ColumnDefinition Width="80"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="2" Text="Script" Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="3" Text="Status" Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="4" Text="Yield" Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="5" Text="Hooks" Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="3" Text="Script" Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="4" Text="Status" Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="5" Text="Yield"  Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="6" Text="Hooks"  Classes="small bold" FontSize="10"/>
                                             </Grid>
 
                                             <!-- Separator -->
@@ -455,16 +456,25 @@
                                                     <DataTemplate>
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="28"/>
                                                                 <ColumnDefinition Width="18"/>
+                                                                <ColumnDefinition Width="28"/>
+                                                                <ColumnDefinition Width="30"/>
                                                                 <ColumnDefinition Width="200"/>
                                                                 <ColumnDefinition Width="100"/>
                                                                 <ColumnDefinition Width="80"/>
                                                                 <ColumnDefinition Width="*"/>
                                                             </Grid.ColumnDefinitions>
 
+                                                            <!-- Status indicator dot -->
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="●"
+                                                                       Classes="script-status-dot"
+                                                                       Classes.script-disabled="{Binding IsDisabled}"
+                                                                       Classes.script-completed="{Binding IsCompleted}"
+                                                                       Classes.script-user-disabled="{Binding IsUserDisabled}"/>
+
                                                             <!-- Enable/disable toggle -->
-                                                            <CheckBox Grid.Column="0"
+                                                            <CheckBox Grid.Column="1"
                                                                       IsChecked="{Binding IsScriptEnabled, Mode=OneWay}"
                                                                       IsEnabled="{Binding CanToggle}"
                                                                       Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ToggleScriptEnabledCommand}"
@@ -478,16 +488,21 @@
                                                                       RenderTransformOrigin="50%,50%"
                                                                       RenderTransform="scale(0.7)"/>
 
-                                                            <!-- Status indicator dot -->
-                                                            <TextBlock Grid.Column="1"
-                                                                       Text="●"
-                                                                       Classes="script-status-dot"
-                                                                       Classes.script-disabled="{Binding IsDisabled}"
-                                                                       Classes.script-completed="{Binding IsCompleted}"
-                                                                       Classes.script-user-disabled="{Binding IsUserDisabled}"/>
+                                                            <!-- Reload button -->
+                                                            <Button Grid.Column="2"
+                                                                    Content="↻"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ReloadScriptCommand}"
+                                                                    CommandParameter="{Binding FileName}"
+                                                                    IsEnabled="{Binding CanReload}"
+                                                                    FontSize="10"
+                                                                    Padding="4,1"
+                                                                    MinWidth="0"
+                                                                    MinHeight="0"
+                                                                    VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Center"/>
 
                                                             <!-- File name -->
-                                                            <TextBlock Grid.Column="2"
+                                                            <TextBlock Grid.Column="3"
                                                                        Text="{Binding FileName}"
                                                                        Classes="small"
                                                                        FontFamily="Consolas,Monaco,'Courier New',monospace"
@@ -496,7 +511,7 @@
                                                                        TextTrimming="CharacterEllipsis"/>
 
                                                             <!-- Status -->
-                                                            <TextBlock Grid.Column="3"
+                                                            <TextBlock Grid.Column="4"
                                                                        Text="{Binding Status}"
                                                                        Classes="small"
                                                                        FontSize="10"
@@ -505,7 +520,7 @@
                                                                        Classes.script-user-disabled="{Binding IsUserDisabled}"/>
 
                                                             <!-- Yield Type -->
-                                                            <TextBlock Grid.Column="4"
+                                                            <TextBlock Grid.Column="5"
                                                                        Text="{Binding YieldType}"
                                                                        Classes="small"
                                                                        FontSize="10"
@@ -513,7 +528,7 @@
                                                                        VerticalAlignment="Center"/>
 
                                                             <!-- Hooks -->
-                                                            <TextBlock Grid.Column="5"
+                                                            <TextBlock Grid.Column="6"
                                                                        Text="{Binding Hooks}"
                                                                        Classes="small"
                                                                        FontSize="10"

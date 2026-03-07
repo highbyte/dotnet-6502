@@ -318,6 +318,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
     public ReactiveCommand<string, Unit> ToggleScriptEnabledCommand { get; }
+    public ReactiveCommand<string, Unit> ReloadScriptCommand { get; }
 
     // Event for requesting the emulator options overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
@@ -608,6 +609,14 @@ public class MainViewModel : ViewModelBase, IDisposable
                 if (entry == null) return;
                 bool newEnabled = entry.IsUserDisabled;
                 _hostApp.ScriptingEngine.SetScriptEnabled(fileName, newEnabled);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        ReloadScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            (fileName) =>
+            {
+                _hostApp.ScriptingEngine.ReloadScript(fileName);
             },
             null,
             RxApp.MainThreadScheduler);
@@ -960,6 +969,7 @@ public class ScriptDisplayEntry
     public bool IsHookOnly { get; }
     public bool IsUserDisabled { get; }
     public bool CanToggle { get; }
+    public bool CanReload { get; }
     public bool IsScriptEnabled { get; }
 
     public ScriptDisplayEntry(ScriptStatus scriptStatus)
@@ -972,6 +982,7 @@ public class ScriptDisplayEntry
         IsCompleted = scriptStatus.State == ScriptExecutionState.Completed;
         IsHookOnly = scriptStatus.State == ScriptExecutionState.HookOnly;
         CanToggle = scriptStatus.CanToggle;
+        CanReload = scriptStatus.CanReload;
         IsScriptEnabled = !IsUserDisabled && !IsDisabled;
 
         Status = scriptStatus.State switch
