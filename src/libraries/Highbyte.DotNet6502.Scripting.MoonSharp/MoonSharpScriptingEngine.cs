@@ -67,6 +67,8 @@ public class MoonSharpScriptingEngine : IScriptingEngine
     private readonly Dictionary<Coroutine, YieldType> _coroutineYieldType = new();
     // Maps hook function name -> filename of the script that last defined it
     private readonly Dictionary<string, string> _hookSourceFiles = new();
+    // Tracks which files the user has explicitly disabled at runtime
+    private readonly HashSet<string> _userDisabledFiles = new(StringComparer.OrdinalIgnoreCase);
     private IEmulatorControl? _emulatorControl;
 
     // Sentinel strings passed through DynValue.NewYieldReq to distinguish yield types
@@ -86,6 +88,27 @@ public class MoonSharpScriptingEngine : IScriptingEngine
 
     public void SetEmulatorControl(IEmulatorControl? control) => _emulatorControl = control;
 
+    public void SetScriptEnabled(string fileName, bool enabled)
+    {
+        if (!_fileCoroutines.Any(fc => fc.FileName == fileName))
+            return;
+
+        // Don't allow re-enabling auto-disabled scripts (ForceSuspended coroutine is unrecoverable)
+        if (enabled)
+        {
+            var entry = _fileCoroutines.FirstOrDefault(fc => fc.FileName == fileName);
+            if (entry.Coroutine != null && entry.Coroutine.State == CoroutineState.ForceSuspended)
+                return;
+        }
+
+        if (enabled)
+            _userDisabledFiles.Remove(fileName);
+        else
+            _userDisabledFiles.Add(fileName);
+
+        ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public MoonSharpScriptingEngine(ScriptingConfig config, ILoggerFactory loggerFactory)
     {
         _config = config;
@@ -103,6 +126,7 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         _fileCoroutines.Clear();
         _coroutineYieldType.Clear();
         _hookSourceFiles.Clear();
+        _userDisabledFiles.Clear();
         _frameCount = 0;
         _wallClock.Restart();
 
@@ -323,7 +347,22 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             ScriptExecutionState state;
             ScriptYieldType? yieldTypeDto = null;
 
-            if (yieldType == YieldType.Disabled || coroutine.State == CoroutineState.ForceSuspended)
+            if (_userDisabledFiles.Contains(fileName))
+            {
+                state = ScriptExecutionState.UserDisabled;
+                // Preserve yield type info so the UI can show what it was doing before disable.
+                // Only look up if the coroutine was actually tracked (avoid enum default = FrameAdvance).
+                if (_coroutineYieldType.TryGetValue(coroutine, out var savedYield))
+                {
+                    yieldTypeDto = savedYield switch
+                    {
+                        YieldType.FrameAdvance => ScriptYieldType.FrameAdvance,
+                        YieldType.Tick => ScriptYieldType.Tick,
+                        _ => null
+                    };
+                }
+            }
+            else if (yieldType == YieldType.Disabled || coroutine.State == CoroutineState.ForceSuspended)
             {
                 state = ScriptExecutionState.Disabled;
             }
@@ -346,7 +385,11 @@ public class MoonSharpScriptingEngine : IScriptingEngine
                 state = ScriptExecutionState.Running;
             }
 
-            statuses.Add(new ScriptStatus(fileName, state, yieldTypeDto, hooks));
+            // CanToggle: true for Running, HookOnly, UserDisabled; false for auto-Disabled, Completed
+            var canToggle = state != ScriptExecutionState.Disabled
+                         && state != ScriptExecutionState.Completed;
+
+            statuses.Add(new ScriptStatus(fileName, state, yieldTypeDto, hooks, canToggle));
         }
 
         return statuses;
@@ -379,6 +422,10 @@ public class MoonSharpScriptingEngine : IScriptingEngine
         foreach (var (coroutine, fileName) in _fileCoroutines)
         {
             if (coroutine.State == CoroutineState.Dead || coroutine.State == CoroutineState.ForceSuspended)
+                continue;
+
+            // Skip user-disabled scripts
+            if (_userDisabledFiles.Contains(fileName))
                 continue;
 
             // Only resume coroutines that last yielded with the matching type.
@@ -436,6 +483,11 @@ public class MoonSharpScriptingEngine : IScriptingEngine
             return;
 
         var scriptFile = _hookSourceFiles.GetValueOrDefault(functionName, "?");
+
+        // Skip hooks from user-disabled scripts
+        if (_userDisabledFiles.Contains(scriptFile))
+            return;
+
         var sw = Stopwatch.StartNew();
         _logProxy!.CurrentScriptFile = scriptFile;
         try

@@ -11,7 +11,9 @@ public record ScriptStatus(
     /// <summary>How the script's coroutine last yielded (null if not a coroutine-based script).</summary>
     ScriptYieldType? YieldType,
     /// <summary>Hook function names that this script defines (e.g. "on_before_frame", "on_after_frame").</summary>
-    IReadOnlyList<string> Hooks
+    IReadOnlyList<string> Hooks,
+    /// <summary>Whether the user can toggle this script's enabled state.</summary>
+    bool CanToggle
 );
 
 /// <summary>
@@ -23,6 +25,8 @@ public enum ScriptExecutionState
     Running,
     /// <summary>Script's coroutine was disabled due to exceeding the instruction limit.</summary>
     Disabled,
+    /// <summary>Script was explicitly disabled by the user at runtime. Can be re-enabled.</summary>
+    UserDisabled,
     /// <summary>Script's coroutine has completed (Dead state). It may still have hook functions active.</summary>
     Completed,
     /// <summary>Script only defines hook functions, it has no coroutine loop.</summary>

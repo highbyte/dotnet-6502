@@ -83,4 +83,13 @@ public interface IScriptingEngine
     /// UI consumers can subscribe to refresh the scripts display.
     /// </summary>
     event EventHandler? ScriptStatusChanged;
+
+    /// <summary>
+    /// Enables or disables a specific script by file name.
+    /// A disabled script's coroutine will not be resumed and its hooks will not be called.
+    /// Re-enabling restores normal behavior. Has no effect on auto-disabled (runaway) scripts.
+    /// </summary>
+    /// <param name="fileName">The script file name (e.g. "example_monitor.lua").</param>
+    /// <param name="enabled">True to enable, false to disable.</param>
+    void SetScriptEnabled(string fileName, bool enabled);
 }
