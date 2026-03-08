@@ -1,8 +1,7 @@
 using System.Diagnostics;
-using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// Engine-agnostic scripting engine that orchestrates script lifecycle, enable/disable state,

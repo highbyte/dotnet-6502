@@ -1,6 +1,4 @@
-using Highbyte.DotNet6502.Systems;
-
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// The result of resuming a single script coroutine, reported back to <see cref="ScriptingEngine"/>

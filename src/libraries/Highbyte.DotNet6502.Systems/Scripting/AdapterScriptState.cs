@@ -1,6 +1,4 @@
-using Highbyte.DotNet6502.Systems;
-
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// The coroutine state reported by an <see cref="IScriptingEngineAdapter"/> for a single script handle.

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;

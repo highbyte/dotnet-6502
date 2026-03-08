@@ -1,7 +1,6 @@
-using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// Lua-engine-specific operations required by <see cref="ScriptingEngine"/>.

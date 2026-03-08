@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 public class ScriptingConfig
 {
