@@ -44,6 +44,13 @@ public interface IScriptingEngineAdapter
     AdapterScriptHandle? LoadFile(string filePath, string fileName);
 
     /// <summary>
+    /// Compile a single Lua script from a string without executing it.
+    /// Used in environments without filesystem access (e.g. WASM/browser — scripts from localStorage).
+    /// Returns an opaque handle on success, or null on compile failure (syntax error etc.).
+    /// </summary>
+    AdapterScriptHandle? LoadScript(string content, string fileName);
+
+    /// <summary>
     /// Performs the initial (first) resume of a script's coroutine:
     /// runs top-level code until the first yield or completion.
     /// Returns the resulting state, including which hook functions the script registered.

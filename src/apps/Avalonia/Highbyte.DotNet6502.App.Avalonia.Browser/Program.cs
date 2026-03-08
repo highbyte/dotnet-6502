@@ -8,6 +8,8 @@ using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.Browser.Input;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
+using Highbyte.DotNet6502.Scripting.MoonSharp;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +18,7 @@ using Microsoft.Extensions.Logging;
 internal sealed partial class Program
 {
     private const string LOCAL_STORAGE_MAIN_CONFIG_KEY = "dotnet6502.emulator.avalonia.config";
+    private const string LOCAL_STORAGE_SCRIPT_PREFIX = "dotnet6502.lua.";
 
     [RequiresUnreferencedCode("Calls JsonSerializer.Deserialize(String) and JsonSerializer.Serialize(object)")]
     private static async Task<int> Main(string[] args)
@@ -72,11 +75,20 @@ internal sealed partial class Program
         WriteBootstrapLog("Creating Gamepad implementation (Browser).");
         var browserGamepad = new BrowserGamepad(loggerFactory);
 
+        // Load custom JS module for localStorage-based Lua script loading
+        WriteBootstrapLog("Importing BrowserScripting JS module.");
+        await JSHost.ImportAsync("BrowserScripting", BrowserScriptingResources.GetJavaScriptModuleDataUri());
+
+        // Create scripting engine (loads scripts from localStorage if enabled in config)
+        WriteBootstrapLog("Creating scripting engine.");
+        var scriptingEngine = MoonSharpScriptingConfigurator.CreateForBrowser(
+            configuration, loggerFactory, LoadScriptsFromLocalStorage);
+
         // Start Avalonia app
         try
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -159,6 +171,25 @@ internal sealed partial class Program
 
         [JSImport("globalThis.localStorage.setItem")]
         public static partial void SetLocalStorage(string key, string? value);
+
+        [JSImport("getScriptsFromLocalStorage", "BrowserScripting")]
+        public static partial string GetScriptsFromLocalStorage(string prefix);
+    }
+
+    private static IEnumerable<(string fileName, string content)> LoadScriptsFromLocalStorage()
+    {
+        try
+        {
+            var json = JSInterop.GetScriptsFromLocalStorage(LOCAL_STORAGE_SCRIPT_PREFIX);
+            if (string.IsNullOrEmpty(json)) return [];
+            var scripts = JsonSerializer.Deserialize(json, HostConfigJsonContext.Default.ListLocalStorageScript);
+            return scripts?.Select(s => (s.name, s.content)) ?? [];
+        }
+        catch (Exception ex)
+        {
+            WriteBootstrapLog($"Could not load scripts from localStorage: {ex.Message}", LogLevel.Warning);
+            return [];
+        }
     }
 
     private static async Task<string> GetConfigStringFromLocalStorage(string configKey)
@@ -280,7 +311,8 @@ internal sealed partial class Program
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge,
-        BrowserGamepad? browserGamepad = null)
+        BrowserGamepad? browserGamepad = null,
+        IScriptingEngine? scriptingEngine = null)
     {
         return AppBuilder.Configure(() =>
         {
@@ -292,7 +324,8 @@ internal sealed partial class Program
                                 loggerFactory,
                                 saveCustomConfigString: PersistStringToLocalStorage,
                                 saveCustomConfigSection: PersistConfigSectionToLocalStorage,
-                                gamepad: browserGamepad
+                                gamepad: browserGamepad,
+                                scriptingEngine: scriptingEngine
                             );
         })
         .AfterSetup(_ =>

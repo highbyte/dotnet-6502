@@ -118,6 +118,26 @@ public class ScriptingEngine : IScriptingEngine
 
     private void LoadScriptFiles()
     {
+        if (_config.ScriptLoader != null)
+        {
+            var scripts = _config.ScriptLoader().ToList();
+            _logger.LogInformation("[Scripting] Loading {Count} Lua script(s) via loader callback.", scripts.Count);
+            foreach (var (fileName, content) in scripts)
+            {
+                var handle = _adapter.LoadScript(content, fileName);
+                if (handle != null)
+                {
+                    _handles.Add(handle);
+                    _logger.LogInformation("[Scripting] Loaded: {File}", fileName);
+                }
+                else
+                {
+                    _failedFiles.Add(fileName);
+                }
+            }
+            return;
+        }
+
         var dir = _config.ScriptDirectory;
 
         if (!Directory.Exists(dir))
@@ -250,6 +270,12 @@ public class ScriptingEngine : IScriptingEngine
 
     public void ReloadScript(string fileName)
     {
+        if (_config.ScriptLoader != null)
+        {
+            _logger.LogWarning("[Scripting] Hot-reload not supported in browser/localStorage mode: {File}", fileName);
+            return;
+        }
+
         var filePath = Path.Combine(_config.ScriptDirectory, fileName);
         if (!File.Exists(filePath))
         {
