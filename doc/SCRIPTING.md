@@ -2,7 +2,7 @@
 
 # Overview
 
-The Avalonia Desktop application supports Lua scripting for automating emulator interaction, monitoring CPU/memory state, and controlling the emulator at runtime. Scripts are loaded from a configurable directory and executed as coroutines alongside the emulator's frame loop.
+The emulator supports Lua scripting for automating emulator interaction, monitoring CPU/memory state, and controlling the emulator at runtime. Scripts are loaded from a configurable directory and executed as coroutines alongside the emulator's frame loop. Scripting is currently wired in the Avalonia Desktop host application; the architecture supports extension to other host applications (SilkNet, SadConsole) without changes to the scripting core.
 
 Two scripting styles are supported and can be combined within a single script:
 
@@ -165,19 +165,47 @@ The engine is implemented in three layers:
 
 | Layer | Project | Description |
 |-------|---------|-------------|
-| Abstraction | `Highbyte.DotNet6502.Scripting` | Defines `IScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). No dependency on MoonSharp. |
+| Abstraction | `Highbyte.DotNet6502.Systems` (`Scripting/` subfolder) | Defines `IScriptingEngine`, `NoScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). Also contains `HostApp`, the base host-app class that integrates scripting into the emulator lifecycle. No dependency on MoonSharp. |
 | MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`). `MoonSharpScriptingConfigurator` is the factory entry point. |
-| Host | `Highbyte.DotNet6502.App.Avalonia.Core` | The Avalonia host app (`AvaloniaHostApp`) wires the engine into the emulator lifecycle and UI (`MainViewModel`). |
+| Host | `Highbyte.DotNet6502.App.Avalonia.Core` | `AvaloniaHostApp` overrides the platform-specific virtual hooks from `HostApp` to wire the `emu.yield()` tick timer and drain deferred script actions on the Avalonia UI thread. |
 
 ### ScriptingEngine + IScriptingEngineAdapter design
 
-`ScriptingEngine` (concrete class, in the abstraction project) implements `IScriptingEngine` and contains all engine-agnostic orchestration: script file tracking, enable/disable state, hook routing, `ScriptStatus` building, and event firing. It delegates all Lua-VM-specific operations to an `IScriptingEngineAdapter`.
+`ScriptingEngine` (concrete class, in `Systems/Scripting/`) implements `IScriptingEngine` and contains all engine-agnostic orchestration: script file tracking, enable/disable state, hook routing, `ScriptStatus` building, event firing, and the deferred-action queue used by `emu.start()` / `emu.stop()` etc. It delegates all Lua-VM-specific operations to an `IScriptingEngineAdapter`.
 
 `IScriptingEngineAdapter` covers the operations that differ per Lua engine: VM initialization, script compilation, coroutine creation and resume, yield-type detection, hook function caching, and hook invocation.
 
 `MoonSharpScriptingEngineAdapter` is the MoonSharp-specific implementation. It wraps each `.lua` file in a MoonSharp `Coroutine` (held in a `MoonSharpScriptHandle`). The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`).
 
 To support a different Lua engine, implement `IScriptingEngineAdapter` and a matching `AdapterScriptHandle` subclass, then pass the adapter to `new ScriptingEngine(adapter, config, loggerFactory)`. No changes to `IScriptingEngine`, `NoScriptingEngine`, or any host-app code are required.
+
+### HostApp integration
+
+The base class `HostApp<TInputHandlerContext, TAudioHandlerContext>` owns the scripting integration. A derived host app calls `SetScriptingEngine(engine)` once at startup (before the first `Start()`). `HostApp` then:
+
+1. Calls `engine.SetHostApp(this)` so scripts can query and control the emulator via the `IHostApp` interface.
+2. Calls `engine.LoadScripts()` to compile all `.lua` files and run initial resumes.
+3. Calls the virtual `OnScriptingEngineSet()` so the derived host can start its platform-specific tick timer.
+
+The base class calls scripting hooks directly in its concrete lifecycle methods (not in the virtual `On*` hooks):
+
+| Lifecycle point | Call |
+|---|---|
+| `Start()` | `OnSystemStarted(system)` then `InvokeEvent("on_started")` |
+| `Pause()` | `InvokeEvent("on_paused")` |
+| `Stop()` | `InvokeEvent("on_stopped")` |
+| `SelectSystem()` | `InvokeEvent("on_system_selected", name)` |
+| `SelectSystemConfigurationVariant()` | `InvokeEvent("on_variant_selected", name)` |
+| `RunEmulatorOneFrame()` | `InvokeBeforeFrame()` before the CPU frame, `InvokeAfterFrame()` after |
+| `Close()` | `StopScriptingTimer()` |
+
+The virtual `OnAfterStart`, `OnAfterPause`, `OnAfterStop`, etc. hooks remain empty integration points for derived classes; scripting is not invoked through them.
+
+### Emulator control and deferred actions
+
+Scripts call emulator control functions (`emu.start()`, `emu.pause()`, etc.) synchronously from Lua, but those operations (e.g. `IHostApp.Start()`) are asynchronous and must not execute during an active frame. `ScriptingEngine` maintains an internal pending-action queue. When `emu.start()` is called from Lua, a lambda is queued; the host drains it after the frame or timer tick by calling `DrainPendingScriptActionsAsync()` (a protected helper on `HostApp` that delegates to `ScriptingEngine.DrainPendingActionsAsync()`).
+
+The `IScriptingEngineAdapter.InitializeVm` receives an `enqueueAction` delegate from `ScriptingEngine`, which adapter implementations use to queue deferred `IHostApp` calls without holding a direct reference to the queue.
 
 ### Portability: NLua validation
 
@@ -202,20 +230,51 @@ The `IScriptingEngineAdapter` interface was validated against [NLua](https://git
 
 ## Threading model
 
-All script execution runs on the **Avalonia UI thread**. There are no threading issues between Lua memory access and the emulator's own CPU execution.
+The scripting threading model is intentionally simple: **all script execution must run on the same thread as the emulator frame loop**. This ensures Lua `mem.read`/`mem.write` and CPU memory access never overlap, with no locks or synchronization needed.
 
-The emulator uses two periodic timers, both of which dispatch their callbacks to the UI thread via `Dispatcher.UIThread.InvokeAsync`:
+`HostApp` provides two protected helpers that derived host apps call from the appropriate thread:
+
+- `InvokeScriptingTick()` — resumes `emu.yield()` coroutines (for the tick timer callback).
+- `DrainPendingScriptActionsAsync()` — executes deferred emulator control actions (e.g. `emu.start()`) queued by scripts during the previous frame or tick.
+
+`HostApp` also provides two virtual methods for derived classes that need a platform-specific tick timer (e.g. Avalonia):
+
+- `OnScriptingEngineSet()` — called when `SetScriptingEngine()` completes; start the tick timer here. Game-loop-based hosts (SilkNet, SadConsole) typically do not need to override this.
+- `StopScriptingTimer()` — called from `Close()`; stop and dispose the tick timer here. Only needed when `OnScriptingEngineSet()` was overridden.
+
+### Avalonia (current implementation)
+
+All script execution runs on the **Avalonia UI thread**. The emulator uses two periodic timers, both dispatching callbacks to the UI thread via `Dispatcher.UIThread.InvokeAsync`:
 
 - **Update timer** -- fires at the emulated system's refresh rate (e.g. ~50 Hz for PAL C64). Each tick runs the full frame sequence synchronously:
-  1. `InvokeBeforeFrame()` -- resumes `emu.frameadvance()` coroutines, then calls `on_before_frame` hooks. Scripts may call `mem.read`/`mem.write` here.
+  1. `InvokeBeforeFrame()` -- resumes `emu.frameadvance()` coroutines, then calls `on_before_frame` hooks.
   2. `ProcessInputBeforeFrame()` -- processes user input.
-  3. `ExecuteOneFrame()` -- runs the emulated CPU for one frame's worth of cycles. The CPU reads and writes emulator memory here.
-  4. `InvokeAfterFrame()` -- calls `on_after_frame` hooks. Scripts may call `mem.read`/`mem.write` here.
+  3. `ExecuteOneFrame()` -- runs the emulated CPU for one frame's worth of cycles.
+  4. `InvokeAfterFrame()` -- calls `on_after_frame` hooks.
+  5. `DrainPendingScriptActionsAsync()` -- executes any emulator control operations queued by scripts.
 
-- **Scripting tick timer** -- fires at ~60 Hz independently. Resumes `emu.yield()` coroutines (which may also access memory).
+- **Scripting tick timer** -- fires at ~60 Hz independently, also dispatched to the UI thread. Each tick calls `InvokeScriptingTick()` then `DrainPendingScriptActionsAsync()`.
 
-Because both timers dispatch to the same UI thread, their callbacks are serialized by the Avalonia dispatcher queue and can never execute concurrently. This means:
+Because both timers dispatch to the same UI thread, their callbacks are serialized by the Avalonia dispatcher queue and can never execute concurrently.
 
-- Lua `mem.read`/`mem.write` and CPU memory access never overlap.
-- No locks or synchronization are needed around memory access.
-- A script's `emu.frameadvance()` loop interleaves cleanly with emulator frames: the script runs before (or after) the CPU, never during.
+### SilkNet (future)
+
+SilkNet host applications (e.g. `SilkNetHostApp`) run the emulator on the **game loop thread** managed by `IWindow.Run()`. The game loop already fires at ~60 Hz, so no separate tick timer is needed — `OnScriptingEngineSet()` does not need to be overridden.
+
+The `OnUpdate` callback handles both frame execution and the scripting tick:
+1. `RunEmulatorOneFrame()` — fires `InvokeBeforeFrame()`, the CPU frame, and `InvokeAfterFrame()` internally.
+2. `InvokeScriptingTick()` — resumes `emu.yield()` coroutines.
+3. `DrainPendingScriptActionsAsync()` — executes deferred emulator control operations.
+
+Because all three steps run on the same game loop thread, no additional synchronization is needed.
+
+### SadConsole (future)
+
+SadConsole host applications (e.g. `SadConsoleHostApp`) drive the emulator from the **MonoGame/SadConsole update loop** (`UpdateSadConsole`, called by the game loop at ~60 Hz). As with SilkNet, the game loop itself is the tick mechanism and no separate timer is needed — `OnScriptingEngineSet()` does not need to be overridden.
+
+The `UpdateSadConsole` method handles both frame execution and the scripting tick:
+1. `RunEmulatorOneFrame()` — fires `InvokeBeforeFrame()`, the CPU frame, and `InvokeAfterFrame()` internally.
+2. `InvokeScriptingTick()` — resumes `emu.yield()` coroutines.
+3. `DrainPendingScriptActionsAsync()` — executes deferred emulator control operations.
+
+Because all three steps run on the same game loop thread, no additional synchronization is needed.
