@@ -61,7 +61,6 @@
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.NAudio\Highbyte.DotNet6502.Impl.NAudio.csproj" />
-    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Scripting\Highbyte.DotNet6502.Scripting.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// Opaque token representing a single loaded script inside an <see cref="IScriptingEngineAdapter"/>.

@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using System.Timers;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
-using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
