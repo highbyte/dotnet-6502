@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// Provides Lua scripts with the ability to control basic emulator operations.

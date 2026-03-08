@@ -22,7 +22,6 @@ using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Avalonia.Threading;
-using Highbyte.DotNet6502.Scripting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -31,7 +30,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp, IEmulatorControl
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -48,10 +47,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
-    private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
-    internal IScriptingEngine ScriptingEngine => _scriptingEngine;
-    // Script-requested actions deferred until after the current frame completes
-    private readonly List<Func<Task>> _pendingScriptActions = new();
+    internal IScriptingEngine ScriptingEngine => base.ScriptingEngine;
 
     private PeriodicAsyncTimer? _updateTimer;
     private PeriodicAsyncTimer? _scriptingTickTimer;
@@ -120,66 +116,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
         IsExternalDebuggerAttached = false;
     }
-
-    /// <summary>
-    /// Sets the Lua scripting engine to be called each emulator frame.
-    /// Call this before starting the emulator.
-    /// Pass a <see cref="NoScriptingEngine"/> (or null) to disable scripting.
-    /// </summary>
-    public void SetScriptingEngine(IScriptingEngine engine)
-    {
-        _scriptingEngine = engine;
-        _scriptingEngine.SetEmulatorControl(this);
-        _scriptingEngine.LoadScripts();
-
-        // Start the independent scripting tick timer so emu.yield() coroutines
-        // keep ticking regardless of emulator state (running, paused, stopped).
-        if (_scriptingEngine.IsEnabled)
-        {
-            _scriptingTickTimer = CreateScriptingTickTimer();
-            _scriptingTickTimer.Start();
-        }
-
-        // Drain any actions enqueued during initial script execution (e.g., emu.start())
-        // Posted so it runs after the current synchronous call chain returns.
-        _ = Dispatcher.UIThread.InvokeAsync(DrainPendingScriptActionsAsync);
-    }
-
-    // --- IEmulatorControl implementation ---
-
-    IReadOnlyList<string> IEmulatorControl.AvailableSystems =>
-        _systemList.Systems.ToList();
-
-    string IEmulatorControl.SelectedSystem => SelectedSystemName;
-
-    string IEmulatorControl.SelectedVariant => SelectedSystemConfigurationVariant;
-
-    string IEmulatorControl.CurrentState => EmulatorState switch
-    {
-        EmulatorState.Running => "running",
-        EmulatorState.Paused => "paused",
-        _ => "stopped"
-    };
-
-    void IEmulatorControl.RequestStart() =>
-        _pendingScriptActions.Add(async () => { if (EmulatorState != EmulatorState.Running) await Start(); });
-
-    void IEmulatorControl.RequestPause() =>
-        _pendingScriptActions.Add(() => { Pause(); return Task.CompletedTask; });
-
-    void IEmulatorControl.RequestStop() =>
-        _pendingScriptActions.Add(() => { Stop(); return Task.CompletedTask; });
-
-    void IEmulatorControl.RequestReset() =>
-        _pendingScriptActions.Add(() => Reset());
-
-    void IEmulatorControl.RequestSelectSystem(string systemName, string? variant) =>
-        _pendingScriptActions.Add(async () =>
-        {
-            await SelectSystem(systemName);
-            if (variant != null)
-                await SelectSystemConfigurationVariant(variant);
-        });
 
     private bool _skipDefaultSystemSelection;
 
@@ -302,7 +238,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         OnPropertyChanged(nameof(CurrentHostSystemConfig));
 
         ValidateConfigAsync();
-        _scriptingEngine.InvokeEvent("on_system_selected", SelectedSystemName);
+        base.OnAfterSelectedSystemChanged();
     }
 
     public override void OnAfterAllSystemConfigurationVariantsChanged()
@@ -313,7 +249,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public override void OnAfterSelectedSystemVariantChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemConfigurationVariant));
-        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
+        base.OnAfterSelectedSystemVariantChanged();
     }
 
     public void SetVolumePercent(float volumePercent)
@@ -358,21 +294,12 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
         }
 
-        // Update scripting engine cpu/mem globals to the newly started system (called on every start, including reset)
-        _scriptingEngine.OnSystemStarted(CurrentRunningSystem!);
-        _scriptingEngine.InvokeEvent("on_started");
-
-        // _logger.LogTrace("Test trace");
-        // _logger.LogDebug("Test debug");
-        // _logger.LogInformation("Test information");
-        // _logger.LogWarning("Test warning");
-        // _logger.LogError("Test error");
-        // _logger.LogCritical("Test critical");
+        base.OnAfterStart(emulatorStateBeforeStart);
     }
 
     public override void OnAfterPause()
     {
-        _scriptingEngine.InvokeEvent("on_paused");
+        base.OnAfterPause();
         _updateTimer?.Stop();
     }
 
@@ -392,12 +319,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public override void OnAfterStop()
     {
         StopAndDisposeUpdateTimer();
-        _scriptingEngine.InvokeEvent("on_stopped");
+        base.OnAfterStop();
     }
 
-    public override void OnAfterClose()
+    protected override void StopScriptingTimer()
     {
-        // Cleanup scripting tick timer
         if (_scriptingTickTimer != null)
         {
             _scriptingTickTimer.Elapsed -= ScriptingTickTimerElapsed;
@@ -405,6 +331,18 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _scriptingTickTimer.Dispose();
             _scriptingTickTimer = null;
         }
+    }
+
+    protected override void OnScriptingEngineSet()
+    {
+        _scriptingTickTimer = CreateScriptingTickTimer();
+        _scriptingTickTimer.Start();
+        _ = Dispatcher.UIThread.InvokeAsync(DrainPendingScriptActionsAsync);
+    }
+
+    public override void OnAfterClose()
+    {
+        base.OnAfterClose();
 
         // Cleanup contexts
         _inputHandlerContext?.Cleanup();
@@ -649,8 +587,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
     {
-        if (_scriptingEngine.IsEnabled)
-            _scriptingEngine.ResumeCoroutines();
+        InvokeScriptingTick();
         await DrainPendingScriptActionsAsync();
     }
 
@@ -658,22 +595,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     {
         RunEmulatorOneFrame();
         await DrainPendingScriptActionsAsync();
-    }
-
-    private async Task DrainPendingScriptActionsAsync()
-    {
-        if (_pendingScriptActions.Count == 0)
-            return;
-        var actions = _pendingScriptActions.ToList();
-        _pendingScriptActions.Clear();
-        foreach (var action in actions)
-        {
-            try { await action(); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Scripting] Error executing deferred script action");
-            }
-        }
     }
 
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
@@ -712,9 +633,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             shouldReceiveInput = false;
             return;
         }
-
-        // Invoke Lua scripting before-frame hook (no-op if scripting is disabled)
-        _scriptingEngine.InvokeBeforeFrame();
     }
 
     public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
@@ -726,9 +644,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         {
             _monitor?.Enable(execEvaluatorTriggerResult);
         }
-
-        // Invoke Lua scripting after-frame hook (no-op if scripting is disabled)
-        _scriptingEngine.InvokeAfterFrame();
     }
 
     internal float Scale

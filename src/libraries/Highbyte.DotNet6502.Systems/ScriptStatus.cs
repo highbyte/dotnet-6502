@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// Snapshot of a loaded script's current status, returned by <see cref="IScriptingEngine.GetScriptStatuses"/>.
