@@ -30,6 +30,8 @@ public class ScriptingEngine : IScriptingEngine
     private readonly List<string> _failedFiles = new();
     // Files whose coroutines terminated due to a runtime error
     private readonly HashSet<string> _runtimeErrorFiles = new(StringComparer.OrdinalIgnoreCase);
+    // Files that have not had their initial resume yet (deferred until user enables the script)
+    private readonly HashSet<string> _notYetResumedFiles = new(StringComparer.OrdinalIgnoreCase);
 
     private IHostApp? _hostApp;
     private readonly List<Func<Task>> _pendingScriptActions = new();
@@ -80,6 +82,7 @@ public class ScriptingEngine : IScriptingEngine
         _userDisabledFiles.Clear();
         _failedFiles.Clear();
         _runtimeErrorFiles.Clear();
+        _notYetResumedFiles.Clear();
         _frameCount = 0;
         _wallClock.Restart();
 
@@ -93,15 +96,22 @@ public class ScriptingEngine : IScriptingEngine
             () => _wallClock.Elapsed.TotalSeconds);
 
         LoadScriptFiles();
-        RunInitialResumes();
-        _adapter.RebuildHookCache();
 
-        // If EnableScriptsAtStart is false, mark all loaded scripts as user-disabled
-        if (!_config.EnableScriptsAtStart)
+        if (_config.EnableScriptsAtStart)
         {
-            foreach (var handle in _handles)
-                _userDisabledFiles.Add(handle.FileName);
+            RunInitialResumes();
         }
+        else
+        {
+            // Scripts are dormant: no top-level code runs until the user enables each script.
+            foreach (var handle in _handles)
+            {
+                _notYetResumedFiles.Add(handle.FileName);
+                _userDisabledFiles.Add(handle.FileName);
+            }
+        }
+
+        _adapter.RebuildHookCache();
 
         ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -205,6 +215,31 @@ public class ScriptingEngine : IScriptingEngine
                 return;
         }
 
+        // If the script hasn't had its initial resume yet, run it now before enabling.
+        if (enabled && _notYetResumedFiles.Contains(fileName))
+        {
+            _notYetResumedFiles.Remove(fileName);
+            var handle = _handles.First(h => h.FileName == fileName);
+            var state = _adapter.InitialResume(handle);
+            _coroutineStates[handle] = state.CoroutineState;
+            _lastYieldTypes[handle] = state.LastYieldType;
+            foreach (var hook in state.RegisteredHooks)
+                _hookSourceFiles[hook] = handle.FileName;
+            _adapter.RebuildHookCache();
+
+            // If the script errored or was force-suspended during its first run, keep it
+            // system-disabled rather than user-enabled. Remove from userDisabledFiles so
+            // GetScriptStatuses shows it as Disabled (system), not UserDisabled.
+            if (state.CoroutineState is AdapterCoroutineState.RuntimeError or AdapterCoroutineState.ForceSuspended)
+            {
+                if (state.CoroutineState == AdapterCoroutineState.RuntimeError)
+                    _runtimeErrorFiles.Add(fileName);
+                _userDisabledFiles.Remove(fileName);
+                ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+        }
+
         if (enabled)
             _userDisabledFiles.Remove(fileName);
         else
@@ -248,6 +283,7 @@ public class ScriptingEngine : IScriptingEngine
         _failedFiles.Remove(fileName);
         _runtimeErrorFiles.Remove(fileName);
         _userDisabledFiles.Remove(fileName);
+        _notYetResumedFiles.Remove(fileName);
 
         // Remove hook registrations from the old script version
         var hooksToRemove = _hookSourceFiles.Where(kv => kv.Value == fileName).Select(kv => kv.Key).ToList();
