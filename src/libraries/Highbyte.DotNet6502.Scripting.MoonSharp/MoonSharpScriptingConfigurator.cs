@@ -47,19 +47,26 @@ public static class MoonSharpScriptingConfigurator
     {
         var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
 
-        var config = new ScriptingConfig();
-        configuration.GetSection(ScriptingConfig.ConfigSectionName).Bind(config);
+        // Read config using GetValue<T>() instead of Bind() to avoid reflection on ScriptingConfig,
+        // which is trimmed in AOT/WASM builds.
+        var section = configuration.GetSection(ScriptingConfig.ConfigSectionName);
+        var config = new ScriptingConfig
+        {
+            Enabled                = section.GetValue<bool>(nameof(ScriptingConfig.Enabled)),
+            EnableScriptsAtStart   = section.GetValue<bool>(nameof(ScriptingConfig.EnableScriptsAtStart)),
+            MaxExecutionWarningMs  = section.GetValue<int>(nameof(ScriptingConfig.MaxExecutionWarningMs), 5),
+            MaxInstructionsPerResume = section.GetValue<int>(nameof(ScriptingConfig.MaxInstructionsPerResume), 1_000_000),
+            // File I/O and HTTP are not available in the browser sandbox.
+            AllowFileIO = false,
+            AllowHttpRequests = false,
+            ScriptLoader = scriptLoader,
+        };
 
         if (!config.Enabled)
         {
             logger.LogInformation("[Scripting] Disabled in configuration. Using NoScriptingEngine.");
             return new NoScriptingEngine();
         }
-
-        // File I/O and HTTP are not available in the browser sandbox.
-        config.AllowFileIO = false;
-        config.AllowHttpRequests = false;
-        config.ScriptLoader = scriptLoader;
 
         logger.LogInformation("[Scripting] MoonSharp browser engine enabled (scripts loaded via localStorage callback).");
         var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory);
