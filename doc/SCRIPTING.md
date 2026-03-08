@@ -21,7 +21,8 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
     "MaxInstructionsPerResume": 1000000,
     "EnableScriptsAtStart": false,
     "AllowFileIO": true,
-    "AllowFileWrite": false
+    "AllowFileWrite": false,
+    "AllowHttpRequests": false
 }
 ```
 
@@ -35,6 +36,7 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
 | `AllowFileIO` | bool | `false` | Whether the `file` global and `emu.load()` are available to Lua scripts. Set to `false` in environments without filesystem access (e.g. WASM/browser). |
 | `AllowFileWrite` | bool | `false` | Whether scripts may write, append, or delete files via the `file` global. Read operations are always permitted when `AllowFileIO` is `true`. |
 | `FileBaseDirectory` | string | `null` | Base directory for all file I/O. When `null` or empty, defaults to `ScriptDirectory`. All script-supplied paths are resolved relative to this directory; traversal outside it (e.g. `../`) is blocked. |
+| `AllowHttpRequests` | bool | `false` | Whether the `http` global is available to Lua scripts. When `true`, scripts may make outbound HTTP GET and POST requests to arbitrary URLs. Default is `false`. |
 
 # Scripts tab UI
 
@@ -167,9 +169,73 @@ Available when `AllowFileIO: true`. Loads a binary file from `FileBaseDirectory`
 | Function | Description |
 |----------|-------------|
 | `emu.load(name)` | Reads the 2-byte little-endian load address from the file header (C64 `.prg` format) and loads the remaining bytes at that address. |
+| `emu.load(name, true)` | Same as above, and also sets CPU PC to the load address after loading. |
 | `emu.load(name, address)` | Loads the entire file as raw binary at the given address, without header parsing. |
+| `emu.load(name, address, true)` | Same as above, and also sets CPU PC to the load address after loading. |
 
 The operation is deferred (like `emu.start()` etc.) and takes effect after the current frame. Path confinement rules are the same as for `file.*`.
+
+## HTTP (`http`)
+
+Available when `AllowHttpRequests: true`. The `http` global is not registered when `AllowHttpRequests` is `false`.
+
+All methods return a **response table** with the following fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ok` | boolean | `true` if the request succeeded (HTTP 2xx) and no network error occurred. |
+| `status` | number | HTTP status code (e.g. `200`, `404`). `0` on network or timeout failure. |
+| `body` | string, table, or nil | Response body. String for `get` / `post` / `post_json`. 1-indexed byte table for `get_bytes`. `nil` on failure or for `download`. |
+| `error` | string or nil | Error description on failure. `nil` on success. |
+
+### Methods
+
+| Function | Description |
+|----------|-------------|
+| `http.get(url [, headers])` | GET request. Returns the response body as a string in `body`. |
+| `http.get_bytes(url [, headers])` | GET request. Returns the response body as a 1-indexed Lua table of byte values (0–255) in `body`. Useful for binary data; for loading it directly into emulator memory see `mem.write`. |
+| `http.post(url, body, content_type [, headers])` | POST request with an explicit content type (e.g. `"application/x-www-form-urlencoded"`). Returns the response body as a string in `body`. |
+| `http.post_json(url, json_body [, headers])` | POST request with `Content-Type: application/json`. Shorthand for `http.post(url, body, "application/json")`. |
+| `http.download(url, filename [, headers])` | GET request that streams the response body directly to a file in the `file` sandbox. Requires `AllowFileIO: true` and `AllowFileWrite: true`. The `body` field is `nil` in the response; use `file.read` / `file.read_bytes` to access the saved file afterwards. |
+
+The optional `headers` argument is a Lua table of key-value string pairs, e.g. `{["Authorization"] = "Bearer token", ["Accept"] = "application/json"}`.
+
+All calls are synchronous and block the emulator loop for their duration. Prefer making HTTP calls in `on_started()` or inside a throttled loop rather than on every frame.
+
+### Examples
+
+```lua
+-- GET: call a REST API
+local resp = http.get("https://api.example.com/status")
+if resp.ok then
+    log.info("Response: " .. resp.body)
+else
+    log.error("HTTP " .. resp.status .. ": " .. (resp.error or "?"))
+end
+
+-- GET bytes: download binary data and copy into emulator memory
+local resp = http.get_bytes("https://example.com/data.bin")
+if resp.ok then
+    for i, b in ipairs(resp.body) do
+        mem.write(0xC000 + i - 1, b)
+    end
+end
+
+-- POST JSON
+local resp = http.post_json("https://api.example.com/save", '{"score":42}')
+log.info("Saved: " .. tostring(resp.ok))
+
+-- Download directly to the file sandbox, then load into memory via emu.load
+local resp = http.download("https://example.com/game.prg", "game.prg")
+if resp.ok then
+    emu.load("game.prg")  -- reads PRG header and loads at the embedded address
+end
+
+-- Custom headers
+local resp = http.get("https://api.example.com/private", {
+    ["Authorization"] = "Bearer my-token"
+})
+```
 
 ## Standard Lua libraries
 
@@ -196,6 +262,7 @@ Example scripts are included in the `scripts/` directory:
 | `example_emulator_control.lua` | Linear loop + hooks | Demonstrates the emulator control API: queries state, pauses at frame 300, resumes after 3 seconds, and defines all state-change event hooks. |
 | `example_border_cycle.lua` | Linear loop | Waits for the C64 system to be running, waits 3 seconds, then cycles the border color through all 16 C64 colors. |
 | `example_file_io.lua` | Linear loop | Demonstrates the file I/O API: lists scripts, reads a text file, writes a CSV log, and shows `emu.load()` and `file.read_bytes()` usage. Requires `AllowFileIO: true`; write operations also require `AllowFileWrite: true`. |
+| `example_http.lua` | Event hook | Demonstrates the HTTP API in `on_started()`: GET with and without custom headers, `post_json`, `post` with explicit content type, `get_bytes`, `download`, and error handling for unreachable hosts. Requires `AllowHttpRequests: true`. |
 
 # Technical details
 
@@ -208,7 +275,7 @@ The engine is implemented in three layers:
 | Layer | Project | Description |
 |-------|---------|-------------|
 | Abstraction | `Highbyte.DotNet6502.Systems` (`Scripting/` subfolder) | Defines `IScriptingEngine`, `NoScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). Also contains `HostApp`, the base host-app class that integrates scripting into the emulator lifecycle. No dependency on MoonSharp. |
-| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`, `LuaFileProxy`). `MoonSharpScriptingConfigurator` is the factory entry point. |
+| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`, `LuaFileProxy`, `LuaHttpProxy`). `MoonSharpScriptingConfigurator` is the factory entry point. |
 | Host | `Highbyte.DotNet6502.App.Avalonia.Core` | `AvaloniaHostApp` overrides the platform-specific virtual hooks from `HostApp` to wire the `emu.yield()` tick timer and drain deferred script actions on the Avalonia UI thread. |
 
 ### ScriptingEngine + IScriptingEngineAdapter design
@@ -217,7 +284,7 @@ The engine is implemented in three layers:
 
 `IScriptingEngineAdapter` covers the operations that differ per Lua engine: VM initialization, script compilation, coroutine creation and resume, yield-type detection, hook function caching, and hook invocation.
 
-`MoonSharpScriptingEngineAdapter` is the MoonSharp-specific implementation. It wraps each `.lua` file in a MoonSharp `Coroutine` (held in a `MoonSharpScriptHandle`). The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`). The standard Lua `io` module is intentionally excluded; file I/O is provided instead through `LuaFileProxy`, a plain C# class backed by `System.IO` that enforces path confinement and write guards independently of any Lua library. `LuaFileProxy` is registered as a Lua `Table` of `DynValue.NewCallback` entries (the same pattern as the `emu` table) rather than as a MoonSharp `UserData` type, so that `file.list()` and `file.read_bytes()` can construct and return Lua `Table` objects directly.
+`MoonSharpScriptingEngineAdapter` is the MoonSharp-specific implementation. It wraps each `.lua` file in a MoonSharp `Coroutine` (held in a `MoonSharpScriptHandle`). The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`). The standard Lua `io` module is intentionally excluded; file I/O is provided instead through `LuaFileProxy`, a plain C# class backed by `System.IO` that enforces path confinement and write guards independently of any Lua library. `LuaFileProxy` is registered as a Lua `Table` of `DynValue.NewCallback` entries (the same pattern as the `emu` table) rather than as a MoonSharp `UserData` type, so that `file.list()` and `file.read_bytes()` can construct and return Lua `Table` objects directly. HTTP operations follow the same pattern: `LuaHttpProxy` holds a single `HttpClient` instance and is registered as the `http` Lua table; `http.download` routes through `LuaFileProxy.GetSafePath()` to ensure downloaded files stay within the file sandbox.
 
 To support a different Lua engine, implement `IScriptingEngineAdapter` and a matching `AdapterScriptHandle` subclass, then pass the adapter to `new ScriptingEngine(adapter, config, loggerFactory)`. No changes to `IScriptingEngine`, `NoScriptingEngine`, or any host-app code are required.
 
@@ -260,7 +327,7 @@ The `IScriptingEngineAdapter` interface was validated against [NLua](https://git
 - **`emu.frameadvance()` yield** — for Lua 5.4 correctness, implement at KeraLua level using `threadState.YieldK(1, ctx, continuation)` rather than `RegisterFunction` + `Yield()`, since NLua's `RegisterFunction` wraps methods as `lua_CFunction` without continuation support.
 - **Hook cache** — cache `LuaFunction` references (from `lua.GetFunction(name)`) instead of MoonSharp `DynValue` references.
 - **Proxy classes** — `LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy` are MoonSharp-specific. A NLua adapter would provide equivalent proxy classes with NLua-compatible attribute conventions.
-- **File I/O** — `LuaFileProxy` has no MoonSharp dependency (it uses only `System.IO`) and can be reused as-is in a NLua adapter. The adapter would register its methods as individual NLua callbacks on a Lua table, exactly as the MoonSharp adapter does.
+- **File I/O and HTTP** — `LuaFileProxy` and `LuaHttpProxy` have no MoonSharp dependency (`System.IO` and `System.Net.Http` respectively) and can be reused as-is in a NLua adapter. The adapter would register their methods as individual NLua callbacks on Lua tables, exactly as the MoonSharp adapter does.
 
 ## Script lifecycle
 

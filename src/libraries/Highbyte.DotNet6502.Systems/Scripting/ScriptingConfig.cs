@@ -57,4 +57,11 @@ public class ScriptingConfig
     /// When null or empty, defaults to <see cref="ScriptDirectory"/>.
     /// </summary>
     public string? FileBaseDirectory { get; set; } = null;
+
+    /// <summary>
+    /// Whether the <c>http</c> global is available to Lua scripts.
+    /// When true, scripts may make outbound HTTP requests (GET, POST) to arbitrary URLs.
+    /// Default is false. Not applicable in WASM/browser environments (scripting disabled there).
+    /// </summary>
+    public bool AllowHttpRequests { get; set; } = false;
 }

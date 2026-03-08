@@ -21,6 +21,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaCpuProxy? _cpuProxy;
     private LuaMemProxy? _memProxy;
     private LuaFileProxy? _fileProxy;
+    private LuaHttpProxy? _httpProxy;
     private ScriptingConfig? _config;
 
     // Tracks how each coroutine last yielded, keyed on the MoonSharp Coroutine object
@@ -127,6 +128,118 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             _script.Globals["file"] = fileTable;
         }
 
+        // http table: outbound HTTP operations (GET, POST).
+        // Only registered when AllowHttpRequests is true.
+        if (config.AllowHttpRequests)
+        {
+            _httpProxy?.Dispose();
+            _httpProxy = new LuaHttpProxy();
+
+            // Helper: convert an optional Lua table argument (headers) to a Dictionary
+            static Dictionary<string, string>? ExtractHeaders(DynValue arg)
+            {
+                if (arg.Type != DataType.Table) return null;
+                var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var pair in arg.Table.Pairs)
+                    dict[pair.Key.CastToString()] = pair.Value.CastToString();
+                return dict;
+            }
+
+            // Helper: build a Lua response table from an HttpProxyResponse
+            DynValue BuildResponseTable(HttpProxyResponse r)
+            {
+                var t = new Table(_script!);
+                t["ok"] = DynValue.NewBoolean(r.Ok);
+                t["status"] = DynValue.NewNumber(r.Status);
+                t["body"] = r.Body != null ? DynValue.NewString(r.Body) : DynValue.Nil;
+                t["error"] = r.Error != null ? DynValue.NewString(r.Error) : DynValue.Nil;
+                return DynValue.NewTable(t);
+            }
+
+            // Helper: build a Lua response table where body is a 1-indexed byte table
+            DynValue BuildBytesResponseTable(HttpProxyResponse r)
+            {
+                var t = new Table(_script!);
+                t["ok"] = DynValue.NewBoolean(r.Ok);
+                t["status"] = DynValue.NewNumber(r.Status);
+                if (r.BodyBytes != null)
+                {
+                    var bodyTable = new Table(_script!);
+                    for (int i = 0; i < r.BodyBytes.Length; i++) bodyTable[i + 1] = (double)r.BodyBytes[i];
+                    t["body"] = DynValue.NewTable(bodyTable);
+                }
+                else
+                {
+                    t["body"] = DynValue.Nil;
+                }
+                t["error"] = r.Error != null ? DynValue.NewString(r.Error) : DynValue.Nil;
+                return DynValue.NewTable(t);
+            }
+
+            var httpProxyCapture = _httpProxy;
+            var httpTable = new Table(_script);
+
+            // http.get(url [, headers]) → { ok, status, body, error }
+            httpTable["get"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var url = args.Count > 0 ? args[0].CastToString() : "";
+                var headers = args.Count > 1 ? ExtractHeaders(args[1]) : null;
+                return BuildResponseTable(httpProxyCapture.GetString(url, headers));
+            });
+
+            // http.get_bytes(url [, headers]) → { ok, status, body (byte table), error }
+            httpTable["get_bytes"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var url = args.Count > 0 ? args[0].CastToString() : "";
+                var headers = args.Count > 1 ? ExtractHeaders(args[1]) : null;
+                return BuildBytesResponseTable(httpProxyCapture.GetBytes(url, headers));
+            });
+
+            // http.post(url, body, content_type [, headers]) → { ok, status, body, error }
+            httpTable["post"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var url = args.Count > 0 ? args[0].CastToString() : "";
+                var body = args.Count > 1 ? args[1].CastToString() ?? "" : "";
+                var contentType = args.Count > 2 ? args[2].CastToString() ?? "text/plain" : "text/plain";
+                var headers = args.Count > 3 ? ExtractHeaders(args[3]) : null;
+                return BuildResponseTable(httpProxyCapture.Post(url, body, contentType, headers));
+            });
+
+            // http.post_json(url, json_body [, headers]) → { ok, status, body, error }
+            httpTable["post_json"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var url = args.Count > 0 ? args[0].CastToString() : "";
+                var body = args.Count > 1 ? args[1].CastToString() ?? "" : "";
+                var headers = args.Count > 2 ? ExtractHeaders(args[2]) : null;
+                return BuildResponseTable(httpProxyCapture.Post(url, body, "application/json", headers));
+            });
+
+            // http.download(url, filename [, headers]) → { ok, status, error }
+            // Streams the response body directly to the sandboxed file path.
+            // Requires AllowFileIO and AllowFileWrite to be true.
+            if (config.AllowFileIO && _fileProxy != null)
+            {
+                var fileProxyCapture = _fileProxy;
+                httpTable["download"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    var url = args.Count > 0 ? args[0].CastToString() : "";
+                    var filename = args.Count > 1 ? args[1].CastToString() : null;
+                    var headers = args.Count > 2 ? ExtractHeaders(args[2]) : null;
+
+                    try { fileProxyCapture.ThrowIfWriteDisabled("download"); }
+                    catch (InvalidOperationException ex) { throw new ScriptRuntimeException(ex.Message); }
+
+                    var safePath = fileProxyCapture.GetSafePath(filename);
+                    if (safePath == null)
+                        throw new ScriptRuntimeException($"http.download(): unsafe or invalid filename: {filename}");
+
+                    return BuildResponseTable(httpProxyCapture.DownloadToFile(url, safePath, headers));
+                });
+            }
+
+            _script.Globals["http"] = httpTable;
+        }
+
         // emu table: frame control + emulator control operations
         var emuTable = new Table(_script);
         emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => s_frameAdvanceYield);
@@ -197,10 +310,12 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         // without filesystem access (e.g. WASM/browser).
         if (config.AllowFileIO && _fileProxy != null)
         {
-            // emu.load(filename [, address])
+            // emu.load(filename [, start])
+            // emu.load(filename, address [, start])
             // Loads a binary file into emulator memory.
             // With no address: reads 2-byte little-endian PRG header to determine load address.
             // With address: treats file as raw binary and loads it at the given address.
+            // start (bool, optional): if true, sets CPU.PC to the load address after loading.
             var fileProxyCapture = _fileProxy;
             emuTable["load"] = DynValue.NewCallback((ctx, args) =>
             {
@@ -210,10 +325,17 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
 
                 ushort? forceAddress = null;
                 bool fileHasHeader = true;
+                bool startAfterLoad = false;
                 if (args.Count > 1 && args[1].Type == DataType.Number)
                 {
                     forceAddress = (ushort)(int)args[1].Number;
                     fileHasHeader = false; // explicit address = treat as raw binary, no header
+                    if (args.Count > 2 && args[2].Type == DataType.Boolean)
+                        startAfterLoad = args[2].Boolean;
+                }
+                else if (args.Count > 1 && args[1].Type == DataType.Boolean)
+                {
+                    startAfterLoad = args[1].Boolean;
                 }
 
                 enqueueAction(() =>
@@ -222,7 +344,12 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                     if (path == null || !File.Exists(path)) return Task.CompletedTask;
                     var mem = hostApp.CurrentRunningSystem?.Mem;
                     if (mem == null) return Task.CompletedTask;
-                    mem.Load(path, out _, out _, forceLoadAddress: forceAddress, fileContainsLoadAddress: fileHasHeader);
+                    mem.Load(path, out var loadedAtAddress, out _, forceLoadAddress: forceAddress, fileContainsLoadAddress: fileHasHeader);
+                    if (startAfterLoad)
+                    {
+                        var cpu = hostApp.CurrentRunningSystem?.CPU;
+                        if (cpu != null) cpu.PC = loadedAtAddress;
+                    }
                     return Task.CompletedTask;
                 });
                 return DynValue.Void;
