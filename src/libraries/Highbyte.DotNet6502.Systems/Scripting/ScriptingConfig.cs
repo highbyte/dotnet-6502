@@ -64,4 +64,13 @@ public class ScriptingConfig
     /// Default is false. Not applicable in WASM/browser environments (scripting disabled there).
     /// </summary>
     public bool AllowHttpRequests { get; set; } = false;
+
+    /// <summary>
+    /// Optional callback supplying (fileName, content) pairs directly, bypassing filesystem scanning.
+    /// When non-null, <see cref="ScriptingEngine"/> calls this instead of reading from <see cref="ScriptDirectory"/>.
+    /// Use in environments without filesystem access (e.g. WASM/browser — scripts from localStorage).
+    /// Not serialized from configuration; set programmatically before constructing the engine.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Func<IEnumerable<(string fileName, string content)>>? ScriptLoader { get; set; }
 }

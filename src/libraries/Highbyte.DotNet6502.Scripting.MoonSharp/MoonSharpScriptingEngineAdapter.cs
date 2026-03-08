@@ -390,6 +390,24 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         }
     }
 
+    public AdapterScriptHandle? LoadScript(string content, string fileName)
+    {
+        if (_script == null) return null;
+        try
+        {
+            var chunk = _script.LoadString(content, codeFriendlyName: fileName);
+            var coroutine = _script.CreateCoroutine(chunk).Coroutine;
+            if (_config!.MaxInstructionsPerResume > 0)
+                coroutine.AutoYieldCounter = _config.MaxInstructionsPerResume;
+            return new MoonSharpScriptHandle(fileName, coroutine);
+        }
+        catch (SyntaxErrorException ex)
+        {
+            _logger!.LogError("[Scripting] Syntax error in {File}: {Message}", fileName, ex.DecoratedMessage);
+            return null;
+        }
+    }
+
     public AdapterScriptState InitialResume(AdapterScriptHandle handle)
     {
         var mh = (MoonSharpScriptHandle)handle;
