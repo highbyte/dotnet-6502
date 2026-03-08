@@ -120,9 +120,11 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private const string RenderStatName = "Render";
     private const string InputTimeStatName = "InputTime";
     private const string AudioTimeStatName = "AudioTime";
+    private const string ScriptTimeStatName = "ScriptTime";
     private readonly Instrumentations _systemInstrumentations = new();
     private ElapsedMillisecondsTimedStatSystem? _systemTime;
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
+    private ElapsedMillisecondsTimedStatSystem? _scriptTime;
     private EmulatorState _emulatorState = EmulatorState.Uninitialized;
 
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
@@ -476,7 +478,9 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
             return;
 
         // Frame is definitely going to run — invoke scripting before-frame hook
+        _scriptTime!.Start();
         _scriptingEngine.InvokeBeforeFrame();
+        _scriptTime!.Stop(cont: true); // accumulate; don't record until after-frame scripting completes
 
         _updateFps.Update();
 
@@ -490,8 +494,11 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _systemTime!.Start();
         var execEvaluatorTriggerResult = _systemRunner!.RunEmulatorOneFrame();
         OnAfterRunEmulatorOneFrame(execEvaluatorTriggerResult);
-        _scriptingEngine.InvokeAfterFrame();
         _systemTime!.Stop();
+
+        _scriptTime!.Start(cont: true); // continue accumulating from before-frame measurement
+        _scriptingEngine.InvokeAfterFrame();
+        _scriptTime!.Stop(); // record total script time for this frame
     }
 
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }
@@ -582,6 +589,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _systemInstrumentations.Clear();
         _systemTime = _systemInstrumentations.Add($"{_statsPrefix}{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         _inputTime = _systemInstrumentations.Add($"{_statsPrefix}{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        _scriptTime = _systemInstrumentations.Add($"{_statsPrefix}{ScriptTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         //_audioTime = InstrumentationBag.Add($"{_statsPrefix}{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
     }
 
