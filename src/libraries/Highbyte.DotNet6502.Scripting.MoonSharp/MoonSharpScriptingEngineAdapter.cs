@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,11 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _loggerFactory = loggerFactory;
     }
 
+    // Tell the AOT trimmer to preserve all members of proxy types that MoonSharp reflects
+    // on at runtime to build its UserData member descriptors. Required for it to work in Avalonia Browser WASM published with AOT.
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaLogProxy))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaCpuProxy))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaMemProxy))]
     public void InitializeVm(
         IHostApp? hostApp,
         Action<Func<Task>> enqueueAction,
