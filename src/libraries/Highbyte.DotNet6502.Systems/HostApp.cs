@@ -17,7 +17,7 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 /// </summary>
 /// <typeparam name="TInputHandlerContext"></typeparam>
 /// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IManualRenderingProvider
+public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IManualRenderingProvider, IEmulatorControl
     where TInputHandlerContext : IInputHandlerContext
     where TAudioHandlerContext : IAudioHandlerContext
 {
@@ -130,6 +130,13 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
 
+    // Scripting
+    private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
+    private readonly List<Func<Task>> _pendingScriptActions = new();
+
+    /// <summary>Exposes the scripting engine to subclasses (e.g., for Scripts tab UI).</summary>
+    protected IScriptingEngine ScriptingEngine => _scriptingEngine;
+
     public HostApp(
         string hostName,
         SystemList<TInputHandlerContext, TAudioHandlerContext> systemList,
@@ -153,6 +160,80 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _allSelectedSystemConfigurationVariants = new List<string> { "DEFAULT VARIANT" };
         _selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
     }
+
+    // --- Scripting ---
+
+    /// <summary>
+    /// Sets the Lua scripting engine. Call before starting the emulator.
+    /// Pass a <see cref="NoScriptingEngine"/> (or call with no arg) to disable scripting.
+    /// </summary>
+    public void SetScriptingEngine(IScriptingEngine engine)
+    {
+        _scriptingEngine = engine;
+        _scriptingEngine.SetEmulatorControl(this);
+        _scriptingEngine.LoadScripts();
+        if (_scriptingEngine.IsEnabled)
+            OnScriptingEngineSet();
+    }
+
+    /// <summary>Override to start the platform-specific emu.yield() tick timer.</summary>
+    protected virtual void OnScriptingEngineSet() { }
+
+    /// <summary>Override to stop/dispose the tick timer. Called from <see cref="OnAfterClose"/>.</summary>
+    protected virtual void StopScriptingTimer() { }
+
+    /// <summary>Resumes emu.yield() coroutines. Call from the platform-specific tick timer callback.</summary>
+    protected void InvokeScriptingTick()
+    {
+        if (_scriptingEngine.IsEnabled)
+            _scriptingEngine.ResumeCoroutines();
+    }
+
+    /// <summary>
+    /// Drains deferred script actions (e.g. emu.start()). Call after RunEmulatorOneFrame() and after
+    /// InvokeScriptingTick() from your async timer callback.
+    /// </summary>
+    protected async Task DrainPendingScriptActionsAsync()
+    {
+        if (_pendingScriptActions.Count == 0) return;
+        var actions = _pendingScriptActions.ToList();
+        _pendingScriptActions.Clear();
+        foreach (var action in actions)
+        {
+            try { await action(); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Scripting] Error executing deferred script action");
+            }
+        }
+    }
+
+    // IEmulatorControl — explicit implementation so the interface is not part of the public HostApp API
+    IReadOnlyList<string> IEmulatorControl.AvailableSystems => AvailableSystemNames.ToList();
+    string IEmulatorControl.SelectedSystem => SelectedSystemName;
+    string IEmulatorControl.SelectedVariant => SelectedSystemConfigurationVariant;
+    string IEmulatorControl.CurrentState => EmulatorState switch
+    {
+        EmulatorState.Running => "running",
+        EmulatorState.Paused  => "paused",
+        _                     => "stopped"
+    };
+    void IEmulatorControl.RequestStart() =>
+        _pendingScriptActions.Add(async () => { if (EmulatorState != EmulatorState.Running) await Start(); });
+    void IEmulatorControl.RequestPause() =>
+        _pendingScriptActions.Add(() => { Pause(); return Task.CompletedTask; });
+    void IEmulatorControl.RequestStop() =>
+        _pendingScriptActions.Add(() => { Stop(); return Task.CompletedTask; });
+    void IEmulatorControl.RequestReset() =>
+        _pendingScriptActions.Add(() => Reset());
+    void IEmulatorControl.RequestSelectSystem(string systemName, string? variant) =>
+        _pendingScriptActions.Add(async () =>
+        {
+            await SelectSystem(systemName);
+            if (variant != null) await SelectSystemConfigurationVariant(variant);
+        });
+
+    // --- End Scripting ---
 
     public void SetContexts(
         Func<TInputHandlerContext>? getInputHandlerContext = null,
@@ -245,6 +326,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         OnAfterSelectedSystemChanged();
 
         SelectedSystemChanged?.Invoke(this, EventArgs.Empty);
+        _scriptingEngine.InvokeEvent("on_system_selected", SelectedSystemName);
 
         // If system changed, make sure any state regarding the system variant is also in sync
         if (systemChanged)
@@ -281,6 +363,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         OnAfterSelectedSystemVariantChanged();
 
         SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
+        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
     }
 
     public virtual void OnAfterSelectedSystemChanged() { }
@@ -335,6 +418,8 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _systemRunner.AudioHandler.StartPlaying();
 
         OnAfterStart(emulatorStateBeforeStart);
+        _scriptingEngine.OnSystemStarted(CurrentRunningSystem!);
+        _scriptingEngine.InvokeEvent("on_started");
 
         EmulatorState = EmulatorState.Running;
         _logger.LogInformation($"System started: {_selectedSystemName} Variant: {_selectedSystemConfigurationVariant}");
@@ -350,6 +435,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _systemRunner!.AudioHandler.PausePlaying();
 
         OnAfterPause();
+        _scriptingEngine.InvokeEvent("on_paused");
 
         EmulatorState = EmulatorState.Paused;
         _logger.LogInformation($"System paused: {_selectedSystemName}");
@@ -380,6 +466,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _selectedSystemTemporary = null; // Clear the temporary system, as it is no longer valid.
 
         OnAfterStop();
+        _scriptingEngine.InvokeEvent("on_stopped");
 
         _logger.LogInformation($"System stopped: {_selectedSystemName}");
     }
@@ -407,6 +494,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
 
         _logger.LogInformation($"Emulator closed");
 
+        StopScriptingTimer();
         OnAfterClose();
     }
     public virtual void OnAfterClose() { }
@@ -426,6 +514,9 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (!shouldRun)
             return;
 
+        // Frame is definitely going to run — invoke scripting before-frame hook
+        _scriptingEngine.InvokeBeforeFrame();
+
         _updateFps.Update();
 
         if (shouldReceiveInput)
@@ -438,8 +529,8 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _systemTime!.Start();
         var execEvaluatorTriggerResult = _systemRunner!.RunEmulatorOneFrame();
         OnAfterRunEmulatorOneFrame(execEvaluatorTriggerResult);
+        _scriptingEngine.InvokeAfterFrame();
         _systemTime!.Stop();
-
     }
 
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }

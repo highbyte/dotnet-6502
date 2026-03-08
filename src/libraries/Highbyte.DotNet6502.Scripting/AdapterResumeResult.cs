@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems;
+
 namespace Highbyte.DotNet6502.Scripting;
 
 /// <summary>

@@ -1,6 +1,4 @@
-using Highbyte.DotNet6502.Systems;
-
-namespace Highbyte.DotNet6502.Scripting;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
 /// Abstraction for a scripting engine that can run scripts hooked into the emulator's frame cycle.
