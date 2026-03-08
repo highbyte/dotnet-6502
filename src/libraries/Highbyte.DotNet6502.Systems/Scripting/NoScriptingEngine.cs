@@ -14,7 +14,8 @@ public class NoScriptingEngine : IScriptingEngine
     public void ResumeCoroutines() { }
     public void InvokeAfterFrame() { }
     public void InvokeEvent(string hookName, params object[] args) { }
-    public void SetEmulatorControl(IEmulatorControl? control) { }
+    public void SetHostApp(IHostApp? hostApp) { }
+    public Task DrainPendingActionsAsync() => Task.CompletedTask;
     public IReadOnlyList<ScriptStatus> GetScriptStatuses() => Array.Empty<ScriptStatus>();
     public event EventHandler? ScriptStatusChanged { add { } remove { } }
     public void SetScriptEnabled(string fileName, bool enabled) { }

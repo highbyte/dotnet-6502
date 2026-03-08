@@ -31,7 +31,8 @@ public class ScriptingEngine : IScriptingEngine
     // Files whose coroutines terminated due to a runtime error
     private readonly HashSet<string> _runtimeErrorFiles = new(StringComparer.OrdinalIgnoreCase);
 
-    private IEmulatorControl? _emulatorControl;
+    private IHostApp? _hostApp;
+    private readonly List<Func<Task>> _pendingScriptActions = new();
     private int _frameCount;
     private readonly Stopwatch _wallClock = new();
 
@@ -53,7 +54,22 @@ public class ScriptingEngine : IScriptingEngine
         _logger = loggerFactory.CreateLogger(nameof(ScriptingEngine));
     }
 
-    public void SetEmulatorControl(IEmulatorControl? control) => _emulatorControl = control;
+    public void SetHostApp(IHostApp? hostApp) => _hostApp = hostApp;
+
+    public async Task DrainPendingActionsAsync()
+    {
+        if (_pendingScriptActions.Count == 0) return;
+        var actions = _pendingScriptActions.ToList();
+        _pendingScriptActions.Clear();
+        foreach (var action in actions)
+        {
+            try { await action(); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Scripting] Error executing deferred script action");
+            }
+        }
+    }
 
     public void LoadScripts()
     {
@@ -67,8 +83,10 @@ public class ScriptingEngine : IScriptingEngine
         _frameCount = 0;
         _wallClock.Restart();
 
+        _pendingScriptActions.Clear();
         _adapter.InitializeVm(
-            _emulatorControl,
+            _hostApp,
+            action => _pendingScriptActions.Add(action),
             _config,
             _logger,
             () => _frameCount,
