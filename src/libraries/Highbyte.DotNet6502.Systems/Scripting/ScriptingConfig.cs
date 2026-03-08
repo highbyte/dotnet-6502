@@ -35,4 +35,26 @@ public class ScriptingConfig
     /// and must be enabled manually via the Scripts tab.
     /// </summary>
     public bool EnableScriptsAtStart { get; set; } = false;
+
+    /// <summary>
+    /// Whether the <c>file</c> global is available to Lua scripts at all.
+    /// When false (default), the <c>file</c> global is not registered — scripts cannot perform any file I/O.
+    /// Set to false in environments where filesystem access is not possible (e.g. WASM/browser).
+    /// </summary>
+    public bool AllowFileIO { get; set; } = false;
+
+    /// <summary>
+    /// Whether Lua scripts may write, append, or delete files via the <c>file</c> global.
+    /// Read operations (<c>file.read</c>, <c>file.read_bytes</c>, <c>file.exists</c>, <c>file.list</c>) are always permitted.
+    /// Only relevant when <see cref="AllowFileIO"/> is true. Default: false.
+    /// </summary>
+    public bool AllowFileWrite { get; set; } = false;
+
+    /// <summary>
+    /// Base directory for file I/O operations accessible from Lua scripts.
+    /// All paths passed to file operations are resolved relative to this directory;
+    /// traversal outside it (e.g. "../") is blocked.
+    /// When null or empty, defaults to <see cref="ScriptDirectory"/>.
+    /// </summary>
+    public string? FileBaseDirectory { get; set; } = null;
 }
