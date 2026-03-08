@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
 
@@ -19,6 +20,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaLogProxy? _logProxy;
     private LuaCpuProxy? _cpuProxy;
     private LuaMemProxy? _memProxy;
+    private LuaFileProxy? _fileProxy;
     private ScriptingConfig? _config;
 
     // Tracks how each coroutine last yielded, keyed on the MoonSharp Coroutine object
@@ -70,6 +72,60 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _script.Globals["mem"] = _memProxy;
         _logProxy = new LuaLogProxy(_loggerFactory.CreateLogger(nameof(LuaLogProxy)));
         _script.Globals["log"] = _logProxy;
+
+        // file table: only registered when AllowFileIO is true.
+        // Set AllowFileIO: false in environments without filesystem access (e.g. WASM/browser).
+        if (config.AllowFileIO)
+        {
+            var fileBaseDir = string.IsNullOrWhiteSpace(config.FileBaseDirectory)
+                ? config.ScriptDirectory
+                : config.FileBaseDirectory;
+            _fileProxy = new LuaFileProxy(fileBaseDir, config.AllowFileWrite);
+
+            var fileTable = new Table(_script);
+            fileTable["read"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var content = _fileProxy.Read(args.Count > 0 ? args[0].CastToString() : null!);
+                return content != null ? DynValue.NewString(content) : DynValue.Nil;
+            });
+            fileTable["read_bytes"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var bytes = _fileProxy.ReadBytes(args.Count > 0 ? args[0].CastToString() : null!);
+                if (bytes == null) return DynValue.Nil;
+                var t = new Table(_script!);
+                for (int i = 0; i < bytes.Length; i++) t[i + 1] = (double)bytes[i];
+                return DynValue.NewTable(t);
+            });
+            fileTable["write"] = DynValue.NewCallback((ctx, args) =>
+            {
+                try { _fileProxy.Write(args[0].CastToString(), args.Count > 1 ? args[1].CastToString() ?? "" : ""); }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { throw new ScriptRuntimeException(ex.Message); }
+                return DynValue.Void;
+            });
+            fileTable["append"] = DynValue.NewCallback((ctx, args) =>
+            {
+                try { _fileProxy.Append(args[0].CastToString(), args.Count > 1 ? args[1].CastToString() ?? "" : ""); }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { throw new ScriptRuntimeException(ex.Message); }
+                return DynValue.Void;
+            });
+            fileTable["exists"] = DynValue.NewCallback((ctx, args) =>
+                DynValue.NewBoolean(_fileProxy.Exists(args.Count > 0 ? args[0].CastToString() : "")));
+            fileTable["list"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var pattern = args.Count > 0 ? args[0].CastToString() ?? "*" : "*";
+                var t = new Table(_script!);
+                int i = 1;
+                foreach (var f in _fileProxy.List(pattern)) t[i++] = f;
+                return DynValue.NewTable(t);
+            });
+            fileTable["delete"] = DynValue.NewCallback((ctx, args) =>
+            {
+                try { _fileProxy.Delete(args.Count > 0 ? args[0].CastToString() : ""); }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { throw new ScriptRuntimeException(ex.Message); }
+                return DynValue.Void;
+            });
+            _script.Globals["file"] = fileTable;
+        }
 
         // emu table: frame control + emulator control operations
         var emuTable = new Table(_script);
@@ -136,6 +192,42 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                 });
             return DynValue.Void;
         });
+
+        // emu.load is only registered when AllowFileIO is true — not available in environments
+        // without filesystem access (e.g. WASM/browser).
+        if (config.AllowFileIO && _fileProxy != null)
+        {
+            // emu.load(filename [, address])
+            // Loads a binary file into emulator memory.
+            // With no address: reads 2-byte little-endian PRG header to determine load address.
+            // With address: treats file as raw binary and loads it at the given address.
+            var fileProxyCapture = _fileProxy;
+            emuTable["load"] = DynValue.NewCallback((ctx, args) =>
+            {
+                if (hostApp == null) return DynValue.Void;
+                var filename = args.Count > 0 ? args[0].CastToString() : null;
+                if (filename == null) return DynValue.Void;
+
+                ushort? forceAddress = null;
+                bool fileHasHeader = true;
+                if (args.Count > 1 && args[1].Type == DataType.Number)
+                {
+                    forceAddress = (ushort)(int)args[1].Number;
+                    fileHasHeader = false; // explicit address = treat as raw binary, no header
+                }
+
+                enqueueAction(() =>
+                {
+                    var path = fileProxyCapture.GetSafePath(filename);
+                    if (path == null || !File.Exists(path)) return Task.CompletedTask;
+                    var mem = hostApp.CurrentRunningSystem?.Mem;
+                    if (mem == null) return Task.CompletedTask;
+                    mem.Load(path, out _, out _, forceLoadAddress: forceAddress, fileContainsLoadAddress: fileHasHeader);
+                    return Task.CompletedTask;
+                });
+                return DynValue.Void;
+            });
+        }
 
         _script.Globals["emu"] = emuTable;
     }

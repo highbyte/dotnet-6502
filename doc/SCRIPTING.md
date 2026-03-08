@@ -19,7 +19,9 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
     "ScriptDirectory": "scripts",
     "MaxExecutionWarningMs": 5,
     "MaxInstructionsPerResume": 1000000,
-    "EnableScriptsAtStart": false
+    "EnableScriptsAtStart": false,
+    "AllowFileIO": true,
+    "AllowFileWrite": false
 }
 ```
 
@@ -30,6 +32,9 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
 | `MaxExecutionWarningMs` | int | `5` | Log a warning if a script hook takes longer than this many milliseconds. Set to `0` to disable. |
 | `MaxInstructionsPerResume` | int | `1000000` | Maximum Lua VM instructions per coroutine resume. Protects against runaway scripts. Set to `0` to disable. |
 | `EnableScriptsAtStart` | bool | `false` | Whether scripts start enabled when loaded. When `false`, scripts are loaded but must be enabled manually from the Scripts tab. |
+| `AllowFileIO` | bool | `false` | Whether the `file` global and `emu.load()` are available to Lua scripts. Set to `false` in environments without filesystem access (e.g. WASM/browser). |
+| `AllowFileWrite` | bool | `false` | Whether scripts may write, append, or delete files via the `file` global. Read operations are always permitted when `AllowFileIO` is `true`. |
+| `FileBaseDirectory` | string | `null` | Base directory for all file I/O. When `null` or empty, defaults to `ScriptDirectory`. All script-supplied paths are resolved relative to this directory; traversal outside it (e.g. `../`) is blocked. |
 
 # Scripts tab UI
 
@@ -130,9 +135,45 @@ Define any of these as global functions in your script. The emulator calls them 
 | `on_system_selected(name)` | system name | System selection changed. |
 | `on_variant_selected(name)` | variant name | System variant changed. |
 
+## File I/O (`file`)
+
+Available when `AllowFileIO: true`. The `file` global is not registered when `AllowFileIO` is `false`, so scripts that use it will fail with a runtime error on platforms without filesystem access (e.g. WASM/browser).
+
+All paths are relative to `FileBaseDirectory` (which defaults to `ScriptDirectory`). Paths that attempt to escape the base directory (e.g. `../`) are blocked and treated as non-existent files or raise a runtime error on write attempts.
+
+### Read operations (always allowed when `AllowFileIO: true`)
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `file.read(name)` | string or nil | Reads the entire contents of a text file. Returns `nil` if the file does not exist or the path is unsafe. |
+| `file.read_bytes(name)` | table or nil | Reads a file as raw bytes. Returns a 1-indexed Lua table of integers (0–255), or `nil` if the file does not exist. Useful for inspecting binary data; for loading a binary directly into emulator memory, prefer `emu.load()`. |
+| `file.exists(name)` | boolean | Returns `true` if the file exists within the base directory. |
+| `file.list([pattern])` | table | Returns a 1-indexed table of filenames in the base directory matching an optional glob pattern (default: `"*"`). Only filenames are returned, not full paths. |
+
+### Write operations (require `AllowFileWrite: true`)
+
+If `AllowFileWrite` is `false`, calling any write operation raises a Lua runtime error and the script is auto-disabled.
+
+| Function | Description |
+|----------|-------------|
+| `file.write(name, text)` | Writes (overwrites) a text file. Creates the file if it does not exist. |
+| `file.append(name, text)` | Appends text to a file. Creates the file if it does not exist. |
+| `file.delete(name)` | Deletes a file. No-op if the file does not exist. |
+
+## Binary loading (`emu.load`)
+
+Available when `AllowFileIO: true`. Loads a binary file from `FileBaseDirectory` directly into emulator memory, entirely on the C# side — no Lua byte array handling required, making it efficient even for large files.
+
+| Function | Description |
+|----------|-------------|
+| `emu.load(name)` | Reads the 2-byte little-endian load address from the file header (C64 `.prg` format) and loads the remaining bytes at that address. |
+| `emu.load(name, address)` | Loads the entire file as raw binary at the given address, without header parsing. |
+
+The operation is deferred (like `emu.start()` etc.) and takes effect after the current frame. Path confinement rules are the same as for `file.*`.
+
 ## Standard Lua libraries
 
-The following standard Lua modules are available: `string`, `math`, `table`, and the soft-sandbox base functions (`print`, `type`, `tostring`, `tonumber`, `pairs`, `ipairs`, etc.). File I/O and OS functions are not available.
+The following standard Lua modules are available: `string`, `math`, `table`, and the soft-sandbox base functions (`print`, `type`, `tostring`, `tonumber`, `pairs`, `ipairs`, etc.). The standard Lua `io` and `os` modules are not available; use the `file` global and `emu.load()` instead.
 
 # Error handling
 
@@ -154,6 +195,7 @@ Example scripts are included in the `scripts/` directory:
 | `example_monitor.lua` | Event hooks | Defines `on_before_frame` and `on_after_frame` hooks to log CPU state and watch the C64 raster line register. |
 | `example_emulator_control.lua` | Linear loop + hooks | Demonstrates the emulator control API: queries state, pauses at frame 300, resumes after 3 seconds, and defines all state-change event hooks. |
 | `example_border_cycle.lua` | Linear loop | Waits for the C64 system to be running, waits 3 seconds, then cycles the border color through all 16 C64 colors. |
+| `example_file_io.lua` | Linear loop | Demonstrates the file I/O API: lists scripts, reads a text file, writes a CSV log, and shows `emu.load()` and `file.read_bytes()` usage. Requires `AllowFileIO: true`; write operations also require `AllowFileWrite: true`. |
 
 # Technical details
 
@@ -166,7 +208,7 @@ The engine is implemented in three layers:
 | Layer | Project | Description |
 |-------|---------|-------------|
 | Abstraction | `Highbyte.DotNet6502.Systems` (`Scripting/` subfolder) | Defines `IScriptingEngine`, `NoScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). Also contains `HostApp`, the base host-app class that integrates scripting into the emulator lifecycle. No dependency on MoonSharp. |
-| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`). `MoonSharpScriptingConfigurator` is the factory entry point. |
+| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`, `LuaFileProxy`). `MoonSharpScriptingConfigurator` is the factory entry point. |
 | Host | `Highbyte.DotNet6502.App.Avalonia.Core` | `AvaloniaHostApp` overrides the platform-specific virtual hooks from `HostApp` to wire the `emu.yield()` tick timer and drain deferred script actions on the Avalonia UI thread. |
 
 ### ScriptingEngine + IScriptingEngineAdapter design
@@ -175,7 +217,7 @@ The engine is implemented in three layers:
 
 `IScriptingEngineAdapter` covers the operations that differ per Lua engine: VM initialization, script compilation, coroutine creation and resume, yield-type detection, hook function caching, and hook invocation.
 
-`MoonSharpScriptingEngineAdapter` is the MoonSharp-specific implementation. It wraps each `.lua` file in a MoonSharp `Coroutine` (held in a `MoonSharpScriptHandle`). The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`).
+`MoonSharpScriptingEngineAdapter` is the MoonSharp-specific implementation. It wraps each `.lua` file in a MoonSharp `Coroutine` (held in a `MoonSharpScriptHandle`). The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`). The standard Lua `io` module is intentionally excluded; file I/O is provided instead through `LuaFileProxy`, a plain C# class backed by `System.IO` that enforces path confinement and write guards independently of any Lua library. `LuaFileProxy` is registered as a Lua `Table` of `DynValue.NewCallback` entries (the same pattern as the `emu` table) rather than as a MoonSharp `UserData` type, so that `file.list()` and `file.read_bytes()` can construct and return Lua `Table` objects directly.
 
 To support a different Lua engine, implement `IScriptingEngineAdapter` and a matching `AdapterScriptHandle` subclass, then pass the adapter to `new ScriptingEngine(adapter, config, loggerFactory)`. No changes to `IScriptingEngine`, `NoScriptingEngine`, or any host-app code are required.
 
@@ -218,6 +260,7 @@ The `IScriptingEngineAdapter` interface was validated against [NLua](https://git
 - **`emu.frameadvance()` yield** — for Lua 5.4 correctness, implement at KeraLua level using `threadState.YieldK(1, ctx, continuation)` rather than `RegisterFunction` + `Yield()`, since NLua's `RegisterFunction` wraps methods as `lua_CFunction` without continuation support.
 - **Hook cache** — cache `LuaFunction` references (from `lua.GetFunction(name)`) instead of MoonSharp `DynValue` references.
 - **Proxy classes** — `LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy` are MoonSharp-specific. A NLua adapter would provide equivalent proxy classes with NLua-compatible attribute conventions.
+- **File I/O** — `LuaFileProxy` has no MoonSharp dependency (it uses only `System.IO`) and can be reused as-is in a NLua adapter. The adapter would register its methods as individual NLua callbacks on a Lua table, exactly as the MoonSharp adapter does.
 
 ## Script lifecycle
 
