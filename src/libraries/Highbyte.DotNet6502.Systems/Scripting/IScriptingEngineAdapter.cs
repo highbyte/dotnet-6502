@@ -14,13 +14,16 @@ public interface IScriptingEngineAdapter
 
     /// <summary>
     /// Initialize the Lua VM, register global tables (cpu, mem, log, emu),
-    /// and attach the emulator control so scripts can call emu.start() etc.
+    /// and attach the host app so scripts can call emu.start() etc.
     /// Called once at the start of <see cref="ScriptingEngine.LoadScripts"/>.
     /// <paramref name="getFrameCount"/> and <paramref name="getElapsedSeconds"/> are used by the
     /// emu.framecount() and emu.time() Lua callbacks; they read values owned by <see cref="ScriptingEngine"/>.
+    /// <paramref name="enqueueAction"/> is used by emu control callbacks to defer async operations
+    /// (e.g. emu.start()) until after the current frame or timer tick completes.
     /// </summary>
     void InitializeVm(
-        IEmulatorControl? emulatorControl,
+        IHostApp? hostApp,
+        Action<Func<Task>> enqueueAction,
         ScriptingConfig config,
         ILogger logger,
         Func<int> getFrameCount,

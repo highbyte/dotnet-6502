@@ -64,11 +64,19 @@ public interface IScriptingEngine
     void InvokeEvent(string hookName, params object[] args);
 
     /// <summary>
-    /// Provides the scripting engine with an <see cref="IEmulatorControl"/> so that scripts can
+    /// Provides the scripting engine with an <see cref="IHostApp"/> so that scripts can
     /// request emulator operations (start, stop, pause, reset, select system).
     /// Call this before <see cref="LoadScripts"/>. Pass <c>null</c> to disconnect.
     /// </summary>
-    void SetEmulatorControl(IEmulatorControl? control);
+    void SetHostApp(IHostApp? hostApp);
+
+    /// <summary>
+    /// Executes all emulator control operations that were queued by scripts during the last
+    /// frame or timer tick (e.g. <c>emu.start()</c>, <c>emu.stop()</c>).
+    /// Call this after <see cref="InvokeBeforeFrame"/>/<see cref="InvokeAfterFrame"/> and after
+    /// the scripting tick timer callback.
+    /// </summary>
+    Task DrainPendingActionsAsync();
 
     /// <summary>
     /// Returns a snapshot of all loaded scripts and their current status.

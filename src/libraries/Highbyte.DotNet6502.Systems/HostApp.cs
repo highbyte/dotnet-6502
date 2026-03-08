@@ -17,7 +17,7 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 /// </summary>
 /// <typeparam name="TInputHandlerContext"></typeparam>
 /// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IManualRenderingProvider, IEmulatorControl
+public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IManualRenderingProvider
     where TInputHandlerContext : IInputHandlerContext
     where TAudioHandlerContext : IAudioHandlerContext
 {
@@ -132,7 +132,6 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
 
     // Scripting
     private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
-    private readonly List<Func<Task>> _pendingScriptActions = new();
 
     /// <summary>Exposes the scripting engine to subclasses (e.g., for Scripts tab UI).</summary>
     protected IScriptingEngine ScriptingEngine => _scriptingEngine;
@@ -170,7 +169,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     public void SetScriptingEngine(IScriptingEngine engine)
     {
         _scriptingEngine = engine;
-        _scriptingEngine.SetEmulatorControl(this);
+        _scriptingEngine.SetHostApp(this);
         _scriptingEngine.LoadScripts();
         if (_scriptingEngine.IsEnabled)
             OnScriptingEngineSet();
@@ -193,45 +192,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     /// Drains deferred script actions (e.g. emu.start()). Call after RunEmulatorOneFrame() and after
     /// InvokeScriptingTick() from your async timer callback.
     /// </summary>
-    protected async Task DrainPendingScriptActionsAsync()
-    {
-        if (_pendingScriptActions.Count == 0) return;
-        var actions = _pendingScriptActions.ToList();
-        _pendingScriptActions.Clear();
-        foreach (var action in actions)
-        {
-            try { await action(); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Scripting] Error executing deferred script action");
-            }
-        }
-    }
-
-    // IEmulatorControl — explicit implementation so the interface is not part of the public HostApp API
-    IReadOnlyList<string> IEmulatorControl.AvailableSystems => AvailableSystemNames.ToList();
-    string IEmulatorControl.SelectedSystem => SelectedSystemName;
-    string IEmulatorControl.SelectedVariant => SelectedSystemConfigurationVariant;
-    string IEmulatorControl.CurrentState => EmulatorState switch
-    {
-        EmulatorState.Running => "running",
-        EmulatorState.Paused  => "paused",
-        _                     => "stopped"
-    };
-    void IEmulatorControl.RequestStart() =>
-        _pendingScriptActions.Add(async () => { if (EmulatorState != EmulatorState.Running) await Start(); });
-    void IEmulatorControl.RequestPause() =>
-        _pendingScriptActions.Add(() => { Pause(); return Task.CompletedTask; });
-    void IEmulatorControl.RequestStop() =>
-        _pendingScriptActions.Add(() => { Stop(); return Task.CompletedTask; });
-    void IEmulatorControl.RequestReset() =>
-        _pendingScriptActions.Add(() => Reset());
-    void IEmulatorControl.RequestSelectSystem(string systemName, string? variant) =>
-        _pendingScriptActions.Add(async () =>
-        {
-            await SelectSystem(systemName);
-            if (variant != null) await SelectSystemConfigurationVariant(variant);
-        });
+    protected Task DrainPendingScriptActionsAsync() => _scriptingEngine.DrainPendingActionsAsync();
 
     // --- End Scripting ---
 

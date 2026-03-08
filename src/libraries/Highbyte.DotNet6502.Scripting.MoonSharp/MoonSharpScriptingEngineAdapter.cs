@@ -43,7 +43,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     }
 
     public void InitializeVm(
-        IEmulatorControl? emulatorControl,
+        IHostApp? hostApp,
+        Action<Func<Task>> enqueueAction,
         ScriptingConfig config,
         ILogger logger,
         Func<int> getFrameCount,
@@ -79,47 +80,60 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
 
         // Emulator state queries
         emuTable["state"] = DynValue.NewCallback((ctx, args) =>
-            DynValue.NewString(emulatorControl?.CurrentState ?? "unknown"));
+            DynValue.NewString(hostApp?.EmulatorState switch
+            {
+                EmulatorState.Running => "running",
+                EmulatorState.Paused  => "paused",
+                _                     => "stopped"
+            } ?? "unknown"));
         emuTable["systems"] = DynValue.NewCallback((ctx, args) =>
         {
             var t = new Table(_script!);
-            var systems = emulatorControl?.AvailableSystems ?? [];
+            var systems = hostApp?.AvailableSystemNames.ToList() ?? [];
             for (int i = 0; i < systems.Count; i++)
                 t[i + 1] = systems[i];
             return DynValue.NewTable(t);
         });
         emuTable["selected_system"] = DynValue.NewCallback((ctx, args) =>
-            DynValue.NewString(emulatorControl?.SelectedSystem ?? ""));
+            DynValue.NewString(hostApp?.SelectedSystemName ?? ""));
         emuTable["selected_variant"] = DynValue.NewCallback((ctx, args) =>
-            DynValue.NewString(emulatorControl?.SelectedVariant ?? ""));
+            DynValue.NewString(hostApp?.SelectedSystemConfigurationVariant ?? ""));
 
-        // Emulator control operations (deferred by the host via IEmulatorControl)
+        // Emulator control operations (deferred via enqueueAction to run after the current frame/tick)
         emuTable["start"] = DynValue.NewCallback((ctx, args) =>
         {
-            emulatorControl?.RequestStart();
+            if (hostApp != null)
+                enqueueAction(async () => { if (hostApp.EmulatorState != EmulatorState.Running) await hostApp.Start(); });
             return DynValue.Void;
         });
         emuTable["pause"] = DynValue.NewCallback((ctx, args) =>
         {
-            emulatorControl?.RequestPause();
+            if (hostApp != null)
+                enqueueAction(() => { hostApp.Pause(); return Task.CompletedTask; });
             return DynValue.Void;
         });
         emuTable["stop"] = DynValue.NewCallback((ctx, args) =>
         {
-            emulatorControl?.RequestStop();
+            if (hostApp != null)
+                enqueueAction(() => { hostApp.Stop(); return Task.CompletedTask; });
             return DynValue.Void;
         });
         emuTable["reset"] = DynValue.NewCallback((ctx, args) =>
         {
-            emulatorControl?.RequestReset();
+            if (hostApp != null)
+                enqueueAction(() => hostApp.Reset());
             return DynValue.Void;
         });
         emuTable["select"] = DynValue.NewCallback((ctx, args) =>
         {
             var systemName = args.Count > 0 ? args[0].CastToString() : null;
             var variant = args.Count > 1 && args[1].Type == DataType.String ? args[1].String : null;
-            if (systemName != null)
-                emulatorControl?.RequestSelectSystem(systemName, variant);
+            if (hostApp != null && systemName != null)
+                enqueueAction(async () =>
+                {
+                    await hostApp.SelectSystem(systemName);
+                    if (variant != null) await hostApp.SelectSystemConfigurationVariant(variant);
+                });
             return DynValue.Void;
         });
 
