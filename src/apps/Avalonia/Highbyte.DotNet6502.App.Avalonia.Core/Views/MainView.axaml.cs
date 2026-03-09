@@ -110,6 +110,7 @@ public partial class MainView : UserControl
             _subscribedViewModel.EmulatorOptionsRequested += OnEmulatorOptionsRequested;
             _subscribedViewModel.RequestAddScript += OnRequestAddScript;
             _subscribedViewModel.RequestEditScript += OnRequestEditScript;
+            _subscribedViewModel.RequestDeleteScript += OnRequestDeleteScript;
             // Check immediately in case validation errors are already set
             CheckAndSelectValidationErrorsTab();
             // Listen for log changes
@@ -349,6 +350,7 @@ public partial class MainView : UserControl
             _subscribedViewModel.EmulatorOptionsRequested -= OnEmulatorOptionsRequested;
             _subscribedViewModel.RequestAddScript -= OnRequestAddScript;
             _subscribedViewModel.RequestEditScript -= OnRequestEditScript;
+            _subscribedViewModel.RequestDeleteScript -= OnRequestDeleteScript;
             _subscribedViewModel.LogMessages.CollectionChanged -= LogMessages_CollectionChanged;
             _subscribedViewModel = null;
         }
@@ -604,6 +606,112 @@ public partial class MainView : UserControl
         {
             mainGrid.Children.Remove(overlayPanel);
         }
+    }
+
+    private void OnRequestDeleteScript(object? sender, DeleteScriptConfirmationEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var confirmed = await ShowDeleteScriptConfirmationOverlay(e.FileName);
+            e.SetResult(confirmed);
+        });
+
+    private async Task<bool> ShowDeleteScriptConfirmationOverlay(string fileName)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        Panel? overlayPanel = null;
+        Grid? mainGrid = null;
+
+        void CloseOverlay()
+        {
+            if (overlayPanel != null && mainGrid != null)
+                mainGrid.Children.Remove(overlayPanel);
+        }
+
+        var deleteButton = new Button
+        {
+            Content = "Delete",
+            Width = 60,
+            Classes = { "small", "danger" }
+        };
+        deleteButton.Click += (_, _) => { CloseOverlay(); tcs.TrySetResult(true); };
+
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Width = 60,
+            Classes = { "small", "cancel" }
+        };
+        cancelButton.Click += (_, _) => { CloseOverlay(); tcs.TrySetResult(false); };
+
+        var dialogContent = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(74, 85, 104)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(0),
+            MaxWidth = 380,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new StackPanel
+            {
+                Children =
+                {
+                    new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(45, 55, 72)),
+                        Padding = new Thickness(5),
+                        CornerRadius = new CornerRadius(4, 4, 0, 0),
+                        Child = new TextBlock
+                        {
+                            Text = "Delete Script",
+                            FontSize = 14,
+                            FontWeight = FontWeight.Bold,
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        }
+                    },
+                    new StackPanel
+                    {
+                        Margin = new Thickness(16, 12),
+                        Spacing = 12,
+                        Children =
+                        {
+                            new TextBlock
+                            {
+                                Text = $"Are you sure you want to delete '{fileName}'?",
+                                FontSize = 11,
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            new StackPanel
+                            {
+                                Orientation = Orientation.Horizontal,
+                                HorizontalAlignment = HorizontalAlignment.Right,
+                                Spacing = 10,
+                                Children = { cancelButton, deleteButton }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        overlayPanel = new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+            ZIndex = 1000,
+            Children = { dialogContent }
+        };
+
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            Logger.LogError("Could not get service provider");
+            return false;
+        }
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
+
+        return await tcs.Task;
     }
 
     private async Task EmulatorOptionsUserControlOverlay()
