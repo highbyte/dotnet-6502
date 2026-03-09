@@ -489,17 +489,20 @@
                                                                        Classes.script-user-disabled="{Binding IsUserDisabled}"/>
 
                                                             <!-- Enable/disable toggle -->
-                                                            <CheckBox Grid.Column="1"
-                                                                      IsChecked="{Binding IsScriptEnabled, Mode=OneWay}"
-                                                                      IsEnabled="{Binding CanToggle}"
-                                                                      Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ToggleScriptEnabledCommand}"
-                                                                      CommandParameter="{Binding FileName}"
-                                                                      HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center"
-                                                                      VerticalContentAlignment="Center"
-                                                                      Padding="0"
-                                                                      MinWidth="0"
-                                                                      MinHeight="0"/>
+                                                            <Viewbox Grid.Column="1"
+                                                                     Width="18" Height="22"
+                                                                     HorizontalAlignment="Center"
+                                                                     VerticalAlignment="Center"
+                                                                     Stretch="Uniform"
+                                                                     Margin="0,1,0,-1">
+                                                                <CheckBox IsChecked="{Binding IsScriptEnabled, Mode=OneWay}"
+                                                                          IsEnabled="{Binding CanToggle}"
+                                                                          Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ToggleScriptEnabledCommand}"
+                                                                          CommandParameter="{Binding FileName}"
+                                                                          Padding="0"
+                                                                          MinWidth="0"
+                                                                          MinHeight="0"/>
+                                                            </Viewbox>
 
                                                             <!-- Reload button -->
                                                             <Button Grid.Column="2"
