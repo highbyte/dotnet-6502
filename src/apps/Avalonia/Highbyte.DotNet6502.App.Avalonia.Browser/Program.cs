@@ -80,9 +80,16 @@ internal sealed partial class Program
         await JSHost.ImportAsync("BrowserScripting", BrowserScriptingResources.GetJavaScriptModuleDataUri());
 
         // Create scripting engine (loads scripts from localStorage if enabled in config)
+        // Binding is done here (not inside the library) so the AOT ConfigurationBindingGenerator
+        // can see the ScriptingConfig call site and generate trim-safe code.
+        WriteBootstrapLog("Reading scripting config.");
+        var scriptingConfig = new ScriptingConfig();
+        configuration.GetSection(ScriptingConfig.ConfigSectionName).Bind(scriptingConfig);
+        scriptingConfig.ScriptLoader = LoadScriptsFromLocalStorage;
+
         WriteBootstrapLog("Creating scripting engine.");
         var scriptingEngine = MoonSharpScriptingConfigurator.CreateForBrowser(
-            configuration, loggerFactory, LoadScriptsFromLocalStorage);
+            scriptingConfig, loggerFactory);
 
         // Start Avalonia app
         try
