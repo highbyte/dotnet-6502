@@ -20,4 +20,7 @@ public class NoScriptingEngine : IScriptingEngine
     public event EventHandler? ScriptStatusChanged { add { } remove { } }
     public void SetScriptEnabled(string fileName, bool enabled) { }
     public void ReloadScript(string fileName) { }
+    public bool CanManageScripts => false;
+    public void UpsertScript(string fileName, string content) { }
+    public void DeleteScript(string fileName) { }
 }

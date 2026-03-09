@@ -105,4 +105,27 @@ public interface IScriptingEngine
     /// </summary>
     /// <param name="fileName">The script file name (e.g. "example_monitor.lua").</param>
     void ReloadScript(string fileName);
+
+    /// <summary>
+    /// Whether this engine supports in-memory script management (add, edit, delete at runtime).
+    /// True only when scripts are loaded via a <c>ScriptLoader</c> callback (e.g. browser/localStorage mode).
+    /// False for filesystem-based engines and the null-object engine.
+    /// </summary>
+    bool CanManageScripts { get; }
+
+    /// <summary>
+    /// Adds a new script or hot-replaces an existing one using the provided source code.
+    /// Compiles, creates a new coroutine, and runs the initial resume.
+    /// Only meaningful when <see cref="CanManageScripts"/> is true.
+    /// </summary>
+    /// <param name="fileName">Script file name (e.g. "myscript.lua").</param>
+    /// <param name="content">Lua source code.</param>
+    void UpsertScript(string fileName, string content);
+
+    /// <summary>
+    /// Removes a script from the engine at runtime, stopping its coroutine and unregistering its hooks.
+    /// Only meaningful when <see cref="CanManageScripts"/> is true.
+    /// </summary>
+    /// <param name="fileName">Script file name (e.g. "myscript.lua").</param>
+    void DeleteScript(string fileName);
 }

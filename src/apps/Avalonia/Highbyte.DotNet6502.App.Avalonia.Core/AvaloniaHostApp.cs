@@ -39,6 +39,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
+    private readonly Func<string, string?>? _loadScript;
+    private readonly Action<string, string>? _saveScript;
+    private readonly Action<string>? _deleteScript;
     private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
 
@@ -167,6 +170,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="saveCustomConfigString"></param>
     /// <param name="saveCustomConfigSection"></param>
     /// <param name="gamepad">Optional gamepad provider. Pass null to use a NullAvaloniaGamepad.</param>
+    /// <param name="loadScript">Optional callback to load a script's source content by file name (browser: from localStorage).</param>
+    /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
+    /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
     internal AvaloniaHostApp(
         SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
@@ -175,7 +181,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         DotNet6502InMemLoggerConfiguration logConfig,
         Func<string, string, string?, Task>? saveCustomConfigString,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection,
-        IGamepad? gamepad = null
+        IGamepad? gamepad = null,
+        Func<string, string?>? loadScript = null,
+        Action<string, string>? saveScript = null,
+        Action<string>? deleteScript = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
@@ -184,6 +193,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _logConfig = logConfig;
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
+        _loadScript = loadScript;
+        _saveScript = saveScript;
+        _deleteScript = deleteScript;
 
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;
@@ -834,5 +846,21 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         if (configSection == null)
             return;
         await _saveCustomConfigSection(configSectionName, configSection, null);
+    }
+
+    internal bool CanManageScripts => ScriptingEngine.CanManageScripts;
+
+    internal string? LoadScriptContent(string fileName) => _loadScript?.Invoke(fileName);
+
+    internal void SaveScript(string fileName, string content)
+    {
+        _saveScript?.Invoke(fileName, content);
+        ScriptingEngine.UpsertScript(fileName, content);
+    }
+
+    internal void DeleteScript(string fileName)
+    {
+        _deleteScript?.Invoke(fileName);
+        ScriptingEngine.DeleteScript(fileName);
     }
 }

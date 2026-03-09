@@ -413,21 +413,34 @@
                                         <!-- Script table -->
                                         <StackPanel IsVisible="{Binding IsScriptingEnabled}">
 
+                                            <!-- Add script button (browser/manage mode only) -->
+                                            <Button Content="+ Add Script"
+                                                    Command="{Binding AddScriptCommand}"
+                                                    IsVisible="{Binding CanManageScripts}"
+                                                    FontSize="10"
+                                                    Padding="6,2"
+                                                    MinWidth="0"
+                                                    MinHeight="0"
+                                                    Margin="0,0,0,4"
+                                                    HorizontalAlignment="Left"/>
+
                                             <!-- Header row -->
                                             <Grid Margin="0,0,0,2">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="18"/>
                                                     <ColumnDefinition Width="28"/>
                                                     <ColumnDefinition Width="30"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                    <ColumnDefinition Width="30"/>
                                                     <ColumnDefinition Width="200"/>
                                                     <ColumnDefinition Width="100"/>
                                                     <ColumnDefinition Width="80"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="3" Text="Script" Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="4" Text="Status" Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="5" Text="Yield"  Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="6" Text="Hooks"  Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="5" Text="Script" Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="6" Text="Status" Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="7" Text="Yield"  Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="8" Text="Hooks"  Classes="small bold" FontSize="10"/>
                                             </Grid>
 
                                             <!-- Separator -->
@@ -459,6 +472,8 @@
                                                                 <ColumnDefinition Width="18"/>
                                                                 <ColumnDefinition Width="28"/>
                                                                 <ColumnDefinition Width="30"/>
+                                                                <ColumnDefinition Width="30"/>
+                                                                <ColumnDefinition Width="30"/>
                                                                 <ColumnDefinition Width="200"/>
                                                                 <ColumnDefinition Width="100"/>
                                                                 <ColumnDefinition Width="80"/>
@@ -481,12 +496,10 @@
                                                                       CommandParameter="{Binding FileName}"
                                                                       HorizontalAlignment="Center"
                                                                       VerticalAlignment="Center"
+                                                                      VerticalContentAlignment="Center"
                                                                       Padding="0"
                                                                       MinWidth="0"
-                                                                      MinHeight="0"
-                                                                      Margin="0,-8,0,-8"
-                                                                      RenderTransformOrigin="50%,50%"
-                                                                      RenderTransform="scale(0.7)"/>
+                                                                      MinHeight="0"/>
 
                                                             <!-- Reload button -->
                                                             <Button Grid.Column="2"
@@ -494,15 +507,50 @@
                                                                     Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ReloadScriptCommand}"
                                                                     CommandParameter="{Binding FileName}"
                                                                     IsEnabled="{Binding CanReload}"
-                                                                    FontSize="10"
-                                                                    Padding="4,1"
+                                                                    FontSize="12"
+                                                                    Height="22"
+                                                                    Padding="4,0"
                                                                     MinWidth="0"
                                                                     MinHeight="0"
                                                                     VerticalAlignment="Center"
-                                                                    HorizontalAlignment="Center"/>
+                                                                    VerticalContentAlignment="Center"
+                                                                    HorizontalAlignment="Center"
+                                                                    ToolTip.Tip="Reload script"/>
+
+                                                            <!-- Edit button (browser/manage mode only) -->
+                                                            <Button Grid.Column="3"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).EditScriptCommand}"
+                                                                    CommandParameter="{Binding FileName}"
+                                                                    IsVisible="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).CanManageScripts}"
+                                                                    Height="22"
+                                                                    Padding="4,0"
+                                                                    MinWidth="0"
+                                                                    MinHeight="0"
+                                                                    VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Center"
+                                                                    ToolTip.Tip="Edit script">
+                                                                <PathIcon Width="12" Height="12"
+                                                                          Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                                                            </Button>
+
+                                                            <!-- Delete button (browser/manage mode only) -->
+                                                            <Button Grid.Column="4"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).DeleteScriptCommand}"
+                                                                    CommandParameter="{Binding FileName}"
+                                                                    IsVisible="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).CanManageScripts}"
+                                                                    Height="22"
+                                                                    Padding="4,0"
+                                                                    MinWidth="0"
+                                                                    MinHeight="0"
+                                                                    VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Center"
+                                                                    ToolTip.Tip="Delete script">
+                                                                <PathIcon Width="12" Height="12"
+                                                                          Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                                                            </Button>
 
                                                             <!-- File name -->
-                                                            <TextBlock Grid.Column="3"
+                                                            <TextBlock Grid.Column="5"
                                                                        Text="{Binding FileName}"
                                                                        Classes="small"
                                                                        FontFamily="Consolas,Monaco,'Courier New',monospace"
@@ -511,7 +559,7 @@
                                                                        TextTrimming="CharacterEllipsis"/>
 
                                                             <!-- Status -->
-                                                            <TextBlock Grid.Column="4"
+                                                            <TextBlock Grid.Column="6"
                                                                        Text="{Binding Status}"
                                                                        Classes="small"
                                                                        FontSize="10"
@@ -520,7 +568,7 @@
                                                                        Classes.script-user-disabled="{Binding IsUserDisabled}"/>
 
                                                             <!-- Yield Type -->
-                                                            <TextBlock Grid.Column="5"
+                                                            <TextBlock Grid.Column="7"
                                                                        Text="{Binding YieldType}"
                                                                        Classes="small"
                                                                        FontSize="10"
@@ -528,7 +576,7 @@
                                                                        VerticalAlignment="Center"/>
 
                                                             <!-- Hooks -->
-                                                            <TextBlock Grid.Column="6"
+                                                            <TextBlock Grid.Column="8"
                                                                        Text="{Binding Hooks}"
                                                                        Classes="small"
                                                                        FontSize="10"

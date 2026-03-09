@@ -364,6 +364,109 @@ public class ScriptingEngine : IScriptingEngine
         ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public bool CanManageScripts => _config.ScriptLoader != null;
+
+    public void UpsertScript(string fileName, string content)
+    {
+        // Don't replace a script that is actively running
+        var existing = _handles.FirstOrDefault(h => h.FileName == fileName);
+        if (existing != null
+            && _coroutineStates.GetValueOrDefault(existing) == AdapterCoroutineState.Suspended
+            && !_userDisabledFiles.Contains(fileName)
+            && !_runtimeErrorFiles.Contains(fileName))
+        {
+            _logger.LogWarning("[Scripting] Cannot upsert {File}: script is currently running", fileName);
+            return;
+        }
+
+        _logger.LogInformation("[Scripting] Upserting: {File}", fileName);
+
+        var insertIdx = existing != null ? _handles.IndexOf(existing) : -1;
+
+        // Clean up old state
+        if (existing != null)
+        {
+            _coroutineStates.Remove(existing);
+            _lastYieldTypes.Remove(existing);
+            _handles.RemoveAt(insertIdx);
+        }
+        _failedFiles.Remove(fileName);
+        _runtimeErrorFiles.Remove(fileName);
+        _userDisabledFiles.Remove(fileName);
+        _notYetResumedFiles.Remove(fileName);
+
+        // Remove hook registrations from old script version
+        var hooksToRemove = _hookSourceFiles.Where(kv => kv.Value == fileName).Select(kv => kv.Key).ToList();
+        foreach (var hook in hooksToRemove)
+            _hookSourceFiles.Remove(hook);
+
+        var newHandle = _adapter.LoadScript(content, fileName);
+        if (newHandle == null)
+        {
+            _logger.LogError("[Scripting] Failed to compile upserted {File}", fileName);
+            _failedFiles.Add(fileName);
+            ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        if (insertIdx >= 0)
+            _handles.Insert(insertIdx, newHandle);
+        else
+            _handles.Add(newHandle);
+
+        if (!_config.EnableScriptsAtStart)
+        {
+            _notYetResumedFiles.Add(fileName);
+            _userDisabledFiles.Add(fileName);
+            _adapter.RebuildHookCache();
+            ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        var state = _adapter.InitialResume(newHandle);
+        _coroutineStates[newHandle] = state.CoroutineState;
+        _lastYieldTypes[newHandle] = state.LastYieldType;
+
+        if (state.CoroutineState == AdapterCoroutineState.RuntimeError)
+            _runtimeErrorFiles.Add(fileName);
+
+        foreach (var hook in state.RegisteredHooks)
+            _hookSourceFiles[hook] = fileName;
+
+        _adapter.RebuildHookCache();
+        ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void DeleteScript(string fileName)
+    {
+        var existing = _handles.FirstOrDefault(h => h.FileName == fileName);
+        if (existing == null && !_failedFiles.Contains(fileName))
+        {
+            _logger.LogWarning("[Scripting] Cannot delete {File}: script not found", fileName);
+            return;
+        }
+
+        _logger.LogInformation("[Scripting] Deleting: {File}", fileName);
+
+        if (existing != null)
+        {
+            _coroutineStates.Remove(existing);
+            _lastYieldTypes.Remove(existing);
+            _handles.Remove(existing);
+        }
+        _failedFiles.Remove(fileName);
+        _runtimeErrorFiles.Remove(fileName);
+        _userDisabledFiles.Remove(fileName);
+        _notYetResumedFiles.Remove(fileName);
+
+        var hooksToRemove = _hookSourceFiles.Where(kv => kv.Value == fileName).Select(kv => kv.Key).ToList();
+        foreach (var hook in hooksToRemove)
+            _hookSourceFiles.Remove(hook);
+
+        _adapter.RebuildHookCache();
+        ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public IReadOnlyList<ScriptStatus> GetScriptStatuses()
     {
         // Build reverse lookup: fileName -> hooks defined by that file
