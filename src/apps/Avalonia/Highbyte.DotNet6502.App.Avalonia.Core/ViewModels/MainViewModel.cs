@@ -327,6 +327,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     // Events for script editor dialog (UI operation handled in View code-behind)
     public event EventHandler? RequestAddScript;
     public event EventHandler<string>? RequestEditScript;
+    public event EventHandler<DeleteScriptConfirmationEventArgs>? RequestDeleteScript;
 
     // Event for requesting the emulator options overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
@@ -646,9 +647,13 @@ public class MainViewModel : ViewModelBase, IDisposable
             RxApp.MainThreadScheduler);
 
         DeleteScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
-            (fileName) =>
+            async (fileName) =>
             {
-                _hostApp.DeleteScript(fileName);
+                var tcs = new TaskCompletionSource<bool>();
+                var args = new DeleteScriptConfirmationEventArgs(fileName, tcs);
+                RequestDeleteScript?.Invoke(this, args);
+                if (await tcs.Task)
+                    _hostApp.DeleteScript(fileName);
             },
             null,
             RxApp.MainThreadScheduler);
@@ -1039,4 +1044,18 @@ public class ScriptDisplayEntry
             ? string.Join(", ", scriptStatus.Hooks)
             : "-";
     }
+}
+
+public class DeleteScriptConfirmationEventArgs : EventArgs
+{
+    public string FileName { get; }
+    private readonly TaskCompletionSource<bool> _tcs;
+
+    public DeleteScriptConfirmationEventArgs(string fileName, TaskCompletionSource<bool> tcs)
+    {
+        FileName = fileName;
+        _tcs = tcs;
+    }
+
+    public void SetResult(bool confirmed) => _tcs.TrySetResult(confirmed);
 }
