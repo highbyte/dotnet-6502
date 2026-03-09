@@ -108,6 +108,8 @@ public partial class MainView : UserControl
         {
             _subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
             _subscribedViewModel.EmulatorOptionsRequested += OnEmulatorOptionsRequested;
+            _subscribedViewModel.RequestAddScript += OnRequestAddScript;
+            _subscribedViewModel.RequestEditScript += OnRequestEditScript;
             // Check immediately in case validation errors are already set
             CheckAndSelectValidationErrorsTab();
             // Listen for log changes
@@ -345,6 +347,8 @@ public partial class MainView : UserControl
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _subscribedViewModel.EmulatorOptionsRequested -= OnEmulatorOptionsRequested;
+            _subscribedViewModel.RequestAddScript -= OnRequestAddScript;
+            _subscribedViewModel.RequestEditScript -= OnRequestEditScript;
             _subscribedViewModel.LogMessages.CollectionChanged -= LogMessages_CollectionChanged;
             _subscribedViewModel = null;
         }
@@ -548,6 +552,59 @@ public partial class MainView : UserControl
 
     private void OnEmulatorOptionsRequested(object? sender, EventArgs e)
         => SafeAsyncHelper.Execute(EmulatorOptionsUserControlOverlay);
+
+    private void OnRequestAddScript(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(ShowAddScriptDialog);
+
+    private void OnRequestEditScript(object? sender, string fileName)
+        => SafeAsyncHelper.Execute(() => ShowEditScriptDialog(fileName));
+
+    private async Task ShowAddScriptDialog()
+    {
+        if (_subscribedViewModel?.HostApp == null) return;
+        var vm = new ScriptEditorViewModel(isNew: true);
+        await OpenScriptEditorDialog(vm);
+        if (vm.DialogResult is { } result)
+            _subscribedViewModel.HostApp.SaveScript(result.fileName, result.content);
+    }
+
+    private async Task ShowEditScriptDialog(string fileName)
+    {
+        if (_subscribedViewModel?.HostApp == null) return;
+        var content = _subscribedViewModel.HostApp.LoadScriptContent(fileName) ?? string.Empty;
+        var vm = new ScriptEditorViewModel(isNew: false, fileName, content);
+        await OpenScriptEditorDialog(vm);
+        if (vm.DialogResult is { } result)
+            _subscribedViewModel.HostApp.SaveScript(result.fileName, result.content);
+    }
+
+    private async Task OpenScriptEditorDialog(ScriptEditorViewModel vm)
+    {
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            Logger.LogError("Could not get service provider");
+            return;
+        }
+
+        var editorControl = new ScriptEditorDialog { DataContext = vm };
+
+        var tcs = new TaskCompletionSource<bool>();
+        editorControl.DialogCompleted += (_, saved) => tcs.TrySetResult(saved);
+
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(editorControl);
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
+
+        try
+        {
+            await tcs.Task;
+        }
+        finally
+        {
+            mainGrid.Children.Remove(overlayPanel);
+        }
+    }
 
     private async Task EmulatorOptionsUserControlOverlay()
     {

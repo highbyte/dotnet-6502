@@ -129,6 +129,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly ObservableCollection<ScriptDisplayEntry> _scriptEntries = new();
     public ObservableCollection<ScriptDisplayEntry> ScriptEntries => _scriptEntries;
 
+    public bool CanManageScripts { get; }
+
     // Tab tracking for performance optimization
     private string _selectedTabName = "";
     public string SelectedTabName
@@ -318,6 +320,13 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
     public ReactiveCommand<string, Unit> ToggleScriptEnabledCommand { get; }
     public ReactiveCommand<string, Unit> ReloadScriptCommand { get; }
+    public ReactiveCommand<Unit, Unit> AddScriptCommand { get; }
+    public ReactiveCommand<string, Unit> EditScriptCommand { get; }
+    public ReactiveCommand<string, Unit> DeleteScriptCommand { get; }
+
+    // Events for script editor dialog (UI operation handled in View code-behind)
+    public event EventHandler? RequestAddScript;
+    public event EventHandler<string>? RequestEditScript;
 
     // Event for requesting the emulator options overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
@@ -620,6 +629,30 @@ public class MainViewModel : ViewModelBase, IDisposable
             null,
             RxApp.MainThreadScheduler);
 
+        AddScriptCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                RequestAddScript?.Invoke(this, EventArgs.Empty);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        EditScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            (fileName) =>
+            {
+                RequestEditScript?.Invoke(this, fileName);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        DeleteScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            (fileName) =>
+            {
+                _hostApp.DeleteScript(fileName);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
         // Emulator Options command - only enabled when emulator is uninitialized
         EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -652,6 +685,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                  .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
 
         // Initialize scripts tab data and subscribe to status changes
+        CanManageScripts = _hostApp.CanManageScripts;
         RefreshScriptStatuses();
         _hostApp.ScriptingEngine.ScriptStatusChanged += OnScriptStatusChanged;
     }

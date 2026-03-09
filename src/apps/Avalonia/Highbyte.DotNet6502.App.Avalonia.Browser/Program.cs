@@ -91,11 +91,16 @@ internal sealed partial class Program
         var scriptingEngine = MoonSharpScriptingConfigurator.CreateForBrowser(
             scriptingConfig, loggerFactory);
 
+        // Script persistence callbacks (localStorage-backed, browser-only)
+        string? LoadScript(string name) => JSInterop.GetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
+        void SaveScript(string name, string content) => JSInterop.SetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}", content);
+        void DeleteScript(string name) => JSInterop.RemoveLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
+
         // Start Avalonia app
         try
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -178,6 +183,9 @@ internal sealed partial class Program
 
         [JSImport("globalThis.localStorage.setItem")]
         public static partial void SetLocalStorage(string key, string? value);
+
+        [JSImport("globalThis.localStorage.removeItem")]
+        public static partial void RemoveLocalStorage(string key);
 
         [JSImport("getScriptsFromLocalStorage", "BrowserScripting")]
         public static partial string GetScriptsFromLocalStorage(string prefix);
@@ -319,7 +327,10 @@ internal sealed partial class Program
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge,
         BrowserGamepad? browserGamepad = null,
-        IScriptingEngine? scriptingEngine = null)
+        IScriptingEngine? scriptingEngine = null,
+        Func<string, string?>? loadScript = null,
+        Action<string, string>? saveScript = null,
+        Action<string>? deleteScript = null)
     {
         return AppBuilder.Configure(() =>
         {
@@ -332,7 +343,10 @@ internal sealed partial class Program
                                 saveCustomConfigString: PersistStringToLocalStorage,
                                 saveCustomConfigSection: PersistConfigSectionToLocalStorage,
                                 gamepad: browserGamepad,
-                                scriptingEngine: scriptingEngine
+                                scriptingEngine: scriptingEngine,
+                                loadScript: loadScript,
+                                saveScript: saveScript,
+                                deleteScript: deleteScript
                             );
         })
         .AfterSetup(_ =>
