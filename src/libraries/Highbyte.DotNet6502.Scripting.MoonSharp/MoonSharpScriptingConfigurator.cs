@@ -37,30 +37,17 @@ public static class MoonSharpScriptingConfigurator
 
     /// <summary>
     /// Creates the appropriate <see cref="IScriptingEngine"/> for browser/WASM environments.
-    /// Scripts are supplied via <paramref name="scriptLoader"/> instead of being read from the filesystem.
     /// Returns <see cref="NoScriptingEngine"/> if scripting is disabled in configuration.
     /// </summary>
+    /// <param name="config">
+    /// Pre-bound <see cref="ScriptingConfig"/>. Binding must be done by the caller (e.g. in Program.cs)
+    /// where the AOT ConfigurationBindingGenerator can see the call site and generate trim-safe code.
+    /// </param>
     public static IScriptingEngine CreateForBrowser(
-        IConfiguration configuration,
-        ILoggerFactory loggerFactory,
-        Func<IEnumerable<(string fileName, string content)>> scriptLoader)
+        ScriptingConfig config,
+        ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
-
-        // Read config using GetValue<T>() instead of Bind() to avoid reflection on ScriptingConfig,
-        // which is trimmed in AOT/WASM builds.
-        var section = configuration.GetSection(ScriptingConfig.ConfigSectionName);
-        var config = new ScriptingConfig
-        {
-            Enabled                = section.GetValue<bool>(nameof(ScriptingConfig.Enabled)),
-            EnableScriptsAtStart   = section.GetValue<bool>(nameof(ScriptingConfig.EnableScriptsAtStart)),
-            MaxExecutionWarningMs  = section.GetValue<int>(nameof(ScriptingConfig.MaxExecutionWarningMs), 5),
-            MaxInstructionsPerResume = section.GetValue<int>(nameof(ScriptingConfig.MaxInstructionsPerResume), 1_000_000),
-            // File I/O and HTTP are not available in the browser sandbox.
-            AllowFileIO = false,
-            AllowHttpRequests = false,
-            ScriptLoader = scriptLoader,
-        };
 
         if (!config.Enabled)
         {
