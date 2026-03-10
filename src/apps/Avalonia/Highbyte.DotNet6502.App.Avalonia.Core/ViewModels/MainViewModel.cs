@@ -131,6 +131,10 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     public bool CanManageScripts { get; }
 
+    // Show the script directory info banner on Desktop (not browser) when scripting is enabled
+    public bool ShowScriptDirectoryInfo => IsScriptingEnabled && !CanManageScripts;
+    public string ScriptDirectory => _hostApp.ScriptDirectory;
+
     // Tab tracking for performance optimization
     private string _selectedTabName = "";
     public string SelectedTabName
@@ -323,11 +327,14 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> AddScriptCommand { get; }
     public ReactiveCommand<string, Unit> EditScriptCommand { get; }
     public ReactiveCommand<string, Unit> DeleteScriptCommand { get; }
+    public ReactiveCommand<Unit, Unit> RefreshScriptsCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenScriptFolderCommand { get; }
 
     // Events for script editor dialog (UI operation handled in View code-behind)
     public event EventHandler? RequestAddScript;
     public event EventHandler<string>? RequestEditScript;
     public event EventHandler<DeleteScriptConfirmationEventArgs>? RequestDeleteScript;
+    public event EventHandler? RequestOpenScriptFolder;
 
     // Event for requesting the emulator options overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
@@ -655,6 +662,16 @@ public class MainViewModel : ViewModelBase, IDisposable
                 if (await tcs.Task)
                     _hostApp.DeleteScript(fileName);
             },
+            null,
+            RxApp.MainThreadScheduler);
+
+        RefreshScriptsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => _hostApp.RefreshScripts(),
+            null,
+            RxApp.MainThreadScheduler);
+
+        OpenScriptFolderCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => RequestOpenScriptFolder?.Invoke(this, EventArgs.Empty),
             null,
             RxApp.MainThreadScheduler);
 

@@ -849,6 +849,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     }
 
     internal bool CanManageScripts => ScriptingEngine.CanManageScripts;
+    internal string ScriptDirectory => ScriptingEngine.ScriptDirectory;
+    internal void RefreshScripts() => ScriptingEngine.ReloadAllScripts();
 
     internal string? LoadScriptContent(string fileName) => _loadScript?.Invoke(fileName);
 

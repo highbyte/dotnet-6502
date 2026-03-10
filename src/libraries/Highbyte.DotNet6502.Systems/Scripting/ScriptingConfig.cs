@@ -7,7 +7,7 @@ public class ScriptingConfig
     /// <summary>
     /// Whether Lua scripting is enabled. Default is false.
     /// </summary>
-    public bool Enabled { get; set; } = false;
+    public bool Enabled { get; set; } = true;
 
     /// <summary>
     /// Directory path where .lua script files are loaded from.

@@ -413,6 +413,44 @@
                                         <!-- Script table -->
                                         <StackPanel IsVisible="{Binding IsScriptingEnabled}">
 
+                                            <!-- Desktop info banner (shown when not in manage/browser mode) -->
+                                            <Border IsVisible="{Binding ShowScriptDirectoryInfo}"
+                                                    Background="{DynamicResource SecondaryBg}"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="8,6"
+                                                    Margin="0,0,0,6">
+                                                <StackPanel Spacing="2">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <Button Content="↻"
+                                                                Command="{Binding RefreshScriptsCommand}"
+                                                                FontSize="12"
+                                                                Height="22" Padding="4,0"
+                                                                MinWidth="0" MinHeight="0"
+                                                                VerticalAlignment="Center"
+                                                                VerticalContentAlignment="Center"
+                                                                ToolTip.Tip="Reload scripts from folder"/>
+                                                        <TextBlock Text="Script folder:"
+                                                                   Classes="small bold"
+                                                                   VerticalAlignment="Center"/>
+                                                        <Button Content="{Binding ScriptDirectory}"
+                                                                Command="{Binding OpenScriptFolderCommand}"
+                                                                Classes="link"
+                                                                FontSize="10"
+                                                                Padding="0"
+                                                                Margin="0"
+                                                                BorderThickness="0"
+                                                                VerticalAlignment="Center"
+                                                                ToolTip.Tip="Open script folder in file browser"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Use your OS file browser and editor to add, edit, or delete scripts. The script directory is set in appsettings.json in the same folder as the emulator executable. Restart app after making changes to the script directory path."
+                                                               Classes="small"
+                                                               Foreground="{DynamicResource SecondaryText}"
+                                                               TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
                                             <!-- Add script button (browser/manage mode only) -->
                                             <Button Content="+ Add Script"
                                                     Command="{Binding AddScriptCommand}"
