@@ -8,7 +8,7 @@
 --   mem.write(address, value)   -> writes byte to address
 --   log.info(msg), log.debug(msg), log.warn(msg), log.error(msg)
 --
--- To enable scripting, set "Enabled": true in appsettings.json under "Highbyte.DotNet6502.Scripting".
+-- To enable scripting, set "Enabled": true in the "Highbyte.DotNet6502.Scripting" config section.
 
 
 -- Called before each emulator frame executes (~50 times/sec for C64)

@@ -10,7 +10,7 @@
 --   file.exists(name)        -> boolean
 --   file.list([pattern])     -> table of filenames (1-indexed), pattern defaults to "*"
 --
--- Write operations require AllowFileWrite: true in appsettings.json:
+-- Write operations require AllowFileWrite: true in the "Highbyte.DotNet6502.Scripting" config section:
 --   file.write(name, text)   -> writes/overwrites a text file
 --   file.append(name, text)  -> appends text to a file (creates if not exists)
 --   file.delete(name)        -> deletes a file (no-op if not found)

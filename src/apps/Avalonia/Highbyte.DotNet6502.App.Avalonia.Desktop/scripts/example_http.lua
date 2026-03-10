@@ -1,12 +1,9 @@
 -- example_http.lua
 -- Demonstrates outbound HTTP operations via the 'http' global.
 --
--- Prerequisites in appsettings.json:
---   "Highbyte.DotNet6502.Scripting": {
---     "Enabled": true,
---     "AllowHttpRequests": true,
---     ...
---   }
+-- Prerequisites: in the "Highbyte.DotNet6502.Scripting" config section, set:
+--   "Enabled": true
+--   "AllowHttpRequests": true
 --
 -- HTTP calls block the emulator thread for their duration, so keep them
 -- to startup/one-shot use (on_started) or throttle via emu.frameadvance().
