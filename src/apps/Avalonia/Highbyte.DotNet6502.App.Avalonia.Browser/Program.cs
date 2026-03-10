@@ -21,6 +21,17 @@ internal sealed partial class Program
     private const string LOCAL_STORAGE_SCRIPT_PREFIX = "dotnet6502.lua.";
     private const string LOCAL_STORAGE_STORE_PREFIX = "dotnet6502.store.";
 
+    private static readonly string[] _exampleScriptNames =
+    [
+        "example_monitor.lua",
+        "example_store.lua",
+        "example_http.lua",
+        "example_frameadvance.lua",
+        "example_emulator_control.lua",
+        "example_c64_border_cycle.lua",
+        "example_c64_download_and_run_prg.lua",
+    ];
+
     [RequiresUnreferencedCode("Calls JsonSerializer.Deserialize(String) and JsonSerializer.Serialize(object)")]
     private static async Task<int> Main(string[] args)
     {
@@ -112,11 +123,14 @@ internal sealed partial class Program
         void SaveScript(string name, string content) => JSInterop.SetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}", content);
         void DeleteScript(string name) => JSInterop.RemoveLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
 
+        // Load-examples callback: fetches bundled scripts and saves any that are not yet in localStorage
+        Task LoadExamples() => SeedExampleScriptsAsync(SaveScript);
+
         // Start Avalonia app
         try
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamples)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -208,6 +222,28 @@ internal sealed partial class Program
 
         [JSImport("getLocalStorageKeys", "BrowserScripting")]
         public static partial string GetLocalStorageKeys(string prefix);
+    }
+
+    private static async Task SeedExampleScriptsAsync(Action<string, string> saveScript)
+    {
+        using var http = GetAppUrlHttpClient();
+        foreach (var scriptName in _exampleScriptNames)
+        {
+            var key = $"{LOCAL_STORAGE_SCRIPT_PREFIX}{scriptName}";
+            if (JSInterop.GetLocalStorage(key) != null)
+                continue;   // already exists (user content) — skip
+
+            try
+            {
+                var content = await http.GetStringAsync($"scripts/{scriptName}");
+                saveScript(scriptName, content);   // writes localStorage + hot-adds to engine
+                WriteBootstrapLog($"Seeded example script: {scriptName}");
+            }
+            catch (Exception ex)
+            {
+                WriteBootstrapLog($"Could not seed example script '{scriptName}': {ex.Message}", LogLevel.Warning);
+            }
+        }
     }
 
     private static IEnumerable<(string fileName, string content)> LoadScriptsFromLocalStorage()
@@ -349,7 +385,8 @@ internal sealed partial class Program
         IScriptingEngine? scriptingEngine = null,
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
-        Action<string>? deleteScript = null)
+        Action<string>? deleteScript = null,
+        Func<Task>? loadExamples = null)
     {
         return AppBuilder.Configure(() =>
         {
@@ -365,7 +402,8 @@ internal sealed partial class Program
                                 scriptingEngine: scriptingEngine,
                                 loadScript: loadScript,
                                 saveScript: saveScript,
-                                deleteScript: deleteScript
+                                deleteScript: deleteScript,
+                                loadExamples: loadExamples
                             );
         })
         .AfterSetup(_ =>

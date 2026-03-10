@@ -42,6 +42,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly Func<string, string?>? _loadScript;
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
+    private readonly Func<Task>? _loadExamples;
     private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
 
@@ -173,6 +174,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="loadScript">Optional callback to load a script's source content by file name (browser: from localStorage).</param>
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
+    /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
     internal AvaloniaHostApp(
         SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
@@ -184,7 +186,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         IGamepad? gamepad = null,
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
-        Action<string>? deleteScript = null
+        Action<string>? deleteScript = null,
+        Func<Task>? loadExamples = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
@@ -196,6 +199,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _loadScript = loadScript;
         _saveScript = saveScript;
         _deleteScript = deleteScript;
+        _loadExamples = loadExamples;
 
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;
@@ -849,6 +853,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     }
 
     internal bool CanManageScripts => ScriptingEngine.CanManageScripts;
+    internal bool CanLoadExamples => _loadExamples != null;
+    internal async Task LoadExamplesAsync()
+    {
+        if (_loadExamples == null) return;
+        await _loadExamples();
+        ScriptingEngine.ReloadAllScripts();  // pick up newly seeded scripts and refresh UI
+    }
     internal string ScriptDirectory => ScriptingEngine.ScriptDirectory;
     internal void RefreshScripts() => ScriptingEngine.ReloadAllScripts();
 
