@@ -202,6 +202,7 @@ public class ScriptingEngine : IScriptingEngine
         _frameCount++;
         var activeHandles = GetActiveHandles(filterByYieldType: ScriptYieldType.FrameAdvance);
         _adapter.ResumeFrameAdvanceCoroutines(activeHandles, OnResumeResult);
+        _adapter.ResumePendingHttpCoroutines(GetAllNonFailedHandles(), OnResumeResult);
         InvokeHookIfEnabled("on_before_frame");
     }
 
@@ -552,6 +553,15 @@ public class ScriptingEngine : IScriptingEngine
         }
 
         return statuses;
+    }
+
+    /// <summary>
+    /// All handles that compiled successfully (not in _failedFiles), regardless of enabled/yield state.
+    /// Used for HTTP pending checks which span all yield types and disabled states.
+    /// </summary>
+    private List<AdapterScriptHandle> GetAllNonFailedHandles()
+    {
+        return _handles.Where(h => !_runtimeErrorFiles.Contains(h.FileName)).ToList();
     }
 
     /// <summary>

@@ -5,8 +5,8 @@
 --   "Enabled": true
 --   "AllowHttpRequests": true
 --
--- HTTP calls block the emulator thread for their duration, so keep them
--- to startup/one-shot use (on_started) or throttle via emu.frameadvance().
+-- HTTP calls are async: the emulator keeps running while the request is in-flight,
+-- and the script resumes automatically when the response arrives.
 
 -- Called once when the emulator system starts (or is reset).
 function on_started()
