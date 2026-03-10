@@ -111,6 +111,7 @@ public partial class MainView : UserControl
             _subscribedViewModel.RequestAddScript += OnRequestAddScript;
             _subscribedViewModel.RequestEditScript += OnRequestEditScript;
             _subscribedViewModel.RequestDeleteScript += OnRequestDeleteScript;
+            _subscribedViewModel.RequestOpenScriptFolder += OnRequestOpenScriptFolder;
             // Check immediately in case validation errors are already set
             CheckAndSelectValidationErrorsTab();
             // Listen for log changes
@@ -351,6 +352,7 @@ public partial class MainView : UserControl
             _subscribedViewModel.RequestAddScript -= OnRequestAddScript;
             _subscribedViewModel.RequestEditScript -= OnRequestEditScript;
             _subscribedViewModel.RequestDeleteScript -= OnRequestDeleteScript;
+            _subscribedViewModel.RequestOpenScriptFolder -= OnRequestOpenScriptFolder;
             _subscribedViewModel.LogMessages.CollectionChanged -= LogMessages_CollectionChanged;
             _subscribedViewModel = null;
         }
@@ -712,6 +714,14 @@ public partial class MainView : UserControl
         mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
 
         return await tcs.Task;
+    }
+
+    private void OnRequestOpenScriptFolder(object? sender, EventArgs e)
+    {
+        var dir = _subscribedViewModel?.ScriptDirectory;
+        if (string.IsNullOrEmpty(dir)) return;
+        var topLevel = TopLevel.GetTopLevel(this);
+        topLevel?.Launcher.LaunchUriAsync(new Uri("file://" + dir));
     }
 
     private async Task EmulatorOptionsUserControlOverlay()

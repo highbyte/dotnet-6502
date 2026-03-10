@@ -107,6 +107,18 @@ public interface IScriptingEngine
     void ReloadScript(string fileName);
 
     /// <summary>
+    /// Reloads all scripts from their source (disk or loader callback), resetting all engine state.
+    /// Equivalent to calling <see cref="LoadScripts"/> again. Safe to call at any time.
+    /// </summary>
+    void ReloadAllScripts();
+
+    /// <summary>
+    /// The resolved directory path from which scripts are loaded.
+    /// Returns an empty string for the null-object engine or when no directory is configured.
+    /// </summary>
+    string ScriptDirectory { get; }
+
+    /// <summary>
     /// Whether this engine supports in-memory script management (add, edit, delete at runtime).
     /// True only when scripts are loaded via a <c>ScriptLoader</c> callback (e.g. browser/localStorage mode).
     /// False for filesystem-based engines and the null-object engine.

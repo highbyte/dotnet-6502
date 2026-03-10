@@ -47,6 +47,9 @@ public class ScriptingEngine : IScriptingEngine
     ];
 
     public bool IsEnabled => true;
+    public string ScriptDirectory => string.IsNullOrEmpty(_config.ScriptDirectory)
+        ? string.Empty
+        : Path.GetFullPath(_config.ScriptDirectory);
     public event EventHandler? ScriptStatusChanged;
 
     public ScriptingEngine(IScriptingEngineAdapter adapter, ScriptingConfig config, ILoggerFactory loggerFactory)
@@ -57,6 +60,8 @@ public class ScriptingEngine : IScriptingEngine
     }
 
     public void SetHostApp(IHostApp? hostApp) => _hostApp = hostApp;
+
+    public void ReloadAllScripts() => LoadScripts();
 
     public async Task DrainPendingActionsAsync()
     {
