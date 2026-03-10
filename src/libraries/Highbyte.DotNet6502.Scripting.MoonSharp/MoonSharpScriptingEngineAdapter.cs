@@ -246,6 +246,61 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             _script.Globals["http"] = httpTable;
         }
 
+        // store table: cross-platform key/value persistence.
+        // Uses StoreBackend (browser/localStorage) if set, otherwise FileSystemScriptStore.
+        if (config.AllowStore)
+        {
+            IScriptStore? storeBackend = config.StoreBackend;
+            if (storeBackend == null && !string.IsNullOrEmpty(config.ScriptDirectory))
+            {
+                var subDir = string.IsNullOrEmpty(config.StoreSubDirectory) ? ".store" : config.StoreSubDirectory;
+                var storeDir = Path.Combine(Path.GetFullPath(config.ScriptDirectory), subDir);
+                storeBackend = new FileSystemScriptStore(storeDir);
+            }
+
+            if (storeBackend != null)
+            {
+                var store = storeBackend; // capture for closures
+                var storeTable = new Table(_script);
+
+                storeTable["get"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    var key = args.Count > 0 ? args[0].CastToString() : null!;
+                    var val = store.Get(key);
+                    return val != null ? DynValue.NewString(val) : DynValue.Nil;
+                });
+                storeTable["set"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    var key = args.Count > 0 ? args[0].CastToString() : null!;
+                    var value = args.Count > 1 ? args[1].CastToString() ?? "" : "";
+                    try { store.Set(key, value); }
+                    catch (ArgumentException ex) { throw new ScriptRuntimeException(ex.Message); }
+                    return DynValue.Void;
+                });
+                storeTable["delete"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    var key = args.Count > 0 ? args[0].CastToString() : null!;
+                    try { store.Delete(key); }
+                    catch (ArgumentException ex) { throw new ScriptRuntimeException(ex.Message); }
+                    return DynValue.Void;
+                });
+                storeTable["exists"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    var key = args.Count > 0 ? args[0].CastToString() : "";
+                    return DynValue.NewBoolean(store.Exists(key));
+                });
+                storeTable["list"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    var t = new Table(_script!);
+                    int i = 1;
+                    foreach (var key in store.List()) t[i++] = key;
+                    return DynValue.NewTable(t);
+                });
+
+                _script.Globals["store"] = storeTable;
+            }
+        }
+
         // emu table: frame control + emulator control operations
         var emuTable = new Table(_script);
         emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => s_frameAdvanceYield);

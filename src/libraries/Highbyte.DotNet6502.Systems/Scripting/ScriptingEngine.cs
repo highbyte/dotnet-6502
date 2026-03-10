@@ -275,17 +275,28 @@ public class ScriptingEngine : IScriptingEngine
 
     public void ReloadScript(string fileName)
     {
+        // Determine content source: ScriptLoader (browser) or filesystem (desktop)
+        string? filePath = null;
+        string? loaderContent = null;
+
         if (_config.ScriptLoader != null)
         {
-            _logger.LogWarning("[Scripting] Hot-reload not supported in browser/localStorage mode: {File}", fileName);
-            return;
+            var entry = _config.ScriptLoader().FirstOrDefault(s => s.fileName == fileName);
+            if (entry.fileName == null)
+            {
+                _logger.LogError("[Scripting] Cannot reload {File}: script not found in loader", fileName);
+                return;
+            }
+            loaderContent = entry.content;
         }
-
-        var filePath = Path.Combine(_config.ScriptDirectory, fileName);
-        if (!File.Exists(filePath))
+        else
         {
-            _logger.LogError("[Scripting] Cannot reload {File}: file not found at {Path}", fileName, filePath);
-            return;
+            filePath = Path.Combine(_config.ScriptDirectory, fileName);
+            if (!File.Exists(filePath))
+            {
+                _logger.LogError("[Scripting] Cannot reload {File}: file not found at {Path}", fileName, filePath);
+                return;
+            }
         }
 
         // Don't reload scripts that are actively running
@@ -321,19 +332,22 @@ public class ScriptingEngine : IScriptingEngine
         foreach (var hook in hooksToRemove)
             _hookSourceFiles.Remove(hook);
 
-        // Recompile (adapter replaces the coroutine inside the existing handle, or null = failed)
+        // Compile new version: from in-memory content (browser) or from disk (desktop)
         AdapterScriptHandle? newHandle;
-        if (existing != null && _adapter.RecompileFile(existing, filePath))
+        if (loaderContent != null)
+        {
+            newHandle = _adapter.LoadScript(loaderContent, fileName);
+        }
+        else if (existing != null && _adapter.RecompileFile(existing, filePath!))
         {
             newHandle = existing;
         }
         else if (existing == null)
         {
-            newHandle = _adapter.LoadFile(filePath, fileName);
+            newHandle = _adapter.LoadFile(filePath!, fileName);
         }
         else
         {
-            // RecompileFile failed
             _logger.LogError("[Scripting] Failed to recompile {File}", fileName);
             _failedFiles.Add(fileName);
             ScriptStatusChanged?.Invoke(this, EventArgs.Empty);

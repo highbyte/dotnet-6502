@@ -19,6 +19,7 @@ internal sealed partial class Program
 {
     private const string LOCAL_STORAGE_MAIN_CONFIG_KEY = "dotnet6502.emulator.avalonia.config";
     private const string LOCAL_STORAGE_SCRIPT_PREFIX = "dotnet6502.lua.";
+    private const string LOCAL_STORAGE_STORE_PREFIX = "dotnet6502.store.";
 
     [RequiresUnreferencedCode("Calls JsonSerializer.Deserialize(String) and JsonSerializer.Serialize(object)")]
     private static async Task<int> Main(string[] args)
@@ -86,6 +87,21 @@ internal sealed partial class Program
         var scriptingConfig = new ScriptingConfig();
         configuration.GetSection(ScriptingConfig.ConfigSectionName).Bind(scriptingConfig);
         scriptingConfig.ScriptLoader = LoadScriptsFromLocalStorage;
+
+        // Wire localStorage-backed store backend (browser-only)
+        if (scriptingConfig.AllowStore)
+        {
+            scriptingConfig.StoreBackend = new DelegateScriptStore(
+                get: key => JSInterop.GetLocalStorage($"{LOCAL_STORAGE_STORE_PREFIX}{key}"),
+                set: (key, val) => JSInterop.SetLocalStorage($"{LOCAL_STORAGE_STORE_PREFIX}{key}", val),
+                delete: key => JSInterop.RemoveLocalStorage($"{LOCAL_STORAGE_STORE_PREFIX}{key}"),
+                list: () =>
+                {
+                    var json = JSInterop.GetLocalStorageKeys(LOCAL_STORAGE_STORE_PREFIX);
+                    if (string.IsNullOrEmpty(json)) return [];
+                    return JsonSerializer.Deserialize(json, HostConfigJsonContext.Default.ListString) ?? [];
+                });
+        }
 
         WriteBootstrapLog("Creating scripting engine.");
         var scriptingEngine = MoonSharpScriptingConfigurator.CreateForBrowser(
@@ -189,6 +205,9 @@ internal sealed partial class Program
 
         [JSImport("getScriptsFromLocalStorage", "BrowserScripting")]
         public static partial string GetScriptsFromLocalStorage(string prefix);
+
+        [JSImport("getLocalStorageKeys", "BrowserScripting")]
+        public static partial string GetLocalStorageKeys(string prefix);
     }
 
     private static IEnumerable<(string fileName, string content)> LoadScriptsFromLocalStorage()

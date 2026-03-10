@@ -39,9 +39,10 @@ public class ScriptingConfig
     /// <summary>
     /// Whether the <c>file</c> global is available to Lua scripts at all.
     /// When false (default), the <c>file</c> global is not registered — scripts cannot perform any file I/O.
-    /// Set to false in environments where filesystem access is not possible (e.g. WASM/browser).
+    /// This setting is ignored when running in browser as no file system exists there.
+    /// For simple key/value storage that works in both browser and desktop environments, consider using <see cref="AllowStore"/> instead.
     /// </summary>
-    public bool AllowFileIO { get; set; } = false;
+    public bool AllowFileIO { get; set; } = true;
 
     /// <summary>
     /// Whether Lua scripts may write, append, or delete files via the <c>file</c> global.
@@ -63,7 +64,7 @@ public class ScriptingConfig
     /// When true, scripts may make outbound HTTP requests (GET, POST) to arbitrary URLs.
     /// Default is false. Not applicable in WASM/browser environments (scripting disabled there).
     /// </summary>
-    public bool AllowHttpRequests { get; set; } = false;
+    public bool AllowHttpRequests { get; set; } = true;
 
     /// <summary>
     /// Optional callback supplying (fileName, content) pairs directly, bypassing filesystem scanning.
@@ -73,4 +74,26 @@ public class ScriptingConfig
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<IEnumerable<(string fileName, string content)>>? ScriptLoader { get; set; }
+
+    /// <summary>
+    /// Whether the <c>store</c> global is available to Lua scripts.
+    /// On desktop, the store is backed by files in <see cref="StoreSubDirectory"/> inside <see cref="ScriptDirectory"/>.
+    /// In browser, set <see cref="StoreBackend"/> to a localStorage-backed implementation.
+    /// Default: false.
+    /// </summary>
+    public bool AllowStore { get; set; } = true;
+
+    /// <summary>
+    /// Subdirectory name within <see cref="ScriptDirectory"/> used for the filesystem store backend.
+    /// Default: ".store".
+    /// </summary>
+    public string StoreSubDirectory { get; set; } = ".store";
+
+    /// <summary>
+    /// Custom store backend. When non-null, <see cref="AllowStore"/> will use this backend instead of
+    /// the default filesystem backend. Use in environments without filesystem access (e.g. WASM/browser).
+    /// Not serialized from configuration; set programmatically before constructing the engine.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IScriptStore? StoreBackend { get; set; }
 }

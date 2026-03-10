@@ -22,7 +22,9 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
     "EnableScriptsAtStart": false,
     "AllowFileIO": true,
     "AllowFileWrite": false,
-    "AllowHttpRequests": false
+    "AllowHttpRequests": false,
+    "AllowStore": false,
+    "StoreSubDirectory": ".store"
 }
 ```
 
@@ -37,6 +39,8 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
 | `AllowFileWrite` | bool | `false` | Whether scripts may write, append, or delete files via the `file` global. Read operations are always permitted when `AllowFileIO` is `true`. |
 | `FileBaseDirectory` | string | `null` | Base directory for all file I/O. When `null` or empty, defaults to `ScriptDirectory`. All script-supplied paths are resolved relative to this directory; traversal outside it (e.g. `../`) is blocked. |
 | `AllowHttpRequests` | bool | `false` | Whether the `http` global is available to Lua scripts. When `true`, scripts may make outbound HTTP GET and POST requests to arbitrary URLs. Default is `false`. |
+| `AllowStore` | bool | `false` | Whether the `store` global is available to Lua scripts. Provides a cross-platform key/value store. On desktop, backed by files in `StoreSubDirectory`. In browser, backed by `localStorage`. Default is `false`. |
+| `StoreSubDirectory` | string | `".store"` | Subdirectory within `ScriptDirectory` used for the filesystem store backend (desktop only). Default is `".store"`. |
 
 # Scripts tab UI
 
@@ -237,6 +241,55 @@ local resp = http.get("https://api.example.com/private", {
 })
 ```
 
+## Key/value store (`store`)
+
+Available when `AllowStore: true`. The `store` global is not registered when `AllowStore` is `false`.
+
+The store provides simple persistent key/value storage. Values are always strings. The storage backend depends on the environment:
+
+- **Desktop:** each key is stored as a file named `<key>` inside `{ScriptDirectory}/{StoreSubDirectory}` (default: `scripts/.store/`). The directory is created automatically on the first write.
+- **Browser/WASM:** each key is stored in `localStorage` under the prefix `dotnet6502.store.`.
+
+Keys must be valid filenames (no path separators, no `..`). Attempting to use an invalid key raises a Lua runtime error.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `store.get(key)` | string or nil | Returns the stored value for `key`, or `nil` if the key does not exist. |
+| `store.set(key, value)` | — | Stores `value` under `key`, overwriting any existing entry. |
+| `store.delete(key)` | — | Removes the entry for `key`. No-op if the key does not exist. |
+| `store.exists(key)` | boolean | Returns `true` if an entry exists for `key`. |
+| `store.list()` | table | Returns a 1-indexed Lua table of all stored keys. |
+
+### Examples
+
+```lua
+-- Save and retrieve a string value
+store.set("high_score", "12345")
+local score = store.get("high_score")
+log.info("High score: " .. (score or "none"))
+
+-- Persist a flag across sessions
+if not store.exists("intro_shown") then
+    log.info("Showing intro for the first time")
+    store.set("intro_shown", "1")
+end
+
+-- Save downloaded content for later use
+local resp = http.get("https://example.com/data.txt")
+if resp.ok then
+    store.set("cached_data", resp.body)
+end
+
+-- List all stored keys
+local keys = store.list()
+for _, k in ipairs(keys) do
+    log.info("Store key: " .. k .. " = " .. (store.get(k) or ""))
+end
+
+-- Clean up
+store.delete("high_score")
+```
+
 ## Standard Lua libraries
 
 The following standard Lua modules are available: `string`, `math`, `table`, and the soft-sandbox base functions (`print`, `type`, `tostring`, `tonumber`, `pairs`, `ipairs`, etc.). The standard Lua `io` and `os` modules are not available; use the `file` global and `emu.load()` instead.
@@ -263,6 +316,7 @@ Example scripts are included in the `scripts/` directory:
 | `example_border_cycle.lua` | Linear loop | Waits for the C64 system to be running, waits 3 seconds, then cycles the border color through all 16 C64 colors. |
 | `example_file_io.lua` | Linear loop | Demonstrates the file I/O API: lists scripts, reads a text file, writes a CSV log, and shows `emu.load()` and `file.read_bytes()` usage. Requires `AllowFileIO: true`; write operations also require `AllowFileWrite: true`. |
 | `example_http.lua` | Event hook | Demonstrates the HTTP API in `on_started()`: GET with and without custom headers, `post_json`, `post` with explicit content type, `get_bytes`, `download`, and error handling for unreachable hosts. Requires `AllowHttpRequests: true`. |
+| `example_store.lua` | Linear loop + hooks | Demonstrates the key/value store API: persistent run counter, first-run flag, overwrite/verify, listing all keys, saving a CPU snapshot on `on_started`, and writing a frame checkpoint every 60 frames. Requires `AllowStore: true`. |
 
 # Technical details
 
@@ -274,8 +328,8 @@ The engine is implemented in three layers:
 
 | Layer | Project | Description |
 |-------|---------|-------------|
-| Abstraction | `Highbyte.DotNet6502.Systems` (`Scripting/` subfolder) | Defines `IScriptingEngine`, `NoScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). Also contains `HostApp`, the base host-app class that integrates scripting into the emulator lifecycle. No dependency on MoonSharp. |
-| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`, `LuaFileProxy`, `LuaHttpProxy`). `MoonSharpScriptingConfigurator` is the factory entry point. |
+| Abstraction | `Highbyte.DotNet6502.Systems` (`Scripting/` subfolder) | Defines `IScriptingEngine`, `NoScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, `IScriptStore`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). Also contains `HostApp`, the base host-app class that integrates scripting into the emulator lifecycle. No dependency on MoonSharp. |
+| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`, `LuaFileProxy`, `LuaHttpProxy`). Also contains `FileSystemScriptStore` and `DelegateScriptStore` (store backends). `MoonSharpScriptingConfigurator` is the factory entry point. |
 | Host | `Highbyte.DotNet6502.App.Avalonia.Core` | `AvaloniaHostApp` overrides the platform-specific virtual hooks from `HostApp` to wire the `emu.yield()` tick timer and drain deferred script actions on the Avalonia UI thread. |
 
 ### ScriptingEngine + IScriptingEngineAdapter design
@@ -285,6 +339,8 @@ The engine is implemented in three layers:
 `IScriptingEngineAdapter` covers the operations that differ per Lua engine: VM initialization, script compilation, coroutine creation and resume, yield-type detection, hook function caching, and hook invocation.
 
 `MoonSharpScriptingEngineAdapter` is the MoonSharp-specific implementation. It wraps each `.lua` file in a MoonSharp `Coroutine` (held in a `MoonSharpScriptHandle`). The Lua environment uses a soft-sandbox preset (`CoreModules.Preset_SoftSandbox | CoreModules.String | CoreModules.Math | CoreModules.Table`). The standard Lua `io` module is intentionally excluded; file I/O is provided instead through `LuaFileProxy`, a plain C# class backed by `System.IO` that enforces path confinement and write guards independently of any Lua library. `LuaFileProxy` is registered as a Lua `Table` of `DynValue.NewCallback` entries (the same pattern as the `emu` table) rather than as a MoonSharp `UserData` type, so that `file.list()` and `file.read_bytes()` can construct and return Lua `Table` objects directly. HTTP operations follow the same pattern: `LuaHttpProxy` holds a single `HttpClient` instance and is registered as the `http` Lua table; `http.download` routes through `LuaFileProxy.GetSafePath()` to ensure downloaded files stay within the file sandbox.
+
+The `store` Lua table is registered when `AllowStore: true`. The adapter resolves the backend from `ScriptingConfig.StoreBackend`: if set (browser/WASM sets it to a `DelegateScriptStore` wrapping `localStorage` JSInterop calls), that backend is used directly; otherwise a `FileSystemScriptStore` is created automatically from `ScriptDirectory + StoreSubDirectory`. Both implement `IScriptStore` (defined in `Highbyte.DotNet6502.Systems`). `FileSystemScriptStore` validates keys as plain filenames (no path traversal) and creates the store directory on first write. `DelegateScriptStore` is a thin wrapper over four Lua lambdas, making it easy to adapt any backend (localStorage, IndexedDB, in-memory, etc.) without adding a new implementation class.
 
 To support a different Lua engine, implement `IScriptingEngineAdapter` and a matching `AdapterScriptHandle` subclass, then pass the adapter to `new ScriptingEngine(adapter, config, loggerFactory)`. No changes to `IScriptingEngine`, `NoScriptingEngine`, or any host-app code are required.
 
@@ -328,6 +384,7 @@ The `IScriptingEngineAdapter` interface was validated against [NLua](https://git
 - **Hook cache** — cache `LuaFunction` references (from `lua.GetFunction(name)`) instead of MoonSharp `DynValue` references.
 - **Proxy classes** — `LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy` are MoonSharp-specific. A NLua adapter would provide equivalent proxy classes with NLua-compatible attribute conventions.
 - **File I/O and HTTP** — `LuaFileProxy` and `LuaHttpProxy` have no MoonSharp dependency (`System.IO` and `System.Net.Http` respectively) and can be reused as-is in a NLua adapter. The adapter would register their methods as individual NLua callbacks on Lua tables, exactly as the MoonSharp adapter does.
+- **Key/value store** — `IScriptStore`, `FileSystemScriptStore`, and `DelegateScriptStore` have no MoonSharp dependency and can be reused as-is. The adapter would register the `store.get/set/delete/exists/list` callbacks on a Lua table in the same way.
 
 ## Script lifecycle
 

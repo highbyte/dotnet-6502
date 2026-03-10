@@ -15,6 +15,7 @@ using System.Text.Json.Serialization;
     JsonSerializable(typeof(Dictionary<string, object?>)),
     JsonSerializable(typeof(LocalStorageScript)),
     JsonSerializable(typeof(List<LocalStorageScript>)),
+    JsonSerializable(typeof(List<string>)),
 ]
 internal partial class HostConfigJsonContext : JsonSerializerContext
 {

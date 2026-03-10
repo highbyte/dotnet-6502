@@ -55,6 +55,14 @@ public static class MoonSharpScriptingConfigurator
             return new NoScriptingEngine();
         }
 
+        // Filesystem access is not available in browser/WASM environments.
+        // Force these off regardless of what the configuration says.
+        if (config.AllowFileIO)
+        {
+            logger.LogWarning("[Scripting] AllowFileIO is not supported in browser environments and will be ignored.");
+            config.AllowFileIO = false;
+        }
+
         logger.LogInformation("[Scripting] MoonSharp browser engine enabled (scripts loaded via localStorage callback).");
         var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory);
         return new ScriptingEngine(adapter, config, loggerFactory);
