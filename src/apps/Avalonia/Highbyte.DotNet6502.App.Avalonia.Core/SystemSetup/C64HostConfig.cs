@@ -11,7 +11,10 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 public class C64HostConfig : IHostSystemConfig, ICloneable
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.Avalonia";
-    public const string DefaultCorsProxyURL = "https://corsproxy.io/?url=";
+
+    //public const string DefaultCorsProxyURL = "https://api.allorigins.win/raw?url="; // Doesn't work reliably
+    //public const string DefaultCorsProxyURL = "https://corsproxy.io/?url="; // Stopped being possible to download binary files on free tier
+    public const string DefaultCorsProxyURL = "https://proxy.corsfix.com/?url=";
 
     private C64SystemConfig _systemConfig = new();
     ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
