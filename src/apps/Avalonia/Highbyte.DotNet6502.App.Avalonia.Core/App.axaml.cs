@@ -44,6 +44,7 @@ public partial class App : Application
     private readonly Func<string, string?>? _loadScript;
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
+    private readonly Func<Task>? _loadExamples;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -90,6 +91,7 @@ public partial class App : Application
     /// <param name="loadScript">Optional callback to load a script's source by file name (browser: from localStorage).</param>
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
+    /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
@@ -103,7 +105,8 @@ public partial class App : Application
         IScriptingEngine? scriptingEngine = null,
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
-        Action<string>? deleteScript = null)
+        Action<string>? deleteScript = null,
+        Func<Task>? loadExamples = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -119,6 +122,7 @@ public partial class App : Application
         _loadScript = loadScript;
         _saveScript = saveScript;
         _deleteScript = deleteScript;
+        _loadExamples = loadExamples;
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
@@ -321,7 +325,8 @@ public partial class App : Application
                 _gamepad,
                 _loadScript,
                 _saveScript,
-                _deleteScript);
+                _deleteScript,
+                _loadExamples);
 
             // Wire Lua scripting engine (NoScriptingEngine used when null, e.g. in WASM)
             _hostApp.SetScriptingEngine(_scriptingEngine ?? new NoScriptingEngine());

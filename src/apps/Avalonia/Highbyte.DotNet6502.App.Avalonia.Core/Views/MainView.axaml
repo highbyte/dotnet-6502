@@ -451,16 +451,33 @@
                                                 </StackPanel>
                                             </Border>
 
-                                            <!-- Add script button (browser/manage mode only) -->
-                                            <Button Content="+ Add Script"
-                                                    Command="{Binding AddScriptCommand}"
-                                                    IsVisible="{Binding CanManageScripts}"
-                                                    FontSize="10"
-                                                    Padding="6,2"
-                                                    MinWidth="0"
-                                                    MinHeight="0"
-                                                    Margin="0,0,0,4"
-                                                    HorizontalAlignment="Left"/>
+                                            <!-- Add script + Load Examples + Refresh buttons (browser/manage mode only) -->
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="6"
+                                                        Margin="0,0,0,4"
+                                                        IsVisible="{Binding CanManageScripts}">
+                                                <Button Content="+ Add Script"
+                                                        Command="{Binding AddScriptCommand}"
+                                                        FontSize="10"
+                                                        Padding="6,2"
+                                                        MinWidth="0"
+                                                        MinHeight="0"/>
+                                                <Button Content="Load Examples"
+                                                        Command="{Binding LoadExamplesCommand}"
+                                                        IsVisible="{Binding CanLoadExamples}"
+                                                        FontSize="10"
+                                                        Padding="6,2"
+                                                        MinWidth="0"
+                                                        MinHeight="0"/>
+                                                <Button Content="↻"
+                                                        Command="{Binding RefreshScriptsCommand}"
+                                                        FontSize="12"
+                                                        Height="22" Padding="4,0"
+                                                        MinWidth="0" MinHeight="0"
+                                                        VerticalAlignment="Center"
+                                                        VerticalContentAlignment="Center"
+                                                        ToolTip.Tip="Reload all scripts from localStorage"/>
+                                            </StackPanel>
 
                                             <!-- Header row -->
                                             <Grid Margin="0,0,0,2">

@@ -130,6 +130,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ObservableCollection<ScriptDisplayEntry> ScriptEntries => _scriptEntries;
 
     public bool CanManageScripts { get; }
+    public bool CanLoadExamples { get; }
 
     // Show the script directory info banner on Desktop (not browser) when scripting is enabled
     public bool ShowScriptDirectoryInfo => IsScriptingEnabled && !CanManageScripts;
@@ -327,6 +328,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> AddScriptCommand { get; }
     public ReactiveCommand<string, Unit> EditScriptCommand { get; }
     public ReactiveCommand<string, Unit> DeleteScriptCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadExamplesCommand { get; }
     public ReactiveCommand<Unit, Unit> RefreshScriptsCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenScriptFolderCommand { get; }
 
@@ -708,6 +710,11 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         // Initialize scripts tab data and subscribe to status changes
         CanManageScripts = _hostApp.CanManageScripts;
+        CanLoadExamples = _hostApp.CanLoadExamples;
+        LoadExamplesCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await _hostApp.LoadExamplesAsync(),
+            null,
+            RxApp.MainThreadScheduler);
         RefreshScriptStatuses();
         _hostApp.ScriptingEngine.ScriptStatusChanged += OnScriptStatusChanged;
     }
