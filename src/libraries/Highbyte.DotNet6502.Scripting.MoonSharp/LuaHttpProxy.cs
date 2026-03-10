@@ -11,8 +11,8 @@ public sealed record HttpProxyResponse(
     string? Error);
 
 /// <summary>
-/// Provides outbound HTTP operations to Lua scripts via the <c>http</c> global table.
-/// A single <see cref="HttpClient"/> instance is shared for all calls made by a scripting session.
+/// Provides outbound async HTTP operations to Lua scripts via the <c>http</c> global table.
+/// All methods are async so they work on both desktop and browser/WASM.
 /// </summary>
 public sealed class LuaHttpProxy : IDisposable
 {
@@ -26,17 +26,14 @@ public sealed class LuaHttpProxy : IDisposable
         };
     }
 
-    /// <summary>
-    /// Performs a GET request and returns the response body as a string.
-    /// </summary>
-    public HttpProxyResponse GetString(string url, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> GetStringAsync(string url, Dictionary<string, string>? headers = null)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ApplyHeaders(request, headers);
-            using var response = _client.Send(request);
-            var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            using var response = await _client.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
             var status = (int)response.StatusCode;
             return response.IsSuccessStatusCode
                 ? new HttpProxyResponse(true, status, body, null, null)
@@ -48,17 +45,14 @@ public sealed class LuaHttpProxy : IDisposable
         }
     }
 
-    /// <summary>
-    /// Performs a GET request and returns the response body as a byte array.
-    /// </summary>
-    public HttpProxyResponse GetBytes(string url, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> GetBytesAsync(string url, Dictionary<string, string>? headers = null)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ApplyHeaders(request, headers);
-            using var response = _client.Send(request);
-            var bytes = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+            using var response = await _client.SendAsync(request);
+            var bytes = await response.Content.ReadAsByteArrayAsync();
             var status = (int)response.StatusCode;
             return response.IsSuccessStatusCode
                 ? new HttpProxyResponse(true, status, null, bytes, null)
@@ -70,10 +64,7 @@ public sealed class LuaHttpProxy : IDisposable
         }
     }
 
-    /// <summary>
-    /// Performs a POST request with the given body and content type, returning the response body as a string.
-    /// </summary>
-    public HttpProxyResponse Post(string url, string body, string contentType, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> PostAsync(string url, string body, string contentType, Dictionary<string, string>? headers = null)
     {
         try
         {
@@ -82,8 +73,8 @@ public sealed class LuaHttpProxy : IDisposable
                 Content = new StringContent(body, System.Text.Encoding.UTF8, contentType)
             };
             ApplyHeaders(request, headers);
-            using var response = _client.Send(request);
-            var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            using var response = await _client.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
             var status = (int)response.StatusCode;
             return response.IsSuccessStatusCode
                 ? new HttpProxyResponse(true, status, responseBody, null, null)
@@ -95,23 +86,19 @@ public sealed class LuaHttpProxy : IDisposable
         }
     }
 
-    /// <summary>
-    /// Performs a GET request and streams the response body directly to <paramref name="absoluteFilePath"/>.
-    /// The caller is responsible for ensuring the path is safe (within the sandbox).
-    /// </summary>
-    public HttpProxyResponse DownloadToFile(string url, string absoluteFilePath, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> DownloadToFileAsync(string url, string absoluteFilePath, Dictionary<string, string>? headers = null)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ApplyHeaders(request, headers);
-            using var response = _client.Send(request, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             var status = (int)response.StatusCode;
             if (!response.IsSuccessStatusCode)
                 return new HttpProxyResponse(false, status, null, null, $"HTTP {status}");
-            using var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
+            using var stream = await response.Content.ReadAsStreamAsync();
             using var file = File.Create(absoluteFilePath);
-            stream.CopyTo(file);
+            await stream.CopyToAsync(file);
             return new HttpProxyResponse(true, status, null, null, null);
         }
         catch (Exception ex)

@@ -43,5 +43,7 @@ public enum ScriptYieldType
     /// <summary>Yielded via <c>emu.frameadvance()</c> — resumed each emulator frame.</summary>
     FrameAdvance,
     /// <summary>Yielded via <c>emu.yield()</c> — resumed each timer tick, even when paused.</summary>
-    Tick
+    Tick,
+    /// <summary>Yielded because an async HTTP call is in-flight. Resumed when the task completes.</summary>
+    HttpPending
 }
