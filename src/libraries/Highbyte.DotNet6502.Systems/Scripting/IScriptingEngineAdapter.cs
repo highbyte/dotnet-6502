@@ -86,6 +86,14 @@ public interface IScriptingEngineAdapter
         Action<AdapterScriptHandle, AdapterResumeResult> onResult);
 
     /// <summary>
+    /// Resume any coroutines (main-body or hook) that are waiting on a completed async TCP task.
+    /// Should be called each frame after the frame-advance, tick, and HTTP coroutines.
+    /// </summary>
+    void ResumePendingTcpCoroutines(
+        IReadOnlyList<AdapterScriptHandle> allHandles,
+        Action<AdapterScriptHandle, AdapterResumeResult> onResult);
+
+    /// <summary>
     /// Invoke a zero-argument hook function (e.g. on_before_frame, on_after_frame).
     /// Hot path — called at ~60 Hz. Returns false if the hook threw a runtime error.
     /// </summary>

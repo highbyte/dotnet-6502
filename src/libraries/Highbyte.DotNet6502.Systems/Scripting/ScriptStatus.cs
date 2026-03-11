@@ -45,5 +45,7 @@ public enum ScriptYieldType
     /// <summary>Yielded via <c>emu.yield()</c> — resumed each timer tick, even when paused.</summary>
     Tick,
     /// <summary>Yielded because an async HTTP call is in-flight. Resumed when the task completes.</summary>
-    HttpPending
+    HttpPending,
+    /// <summary>Yielded because an async TCP operation is in-flight. Resumed when the task completes.</summary>
+    TcpPending
 }

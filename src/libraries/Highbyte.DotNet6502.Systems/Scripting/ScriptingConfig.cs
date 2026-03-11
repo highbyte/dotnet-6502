@@ -67,6 +67,14 @@ public class ScriptingConfig
     public bool AllowHttpRequests { get; set; } = true;
 
     /// <summary>
+    /// Whether the <c>tcp</c> global is available to Lua scripts.
+    /// When true, scripts may open outbound TCP connections to arbitrary hosts and ports.
+    /// Intended for low-latency communication with Machine Learning / Reinforcement Learning servers.
+    /// Default is false. Desktop-only — automatically disabled in browser/WASM environments.
+    /// </summary>
+    public bool AllowTcpClient { get; set; } = false;
+
+    /// <summary>
     /// Optional callback supplying (fileName, content) pairs directly, bypassing filesystem scanning.
     /// When non-null, <see cref="ScriptingEngine"/> calls this instead of reading from <see cref="ScriptDirectory"/>.
     /// Use in environments without filesystem access (e.g. WASM/browser — scripts from localStorage).

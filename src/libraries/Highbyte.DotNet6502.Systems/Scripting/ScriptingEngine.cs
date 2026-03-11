@@ -203,6 +203,7 @@ public class ScriptingEngine : IScriptingEngine
         var activeHandles = GetActiveHandles(filterByYieldType: ScriptYieldType.FrameAdvance);
         _adapter.ResumeFrameAdvanceCoroutines(activeHandles, OnResumeResult);
         _adapter.ResumePendingHttpCoroutines(GetAllNonFailedHandles(), OnResumeResult);
+        _adapter.ResumePendingTcpCoroutines(GetAllNonFailedHandles(), OnResumeResult);
         InvokeHookIfEnabled("on_before_frame");
     }
 
@@ -210,6 +211,8 @@ public class ScriptingEngine : IScriptingEngine
     {
         var activeHandles = GetActiveHandles(filterByYieldType: ScriptYieldType.Tick);
         _adapter.ResumeTickCoroutines(activeHandles, OnResumeResult);
+        _adapter.ResumePendingHttpCoroutines(GetAllNonFailedHandles(), OnResumeResult);
+        _adapter.ResumePendingTcpCoroutines(GetAllNonFailedHandles(), OnResumeResult);
     }
 
     public void InvokeAfterFrame() => InvokeHookIfEnabled("on_after_frame");
