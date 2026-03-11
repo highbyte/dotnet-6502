@@ -63,6 +63,13 @@ public static class MoonSharpScriptingConfigurator
             config.AllowFileIO = false;
         }
 
+        // Raw TCP sockets are not available in browser/WASM environments.
+        if (config.AllowTcpClient)
+        {
+            logger.LogWarning("[Scripting] AllowTcpClient is not supported in browser environments and will be ignored.");
+            config.AllowTcpClient = false;
+        }
+
         logger.LogInformation("[Scripting] MoonSharp browser engine enabled (scripts loaded via localStorage callback).");
         var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory);
         return new ScriptingEngine(adapter, config, loggerFactory);

@@ -23,6 +23,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaMemProxy? _memProxy;
     private LuaFileProxy? _fileProxy;
     private LuaHttpProxy? _httpProxy;
+    private LuaTcpProxy? _tcpProxy;
     private ScriptingConfig? _config;
 
     // Tracks how each coroutine last yielded, keyed on the MoonSharp Coroutine object
@@ -37,6 +38,12 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     // Pending hook-invocation coroutines waiting on HTTP: coroutine → (handle, task)
     // Hook coroutines are not the same object as the main handle coroutine.
     private readonly List<(Coroutine co, AdapterScriptHandle handle, Task<DynValue> task)> _pendingHookHttpTasks = new();
+
+    // Pending async TCP tasks for main-body coroutines: coroutine → pending Task<DynValue>
+    private readonly Dictionary<Coroutine, Task<DynValue>> _pendingTcpTasks = new();
+
+    // Pending hook-invocation coroutines waiting on TCP: (coroutine, handle, task)
+    private readonly List<(Coroutine co, AdapterScriptHandle handle, Task<DynValue> task)> _pendingHookTcpTasks = new();
 
     // Set during any coroutine resume so HTTP callbacks can identify the active coroutine
     private Coroutine? _currentCoroutine;
@@ -54,6 +61,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private const string FrameAdvanceSentinel = "frameadvance";
     private const string TickSentinel = "yield";
     private const string HttpPendingSentinel = "http_pending";
+    private const string TcpPendingSentinel = "tcp_pending";
 
     // Pre-allocated yield DynValues — avoids allocation on every frame
     private static readonly DynValue s_frameAdvanceYield =
@@ -62,6 +70,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         DynValue.NewYieldReq(new[] { DynValue.NewString(TickSentinel) });
     private static readonly DynValue s_httpPendingYield =
         DynValue.NewYieldReq(new[] { DynValue.NewString(HttpPendingSentinel) });
+    private static readonly DynValue s_tcpPendingYield =
+        DynValue.NewYieldReq(new[] { DynValue.NewString(TcpPendingSentinel) });
 
     public MoonSharpScriptingEngineAdapter(ILoggerFactory loggerFactory)
     {
@@ -87,6 +97,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _hookDynValueCache.Clear();
         _pendingHttpTasks.Clear();
         _pendingHookHttpTasks.Clear();
+        _pendingTcpTasks.Clear();
+        _pendingHookTcpTasks.Clear();
+        _tcpProxy?.Dispose();
+        _tcpProxy = null;
         _currentCoroutine = null;
         _allHandles = Array.Empty<AdapterScriptHandle>();
 
@@ -343,6 +357,175 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             }
         }
 
+        // tcp table: outbound TCP client connections.
+        // Only registered when AllowTcpClient is true. Desktop-only — never registered in browser.
+        if (config.AllowTcpClient)
+        {
+            _tcpProxy?.Dispose();
+            _tcpProxy = new LuaTcpProxy();
+            var tcpProxyCapture = _tcpProxy;
+            var scriptCapture = _script;
+
+            // Helper: convert a DynValue (string or 1-indexed byte table) to byte[]
+            static byte[] ExtractBytes(DynValue dv)
+            {
+                if (dv.Type == DataType.String)
+                    return System.Text.Encoding.UTF8.GetBytes(dv.String);
+                if (dv.Type == DataType.Table)
+                {
+                    var list = new List<byte>();
+                    for (int i = 1; ; i++)
+                    {
+                        var v = dv.Table.Get(i);
+                        if (v.Type != DataType.Number) break;
+                        list.Add((byte)(int)v.Number);
+                    }
+                    return list.ToArray();
+                }
+                return Array.Empty<byte>();
+            }
+
+            // Helper: build a Lua result table for TCP errors (no data)
+            DynValue BuildTcpErrorTable(string error)
+            {
+                var t = new Table(scriptCapture!);
+                t["ok"] = DynValue.NewBoolean(false);
+                t["data"] = DynValue.Nil;
+                t["error"] = DynValue.NewString(error);
+                return DynValue.NewTable(t);
+            }
+
+            // Helper: build the Lua connection-object table whose methods close over 'conn'
+            DynValue BuildConnectionTable(LuaTcpConnection conn)
+            {
+                var t = new Table(scriptCapture!);
+
+                // conn:send(data) — data is a string or 1-indexed byte table
+                // Returns { ok=bool, error=string|nil }
+                t["send"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    var data = args.Count > 0 ? args[0] : DynValue.Nil;
+                    // When called with colon syntax (conn:send(data)), MoonSharp passes the
+                    // connection table as args[0] (self) and the actual data as args[1].
+                    var payload = ExtractBytes(data.Type == DataType.Table && ReferenceEquals(data.Table, t)
+                        ? (args.Count > 1 ? args[1] : DynValue.Nil)
+                        : data);
+                    var task = conn.SendAsync(payload)
+                        .ContinueWith(r =>
+                        {
+                            if (r.Exception != null)
+                                return BuildTcpErrorTable((r.Exception.InnerException ?? r.Exception).Message);
+                            var (ok, error) = r.Result;
+                            var result = new Table(scriptCapture!);
+                            result["ok"] = DynValue.NewBoolean(ok);
+                            result["error"] = error != null ? DynValue.NewString(error) : DynValue.Nil;
+                            return DynValue.NewTable(result);
+                        });
+                    RegisterPendingTcpTask(task);
+                    return s_tcpPendingYield;
+                });
+
+                // conn:receive(pattern) — pattern is a number (N bytes) or the string "*l" (line)
+                // Returns { ok=bool, data=byte_table|string, error=string|nil }
+                t["receive"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    // When called with colon syntax conn:receive(pattern), MoonSharp passes
+                    // the table as args[0] and the pattern as args[1].
+                    // When called as conn.receive(pattern), the pattern is args[0].
+                    DynValue patternArg;
+                    if (args.Count >= 2 && args[0].Type == DataType.Table && ReferenceEquals(args[0].Table, t))
+                        patternArg = args[1];
+                    else
+                        patternArg = args.Count > 0 ? args[0] : DynValue.Nil;
+
+                    Task<DynValue> task;
+                    if (patternArg.Type == DataType.Number)
+                    {
+                        var count = (int)patternArg.Number;
+                        task = conn.RecvNAsync(count)
+                            .ContinueWith(r =>
+                            {
+                                if (r.Exception != null)
+                                    return BuildTcpErrorTable((r.Exception.InnerException ?? r.Exception).Message);
+                                var (ok, bytes, error) = r.Result;
+                                var result = new Table(scriptCapture!);
+                                result["ok"] = DynValue.NewBoolean(ok);
+                                if (bytes != null)
+                                {
+                                    var byteTable = new Table(scriptCapture!);
+                                    for (int i = 0; i < bytes.Length; i++) byteTable[i + 1] = (double)bytes[i];
+                                    result["data"] = DynValue.NewTable(byteTable);
+                                }
+                                else result["data"] = DynValue.Nil;
+                                result["error"] = error != null ? DynValue.NewString(error) : DynValue.Nil;
+                                return DynValue.NewTable(result);
+                            });
+                    }
+                    else if (patternArg.Type == DataType.String && patternArg.String == "*l")
+                    {
+                        task = conn.RecvLineAsync()
+                            .ContinueWith(r =>
+                            {
+                                if (r.Exception != null)
+                                    return BuildTcpErrorTable((r.Exception.InnerException ?? r.Exception).Message);
+                                var (ok, line, error) = r.Result;
+                                var result = new Table(scriptCapture!);
+                                result["ok"] = DynValue.NewBoolean(ok);
+                                result["data"] = line != null ? DynValue.NewString(line) : DynValue.Nil;
+                                result["error"] = error != null ? DynValue.NewString(error) : DynValue.Nil;
+                                return DynValue.NewTable(result);
+                            });
+                    }
+                    else
+                    {
+                        // Unknown pattern — return error immediately (no yield needed)
+                        var errTable = BuildTcpErrorTable("receive: pattern must be a number (byte count) or \"*l\" (line)");
+                        return errTable;
+                    }
+
+                    RegisterPendingTcpTask(task);
+                    return s_tcpPendingYield;
+                });
+
+                // conn:close() — synchronous, no async yield needed
+                t["close"] = DynValue.NewCallback((ctx, args) =>
+                {
+                    conn.Dispose();
+                    return DynValue.Void;
+                });
+
+                return DynValue.NewTable(t);
+            }
+
+            var tcpTable = new Table(_script);
+
+            // tcp.connect(host, port [, timeout_ms]) → { ok=bool, data=conn_table|nil, error=string|nil }
+            tcpTable["connect"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var host = args.Count > 0 ? args[0].CastToString() : "";
+                var port = args.Count > 1 ? (int)args[1].Number : 0;
+                var timeoutMs = args.Count > 2 ? (int)args[2].Number : 5000;
+
+                var task = tcpProxyCapture.ConnectAsync(host, port, timeoutMs)
+                    .ContinueWith(t =>
+                    {
+                        if (t.Exception != null)
+                            return BuildTcpErrorTable((t.Exception.InnerException ?? t.Exception).Message);
+                        var conn = t.Result;
+                        tcpProxyCapture.Track(conn);
+                        var result = new Table(scriptCapture!);
+                        result["ok"] = DynValue.NewBoolean(true);
+                        result["data"] = BuildConnectionTable(conn);
+                        result["error"] = DynValue.Nil;
+                        return DynValue.NewTable(result);
+                    });
+                RegisterPendingTcpTask(task);
+                return s_tcpPendingYield;
+            });
+
+            _script.Globals["tcp"] = tcpTable;
+        }
+
         // emu table: frame control + emulator control operations
         var emuTable = new Table(_script);
         emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => s_frameAdvanceYield);
@@ -521,6 +704,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             h => _script!.Globals.Get(h).Function);
 
         _logProxy!.CurrentScriptFile = handle.FileName;
+        // Set _currentCoroutine so that async operations (tcp.connect, http.get) called at the
+        // top level of a script (before any emu.frameadvance() loop) can register their pending
+        // tasks correctly via RegisterPendingTcpTask / RegisterPendingHttpTask.
+        _currentCoroutine = mh.Coroutine;
         try
         {
             var result = mh.Coroutine.Resume();
@@ -558,6 +745,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         {
             _logger!.LogError(ex, "[Scripting] Unexpected error in {File}", handle.FileName);
             return new AdapterScriptState(AdapterCoroutineState.RuntimeError, null, Array.Empty<string>());
+        }
+        finally
+        {
+            _currentCoroutine = null;
         }
     }
 
@@ -632,6 +823,51 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         }
     }
 
+    public void ResumePendingTcpCoroutines(
+        IReadOnlyList<AdapterScriptHandle> allHandles,
+        Action<AdapterScriptHandle, AdapterResumeResult> onResult)
+    {
+        _allHandles = allHandles;
+
+        // Resume main-body coroutines whose TCP task has completed
+        foreach (var handle in allHandles)
+        {
+            var mh = (MoonSharpScriptHandle)handle;
+            if (!_pendingTcpTasks.TryGetValue(mh.Coroutine, out var task)) continue;
+            if (!task.IsCompleted) continue;
+
+            _pendingTcpTasks.Remove(mh.Coroutine);
+            var responseTable = task.Exception != null
+                ? BuildErrorTableForTcp(task.Exception.InnerException ?? task.Exception)
+                : task.Result;
+
+            onResult(handle, ResumeCoroutineWithValue(mh, responseTable));
+        }
+
+        // Resume hook coroutines whose TCP task has completed
+        for (int i = _pendingHookTcpTasks.Count - 1; i >= 0; i--)
+        {
+            var (co, handle, task) = _pendingHookTcpTasks[i];
+            if (!task.IsCompleted) continue;
+
+            _pendingHookTcpTasks.RemoveAt(i);
+            var responseTable = task.Exception != null
+                ? BuildErrorTableForTcp(task.Exception.InnerException ?? task.Exception)
+                : task.Result;
+
+            RunHookCoroutineToCompletion(co, handle, responseTable);
+        }
+    }
+
+    private DynValue BuildErrorTableForTcp(Exception ex)
+    {
+        var t = new Table(_script!);
+        t["ok"] = DynValue.NewBoolean(false);
+        t["data"] = DynValue.Nil;
+        t["error"] = DynValue.NewString(ex.Message);
+        return DynValue.NewTable(t);
+    }
+
     private AdapterResumeResult ResumeCoroutine(MoonSharpScriptHandle handle)
         => ResumeCoroutineWithValue(handle, null);
 
@@ -699,6 +935,15 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         // that case is handled by RunHookCoroutineToCompletion which sets _currentCoroutine too.
     }
 
+    /// <summary>
+    /// Registers a TCP task for the currently-executing coroutine.
+    /// </summary>
+    private void RegisterPendingTcpTask(Task<DynValue> task)
+    {
+        if (_currentCoroutine != null)
+            _pendingTcpTasks[_currentCoroutine] = task;
+    }
+
     private DynValue BuildErrorTable(Exception ex)
     {
         var t = new Table(_script!);
@@ -723,13 +968,18 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
 
             if (co.State == CoroutineState.Suspended)
             {
-                // It yielded — should be HttpPending
                 var yieldType = DetectYieldType(result);
                 if (yieldType == ScriptYieldType.HttpPending
-                    && _pendingHttpTasks.TryGetValue(co, out var task))
+                    && _pendingHttpTasks.TryGetValue(co, out var httpTask))
                 {
                     _pendingHttpTasks.Remove(co);
-                    _pendingHookHttpTasks.Add((co, handle, task));
+                    _pendingHookHttpTasks.Add((co, handle, httpTask));
+                }
+                else if (yieldType == ScriptYieldType.TcpPending
+                    && _pendingTcpTasks.TryGetValue(co, out var tcpTask))
+                {
+                    _pendingTcpTasks.Remove(co);
+                    _pendingHookTcpTasks.Add((co, handle, tcpTask));
                 }
                 // Any other yield type from a hook is unexpected — just let it sit
             }
@@ -794,10 +1044,16 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             {
                 var yieldType = DetectYieldType(result);
                 if (yieldType == ScriptYieldType.HttpPending
-                    && _pendingHttpTasks.TryGetValue(co, out var task))
+                    && _pendingHttpTasks.TryGetValue(co, out var httpTask))
                 {
                     _pendingHttpTasks.Remove(co);
-                    _pendingHookHttpTasks.Add((co, handle, task));
+                    _pendingHookHttpTasks.Add((co, handle, httpTask));
+                }
+                else if (yieldType == ScriptYieldType.TcpPending
+                    && _pendingTcpTasks.TryGetValue(co, out var tcpTask))
+                {
+                    _pendingTcpTasks.Remove(co);
+                    _pendingHookTcpTasks.Add((co, handle, tcpTask));
                 }
             }
             return true;
@@ -906,6 +1162,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             FrameAdvanceSentinel => ScriptYieldType.FrameAdvance,
             TickSentinel => ScriptYieldType.Tick,
             HttpPendingSentinel => ScriptYieldType.HttpPending,
+            TcpPendingSentinel => ScriptYieldType.TcpPending,
             _ => null
         };
     }
