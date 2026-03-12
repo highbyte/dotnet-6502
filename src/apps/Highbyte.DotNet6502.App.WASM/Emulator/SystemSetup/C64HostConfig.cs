@@ -14,7 +14,8 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     //public const string DefaultCorsProxyURL = "https://thingproxy.freeboard.io/fetch/"; // Doesn't seem to work with redirects
     //public const string DefaultCorsProxyURL = "https://corsproxy.io/?url="; // Stopped being possible to download binary files on free tier
     //public const string DefaultCorsProxyURL = "https://proxy.corsfix.com/?url="; // Only free from localhost
-    public const string DefaultCorsProxyURL = "https://cors-anywhere.com/";
+    //public const string DefaultCorsProxyURL = "https://cors-anywhere.com/"; // Only works from localhost 
+    public const string DefaultCorsProxyURL = "https://api.codetabs.com/v1/proxy?quest=";
 
     private C64SystemConfig _systemConfig;
     ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
