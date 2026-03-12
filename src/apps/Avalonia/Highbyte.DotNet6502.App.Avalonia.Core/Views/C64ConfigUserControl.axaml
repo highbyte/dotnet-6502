@@ -229,6 +229,35 @@
         </Border>
         </StackPanel>
 
+        <!-- Network Section (browser only) -->
+        <StackPanel Width="460" Classes="wrap-item"
+                    IsVisible="{Binding IsRunningInWebAssembly}">
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
+                    <TextBlock Text="Network"/>
+
+                    <Grid ColumnDefinitions="90,*,Auto" Classes="spacing-tight">
+                        <TextBlock Grid.Column="0"
+                                   Text="CORS proxy:"
+                                   Classes="secondary-text"/>
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding CorsProxyOverrideURL, Mode=TwoWay}"
+                                 Watermark="{Binding CorsProxyOverrideURLWatermark}"
+                                 Classes="field-aligned"
+                                 KeyDown="CorsProxyTextBox_KeyDown"/>
+                        <Button Grid.Column="2"
+                                Content="Reset"
+                                Command="{Binding ResetCorsProxyOverrideURLCommand}"
+                                Margin="4,0,0,0"
+                                Height="32"
+                                Padding="12,0"
+                                VerticalContentAlignment="Center"
+                                Classes=""/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
         <!-- AI Coding Assistant Section -->
         <StackPanel Width="460" Classes="wrap-item">
         <Border Classes="content-section">

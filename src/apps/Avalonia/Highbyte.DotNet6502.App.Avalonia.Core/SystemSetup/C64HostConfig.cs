@@ -15,7 +15,8 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     //public const string DefaultCorsProxyURL = "https://api.allorigins.win/raw?url="; // Doesn't work reliably
     //public const string DefaultCorsProxyURL = "https://corsproxy.io/?url="; // Stopped being possible to download binary files on free tier
     //public const string DefaultCorsProxyURL = "https://proxy.corsfix.com/?url="; // Only free from localhost
-    public const string DefaultCorsProxyURL = "https://cors-anywhere.com/";
+    //public const string DefaultCorsProxyURL = "https://cors-anywhere.com/"; // Only works from localhost 
+    public const string DefaultCorsProxyURL = "https://api.codetabs.com/v1/proxy?quest=";
 
     private C64SystemConfig _systemConfig = new();
     ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
@@ -31,7 +32,32 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
 
     public C64AvaloniaInputConfig InputConfig { get; set; } = new C64AvaloniaInputConfig();
 
-    public string CorsProxyURL { get; set; } = DefaultCorsProxyURL;
+    /// <summary>
+    /// Cors Proxy address override.
+    /// If set to null or empty, the default CORS proxy URL will be used when running in WebAssembly. When running on desktop, this setting is ignored and no CORS proxy will be used.
+    /// </summary>
+    /// <value></value>
+    public string? CorsProxyOverrideURL { get; set; } = null;
+
+    /// <summary>
+    /// Return the current CORS proxy URL to use.
+    /// If running in WebAssembly, this will return the CorsProxyOverrideURL if set, or the DefaultCorsProxyURL if CorsProxyOverrideURL is null or empty. 
+    /// If not running in WebAssembly, this will return null to indicate that no CORS proxy should be used.
+    /// </summary>
+    /// <returns></returns> <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public string GetCorsProxyURL()
+    {
+        if (!PlatformDetection.IsRunningInWebAssembly())
+        {
+            // CORS proxy is only needed when running in WebAssembly, so return null to not use any proxy when running on desktop
+            return null!;
+        }
+        // If running in WebAssembly, return the configured CORS proxy URL, or the default if not set
+        return string.IsNullOrEmpty(CorsProxyOverrideURL) ? DefaultCorsProxyURL : CorsProxyOverrideURL;
+    }
 
     private bool _basicAIAssistantDefaultEnabled;
     [JsonIgnore]
