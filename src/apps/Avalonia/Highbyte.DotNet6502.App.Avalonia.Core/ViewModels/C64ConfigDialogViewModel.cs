@@ -48,6 +48,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
 
+    private string _corsProxyOverrideURL = string.Empty;
+
     // AI Coding Assistant properties - now using config objects
     private CodeSuggestionBackendTypeEnum _selectedAIBackendType;
     private ApiConfig _openAIConfig = new();
@@ -61,6 +63,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearRomsCommand { get; }
     public ReactiveCommand<Unit, Unit> TestAIBackendCommand { get; }
+    public ReactiveCommand<Unit, Unit> ResetCorsProxyOverrideURLCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
 
@@ -86,6 +89,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
 
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
+        CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
 
         // Initialize AI Coding Assistant properties
         SelectedAIBackendType = _workingConfig.CodeSuggestionBackendType;
@@ -115,6 +119,14 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         TestAIBackendCommand = ReactiveCommandHelper.CreateSafeCommand(
             TestAIBackendAsync,
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        ResetCorsProxyOverrideURLCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                CorsProxyOverrideURL = string.Empty;
+                return Task.CompletedTask;
+            },
             outputScheduler: RxApp.MainThreadScheduler);
 
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -269,6 +281,21 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    public string CorsProxyOverrideURL
+    {
+        get => _corsProxyOverrideURL;
+        set
+        {
+            if (_corsProxyOverrideURL == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _corsProxyOverrideURL, value);
+            _workingConfig.CorsProxyOverrideURL = string.IsNullOrEmpty(value) ? null : value;
+        }
+    }
+
+    public static string CorsProxyOverrideURLWatermark => C64HostConfig.DefaultCorsProxyURL;
+
     public RenderProviderOption? SelectedRenderProvider
     {
         get => _selectedRenderProvider;
@@ -331,8 +358,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
             {
-                var fullROMUrl = !string.IsNullOrEmpty(_workingConfig.CorsProxyURL)
-                    ? $"{_workingConfig.CorsProxyURL}{Uri.EscapeDataString(romDownload.Value)}"
+                var proxyUrl = _workingConfig.GetCorsProxyURL();
+                var fullROMUrl = !string.IsNullOrEmpty(proxyUrl)
+                    ? $"{proxyUrl}{Uri.EscapeDataString(romDownload.Value)}"
                     : romDownload.Value;
 
                 var romBytes = await _httpClient.GetByteArrayAsync(fullROMUrl);
@@ -1034,6 +1062,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private void ApplyWorkingConfigToOriginal()
     {
         _originalConfig.SystemConfig.ROMDirectory = _workingConfig.SystemConfig.ROMDirectory;
+        _originalConfig.CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL;
         _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
         _originalConfig.SystemConfig.KeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;

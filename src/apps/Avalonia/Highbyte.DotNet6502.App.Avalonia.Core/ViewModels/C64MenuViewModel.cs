@@ -528,7 +528,7 @@ public class C64MenuViewModel : ViewModelBase
                    _loggerFactory,
                    _httpClient,
                    HostApp!,
-                    corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL : null);
+                   corsProxyUrl: c64HostConfig.GetCorsProxyURL());
             }
 
             await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
