@@ -4,7 +4,7 @@ A Visual Studio Code extension for debugging 6502 assembly source and machine co
 
 > Currently the extension is not available in an extension store. The only way to run it is to build and run it from source.
 
-> There is also a built-in simpler [machine code monitor](../../doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than the VS Code extenision described here. 
+> There is also a built-in simpler [machine code monitor](../../doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than the VS Code extension described here. 
 
 ## Requirements
 
@@ -15,6 +15,10 @@ A Visual Studio Code extension for debugging 6502 assembly source and machine co
 
 _Extra requirements for source debugging_:
 - [cc65](https://github.com/cc65/cc65) toolchain (for building .asm files and generating source debug .dbg files). 
+- Installing cc65:
+  - Windows: See prebuilt snapshots at [cc65 documentation](https://cc65.github.io/getting-started.html).
+  - Linux: Build from source or use prebuilt packages, see [cc65 documentation](https://cc65.github.io/getting-started.html)
+  - Mac (via [Homebrew](https://brew.sh/)): `brew install cc65`
 - The cc65 tools (specifically ca65 and cl65 executables) are expected to be in system path.
 
 ## Building the VSCode extension
