@@ -393,6 +393,271 @@
                             </Border>
                         </TabItem>
 
+                        <!-- Scripts Tab -->
+                        <TabItem Name="ScriptsTabItem"
+                                 Header="{Binding ScriptsTabHeader}"
+                                 Classes.disabled-scripts="{Binding HasDisabledScripts}">
+                            <Border Classes="tab-content">
+                                <ScrollViewer Classes="auto-scroll">
+                                    <StackPanel Classes="spacing-tight">
+                                        <!-- Scripting disabled status (only shown when scripting is off) -->
+                                        <StackPanel Orientation="Horizontal" Classes="spacing-tight"
+                                                    IsVisible="{Binding !IsScriptingEnabled}">
+                                            <TextBlock Text="Scripting:"
+                                                       Classes="small bold"/>
+                                            <TextBlock Text="Disabled"
+                                                       Classes="small"
+                                                       Foreground="{DynamicResource SecondaryText}"/>
+                                        </StackPanel>
+
+                                        <!-- Script table -->
+                                        <StackPanel IsVisible="{Binding IsScriptingEnabled}">
+
+                                            <!-- Desktop info banner (shown when not in manage/browser mode) -->
+                                            <Border IsVisible="{Binding ShowScriptDirectoryInfo}"
+                                                    Background="{DynamicResource SecondaryBg}"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="8,6"
+                                                    Margin="0,0,0,6">
+                                                <StackPanel Spacing="2">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <Button Content="↻"
+                                                                Command="{Binding RefreshScriptsCommand}"
+                                                                FontSize="12"
+                                                                Height="22" Padding="4,0"
+                                                                MinWidth="0" MinHeight="0"
+                                                                VerticalAlignment="Center"
+                                                                VerticalContentAlignment="Center"
+                                                                ToolTip.Tip="Reload scripts from folder"/>
+                                                        <TextBlock Text="Script folder:"
+                                                                   Classes="small bold"
+                                                                   VerticalAlignment="Center"/>
+                                                        <Button Content="{Binding ScriptDirectory}"
+                                                                Command="{Binding OpenScriptFolderCommand}"
+                                                                Classes="link"
+                                                                FontSize="10"
+                                                                Padding="0"
+                                                                Margin="0"
+                                                                BorderThickness="0"
+                                                                VerticalAlignment="Center"
+                                                                ToolTip.Tip="Open script folder in file browser"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="Use your OS file browser and editor to add, edit, or delete scripts. The script directory is set in appsettings.json in the same folder as the emulator executable. Restart app after making changes to the script directory path."
+                                                               Classes="small"
+                                                               Foreground="{DynamicResource SecondaryText}"
+                                                               TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Add script + Load Examples + Refresh buttons (browser/manage mode only) -->
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="6"
+                                                        Margin="0,0,0,4"
+                                                        IsVisible="{Binding CanManageScripts}">
+                                                <Button Content="+ Add Script"
+                                                        Command="{Binding AddScriptCommand}"
+                                                        FontSize="10"
+                                                        Padding="6,2"
+                                                        MinWidth="0"
+                                                        MinHeight="0"/>
+                                                <Button Content="Load Examples"
+                                                        Command="{Binding LoadExamplesCommand}"
+                                                        IsVisible="{Binding CanLoadExamples}"
+                                                        FontSize="10"
+                                                        Padding="6,2"
+                                                        MinWidth="0"
+                                                        MinHeight="0"/>
+                                                <Button Content="↻"
+                                                        Command="{Binding RefreshScriptsCommand}"
+                                                        FontSize="12"
+                                                        Height="22" Padding="4,0"
+                                                        MinWidth="0" MinHeight="0"
+                                                        VerticalAlignment="Center"
+                                                        VerticalContentAlignment="Center"
+                                                        ToolTip.Tip="Reload all scripts from localStorage"/>
+                                            </StackPanel>
+
+                                            <!-- Header row -->
+                                            <Grid Margin="0,0,0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="18"/>
+                                                    <ColumnDefinition Width="28"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                    <ColumnDefinition Width="30"/>
+                                                    <ColumnDefinition Width="200"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="5" Text="Script" Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="6" Text="Status" Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="7" Text="Yield"  Classes="small bold" FontSize="10"/>
+                                                <TextBlock Grid.Column="8" Text="Hooks"  Classes="small bold" FontSize="10"/>
+                                            </Grid>
+
+                                            <!-- Separator -->
+                                            <Border Height="1" Background="{DynamicResource BorderColor}" Margin="0,0,0,1"/>
+
+                                            <!-- Data rows -->
+                                            <ItemsControl ItemsSource="{Binding ScriptEntries}">
+                                                <ItemsControl.Styles>
+                                                    <Style Selector="TextBlock.script-status-dot">
+                                                        <Setter Property="FontSize" Value="8"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
+                                                    </Style>
+                                                    <Style Selector="TextBlock.script-disabled">
+                                                        <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+                                                    </Style>
+                                                    <Style Selector="TextBlock.script-completed">
+                                                        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+                                                    </Style>
+                                                    <Style Selector="TextBlock.script-user-disabled">
+                                                        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+                                                    </Style>
+                                                </ItemsControl.Styles>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="18"/>
+                                                                <ColumnDefinition Width="28"/>
+                                                                <ColumnDefinition Width="30"/>
+                                                                <ColumnDefinition Width="30"/>
+                                                                <ColumnDefinition Width="30"/>
+                                                                <ColumnDefinition Width="200"/>
+                                                                <ColumnDefinition Width="100"/>
+                                                                <ColumnDefinition Width="80"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- Status indicator dot -->
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="●"
+                                                                       Classes="script-status-dot"
+                                                                       Classes.script-disabled="{Binding IsDisabled}"
+                                                                       Classes.script-completed="{Binding IsCompleted}"
+                                                                       Classes.script-user-disabled="{Binding IsUserDisabled}"/>
+
+                                                            <!-- Enable/disable toggle -->
+                                                            <Viewbox Grid.Column="1"
+                                                                     Width="18" Height="22"
+                                                                     HorizontalAlignment="Center"
+                                                                     VerticalAlignment="Center"
+                                                                     Stretch="Uniform"
+                                                                     Margin="0,1,0,-1">
+                                                                <CheckBox IsChecked="{Binding IsScriptEnabled, Mode=OneWay}"
+                                                                          IsEnabled="{Binding CanToggle}"
+                                                                          Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ToggleScriptEnabledCommand}"
+                                                                          CommandParameter="{Binding FileName}"
+                                                                          Padding="0"
+                                                                          MinWidth="0"
+                                                                          MinHeight="0"/>
+                                                            </Viewbox>
+
+                                                            <!-- Reload button -->
+                                                            <Button Grid.Column="2"
+                                                                    Content="↻"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ReloadScriptCommand}"
+                                                                    CommandParameter="{Binding FileName}"
+                                                                    IsEnabled="{Binding CanReload}"
+                                                                    FontSize="12"
+                                                                    Height="22"
+                                                                    Padding="4,0"
+                                                                    MinWidth="0"
+                                                                    MinHeight="0"
+                                                                    VerticalAlignment="Center"
+                                                                    VerticalContentAlignment="Center"
+                                                                    HorizontalAlignment="Center"
+                                                                    ToolTip.Tip="Reload script"/>
+
+                                                            <!-- Edit button (browser/manage mode only) -->
+                                                            <Button Grid.Column="3"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).EditScriptCommand}"
+                                                                    CommandParameter="{Binding FileName}"
+                                                                    IsVisible="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).CanManageScripts}"
+                                                                    Height="22"
+                                                                    Padding="4,0"
+                                                                    MinWidth="0"
+                                                                    MinHeight="0"
+                                                                    VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Center"
+                                                                    ToolTip.Tip="Edit script">
+                                                                <PathIcon Width="12" Height="12"
+                                                                          Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                                                            </Button>
+
+                                                            <!-- Delete button (browser/manage mode only) -->
+                                                            <Button Grid.Column="4"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).DeleteScriptCommand}"
+                                                                    CommandParameter="{Binding FileName}"
+                                                                    IsVisible="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).CanManageScripts}"
+                                                                    Height="22"
+                                                                    Padding="4,0"
+                                                                    MinWidth="0"
+                                                                    MinHeight="0"
+                                                                    VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Center"
+                                                                    ToolTip.Tip="Delete script">
+                                                                <PathIcon Width="12" Height="12"
+                                                                          Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                                                            </Button>
+
+                                                            <!-- File name -->
+                                                            <TextBlock Grid.Column="5"
+                                                                       Text="{Binding FileName}"
+                                                                       Classes="small"
+                                                                       FontFamily="Consolas,Monaco,'Courier New',monospace"
+                                                                       FontSize="10"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis"/>
+
+                                                            <!-- Status -->
+                                                            <TextBlock Grid.Column="6"
+                                                                       Text="{Binding Status}"
+                                                                       Classes="small"
+                                                                       FontSize="10"
+                                                                       VerticalAlignment="Center"
+                                                                       Classes.script-disabled="{Binding IsDisabled}"
+                                                                       Classes.script-user-disabled="{Binding IsUserDisabled}"/>
+
+                                                            <!-- Yield Type -->
+                                                            <TextBlock Grid.Column="7"
+                                                                       Text="{Binding YieldType}"
+                                                                       Classes="small"
+                                                                       FontSize="10"
+                                                                       Foreground="{DynamicResource SecondaryText}"
+                                                                       VerticalAlignment="Center"/>
+
+                                                            <!-- Hooks -->
+                                                            <TextBlock Grid.Column="8"
+                                                                       Text="{Binding Hooks}"
+                                                                       Classes="small"
+                                                                       FontSize="10"
+                                                                       Foreground="{DynamicResource SecondaryText}"
+                                                                       VerticalAlignment="Center"
+                                                                       TextWrapping="NoWrap"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+
+                                        <!-- Empty state -->
+                                        <TextBlock Text="No scripts loaded."
+                                                   Classes="small secondary-text"
+                                                   FontStyle="Italic"
+                                                   IsVisible="{Binding !ScriptEntries.Count}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+
                         <!-- General info -->
                         <TabItem Name="GeneralInfoTabItem" Header="General info">
                             <ScrollViewer Classes="auto-scroll">

@@ -8,6 +8,8 @@ using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.Browser.Input;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
+using Highbyte.DotNet6502.Scripting.MoonSharp;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +18,19 @@ using Microsoft.Extensions.Logging;
 internal sealed partial class Program
 {
     private const string LOCAL_STORAGE_MAIN_CONFIG_KEY = "dotnet6502.emulator.avalonia.config";
+    private const string LOCAL_STORAGE_SCRIPT_PREFIX = "dotnet6502.lua.";
+    private const string LOCAL_STORAGE_STORE_PREFIX = "dotnet6502.store.";
+
+    private static readonly string[] _exampleScriptNames =
+    [
+        "example_monitor.lua",
+        "example_store.lua",
+        "example_http.lua",
+        "example_frameadvance.lua",
+        "example_emulator_control.lua",
+        "example_c64_border_cycle.lua",
+        "example_c64_download_and_run_prg.lua",
+    ];
 
     [RequiresUnreferencedCode("Calls JsonSerializer.Deserialize(String) and JsonSerializer.Serialize(object)")]
     private static async Task<int> Main(string[] args)
@@ -59,6 +74,9 @@ internal sealed partial class Program
 
         emulatorConfig.EnableLoadResourceOverHttp(GetAppUrlHttpClient);
 
+        // Set the Lua store prefix for display in the settings UI (browser only)
+        emulatorConfig.LuaStorePrefix = LOCAL_STORAGE_STORE_PREFIX;
+
         // Load custom JS module that WebAudioWavePlayer requires for interacting with WebAudio API.
         WriteBootstrapLog("Importing WebAudio WavePlayer JS module.");
         var jsModuleUri = WebAudioWavePlayerResources.GetJavaScriptModuleDataUri();
@@ -72,11 +90,50 @@ internal sealed partial class Program
         WriteBootstrapLog("Creating Gamepad implementation (Browser).");
         var browserGamepad = new BrowserGamepad(loggerFactory);
 
+        // Load custom JS module for localStorage-based Lua script loading
+        WriteBootstrapLog("Importing BrowserScripting JS module.");
+        await JSHost.ImportAsync("BrowserScripting", BrowserScriptingResources.GetJavaScriptModuleDataUri());
+
+        // Create scripting engine (loads scripts from localStorage if enabled in config)
+        // Binding is done here (not inside the library) so the AOT ConfigurationBindingGenerator
+        // can see the ScriptingConfig call site and generate trim-safe code.
+        WriteBootstrapLog("Reading scripting config.");
+        var scriptingConfig = new ScriptingConfig();
+        configuration.GetSection(ScriptingConfig.ConfigSectionName).Bind(scriptingConfig);
+        scriptingConfig.ScriptLoader = LoadScriptsFromLocalStorage;
+
+        // Wire localStorage-backed store backend (browser-only)
+        if (scriptingConfig.AllowStore)
+        {
+            scriptingConfig.StoreBackend = new DelegateScriptStore(
+                get: key => JSInterop.GetLocalStorage($"{LOCAL_STORAGE_STORE_PREFIX}{key}"),
+                set: (key, val) => JSInterop.SetLocalStorage($"{LOCAL_STORAGE_STORE_PREFIX}{key}", val),
+                delete: key => JSInterop.RemoveLocalStorage($"{LOCAL_STORAGE_STORE_PREFIX}{key}"),
+                list: () =>
+                {
+                    var json = JSInterop.GetLocalStorageKeys(LOCAL_STORAGE_STORE_PREFIX);
+                    if (string.IsNullOrEmpty(json)) return [];
+                    return JsonSerializer.Deserialize(json, HostConfigJsonContext.Default.ListString) ?? [];
+                });
+        }
+
+        WriteBootstrapLog("Creating scripting engine.");
+        var scriptingEngine = MoonSharpScriptingConfigurator.CreateForBrowser(
+            scriptingConfig, loggerFactory);
+
+        // Script persistence callbacks (localStorage-backed, browser-only)
+        string? LoadScript(string name) => JSInterop.GetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
+        void SaveScript(string name, string content) => JSInterop.SetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}", content);
+        void DeleteScript(string name) => JSInterop.RemoveLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
+
+        // Load-examples callback: fetches bundled scripts and saves any that are not yet in localStorage
+        Task LoadExamples() => SeedExampleScriptsAsync(SaveScript);
+
         // Start Avalonia app
         try
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamples)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -159,6 +216,53 @@ internal sealed partial class Program
 
         [JSImport("globalThis.localStorage.setItem")]
         public static partial void SetLocalStorage(string key, string? value);
+
+        [JSImport("globalThis.localStorage.removeItem")]
+        public static partial void RemoveLocalStorage(string key);
+
+        [JSImport("getScriptsFromLocalStorage", "BrowserScripting")]
+        public static partial string GetScriptsFromLocalStorage(string prefix);
+
+        [JSImport("getLocalStorageKeys", "BrowserScripting")]
+        public static partial string GetLocalStorageKeys(string prefix);
+    }
+
+    private static async Task SeedExampleScriptsAsync(Action<string, string> saveScript)
+    {
+        using var http = GetAppUrlHttpClient();
+        foreach (var scriptName in _exampleScriptNames)
+        {
+            var key = $"{LOCAL_STORAGE_SCRIPT_PREFIX}{scriptName}";
+            if (JSInterop.GetLocalStorage(key) != null)
+                continue;   // already exists (user content) — skip
+
+            try
+            {
+                var content = await http.GetStringAsync($"scripts/{scriptName}");
+                saveScript(scriptName, content);   // writes localStorage + hot-adds to engine
+                WriteBootstrapLog($"Seeded example script: {scriptName}");
+            }
+            catch (Exception ex)
+            {
+                WriteBootstrapLog($"Could not seed example script '{scriptName}': {ex.Message}", LogLevel.Warning);
+            }
+        }
+    }
+
+    private static IEnumerable<(string fileName, string content)> LoadScriptsFromLocalStorage()
+    {
+        try
+        {
+            var json = JSInterop.GetScriptsFromLocalStorage(LOCAL_STORAGE_SCRIPT_PREFIX);
+            if (string.IsNullOrEmpty(json)) return [];
+            var scripts = JsonSerializer.Deserialize(json, HostConfigJsonContext.Default.ListLocalStorageScript);
+            return scripts?.Select(s => (s.name, s.content)) ?? [];
+        }
+        catch (Exception ex)
+        {
+            WriteBootstrapLog($"Could not load scripts from localStorage: {ex.Message}", LogLevel.Warning);
+            return [];
+        }
     }
 
     private static async Task<string> GetConfigStringFromLocalStorage(string configKey)
@@ -280,7 +384,12 @@ internal sealed partial class Program
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge,
-        BrowserGamepad? browserGamepad = null)
+        BrowserGamepad? browserGamepad = null,
+        IScriptingEngine? scriptingEngine = null,
+        Func<string, string?>? loadScript = null,
+        Action<string, string>? saveScript = null,
+        Action<string>? deleteScript = null,
+        Func<Task>? loadExamples = null)
     {
         return AppBuilder.Configure(() =>
         {
@@ -292,7 +401,12 @@ internal sealed partial class Program
                                 loggerFactory,
                                 saveCustomConfigString: PersistStringToLocalStorage,
                                 saveCustomConfigSection: PersistConfigSectionToLocalStorage,
-                                gamepad: browserGamepad
+                                gamepad: browserGamepad,
+                                scriptingEngine: scriptingEngine,
+                                loadScript: loadScript,
+                                saveScript: saveScript,
+                                deleteScript: deleteScript,
+                                loadExamples: loadExamples
                             );
         })
         .AfterSetup(_ =>

@@ -104,6 +104,38 @@ public class MainViewModel : ViewModelBase, IDisposable
         private set => this.RaiseAndSetIfChanged(ref _hasLogErrors, value);
     }
 
+    // Scripts tab properties
+    private string _scriptsTabHeader = "Scripts";
+    public string ScriptsTabHeader
+    {
+        get => _scriptsTabHeader;
+        private set => this.RaiseAndSetIfChanged(ref _scriptsTabHeader, value);
+    }
+
+    private bool _hasDisabledScripts = false;
+    public bool HasDisabledScripts
+    {
+        get => _hasDisabledScripts;
+        private set => this.RaiseAndSetIfChanged(ref _hasDisabledScripts, value);
+    }
+
+    private bool _isScriptingEnabled;
+    public bool IsScriptingEnabled
+    {
+        get => _isScriptingEnabled;
+        private set => this.RaiseAndSetIfChanged(ref _isScriptingEnabled, value);
+    }
+
+    private readonly ObservableCollection<ScriptDisplayEntry> _scriptEntries = new();
+    public ObservableCollection<ScriptDisplayEntry> ScriptEntries => _scriptEntries;
+
+    public bool CanManageScripts { get; }
+    public bool CanLoadExamples { get; }
+
+    // Show the script directory info banner on Desktop (not browser) when scripting is enabled
+    public bool ShowScriptDirectoryInfo => IsScriptingEnabled && !CanManageScripts;
+    public string ScriptDirectory => _hostApp.ScriptDirectory;
+
     // Tab tracking for performance optimization
     private string _selectedTabName = "";
     public string SelectedTabName
@@ -291,6 +323,20 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
+    public ReactiveCommand<string, Unit> ToggleScriptEnabledCommand { get; }
+    public ReactiveCommand<string, Unit> ReloadScriptCommand { get; }
+    public ReactiveCommand<Unit, Unit> AddScriptCommand { get; }
+    public ReactiveCommand<string, Unit> EditScriptCommand { get; }
+    public ReactiveCommand<string, Unit> DeleteScriptCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadExamplesCommand { get; }
+    public ReactiveCommand<Unit, Unit> RefreshScriptsCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenScriptFolderCommand { get; }
+
+    // Events for script editor dialog (UI operation handled in View code-behind)
+    public event EventHandler? RequestAddScript;
+    public event EventHandler<string>? RequestEditScript;
+    public event EventHandler<DeleteScriptConfirmationEventArgs>? RequestDeleteScript;
+    public event EventHandler? RequestOpenScriptFolder;
 
     // Event for requesting the emulator options overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
@@ -574,6 +620,63 @@ public class MainViewModel : ViewModelBase, IDisposable
                 count => count > 0),
             RxApp.MainThreadScheduler);
 
+        ToggleScriptEnabledCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            (fileName) =>
+            {
+                var entry = _scriptEntries.FirstOrDefault(e => e.FileName == fileName);
+                if (entry == null) return;
+                bool newEnabled = entry.IsUserDisabled;
+                _hostApp.ScriptingEngine.SetScriptEnabled(fileName, newEnabled);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        ReloadScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            (fileName) =>
+            {
+                _hostApp.ScriptingEngine.ReloadScript(fileName);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        AddScriptCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                RequestAddScript?.Invoke(this, EventArgs.Empty);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        EditScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            (fileName) =>
+            {
+                RequestEditScript?.Invoke(this, fileName);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        DeleteScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            async (fileName) =>
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                var args = new DeleteScriptConfirmationEventArgs(fileName, tcs);
+                RequestDeleteScript?.Invoke(this, args);
+                if (await tcs.Task)
+                    _hostApp.DeleteScript(fileName);
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
+        RefreshScriptsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => _hostApp.RefreshScripts(),
+            null,
+            RxApp.MainThreadScheduler);
+
+        OpenScriptFolderCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => RequestOpenScriptFolder?.Invoke(this, EventArgs.Empty),
+            null,
+            RxApp.MainThreadScheduler);
+
         // Emulator Options command - only enabled when emulator is uninitialized
         EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -604,6 +707,16 @@ public class MainViewModel : ViewModelBase, IDisposable
         // System-specific ViewModel initializations
         this.WhenAnyValue(x => x.SelectedSystemName)
                  .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
+
+        // Initialize scripts tab data and subscribe to status changes
+        CanManageScripts = _hostApp.CanManageScripts;
+        CanLoadExamples = _hostApp.CanLoadExamples;
+        LoadExamplesCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await _hostApp.LoadExamplesAsync(),
+            null,
+            RxApp.MainThreadScheduler);
+        RefreshScriptStatuses();
+        _hostApp.ScriptingEngine.ScriptStatusChanged += OnScriptStatusChanged;
     }
 
     private string GetAudioToolTip(IHostSystemConfig config)
@@ -743,6 +856,44 @@ public class MainViewModel : ViewModelBase, IDisposable
         HasLogErrors = errorCount > 0;
     }
 
+    private void RefreshScriptStatuses()
+    {
+        var engine = _hostApp.ScriptingEngine;
+        IsScriptingEnabled = engine.IsEnabled;
+
+        var statuses = engine.GetScriptStatuses();
+        _scriptEntries.Clear();
+        foreach (var status in statuses)
+            _scriptEntries.Add(new ScriptDisplayEntry(status));
+
+        UpdateScriptsTabHeader();
+    }
+
+    private void UpdateScriptsTabHeader()
+    {
+        var systemDisabledCount = _scriptEntries.Count(s => s.IsDisabled);
+        var activeCount = _scriptEntries.Count(s => s.IsScriptEnabled);
+
+        if (_scriptEntries.Count == 0)
+            ScriptsTabHeader = "Scripts";
+        else if (systemDisabledCount > 0 && activeCount > 0)
+            ScriptsTabHeader = $"Scripts ({activeCount}, {systemDisabledCount} disabled)";
+        else if (systemDisabledCount > 0)
+            ScriptsTabHeader = $"Scripts ({systemDisabledCount} disabled)";
+        else if (activeCount > 0)
+            ScriptsTabHeader = $"Scripts ({activeCount})";
+        else
+            ScriptsTabHeader = "Scripts";
+
+        // Only flag red styling for system-disabled scripts (errors), not user-disabled
+        HasDisabledScripts = systemDisabledCount > 0;
+    }
+
+    private void OnScriptStatusChanged(object? sender, EventArgs e)
+    {
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() => RefreshScriptStatuses());
+    }
+
     /// <summary>
     /// Creates a MonitorViewModel for the current monitor instance.
     /// This method should be called by views that need to display the monitor.
@@ -790,6 +941,9 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        // Unsubscribe from scripting engine events
+        _hostApp.ScriptingEngine.ScriptStatusChanged -= OnScriptStatusChanged;
+
         // Unsubscribe from external debug controller events
         if (_externalDebugController != null)
             _externalDebugController.StateChanged -= OnExternalDebugControllerStateChanged;
@@ -859,4 +1013,73 @@ public class LogDisplayEntry
             _ => "?"                      // Question mark for unknown
         };
     }
+}
+
+/// <summary>
+/// Display wrapper for a single script entry in the Scripts tab.
+/// </summary>
+public class ScriptDisplayEntry
+{
+    public string FileName { get; }
+    public string Status { get; }
+    public string YieldType { get; }
+    public string Hooks { get; }
+
+    public bool IsDisabled { get; }
+    public bool IsRunning { get; }
+    public bool IsCompleted { get; }
+    public bool IsHookOnly { get; }
+    public bool IsUserDisabled { get; }
+    public bool CanToggle { get; }
+    public bool CanReload { get; }
+    public bool IsScriptEnabled { get; }
+
+    public ScriptDisplayEntry(ScriptStatus scriptStatus)
+    {
+        FileName = scriptStatus.FileName;
+
+        IsRunning = scriptStatus.State == ScriptExecutionState.Running;
+        IsDisabled = scriptStatus.State == ScriptExecutionState.Disabled;
+        IsUserDisabled = scriptStatus.State == ScriptExecutionState.UserDisabled;
+        IsCompleted = scriptStatus.State == ScriptExecutionState.Completed;
+        IsHookOnly = scriptStatus.State == ScriptExecutionState.HookOnly;
+        CanToggle = scriptStatus.CanToggle;
+        CanReload = scriptStatus.CanReload;
+        IsScriptEnabled = !IsUserDisabled && !IsDisabled;
+
+        Status = scriptStatus.State switch
+        {
+            ScriptExecutionState.Running => "Running",
+            ScriptExecutionState.Disabled => "Disabled",
+            ScriptExecutionState.UserDisabled => "Disabled (user)",
+            ScriptExecutionState.Completed => "Completed",
+            ScriptExecutionState.HookOnly => "Hook-only",
+            _ => "Unknown"
+        };
+
+        YieldType = scriptStatus.YieldType switch
+        {
+            ScriptYieldType.FrameAdvance => "FrameAdvance",
+            ScriptYieldType.Tick => "Tick",
+            _ => "-"
+        };
+
+        Hooks = scriptStatus.Hooks.Count > 0
+            ? string.Join(", ", scriptStatus.Hooks)
+            : "-";
+    }
+}
+
+public class DeleteScriptConfirmationEventArgs : EventArgs
+{
+    public string FileName { get; }
+    private readonly TaskCompletionSource<bool> _tcs;
+
+    public DeleteScriptConfirmationEventArgs(string fileName, TaskCompletionSource<bool> tcs)
+    {
+        FileName = fileName;
+        _tcs = tcs;
+    }
+
+    public void SetResult(bool confirmed) => _tcs.TrySetResult(confirmed);
 }

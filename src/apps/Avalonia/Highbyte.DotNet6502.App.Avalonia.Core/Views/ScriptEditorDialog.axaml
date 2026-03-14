@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.ScriptEditorDialog"
+        x:DataType="vm:ScriptEditorViewModel"
+        Width="640"
+        MinWidth="400"
+        MinHeight="320">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
+
+        <!-- Title header -->
+        <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container" Margin="0,0,0,8">
+            <TextBlock Text="{Binding Title}"
+                       Classes="h-center h2"/>
+        </Border>
+
+        <!-- Script name row -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0"
+                       Text="Name:"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0"/>
+            <TextBox x:Name="FileNameBox"
+                     Grid.Column="1"
+                     Text="{Binding FileName}"
+                     IsReadOnly="{Binding !IsNew}"
+                     Watermark="e.g. myscript.lua"
+                     FontFamily="Consolas,Monaco,'Courier New',monospace"/>
+        </Grid>
+
+        <!-- Code editor -->
+        <TextBox x:Name="ContentBox"
+                 Grid.Row="2"
+                 Text="{Binding Content}"
+                 AcceptsReturn="True"
+                 AcceptsTab="True"
+                 TextWrapping="NoWrap"
+                 FontFamily="Consolas,Monaco,'Courier New',monospace"
+                 FontSize="12"
+                 VerticalAlignment="Stretch"
+                 HorizontalAlignment="Stretch"
+                 VerticalContentAlignment="Top"
+                 Margin="0,0,0,8"/>
+
+        <!-- Footer buttons -->
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Content="Cancel"
+                    Command="{Binding CancelCommand}"/>
+            <Button Content="Save"
+                    Command="{Binding SaveCommand}"
+                    Classes="accent"/>
+        </StackPanel>
+
+    </Grid>
+
+</UserControl>

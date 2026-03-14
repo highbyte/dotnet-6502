@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -19,6 +21,7 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using Avalonia.Threading;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -36,6 +39,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
+    private readonly Func<string, string?>? _loadScript;
+    private readonly Action<string, string>? _saveScript;
+    private readonly Action<string>? _deleteScript;
+    private readonly Func<Task>? _loadExamples;
     private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
 
@@ -44,7 +51,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
+    internal IScriptingEngine ScriptingEngine => base.ScriptingEngine;
+
     private PeriodicAsyncTimer? _updateTimer;
+    private PeriodicAsyncTimer? _scriptingTickTimer;
 
     private EmulatorDisplayControlBase? _renderControl;
 
@@ -161,6 +171,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="saveCustomConfigString"></param>
     /// <param name="saveCustomConfigSection"></param>
     /// <param name="gamepad">Optional gamepad provider. Pass null to use a NullAvaloniaGamepad.</param>
+    /// <param name="loadScript">Optional callback to load a script's source content by file name (browser: from localStorage).</param>
+    /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
+    /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
+    /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
     internal AvaloniaHostApp(
         SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
@@ -169,7 +183,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         DotNet6502InMemLoggerConfiguration logConfig,
         Func<string, string, string?, Task>? saveCustomConfigString,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection,
-        IGamepad? gamepad = null
+        IGamepad? gamepad = null,
+        Func<string, string?>? loadScript = null,
+        Action<string, string>? saveScript = null,
+        Action<string>? deleteScript = null,
+        Func<Task>? loadExamples = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
@@ -178,6 +196,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _logConfig = logConfig;
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
+        _loadScript = loadScript;
+        _saveScript = saveScript;
+        _deleteScript = deleteScript;
+        _loadExamples = loadExamples;
 
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;
@@ -232,6 +254,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         OnPropertyChanged(nameof(CurrentHostSystemConfig));
 
         ValidateConfigAsync();
+        base.OnAfterSelectedSystemChanged();
     }
 
     public override void OnAfterAllSystemConfigurationVariantsChanged()
@@ -242,6 +265,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public override void OnAfterSelectedSystemVariantChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemConfigurationVariant));
+        base.OnAfterSelectedSystemVariantChanged();
     }
 
     public void SetVolumePercent(float volumePercent)
@@ -283,18 +307,15 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _monitor = new AvaloniaMonitor(CurrentSystemRunner!, _emulatorConfig.Monitor);
             // Notify subscribers that a new Monitor instance is available
             OnPropertyChanged(nameof(Monitor));
+
         }
 
-        // _logger.LogTrace("Test trace");
-        // _logger.LogDebug("Test debug");
-        // _logger.LogInformation("Test information");
-        // _logger.LogWarning("Test warning");
-        // _logger.LogError("Test error");
-        // _logger.LogCritical("Test critical");
+        base.OnAfterStart(emulatorStateBeforeStart);
     }
 
     public override void OnAfterPause()
     {
+        base.OnAfterPause();
         _updateTimer?.Stop();
     }
 
@@ -314,10 +335,31 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public override void OnAfterStop()
     {
         StopAndDisposeUpdateTimer();
+        base.OnAfterStop();
+    }
+
+    protected override void StopScriptingTimer()
+    {
+        if (_scriptingTickTimer != null)
+        {
+            _scriptingTickTimer.Elapsed -= ScriptingTickTimerElapsed;
+            _scriptingTickTimer.Stop();
+            _scriptingTickTimer.Dispose();
+            _scriptingTickTimer = null;
+        }
+    }
+
+    protected override void OnScriptingEngineSet()
+    {
+        _scriptingTickTimer = CreateScriptingTickTimer();
+        _scriptingTickTimer.Start();
+        _ = Dispatcher.UIThread.InvokeAsync(DrainPendingScriptActionsAsync);
     }
 
     public override void OnAfterClose()
     {
+        base.OnAfterClose();
+
         // Cleanup contexts
         _inputHandlerContext?.Cleanup();
         _audioHandlerContext?.Cleanup();
@@ -549,9 +591,26 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
     }
 
-    private void UpdateTimerElapsed(object? sender, EventArgs e)
+    private PeriodicAsyncTimer CreateScriptingTickTimer()
+    {
+        var timer = new PeriodicAsyncTimer
+        {
+            IntervalMilliseconds = 16.0 // ~60 Hz, independent of system refresh rate
+        };
+        timer.Elapsed += ScriptingTickTimerElapsed;
+        return timer;
+    }
+
+    private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
+    {
+        InvokeScriptingTick();
+        await DrainPendingScriptActionsAsync();
+    }
+
+    private async void UpdateTimerElapsed(object? sender, EventArgs e)
     {
         RunEmulatorOneFrame();
+        await DrainPendingScriptActionsAsync();
     }
 
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
@@ -601,8 +660,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         {
             _monitor?.Enable(execEvaluatorTriggerResult);
         }
-
-   }
+    }
 
     internal float Scale
     {
@@ -792,5 +850,30 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         if (configSection == null)
             return;
         await _saveCustomConfigSection(configSectionName, configSection, null);
+    }
+
+    internal bool CanManageScripts => ScriptingEngine.CanManageScripts;
+    internal bool CanLoadExamples => _loadExamples != null;
+    internal async Task LoadExamplesAsync()
+    {
+        if (_loadExamples == null) return;
+        await _loadExamples();
+        ScriptingEngine.ReloadAllScripts();  // pick up newly seeded scripts and refresh UI
+    }
+    internal string ScriptDirectory => ScriptingEngine.ScriptDirectory;
+    internal void RefreshScripts() => ScriptingEngine.ReloadAllScripts();
+
+    internal string? LoadScriptContent(string fileName) => _loadScript?.Invoke(fileName);
+
+    internal void SaveScript(string fileName, string content)
+    {
+        _saveScript?.Invoke(fileName, content);
+        ScriptingEngine.UpsertScript(fileName, content);
+    }
+
+    internal void DeleteScript(string fileName)
+    {
+        _deleteScript?.Invoke(fileName);
+        ScriptingEngine.DeleteScript(fileName);
     }
 }

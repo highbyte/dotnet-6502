@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
@@ -24,6 +25,13 @@ public class EmulatorConfig
 
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
     public MonitorConfig Monitor { get; set; } = new();
+
+    /// <summary>
+    /// Runtime-only: the localStorage key prefix used for Lua script storage (browser only).
+    /// Set by the platform host at startup; not persisted.
+    /// </summary>
+    [JsonIgnore]
+    public string LuaStorePrefix { get; set; } = string.Empty;
 
     private Func<HttpClient>? _getAppUrlHttpClient = null;
     public EmulatorConfig()
