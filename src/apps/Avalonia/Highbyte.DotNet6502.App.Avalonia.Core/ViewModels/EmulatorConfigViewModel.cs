@@ -213,6 +213,10 @@ public class EmulatorConfigViewModel : ViewModelBase
         }
     }
 
+    // Lua Scripting (read-only, informational)
+    public string LuaScriptDirectory => _hostApp.ScriptingEngine.ScriptDirectory;
+    public string LuaStorePrefix => _emulatorConfig.LuaStorePrefix;
+
     private void UpdateValidation()
     {
         _validationErrors.Clear();
