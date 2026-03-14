@@ -164,9 +164,58 @@
                         Classes=""/>
               
               <TextBlock Text="Automatically pause execution when an unknown/illegal opcode is encountered."
-                         Classes="small secondary-text"
-                         TextWrapping="Wrap"
-                         Margin="20,0,0,0"/>
+                          Classes="small secondary-text"
+                          TextWrapping="Wrap"
+                          Margin="20,0,0,0"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Lua Scripting Section -->
+        <StackPanel Width="400" Classes="wrap-item">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Lua Scripting" Classes=""/>
+
+              <!-- Desktop: Script Directory -->
+              <Grid IsVisible="{Binding !IsRunningInWebAssembly}"
+                    ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Script directory:"
+                           Classes="secondary-text"
+                           VerticalAlignment="Center"/>
+                <TextBox Grid.Row="0" Grid.Column="1"
+                         Text="{Binding LuaScriptDirectory}"
+                         IsReadOnly="True"
+                         Background="#1A000000"
+                         Width="250"
+                         HorizontalAlignment="Left"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="The directory from which Lua scripts are loaded. To change it, modify appsettings.json file and restart the application."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+              </Grid>
+
+              <!-- Browser: Store Prefix -->
+              <Grid IsVisible="{Binding IsRunningInWebAssembly}"
+                    ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Store prefix:"
+                           Classes="secondary-text"
+                           VerticalAlignment="Center"/>
+                <TextBox Grid.Row="0" Grid.Column="1"
+                         Text="{Binding LuaStorePrefix}"
+                         IsReadOnly="True"
+                         Background="#1A000000"
+                         Width="250"
+                         HorizontalAlignment="Left"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="The localStorage key prefix used for Lua script storage."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+              </Grid>
             </StackPanel>
           </Border>
         </StackPanel>

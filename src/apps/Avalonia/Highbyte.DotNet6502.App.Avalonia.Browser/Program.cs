@@ -74,6 +74,9 @@ internal sealed partial class Program
 
         emulatorConfig.EnableLoadResourceOverHttp(GetAppUrlHttpClient);
 
+        // Set the Lua store prefix for display in the settings UI (browser only)
+        emulatorConfig.LuaStorePrefix = LOCAL_STORAGE_STORE_PREFIX;
+
         // Load custom JS module that WebAudioWavePlayer requires for interacting with WebAudio API.
         WriteBootstrapLog("Importing WebAudio WavePlayer JS module.");
         var jsModuleUri = WebAudioWavePlayerResources.GetJavaScriptModuleDataUri();
