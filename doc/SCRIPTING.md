@@ -24,7 +24,8 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
     "AllowFileWrite": false,
     "AllowHttpRequests": true,
     "AllowStore": true,
-    "StoreSubDirectory": ".store"
+    "StoreSubDirectory": ".store",
+    "AllowTcpClient": false
 }
 ```
 
@@ -41,6 +42,7 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
 | `AllowHttpRequests` | bool | `true` | Whether the `http` global is available to Lua scripts. When `true`, scripts may make outbound HTTP GET and POST requests to arbitrary URLs. Default is `true`. |
 | `AllowStore` | bool | `true` | Whether the `store` global is available to Lua scripts. Provides a cross-platform key/value store. On desktop, backed by files in `StoreSubDirectory`. In browser, backed by `localStorage`. Default is `true`. |
 | `StoreSubDirectory` | string | `".store"` | Subdirectory within `ScriptDirectory` used for the filesystem store backend (desktop only). Default is `".store"`. |
+| `AllowTcpClient` | bool | `false` | Whether the `tcp` global is available to Lua scripts. Desktop only — forced `false` in browser/WASM builds. Default is `false`. |
 
 # Scripts tab UI
 
@@ -298,6 +300,135 @@ end
 store.delete("high_score")
 ```
 
+## TCP client (`tcp`)
+
+Available when `AllowTcpClient: true`. The `tcp` global is not registered when `AllowTcpClient` is `false`. TCP client support is **desktop only** — it is not available in browser/WASM builds because `System.Net.Sockets.TcpClient` is not supported in WebAssembly.
+
+The TCP API is designed for low-latency per-frame communication. The connection persists across frames; 
+
+### Binary data representation
+
+MoonSharp strings are .NET `System.String` (UTF-16 code units), **not** raw byte arrays. Any byte value > 127 would be silently reinterpreted as a Unicode code point, corrupting binary payloads. All binary I/O in the TCP API therefore uses **1-indexed Lua tables of numbers (0–255)** — the same convention as `file.read_bytes()` and `http.get_bytes()`.
+
+`conn:send()` accepts either format:
+- A **string** — encoded to UTF-8 bytes before sending. Safe for text-only protocols.
+- A **1-indexed byte table** — sent verbatim as raw bytes. Use for binary protocols.
+
+`conn:receive(n)` always returns a 1-indexed byte table regardless of the data content.
+
+### Lua 5.2 bitwise arithmetic
+
+MoonSharp implements Lua 5.2. The Lua 5.3 bitwise operators (`&`, `|`, `>>`, `<<`) are **not** available. Use integer arithmetic instead:
+
+| Lua 5.3 | Lua 5.2 equivalent |
+|---------|--------------------|
+| `n & 0xFF` | `n % 256` |
+| `(n >> 8) & 0xFF` | `math.floor(n / 256) % 256` |
+| `(n >> 16) & 0xFF` | `math.floor(n / 65536) % 256` |
+| `(n >> 24) & 0xFF` | `math.floor(n / 16777216) % 256` |
+
+### Connecting
+
+```lua
+local res = tcp.connect(host, port [, timeout_ms])
+```
+
+- `host` — hostname or IP address string.
+- `port` — TCP port number (1–65535).
+- `timeout_ms` — connection timeout in milliseconds. Default: 5000.
+
+Returns a **result table**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ok` | boolean | `true` if the connection was established. |
+| `data` | connection | Connection object (only present when `ok = true`). |
+| `error` | string or nil | Error description on failure. `nil` on success. |
+
+The call is **non-blocking and async** — the coroutine suspends until the connection is established or times out.
+
+### Connection methods
+
+Once connected, the `conn` object exposes three methods:
+
+#### `conn:send(data)`
+
+Send data over the connection. `data` may be a string or a 1-indexed byte table.
+
+Returns `{ ok=boolean, error=string|nil }`.
+
+#### `conn:receive(n)`
+
+Receive exactly `n` bytes. Suspends asynchronously until all bytes arrive or an error occurs.
+
+Returns `{ ok=boolean, data=table, error=string|nil }` where `data` is a 1-indexed byte table of `n` numbers (0–255).
+
+#### `conn:receive("*l")`
+
+Receive one line of text (reads until `\n`; the newline is stripped).
+
+Returns `{ ok=boolean, data=string, error=string|nil }` where `data` is the line as a string.
+
+#### `conn:close()`
+
+Close the connection. Safe to call multiple times.
+
+### Async behaviour
+
+`tcp.connect()`, `conn:send()`, and `conn:receive()` are all **non-blocking and async**: the coroutine suspends immediately and the emulator continues running frames. The script resumes automatically once the operation completes. From the Lua script's perspective each call looks like a normal synchronous expression:
+
+```lua
+local res = tcp.connect("127.0.0.1", 9000, 3000)  -- suspends until connected or timed out
+local sr  = conn:send({1, 2, 3})                   -- suspends until sent
+local lr  = conn:receive(4)                        -- suspends until 4 bytes arrive
+```
+
+### Examples
+
+```lua
+-- Connect to a TCP server
+local res = tcp.connect("127.0.0.1", 9000, 3000)
+if not res.ok then
+    log.error("Connection failed: " .. (res.error or "?"))
+    return
+end
+local conn = res.data
+
+-- Send a length-prefixed binary payload (byte table)
+local payload = { cpu.a, cpu.x, cpu.y }
+local prefix  = {
+    #payload % 256,
+    math.floor(#payload / 256) % 256,
+    math.floor(#payload / 65536) % 256,
+    math.floor(#payload / 16777216) % 256,
+}
+conn:send(prefix)
+conn:send(payload)
+
+-- Receive a length-prefixed response
+local lr = conn:receive(4)
+if lr.ok then
+    local resp_len = lr.data[1] + lr.data[2]*256 + lr.data[3]*65536 + lr.data[4]*16777216
+    if resp_len > 0 then
+        local ar = conn:receive(resp_len)
+        if ar.ok then
+            mem.write(0xD020, ar.data[1] % 16)  -- apply first byte as C64 border color
+        end
+    end
+end
+
+-- Receive a text line (e.g. JSON or NDJSON)
+local lr = conn:receive("*l")
+if lr.ok then
+    log.info("Server says: " .. lr.data)
+end
+
+-- Close when done
+conn:close()
+```
+
+For a complete per-frame observation/action loop, see `example_tcp_client.lua`.
+
 ## Standard Lua libraries
 
 The following standard Lua modules are available: `string`, `math`, `table`, and the soft-sandbox base functions (`print`, `type`, `tostring`, `tonumber`, `pairs`, `ipairs`, etc.). The standard Lua `io` and `os` modules are not available; use the `file` global and `emu.load()` instead.
@@ -325,6 +456,7 @@ Example scripts are included in the `scripts/` directory:
 | `example_file_io.lua` | Linear loop | Demonstrates the file I/O API: lists scripts, reads a text file, writes a CSV log, and shows `emu.load()` and `file.read_bytes()` usage. Requires `AllowFileIO: true`; write operations also require `AllowFileWrite: true`. |
 | `example_http.lua` | Event hook | Demonstrates the HTTP API in `on_started()`: GET with and without custom headers, `post_json`, `post` with explicit content type, `get_bytes`, `download`, and error handling for unreachable hosts. Requires `AllowHttpRequests: true`. |
 | `example_store.lua` | Linear loop + hooks | Demonstrates the key/value store API: persistent run counter, first-run flag, overwrite/verify, listing all keys, saving a CPU snapshot on `on_started`, and writing a frame checkpoint every 60 frames. Requires `AllowStore: true`. |
+| `example_tcp_client.lua` | Linear loop | Demonstrates the TCP client API with a per-frame observation/action loop mimicking a Machine Learning / Reinforcement Learning server protocol (length-prefixed binary). Connects to a local TCP server, sends CPU state as an observation each frame, and applies the first byte of the server's response to the C64 border color register. Requires `AllowTcpClient: true`. Desktop only. |
 
 # Technical details
 
