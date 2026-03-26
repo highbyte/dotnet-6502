@@ -63,6 +63,7 @@ brew update && brew upgrade --formula dotnet-6502
 
 ```powershell
 # Windows
+scoop update
 scoop update dotnet-6502
 ```
 
