@@ -16,6 +16,8 @@ The emulator has front-ends written with different technologies, and have somewh
 
 The **Avalonia** desktop app can be installed via package managers for a simpler experience.
 
+**Prerequisites:** Install [Homebrew](https://brew.sh/) (macOS/Linux) or [Scoop](https://scoop.sh/) (Windows) if you don't have them already.
+
 ### macOS (Homebrew)
 
 ```bash
@@ -35,6 +37,51 @@ brew install dotnet-6502
 ```powershell
 scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502
 scoop install dotnet-6502
+```
+
+### Launching
+
+After installing via a package manager, run the emulator from a terminal:
+
+```sh
+dotnet-6502
+```
+
+On macOS, the app is also installed to `/Applications` and can be launched from Launchpad, Spotlight, or Finder like any other Mac app.
+
+On Windows (Scoop), a Start Menu shortcut **DotNet6502 Emulator** is also created.
+
+### Updating
+
+```bash
+# macOS
+brew update && brew upgrade --cask dotnet-6502
+
+# Linux
+brew update && brew upgrade dotnet-6502
+```
+
+```powershell
+# Windows
+scoop update dotnet-6502
+```
+
+### Uninstalling
+
+```bash
+# macOS
+brew uninstall --cask dotnet-6502
+brew untap highbyte/dotnet-6502
+
+# Linux
+brew uninstall dotnet-6502
+brew untap highbyte/dotnet-6502
+```
+
+```powershell
+# Windows
+scoop uninstall dotnet-6502
+scoop bucket rm dotnet-6502
 ```
 
 ---

@@ -71,12 +71,44 @@ fi
 # Run dotnet publish
 dotnet publish "${PUBLISH_ARGS[@]}"
 
-if [[ $? -eq 0 ]]; then
-    echo ""
-    echo "✅ Published successfully to: $OUTPUT_DIR/$RUNTIME"
-    ls -la "$OUTPUT_DIR/$RUNTIME"
-else
+if [[ $? -ne 0 ]]; then
     echo ""
     echo "❌ Publish failed"
     exit 1
 fi
+
+echo ""
+echo "✅ Published successfully to: $OUTPUT_DIR/$RUNTIME"
+
+# Create .app bundle for macOS
+if [[ "$RUNTIME" == osx-* ]]; then
+    APP_NAME="DotNet6502.app"
+    APP_DIR="$OUTPUT_DIR/$RUNTIME/$APP_NAME"
+    MACOS_DIR="$APP_DIR/Contents/MacOS"
+    RESOURCES_DIR="$APP_DIR/Contents/Resources"
+
+    echo ""
+    echo "Creating macOS .app bundle: $APP_NAME"
+
+    # Create bundle structure
+    mkdir -p "$MACOS_DIR"
+    mkdir -p "$RESOURCES_DIR"
+
+    # Copy Info.plist
+    cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/Info.plist"
+
+    # Copy icon
+    cp "$SCRIPT_DIR/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
+
+    # Move all published files into MacOS directory
+    # (exclude the .app bundle itself to avoid recursion)
+    for item in "$OUTPUT_DIR/$RUNTIME/"*; do
+        if [[ "$(basename "$item")" != "$APP_NAME" ]]; then
+            mv "$item" "$MACOS_DIR/"
+        fi
+    done
+
+    echo "✅ macOS .app bundle created: $APP_DIR"
+fi
+
+ls -la "$OUTPUT_DIR/$RUNTIME"
