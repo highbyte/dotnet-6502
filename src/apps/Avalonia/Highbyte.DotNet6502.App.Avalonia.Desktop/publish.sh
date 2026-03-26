@@ -82,7 +82,7 @@ echo "✅ Published successfully to: $OUTPUT_DIR/$RUNTIME"
 
 # Create .app bundle for macOS
 if [[ "$RUNTIME" == osx-* ]]; then
-    APP_NAME="DotNet6502.app"
+    APP_NAME="DotNet6502 Emulator.app"
     APP_DIR="$OUTPUT_DIR/$RUNTIME/$APP_NAME"
     MACOS_DIR="$APP_DIR/Contents/MacOS"
     RESOURCES_DIR="$APP_DIR/Contents/Resources"
