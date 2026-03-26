@@ -29,7 +29,7 @@ brew install --cask dotnet-6502
 
 ```bash
 brew tap highbyte/dotnet-6502
-brew install dotnet-6502
+brew install --formula dotnet-6502
 ```
 
 ### Windows (Scoop)
@@ -58,7 +58,7 @@ On Windows (Scoop), a Start Menu shortcut **DotNet6502 Emulator** is also create
 brew update && brew upgrade --cask dotnet-6502
 
 # Linux
-brew update && brew upgrade dotnet-6502
+brew update && brew upgrade --formula dotnet-6502
 ```
 
 ```powershell
@@ -74,7 +74,7 @@ brew uninstall --cask dotnet-6502
 brew untap highbyte/dotnet-6502
 
 # Linux
-brew uninstall dotnet-6502
+brew uninstall --formula dotnet-6502
 brew untap highbyte/dotnet-6502
 ```
 
