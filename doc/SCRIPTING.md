@@ -118,6 +118,78 @@ All properties are read-only and return safe defaults (`0` or `false`) before a 
 
 Memory reads and writes go through the same address decoding as the emulated CPU, including I/O registers. For example, on the C64, `mem.read(0xD012)` reads the VIC-II raster line register and `mem.write(0xD020, 1)` sets the border color to white.
 
+## Input (`input`)
+
+The `input` table provides access to keyboard and joystick state. Scripts can both read the current input state and inject synthetic input for automation.
+
+Script-injected inputs are **merged** with real user input: a script can add key presses or joystick actions the user isn't pressing, but cannot suppress or override user input.
+
+Script-injected inputs are **ephemeral** — they must be re-injected every frame in your script loop. The scripting engine clears all injected state at the start of each frame before your scripts run.
+
+The `input` table is always registered, even when no input provider is active (e.g. on systems without input support). Functions that query state return `false` or `nil` gracefully in that case.
+
+### Keyboard
+
+Key names are **system-dependent** — each system defines its own valid key names. Call `input.available_keys()` to discover the valid names for the current system. On the C64, key names include `"a"`, `"space"`, `"return"`, `"f1"`, `"crsrright"`, `"stop"`, `"lira"`, etc.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `input.key_press(name)` | — | Inject a key press for the current frame. The key will be considered "down" for this frame only; scripts must re-inject each frame if the key should remain held. |
+| `input.key_release(name)` | — | Release a previously injected key. This only affects keys injected by the script, not user input. |
+| `input.key_release_all()` | — | Release all keys injected by the script for this frame. |
+| `input.is_key_down(name)` | boolean | Returns `true` if the key is currently pressed, whether by the user or by the script. Returns `false` if no input provider is active. |
+| `input.available_keys()` | table | Returns a 1-indexed table of valid key name strings for the current system. Returns an empty table if no input provider is active. |
+
+### Joystick
+
+Joystick action names are **standardized** across all systems: `"up"`, `"down"`, `"left"`, `"right"`, `"fire"`. Scripts use the same strings regardless of which system is running.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `input.joystick_set(port, action, pressed)` | — | Inject a joystick action on the given port (1-based) for the current frame. `action` is one of `"up"`, `"down"`, `"left"`, `"right"`, `"fire"`. |
+| `input.joystick_action(port, action)` | boolean | Returns `true` if the joystick action is active on the given port, whether by the user or by the script. Returns `false` if no input provider is active. |
+| `input.joystick_count()` | number | Returns the number of joystick ports on the current system (e.g. `2` on C64). Returns `0` if no input provider is active. |
+| `input.available_joystick_actions()` | table | Returns a 1-indexed table of valid joystick action strings. Always `{"up", "down", "left", "right", "fire"}`. Returns an empty table if no input provider is active. |
+
+### Examples
+
+The script's **top-level code** runs immediately when the script is enabled, before the first frame executes. The input provider is only wired once the first `on_before_frame()` fires. Therefore, input functions should only be called from hooks (`on_started`, `on_before_frame`) or after at least one `emu.frameadvance()`.
+
+```lua
+-- Discovery and finite-duration injection using on_before_frame
+local frame_counter = 0
+local demo_phase = 0  -- track what we're currently doing
+
+function on_before_frame()
+    frame_counter = frame_counter + 1
+
+    -- Discovery: only run once, on the first frame
+    if frame_counter == 1 then
+        local keys = input.available_keys()
+        if keys and #keys > 0 then
+            log.info("Available keys: " .. #keys)
+        end
+        log.info("Joystick ports: " .. input.joystick_count())
+    end
+
+    -- Demo: inject 'A' for 300 frames, then stop
+    if demo_phase == 0 and frame_counter > 1 then
+        log.info("Injecting 'A' for 300 frames...")
+        demo_phase = 1
+    end
+
+    if demo_phase == 1 then
+        input.key_press("a")
+        if frame_counter > 300 then
+            demo_phase = 2
+            log.info("Done injecting.")
+        end
+    end
+end
+```
+
+For a complete demonstration, see `example_input.lua`.
+
 ## Logging (`log`)
 
 Log messages are prefixed with `[Lua:filename.lua]` in the application log output.
@@ -457,6 +529,7 @@ Example scripts are included in the `scripts/` directory:
 | `example_http.lua` | Event hook | Demonstrates the HTTP API in `on_started()`: GET with and without custom headers, `post_json`, `post` with explicit content type, `get_bytes`, `download`, and error handling for unreachable hosts. Requires `AllowHttpRequests: true`. |
 | `example_store.lua` | Linear loop + hooks | Demonstrates the key/value store API: persistent run counter, first-run flag, overwrite/verify, listing all keys, saving a CPU snapshot on `on_started`, and writing a frame checkpoint every 60 frames. Requires `AllowStore: true`. |
 | `example_tcp_client.lua` | Linear loop | Demonstrates the TCP client API with a per-frame observation/action loop mimicking a Machine Learning / Reinforcement Learning server protocol (length-prefixed binary). Connects to a local TCP server, sends CPU state as an observation each frame, and applies the first byte of the server's response to the C64 border color register. Requires `AllowTcpClient: true`. Desktop only. |
+| `example_input.lua` | Linear loop | Demonstrates the input API: injecting key presses and joystick actions for automation, reading current input state, and discovering available keys and actions. |
 
 # Technical details
 

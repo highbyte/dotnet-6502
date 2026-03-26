@@ -25,6 +25,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaHttpProxy? _httpProxy;
     private LuaTcpProxy? _tcpProxy;
     private ScriptingConfig? _config;
+    private IScriptInputProvider? _inputProvider;
 
     // Tracks how each coroutine last yielded, keyed on the MoonSharp Coroutine object
     private readonly Dictionary<Coroutine, ScriptYieldType> _coroutineYieldType = new();
@@ -642,6 +643,75 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             });
         }
 
+        var inputTable = new Table(_script);
+        inputTable["key_press"] = DynValue.NewCallback((ctx, args) =>
+        {
+            var keyName = args.Count > 0 ? args[0].CastToString() : "";
+            _inputProvider?.KeyPress(keyName);
+            return DynValue.Void;
+        });
+        inputTable["key_release"] = DynValue.NewCallback((ctx, args) =>
+        {
+            var keyName = args.Count > 0 ? args[0].CastToString() : "";
+            _inputProvider?.KeyRelease(keyName);
+            return DynValue.Void;
+        });
+        inputTable["key_release_all"] = DynValue.NewCallback((ctx, args) =>
+        {
+            _inputProvider?.KeyReleaseAll();
+            return DynValue.Void;
+        });
+        inputTable["is_key_down"] = DynValue.NewCallback((ctx, args) =>
+        {
+            var keyName = args.Count > 0 ? args[0].CastToString() : "";
+            return _inputProvider != null && _inputProvider.IsKeyDown(keyName)
+                ? DynValue.NewBoolean(true)
+                : DynValue.False;
+        });
+        inputTable["available_keys"] = DynValue.NewCallback((ctx, args) =>
+        {
+            var keys = _inputProvider?.GetAvailableKeys() ?? [];
+            var t = new Table(_script!);
+            for (int i = 0; i < keys.Count; i++)
+                t[i + 1] = keys[i];
+            return DynValue.NewTable(t);
+        });
+        inputTable["joystick_set"] = DynValue.NewCallback((ctx, args) =>
+        {
+            if (_inputProvider == null) return DynValue.Void;
+            var port = args.Count > 0 ? (int)args[0].Number : 1;
+            var actionName = args.Count > 1 ? args[1].CastToString() : "";
+            var pressed = args.Count > 2 && args[2].Boolean;
+            _inputProvider.SetJoystickAction(port, actionName, pressed);
+            return DynValue.Void;
+        });
+        inputTable["joystick_action"] = DynValue.NewCallback((ctx, args) =>
+        {
+            if (_inputProvider == null) return DynValue.False;
+            var port = args.Count > 0 ? (int)args[0].Number : 1;
+            var actionName = args.Count > 1 ? args[1].CastToString() : "";
+            return _inputProvider.IsJoystickActionDown(port, actionName)
+                ? DynValue.NewBoolean(true)
+                : DynValue.False;
+        });
+        inputTable["joystick_count"] = DynValue.NewCallback((ctx, args) =>
+            DynValue.NewNumber(_inputProvider?.JoystickPortCount ?? 0));
+        inputTable["available_joystick_actions"] = DynValue.NewCallback((ctx, args) =>
+        {
+            if (_inputProvider == null)
+            {
+                _logProxy!.info("[Scripting] available_joystick_actions: provider is null");
+                return DynValue.NewTable(new Table(_script!));
+            }
+            var actions = _inputProvider.GetAvailableJoystickActions();
+            _logProxy!.info("[Scripting] available_joystick_actions: provider=" + _inputProvider.GetType().Name + ", count=" + actions.Count);
+            var t = new Table(_script!);
+            for (int i = 0; i < actions.Count; i++)
+                t[i + 1] = actions[i];
+            return DynValue.NewTable(t);
+        });
+        _script.Globals["input"] = inputTable;
+
         _script.Globals["emu"] = emuTable;
     }
 
@@ -1174,4 +1244,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         CoroutineState.ForceSuspended => AdapterCoroutineState.ForceSuspended,
         _ => AdapterCoroutineState.Dead
     };
+
+    public void SetInputProvider(IScriptInputProvider? provider) => _inputProvider = provider;
+
+    public void ClearScriptInput() => _inputProvider?.Clear();
 }

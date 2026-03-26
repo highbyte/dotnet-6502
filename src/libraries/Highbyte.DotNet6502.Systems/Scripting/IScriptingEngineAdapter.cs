@@ -127,4 +127,18 @@ public interface IScriptingEngineAdapter
     /// Called by <see cref="ScriptingEngine"/> after all initial resumes complete.
     /// </summary>
     void RebuildHookCache();
+
+    /// <summary>
+    /// Sets the input provider that bridges Lua script input calls (key_press, joystick_set)
+    /// to the underlying system. Called by <see cref="ScriptingEngine"/> when a system starts,
+    /// after <see cref="OnSystemStarted"/>.
+    /// </summary>
+    void SetInputProvider(IScriptInputProvider? provider);
+
+    /// <summary>
+    /// Clears all injected input state held by the input provider.
+    /// Called at the start of each frame before scripts run so that injected
+    /// inputs do not persist across frames unless re-injected.
+    /// </summary>
+    void ClearScriptInput();
 }

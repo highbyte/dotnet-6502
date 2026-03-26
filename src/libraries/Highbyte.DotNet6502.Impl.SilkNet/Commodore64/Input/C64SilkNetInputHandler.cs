@@ -64,6 +64,17 @@ public class C64SilkNetInputHandler : IInputHandler
     private void CaptureKeyboard(C64 c64)
     {
         var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+
+        var scriptInput = c64.ScriptInputProvider;
+        if (scriptInput != null)
+        {
+            foreach (var key in scriptInput.InjectedKeys)
+            {
+                if (!c64KeysDown.Contains(key))
+                    c64KeysDown.Add(key);
+            }
+        }
+
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
@@ -113,10 +124,18 @@ public class C64SilkNetInputHandler : IInputHandler
     private void CaptureJoystick(C64 c64)
     {
         var c64JoystickActions = GetC64JoystickActionsFromSilkNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
-        // Note: Assume Keyboard input has been processed before this, so that Joystick actions based on keypresses has resulted 
-        //       in the current joystick actions being initialized this frame (and may contain actions from keyboard).
-        //       Thus "overwrite" is set to false so that keyboard actions are not overwritten.
         c64.Cia1.Joystick.SetJoystickActions(_c64SilkNetConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
+
+        var scriptInput = c64.ScriptInputProvider;
+        if (scriptInput != null)
+        {
+            var scriptActions = scriptInput.InjectedJoystickActions;
+            for (int port = 1; port <= 2; port++)
+            {
+                if (scriptActions.TryGetValue(port, out var actions) && actions.Count > 0)
+                    c64.Cia1.Joystick.SetJoystickActions(port, actions, overwrite: false);
+            }
+        }
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromSilkNetGamepad(HashSet<ButtonName> gamepadButtonsDown)
