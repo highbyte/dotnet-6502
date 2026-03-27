@@ -49,8 +49,9 @@ AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
 // Get config file
 // ----------
 WriteBootstrapLog($"Creating configuration object.");
+var appDir = AppContext.BaseDirectory;
 var builder = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
+    .SetBasePath(appDir)
     .AddJsonFile("appsettings.json")
     .AddJsonFile("appsettings.Development.json", optional: true);
 

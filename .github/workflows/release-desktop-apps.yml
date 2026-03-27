@@ -9,12 +9,11 @@ on:
   # Allow manual triggering of the workflow for testing (artifacts will be uploaded to the workflow run, not a release))
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     strategy:
       fail-fast: false
@@ -84,3 +83,124 @@ jobs:
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip
             checksums-${{ matrix.runtime }}.sha256
+
+  update-package-managers:
+    if: github.event_name == 'release'
+    needs: build-and-upload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download checksum files from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for runtime in osx-arm64 linux-x64 linux-arm64 win-x64 win-arm64; do
+            gh release download "${{ github.event.release.tag_name }}" \
+              --repo ${{ github.repository }} \
+              --pattern "checksums-${runtime}.sha256"
+          done
+
+      - name: Extract SHA256 hashes
+        id: hashes
+        run: |
+          extract_hash() {
+            grep "DotNet6502-Avalonia-${1}.zip" "checksums-${1}.sha256" | awk '{print $1}'
+          }
+          echo "osx_arm64=$(extract_hash osx-arm64)" >> "$GITHUB_OUTPUT"
+          echo "linux_x64=$(extract_hash linux-x64)" >> "$GITHUB_OUTPUT"
+          echo "linux_arm64=$(extract_hash linux-arm64)" >> "$GITHUB_OUTPUT"
+          echo "win_x64=$(extract_hash win-x64)" >> "$GITHUB_OUTPUT"
+          echo "win_arm64=$(extract_hash win-arm64)" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_MANAGER_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          OSX_ARM64_HASH: ${{ steps.hashes.outputs.osx_arm64 }}
+          LINUX_X64_HASH: ${{ steps.hashes.outputs.linux_x64 }}
+          LINUX_ARM64_HASH: ${{ steps.hashes.outputs.linux_arm64 }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/highbyte/homebrew-dotnet-6502.git"
+          cd homebrew-dotnet-6502
+
+          # Update Cask (macOS)
+          sed -i "s/version \".*\"/version \"${VERSION}\"/" Casks/dotnet-6502.rb
+          sed -i "s/sha256 \".*\"/sha256 \"${OSX_ARM64_HASH}\"/" Casks/dotnet-6502.rb
+
+          # Update Formula (Linux) - use Python for multi-hash replacement
+          python3 <<'PYEOF'
+          import re, os
+
+          version = os.environ["VERSION"]
+          linux_x64_hash = os.environ["LINUX_X64_HASH"]
+          linux_arm64_hash = os.environ["LINUX_ARM64_HASH"]
+
+          with open("Formula/dotnet-6502.rb", "r") as f:
+              content = f.read()
+
+          content = re.sub(r'version ".*?"', f'version "{version}"', content)
+
+          # Replace hashes in order: first occurrence is x64, second is arm64
+          hashes = [linux_x64_hash, linux_arm64_hash]
+          idx = [0]
+          def replace_hash(m):
+              if idx[0] < len(hashes):
+                  h = hashes[idx[0]]
+                  idx[0] += 1
+                  return f'sha256 "{h}"'
+              return m.group(0)
+          content = re.sub(r'sha256 ".*?"', replace_hash, content)
+
+          with open("Formula/dotnet-6502.rb", "w") as f:
+              f.write(content)
+          PYEOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || { git commit -m "Update to ${VERSION}" && git push; }
+
+      - name: Update Scoop bucket
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_MANAGER_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          WIN_X64_HASH: ${{ steps.hashes.outputs.win_x64 }}
+          WIN_ARM64_HASH: ${{ steps.hashes.outputs.win_arm64 }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/highbyte/scoop-dotnet-6502.git"
+          cd scoop-dotnet-6502
+
+          python3 <<'PYEOF'
+          import json, os
+
+          version = os.environ["VERSION"]
+          tag = os.environ["TAG"]
+          win_x64_hash = os.environ["WIN_X64_HASH"]
+          win_arm64_hash = os.environ["WIN_ARM64_HASH"]
+
+          with open("bucket/dotnet-6502.json", "r") as f:
+              manifest = json.load(f)
+
+          manifest["version"] = version
+          manifest["architecture"]["64bit"]["url"] = f"https://github.com/highbyte/dotnet-6502/releases/download/{tag}/DotNet6502-Avalonia-win-x64.zip"
+          manifest["architecture"]["64bit"]["hash"] = win_x64_hash
+          manifest["architecture"]["arm64"]["url"] = f"https://github.com/highbyte/dotnet-6502/releases/download/{tag}/DotNet6502-Avalonia-win-arm64.zip"
+          manifest["architecture"]["arm64"]["hash"] = win_arm64_hash
+
+          with open("bucket/dotnet-6502.json", "w") as f:
+              json.dump(manifest, f, indent=4)
+              f.write("\n")
+          PYEOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || { git commit -m "Update to ${VERSION}" && git push; }

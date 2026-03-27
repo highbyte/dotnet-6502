@@ -12,6 +12,7 @@
 
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\Highbyte.DotNet6502.App.Avalonia.Core\Assets\favicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
