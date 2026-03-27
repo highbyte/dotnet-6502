@@ -127,7 +127,7 @@
             "properties": {
               "program": {
                 "type": "string",
-                "description": "Path to the .prg file to debug (optional if preLaunchTask is specified, will auto-detect from task output)",
+                "description": "Path to your .prg file (e.g. ${workspaceFolder}/myprog.prg). Optional when preLaunchTask is set — the path is then auto-detected from the task output.",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {
@@ -219,7 +219,7 @@
               },
               "program": {
                 "type": "string",
-                "description": "Path to the .prg file being debugged (for debug symbols and program bounds)",
+                "description": "Path to your .prg file (e.g. ${workspaceFolder}/myprog.prg). Used to locate debug symbols and determine program bounds. Not needed if dbgFile or preLaunchTask is specified.",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {

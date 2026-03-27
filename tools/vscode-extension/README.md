@@ -249,12 +249,14 @@ After pausing execution in VSCode debugger, or a breakpoint is hit, the Disassem
 
 Example for debugging pre-built .prg files without source. See full configuration reference below for all options.
 
-```json
+> **Note:** `program.prg` in the examples below is a placeholder — replace it with the actual path to your `.prg` file.
+
+```jsonc
 {
   "type": "dotnet6502",
   "request": "launch",
   "name": "Debug 6502 Program",
-  "program": "${workspaceFolder}/program.prg",
+  "program": "${workspaceFolder}/program.prg", // replace with your actual .prg file
   "stopOnEntry": true
 }
 ```
@@ -294,12 +296,12 @@ There are three ways to use the debugger, each with different launch.json config
 ### Example `launch.json` Configurations
 
 **Minimal (standalone debug adapter):**
-```json
+```jsonc
 {
   "type": "dotnet6502",
   "request": "launch",
   "name": "Debug 6502 Program",
-  "program": "${workspaceFolder}/program.prg",
+  "program": "${workspaceFolder}/program.prg", // replace with your actual .prg file
   "stopOnEntry": true
 }
 ```
@@ -331,14 +333,14 @@ There are three ways to use the debugger, each with different launch.json config
 ```
 
 **Emulator (launch Avalonia Desktop with C64) with .prg binary:**
-```json
+```jsonc
 {
   "type": "dotnet6502",
   "request": "launch",
   "name": "Launch C64 Emulator",
   "preLaunchTask": "Build test-program.asm",
   "debugAdapter": "emulator",
-  "program": "${workspaceFolder}/program.prg",
+  "program": "${workspaceFolder}/program.prg", // replace with your actual .prg file, or omit if preLaunchTask auto-detects it
   "system": "C64",
   "debugPort": 6502,
   "stopOnEntry": true,
