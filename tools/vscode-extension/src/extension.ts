@@ -183,15 +183,22 @@ interface Dependency {
     docsUrl: string;
 }
 
+function isInPath(executable: string): boolean {
+    const findCmd = process.platform === 'win32' ? 'where' : 'which';
+    const result = child_process.spawnSync(findCmd, [executable], { stdio: 'ignore' });
+    return result.status === 0;
+}
+
 function getEmulatorDependency(): Dependency {
-    let installCommand: string;
-    if (process.platform === 'darwin') {
+    let installCommand: string | undefined;
+    if (process.platform === 'darwin' && isInPath('brew')) {
         installCommand = 'brew tap highbyte/dotnet-6502 && brew install --cask dotnet-6502';
-    } else if (process.platform === 'linux') {
+    } else if (process.platform === 'linux' && isInPath('brew')) {
         installCommand = 'brew tap highbyte/dotnet-6502 && brew install --formula dotnet-6502';
-    } else {
+    } else if (process.platform === 'win32' && isInPath('scoop')) {
         installCommand = 'scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502 && scoop install dotnet-6502';
     }
+    // If no package manager found, installCommand remains undefined and docs are shown instead
     return {
         name: 'dotnet-6502 emulator',
         checkExecutable: 'dotnet-6502',
@@ -203,7 +210,11 @@ function getEmulatorDependency(): Dependency {
 
 function getCc65Dependency(): Dependency {
     // cc65 is checked via ca65 (the assembler), which is always installed alongside it
-    const installCommand = process.platform === 'darwin' ? 'brew install cc65' : undefined;
+    let installCommand: string | undefined;
+    if (process.platform === 'darwin' && isInPath('brew')) {
+        installCommand = 'brew install cc65';
+    }
+    // Linux and Windows have no simple one-liner; docs are opened instead
     return {
         name: 'cc65 toolchain',
         checkExecutable: 'ca65',
@@ -211,12 +222,6 @@ function getCc65Dependency(): Dependency {
         installCommand,
         docsUrl: 'https://cc65.github.io/getting-started.html',
     };
-}
-
-function isInPath(executable: string): boolean {
-    const findCmd = process.platform === 'win32' ? 'where' : 'which';
-    const result = child_process.spawnSync(findCmd, [executable], { stdio: 'ignore' });
-    return result.status === 0;
 }
 
 function checkDependencies(): void {
