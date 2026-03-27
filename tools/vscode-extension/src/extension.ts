@@ -157,11 +157,135 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    checkDependencies();
+
     outputChannel.appendLine('[6502 Debug] Extension activated successfully');
 }
 
 export function deactivate() {
     outputChannel.appendLine('[6502 Debug] Extension deactivating...');
+}
+
+// ---------------------------------------------------------------------------
+// Dependency checking
+// ---------------------------------------------------------------------------
+
+interface Dependency {
+    /** Human-readable name shown in notifications */
+    name: string;
+    /** Executable to look for in PATH */
+    checkExecutable: string;
+    /** Short description of what it is */
+    description: string;
+    /** Terminal command to pre-fill (not auto-run). Undefined = no simple command available. */
+    installCommand: string | undefined;
+    /** URL to open for more info / manual install instructions */
+    docsUrl: string;
+}
+
+function getEmulatorDependency(): Dependency {
+    let installCommand: string;
+    if (process.platform === 'darwin') {
+        installCommand = 'brew tap highbyte/dotnet-6502 && brew install --cask dotnet-6502';
+    } else if (process.platform === 'linux') {
+        installCommand = 'brew tap highbyte/dotnet-6502 && brew install --formula dotnet-6502';
+    } else {
+        installCommand = 'scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502 && scoop install dotnet-6502';
+    }
+    return {
+        name: 'dotnet-6502 emulator',
+        checkExecutable: 'dotnet-6502',
+        description: 'Required for emulator mode debugging (debugAdapter: "emulator").',
+        installCommand,
+        docsUrl: 'https://github.com/highbyte/dotnet-6502/blob/master/doc/DESKTOP_APPS.md',
+    };
+}
+
+function getCc65Dependency(): Dependency {
+    // cc65 is checked via ca65 (the assembler), which is always installed alongside it
+    const installCommand = process.platform === 'darwin' ? 'brew install cc65' : undefined;
+    return {
+        name: 'cc65 toolchain',
+        checkExecutable: 'ca65',
+        description: 'Required for building .asm files and source-level debugging.',
+        installCommand,
+        docsUrl: 'https://cc65.github.io/getting-started.html',
+    };
+}
+
+function isInPath(executable: string): boolean {
+    const findCmd = process.platform === 'win32' ? 'where' : 'which';
+    const result = child_process.spawnSync(findCmd, [executable], { stdio: 'ignore' });
+    return result.status === 0;
+}
+
+function checkDependencies(): void {
+    const missing = [getEmulatorDependency(), getCc65Dependency()].filter(dep => {
+        const found = isInPath(dep.checkExecutable);
+        outputChannel.appendLine(`[checkDependencies] '${dep.checkExecutable}' ${found ? 'found' : 'not found'} in PATH`);
+        return !found;
+    });
+
+    if (missing.length === 0) { return; }
+
+    const platformHint = process.platform === 'win32' ? '(Scoop)' : '(Homebrew)';
+    const names = missing.map(d => d.name).join(', ');
+    const hasInstallCommands = missing.some(d => d.installCommand);
+
+    const actions: string[] = [];
+    if (hasInstallCommands) {
+        actions.push(`Show install commands ${platformHint}`);
+    }
+    actions.push('More info');
+
+    vscode.window.showWarningMessage(
+        `dotnet-6502: required tools not found: ${names}. Install them to use all extension features.`,
+        ...actions
+    ).then(chosen => {
+        if (chosen?.startsWith('Show install commands')) {
+            const withCommand = missing.filter(d => d.installCommand);
+            const withoutCommand = missing.filter(d => !d.installCommand);
+
+            // Combine all available install commands into one terminal command chain
+            if (withCommand.length > 0) {
+                const combined = withCommand.map(d => d.installCommand!).join(' && ');
+                const terminal = vscode.window.createTerminal('dotnet-6502 setup');
+                terminal.show();
+
+                // Send the command only after the shell is ready to avoid a race condition
+                // that causes the text to appear twice (once in raw output, once at the prompt).
+                // Use the shell integration event (VS Code 1.90+) when available, which fires
+                // exactly when the shell is ready. Fall back to a timeout for older versions.
+                let sent = false;
+                const sendCommand = () => {
+                    if (!sent) {
+                        sent = true;
+                        terminal.sendText(combined, false); // false = pre-fill but don't run
+                    }
+                };
+
+                if ('onDidChangeTerminalShellIntegration' in vscode.window) {
+                    const disposable = (vscode.window as any).onDidChangeTerminalShellIntegration((e: any) => {
+                        if (e.terminal === terminal) {
+                            disposable.dispose();
+                            sendCommand();
+                        }
+                    });
+                }
+                // Fallback: also use a timeout in case shell integration is disabled or unavailable
+                setTimeout(sendCommand, 2000);
+            }
+
+            // For tools with no install command, open their docs
+            for (const dep of withoutCommand) {
+                vscode.env.openExternal(vscode.Uri.parse(dep.docsUrl));
+            }
+        } else if (chosen === 'More info') {
+            for (const dep of missing) {
+                vscode.env.openExternal(vscode.Uri.parse(dep.docsUrl));
+            }
+        }
+    });
 }
 
 /**
@@ -178,6 +302,15 @@ function platformExecutableName(baseName: string): string {
 const REPO_EXECUTABLE_LOCATIONS: Record<string, string> = {
     'Highbyte.DotNet6502.DebugAdapter.ConsoleApp': 'src/apps/Highbyte.DotNet6502.DebugAdapter',
     'Highbyte.DotNet6502.App.Avalonia.Desktop': 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop',
+};
+
+/**
+ * Package manager names for executables distributed via Homebrew/Scoop.
+ * Maps base executable name (without .exe) to the shorter name available in PATH
+ * after a package manager install. These are tried first before the original name.
+ */
+const PACKAGE_MANAGER_NAMES: Record<string, string> = {
+    'Highbyte.DotNet6502.App.Avalonia.Desktop': 'dotnet-6502',
 };
 
 /**
@@ -203,16 +336,24 @@ function resolveExecutable(executablePath: string): string | undefined {
         return undefined;
     }
 
-    // Bare executable name - try PATH first
+    // Bare executable name - try PATH, preferring the package manager name (e.g. installed
+    // via Homebrew/Scoop) before falling back to the original executable name.
     const findCmd = process.platform === 'win32' ? 'where' : 'which';
-    try {
-        const result = child_process.spawnSync(findCmd, [executablePath], { stdio: 'ignore' });
-        if (result.status !== 0) { throw new Error('not found'); }
-        outputChannel.appendLine(`[resolveExecutable] Found '${executablePath}' in system PATH`);
-        return executablePath;
-    } catch {
-        outputChannel.appendLine(`[resolveExecutable] '${executablePath}' not found in system PATH, trying repo-relative paths...`);
+    const baseName = executablePath.replace(/\.exe$/, '');
+    const packageManagerName = PACKAGE_MANAGER_NAMES[baseName];
+    const pathCandidates = packageManagerName
+        ? [packageManagerName, executablePath]
+        : [executablePath];
+
+    for (const candidate of pathCandidates) {
+        const result = child_process.spawnSync(findCmd, [candidate], { stdio: 'ignore' });
+        if (result.status === 0) {
+            outputChannel.appendLine(`[resolveExecutable] Found '${candidate}' in system PATH`);
+            return candidate;
+        }
+        outputChannel.appendLine(`[resolveExecutable] '${candidate}' not found in system PATH`);
     }
+    outputChannel.appendLine(`[resolveExecutable] Not found in PATH, trying repo-relative paths...`);
 
     // Not in PATH - try repo-relative build output locations.
     // Collect repo root candidates by walking up from each workspace folder until a .git
@@ -241,7 +382,6 @@ function resolveExecutable(executablePath: string): string | undefined {
     outputChannel.appendLine(`[resolveExecutable] workspace folders: ${(vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath).join(', ') || '(none)'}`);
     outputChannel.appendLine(`[resolveExecutable] repo root candidates: ${repoRootCandidates.join(', ')}`);
 
-    const baseName = executablePath.replace(/\.exe$/, '');
     const projectDir = REPO_EXECUTABLE_LOCATIONS[baseName];
 
     if (projectDir) {
