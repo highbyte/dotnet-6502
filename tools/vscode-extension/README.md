@@ -2,7 +2,7 @@
 
 A Visual Studio Code extension for debugging 6502 assembly source and machine code programs using the dotnet-6502 emulator.
 
-> Currently the extension is not available in an extension store. The only way to run it is to build and run it from source.
+> Currently the extension is not available in an extension store. You can install it locally from a `.vsix` package or run it directly from source.
 
 > There is also a built-in simpler [machine code monitor](../../doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than the VS Code extension described here. 
 
@@ -21,13 +21,50 @@ _Extra requirements for source debugging_:
   - Mac (via [Homebrew](https://brew.sh/)): `brew install cc65`
 - The cc65 tools (specifically ca65 and cl65 executables) are expected to be in system path.
 
-## Building the VSCode extension
+## Installing the VSCode extension from a .vsix package
+
+This is the simplest way to install the extension locally without setting up a development environment.
+
+1. **Build the .vsix package**:
+
+   _macOS/Linux_:
+   ```bash
+   cd tools/vscode-extension
+   ./publish.sh
+   ```
+
+   _Windows_:
+   ```powershell
+   cd tools\vscode-extension
+   .\publish.ps1
+   ```
+
+2. **Install in VS Code** (path printed by the script):
+   ```bash
+   code --install-extension "tools/vscode-extension/publish/dotnet-6502-debugger-0.1.0.vsix"
+   ```
+
+3. **Build the .NET debug adapters** (from repo root):
+   ```bash
+   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
+   dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
+   ```
+
+To uninstall:
+```bash
+code --uninstall-extension highbyte.dotnet-6502-debugger
+```
+
+## Building and running the VSCode extension from source
+
+Use this approach if you want to develop or debug the extension itself.
 
 1. **Install extension dependencies** (first time only):
    ```bash
-   cd vscode-extension
+   cd tools/vscode-extension
    npm install
    ```
+
 2. **Compile the extension**:
    ```bash
    npm run compile
@@ -35,19 +72,17 @@ _Extra requirements for source debugging_:
 
 3. **Build the .NET debug adapters** (from repo root):
    ```bash
-   cd ../../
    dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
    dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
    ```
 
-## Starting VSCode extension
-1. **Open the vscode-extension folder in VSCode**:
+4. **Open the vscode-extension folder in VSCode**:
    ```bash
-   cd vscode-extension
+   cd tools/vscode-extension
    code .
    ```
 
-2. **Launch Extension Development Host**:
+5. **Launch Extension Development Host**:
    - In VSCode (with vscode-extension folder open), press **F5**
    - A new "Extension Development Host" window opens with your extension loaded
 

@@ -8,6 +8,10 @@
     "name": "highbyte"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/highbyte/dotnet-6502.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
