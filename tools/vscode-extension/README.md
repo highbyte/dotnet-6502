@@ -2,24 +2,61 @@
 
 A Visual Studio Code extension for debugging 6502 assembly source and machine code programs using the dotnet-6502 emulator.
 
-> Currently the extension is not available in an extension store. You can install it locally from a `.vsix` package or run it directly from source.
+> There is also a built-in simpler [machine code monitor](../../doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than the VS Code extension described here.
 
-> There is also a built-in simpler [machine code monitor](../../doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than the VS Code extension described here. 
+## Installing the VSCode extension from the Marketplace
+
+The easiest way to install is directly from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=highbyte.dotnet-6502-debugger):
+
+1. Open VS Code
+2. Go to the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`)
+3. Search for `dotnet-6502-debugger`
+4. Click **Install**
+
+Or via command line:
+```bash
+code --install-extension highbyte.dotnet-6502-debugger
+```
 
 ## Requirements
 
-- .NET SDK v10.0 or later.
-- The dotnet-6502.sln solution built on your machine.
-- Node.js v20 or later.
-- The tools/vscode-extension (Node) project built on your machine.
+Requirements depend on how you install the extension and what you want to do.
 
-_Extra requirements for source debugging_:
-- [cc65](https://github.com/cc65/cc65) toolchain (for building .asm files and generating source debug .dbg files). 
-- Installing cc65:
-  - Windows: See prebuilt snapshots at [cc65 documentation](https://cc65.github.io/getting-started.html).
-  - Linux: Build from source or use prebuilt packages, see [cc65 documentation](https://cc65.github.io/getting-started.html)
-  - Mac (via [Homebrew](https://brew.sh/)): `brew install cc65`
-- The cc65 tools (specifically ca65 and cl65 executables) are expected to be in system path.
+### Using the extension (Marketplace install + package manager)
+
+- The **dotnet-6502** emulator and debug adapter, installed via package manager:
+
+  _macOS (Homebrew)_:
+  ```bash
+  brew tap highbyte/dotnet-6502 && brew install --cask dotnet-6502
+  ```
+  _Linux (Homebrew)_:
+  ```bash
+  brew tap highbyte/dotnet-6502 && brew install --formula dotnet-6502
+  ```
+  _Windows (Scoop)_:
+  ```powershell
+  scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502 && scoop install dotnet-6502
+  ```
+
+  > If a required dependency is missing, the extension will detect it and offer to run the install command for you.
+
+### For source-level debugging (additional requirement)
+
+- [cc65](https://github.com/cc65/cc65) toolchain — required for building `.asm` files and generating `.dbg` debug symbol files.
+  - macOS (Homebrew): `brew install cc65`
+  - Windows / Linux: See [cc65 getting started](https://cc65.github.io/getting-started.html)
+  - The `ca65` and `cl65` executables must be in the system PATH.
+
+### For installing the extension from a local .vsix package
+
+- [Node.js](https://nodejs.org/) v20 or later (to run the build scripts)
+
+### For developing the extension from source
+
+- [Node.js](https://nodejs.org/) v20 or later
+- [.NET SDK](https://dotnet.microsoft.com/) v10.0 or later
+- The `dotnet-6502.sln` solution built on your machine
 
 ## Installing the VSCode extension from a .vsix package
 

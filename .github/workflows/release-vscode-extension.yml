@@ -1,0 +1,75 @@
+# Triggered when a git tag matching vscode-v* is pushed (e.g. vscode-v1.0.0 or vscode-v1.0.0-beta).
+# Extracts the version from the tag, patches package.json, and publishes to the VSCode Marketplace.
+# Any tag version with a pre-release suffix (e.g. -alpha, -beta) is published as a pre-release.
+# The VSCode Marketplace only accepts major.minor.patch, so the suffix is stripped from package.json
+# but used to determine whether to pass --pre-release to vsce.
+#
+# Requires a VSCE_PAT secret configured in GitHub repo settings:
+#   Azure DevOps -> User Settings -> Personal Access Tokens -> scope: Marketplace (Manage)
+name: Release VSCode Extension
+
+on:
+  push:
+    tags:
+      - 'vscode-v*'
+
+  # Allow manual triggering for testing (will publish with the provided version)
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.0.0 or 1.0.0-beta)'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag or input
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/vscode-v}" >> $GITHUB_ENV
+          fi
+
+      - name: Determine if pre-release and strip suffix for package.json
+        run: |
+          if [[ "${{ env.VERSION }}" == *"-"* ]]; then
+            echo "PRE_RELEASE=--pre-release" >> $GITHUB_ENV
+            echo "PACKAGE_VERSION=$(echo "${{ env.VERSION }}" | cut -d'-' -f1)" >> $GITHUB_ENV
+          else
+            echo "PRE_RELEASE=" >> $GITHUB_ENV
+            echo "PACKAGE_VERSION=${{ env.VERSION }}" >> $GITHUB_ENV
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: tools/vscode-extension
+        run: npm install
+
+      - name: Set version in package.json
+        working-directory: tools/vscode-extension
+        run: npm version ${{ env.PACKAGE_VERSION }} --no-git-tag-version
+
+      - name: Publish to VSCode Marketplace
+        working-directory: tools/vscode-extension
+        run: npx vsce publish ${{ env.PRE_RELEASE }} --no-git-tag-version
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: VSCode Extension v${{ env.VERSION }}
+          prerelease: ${{ env.PRE_RELEASE != '' }}
+          body: |
+            VSCode Extension **6502 Debugger for dotnet-6502** version ${{ env.VERSION }} published to the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=highbyte.dotnet-6502-debugger).
