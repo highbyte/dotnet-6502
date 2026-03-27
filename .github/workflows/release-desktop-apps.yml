@@ -9,12 +9,11 @@ on:
   # Allow manual triggering of the workflow for testing (artifacts will be uploaded to the workflow run, not a release))
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     strategy:
       fail-fast: false
