@@ -4,6 +4,12 @@ All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension wi
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-03-28
+
+### Changed
+- First automated release via GitHub workflow
+- Tweaks to README.md and extensions .vsix contents.
+ 
 ## [0.1.0] - 2026-03-27
 
 ### Added
