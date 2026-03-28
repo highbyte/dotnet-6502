@@ -53,7 +53,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: tools/vscode-extension
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: Set version in package.json
         working-directory: tools/vscode-extension
