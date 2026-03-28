@@ -3,14 +3,19 @@
   "displayName": "6502 Debugger for dotnet-6502",
   "version": "0.1.0",
   "publisher": "highbyte",
-  "description": "Debug 6502 machine code programs using the dotnet-6502 emulator",
+  "description": "Debug 6502 assembly code programs using the dotnet-6502 emulator",
   "author": {
     "name": "highbyte"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/highbyte/dotnet-6502.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
+  "icon": "icon.png",
   "categories": [
     "Debuggers"
   ],
@@ -122,7 +127,7 @@
             "properties": {
               "program": {
                 "type": "string",
-                "description": "Path to the .prg file to debug (optional if preLaunchTask is specified, will auto-detect from task output)",
+                "description": "Path to your .prg file (e.g. ${workspaceFolder}/myprog.prg). Optional when preLaunchTask is set — the path is then auto-detected from the task output.",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {
@@ -214,7 +219,7 @@
               },
               "program": {
                 "type": "string",
-                "description": "Path to the .prg file being debugged (for debug symbols and program bounds)",
+                "description": "Path to your .prg file (e.g. ${workspaceFolder}/myprog.prg). Used to locate debug symbols and determine program bounds. Not needed if dbgFile or preLaunchTask is specified.",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {

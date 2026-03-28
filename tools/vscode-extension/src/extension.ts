@@ -7,8 +7,11 @@ import { DebugAdapterExecutable, DebugAdapterServer } from 'vscode';
 import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
 import * as jsonc from 'jsonc-parser';
 
+const outputChannel = vscode.window.createOutputChannel('dotnet-6502 Debugger');
+
 export function activate(context: vscode.ExtensionContext) {
-    console.log('[6502 Debug] Extension activating...');
+    outputChannel.appendLine('[6502 Debug] Extension activating...');
+    context.subscriptions.push(outputChannel);
 
     // Register memory content provider
     const memoryProvider = new MemoryContentProvider(context);
@@ -154,11 +157,140 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    console.log('[6502 Debug] Extension activated successfully');
+    checkDependencies();
+
+    outputChannel.appendLine('[6502 Debug] Extension activated successfully');
 }
 
 export function deactivate() {
-    console.log('[6502 Debug] Extension deactivating...');
+    outputChannel.appendLine('[6502 Debug] Extension deactivating...');
+}
+
+// ---------------------------------------------------------------------------
+// Dependency checking
+// ---------------------------------------------------------------------------
+
+interface Dependency {
+    /** Human-readable name shown in notifications */
+    name: string;
+    /** Executable to look for in PATH */
+    checkExecutable: string;
+    /** Short description of what it is */
+    description: string;
+    /** Terminal command to pre-fill (not auto-run). Undefined = no simple command available. */
+    installCommand: string | undefined;
+    /** URL to open for more info / manual install instructions */
+    docsUrl: string;
+}
+
+function isInPath(executable: string): boolean {
+    const findCmd = process.platform === 'win32' ? 'where' : 'which';
+    const result = child_process.spawnSync(findCmd, [executable], { stdio: 'ignore' });
+    return result.status === 0;
+}
+
+function getEmulatorDependency(): Dependency {
+    let installCommand: string | undefined;
+    if (process.platform === 'darwin' && isInPath('brew')) {
+        installCommand = 'brew tap highbyte/dotnet-6502 && brew install --cask dotnet-6502';
+    } else if (process.platform === 'linux' && isInPath('brew')) {
+        installCommand = 'brew tap highbyte/dotnet-6502 && brew install --formula dotnet-6502';
+    } else if (process.platform === 'win32' && isInPath('scoop')) {
+        installCommand = 'scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502 && scoop install dotnet-6502';
+    }
+    // If no package manager found, installCommand remains undefined and docs are shown instead
+    return {
+        name: 'dotnet-6502 emulator',
+        checkExecutable: 'dotnet-6502',
+        description: 'Required for emulator mode debugging (debugAdapter: "emulator").',
+        installCommand,
+        docsUrl: 'https://github.com/highbyte/dotnet-6502/blob/master/doc/DESKTOP_APPS.md',
+    };
+}
+
+function getCc65Dependency(): Dependency {
+    // cc65 is checked via ca65 (the assembler), which is always installed alongside it
+    let installCommand: string | undefined;
+    if (process.platform === 'darwin' && isInPath('brew')) {
+        installCommand = 'brew install cc65';
+    }
+    // Linux and Windows have no simple one-liner; docs are opened instead
+    return {
+        name: 'cc65 toolchain',
+        checkExecutable: 'ca65',
+        description: 'Required for building .asm files and source-level debugging.',
+        installCommand,
+        docsUrl: 'https://cc65.github.io/getting-started.html',
+    };
+}
+
+function checkDependencies(): void {
+    const missing = [getEmulatorDependency(), getCc65Dependency()].filter(dep => {
+        const found = isInPath(dep.checkExecutable);
+        outputChannel.appendLine(`[checkDependencies] '${dep.checkExecutable}' ${found ? 'found' : 'not found'} in PATH`);
+        return !found;
+    });
+
+    if (missing.length === 0) { return; }
+
+    const platformHint = process.platform === 'win32' ? '(Scoop)' : '(Homebrew)';
+    const names = missing.map(d => d.name).join(', ');
+    const hasInstallCommands = missing.some(d => d.installCommand);
+
+    const actions: string[] = [];
+    if (hasInstallCommands) {
+        actions.push(`Show install commands ${platformHint}`);
+    }
+    actions.push('More info');
+
+    vscode.window.showWarningMessage(
+        `dotnet-6502: required tools not found: ${names}. Install them to use all extension features.`,
+        ...actions
+    ).then(chosen => {
+        if (chosen?.startsWith('Show install commands')) {
+            const withCommand = missing.filter(d => d.installCommand);
+            const withoutCommand = missing.filter(d => !d.installCommand);
+
+            // Combine all available install commands into one terminal command chain
+            if (withCommand.length > 0) {
+                const combined = withCommand.map(d => d.installCommand!).join(' && ');
+                const terminal = vscode.window.createTerminal('dotnet-6502 setup');
+                terminal.show();
+
+                // Send the command only after the shell is ready to avoid a race condition
+                // that causes the text to appear twice (once in raw output, once at the prompt).
+                // Use the shell integration event (VS Code 1.90+) when available, which fires
+                // exactly when the shell is ready. Fall back to a timeout for older versions.
+                let sent = false;
+                const sendCommand = () => {
+                    if (!sent) {
+                        sent = true;
+                        terminal.sendText(combined, false); // false = pre-fill but don't run
+                    }
+                };
+
+                if ('onDidChangeTerminalShellIntegration' in vscode.window) {
+                    const disposable = (vscode.window as any).onDidChangeTerminalShellIntegration((e: any) => {
+                        if (e.terminal === terminal) {
+                            disposable.dispose();
+                            sendCommand();
+                        }
+                    });
+                }
+                // Fallback: also use a timeout in case shell integration is disabled or unavailable
+                setTimeout(sendCommand, 2000);
+            }
+
+            // For tools with no install command, open their docs
+            for (const dep of withoutCommand) {
+                vscode.env.openExternal(vscode.Uri.parse(dep.docsUrl));
+            }
+        } else if (chosen === 'More info') {
+            for (const dep of missing) {
+                vscode.env.openExternal(vscode.Uri.parse(dep.docsUrl));
+            }
+        }
+    });
 }
 
 /**
@@ -175,6 +307,15 @@ function platformExecutableName(baseName: string): string {
 const REPO_EXECUTABLE_LOCATIONS: Record<string, string> = {
     'Highbyte.DotNet6502.DebugAdapter.ConsoleApp': 'src/apps/Highbyte.DotNet6502.DebugAdapter',
     'Highbyte.DotNet6502.App.Avalonia.Desktop': 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop',
+};
+
+/**
+ * Package manager names for executables distributed via Homebrew/Scoop.
+ * Maps base executable name (without .exe) to the shorter name available in PATH
+ * after a package manager install. These are tried first before the original name.
+ */
+const PACKAGE_MANAGER_NAMES: Record<string, string> = {
+    'Highbyte.DotNet6502.App.Avalonia.Desktop': 'dotnet-6502',
 };
 
 /**
@@ -200,35 +341,69 @@ function resolveExecutable(executablePath: string): string | undefined {
         return undefined;
     }
 
-    // Bare executable name - try PATH first
+    // Bare executable name - try PATH, preferring the package manager name (e.g. installed
+    // via Homebrew/Scoop) before falling back to the original executable name.
     const findCmd = process.platform === 'win32' ? 'where' : 'which';
-    try {
-        const result = child_process.spawnSync(findCmd, [executablePath], { stdio: 'ignore' });
-        if (result.status !== 0) { throw new Error('not found'); }
-        console.log(`[6502 Debug] Found '${executablePath}' in system PATH`);
-        return executablePath;
-    } catch {
-        console.log(`[6502 Debug] '${executablePath}' not found in system PATH, trying repo-relative paths...`);
-    }
-
-    // Not in PATH - try repo-relative build output locations
-    // __dirname is tools/vscode-extension/out/, so repo root is three levels up
-    const repoRoot = path.join(__dirname, '..', '..', '..');
     const baseName = executablePath.replace(/\.exe$/, '');
+    const packageManagerName = PACKAGE_MANAGER_NAMES[baseName];
+    const pathCandidates = packageManagerName
+        ? [packageManagerName, executablePath]
+        : [executablePath];
+
+    for (const candidate of pathCandidates) {
+        const result = child_process.spawnSync(findCmd, [candidate], { stdio: 'ignore' });
+        if (result.status === 0) {
+            outputChannel.appendLine(`[resolveExecutable] Found '${candidate}' in system PATH`);
+            return candidate;
+        }
+        outputChannel.appendLine(`[resolveExecutable] '${candidate}' not found in system PATH`);
+    }
+    outputChannel.appendLine(`[resolveExecutable] Not found in PATH, trying repo-relative paths...`);
+
+    // Not in PATH - try repo-relative build output locations.
+    // Collect repo root candidates by walking up from each workspace folder until a .git
+    // directory is found (or up to 5 levels). This handles cases where the user has a
+    // subfolder of the repo open rather than the repo root itself.
+    // Also try __dirname three levels up, which works when running from source in the
+    // Extension Development Host (where __dirname is tools/vscode-extension/out/).
+    const repoRootCandidates: string[] = [];
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+        let dir = folder.uri.fsPath;
+        for (let i = 0; i <= 5; i++) {
+            if (!repoRootCandidates.includes(dir)) {
+                repoRootCandidates.push(dir);
+            }
+            if (fs.existsSync(path.join(dir, '.git'))) {
+                outputChannel.appendLine(`[resolveExecutable] Found .git at: ${dir}`);
+                break;
+            }
+            const parent = path.dirname(dir);
+            if (parent === dir) { break; } // filesystem root
+            dir = parent;
+        }
+    }
+    repoRootCandidates.push(path.join(__dirname, '..', '..', '..'));
+
+    outputChannel.appendLine(`[resolveExecutable] workspace folders: ${(vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath).join(', ') || '(none)'}`);
+    outputChannel.appendLine(`[resolveExecutable] repo root candidates: ${repoRootCandidates.join(', ')}`);
+
     const projectDir = REPO_EXECUTABLE_LOCATIONS[baseName];
 
     if (projectDir) {
         const buildConfigs = ['Debug', 'Release'];
-        for (const buildConfig of buildConfigs) {
-            const candidatePath = path.join(repoRoot, projectDir, 'bin', buildConfig, 'net10.0', executablePath);
-            if (fs.existsSync(candidatePath)) {
-                console.log(`[6502 Debug] Found executable via repo-relative path: ${candidatePath}`);
-                return candidatePath;
+        for (const repoRoot of repoRootCandidates) {
+            for (const buildConfig of buildConfigs) {
+                const candidatePath = path.join(repoRoot, projectDir, 'bin', buildConfig, 'net10.0', executablePath);
+                if (fs.existsSync(candidatePath)) {
+                    outputChannel.appendLine(`[resolveExecutable] Found: ${candidatePath}`);
+                    return candidatePath;
+                }
+                outputChannel.appendLine(`[resolveExecutable] Not found: ${candidatePath}`);
             }
-            console.log(`[6502 Debug]   not found: ${candidatePath}`);
         }
     }
 
+    outputChannel.show(true);
     vscode.window.showErrorMessage(
         `Executable '${executablePath}' not found in system PATH or in repo build output. Either add it to PATH, build the project, or set 'emulatorExecutable' to a full path in your launch configuration.`
     );
@@ -275,7 +450,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
         // Attach mode: connect to an already-running emulator via TCP
         if (config.request === 'attach') {
             const debugPort = config.debugPort || 6502;
-            console.log(`[6502 Debug] Attach mode: connecting to emulator on port ${debugPort}`);
+            outputChannel.appendLine(`[6502 Debug] Attach mode: connecting to emulator on port ${debugPort}`);
 
             const launchOnlyProps = ['system', 'systemVariant', 'waitForSystemReady', 'loadProgram', 'runProgram']
                 .filter(p => config[p] !== undefined);
@@ -313,7 +488,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                 // Currently only Highbyte.DotNet6502.App.Avalonia.Desktop is supported as emulator host.
                 config.emulatorExecutable = platformExecutableName('Highbyte.DotNet6502.App.Avalonia.Desktop');
             }
-            console.log(`[6502 Debug] Using default emulatorExecutable for '${config.debugAdapter}' mode: ${config.emulatorExecutable}`);
+            outputChannel.appendLine(`[6502 Debug] Using default emulatorExecutable for '${config.debugAdapter}' mode: ${config.emulatorExecutable}`);
         }
 
         // Resolve the executable: try PATH, then repo-relative build output
@@ -325,7 +500,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
         // If debugAdapter is 'emulator', start the emulator host app
         if (config.debugAdapter === 'emulator') {
-            console.log('[6502 Debug] debugAdapter is emulator, starting emulator host app');
+            outputChannel.appendLine('[6502 Debug] debugAdapter is emulator, starting emulator host app');
 
             const executablePath = config.emulatorExecutable;
             const debugPort = config.debugPort || 6502;
@@ -336,14 +511,14 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
             const runProgram = config.runProgram === true; // Default false
             let programPath = config.program;
 
-            console.log(`[6502 Debug] Initial programPath: ${programPath}`);
-            console.log(`[6502 Debug] preLaunchTask: ${config.preLaunchTask}`);
+            outputChannel.appendLine(`[6502 Debug] Initial programPath: ${programPath}`);
+            outputChannel.appendLine(`[6502 Debug] preLaunchTask: ${config.preLaunchTask}`);
 
             // If program path not specified, try to extract from preLaunchTask
             if (!programPath && config.preLaunchTask && folder) {
                 const tasks = await vscode.tasks.fetchTasks();
                 const task = tasks.find(t => t.name === config.preLaunchTask);
-                console.log(`[6502 Debug] Found task: ${task?.name}, definition: ${JSON.stringify(task?.definition)}`);
+                outputChannel.appendLine(`[6502 Debug] Found task: ${task?.name}, definition: ${JSON.stringify(task?.definition)}`);
                 if (task) {
                     // For shell tasks, args might be in definition.args or in task execution
                     let args = task.definition.args;
@@ -353,7 +528,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                         args = (task.execution as any).args;
                     }
 
-                    console.log(`[6502 Debug] Task args: ${JSON.stringify(args)}`);
+                    outputChannel.appendLine(`[6502 Debug] Task args: ${JSON.stringify(args)}`);
 
                     // Determine the task's working directory so output files can be
                     // resolved relative to it (e.g. cwd="${workspaceFolder}/samples").
@@ -362,7 +537,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                     const taskCwd = executionCwd
                         ? executionCwd.replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath)
                         : folder.uri.fsPath;
-                    console.log(`[6502 Debug] Task cwd (resolved): ${taskCwd}`);
+                    outputChannel.appendLine(`[6502 Debug] Task cwd (resolved): ${taskCwd}`);
 
                     if (args && Array.isArray(args)) {
                         // Look for -o argument in cl65 task
@@ -370,9 +545,9 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                         if (oIndex >= 0 && oIndex + 1 < args.length) {
                             const outputFile = args[oIndex + 1];
                             programPath = path.join(taskCwd, outputFile);
-                            console.log(`[6502 Debug] Extracted program path from task: ${programPath}`);
+                            outputChannel.appendLine(`[6502 Debug] Extracted program path from task: ${programPath}`);
                         } else {
-                            console.log(`[6502 Debug] Could not find -o argument in task args`);
+                            outputChannel.appendLine(`[6502 Debug] Could not find -o argument in task args`);
                         }
 
                         // Auto-detect dbgFile from -Wl --dbgfile,<file> arg if not set in launch config
@@ -382,20 +557,20 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                                 if (typeof argStr === 'string' && argStr.startsWith('--dbgfile,')) {
                                     const dbgFileName = argStr.slice('--dbgfile,'.length);
                                     config.dbgFile = path.join(taskCwd, dbgFileName);
-                                    console.log(`[6502 Debug] Extracted dbgFile from task: ${config.dbgFile}`);
+                                    outputChannel.appendLine(`[6502 Debug] Extracted dbgFile from task: ${config.dbgFile}`);
                                     break;
                                 }
                             }
                         }
                     } else {
-                        console.log(`[6502 Debug] Task has no args array`);
+                        outputChannel.appendLine(`[6502 Debug] Task has no args array`);
                     }
                 } else {
-                    console.log(`[6502 Debug] Task not found`);
+                    outputChannel.appendLine(`[6502 Debug] Task not found`);
                 }
             }
 
-            console.log(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
+            outputChannel.appendLine(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
 
             // Propagate the auto-detected (or config-supplied) program path back onto
             // config so the debug adapter receives it for .dbg file resolution.
@@ -434,12 +609,12 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                 args.push('--runLoadedProgram');
             }
 
-            console.log(`[6502 Debug] Launching emulator host: ${executablePath} ${args.join(' ')}`);
+            outputChannel.appendLine(`[6502 Debug] Launching emulator host: ${executablePath} ${args.join(' ')}`);
 
             try {
                 // Kill any existing emulator process
                 if (this.emulatorProcess) {
-                    console.log('[6502 Debug] Killing existing emulator process');
+                    outputChannel.appendLine('[6502 Debug] Killing existing emulator process');
                     this.emulatorProcess.kill();
                     this.emulatorProcess = undefined;
                 }
@@ -461,20 +636,20 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                     env: env
                 };
                 
-                console.log(`[6502 Debug] Spawning: ${executablePath} ${args.join(' ')}`);
-                console.log(`[6502 Debug] Environment variables:`, config.env);
+                outputChannel.appendLine(`[6502 Debug] Spawning: ${executablePath} ${args.join(' ')}`);
+                outputChannel.appendLine(`[6502 Debug] Environment variables: ${JSON.stringify(config.env)}`);
                 this.emulatorProcess = child_process.spawn(executablePath, args, spawnOptions);
 
                 this.emulatorProcess.stdout?.on('data', (data) => {
-                    console.log(`[Emulator Host] ${data.toString()}`);
+                    outputChannel.appendLine(`[Emulator Host] ${data.toString().trimEnd()}`);
                 });
 
                 this.emulatorProcess.stderr?.on('data', (data) => {
-                    console.error(`[Emulator Host Error] ${data.toString()}`);
+                    outputChannel.appendLine(`[Emulator Host Error] ${data.toString().trimEnd()}`);
                 });
 
                 this.emulatorProcess.on('exit', (code) => {
-                    console.log(`[6502 Debug] Emulator host process exited with code ${code}`);
+                    outputChannel.appendLine(`[6502 Debug] Emulator host process exited with code ${code}`);
                     if (code !== 0 && code !== null) {
                         vscode.window.showErrorMessage(`Emulator host app exited with error code ${code}. Check console output for details.`);
                     }
@@ -483,7 +658,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
                 // Emulator host will start the system, load PRG, and then start TCP server
                 // We need to wait for the TCP server to be ready before connecting
-                console.log(`[6502 Debug] Emulator host launched, will wait for TCP server on port ${debugPort}`);
+                outputChannel.appendLine(`[6502 Debug] Emulator host launched, will wait for TCP server on port ${debugPort}`);
 
                 // Don't set debugServer yet - we'll set it after verifying the server is ready
                 // Store the port for later use
@@ -492,7 +667,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
             } catch (error) {
                 const errorMsg = `Failed to launch emulator host app: ${error}`;
-                console.error('[6502 Debug]', errorMsg);
+                outputChannel.appendLine(`[6502 Debug] ${errorMsg}`);
                 vscode.window.showErrorMessage(errorMsg);
                 return undefined;
             }
@@ -503,7 +678,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
     killEmulatorProcess() {
         if (this.emulatorProcess) {
-            console.log('[6502 Debug] Killing emulator host process (debug session ended)');
+            outputChannel.appendLine('[6502 Debug] Killing emulator host process (debug session ended)');
             this.emulatorProcess.kill();
             this.emulatorProcess = undefined;
         }
@@ -520,8 +695,8 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         executable: vscode.DebugAdapterExecutable | undefined
     ): Promise<vscode.DebugAdapterDescriptor | undefined> {
         
-        console.log('[6502 Debug] createDebugAdapterDescriptor called for session:', session.name);
-        console.log('[6502 Debug] __waitingForEmulator:', session.configuration.__waitingForEmulator);
+        outputChannel.appendLine(`[6502 Debug] createDebugAdapterDescriptor called for session: ${session.name}`);
+        outputChannel.appendLine(`[6502 Debug] __waitingForEmulator: ${session.configuration.__waitingForEmulator}`);
 
         // Emulator mode: wait for the emulator's TCP debug server, then connect
         if (session.configuration.__waitingForEmulator) {
@@ -532,7 +707,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
             const defaultTimeout = isAttach ? 5 : 120;
             const timeoutSeconds = session.configuration.startupTimeout || defaultTimeout;
             const timeoutMs = timeoutSeconds * 1000;
-            console.log(`[6502 Debug] Waiting for emulator host TCP server on port ${port} (timeout: ${timeoutSeconds}s, mode: ${isAttach ? 'attach' : 'launch'})...`);
+            outputChannel.appendLine(`[6502 Debug] Waiting for emulator host TCP server on port ${port} (timeout: ${timeoutSeconds}s, mode: ${isAttach ? 'attach' : 'launch'})...`);
 
             const isReady = await this.waitForTcpServerListening(port, timeoutMs);
             if (!isReady) {
@@ -541,13 +716,13 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
                 return undefined;
             }
 
-            console.log(`[6502 Debug] Emulator host TCP server is ready on port ${port}`);
+            outputChannel.appendLine(`[6502 Debug] Emulator host TCP server is ready on port ${port}`);
             return this.createTcpDebugAdapter(port);
         }
 
         // Minimal mode: launch the debug adapter as a child process (STDIO)
         const executablePath = session.configuration.emulatorExecutable;
-        console.log(`[6502 Debug] Launching minimal debug adapter executable: ${executablePath}`);
+        outputChannel.appendLine(`[6502 Debug] Launching minimal debug adapter executable: ${executablePath}`);
         return this.createExecutableDebugAdapter(executablePath);
     }
 
@@ -598,11 +773,11 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         try {
             // Return a DebugAdapterServer that connects to the specified port
             const server = new DebugAdapterServer(port, '127.0.0.1');
-            console.log(`[6502 Debug] ✓ Created DebugAdapterServer for port ${port}`);
+            outputChannel.appendLine(`[6502 Debug] ✓ Created DebugAdapterServer for port ${port}`);
             return server;
         } catch (error) {
             const errorMsg = `[6502 Debug] Error creating TCP debug adapter: ${error}`;
-            console.error(errorMsg);
+            outputChannel.appendLine(errorMsg);
             vscode.window.showErrorMessage(errorMsg);
             return undefined;
         }
@@ -610,13 +785,13 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
     
     private createExecutableDebugAdapter(executablePath: string): vscode.DebugAdapterDescriptor | undefined {
         try {
-            console.log('[6502 Debug] ✓ Using debug adapter:', executablePath);
+            outputChannel.appendLine(`[6502 Debug] ✓ Using debug adapter: ${executablePath}`);
             const debugAdapterExecutable = new DebugAdapterExecutable(executablePath, []);
-            console.log('[6502 Debug] ✓ Created DebugAdapterExecutable, returning to VSCode');
+            outputChannel.appendLine('[6502 Debug] ✓ Created DebugAdapterExecutable, returning to VSCode');
             return debugAdapterExecutable;
         } catch (error) {
             const errorMsg = `[6502 Debug] Error in createDebugAdapterDescriptor: ${error}`;
-            console.error(errorMsg);
+            outputChannel.appendLine(errorMsg);
             vscode.window.showErrorMessage(errorMsg);
             return undefined;
         }
@@ -774,7 +949,7 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
 
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to create task: ${error}`);
-        console.error('[6502 Debug] Error generating task:', error);
+        outputChannel.appendLine(`[6502 Debug] Error generating task: ${error}`);
     }
 }
 
@@ -825,7 +1000,7 @@ async function upsertLaunchConfiguration(
         await vscode.window.showTextDocument(doc);
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to create launch config: ${error}`);
-        console.error(`[6502 Debug] Error generating ${logContext} launch config:`, error);
+        outputChannel.appendLine(`[6502 Debug] Error generating ${logContext} launch config: ${error}`);
     }
 }
 

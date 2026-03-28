@@ -1,55 +1,58 @@
-# 6502 Debugger for dotnet-6502
+# 6502 debugger for dotnet-6502
 
-A Visual Studio Code extension for debugging 6502 assembly source and machine code programs using the dotnet-6502 emulator.
+A Visual Studio Code extension for debugging 6502 assembly source and machine code programs using the `dotnet-6502` emulator from <https://github.com/highbyte/dotnet-6502>.
 
-> Currently the extension is not available in an extension store. The only way to run it is to build and run it from source.
+> _In the `dotnet-6502` emulator there is also a built-in simpler [machine code monitor](https://github.com/highbyte/dotnet-6502/blob/master/doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than this VS Code extension._
 
-> There is also a built-in simpler [machine code monitor](../../doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than the VS Code extension described here. 
+## Installing the VSCode extension from the Marketplace
+
+The easiest way to install is directly from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=highbyte.dotnet-6502-debugger):
+
+1. Open VS Code
+2. Go to the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`)
+3. Search for `dotnet-6502-debugger`
+4. Click **Install**
+
+Or via command line:
+```bash
+code --install-extension highbyte.dotnet-6502-debugger
+```
 
 ## Requirements
 
-- .NET SDK v10.0 or later.
-- The dotnet-6502.sln solution built on your machine.
-- Node.js v20 or later.
-- The tools/vscode-extension (Node) project built on your machine.
+The debugger extension connects to a debugger adapter in the dotnet-6502 emulator Avalonia UI desktop app.
 
-_Extra requirements for source debugging_:
-- [cc65](https://github.com/cc65/cc65) toolchain (for building .asm files and generating source debug .dbg files). 
-- Installing cc65:
-  - Windows: See prebuilt snapshots at [cc65 documentation](https://cc65.github.io/getting-started.html).
-  - Linux: Build from source or use prebuilt packages, see [cc65 documentation](https://cc65.github.io/getting-started.html)
-  - Mac (via [Homebrew](https://brew.sh/)): `brew install cc65`
-- The cc65 tools (specifically ca65 and cl65 executables) are expected to be in system path.
+Depenencies
+- Required: [**`dotnet-6502`**](https://github.com/highbyte/dotnet-6502/blob/master/doc/DESKTOP_APPS.md#install-via-package-manager) emulator Avalonia UI desktop app.
+- Optional: [**`cc65`**](https://github.com/cc65/cc65) compiler/assembler toolchain for source debugging.
 
-## Building the VSCode extension
+> If a dependency is missing, the extension will detect it and offer to run the install command for you.
 
-1. **Install extension dependencies** (first time only):
-   ```bash
-   cd vscode-extension
-   npm install
-   ```
-2. **Compile the extension**:
-   ```bash
-   npm run compile
-   ```
+The **dotnet-6502** emulator can be installed via a package manager.
 
-3. **Build the .NET debug adapters** (from repo root):
-   ```bash
-   cd ../../
-   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
-   dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
-   ```
+_macOS (Homebrew)_:
+```bash
+brew tap highbyte/dotnet-6502 && brew install --cask dotnet-6502
+```
+_Linux (Homebrew)_:
+```bash
+brew tap highbyte/dotnet-6502 && brew install --formula dotnet-6502
+```
+_Windows (Scoop)_:
+```powershell
+scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502 && scoop install dotnet-6502
+```
 
-## Starting VSCode extension
-1. **Open the vscode-extension folder in VSCode**:
-   ```bash
-   cd vscode-extension
-   code .
-   ```
+For source debugging the [`cc65`](https://github.com/cc65/cc65) toolchain is required for building source files to binaries and `.dgb` debug symbols.
 
-2. **Launch Extension Development Host**:
-   - In VSCode (with vscode-extension folder open), press **F5**
-   - A new "Extension Development Host" window opens with your extension loaded
+_macOS (Homebrew)_:
+```bash
+brew install cc65
+```
+
+_Windows and Linux (manual)_:
+  - See [cc65 getting started](https://cc65.github.io/getting-started.html)
+  - The `ca65` and `cl65` executables must be in the system PATH.
 
 
 ## Debug Quick Start
@@ -177,12 +180,14 @@ After pausing execution in VSCode debugger, or a breakpoint is hit, the Disassem
 
 Example for debugging pre-built .prg files without source. See full configuration reference below for all options.
 
-```json
+> **Note:** `program.prg` in the examples below is a placeholder — replace it with the actual path to your `.prg` file.
+
+```jsonc
 {
   "type": "dotnet6502",
   "request": "launch",
   "name": "Debug 6502 Program",
-  "program": "${workspaceFolder}/program.prg",
+  "program": "${workspaceFolder}/program.prg", // replace with your actual .prg file
   "stopOnEntry": true
 }
 ```
@@ -222,12 +227,12 @@ There are three ways to use the debugger, each with different launch.json config
 ### Example `launch.json` Configurations
 
 **Minimal (standalone debug adapter):**
-```json
+```jsonc
 {
   "type": "dotnet6502",
   "request": "launch",
   "name": "Debug 6502 Program",
-  "program": "${workspaceFolder}/program.prg",
+  "program": "${workspaceFolder}/program.prg", // replace with your actual .prg file
   "stopOnEntry": true
 }
 ```
@@ -259,14 +264,14 @@ There are three ways to use the debugger, each with different launch.json config
 ```
 
 **Emulator (launch Avalonia Desktop with C64) with .prg binary:**
-```json
+```jsonc
 {
   "type": "dotnet6502",
   "request": "launch",
   "name": "Launch C64 Emulator",
   "preLaunchTask": "Build test-program.asm",
   "debugAdapter": "emulator",
-  "program": "${workspaceFolder}/program.prg",
+  "program": "${workspaceFolder}/program.prg", // replace with your actual .prg file, or omit if preLaunchTask auto-detects it
   "system": "C64",
   "debugPort": 6502,
   "stopOnEntry": true,
@@ -783,7 +788,93 @@ In **launch (emulator)** mode, steps 1-5 are handled automatically by the extens
 
 **Note:** Set `runProgram: true` if you want the program to start automatically. Otherwise, the program is loaded but you'll need to manually start it (e.g., `SYS 49152` in C64 BASIC, or step through with the debugger).
 
-## Advanced: Debugging the C# Code
+
+## Advanced: Local extension nstallation and debugging
+
+**Clone the repo**:
+```sh
+git clone https://github.com/highbyte/dotnet-6502.git
+cd dotnet-6502
+```
+
+### Installing the VSCode extension from a .vsix package
+
+Build and install the extension locally.
+
+1. **Build the .vsix package**:
+
+   _macOS/Linux_:
+   ```sh
+   cd tools/vscode-extension
+   ./publish.sh
+   ```
+
+   _Windows_:
+   ```powershell
+   cd tools\vscode-extension
+   .\publish.ps1
+   ```
+
+2. **Install in VS Code** (path printed by the script):
+   ```sh
+   code --install-extension "tools/vscode-extension/publish/dotnet-6502-debugger-0.1.0.vsix"
+   ```
+
+3. **Build the .NET debug adapters** (from repo root):
+   ```sh
+   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
+   dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
+   ```
+
+To uninstall VSCode extension:
+```sh
+code --uninstall-extension highbyte.dotnet-6502-debugger
+```
+
+### Running/debugging the extension from source
+
+Use this approach if you want to develop or debug the extension itself.
+
+1. **Install node [Node.js](https://nodejs.org/)** v20 or later.
+
+2. **Install extension dependencies** (first time only):
+   ```sh
+   cd tools/vscode-extension
+   npm install
+   ```
+
+3. **Compile the extension**:
+   ```sh
+   npm run compile
+   ```
+
+4. **Build the .NET debug adapters** (from repo root):
+   ```sh
+   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
+   dotnet build src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
+   ```
+
+5. **Open the vscode-extension folder in VSCode**:
+   ```sh
+   cd tools/vscode-extension
+   code .
+   ```
+
+6. **Launch Extension Development Host**:
+   - In VSCode (with vscode-extension folder open), press **F5**
+   - A new "Extension Development Host" window opens with the extension loaded
+
+
+## Advanced: Debugging the emulator C# Code
+
+**Install the required development dependencies**, 
+see [here](https://github.com/highbyte/dotnet-6502/blob/master/doc/DEVELOP.md).
+
+**Clone the repo**:
+```sh
+git clone https://github.com/highbyte/dotnet-6502.git
+cd dotnet-6502
+```
 
 **Window 1 - Extension Test (6502 Debugging)**:
 1. Open `/tools/vscode-extension-test/` folder in VS Code
@@ -809,4 +900,9 @@ Now when you step through 6502 instructions in Window 1, VS Code will hit your C
 **Tips**:
 - Set breakpoints in `HandleNextAsync()` or `HandleContinueAsync()` in `DebugAdapterLogic.cs` to catch every step
 - Set breakpoints in `CPU.Execute()` to see each 6502 instruction execution
+
 - Use the Variables panel in Window 2 to inspect the emulator's internal state
+
+## Known Issues
+
+See [KNOWN-ISSUES.md](https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension/KNOWN-ISSUES.md) for a list of known issues and limitations.
