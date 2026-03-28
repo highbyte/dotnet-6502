@@ -64,12 +64,3 @@ jobs:
         run: npx vsce publish ${{ env.PRE_RELEASE }} --no-git-tag-version
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
-      - name: Create GitHub Release
-        if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
-        with:
-          name: VSCode Extension v${{ env.VERSION }}
-          prerelease: ${{ env.PRE_RELEASE != '' }}
-          body: |
-            VSCode Extension **6502 Debugger for dotnet-6502** version ${{ env.VERSION }} published to the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=highbyte.dotnet-6502-debugger).
