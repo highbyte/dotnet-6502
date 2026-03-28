@@ -5,20 +5,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>favicon.ico</ApplicationIcon>
+    <ApplicationIcon>../../../resources/images/favicon.ico</ApplicationIcon>
     <UserSecretsId>724ae82b-3b1b-409e-820d-1e819aaa923a</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="favicon.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
     <EmbeddedResource Include="../../../resources/images/logo-128.png" Link="Resources\Images\logo.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="favicon.ico" />
+    <EmbeddedResource Include="../../../resources/images/favicon.ico" Link="favicon.ico" />
   </ItemGroup>
 
   <ItemGroup>

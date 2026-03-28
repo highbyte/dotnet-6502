@@ -9,6 +9,9 @@
   <ItemGroup>
     <!-- Fonts and other assets used by Avalonia UI (not emulated systems) -->
     <AvaloniaResource Include="Assets\**" />
+    <!-- App logo and favicon sourced from central resources folder -->
+    <AvaloniaResource Include="..\..\..\..\resources\images\logo.png" Link="Assets\logo.png" />
+    <AvaloniaResource Include="..\..\..\..\resources\images\favicon.ico" Link="Assets\favicon.ico" />
     <!-- Fonts used for rendering emulated systems (not UI) -->
     <AvaloniaResource Include="Resources\Fonts\*.ttf" />
   </ItemGroup>

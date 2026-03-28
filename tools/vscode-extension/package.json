@@ -321,9 +321,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "copy-icon": "node -e \"require('fs').copyFileSync('../../resources/images/logo-128.png','icon.png')\"",
+    "vscode:prepublish": "npm run copy-icon && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "prepackage": "npm run copy-icon",
     "package": "vsce package",
     "publish": "vsce publish"
   },
