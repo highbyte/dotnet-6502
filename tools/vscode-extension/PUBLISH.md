@@ -61,7 +61,7 @@ Tag format: `vscode-v<major>.<minor>.<patch>` — any `-*` suffix marks it as a 
 Go to https://github.com/highbyte/dotnet-6502/releases → **Draft a new release**:
 - In the **Choose a tag** field, type the new tag (e.g. `vscode-v1.0.0`) and select **Create new tag on publish**
 - Set the release title to e.g. `VSCode Extension v1.0.0`
-- Write release notes or leave blank (the Marketplace `CHANGELOG.md` is the canonical changelog)
+- In release notes use a link to the changelog in the Extension Marketplace: `**Extension Changelog**: https://marketplace.visualstudio.com/items/highbyte.dotnet-6502-debugger/changelog`
 - For a pre-release, check **Set as a pre-release**
 - Click **Publish release**
 
