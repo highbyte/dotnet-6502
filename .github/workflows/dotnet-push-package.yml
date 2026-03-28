@@ -4,7 +4,7 @@ on:
   #Trigger when tag is created
   push:
       tags:
-          - 'v*.*.*'
+          - 'v[0-9]*.[0-9]*.[0-9]*'
 env:
    PROJECT_FILE: "src/libraries/Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
   #  PROJECT_FILE2: "src/libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj"

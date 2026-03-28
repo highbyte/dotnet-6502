@@ -9,7 +9,7 @@ on:
   #Trigger when tag is created
   push:
     tags:
-        - 'v*.*.*'
+        - 'v[0-9]*.[0-9]*.[0-9]*'
 
 # Prevent concurrent deployments to GitHub Pages
 concurrency:
