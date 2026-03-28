@@ -11,3 +11,8 @@ vsc-extension-quickstart.md
 publish.sh
 publish.ps1
 publish/
+PUBLISH.md
+IMPLEMENTATION.md
+GENERATE_BUILD_TASK.md
+node_modules/@vscode/debugadapter/lib/tests/
+KNOWN-ISSUES.md

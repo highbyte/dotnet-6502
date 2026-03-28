@@ -900,4 +900,9 @@ Now when you step through 6502 instructions in Window 1, VS Code will hit your C
 **Tips**:
 - Set breakpoints in `HandleNextAsync()` or `HandleContinueAsync()` in `DebugAdapterLogic.cs` to catch every step
 - Set breakpoints in `CPU.Execute()` to see each 6502 instruction execution
+
 - Use the Variables panel in Window 2 to inspect the emulator's internal state
+
+## Known Issues
+
+See [KNOWN-ISSUES.md](https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension/KNOWN-ISSUES.md) for a list of known issues and limitations.
