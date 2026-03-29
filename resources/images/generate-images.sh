@@ -9,6 +9,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE="$SCRIPT_DIR/logo.png"
 SOURCE_SIMPLE="$SCRIPT_DIR/logo-simple.png"
+SOURCE_SOLID_BG="$SCRIPT_DIR/logo-solid-bg.png"
 
 if [[ ! -f "$SOURCE" ]]; then
   echo "Error: Source file not found: $SOURCE" >&2
@@ -17,6 +18,11 @@ fi
 
 if [[ ! -f "$SOURCE_SIMPLE" ]]; then
   echo "Error: Source file not found: $SOURCE_SIMPLE" >&2
+  exit 1
+fi
+
+if [[ ! -f "$SOURCE_SOLID_BG" ]]; then
+  echo "Error: Source file not found: $SOURCE_SOLID_BG" >&2
   exit 1
 fi
 
@@ -30,6 +36,12 @@ generate() {
 generate 256
 generate 128
 generate 64
+
+# Generate logo-solid-bg variants from logo-solid-bg.png
+for size in 256 128 64; do
+  sips --resampleHeightWidth "$size" "$size" "$SOURCE_SOLID_BG" --out "$SCRIPT_DIR/logo-solid-bg-${size}.png" > /dev/null
+  echo "Generated: logo-solid-bg-${size}.png"
+done
 
 # Generate favicon.png (64x64) from logo-simple.png
 sips --resampleHeightWidth 64 64 "$SOURCE_SIMPLE" --out "$SCRIPT_DIR/favicon.png" > /dev/null
