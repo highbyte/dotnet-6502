@@ -4,6 +4,9 @@ All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension wi
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-03-29
+Logo changed.
+
 ## [0.1.2] - 2026-03-28
 No extension change, release workflow updated.
 
