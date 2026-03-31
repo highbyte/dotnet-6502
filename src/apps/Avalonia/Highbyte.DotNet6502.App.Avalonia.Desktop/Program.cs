@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -63,6 +64,20 @@ internal sealed partial class Program
     ///     <description>
     ///       Wait for debug client to connect before starting the application.
     ///       Only effective when used with <c>--debug-port</c>. Times out after 30 seconds.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--script &lt;path&gt;</c></term>
+    ///     <description>
+    ///       Load and auto-enable a specific Lua script file (absolute or relative to CWD).
+    ///       Can be specified multiple times to load several scripts.
+    ///       Overrides the ScriptDirectory from configuration; only the specified files are loaded.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--scriptDir &lt;path&gt;</c></term>
+    ///     <description>
+    ///       Override the Lua script directory from configuration. All .lua files in the directory are loaded and auto-enabled.
     ///     </description>
     ///   </item>
     /// </list>
@@ -137,6 +152,10 @@ internal sealed partial class Program
         bool waitForSystemReady = args.Contains("--waitForSystemReady");
         string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrg");
         bool runLoadedProgram = args.Contains("--runLoadedProgram");
+
+        // Parse scripting override arguments
+        List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
+        string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(args, "--scriptDir");
 
         // Validate automated startup arguments
         if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram))
@@ -240,13 +259,17 @@ internal sealed partial class Program
         // ----------
         // Initialize Lua scripting engine
         // ----------
-        var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory);
+        var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride);
+
+        // Skip the UI's default system selection when a script or --system arg will handle it,
+        // to avoid a race where the UI tries to select a system while the script/handler already has.
+        bool skipDefaultSystemSelection = systemName != null || scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
 
         // ----------
         // Start Avalonia app
         // ----------
         WriteBootstrapLog($"Starting Avalonia app.");
-        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, scriptingEngine);
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, scriptingEngine, skipDefaultSystemSelection);
 
         // If automated startup is requested, handle it after the app starts
         if (systemName != null)
@@ -266,10 +289,6 @@ internal sealed partial class Program
                 startupLogger.LogInformation("Awaiting HostApp initialization...");
                 var hostApp = await Core.App.WhenHostAppReadyAsync.ConfigureAwait(false);
                 startupLogger.LogInformation("HostApp initialized.");
-
-                // Suppress default system selection in the Avalonia UI (automated startup handles it)
-                if (hostApp is AvaloniaHostApp avaloniaHostApp)
-                    avaloniaHostApp.SkipDefaultSystemSelection = true;
 
                 await AutomatedStartupHandler.ExecuteAsync(
                     hostApp,
@@ -316,7 +335,8 @@ internal sealed partial class Program
         AvaloniaLoggerBridge avaloniaLoggerBridge,
         IGamepad? gamepad = null,
         IExternalDebugController? externalDebugController = null,
-        IScriptingEngine? scriptingEngine = null)
+        IScriptingEngine? scriptingEngine = null,
+        bool skipDefaultSystemSelection = false)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
@@ -327,7 +347,8 @@ internal sealed partial class Program
                 saveCustomConfigSection: null,
                 gamepad: gamepad,
                 externalDebugController: externalDebugController,
-                scriptingEngine: scriptingEngine))
+                scriptingEngine: scriptingEngine,
+                skipDefaultSystemSelection: skipDefaultSystemSelection))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
@@ -369,6 +390,21 @@ internal sealed partial class Program
             }
         }
         return defaultLevel;
+    }
+
+    /// <summary>
+    /// Parses all occurrences of a named argument from command line arguments.
+    /// Usage: --script foo.lua --script bar.lua → ["foo.lua", "bar.lua"]
+    /// </summary>
+    private static List<string> ParseMultipleStringArgument(string[] args, string argumentName)
+    {
+        var result = new List<string>();
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == argumentName)
+                result.Add(args[i + 1]);
+        }
+        return result;
     }
 
     /// <summary>

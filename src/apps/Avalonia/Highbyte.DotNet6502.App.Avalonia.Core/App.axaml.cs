@@ -45,6 +45,7 @@ public partial class App : Application
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
+    private readonly bool _skipDefaultSystemSelection;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -92,6 +93,7 @@ public partial class App : Application
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
     /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
+    /// <param name="skipDefaultSystemSelection">When true, suppresses the UI's automatic default system selection on startup (e.g. when a script or automated startup handles it).</param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
@@ -106,7 +108,8 @@ public partial class App : Application
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
         Action<string>? deleteScript = null,
-        Func<Task>? loadExamples = null)
+        Func<Task>? loadExamples = null,
+        bool skipDefaultSystemSelection = false)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -123,6 +126,7 @@ public partial class App : Application
         _saveScript = saveScript;
         _deleteScript = deleteScript;
         _loadExamples = loadExamples;
+        _skipDefaultSystemSelection = skipDefaultSystemSelection;
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
@@ -330,6 +334,11 @@ public partial class App : Application
 
             // Wire Lua scripting engine (NoScriptingEngine used when null, e.g. in WASM)
             _hostApp.SetScriptingEngine(_scriptingEngine ?? new NoScriptingEngine());
+
+            // Suppress UI default system selection when automated startup or a script handles it.
+            // Set before TrySetResult so the flag is visible to MainViewModel.InitializeAsync().
+            if (_skipDefaultSystemSelection)
+                _hostApp.SkipDefaultSystemSelection = true;
 
             // Signal waiters (e.g. automated startup on a background thread) that HostApp is ready.
             // TrySetResult guarantees all writes above are visible to awaiters before they resume.

@@ -11,7 +11,11 @@ namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 /// </summary>
 public static class MoonSharpScriptingConfigurator
 {
-    public static IScriptingEngine Create(IConfiguration configuration, ILoggerFactory loggerFactory)
+    public static IScriptingEngine Create(
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory,
+        IReadOnlyList<string>? scriptFilePaths = null,
+        string? scriptDirectoryOverride = null)
     {
         var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
 
@@ -24,7 +28,32 @@ public static class MoonSharpScriptingConfigurator
             return new NoScriptingEngine();
         }
 
-        if (string.IsNullOrWhiteSpace(config.ScriptDirectory))
+        // Apply CLI overrides
+        if (scriptDirectoryOverride != null)
+        {
+            logger.LogInformation("[Scripting] ScriptDirectory overridden via CLI: {Dir}", scriptDirectoryOverride);
+            config.ScriptDirectory = scriptDirectoryOverride;
+        }
+
+        if (scriptFilePaths != null && scriptFilePaths.Count > 0)
+        {
+            logger.LogInformation("[Scripting] Loading {Count} specific script(s) via CLI: {Files}",
+                scriptFilePaths.Count, string.Join(", ", scriptFilePaths));
+            config.ScriptLoader = () => scriptFilePaths.Select(path =>
+            {
+                var fullPath = Path.GetFullPath(path);
+                return (Path.GetFileName(fullPath), File.ReadAllText(fullPath));
+            });
+        }
+
+        // Force auto-enable when CLI overrides are in effect (automation intent)
+        if (scriptFilePaths?.Count > 0 || scriptDirectoryOverride != null)
+        {
+            config.EnableScriptsAtStart = true;
+        }
+
+        // ScriptDirectory is only required when no ScriptLoader is set
+        if (config.ScriptLoader == null && string.IsNullOrWhiteSpace(config.ScriptDirectory))
         {
             logger.LogWarning("[Scripting] Enabled but ScriptDirectory is not set. Using NoScriptingEngine.");
             return new NoScriptingEngine();
