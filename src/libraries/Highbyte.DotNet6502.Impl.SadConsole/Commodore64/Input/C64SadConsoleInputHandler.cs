@@ -82,16 +82,7 @@ public class C64SadConsoleInputHandler : IInputHandler
         _c64.Cia1.Joystick.ClearJoystickActions();
         CaptureKeyboard(_c64);
 
-        var scriptInput = _c64.ScriptInputProvider;
-        if (scriptInput != null)
-        {
-            var scriptActions = scriptInput.InjectedJoystickActions;
-            for (int port = 1; port <= 2; port++)
-            {
-                if (scriptActions.TryGetValue(port, out var actions) && actions.Count > 0)
-                    _c64.Cia1.Joystick.SetJoystickActions(port, actions, overwrite: false);
-            }
-        }
+        _c64.ScriptInputProvider?.ApplyInjectedJoystickActionsTo(_c64.Cia1.Joystick);
     }
     public void Cleanup()
     {
@@ -106,15 +97,7 @@ public class C64SadConsoleInputHandler : IInputHandler
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }
 
-        var scriptInput = c64.ScriptInputProvider;
-        if (scriptInput != null)
-        {
-            foreach (var key in scriptInput.InjectedKeys)
-            {
-                if (!c64KeysDown.Contains(key))
-                    c64KeysDown.Add(key);
-            }
-        }
+        c64.ScriptInputProvider?.ApplyInjectedKeysTo(c64KeysDown);
 
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);

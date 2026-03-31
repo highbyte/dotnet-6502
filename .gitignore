@@ -284,4 +284,7 @@ BenchmarkDotNet.Artifacts/
 
 src/apps/Highbyte.DotNet6502.App.SadConsole/appsettings.Development.json
 src/apps/Highbyte.DotNet6502.App.SilkNetNative/appsettings.Development.json
+# Lua example scripts are generated at build time from resources/scripts/
+src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/wwwroot/scripts/
+
 src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/appsettings.Development.json

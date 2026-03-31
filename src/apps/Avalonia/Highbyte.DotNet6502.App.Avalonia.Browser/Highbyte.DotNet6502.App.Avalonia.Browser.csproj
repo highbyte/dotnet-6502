@@ -57,6 +57,14 @@
     <EmbeddedResource Include="BrowserScripting.js" />
   </ItemGroup>
 
+  <!-- Copy Lua example scripts from central resources location to wwwroot so they are served at runtime -->
+  <Target Name="CopyExampleScripts" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="wwwroot\scripts" SkipUnchangedFiles="true" />
+  </Target>
+
   <Target Name="CopySharedAssets" AfterTargets="AfterBuild">
     <!-- Copy logo image from central resources folder -->
     <Copy SourceFiles="..\..\..\..\resources\images\logo-simple-text-solid-bg.png" DestinationFiles="wwwroot\images\logo.png" />

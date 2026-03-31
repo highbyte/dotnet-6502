@@ -74,7 +74,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
     public C64BasicTokenParser BasicTokenParser { get; private set; } = default!;
     public C64TextPaste TextPaste { get; private set; } = default!;
-    public C64ScriptInputProvider ScriptInputProvider { get; private set; } = default!;
+    public C64ScriptInputProvider? ScriptInputProvider { get; private set; }
+    IScriptInputProvider? ISystem.ScriptInputProvider => ScriptInputProvider;
 
     //public static ROM[] ROMS = new ROM[]
     //{   

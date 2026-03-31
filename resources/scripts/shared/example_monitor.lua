@@ -15,7 +15,7 @@
 function on_before_frame()
 
     local frame_count = emu.framecount()
-    
+
     -- Log CPU state every 60 frames (~once per second)
     if frame_count % 60 == 0 then
         log.info(string.format(

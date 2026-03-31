@@ -89,15 +89,7 @@ public class C64AspNetInputHandler : IInputHandler
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }
 
-        var scriptInput = c64.ScriptInputProvider;
-        if (scriptInput != null)
-        {
-            foreach (var key in scriptInput.InjectedKeys)
-            {
-                if (!c64KeysDown.Contains(key))
-                    c64KeysDown.Add(key);
-            }
-        }
+        c64.ScriptInputProvider?.ApplyInjectedKeysTo(c64KeysDown);
 
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
@@ -150,16 +142,7 @@ public class C64AspNetInputHandler : IInputHandler
         var c64JoystickActions = GetC64JoystickActionsFromAspNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
         c64.Cia1.Joystick.SetJoystickActions(_c64AspNetConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
 
-        var scriptInput = c64.ScriptInputProvider;
-        if (scriptInput != null)
-        {
-            var scriptActions = scriptInput.InjectedJoystickActions;
-            for (int port = 1; port <= 2; port++)
-            {
-                if (scriptActions.TryGetValue(port, out var actions) && actions.Count > 0)
-                    c64.Cia1.Joystick.SetJoystickActions(port, actions, overwrite: false);
-            }
-        }
+        c64.ScriptInputProvider?.ApplyInjectedJoystickActionsTo(c64.Cia1.Joystick);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromAspNetGamepad(HashSet<int> gamepadButtonsDown)

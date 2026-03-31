@@ -47,14 +47,14 @@ function on_started()
 
     -- ── GET bytes: download binary data and load into emulator memory ──────
     -- Example: fetch a small binary from the network and place it at 0xC000.
-    
+
     local resp5 = http.get_bytes("https://highbyte.se/dotnet-6502/app/6502binaries/C64/Assembler/smooth_scroller_and_raster.prg")
     if resp5.ok then
         log.info("Downloaded " .. #resp5.body .. " bytes")
         -- Read the first two bytes as a little-endian load address (typical for C64 PRG files)
         local load_addr = resp5.body[1] + resp5.body[2] * 256
         log.info(string.format("PRG load address: $%04X", load_addr))
-        -- Load the rest of the bytes into emulator memory starting at the load address 
+        -- Load the rest of the bytes into emulator memory starting at the load address
         for i = 3, #resp5.body do
             mem.write(load_addr + i - 3, resp5.body[i])
         end

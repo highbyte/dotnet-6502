@@ -47,9 +47,15 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <!-- Copy Lua scripts to output directory so they are found at runtime -->
-    <None Update="scripts\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
+
+  <!-- Copy Lua example scripts from central resources location to output directory -->
+  <Target Name="CopyExampleScripts" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*" />
+      <_DesktopScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\desktop\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_DesktopScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

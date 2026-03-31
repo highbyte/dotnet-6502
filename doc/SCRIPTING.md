@@ -155,40 +155,92 @@ Joystick action names are **standardized** across all systems: `"up"`, `"down"`,
 
 The script's **top-level code** runs immediately when the script is enabled, before the first frame executes. The input provider is only wired once the first `on_before_frame()` fires. Therefore, input functions should only be called from hooks (`on_started`, `on_before_frame`) or after at least one `emu.frameadvance()`.
 
+Use `emu.time()` to measure durations in real seconds rather than counting frames — this keeps timing correct regardless of the system's frame rate (PAL vs NTSC).
+
+**Keyboard — press A, B, C in sequence:**
+
 ```lua
--- Discovery and finite-duration injection using on_before_frame
-local frame_counter = 0
-local demo_phase = 0  -- track what we're currently doing
+-- Press A for 0.5s, pause 0.3s, press B for 0.5s, pause 0.3s, press C for 0.5s
+local sequence = {
+    { key = "a", hold = 0.5 },
+    { key = nil, hold = 0.3 },
+    { key = "b", hold = 0.5 },
+    { key = nil, hold = 0.3 },
+    { key = "c", hold = 0.5 },
+}
+
+local step = 0
+local step_start = 0
 
 function on_before_frame()
-    frame_counter = frame_counter + 1
+    local now = emu.time()
 
-    -- Discovery: only run once, on the first frame
-    if frame_counter == 1 then
-        local keys = input.available_keys()
-        if keys and #keys > 0 then
-            log.info("Available keys: " .. #keys)
-        end
-        log.info("Joystick ports: " .. input.joystick_count())
+    if step == 0 then
+        step = 1
+        step_start = now
     end
 
-    -- Demo: inject 'A' for 300 frames, then stop
-    if demo_phase == 0 and frame_counter > 1 then
-        log.info("Injecting 'A' for 300 frames...")
-        demo_phase = 1
+    if step > #sequence then return end
+
+    local entry = sequence[step]
+    if entry.key then
+        input.key_press(entry.key)
     end
 
-    if demo_phase == 1 then
-        input.key_press("a")
-        if frame_counter > 300 then
-            demo_phase = 2
-            log.info("Done injecting.")
+    if now - step_start >= entry.hold then
+        step = step + 1
+        if step <= #sequence then
+            step_start = now
         end
     end
 end
 ```
 
-For a complete demonstration, see `example_input.lua`.
+**Joystick — timed action sequence with repeats:**
+
+```lua
+-- Repeat 3 times: left 0.2s → pause 0.2s → right 0.2s → pause 0.2s → fire 0.5s → pause 0.5s
+local PORT    = 1
+local REPEATS = 3
+
+local sequence = {
+    { action = "left",  hold = 0.2 },
+    { action = nil,     hold = 0.2 },
+    { action = "right", hold = 0.2 },
+    { action = nil,     hold = 0.2 },
+    { action = "fire",  hold = 0.5 },
+    { action = nil,     hold = 0.5 },
+}
+
+local step = 0
+local step_start = 0
+local rep = 0
+
+function on_before_frame()
+    local now = emu.time()
+
+    if step == 0 then
+        rep = 1 ; step = 1 ; step_start = now
+    end
+
+    if rep > REPEATS then return end
+
+    local entry = sequence[step]
+    if entry.action then
+        input.joystick_set(PORT, entry.action, true)
+    end
+
+    if now - step_start >= entry.hold then
+        step = step + 1
+        if step > #sequence then
+            rep = rep + 1 ; step = 1
+        end
+        step_start = now
+    end
+end
+```
+
+For complete demonstrations, see `example_input_kb.lua` (keyboard) and `example_input_joystick.lua` (joystick).
 
 ## Logging (`log`)
 
@@ -529,7 +581,8 @@ Example scripts are included in the `scripts/` directory:
 | `example_http.lua` | Event hook | Demonstrates the HTTP API in `on_started()`: GET with and without custom headers, `post_json`, `post` with explicit content type, `get_bytes`, `download`, and error handling for unreachable hosts. Requires `AllowHttpRequests: true`. |
 | `example_store.lua` | Linear loop + hooks | Demonstrates the key/value store API: persistent run counter, first-run flag, overwrite/verify, listing all keys, saving a CPU snapshot on `on_started`, and writing a frame checkpoint every 60 frames. Requires `AllowStore: true`. |
 | `example_tcp_client.lua` | Linear loop | Demonstrates the TCP client API with a per-frame observation/action loop mimicking a Machine Learning / Reinforcement Learning server protocol (length-prefixed binary). Connects to a local TCP server, sends CPU state as an observation each frame, and applies the first byte of the server's response to the C64 border color register. Requires `AllowTcpClient: true`. Desktop only. |
-| `example_input.lua` | Linear loop | Demonstrates the input API: injecting key presses and joystick actions for automation, reading current input state, and discovering available keys and actions. |
+| `example_input_kb.lua` | Event hook | Demonstrates keyboard input injection: presses A, B, C in sequence using `emu.time()` for timing (0.5s hold per key, 0.3s pause between keys). |
+| `example_input_joystick.lua` | Event hook | Demonstrates joystick input injection: repeats a timed sequence (left → pause → right → pause → fire → pause) three times on port 1. |
 
 # Technical details
 

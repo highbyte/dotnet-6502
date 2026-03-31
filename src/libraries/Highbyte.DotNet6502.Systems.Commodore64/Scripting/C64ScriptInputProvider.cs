@@ -160,6 +160,21 @@ public class C64ScriptInputProvider : IScriptInputProvider
         _injectedJoystickActions[2].Clear();
     }
 
-    public IReadOnlySet<C64Key> InjectedKeys => _injectedKeys;
-    public IReadOnlyDictionary<int, HashSet<C64JoystickAction>> InjectedJoystickActions => _injectedJoystickActions;
+    public void ApplyInjectedKeysTo(List<C64Key> c64KeysDown)
+    {
+        foreach (var key in _injectedKeys)
+        {
+            if (!c64KeysDown.Contains(key))
+                c64KeysDown.Add(key);
+        }
+    }
+
+    public void ApplyInjectedJoystickActionsTo(C64Joystick joystick)
+    {
+        for (int port = 1; port <= 2; port++)
+        {
+            if (_injectedJoystickActions[port].Count > 0)
+                joystick.SetJoystickActions(port, _injectedJoystickActions[port], overwrite: false);
+        }
+    }
 }
