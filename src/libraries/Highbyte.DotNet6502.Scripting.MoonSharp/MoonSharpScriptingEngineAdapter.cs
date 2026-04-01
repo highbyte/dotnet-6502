@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
@@ -21,6 +22,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaLogProxy? _logProxy;
     private LuaCpuProxy? _cpuProxy;
     private LuaMemProxy? _memProxy;
+    private LuaC64Proxy? _c64Proxy;
     private LuaFileProxy? _fileProxy;
     private LuaHttpProxy? _httpProxy;
     private LuaTcpProxy? _tcpProxy;
@@ -84,6 +86,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaLogProxy))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaCpuProxy))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaMemProxy))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaC64Proxy))]
     public void InitializeVm(
         IHostApp? hostApp,
         Action<Func<Task>> enqueueAction,
@@ -112,6 +115,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         UserData.RegisterType<LuaCpuProxy>();
         UserData.RegisterType<LuaMemProxy>();
         UserData.RegisterType<LuaLogProxy>();
+        UserData.RegisterType<LuaC64Proxy>();
 
         // cpu/mem proxies start with null references (safe defaults) until OnSystemStarted is called
         _cpuProxy = new LuaCpuProxy();
@@ -120,6 +124,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _script.Globals["mem"] = _memProxy;
         _logProxy = new LuaLogProxy(_loggerFactory.CreateLogger(nameof(LuaLogProxy)));
         _script.Globals["log"] = _logProxy;
+
+        // c64 proxy starts with null reference (safe defaults) until OnSystemStarted is called with a C64 system
+        _c64Proxy = new LuaC64Proxy();
+        _script.Globals["c64"] = _c64Proxy;
 
         // file table: only registered when AllowFileIO is true.
         // Set AllowFileIO: false in environments without filesystem access (e.g. WASM/browser).
@@ -721,6 +729,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             return;
         _cpuProxy.SetCpu(system.CPU);
         _memProxy.SetMem(system.Mem);
+        if (system is C64 c64)
+            _c64Proxy?.SetC64(c64);
     }
 
     public AdapterScriptHandle? LoadFile(string filePath, string fileName)

@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
     <PackageReference Include="MoonSharp" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>

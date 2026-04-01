@@ -1,6 +1,6 @@
 
 -- example_c64_download_and_run_prg.lua
--- Waits for the C64 emulator to start, waits 3 seconds, then downloads a PRG file from the network and loads it into emulator memory.
+-- Waits for the C64 emulator to start, waits for BASIC to initialize, then downloads a PRG file from the network and loads it into emulator memory.
 --
 -- Uses emu.yield() so the script keeps ticking while the emulator is paused
 -- or stopped, allowing it to detect when the emulator starts.
@@ -13,12 +13,11 @@ while emu.state() ~= "running" or emu.selected_system() ~= "C64" do
     emu.yield()
 end
 
-log.info("C64 emulator started. Waiting 3 seconds before downloading PRG file...")
+log.info("C64 emulator started. Waiting for BASIC to initialize...")
 
--- Wait 3 seconds (wall-clock)
-local start_time = emu.time()
-while emu.time() - start_time < 3.0 do
-    emu.yield()
+-- Wait until BASIC has completed its initialization
+while not c64.basic_started() do
+    emu.frameadvance()
 end
 
 log.info("Now downloading PRG file from network.")

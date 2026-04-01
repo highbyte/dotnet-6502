@@ -38,11 +38,9 @@ end
 
 log.info("[demo] C64 is running. Waiting for BASIC READY prompt...")
 
--- ── Step 2: Wait for BASIC "READY." in screen RAM ────────────────────────────
--- Wait 3 seconds (wall-clock)
-local start_time = emu.time()
-while emu.time() - start_time < 3.0 do
-    emu.yield()
+-- ── Step 2: Wait for BASIC to initialize ─────────────────────────────────────
+while not c64.basic_started() do
+    emu.frameadvance()
 end
 
 log.info("[demo] BASIC READY detected. Cycling border color for 2 seconds...")
