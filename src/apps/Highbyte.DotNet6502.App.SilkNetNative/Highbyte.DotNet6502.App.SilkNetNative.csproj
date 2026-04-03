@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\..\resources\images\logo.png" Link="Resources\Images\logo.png">
+    <EmbeddedResource Include="..\..\..\resources\images\logo-simple-text-solid-bg.png" Link="Resources\Images\logo.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>

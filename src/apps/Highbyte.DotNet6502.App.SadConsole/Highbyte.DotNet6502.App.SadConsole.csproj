@@ -10,7 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="../../../resources/images/logo-128.png" Link="Resources\Images\logo.png" />
+    <!-- <EmbeddedResource Include="../../../resources/images/logo-128.png" Link="Resources\Images\logo.png" /> -->
+    <EmbeddedResource Include="../../../resources/images/logo-simple-text-solid-bg-128.png" Link="Resources\Images\logo.png" />
     <EmbeddedResource Include="../../../resources/images/favicon.ico" Link="favicon.ico" />
   </ItemGroup>
 
