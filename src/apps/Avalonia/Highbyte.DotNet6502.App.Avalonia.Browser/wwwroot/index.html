@@ -95,12 +95,12 @@ if (isDesktopSafari()) {
 </script>
 <script>
 
-// Remove this delay (used to preview the splash screen)
+// Uncomment this delay (used to preview the splash screen)
 // setTimeout(function() {
-//     var s = document.createElement('script');
-//     s.type = 'module';
-//     s.src = './main.js?v={{APP_VERSION}}';
-//     document.body.appendChild(s);
+    var s = document.createElement('script');
+    s.type = 'module';
+    s.src = './main.js?v={{APP_VERSION}}';
+    document.body.appendChild(s);
 // }, 3000);
 </script>
 </body>
