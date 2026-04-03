@@ -55,7 +55,7 @@
 
   <Target Name="CopySharedAssets" AfterTargets="AfterBuild">
     <!-- Copy logo image from central resources folder -->
-    <Copy SourceFiles="..\..\..\..\resources\images\logo.png" DestinationFolder="wwwroot\images" />
+    <Copy SourceFiles="..\..\..\..\resources\images\logo-simple-text-solid-bg.png" DestinationFiles="wwwroot\images\logo.png" />
     <!-- Copy favicon from central resources folder -->
     <Copy SourceFiles="..\..\..\..\resources\images\favicon.ico" DestinationFolder="wwwroot" />
   </Target>
