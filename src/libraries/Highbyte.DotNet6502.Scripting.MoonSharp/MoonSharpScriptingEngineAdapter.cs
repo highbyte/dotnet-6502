@@ -26,8 +26,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaFileProxy? _fileProxy;
     private LuaHttpProxy? _httpProxy;
     private LuaTcpProxy? _tcpProxy;
+    private LuaScreenshotProxy? _screenshotProxy;
     private ScriptingConfig? _config;
     private IScriptInputProvider? _inputProvider;
+    private IHostApp? _hostApp;
 
     // Tracks how each coroutine last yielded, keyed on the MoonSharp Coroutine object
     private readonly Dictionary<Coroutine, ScriptYieldType> _coroutineYieldType = new();
@@ -87,6 +89,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaCpuProxy))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaMemProxy))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaC64Proxy))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaScreenshotProxy))]
     public void InitializeVm(
         IHostApp? hostApp,
         Action<string, Func<Task>> enqueueAction,
@@ -97,6 +100,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     {
         _config = config;
         _logger = logger;
+        _hostApp = hostApp;
         _coroutineYieldType.Clear();
         _hookDynValueCache.Clear();
         _pendingHttpTasks.Clear();
@@ -668,6 +672,29 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                 enqueueAction(CurrentScriptFileName(), () => { hostApp.QuitApplication(); return Task.CompletedTask; });
             return DynValue.Void;
         });
+
+        // emu.screenshot is registered whenever AllowFileIO is true (same gate as the file table).
+        // AllowFileWrite is checked at call time to give a descriptive error,
+        // consistent with how file.write() reports AllowFileWrite violations.
+        if (config.AllowFileIO && _fileProxy != null && hostApp != null)
+        {
+            _screenshotProxy = new LuaScreenshotProxy(hostApp, _fileProxy);
+            var screenshotProxyCapture = _screenshotProxy;
+            var allowWrite = config.AllowFileWrite;
+            emuTable["screenshot"] = DynValue.NewCallback((ctx, args) =>
+            {
+                if (!allowWrite)
+                    throw new ScriptRuntimeException("emu.screenshot() requires AllowFileWrite: true in scripting config.");
+                var filename = args.Count > 0 ? args[0].CastToString() : null;
+                if (string.IsNullOrWhiteSpace(filename))
+                    throw new ScriptRuntimeException("emu.screenshot() requires a filename argument.");
+                int quality = args.Count > 1 ? (int)(args[1].CastToNumber() ?? 90) : 90;
+                try { screenshotProxyCapture.SaveScreenshot(filename, quality); }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+                { throw new ScriptRuntimeException(ex.Message); }
+                return DynValue.Void;
+            });
+        }
 
         var inputTable = new Table(_script);
         inputTable["key_press"] = DynValue.NewCallback((ctx, args) =>

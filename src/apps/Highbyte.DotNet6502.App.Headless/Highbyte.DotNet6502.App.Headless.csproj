@@ -43,8 +43,8 @@
   <!-- Copy Lua example scripts from central resources location to output directory -->
   <Target Name="CopyExampleScripts" AfterTargets="AfterBuild">
     <ItemGroup>
-      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*" />
-      <_DesktopScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\desktop\*" />
+      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\resources\scripts\shared\*" />
+      <_DesktopScripts Include="$(MSBuildThisFileDirectory)..\..\..\resources\scripts\desktop\*" />
     </ItemGroup>
     <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(_DesktopScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
