@@ -45,16 +45,24 @@ jobs:
           chmod +x src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh
           src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh ${{ matrix.runtime }}
 
+      - name: Publish Headless App
+        run: |
+          chmod +x src/apps/Highbyte.DotNet6502.App.Headless/publish.sh
+          src/apps/Highbyte.DotNet6502.App.Headless/publish.sh ${{ matrix.runtime }}
+
       - name: Zip Apps
         run: |
           cd src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip .
-          
+
           cd $GITHUB_WORKSPACE/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-Avalonia-${{ matrix.runtime }}.zip .
-          
+
           cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.SadConsole/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-SadConsole-${{ matrix.runtime }}.zip .
+
+          cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.Headless/publish/${{ matrix.runtime }}
+          zip -r $GITHUB_WORKSPACE/DotNet6502-Headless-${{ matrix.runtime }}.zip .
 
       - name: Generate SHA256 checksums
         run: |
@@ -62,6 +70,7 @@ jobs:
           sha256sum DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
           sha256sum DotNet6502-Avalonia-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
           sha256sum DotNet6502-SadConsole-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
+          sha256sum DotNet6502-Headless-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
 
       - name: Upload Release Assets
         if: github.event_name == 'release'
@@ -72,6 +81,7 @@ jobs:
             DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip \
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip \
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip \
+            DotNet6502-Headless-${{ matrix.runtime }}.zip \
             checksums-${{ matrix.runtime }}.sha256
 
       - name: Upload Workflow Artifacts (non-release)
@@ -83,6 +93,7 @@ jobs:
             DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip
+            DotNet6502-Headless-${{ matrix.runtime }}.zip
             checksums-${{ matrix.runtime }}.sha256
 
   update-package-managers:
