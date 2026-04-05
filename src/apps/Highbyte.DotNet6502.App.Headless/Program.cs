@@ -12,7 +12,6 @@ using Microsoft.Extensions.Logging;
 // ----------
 // Parse command line arguments
 // ----------
-bool enableConsoleLogging = args.Contains("--console-log") || args.Contains("-c");
 LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Information);
 
 WriteBootstrapLog("Starting headless emulator.");
@@ -66,13 +65,12 @@ WriteBootstrapLog("Initializing logging.");
 var loggerFactory = LoggerFactory.Create(logBuilder =>
 {
     logBuilder.SetMinimumLevel(LogLevel.Trace);
-    // Console logging is always enabled for headless (but --console-log flag is respected for compatibility)
     logBuilder.AddSimpleConsole(options =>
     {
         options.SingleLine = true;
         options.TimestampFormat = "HH:mm:ss ";
     });
-    logBuilder.AddFilter(null, enableConsoleLogging ? consoleLogLevel : LogLevel.Information);
+    logBuilder.AddFilter(null, consoleLogLevel);
 });
 
 var logger = loggerFactory.CreateLogger(nameof(Program));
