@@ -13,6 +13,7 @@ namespace Highbyte.DotNet6502.App.Headless;
 public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>, IDebuggableHostApp
 {
     private readonly ILogger _logger;
+    private readonly CancellationTokenSource _appCts;
 
     private HeadlessPeriodicTimer? _updateTimer;
     private HeadlessPeriodicTimer? _scriptingTickTimer;
@@ -28,10 +29,12 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
 
     public HeadlessHostApp(
         SystemList<NullInputHandlerContext, NullAudioHandlerContext> systemList,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        CancellationTokenSource appCts)
         : base("Headless", systemList, loggerFactory, useStatsNamePrefix: false)
     {
         _logger = loggerFactory.CreateLogger(typeof(HeadlessHostApp).Name);
+        _appCts = appCts;
 
         var inputHandlerContext = new NullInputHandlerContext();
         var audioHandlerContext = new NullAudioHandlerContext();
@@ -70,6 +73,12 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
     }
 
     // --- Lifecycle overrides ---
+
+    public override void QuitApplication()
+    {
+        _logger.LogInformation("QuitApplication requested — cancelling app token.");
+        _appCts.Cancel();
+    }
 
     public override void OnAfterStart(EmulatorState emulatorStateBeforeStart)
     {

@@ -134,7 +134,7 @@ systemList.AddSystem(c64Setup);
 var genericComputerSetup = new GenericComputerSetup(loggerFactory, configuration);
 systemList.AddSystem(genericComputerSetup);
 
-var hostApp = new HeadlessHostApp(systemList, loggerFactory);
+var hostApp = new HeadlessHostApp(systemList, loggerFactory, appCts);
 
 // Wire the debug environment to the host app
 debugEnvironment.HostApp = hostApp;

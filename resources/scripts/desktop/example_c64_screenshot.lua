@@ -75,11 +75,13 @@ local filename = "screenshots/c64_basic_ready.png"
 emu.screenshot(filename)
 log.info("[screenshot] Saved: " .. filename)
 
--- ── Step 4: Stop the emulator ────────────────────────────────────────────────
+-- ── Step 4: Quit the application ─────────────────────────────────────────────
 --
--- In headless mode the process keeps running until stopped; request a clean
--- shutdown so the app can exit. In the Avalonia app this is optional — remove
--- or comment out the lines below if you want the emulator to keep running.
+-- emu.quit() calls QuitApplication() on the host:
+--   Headless: cancels the app CancellationToken → clean process exit.
+--   Avalonia: closes the main window → app exits.
+-- Remove or comment out these lines if you want the emulator to keep running
+-- after the screenshot (e.g. when loading this script from the Scripts tab).
 
-log.info("[screenshot] Done. Stopping emulator.")
-emu.stop()
+log.info("[screenshot] Done. Quitting.")
+emu.quit()
