@@ -651,6 +651,13 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             });
         }
 
+        emuTable["quit"] = DynValue.NewCallback((ctx, args) =>
+        {
+            if (hostApp != null)
+                enqueueAction(() => { hostApp.QuitApplication(); return Task.CompletedTask; });
+            return DynValue.Void;
+        });
+
         var inputTable = new Table(_script);
         inputTable["key_press"] = DynValue.NewCallback((ctx, args) =>
         {

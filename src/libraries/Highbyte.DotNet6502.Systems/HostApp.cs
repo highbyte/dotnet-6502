@@ -22,7 +22,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     where TAudioHandlerContext : IAudioHandlerContext
 {
     // Injected via constructor
-    private readonly ILogger _logger;
+    protected readonly ILogger _logger;
     private readonly SystemList<TInputHandlerContext, TAudioHandlerContext> _systemList;
     private readonly bool _useStatsNamePrefix;
 
@@ -461,6 +461,12 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         OnAfterClose();
     }
     public virtual void OnAfterClose() { }
+
+    public virtual void QuitApplication()
+    {
+        _logger.LogInformation("QuitApplication requested — closing host (no platform-specific shutdown override)");
+        Close();
+    }
 
     public virtual void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
     {

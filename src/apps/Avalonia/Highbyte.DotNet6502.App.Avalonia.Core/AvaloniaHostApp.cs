@@ -356,6 +356,17 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _ = Dispatcher.UIThread.InvokeAsync(DrainPendingScriptActionsAsync);
     }
 
+    public override void QuitApplication()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime lifetime)
+        {
+            _logger.LogWarning("QuitApplication is not supported in this host environment. Ignoring.");
+            return;
+        }
+        Close();
+        Dispatcher.UIThread.Post(() => lifetime.Shutdown());
+    }
+
     public override void OnAfterClose()
     {
         base.OnAfterClose();

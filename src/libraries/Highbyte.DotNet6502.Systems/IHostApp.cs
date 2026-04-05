@@ -22,6 +22,7 @@ public interface IHostApp
     public Task Start();
     public void Pause();
     public void Stop();
+    public void QuitApplication();
     public Task Reset();
 
     public void RunEmulatorOneFrame();

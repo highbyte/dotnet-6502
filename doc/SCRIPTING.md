@@ -90,6 +90,7 @@ Control operations are deferred -- they take effect after the current frame comp
 | `emu.stop()` | Request emulator stop. |
 | `emu.reset()` | Request emulator stop + restart. |
 | `emu.select(name [, variant])` | Request system selection. The emulator must be stopped. |
+| `emu.quit()` | Stop the emulator and terminate the host application. Useful for automation pipelines (CI/CD, batch runs) where the app should exit automatically when the script is done. |
 
 ## CPU registers (`cpu`)
 
@@ -583,6 +584,7 @@ Example scripts are included in the `scripts/` directory:
 | `example_tcp_client.lua` | Linear loop | Demonstrates the TCP client API with a per-frame observation/action loop mimicking a Machine Learning / Reinforcement Learning server protocol (length-prefixed binary). Connects to a local TCP server, sends CPU state as an observation each frame, and applies the first byte of the server's response to the C64 border color register. Requires `AllowTcpClient: true`. Desktop only. |
 | `example_input_kb.lua` | Event hook | Demonstrates keyboard input injection: presses A, B, C in sequence using `emu.time()` for timing (0.5s hold per key, 0.3s pause between keys). |
 | `example_input_joystick.lua` | Event hook | Demonstrates joystick input injection: repeats a timed sequence (left → pause → right → pause → fire → pause) three times on port 1. |
+| `example_quit.lua` | Event hook | Demonstrates an automation pipeline: starts the emulator, polls a memory address each frame for a program result, saves to file, then calls `emu.quit()` to exit. Includes a timeout fallback. |
 
 # Technical details
 
