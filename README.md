@@ -57,6 +57,10 @@ See [Desktop Apps](doc/DESKTOP_APPS.md) for download links for pre-built executa
 | -------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
 | ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') | ![C64 Basic AI code completion](doc/Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion') |
 
+## Lua scripting
+
+The Avalonia desktop and browser apps support [Lua scripting](doc/SCRIPTING.md) for automating the emulator — selecting systems, controlling emulation, reading/writing memory, injecting input, and more.
+
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
   - Core library for executing 6502 machine code, not bound to any specific emulated system/computer, and does not have any UI or I/O code.
