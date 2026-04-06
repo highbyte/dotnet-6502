@@ -15,6 +15,16 @@
     <UserControl.Styles>
         <!-- Include non-focusable styles -->
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+        <Style Selector="Button.sort-header">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.sort-header:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid ShowGridLines="False">
@@ -492,10 +502,38 @@
                                                     <ColumnDefinition Width="80"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="5" Text="Script" Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="6" Text="Status" Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="7" Text="Yield"  Classes="small bold" FontSize="10"/>
-                                                <TextBlock Grid.Column="8" Text="Hooks"  Classes="small bold" FontSize="10"/>
+                                                <Button Grid.Column="5" Classes="sort-header"
+                                                        Command="{Binding SortByColumnCommand}"
+                                                        CommandParameter="{x:Static vm:ScriptSortColumn.FileName}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Script" Classes="small bold" FontSize="10"/>
+                                                        <TextBlock Text="{Binding FileNameSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Grid.Column="6" Classes="sort-header"
+                                                        Command="{Binding SortByColumnCommand}"
+                                                        CommandParameter="{x:Static vm:ScriptSortColumn.Status}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Status" Classes="small bold" FontSize="10"/>
+                                                        <TextBlock Text="{Binding StatusSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Grid.Column="7" Classes="sort-header"
+                                                        Command="{Binding SortByColumnCommand}"
+                                                        CommandParameter="{x:Static vm:ScriptSortColumn.YieldType}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Yield" Classes="small bold" FontSize="10"/>
+                                                        <TextBlock Text="{Binding YieldSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Grid.Column="8" Classes="sort-header"
+                                                        Command="{Binding SortByColumnCommand}"
+                                                        CommandParameter="{x:Static vm:ScriptSortColumn.Hooks}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Hooks" Classes="small bold" FontSize="10"/>
+                                                        <TextBlock Text="{Binding HooksSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                    </StackPanel>
+                                                </Button>
                                             </Grid>
 
                                             <!-- Separator -->

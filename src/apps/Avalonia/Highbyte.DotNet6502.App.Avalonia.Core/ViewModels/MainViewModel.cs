@@ -129,6 +129,17 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly ObservableCollection<ScriptDisplayEntry> _scriptEntries = new();
     public ObservableCollection<ScriptDisplayEntry> ScriptEntries => _scriptEntries;
 
+    private ScriptSortColumn _scriptSortColumn = ScriptSortColumn.FileName;
+    private bool _scriptSortAscending = true;
+
+    public string FileNameSortIndicator => SortIndicator(ScriptSortColumn.FileName);
+    public string StatusSortIndicator   => SortIndicator(ScriptSortColumn.Status);
+    public string YieldSortIndicator    => SortIndicator(ScriptSortColumn.YieldType);
+    public string HooksSortIndicator    => SortIndicator(ScriptSortColumn.Hooks);
+
+    private string SortIndicator(ScriptSortColumn col) =>
+        _scriptSortColumn == col ? (_scriptSortAscending ? " ▲" : " ▼") : "";
+
     public bool CanManageScripts { get; }
     public bool CanLoadExamples { get; }
 
@@ -331,6 +342,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> LoadExamplesCommand { get; }
     public ReactiveCommand<Unit, Unit> RefreshScriptsCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenScriptFolderCommand { get; }
+    public ReactiveCommand<ScriptSortColumn, Unit> SortByColumnCommand { get; }
 
     // Events for script editor dialog (UI operation handled in View code-behind)
     public event EventHandler? RequestAddScript;
@@ -677,6 +689,25 @@ public class MainViewModel : ViewModelBase, IDisposable
             null,
             RxApp.MainThreadScheduler);
 
+        SortByColumnCommand = ReactiveCommandHelper.CreateSafeCommand<ScriptSortColumn>(
+            col =>
+            {
+                if (_scriptSortColumn == col)
+                    _scriptSortAscending = !_scriptSortAscending;
+                else
+                {
+                    _scriptSortColumn = col;
+                    _scriptSortAscending = true;
+                }
+                ApplyScriptSort();
+                this.RaisePropertyChanged(nameof(FileNameSortIndicator));
+                this.RaisePropertyChanged(nameof(StatusSortIndicator));
+                this.RaisePropertyChanged(nameof(YieldSortIndicator));
+                this.RaisePropertyChanged(nameof(HooksSortIndicator));
+            },
+            null,
+            RxApp.MainThreadScheduler);
+
         // Emulator Options command - only enabled when emulator is uninitialized
         EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -866,7 +897,26 @@ public class MainViewModel : ViewModelBase, IDisposable
         foreach (var status in statuses)
             _scriptEntries.Add(new ScriptDisplayEntry(status));
 
+        ApplyScriptSort();
         UpdateScriptsTabHeader();
+    }
+
+    private void ApplyScriptSort()
+    {
+        var sorted = (_scriptSortColumn switch
+        {
+            ScriptSortColumn.Status   => _scriptSortAscending ? _scriptEntries.OrderBy(e => e.Status)    : _scriptEntries.OrderByDescending(e => e.Status),
+            ScriptSortColumn.YieldType => _scriptSortAscending ? _scriptEntries.OrderBy(e => e.YieldType) : _scriptEntries.OrderByDescending(e => e.YieldType),
+            ScriptSortColumn.Hooks    => _scriptSortAscending ? _scriptEntries.OrderBy(e => e.Hooks)     : _scriptEntries.OrderByDescending(e => e.Hooks),
+            _                         => _scriptSortAscending ? _scriptEntries.OrderBy(e => e.FileName)  : _scriptEntries.OrderByDescending(e => e.FileName),
+        }).ToList();
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            int current = _scriptEntries.IndexOf(sorted[i]);
+            if (current != i)
+                _scriptEntries.Move(current, i);
+        }
     }
 
     private void UpdateScriptsTabHeader()
@@ -1069,6 +1119,8 @@ public class ScriptDisplayEntry
             : "-";
     }
 }
+
+public enum ScriptSortColumn { FileName, Status, YieldType, Hooks }
 
 public class DeleteScriptConfirmationEventArgs : EventArgs
 {
