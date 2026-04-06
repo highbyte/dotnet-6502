@@ -562,6 +562,17 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             DynValue.NewString(hostApp?.SelectedSystemName ?? ""));
         emuTable["selected_variant"] = DynValue.NewCallback((ctx, args) =>
             DynValue.NewString(hostApp?.SelectedSystemConfigurationVariant ?? ""));
+        emuTable["config_valid"] = DynValue.NewCallback((ctx, args) =>
+        {
+            if (hostApp == null) return DynValue.True;
+            // Run off the UI thread to avoid deadlocking Avalonia's SynchronizationContext.
+            var (isValid, errors) = Task.Run(() => hostApp.IsCurrentSystemConfigValid()).GetAwaiter().GetResult();
+            if (isValid) return DynValue.True;
+            var errTable = new Table(_script!);
+            for (int i = 0; i < errors.Count; i++)
+                errTable[i + 1] = errors[i];
+            return DynValue.NewTuple(DynValue.False, DynValue.NewTable(errTable));
+        });
 
         // Emulator control operations (deferred via enqueueAction to run after the current frame/tick)
         emuTable["start"] = DynValue.NewCallback((ctx, args) =>

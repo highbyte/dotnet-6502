@@ -26,13 +26,28 @@ if emu.selected_system() ~= "C64" then
     emu.select("C64")
 end
 
+-- Wait for the system selection to be processed (emu.select is deferred)
+while emu.selected_system() ~= "C64" do
+    emu.yield()
+end
+
+-- Validate config before attempting to start
+local ok, errors = emu.config_valid()
+if not ok then
+    log.error("[demo] C64 system config is invalid — cannot start.")
+    for _, e in ipairs(errors) do
+        log.error("[demo]   " .. e)
+    end
+    return
+end
+
 if emu.state() ~= "running" then
     log.info("[demo] Starting emulator...")
     emu.start()
 end
 
 -- Wait until C64 is actually up and running
-while emu.state() ~= "running" or emu.selected_system() ~= "C64" do
+while emu.state() ~= "running" do
     emu.yield()
 end
 

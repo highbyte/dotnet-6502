@@ -27,6 +27,7 @@ public interface IHostApp
 
     public void RunEmulatorOneFrame();
 
+    public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid();
     public Task<bool> IsAudioSupported();
     public Task<bool> IsAudioEnabled();
     public Task<ISystem> GetSelectedSystem();

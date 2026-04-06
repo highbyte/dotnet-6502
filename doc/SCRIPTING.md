@@ -91,6 +91,7 @@ Control operations are deferred -- they take effect after the current frame comp
 | `emu.reset()` | Request emulator stop + restart. |
 | `emu.select(name [, variant])` | Request system selection. The emulator must be stopped. |
 | `emu.quit()` | Stop the emulator and terminate the host application. Useful for automation pipelines (CI/CD, batch runs) where the app should exit automatically when the script is done. |
+| `emu.config_valid()` | Check whether the currently selected system's configuration is valid. Returns `true` if valid, or `false` plus a table of error strings if not. Use this before `emu.start()` to detect misconfiguration early (e.g. missing ROM files). |
 
 ## CPU registers (`cpu`)
 

@@ -337,6 +337,9 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         return true;
     }
 
+    public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid() =>
+        _systemList.IsValidConfigWithDetails(_selectedSystemName);
+
     public async Task Start()
     {
         if (EmulatorState == EmulatorState.Running)
