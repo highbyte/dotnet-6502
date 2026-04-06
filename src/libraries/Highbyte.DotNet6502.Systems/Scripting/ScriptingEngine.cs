@@ -34,7 +34,7 @@ public class ScriptingEngine : IScriptingEngine
     private readonly HashSet<string> _notYetResumedFiles = new(StringComparer.OrdinalIgnoreCase);
 
     private IHostApp? _hostApp;
-    private readonly List<Func<Task>> _pendingScriptActions = new();
+    private readonly List<(string FileName, Func<Task> Action)> _pendingScriptActions = new();
     private int _frameCount;
     private readonly Stopwatch _wallClock = new();
 
@@ -68,14 +68,29 @@ public class ScriptingEngine : IScriptingEngine
         if (_pendingScriptActions.Count == 0) return;
         var actions = _pendingScriptActions.ToList();
         _pendingScriptActions.Clear();
-        foreach (var action in actions)
+        foreach (var (fileName, action) in actions)
         {
             try { await action(); }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Scripting] Error executing deferred script action");
+                MarkScriptAsDeferredActionError(fileName, ex.Message);
             }
         }
+    }
+
+    /// <summary>
+    /// When a deferred action (e.g. emu.start()) fails, the Lua coroutine that queued it
+    /// keeps spinning forever because it never sees the exception. Mark only that script as
+    /// errored so it stops being resumed.
+    /// </summary>
+    private void MarkScriptAsDeferredActionError(string fileName, string errorMessage)
+    {
+        if (_runtimeErrorFiles.Contains(fileName)) return;
+        _logger.LogError("[Scripting] Marking {Script} as errored due to failed deferred action: {Error}",
+            fileName, errorMessage);
+        _runtimeErrorFiles.Add(fileName);
+        ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void LoadScripts()
@@ -94,7 +109,7 @@ public class ScriptingEngine : IScriptingEngine
         _pendingScriptActions.Clear();
         _adapter.InitializeVm(
             _hostApp,
-            action => _pendingScriptActions.Add(action),
+            (fileName, action) => _pendingScriptActions.Add((fileName, action)),
             _config,
             _logger,
             () => _frameCount,

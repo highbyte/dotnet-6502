@@ -89,7 +89,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaC64Proxy))]
     public void InitializeVm(
         IHostApp? hostApp,
-        Action<Func<Task>> enqueueAction,
+        Action<string, Func<Task>> enqueueAction,
         ScriptingConfig config,
         ILogger logger,
         Func<int> getFrameCount,
@@ -567,25 +567,25 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         emuTable["start"] = DynValue.NewCallback((ctx, args) =>
         {
             if (hostApp != null)
-                enqueueAction(async () => { if (hostApp.EmulatorState != EmulatorState.Running) await hostApp.Start(); });
+                enqueueAction(CurrentScriptFileName(), async () => { if (hostApp.EmulatorState != EmulatorState.Running) await hostApp.Start(); });
             return DynValue.Void;
         });
         emuTable["pause"] = DynValue.NewCallback((ctx, args) =>
         {
             if (hostApp != null)
-                enqueueAction(() => { hostApp.Pause(); return Task.CompletedTask; });
+                enqueueAction(CurrentScriptFileName(), () => { hostApp.Pause(); return Task.CompletedTask; });
             return DynValue.Void;
         });
         emuTable["stop"] = DynValue.NewCallback((ctx, args) =>
         {
             if (hostApp != null)
-                enqueueAction(() => { hostApp.Stop(); return Task.CompletedTask; });
+                enqueueAction(CurrentScriptFileName(), () => { hostApp.Stop(); return Task.CompletedTask; });
             return DynValue.Void;
         });
         emuTable["reset"] = DynValue.NewCallback((ctx, args) =>
         {
             if (hostApp != null)
-                enqueueAction(() => hostApp.Reset());
+                enqueueAction(CurrentScriptFileName(), () => hostApp.Reset());
             return DynValue.Void;
         });
         emuTable["select"] = DynValue.NewCallback((ctx, args) =>
@@ -593,7 +593,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             var systemName = args.Count > 0 ? args[0].CastToString() : null;
             var variant = args.Count > 1 && args[1].Type == DataType.String ? args[1].String : null;
             if (hostApp != null && systemName != null)
-                enqueueAction(async () =>
+                enqueueAction(CurrentScriptFileName(), async () =>
                 {
                     await hostApp.SelectSystem(systemName);
                     if (variant != null) await hostApp.SelectSystemConfigurationVariant(variant);
@@ -633,7 +633,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                     startAfterLoad = args[1].Boolean;
                 }
 
-                enqueueAction(() =>
+                enqueueAction(CurrentScriptFileName(), () =>
                 {
                     var path = fileProxyCapture.GetSafePath(filename);
                     if (path == null || !File.Exists(path)) return Task.CompletedTask;
@@ -654,7 +654,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         emuTable["quit"] = DynValue.NewCallback((ctx, args) =>
         {
             if (hostApp != null)
-                enqueueAction(() => { hostApp.QuitApplication(); return Task.CompletedTask; });
+                enqueueAction(CurrentScriptFileName(), () => { hostApp.QuitApplication(); return Task.CompletedTask; });
             return DynValue.Void;
         });
 
@@ -791,6 +791,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             h => _script!.Globals.Get(h).Function);
 
         _logProxy!.CurrentScriptFile = handle.FileName;
+        // Ensure _allHandles includes this handle so that CurrentScriptFileName() can resolve
+        // the filename when top-level code calls emu.start() / emu.select() etc. during initial resume.
+        if (!_allHandles.Contains(handle))
+            _allHandles = _allHandles.Append(handle).ToArray();
         // Set _currentCoroutine so that async operations (tcp.connect, http.get) called at the
         // top level of a script (before any emu.frameadvance() loop) can register their pending
         // tasks correctly via RegisterPendingTcpTask / RegisterPendingHttpTask.
@@ -1265,4 +1269,16 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     public void SetInputProvider(IScriptInputProvider? provider) => _inputProvider = provider;
 
     public void ClearScriptInput() => _inputProvider?.Clear();
+
+    /// <summary>
+    /// Returns the filename of the script whose coroutine is currently executing.
+    /// Used to tag deferred actions with the script that enqueued them, so only
+    /// that script is marked as errored if the action fails.
+    /// Returns an empty string if no coroutine is currently active (e.g. called outside a resume).
+    /// </summary>
+    private string CurrentScriptFileName() =>
+        _currentCoroutine == null
+            ? string.Empty
+            : _allHandles.OfType<MoonSharpScriptHandle>()
+                         .FirstOrDefault(h => h.Coroutine == _currentCoroutine)?.FileName ?? string.Empty;
 }

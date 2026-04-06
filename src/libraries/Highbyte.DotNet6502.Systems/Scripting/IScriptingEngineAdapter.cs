@@ -20,10 +20,12 @@ public interface IScriptingEngineAdapter
     /// emu.framecount() and emu.time() Lua callbacks; they read values owned by <see cref="ScriptingEngine"/>.
     /// <paramref name="enqueueAction"/> is used by emu control callbacks to defer async operations
     /// (e.g. emu.start()) until after the current frame or timer tick completes.
+    /// The first argument is the filename of the script that enqueued the action, used to
+    /// mark only that script as errored if the action fails.
     /// </summary>
     void InitializeVm(
         IHostApp? hostApp,
-        Action<Func<Task>> enqueueAction,
+        Action<string, Func<Task>> enqueueAction,
         ScriptingConfig config,
         ILogger logger,
         Func<int> getFrameCount,

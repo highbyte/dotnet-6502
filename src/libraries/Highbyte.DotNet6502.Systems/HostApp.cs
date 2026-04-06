@@ -342,8 +342,14 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 
-        if (!await _systemList.IsValidConfig(_selectedSystemName))
-            throw new DotNet6502Exception("Cannot start emulator if current system config is invalid.");
+        var (isValid, validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
+        if (!isValid)
+        {
+            var details = validationErrors.Count > 0
+                ? string.Join("; ", validationErrors)
+                : "no details available";
+            throw new DotNet6502Exception($"Cannot start emulator, system config is invalid: {details}");
+        }
 
         ISystem systemToBeStarted;
         if (EmulatorState == EmulatorState.Uninitialized)
