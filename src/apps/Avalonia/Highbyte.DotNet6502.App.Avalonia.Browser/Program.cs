@@ -256,7 +256,7 @@ internal sealed partial class Program
             var json = JSInterop.GetScriptsFromLocalStorage(LOCAL_STORAGE_SCRIPT_PREFIX);
             if (string.IsNullOrEmpty(json)) return [];
             var scripts = JsonSerializer.Deserialize(json, HostConfigJsonContext.Default.ListLocalStorageScript);
-            return scripts?.Select(s => (s.name, s.content)) ?? [];
+            return scripts?.OrderBy(s => s.name).Select(s => (s.name, s.content)) ?? [];
         }
         catch (Exception ex)
         {

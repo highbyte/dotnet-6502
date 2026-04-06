@@ -166,7 +166,9 @@ public class ScriptingEngine : IScriptingEngine
             return;
         }
 
-        var luaFiles = Directory.GetFiles(dir, "*.lua", SearchOption.TopDirectoryOnly);
+        var luaFiles = Directory.GetFiles(dir, "*.lua", SearchOption.TopDirectoryOnly)
+            .OrderBy(Path.GetFileName)
+            .ToArray();
         _logger.LogInformation("[Scripting] Loading {Count} Lua script(s) from: {Dir}", luaFiles.Length, Path.GetFullPath(dir));
 
         foreach (var file in luaFiles)
