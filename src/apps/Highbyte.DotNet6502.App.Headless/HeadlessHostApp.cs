@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.App.Headless;
 /// </summary>
 public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>, IDebuggableHostApp
 {
-    private readonly ILogger _logger;
+    private new readonly ILogger _logger;
     private readonly CancellationTokenSource _appCts;
 
     private HeadlessPeriodicTimer? _updateTimer;
@@ -68,7 +68,10 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
             _debugAdapter.OnDebuggerResumed = null;
         }
         _debugAdapter = null;
-        CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+        if (_originalBreakpointEvaluator != null)
+            CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+        else
+            CurrentSystemRunner?.ClearCustomExecEvaluator();
         _isExternalDebuggerAttached = false;
     }
 
@@ -192,13 +195,27 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
 
     private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
     {
-        InvokeScriptingTick();
-        await DrainPendingScriptActionsAsync();
+        try
+        {
+            InvokeScriptingTick();
+            await DrainPendingScriptActionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled exception in scripting tick timer.");
+        }
     }
 
     private async void UpdateTimerElapsed(object? sender, EventArgs e)
     {
-        RunEmulatorOneFrame();
-        await DrainPendingScriptActionsAsync();
+        try
+        {
+            RunEmulatorOneFrame();
+            await DrainPendingScriptActionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled exception in update timer.");
+        }
     }
 }
