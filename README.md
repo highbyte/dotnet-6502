@@ -45,6 +45,14 @@
 
 See [Desktop Apps](doc/DESKTOP_APPS.md) for download links for pre-built executables and instructions for Windows, Linux, and macOS.
 
+## Headless app
+
+[Headless app](doc/APPS_HEADLESS.md) — runs the emulator without any UI, rendering, audio, or user input. Controlled entirely via CLI arguments and Lua scripts. Useful for automation, scripting, and CI workflows.
+
+```
+dotnet Highbyte.DotNet6502.App.Headless.dll --system C64 --start --script scripts/example_c64_basic_readwrite.lua
+```
+
 ## VS Code debugger extension
 
 | [VSCode source debugging](tools/vscode-extension/README.md)| [VSCode disassembly debugging](tools/vscode-extension/README.md) |
