@@ -95,6 +95,8 @@ public class AvaloniaC64InputHandler : IInputHandler
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }
 
+        c64.ScriptInputProvider?.ApplyInjectedKeysTo(c64KeysDown);
+
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
@@ -145,9 +147,9 @@ public class AvaloniaC64InputHandler : IInputHandler
     private void CaptureGamepad(C64 c64)
     {
         var c64JoystickActions = GetC64JoystickActionsFromGamepad(_inputHandlerContext.GamepadButtonsDown);
-        // Note: Joystick actions from keyboard have already been set, so use overwrite: false
-        //       to combine with any gamepad actions.
         c64.Cia1.Joystick.SetJoystickActions(_inputConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
+
+        c64.ScriptInputProvider?.ApplyInjectedJoystickActionsTo(c64.Cia1.Joystick);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromGamepad(HashSet<GamepadButton> gamepadButtonsDown)

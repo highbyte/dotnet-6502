@@ -22,10 +22,12 @@ public interface IHostApp
     public Task Start();
     public void Pause();
     public void Stop();
+    public void QuitApplication();
     public Task Reset();
 
     public void RunEmulatorOneFrame();
 
+    public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid();
     public Task<bool> IsAudioSupported();
     public Task<bool> IsAudioEnabled();
     public Task<ISystem> GetSelectedSystem();

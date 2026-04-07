@@ -79,7 +79,10 @@ public class C64SadConsoleInputHandler : IInputHandler
 
     public void BeforeFrame()
     {
+        _c64.Cia1.Joystick.ClearJoystickActions();
         CaptureKeyboard(_c64);
+
+        _c64.ScriptInputProvider?.ApplyInjectedJoystickActionsTo(_c64.Cia1.Joystick);
     }
     public void Cleanup()
     {
@@ -93,6 +96,8 @@ public class C64SadConsoleInputHandler : IInputHandler
         {
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }
+
+        c64.ScriptInputProvider?.ApplyInjectedKeysTo(c64KeysDown);
 
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);

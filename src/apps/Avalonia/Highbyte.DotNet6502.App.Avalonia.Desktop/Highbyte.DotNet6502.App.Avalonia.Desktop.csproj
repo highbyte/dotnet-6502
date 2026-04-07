@@ -36,6 +36,7 @@
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.SilkNet.SDL\Highbyte.DotNet6502.Impl.SilkNet.SDL.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.DebugAdapter\Highbyte.DotNet6502.DebugAdapter.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Scripting.MoonSharp\Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -47,4 +48,14 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Copy Lua example scripts from central resources location to output directory -->
+  <Target Name="CopyExampleScripts" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*" />
+      <_DesktopScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\desktop\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_DesktopScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

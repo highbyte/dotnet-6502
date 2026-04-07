@@ -80,7 +80,7 @@ public class HostAppTests
 
         // Act / Assert
         var ex = await Assert.ThrowsAsync<DotNet6502Exception>(async () => await testApp.Start());
-        Assert.Contains($"Cannot start emulator if current system config is invalid", ex.Message);
+        Assert.Contains($"Cannot start emulator, system config is invalid", ex.Message);
     }
 
     [Fact]

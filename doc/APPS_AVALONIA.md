@@ -47,6 +47,11 @@ See [here](DESKTOP_APPS.md) how to download and run pre-built executables.
 ## System: Generic computer 
 The example 6502 machine code that is loaded and run by default for the _Generic_ computer is this a assembled version of [this 6502 assembly code](../samples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.asm)
 
+## VSCode debug adapter
+See [here](../tools/vscode-extension/README.md).
+
+## Scripting: Lua scripting via MoonSharp
+See [here](SCRIPTING.md).
 
 ## UI
 
@@ -81,7 +86,7 @@ TODO
 ## Run browser app from command line (Windows, Linux, Mac)
 ### Run Debug build (very slow)
 ```shell
-cd ./src/apps/Avalonia/Highbyte.DotNet6502.App.Browser
+cd ./src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser
 dotnet run
 ```
 Open browser at http://localhost:5000.

@@ -49,9 +49,21 @@
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Browser\Highbyte.DotNet6502.Impl.Browser.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Scripting.MoonSharp\Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
   </ItemGroup>
 
   <!-- Embedded JavaScript resources for browser interop -->
+  <ItemGroup>
+    <EmbeddedResource Include="BrowserScripting.js" />
+  </ItemGroup>
+
+  <!-- Copy Lua example scripts from central resources location to wwwroot so they are served at runtime -->
+  <Target Name="CopyExampleScripts" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="wwwroot\scripts" SkipUnchangedFiles="true" />
+  </Target>
 
   <Target Name="CopySharedAssets" AfterTargets="AfterBuild">
     <!-- Copy logo image from central resources folder -->

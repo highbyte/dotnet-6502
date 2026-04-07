@@ -51,11 +51,20 @@ See [Desktop Apps](doc/DESKTOP_APPS.md) for download links for pre-built executa
 | ----------------------------------------------- | ------------------------------------------------- |
 | <img src="doc/Screenshots/VSCode_source_debug.png" title="VSCode source debug"/> | <img src="doc/Screenshots/VSCode_disassembly_debug.png" title="VSCode disassembly debug"/> | 
 
+## Lua scripting
+
+The Avalonia desktop and browser apps support [Lua scripting](doc/SCRIPTING.md) for automating the emulator — selecting systems, controlling emulation, reading/writing memory, injecting input, and more.
+
+| [Lua scripts in desktop app](doc/SCRIPTING.md)| [Lua scripts in browser app](doc/SCRIPTING.md) |
+| ----------------------------------------------- | ------------------------------------------------- |
+| <img src="doc/Screenshots/AvaloniaDesktop_C64_Scripting.png" title="VLua scripts in Desktop app"/> | <img src="doc/Screenshots/AvaloniaBrowser_C64_Scripting.png" title="Lua scripts in Browser app"/> | 
+
 ## Other features
 
 | [Run 6502 machine code in your own .NET apps](doc/CPU_LIBRARY.md)  | [Machine code monitor](doc/MONITOR.md) | [C64 Basic AI code completion](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md) | 
 | -------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
 | ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') | ![C64 Basic AI code completion](doc/Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion') |
+
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 

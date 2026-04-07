@@ -123,6 +123,15 @@ public class C64Keyboard
     }
 
     /// <summary>
+    /// Returns true if the given key is currently in the pressed set,
+    /// whether pressed by the user or injected by a script.
+    /// </summary>
+    public bool IsKeyCurrentlyPressed(C64Key key)
+    {
+        return _pressedKeys.Contains(key);
+    }
+
+    /// <summary>
     /// Return the value of $DC01, which is all keys the selected row(s) set in $DC00 that are pressed.
     /// </summary>
     /// <returns></returns>
