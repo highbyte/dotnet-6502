@@ -13,8 +13,42 @@ Technologies
 # Features
 
 ## Systems
-- **C64** — requires ROM files (Kernal, Basic, Chargen). Configure paths in `appsettings.json`.
+- **C64** — requires ROM files (Kernal, Basic, Chargen). See [C64 ROM files](#c64-rom-files) below.
 - **Generic computer** — built-in example 6502 programs (Snake, Scroll, HelloWorld).
+
+## C64 ROM files
+
+The C64 system requires three ROM files: **Kernal**, **Basic**, and **Character generator (Chargen)**.
+
+> [!IMPORTANT]
+> You may need a license from Commodore/Cloanto (or own a real C64) to use C64 ROM files.
+
+### Where to get them
+
+The ROM files can be downloaded from [zimmers.net](https://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/):
+
+| ROM | File | Direct link |
+|-----|------|-------------|
+| Kernal | `kernal.901227-03.bin` | [download](https://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/kernal.901227-03.bin) |
+| Basic | `basic.901226-01.bin` | [download](https://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/basic.901226-01.bin) |
+| Chargen | `characters.901225-01.bin` | [download](https://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/characters.901225-01.bin) |
+
+### Where to put them
+
+By default `appsettings.json` expects them in `%HOME%/Downloads/C64` (i.e. `~/Downloads/C64` on macOS/Linux, `%USERPROFILE%\Downloads\C64` on Windows). The directory and filenames can be changed in `appsettings.json`:
+
+```json
+"Highbyte.DotNet6502.C64.Headless": {
+  "SystemConfig": {
+    "ROMDirectory": "%HOME%/Downloads/C64",
+    "ROMs": [
+      { "Name": "basic",   "File": "basic.901226-01.bin" },
+      { "Name": "kernal",  "File": "kernal.901227-03.bin" },
+      { "Name": "chargen", "File": "characters.901225-01.bin" }
+    ]
+  }
+}
+```
 
 ## CLI arguments
 
@@ -63,14 +97,18 @@ See the [VS Code debugger extension](../tools/vscode-extension/README.md) for de
 
 # Example usage
 
+Examples below use `dotnet-6502-headless` as installed via Homebrew or Scoop.
+- Manual download (self-contained binary): replace with `./Highbyte.DotNet6502.App.Headless` (or `Highbyte.DotNet6502.App.Headless.exe` on Windows)
+- Running from source: replace with `dotnet run --project src/apps/Highbyte.DotNet6502.App.Headless --`
+
 Start a C64 and run a Lua script:
 ```
-dotnet Highbyte.DotNet6502.App.Headless.dll --system C64 --start --script scripts/example_c64_basic_readwrite.lua
+dotnet-6502-headless --system C64 --start --script scripts/example_c64_basic_readwrite.lua
 ```
 
 Start with debug adapter listening on port 6502, waiting for client:
 ```
-dotnet Highbyte.DotNet6502.App.Headless.dll --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
+dotnet-6502-headless --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
 ```
 
 Example console output:
@@ -108,6 +146,10 @@ Edit `appsettings.json` in the app directory to configure ROM paths and scriptin
   }
 }
 ```
+
+# Download and install
+
+See [INSTALL_HEADLESS.md](INSTALL_HEADLESS.md) for download links and installation instructions for Windows, Linux, and macOS.
 
 # How to run locally for development
 For development system requirements, see [here](DEVELOP.md#Requirements).

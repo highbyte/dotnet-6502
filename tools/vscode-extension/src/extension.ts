@@ -204,7 +204,7 @@ function getEmulatorDependency(): Dependency {
         checkExecutable: 'dotnet-6502',
         description: 'Required for emulator mode debugging (debugAdapter: "emulator").',
         installCommand,
-        docsUrl: 'https://github.com/highbyte/dotnet-6502/blob/master/doc/DESKTOP_APPS.md',
+        docsUrl: 'https://github.com/highbyte/dotnet-6502/blob/master/doc/INSTALL_DESKTOP_APPS.md',
     };
 }
 

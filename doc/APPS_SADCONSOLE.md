@@ -11,7 +11,7 @@ Technologies
   - Input: `Highbyte.DotNet6502.Impl.SadConsole`.
   - Audio: `Highbyte.DotNet6502.Impl.NAudio`. Synthesizer via `NAudio` and playback via `OpenAL`.
 
-See [here](DESKTOP_APPS.md) how to download and run pre-built executables.
+See [here](INSTALL_DESKTOP_APPS.md) how to download and run pre-built executables.
 
 # Features
 
