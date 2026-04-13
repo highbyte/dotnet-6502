@@ -123,13 +123,18 @@ jobs:
         id: hashes
         run: |
           extract_hash() {
-            grep "DotNet6502-Avalonia-${1}.zip" "checksums-${1}.sha256" | awk '{print $1}'
+            grep "DotNet6502-${1}-${2}.zip" "checksums-${2}.sha256" | awk '{print $1}'
           }
-          echo "osx_arm64=$(extract_hash osx-arm64)" >> "$GITHUB_OUTPUT"
-          echo "linux_x64=$(extract_hash linux-x64)" >> "$GITHUB_OUTPUT"
-          echo "linux_arm64=$(extract_hash linux-arm64)" >> "$GITHUB_OUTPUT"
-          echo "win_x64=$(extract_hash win-x64)" >> "$GITHUB_OUTPUT"
-          echo "win_arm64=$(extract_hash win-arm64)" >> "$GITHUB_OUTPUT"
+          echo "osx_arm64=$(extract_hash Avalonia osx-arm64)" >> "$GITHUB_OUTPUT"
+          echo "linux_x64=$(extract_hash Avalonia linux-x64)" >> "$GITHUB_OUTPUT"
+          echo "linux_arm64=$(extract_hash Avalonia linux-arm64)" >> "$GITHUB_OUTPUT"
+          echo "win_x64=$(extract_hash Avalonia win-x64)" >> "$GITHUB_OUTPUT"
+          echo "win_arm64=$(extract_hash Avalonia win-arm64)" >> "$GITHUB_OUTPUT"
+          echo "headless_osx_arm64=$(extract_hash Headless osx-arm64)" >> "$GITHUB_OUTPUT"
+          echo "headless_linux_x64=$(extract_hash Headless linux-x64)" >> "$GITHUB_OUTPUT"
+          echo "headless_linux_arm64=$(extract_hash Headless linux-arm64)" >> "$GITHUB_OUTPUT"
+          echo "headless_win_x64=$(extract_hash Headless win-x64)" >> "$GITHUB_OUTPUT"
+          echo "headless_win_arm64=$(extract_hash Headless win-arm64)" >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew tap
         env:
@@ -138,40 +143,48 @@ jobs:
           OSX_ARM64_HASH: ${{ steps.hashes.outputs.osx_arm64 }}
           LINUX_X64_HASH: ${{ steps.hashes.outputs.linux_x64 }}
           LINUX_ARM64_HASH: ${{ steps.hashes.outputs.linux_arm64 }}
+          HEADLESS_OSX_ARM64_HASH: ${{ steps.hashes.outputs.headless_osx_arm64 }}
+          HEADLESS_LINUX_X64_HASH: ${{ steps.hashes.outputs.headless_linux_x64 }}
+          HEADLESS_LINUX_ARM64_HASH: ${{ steps.hashes.outputs.headless_linux_arm64 }}
         run: |
           git clone "https://x-access-token:${GH_TOKEN}@github.com/highbyte/homebrew-dotnet-6502.git"
           cd homebrew-dotnet-6502
 
-          # Update Cask (macOS)
+          # Update Cask (macOS desktop app)
           sed -i "s/version \".*\"/version \"${VERSION}\"/" Casks/dotnet-6502.rb
           sed -i "s/sha256 \".*\"/sha256 \"${OSX_ARM64_HASH}\"/" Casks/dotnet-6502.rb
 
-          # Update Formula (Linux) - use Python for multi-hash replacement
+          # Update Formulas - use Python for multi-hash replacement
           python3 <<'PYEOF'
           import re, os
 
+          def update_formula(path, version, hashes):
+              with open(path, "r") as f:
+                  content = f.read()
+              content = re.sub(r'version ".*?"', f'version "{version}"', content)
+              idx = [0]
+              def replace_hash(m):
+                  if idx[0] < len(hashes):
+                      h = hashes[idx[0]]
+                      idx[0] += 1
+                      return f'sha256 "{h}"'
+                  return m.group(0)
+              content = re.sub(r'sha256 ".*?"', replace_hash, content)
+              with open(path, "w") as f:
+                  f.write(content)
+
           version = os.environ["VERSION"]
-          linux_x64_hash = os.environ["LINUX_X64_HASH"]
-          linux_arm64_hash = os.environ["LINUX_ARM64_HASH"]
-
-          with open("Formula/dotnet-6502.rb", "r") as f:
-              content = f.read()
-
-          content = re.sub(r'version ".*?"', f'version "{version}"', content)
-
-          # Replace hashes in order: first occurrence is x64, second is arm64
-          hashes = [linux_x64_hash, linux_arm64_hash]
-          idx = [0]
-          def replace_hash(m):
-              if idx[0] < len(hashes):
-                  h = hashes[idx[0]]
-                  idx[0] += 1
-                  return f'sha256 "{h}"'
-              return m.group(0)
-          content = re.sub(r'sha256 ".*?"', replace_hash, content)
-
-          with open("Formula/dotnet-6502.rb", "w") as f:
-              f.write(content)
+          # dotnet-6502 formula: Linux only (x64, arm64)
+          update_formula("Formula/dotnet-6502.rb", version, [
+              os.environ["LINUX_X64_HASH"],
+              os.environ["LINUX_ARM64_HASH"],
+          ])
+          # dotnet-6502-headless formula: macOS arm64, then Linux x64, then Linux arm64
+          update_formula("Formula/dotnet-6502-headless.rb", version, [
+              os.environ["HEADLESS_OSX_ARM64_HASH"],
+              os.environ["HEADLESS_LINUX_X64_HASH"],
+              os.environ["HEADLESS_LINUX_ARM64_HASH"],
+          ])
           PYEOF
 
           git config user.name "github-actions[bot]"
@@ -186,6 +199,8 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           WIN_X64_HASH: ${{ steps.hashes.outputs.win_x64 }}
           WIN_ARM64_HASH: ${{ steps.hashes.outputs.win_arm64 }}
+          HEADLESS_WIN_X64_HASH: ${{ steps.hashes.outputs.headless_win_x64 }}
+          HEADLESS_WIN_ARM64_HASH: ${{ steps.hashes.outputs.headless_win_arm64 }}
         run: |
           git clone "https://x-access-token:${GH_TOKEN}@github.com/highbyte/scoop-dotnet-6502.git"
           cd scoop-dotnet-6502
@@ -195,21 +210,21 @@ jobs:
 
           version = os.environ["VERSION"]
           tag = os.environ["TAG"]
-          win_x64_hash = os.environ["WIN_X64_HASH"]
-          win_arm64_hash = os.environ["WIN_ARM64_HASH"]
 
-          with open("bucket/dotnet-6502.json", "r") as f:
-              manifest = json.load(f)
+          def update_manifest(path, app_name, win_x64_hash, win_arm64_hash):
+              with open(path, "r") as f:
+                  manifest = json.load(f)
+              manifest["version"] = version
+              manifest["architecture"]["64bit"]["url"] = f"https://github.com/highbyte/dotnet-6502/releases/download/{tag}/DotNet6502-{app_name}-win-x64.zip"
+              manifest["architecture"]["64bit"]["hash"] = win_x64_hash
+              manifest["architecture"]["arm64"]["url"] = f"https://github.com/highbyte/dotnet-6502/releases/download/{tag}/DotNet6502-{app_name}-win-arm64.zip"
+              manifest["architecture"]["arm64"]["hash"] = win_arm64_hash
+              with open(path, "w") as f:
+                  json.dump(manifest, f, indent=4)
+                  f.write("\n")
 
-          manifest["version"] = version
-          manifest["architecture"]["64bit"]["url"] = f"https://github.com/highbyte/dotnet-6502/releases/download/{tag}/DotNet6502-Avalonia-win-x64.zip"
-          manifest["architecture"]["64bit"]["hash"] = win_x64_hash
-          manifest["architecture"]["arm64"]["url"] = f"https://github.com/highbyte/dotnet-6502/releases/download/{tag}/DotNet6502-Avalonia-win-arm64.zip"
-          manifest["architecture"]["arm64"]["hash"] = win_arm64_hash
-
-          with open("bucket/dotnet-6502.json", "w") as f:
-              json.dump(manifest, f, indent=4)
-              f.write("\n")
+          update_manifest("bucket/dotnet-6502.json",         "Avalonia", os.environ["WIN_X64_HASH"],         os.environ["WIN_ARM64_HASH"])
+          update_manifest("bucket/dotnet-6502-headless.json", "Headless", os.environ["HEADLESS_WIN_X64_HASH"], os.environ["HEADLESS_WIN_ARM64_HASH"])
           PYEOF
 
           git config user.name "github-actions[bot]"
