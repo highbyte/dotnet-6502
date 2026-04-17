@@ -23,7 +23,7 @@ code --install-extension highbyte.dotnet-6502-debugger
 The debugger extension connects to a debugger adapter in the dotnet-6502 emulator Avalonia UI desktop app.
 
 Depenencies
-- Required: [**`dotnet-6502`**](https://github.com/highbyte/dotnet-6502/blob/master/doc/DESKTOP_APPS.md#install-via-package-manager) emulator Avalonia UI desktop app.
+- Required: [**`dotnet-6502`**](https://github.com/highbyte/dotnet-6502/blob/master/doc/INSTALL_DESKTOP_APPS.md#install-via-package-manager) emulator Avalonia UI desktop app.
 - Optional: [**`cc65`**](https://github.com/cc65/cc65) compiler/assembler toolchain for source debugging.
 
 > If a dependency is missing, the extension will detect it and offer to run the install command for you.

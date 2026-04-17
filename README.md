@@ -43,7 +43,14 @@
 | ------------------------------------------- | ------------------------------------------------ | ------------------------------------------------- |
 | <img src="doc/Screenshots/AvaloniaDesktop_C64_Basic.png" title="Avalonia Desktop app, C64 Basic" /> | <img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" /> | <img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" /> |
 
-See [Desktop Apps](doc/DESKTOP_APPS.md) for download links for pre-built executables and instructions for Windows, Linux, and macOS.
+See [Desktop Apps](doc/INSTALL_DESKTOP_APPS.md) for download links for pre-built executables and instructions for Windows, Linux, and macOS.
+
+## Headless app
+
+[Headless app](doc/APPS_HEADLESS.md) — runs the emulator without any UI, rendering, audio, or user input. Controlled entirely via CLI arguments and Lua scripts. Useful for automation, scripting, and CI workflows.
+
+See [Install Headless App](doc/INSTALL_HEADLESS.md) for download links and installation instructions for Windows, Linux, and macOS.
+
 
 ## VS Code debugger extension
 

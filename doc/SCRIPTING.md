@@ -75,6 +75,7 @@ A script must call one of these in its main loop. Scripts that return without yi
 | `emu.framecount()` | number | Number of emulator frames executed since scripts were loaded (1-based). |
 | `emu.time()` | number | Wall-clock seconds elapsed since scripts were loaded. |
 | `emu.state()` | string | Current emulator state: `"running"`, `"paused"`, `"stopped"`, or `"unknown"`. |
+| `emu.host()` | string | Host application type: `"headless"`, `"desktop"`, or `"browser"`. Use this to write scripts that behave differently per host — e.g. call `emu.quit()` only when headless. |
 | `emu.systems()` | table | List of available system names (e.g. `{"C64", "Generic"}`). |
 | `emu.selected_system()` | string | Currently selected system name. |
 | `emu.selected_variant()` | string | Currently selected system variant name. |

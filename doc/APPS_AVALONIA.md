@@ -24,7 +24,7 @@ Technologies
   - Input: `Highbyte.DotNet6502.Impl.Avalonia`.
   - Audio: `Highbyte.DotNet6502.Impl.NAudio`. Synthesizer via `NAudio` and playback via `WebAudio JS interop`.
 
-See [here](DESKTOP_APPS.md) how to download and run pre-built executables.
+See [here](INSTALL_DESKTOP_APPS.md) how to download and run pre-built executables.
 
 # Features
 
@@ -52,6 +52,58 @@ See [here](../tools/vscode-extension/README.md).
 
 ## Scripting: Lua scripting via MoonSharp
 See [here](SCRIPTING.md).
+
+## CLI arguments
+
+The desktop app can be launched from the command line with arguments to control logging, scripting, and automated startup. There are two mutually exclusive modes:
+
+### Scripting mode (`--script` / `--scriptDir`)
+
+When a Lua script is supplied the script owns all emulator setup and lifecycle — system selection, start, load, and quit.
+
+| Argument | Description |
+|---|---|
+| `--script <path>` | Load and run a Lua script (can be specified multiple times) |
+| `--scriptDir <path>` | Override the script directory from `appsettings.json` |
+| `--console-log` / `-c` | Enable console logging |
+| `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
+| `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
+| `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
+| `--debug-wait` | Wait for a debug client to connect before starting |
+
+> [!IMPORTANT]
+> `--script` and `--scriptDir` are **mutually exclusive** with `--system`, `--systemVariant`, `--start`, `--waitForSystemReady`, `--loadPrg`, and `--runLoadedProgram`. The script is responsible for all emulator setup and lifecycle. Combining them is an error.
+
+### Automated startup mode (`--start`)
+
+Used when driving the emulator from the command line without a script — primarily by the VS Code debugger extension.
+
+| Argument | Description |
+|---|---|
+| `--system <name>` | Select a system (e.g. `C64`, `Generic`) |
+| `--systemVariant <name>` | Select a system variant. Requires `--system`. |
+| `--start` | Auto-start the emulator after selection |
+| `--waitForSystemReady` | Wait until the system reports ready before continuing. Requires `--start`. |
+| `--loadPrg <path>` | Load a `.prg` file into memory. Requires `--start`. |
+| `--runLoadedProgram` | Run the loaded `.prg` file after loading. Requires `--start` and `--loadPrg`. |
+| `--console-log` / `-c` | Enable console logging |
+| `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
+| `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
+| `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
+| `--debug-wait` | Wait for a debug client to connect before starting |
+
+### Examples
+
+```
+# Run a Lua script (script owns all setup and lifecycle)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --script scripts/example_c64_basic_readwrite.lua
+
+# Start C64 and load a .prg file via CLI (no script)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadPrg game.prg --runLoadedProgram
+
+# Start with debug adapter for VS Code, waiting for client
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
+```
 
 ## UI
 

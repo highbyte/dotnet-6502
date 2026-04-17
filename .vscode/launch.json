@@ -52,6 +52,17 @@
             "stopAtEntry": false
         },
         {
+            "name": "Headless app - .NET Core Launch",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build headless app",
+            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.Headless/bin/Debug/net10.0/Highbyte.DotNet6502.App.Headless.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.Headless/bin/Debug/net10.0",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
             "name": "Avalonia desktop app - .NET Core Launch",
             "type": "coreclr",
             "request": "launch",

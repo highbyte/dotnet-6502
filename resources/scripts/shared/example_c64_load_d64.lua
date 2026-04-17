@@ -9,8 +9,17 @@
 
 log.info("Waiting for C64 emulator to start...")
 
--- Wait until the emulator is running with the C64 system selected
-while emu.state() ~= "running" or emu.selected_system() ~= "C64" do
+if emu.selected_system() ~= "C64" then
+    emu.select("C64")
+end
+while emu.selected_system() ~= "C64" do
+    emu.yield()
+end
+
+if emu.state() ~= "running" then
+    emu.start()
+end
+while emu.state() ~= "running" do
     emu.yield()
 end
 

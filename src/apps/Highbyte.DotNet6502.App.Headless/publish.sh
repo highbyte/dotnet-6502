@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# Publish SadConsole app as a self-contained, single-file executable
-# Native libraries are kept external (not bundled) for MonoGame/SDL2 compatibility
+# Publish Headless app as a self-contained, single-file executable
 # Usage: ./publish.sh [runtime] [--include-pdb]
 # Example: ./publish.sh osx-arm64
 #          ./publish.sh linux-x64 --include-pdb
 #          ./publish.sh win-x64
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_FILE="$SCRIPT_DIR/Highbyte.DotNet6502.App.SadConsole.csproj"
+PROJECT_FILE="$SCRIPT_DIR/Highbyte.DotNet6502.App.Headless.csproj"
 OUTPUT_DIR="$SCRIPT_DIR/publish"
 
 # Default runtime based on current OS
@@ -42,7 +41,7 @@ for arg in "$@"; do
     fi
 done
 
-echo "Publishing SadConsole app..."
+echo "Publishing Headless app..."
 echo "  Runtime: $RUNTIME"
 echo "  Output:  $OUTPUT_DIR/$RUNTIME"
 echo "  Include PDB: $INCLUDE_PDB"
@@ -57,10 +56,6 @@ PUBLISH_ARGS=(
     -p:PublishSingleFile=true
     --output "$OUTPUT_DIR/$RUNTIME"
 )
-
-# Bundle native libraries into single file.
-# Note: Doesn't seem to be working, the app crashes on startup if enabled
-#PUBLISH_ARGS+=(-p:IncludeNativeLibrariesForSelfExtract=true)
 
 # Exclude PDB files unless --include-pdb is specified
 if [[ "$INCLUDE_PDB" == false ]]; then

@@ -31,14 +31,27 @@ public static class AutomatedStartupHandler
     /// <summary>
     /// Validates automated startup arguments.
     /// </summary>
+    /// <param name="hasScripts">
+    /// True when <c>--script</c> or <c>--scriptDir</c> was supplied.
+    /// Scripts own the full emulator lifecycle, so they are mutually exclusive with
+    /// <c>--start</c>, <c>--waitForSystemReady</c>, <c>--loadPrg</c>, and <c>--runLoadedProgram</c>.
+    /// </param>
     public static bool ValidateArguments(
         string? systemName,
         string? systemVariant,
         bool autoStart,
         bool waitForSystemReady,
         string? loadPrgPath,
-        bool runLoadedProgram)
+        bool runLoadedProgram,
+        bool hasScripts = false)
     {
+        // --script / --scriptDir and lifecycle/setup flags are mutually exclusive
+        if (hasScripts && (systemName != null || systemVariant != null || autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram))
+        {
+            Console.Error.WriteLine("Error: --script and --scriptDir are mutually exclusive with --system, --systemVariant, --start, --waitForSystemReady, --loadPrg, and --runLoadedProgram. The Lua script is responsible for emulator setup and lifecycle when scripts are used.");
+            return false;
+        }
+
         // If no system specified, no other automated args should be present
         if (systemName == null)
         {
