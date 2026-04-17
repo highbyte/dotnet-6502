@@ -34,7 +34,8 @@ List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
 string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(args, "--scriptDir");
 
 // Validate automated startup arguments
-if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram))
+bool hasScripts = scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
+if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram, hasScripts))
 {
     return 1;
 }
@@ -120,7 +121,8 @@ if (enableExternalDebug)
 // ----------
 // Initialize Lua scripting engine
 // ----------
-var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride);
+bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram;
+var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "headless");
 
 // ----------
 // Create system list and host app

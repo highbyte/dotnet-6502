@@ -12,8 +12,17 @@
 
 log.info("Waiting for C64 emulator to start...")
 
--- Wait until the emulator is running with the C64 system selected
-while emu.state() ~= "running" or emu.selected_system() ~= "C64" do
+if emu.selected_system() ~= "C64" then
+    emu.select("C64")
+end
+while emu.selected_system() ~= "C64" do
+    emu.yield()
+end
+
+if emu.state() ~= "running" then
+    emu.start()
+end
+while emu.state() ~= "running" do
     emu.yield()
 end
 
@@ -65,4 +74,8 @@ if ok1 and ok2 then
     log.info("Round-trip check PASSED: both lines found in retrieved source.")
 else
     log.info("Round-trip check FAILED: one or more lines missing from retrieved source.")
+end
+
+if emu.host() == "headless" then
+    emu.quit()
 end

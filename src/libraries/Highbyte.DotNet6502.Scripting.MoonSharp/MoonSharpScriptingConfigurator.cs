@@ -15,7 +15,9 @@ public static class MoonSharpScriptingConfigurator
         IConfiguration configuration,
         ILoggerFactory loggerFactory,
         IReadOnlyList<string>? scriptFilePaths = null,
-        string? scriptDirectoryOverride = null)
+        string? scriptDirectoryOverride = null,
+        bool suppressConfigScripts = false,
+        string hostType = "unknown")
     {
         var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
 
@@ -26,6 +28,13 @@ public static class MoonSharpScriptingConfigurator
         {
             logger.LogInformation("[Scripting] Disabled in configuration. Using NoScriptingEngine.");
             return new NoScriptingEngine();
+        }
+
+        // Automated startup mode (--start etc) owns the lifecycle — suppress scripts from config
+        if (suppressConfigScripts)
+        {
+            logger.LogInformation("[Scripting] Suppressing scripts from configuration (automated startup mode).");
+            config.ScriptDirectory = null;
         }
 
         // Apply CLI overrides
@@ -60,7 +69,7 @@ public static class MoonSharpScriptingConfigurator
         }
 
         logger.LogInformation("[Scripting] MoonSharp engine enabled. ScriptDirectory: {Dir}", config.ScriptDirectory);
-        var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory);
+        var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory, hostType);
         return new ScriptingEngine(adapter, config, loggerFactory);
     }
 
@@ -100,7 +109,7 @@ public static class MoonSharpScriptingConfigurator
         }
 
         logger.LogInformation("[Scripting] MoonSharp browser engine enabled (scripts loaded via localStorage callback).");
-        var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory);
+        var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory, "browser");
         return new ScriptingEngine(adapter, config, loggerFactory);
     }
 }

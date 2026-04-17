@@ -67,17 +67,53 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--system &lt;name&gt;</c></term>
+    ///     <description>
+    ///       Pre-select a system (e.g. <c>C64</c>, <c>Generic</c>).
+    ///       Mutually exclusive with <c>--script</c> / <c>--scriptDir</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--systemVariant &lt;name&gt;</c></term>
+    ///     <description>
+    ///       Pre-select a system variant. Requires <c>--system</c>.
+    ///       Mutually exclusive with <c>--script</c> / <c>--scriptDir</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--start</c></term>
+    ///     <description>
+    ///       Auto-start the emulator after selection.
+    ///       Mutually exclusive with <c>--script</c> / <c>--scriptDir</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--waitForSystemReady</c></term>
+    ///     <description>Wait until the system reports ready. Requires <c>--start</c>.</description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--loadPrg &lt;path&gt;</c></term>
+    ///     <description>Load a <c>.prg</c> file into memory. Requires <c>--start</c>.</description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--runLoadedProgram</c></term>
+    ///     <description>Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>.</description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--script &lt;path&gt;</c></term>
     ///     <description>
     ///       Load and auto-enable a specific Lua script file (absolute or relative to CWD).
     ///       Can be specified multiple times to load several scripts.
     ///       Overrides the ScriptDirectory from configuration; only the specified files are loaded.
+    ///       Mutually exclusive with <c>--start</c>, <c>--waitForSystemReady</c>, <c>--loadPrg</c>, and <c>--runLoadedProgram</c>
+    ///       — the script is responsible for emulator lifecycle.
     ///     </description>
     ///   </item>
     ///   <item>
     ///     <term><c>--scriptDir &lt;path&gt;</c></term>
     ///     <description>
     ///       Override the Lua script directory from configuration. All .lua files in the directory are loaded and auto-enabled.
+    ///       Mutually exclusive with <c>--start</c>, <c>--waitForSystemReady</c>, <c>--loadPrg</c>, and <c>--runLoadedProgram</c>.
     ///     </description>
     ///   </item>
     /// </list>
@@ -87,12 +123,15 @@ internal sealed partial class Program
     /// <code>
     /// # Enable console logging with default level (Information)
     /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --console-log
-    /// 
+    ///
     /// # Enable console logging with Debug level
     /// ./Highbyte.DotNet6502.App.Avalonia.Desktop -c -l Debug
-    /// 
-    /// # Enable console logging with Warning level only
-    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --console-log --log-level Warning
+    ///
+    /// # Start C64 and run a Lua script (script owns lifecycle)
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --script scripts/example_quit.lua
+    ///
+    /// # Start C64 and load a .prg file via CLI (no script)
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadPrg game.prg --runLoadedProgram
     /// </code>
     /// </remarks>
     /// <param name="args">Command line arguments.</param>
@@ -158,7 +197,8 @@ internal sealed partial class Program
         string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(args, "--scriptDir");
 
         // Validate automated startup arguments
-        if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram))
+        bool hasScripts = scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
+        if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram, hasScripts))
         {
             return 1; // Exit with error code
         }
@@ -259,7 +299,8 @@ internal sealed partial class Program
         // ----------
         // Initialize Lua scripting engine
         // ----------
-        var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride);
+        bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram;
+        var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "desktop");
 
         // Skip the UI's default system selection when a script or --system arg will handle it,
         // to avoid a race where the UI tries to select a system while the script/handler already has.

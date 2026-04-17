@@ -52,16 +52,34 @@ By default `appsettings.json` expects them in `%HOME%/Downloads/C64` (i.e. `~/Do
 
 ## CLI arguments
 
+### Scripting mode (`--script` / `--scriptDir`)
+
+When a Lua script is supplied the script owns the full emulator lifecycle — it calls `emu.start()`, loads programs, and quits when done.
+
+| Argument | Description |
+|---|---|
+| `--script <path>` | Load and run a Lua script (can be specified multiple times) |
+| `--scriptDir <path>` | Override the script directory from `appsettings.json` |
+| `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
+| `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
+| `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
+| `--debug-wait` | Wait for a debug client to connect before starting |
+
+> [!IMPORTANT]
+> `--script` and `--scriptDir` are **mutually exclusive** with `--system`, `--systemVariant`, `--start`, `--waitForSystemReady`, `--loadPrg`, and `--runLoadedProgram`. The script is responsible for all emulator setup and lifecycle. Combining them is an error.
+
+### Automated startup mode (`--start`)
+
+Used when driving the emulator from the command line without a script — primarily by the VS Code debugger extension.
+
 | Argument | Description |
 |---|---|
 | `--system <name>` | Select a system (e.g. `C64`, `Generic`) |
-| `--systemVariant <name>` | Select a system variant |
+| `--systemVariant <name>` | Select a system variant. Requires `--system`. |
 | `--start` | Auto-start the emulator after selection |
-| `--waitForSystemReady` | Wait until the system reports ready before continuing |
-| `--loadPrg <path>` | Load a `.prg` file into memory |
-| `--runLoadedProgram` | Run the loaded `.prg` file after loading |
-| `--script <path>` | Load and run a Lua script (can be specified multiple times) |
-| `--scriptDir <path>` | Override the script directory from `appsettings.json` |
+| `--waitForSystemReady` | Wait until the system reports ready before continuing. Requires `--start`. |
+| `--loadPrg <path>` | Load a `.prg` file into memory. Requires `--start`. |
+| `--runLoadedProgram` | Run the loaded `.prg` file after loading. Requires `--start` and `--loadPrg`. |
 | `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
 | `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
 | `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
@@ -101,12 +119,12 @@ Examples below use `dotnet-6502-headless` as installed via Homebrew or Scoop.
 - Manual download (self-contained binary): replace with `./Highbyte.DotNet6502.App.Headless` (or `Highbyte.DotNet6502.App.Headless.exe` on Windows)
 - Running from source: replace with `dotnet run --project src/apps/Highbyte.DotNet6502.App.Headless --`
 
-Start a C64 and run a Lua script:
+Start a C64 and run a Lua script (script owns all setup and lifecycle):
 ```
-dotnet-6502-headless --system C64 --start --script scripts/example_c64_basic_readwrite.lua
+dotnet-6502-headless --script scripts/example_c64_basic_readwrite.lua
 ```
 
-Start with debug adapter listening on port 6502, waiting for client:
+Start with debug adapter listening on port 6502, waiting for client (no script):
 ```
 dotnet-6502-headless --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
 ```

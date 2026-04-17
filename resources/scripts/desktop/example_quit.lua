@@ -13,16 +13,18 @@ local QUIT_ADDR    = 0xC000   -- address to POKE 255 to signal completion
 local QUIT_VALUE   = 255
 local TIMEOUT_SECS = 120.0
 
--- Wait until the C64 system is selected (may be set via --system C64 CLI arg)
+-- Select and start the C64 emulator
+log.info("Starting C64 emulator...")
+if emu.selected_system() ~= "C64" then
+    emu.select("C64")
+end
 while emu.selected_system() ~= "C64" do
     emu.yield()
 end
 
--- Start the C64 emulator
-log.info("Starting C64 emulator...")
-emu.start()
-
--- Wait until the emulator is actually running
+if emu.state() ~= "running" then
+    emu.start()
+end
 while emu.state() ~= "running" do
     emu.yield()
 end

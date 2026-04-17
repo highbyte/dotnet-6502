@@ -78,9 +78,12 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private static readonly DynValue s_tcpPendingYield =
         DynValue.NewYieldReq(new[] { DynValue.NewString(TcpPendingSentinel) });
 
-    public MoonSharpScriptingEngineAdapter(ILoggerFactory loggerFactory)
+    private readonly string _hostType;
+
+    public MoonSharpScriptingEngineAdapter(ILoggerFactory loggerFactory, string hostType = "unknown")
     {
         _loggerFactory = loggerFactory;
+        _hostType = hostType;
     }
 
     // Tell the AOT trimmer to preserve all members of proxy types that MoonSharp reflects
@@ -545,6 +548,9 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         emuTable["yield"] = DynValue.NewCallback((ctx, args) => s_tickYield);
         emuTable["framecount"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(getFrameCount()));
         emuTable["time"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(getElapsedSeconds()));
+
+        // Host type
+        emuTable["host"] = DynValue.NewCallback((ctx, args) => DynValue.NewString(_hostType));
 
         // Emulator state queries
         emuTable["state"] = DynValue.NewCallback((ctx, args) =>
