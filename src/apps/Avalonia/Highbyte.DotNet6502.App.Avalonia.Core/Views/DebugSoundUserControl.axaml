@@ -27,21 +27,29 @@
 
                     <!-- Basic audio init and play --> 
                     <Button Grid.Row="0" Grid.Column="0"
+                            AutomationProperties.AutomationId="InitAudioButton"
+                            AutomationProperties.Name="Initialize audio"
                             Command="{Binding InitAudioCommand}"
                             Classes="small">
                         Init audio
                     </Button>
                     <Button Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="PlayAudioButton"
+                            AutomationProperties.Name="Play audio"
                             Command="{Binding PlayAudioCommand}"
                             Classes="small">
                         Play audio
                     </Button>
                     <Button Grid.Row="0" Grid.Column="2"
+                            AutomationProperties.AutomationId="PauseAudioButton"
+                            AutomationProperties.Name="Pause audio"
                             Command="{Binding PauseAudioCommand}"
                             Classes="small">
                         Pause audio
                     </Button>
                     <Button Grid.Row="0" Grid.Column="3"
+                            AutomationProperties.AutomationId="StopAudioButton"
+                            AutomationProperties.Name="Stop all audio"
                             Command="{Binding StopAudioCommand}"
                             Classes="small">
                         Stop all audio
@@ -49,16 +57,22 @@
 
                     <!-- ADSR synth waveforms-->
                     <Button Grid.Row="1" Grid.Column="0"
+                            AutomationProperties.AutomationId="PlaySynthButton"
+                            AutomationProperties.Name="Play synth"
                             Command="{Binding PlaySynthCommand}"
                             Classes="small">
                         Play synth
                     </Button>
                     <Button Grid.Row="1" Grid.Column="1"
+                            AutomationProperties.AutomationId="StartSynthReleaseButton"
+                            AutomationProperties.Name="Initiate synth release phase"
                             Command="{Binding StartSynthReleaseCommand}"
                             Classes="small">
                         Initiate synth release phase
                     </Button>
                     <Button Grid.Row="1" Grid.Column="2"
+                            AutomationProperties.AutomationId="StopSynthButton"
+                            AutomationProperties.Name="Stop synth sound"
                             Command="{Binding StopSynthCommand}"
                             Classes="small">
                         Stop synth sound
@@ -66,17 +80,23 @@
 
                     <!-- Custom generated waveforms-->
                     <ComboBox Grid.Row="2" Grid.Column="0"
+                            AutomationProperties.AutomationId="SoundTestComboBox"
+                            AutomationProperties.Name="Sound test selection"
                             ItemsSource="{Binding SoundTestValues}"
                             SelectedItem="{Binding SelectedSoundTest}"
                             Classes="small h-stretch"
                             MaxDropDownHeight="200"/>
                     <Button Grid.Row="2" Grid.Column="1"
+                            AutomationProperties.AutomationId="PlaySoundButton"
+                            AutomationProperties.Name="Play sound"
                             Command="{Binding PlayCommand}"
                             Classes="small">
                             >
                         Play sound
                     </Button>
                     <Button Grid.Row="2" Grid.Column="2"
+                            AutomationProperties.AutomationId="StopSoundButton"
+                            AutomationProperties.Name="Stop sound"
                             Command="{Binding StopCommand}"
                             Classes="small">
                             >
@@ -124,6 +144,8 @@
                    IsVisible="{Binding IsBusy}"
                    IsIndeterminate="True"/>
       <Button Grid.Column="2"
+              AutomationProperties.AutomationId="CloseButton"
+              AutomationProperties.Name="Close"
               Content="Close"
               Classes="primary"
               IsDefault="True"

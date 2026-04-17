@@ -3,6 +3,8 @@
              xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64InfoView"
              x:DataType="vm:C64InfoViewModel"
+             AutomationProperties.AutomationId="C64InfoView"
+             AutomationProperties.Name="C64 information panel"
              Focusable="False">
 
     <!-- DataContext will be set from constructor via DI -->

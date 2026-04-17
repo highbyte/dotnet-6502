@@ -7,6 +7,8 @@
              Focusable="True"
              IsTabStop="True">
 
-    <ContentPresenter x:Name="RenderingControlContainer" />
+    <ContentPresenter x:Name="RenderingControlContainer"
+                      AutomationProperties.AutomationId="EmulatorRenderSurface"
+                      AutomationProperties.Name="Emulator display" />
 
 </UserControl>

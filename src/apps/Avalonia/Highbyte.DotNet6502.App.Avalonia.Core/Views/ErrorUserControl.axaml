@@ -29,6 +29,8 @@
             <!-- Main error message -->
             <TextBox Grid.Row="1"
                      x:Name="ErrorMessageTextBox"
+                     AutomationProperties.AutomationId="ErrorMessageTextBox"
+                     AutomationProperties.Name="Error message"
                      Text="{Binding ErrorMessage}"
                      TextWrapping="Wrap"
                      Classes="h2"
@@ -50,7 +52,9 @@
                     <TextBlock Text="Exception Details:"
                                Foreground="{DynamicResource WarningColor}"
                                Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding ExceptionDetails}"
+                    <TextBox AutomationProperties.AutomationId="ExceptionDetailsTextBox"
+                             AutomationProperties.Name="Exception details"
+                             Text="{Binding ExceptionDetails}"
                              TextWrapping="Wrap"
                              Classes="monospace"
                              Background="#1A000000"
@@ -69,6 +73,8 @@
                         Margin="0,0,0,12"
                         IsVisible="{Binding HasException}">
                 <Button x:Name="ShowDetailsButton"
+                        AutomationProperties.AutomationId="ShowDetailsButton"
+                        AutomationProperties.Name="Toggle exception details"
                         Content="{Binding ShowDetailsButtonText}"
                         Width="120"
                         Height="30"
@@ -82,6 +88,8 @@
                         HorizontalAlignment="Center"
                         Spacing="10">
                 <Button x:Name="ContinueButton"
+                        AutomationProperties.AutomationId="ContinueButton"
+                        AutomationProperties.Name="Continue"
                         Content="Continue"
                         Width="100"
                         Height="35"
@@ -96,6 +104,8 @@
                         IsDefault="True"
                         Click="ContinueButton_Click"/>-->
                 <Button x:Name="ExitButton"
+                        AutomationProperties.AutomationId="ExitButton"
+                        AutomationProperties.Name="Exit application"
                         Content="Exit"
                         Width="100"
                         Height="35"

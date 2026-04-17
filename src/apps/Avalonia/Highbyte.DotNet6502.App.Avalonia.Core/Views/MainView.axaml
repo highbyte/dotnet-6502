@@ -65,6 +65,8 @@
                         VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="0" Grid.Column="1"
                         Name="SystemSelectionComboBox"
+                        AutomationProperties.AutomationId="SystemSelectionComboBox"
+                        AutomationProperties.Name="System selection"
                         ItemsSource="{Binding AvailableSystems}"
                         SelectedItem="{Binding SelectedSystemName}"
                         SelectionChanged="OnSystemSelectionChanged"
@@ -79,6 +81,8 @@
                         VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="2" Grid.Column="1"
                         Name="SystemVariantSelectionComboBox"
+                        AutomationProperties.AutomationId="SystemVariantSelectionComboBox"
+                        AutomationProperties.Name="System variant selection"
                         ItemsSource="{Binding AvailableSystemVariants}"
                         SelectedItem="{Binding SelectedSystemVariant}"
                         SelectionChanged="OnSystemVariantSelectionChanged"
@@ -92,6 +96,7 @@
                         Classes="accent bold"
                         VerticalAlignment="Center"/>
                     <TextBlock Grid.Row="4" Grid.Column="1"
+                        AutomationProperties.AutomationId="EmulatorStateText"
                         Text="{Binding EmulatorState}"/>
                 </Grid>
 
@@ -106,10 +111,12 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                             Content="Start"
+                            AutomationProperties.AutomationId="StartButton"
                             Classes="primary grid"
                             Command="{Binding StartCommand}"/>
                         <Button Grid.Column="2"
                             Content="Pause"
+                            AutomationProperties.AutomationId="PauseButton"
                             Classes="warning grid"
                             Command="{Binding PauseCommand}"/>
                     </Grid>
@@ -123,10 +130,12 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                             Content="Reset"
+                            AutomationProperties.AutomationId="ResetButton"
                             Classes="secondary grid"
                             Command="{Binding ResetCommand}"/>
                         <Button Grid.Column="2"
                             Content="Stop"
+                            AutomationProperties.AutomationId="StopButton"
                             Classes="danger grid"
                             Command="{Binding StopCommand}"/>
                     </Grid>
@@ -140,11 +149,13 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                             Content="Monitor"
+                            AutomationProperties.AutomationId="MonitorButton"
                             Classes="grid"
                             Command="{Binding MonitorCommand}"
                             ToolTip.Tip="Toggle with F12"/>
                         <Button Grid.Column="2"
                             Content="Stats"
+                            AutomationProperties.AutomationId="StatsButton"
                             Classes="grid"
                             Command="{Binding StatsCommand}"
                             ToolTip.Tip="Toggle with F11"/>
@@ -163,6 +174,8 @@
                             Text="Scale:"
                             Classes="accent bold"/>
                         <Slider Grid.Column="1"
+                            AutomationProperties.AutomationId="ScaleSlider"
+                            AutomationProperties.Name="Scale"
                             Minimum="1" Maximum="4"
                             Value="{Binding Scale}"
                             TickFrequency="0.5"
@@ -179,11 +192,14 @@
                             </Grid.ColumnDefinitions>
                             <CheckBox Grid.Column="0"
                                 Content="Audio"
+                                AutomationProperties.AutomationId="AudioCheckBox"
                                 IsVisible="true"
                                 IsEnabled="{Binding AudioSettingsEnabled }"
                                 IsChecked="{Binding AudioEnabled}"
                                 ToolTip.Tip="{Binding AudioTooltip}"/>
                             <Slider Grid.Column="1"
+                                AutomationProperties.AutomationId="AudioVolumeSlider"
+                                AutomationProperties.Name="Audio volume"
                                 Width="100"
                                 Minimum="0" Maximum="100"
                                 Value="{Binding AudioVolumePercent}"
@@ -206,6 +222,7 @@
                             <!-- General Emulator Options Button -->
                             <Button Grid.Column="0"
                                     Content="Options"
+                                    AutomationProperties.AutomationId="OptionsButton"
                                     Command="{Binding EmulatorOptionsCommand}"
                                     Classes="grid small"
                                     ToolTip.Tip="Configure general emulator settings"/>
@@ -259,9 +276,12 @@
                     Height="230"
                     Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
                     
-                    <TabControl Name="InformationTabControl">
+                    <TabControl Name="InformationTabControl"
+                                AutomationProperties.AutomationId="InformationTabControl">
                         <!-- Information Tab -->
-                        <TabItem Name="InformationTabItem" Header="Information">
+                        <TabItem Name="InformationTabItem" Header="Information"
+                                 AutomationProperties.AutomationId="InformationTab"
+                                 AutomationProperties.Name="Information tab">
                             <Border Classes="tab-content">
                                 <ScrollViewer Classes="auto-scroll">
                                     <!-- C64 Info panel-->
@@ -271,7 +291,9 @@
                         </TabItem>
 
                         <!-- Config Status Tab -->
-                        <TabItem Name="ConfigStatusTabItem" Header="Config status">
+                        <TabItem Name="ConfigStatusTabItem" Header="Config status"
+                                 AutomationProperties.AutomationId="ConfigStatusTab"
+                                 AutomationProperties.Name="Config status tab">
                             <Border Classes="tab-content">
                                 <ScrollViewer Classes="auto-scroll">
                                     <StackPanel Classes="spacing-tight">
@@ -304,7 +326,10 @@
                         </TabItem>
 
                         <!-- Log Tab -->
-                        <TabItem Name="LogTabItem" Header="{Binding LogTabHeader}" Classes.error-log="{Binding HasLogErrors}">
+                        <TabItem Name="LogTabItem" Header="{Binding LogTabHeader}"
+                                 AutomationProperties.AutomationId="LogTab"
+                                 AutomationProperties.Name="Log tab"
+                                 Classes.error-log="{Binding HasLogErrors}">
                             <Border Classes="tab-content">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -391,6 +416,7 @@
                                 <!-- Clear button column -->
                                 <Border Grid.Column="1" Classes="v-top" Margin="4,0,0,0">
                                     <Button Command="{Binding ClearLogCommand}"
+                                            AutomationProperties.AutomationId="ClearLogButton"
                                             Classes="small"
                                             Width="60"
                                             Height="20"
@@ -405,6 +431,8 @@
 
                         <!-- Scripts Tab -->
                         <TabItem Name="ScriptsTabItem"
+                                 AutomationProperties.AutomationId="ScriptsTab"
+                                 AutomationProperties.Name="Scripts tab"
                                  Header="{Binding ScriptsTabHeader}"
                                  Classes.disabled-scripts="{Binding HasDisabledScripts}">
                             <Border Classes="tab-content">
@@ -434,6 +462,8 @@
                                                 <StackPanel Spacing="2">
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                                         <Button Content="↻"
+                                                                AutomationProperties.AutomationId="ScriptsBannerRefreshButton"
+                                                                AutomationProperties.Name="Reload scripts from folder"
                                                                 Command="{Binding RefreshScriptsCommand}"
                                                                 FontSize="12"
                                                                 Height="22" Padding="4,0"
@@ -445,6 +475,8 @@
                                                                    Classes="small bold"
                                                                    VerticalAlignment="Center"/>
                                                         <Button Content="{Binding ScriptDirectory}"
+                                                                AutomationProperties.AutomationId="ScriptFolderLink"
+                                                                AutomationProperties.Name="Open script folder in file browser"
                                                                 Command="{Binding OpenScriptFolderCommand}"
                                                                 Classes="link"
                                                                 FontSize="10"
@@ -467,12 +499,14 @@
                                                         Margin="0,0,0,4"
                                                         IsVisible="{Binding CanManageScripts}">
                                                 <Button Content="+ Add Script"
+                                                        AutomationProperties.AutomationId="AddScriptButton"
                                                         Command="{Binding AddScriptCommand}"
                                                         FontSize="10"
                                                         Padding="6,2"
                                                         MinWidth="0"
                                                         MinHeight="0"/>
                                                 <Button Content="Load Examples"
+                                                        AutomationProperties.AutomationId="LoadExamplesButton"
                                                         Command="{Binding LoadExamplesCommand}"
                                                         IsVisible="{Binding CanLoadExamples}"
                                                         FontSize="10"
@@ -480,6 +514,8 @@
                                                         MinWidth="0"
                                                         MinHeight="0"/>
                                                 <Button Content="↻"
+                                                        AutomationProperties.AutomationId="ScriptsRefreshButton"
+                                                        AutomationProperties.Name="Reload all scripts from localStorage"
                                                         Command="{Binding RefreshScriptsCommand}"
                                                         FontSize="12"
                                                         Height="22" Padding="4,0"
@@ -503,6 +539,8 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Button Grid.Column="5" Classes="sort-header"
+                                                        AutomationProperties.AutomationId="SortByFileNameButton"
+                                                        AutomationProperties.Name="Sort by script file name"
                                                         Command="{Binding SortByColumnCommand}"
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.FileName}">
                                                     <StackPanel Orientation="Horizontal">
@@ -511,6 +549,8 @@
                                                     </StackPanel>
                                                 </Button>
                                                 <Button Grid.Column="6" Classes="sort-header"
+                                                        AutomationProperties.AutomationId="SortByStatusButton"
+                                                        AutomationProperties.Name="Sort by script status"
                                                         Command="{Binding SortByColumnCommand}"
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.Status}">
                                                     <StackPanel Orientation="Horizontal">
@@ -519,6 +559,8 @@
                                                     </StackPanel>
                                                 </Button>
                                                 <Button Grid.Column="7" Classes="sort-header"
+                                                        AutomationProperties.AutomationId="SortByYieldButton"
+                                                        AutomationProperties.Name="Sort by yield type"
                                                         Command="{Binding SortByColumnCommand}"
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.YieldType}">
                                                     <StackPanel Orientation="Horizontal">
@@ -527,6 +569,8 @@
                                                     </StackPanel>
                                                 </Button>
                                                 <Button Grid.Column="8" Classes="sort-header"
+                                                        AutomationProperties.AutomationId="SortByHooksButton"
+                                                        AutomationProperties.Name="Sort by hooks"
                                                         Command="{Binding SortByColumnCommand}"
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.Hooks}">
                                                     <StackPanel Orientation="Horizontal">
@@ -590,6 +634,8 @@
                                                                      Margin="0,1,0,-1">
                                                                 <CheckBox IsChecked="{Binding IsScriptEnabled, Mode=OneWay}"
                                                                           IsEnabled="{Binding CanToggle}"
+                                                                          AutomationProperties.AutomationId="{Binding FileName, StringFormat='ScriptRow.ToggleEnabled.{0}'}"
+                                                                          AutomationProperties.Name="Enable or disable script"
                                                                           Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ToggleScriptEnabledCommand}"
                                                                           CommandParameter="{Binding FileName}"
                                                                           Padding="0"
@@ -600,6 +646,8 @@
                                                             <!-- Reload button -->
                                                             <Button Grid.Column="2"
                                                                     Content="↻"
+                                                                    AutomationProperties.AutomationId="{Binding FileName, StringFormat='ScriptRow.Reload.{0}'}"
+                                                                    AutomationProperties.Name="Reload script"
                                                                     Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ReloadScriptCommand}"
                                                                     CommandParameter="{Binding FileName}"
                                                                     IsEnabled="{Binding CanReload}"
@@ -615,6 +663,8 @@
 
                                                             <!-- Edit button (browser/manage mode only) -->
                                                             <Button Grid.Column="3"
+                                                                    AutomationProperties.AutomationId="{Binding FileName, StringFormat='ScriptRow.Edit.{0}'}"
+                                                                    AutomationProperties.Name="Edit script"
                                                                     Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).EditScriptCommand}"
                                                                     CommandParameter="{Binding FileName}"
                                                                     IsVisible="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).CanManageScripts}"
@@ -631,6 +681,8 @@
 
                                                             <!-- Delete button (browser/manage mode only) -->
                                                             <Button Grid.Column="4"
+                                                                    AutomationProperties.AutomationId="{Binding FileName, StringFormat='ScriptRow.Delete.{0}'}"
+                                                                    AutomationProperties.Name="Delete script"
                                                                     Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).DeleteScriptCommand}"
                                                                     CommandParameter="{Binding FileName}"
                                                                     IsVisible="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).CanManageScripts}"
@@ -697,7 +749,9 @@
                         </TabItem>
 
                         <!-- General info -->
-                        <TabItem Name="GeneralInfoTabItem" Header="General info">
+                        <TabItem Name="GeneralInfoTabItem" Header="General info"
+                                 AutomationProperties.AutomationId="GeneralInfoTab"
+                                 AutomationProperties.Name="General info tab">
                             <ScrollViewer Classes="auto-scroll">
                                 <StackPanel Classes="spacing-tight h-left">
 
@@ -781,7 +835,10 @@
 
 
                         <!-- Debug  -->
-                        <TabItem Name="DebugTabItem" Header="Debug" IsVisible="{Binding IsDebugTabVisible}">
+                        <TabItem Name="DebugTabItem" Header="Debug"
+                                 AutomationProperties.AutomationId="DebugTab"
+                                 AutomationProperties.Name="Debug tab"
+                                 IsVisible="{Binding IsDebugTabVisible}">
                             <Border Classes="tab-content">
                                 <ScrollViewer Classes="auto-scroll">
                                     <StackPanel Classes="spacing-tight">
@@ -795,6 +852,8 @@
                                             <StackPanel Orientation="Horizontal" Classes="spacing-normal">
                                                 <!-- Start/Stop toggle button -->
                                                 <Button Content="{Binding ExternalDebugToggleButtonText}"
+                                                        AutomationProperties.AutomationId="ExternalDebugToggleButton"
+                                                        AutomationProperties.Name="Start or stop the TCP debug adapter server"
                                                         Command="{Binding ToggleExternalDebugCommand}"
                                                         Classes="small"
                                                         MinWidth="46"
@@ -808,6 +867,8 @@
                                                                FontSize="10"
                                                                VerticalAlignment="Center"/>
                                                     <NumericUpDown Value="{Binding ExternalDebugPort}"
+                                                                  AutomationProperties.AutomationId="ExternalDebugPortInput"
+                                                                  AutomationProperties.Name="External debug server TCP port"
                                                                   IsEnabled="{Binding !IsExternalDebugListening}"
                                                                   Minimum="0" Maximum="65535"
                                                                   FormatString="0"
@@ -834,6 +895,7 @@
 
                                                 <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                                     <Button Click="OpenSoundDebug_Click"
+                                                            AutomationProperties.AutomationId="DebugSoundButton"
                                                             IsEnabled="{Binding IsEmulatorUninitialized}"
                                                             Classes="small"
                                                             MinWidth="60"
@@ -842,6 +904,7 @@
                                                         Debug sound
                                                     </Button>
                                                     <Button Click="OpenGamepadDebug_Click"
+                                                            AutomationProperties.AutomationId="DebugGamepadButton"
                                                             IsEnabled="{Binding IsEmulatorUninitialized}"
                                                             Classes="small"
                                                             MinWidth="60"

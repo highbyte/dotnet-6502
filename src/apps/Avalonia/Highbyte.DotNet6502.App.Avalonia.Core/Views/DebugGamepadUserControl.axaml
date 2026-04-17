@@ -157,6 +157,8 @@
                      IsVisible="{Binding IsBusy}"
                      IsIndeterminate="True"/>
         <Button Grid.Column="1"
+                AutomationProperties.AutomationId="CloseButton"
+                AutomationProperties.Name="Close"
                 Content="Close"
                 Classes="primary"
                 IsDefault="True"
