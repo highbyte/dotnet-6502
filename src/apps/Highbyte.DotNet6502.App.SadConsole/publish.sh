@@ -69,7 +69,7 @@ fi
 
 dotnet publish "${PUBLISH_ARGS[@]}"
 
-if [ $? -eq 0 ]; then
+if [[ $? -eq 0 ]]; then
     echo ""
     echo "✅ Published successfully to: $OUTPUT_DIR/$RUNTIME"
     ls -la "$OUTPUT_DIR/$RUNTIME"

@@ -19,13 +19,13 @@ if ! command -v "$acmeExe" > /dev/null 2>&1; then
 fi
 
 # Check if source file exists
-if [ ! -f "$asmFile" ]; then
+if [[ ! -f "$asmFile" ]]; then
     echo -e "\033[31mERROR: Source file not found: $asmFile\033[0m"
     exit 1
 fi
 
 # Remove old output file if it exists
-if [ -f "$binaryFile" ]; then
+if [[ -f "$binaryFile" ]]; then
     rm "$binaryFile"
 fi
 
@@ -37,7 +37,7 @@ echo "Building $asmFile with ACME..."
 echo "Running: $acmeExe -f cbm -o $binaryFile $asmFile"
 $acmeExe -f cbm -o "$binaryFile" "$asmFile"
 # Check if assembly succeeded
-if [ $? -eq 0 ] && [ -f "$binaryFile" ]; then
+if [[ $? -eq 0 && -f "$binaryFile" ]]; then
     # Use appropriate stat syntax based on OS
     if [[ "$OSTYPE" == "darwin"* ]]; then
         FILE_SIZE=$(stat -f%z "$binaryFile")

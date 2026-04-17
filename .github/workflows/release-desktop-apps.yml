@@ -32,22 +32,22 @@ jobs:
 
       - name: Publish SilkNetNative App
         run: |
-          chmod +x src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh
+          chmod u+x src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh
           src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh ${{ matrix.runtime }}
 
       - name: Publish Avalonia Desktop App
         run: |
-          chmod +x src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish.sh
+          chmod u+x src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish.sh
           src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish.sh ${{ matrix.runtime }}
 
       - name: Publish SadConsole App
         run: |
-          chmod +x src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh
+          chmod u+x src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh
           src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh ${{ matrix.runtime }}
 
       - name: Publish Headless App
         run: |
-          chmod +x src/apps/Highbyte.DotNet6502.App.Headless/publish.sh
+          chmod u+x src/apps/Highbyte.DotNet6502.App.Headless/publish.sh
           src/apps/Highbyte.DotNet6502.App.Headless/publish.sh ${{ matrix.runtime }}
 
       - name: Zip Apps

@@ -29,13 +29,13 @@ if ! command -v "$cl65Exe" > /dev/null 2>&1; then
 fi
 
 # Check if source file exists
-if [ ! -f "$asmFile" ]; then
+if [[ ! -f "$asmFile" ]]; then
     echo -e "\033[31mERROR: Source file not found: $asmFile\033[0m"
     exit 1
 fi
 
 # Remove old output file if it exists
-if [ -f "$outputFile" ]; then
+if [[ -f "$outputFile" ]]; then
     rm "$outputFile"
 fi
 
@@ -52,7 +52,7 @@ echo "Running: $cl65Exe -g $asmFile -o $prgFile -C c64-asm.cfg --start-addr $sta
 #"$ld65Exe" "$outputFile" -o "$prgFile" -C c64-asm.cfg --start-addr "$startAddress" --dbgfile "$debugFile" -Ln "$labelFile" -m "$mapFile"
 
 # Check if assembly succeeded
-if [ $? -eq 0 ] && [ -f "$prgFile" ]; then
+if [[ $? -eq 0 && -f "$prgFile" ]]; then
     # Use appropriate stat syntax based on OS
     if [[ "$OSTYPE" == "darwin"* ]]; then
         FILE_SIZE=$(stat -f%z "$prgFile")
