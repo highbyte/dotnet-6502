@@ -4,7 +4,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Embedding;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
@@ -95,7 +94,7 @@ internal class OverlayDialogHelper
     /// </summary>
     private Grid? GetGrid(UserControl currentControl)
     {
-        var root = currentControl.GetVisualRoot();
+        var root = TopLevel.GetTopLevel(currentControl);
 
         // When running in desktop, and currentControl is displayed on MainWindow, root is MainWindow (which contains MainView which contains Grid)
         if (root is Window window && window.Content is MainView mainView && mainView.Content is Grid grid)

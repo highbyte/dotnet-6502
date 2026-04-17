@@ -46,6 +46,16 @@
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" /> -->
   </ItemGroup>
 
+  <!--
+    Preserve the entire ReactiveUI assembly from IL trimming. The WASM trimmer otherwise
+    strips types like RxSchedulers and RxAppBuilder that our code references (the Core
+    project uses RxSchedulers.MainThreadScheduler across many ViewModels), producing
+    TypeLoadException at AOT load time.
+  -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="ReactiveUI" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Browser\Highbyte.DotNet6502.Impl.Browser.csproj" />

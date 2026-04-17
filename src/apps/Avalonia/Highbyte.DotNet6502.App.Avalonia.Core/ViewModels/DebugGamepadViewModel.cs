@@ -28,7 +28,7 @@ public class DebugGamepadViewModel : ViewModelBase
                 StopPolling();
                 CloseRequested?.Invoke(this, true);
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         // Set up a timer to poll gamepad state
         _updateTimer = new DispatcherTimer

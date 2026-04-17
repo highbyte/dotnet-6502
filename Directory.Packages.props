@@ -6,16 +6,18 @@
   <ItemGroup>
     <!-- Avalonia packages -->
     <!-- Important: keep version in sync! -->
-    <PackageVersion Include="Avalonia" Version="11.3.10" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.10" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.10" />
-    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.10" />
-    <PackageVersion Include="Avalonia.Desktop" Version="11.3.10" />
-    <PackageVersion Include="Avalonia.iOS" Version="11.3.6" />
-    <PackageVersion Include="Avalonia.Browser" Version="11.3.10" />
-    <PackageVersion Include="Avalonia.Android" Version="11.3.6" />
-    <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.8" />
-    <PackageVersion Include="Avalonia.Skia" Version="11.3.10" />
+    <PackageVersion Include="Avalonia" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.iOS" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Browser" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Android" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.0.1" />
+    <!-- ReactiveUI core: Avalonia.ReactiveUI was deprecated by the Avalonia team;
+         we keep ReactiveUI itself (.NET Foundation, actively maintained) and provide
+         our own AvaloniaDispatcherScheduler in place of AvaloniaScheduler. -->
+    <PackageVersion Include="ReactiveUI" Version="23.2.1" />
     <!-- Azure packages -->
     <PackageVersion Include="Azure.AI.OpenAI" Version="1.0.0-beta.11" />
     <!-- Benchmarking -->
@@ -23,8 +25,6 @@
     <!-- Blazor packages -->
     <PackageVersion Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageVersion Include="Blazored.Modal" Version="7.3.1" />
-    <!-- CommunityToolkit -->
-    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <!-- Testing packages -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <!-- Microsoft Extensions packages -->
@@ -71,12 +71,13 @@
     <!-- SixLabors ImageSharp -->
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
     <!-- SkiaSharp -->
-    <PackageVersion Include="SkiaSharp" Version="3.119.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="3.119.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="3.119.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.1" />
-    <PackageVersion Include="SkiaSharp.Views.Blazor" Version="3.119.1" />
+    <!-- SkiaSharp 3.119.3-preview.1.1 is required by Avalonia.Skia 12.0.1 (native assets). -->
+    <PackageVersion Include="SkiaSharp" Version="3.119.3-preview.1.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.3-preview.1.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="3.119.3-preview.1.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="3.119.3-preview.1.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.3-preview.1.1" />
+    <PackageVersion Include="SkiaSharp.Views.Blazor" Version="3.119.3-preview.1.1" />
     <!-- SourceLink -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <!-- StreamJsonRpc for Debug Adapter Protocol -->

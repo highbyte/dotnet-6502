@@ -537,7 +537,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.IsExternalDebugClientConnected,
                 connected => !connected),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         // Initialize ReactiveCommands for ComboBox selections
         SelectSystemCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
@@ -551,7 +551,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         SelectSystemVariantCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
             async (selectedVariant) =>
@@ -564,7 +564,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         // Initialize ReactiveCommands for buttons
         StartCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -573,28 +573,28 @@ public class MainViewModel : ViewModelBase, IDisposable
                 x => x.EmulatorState,
                 x => x.HasValidationErrors,
                 (state, hasErrors) => !hasErrors && state != EmulatorState.Running),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         PauseCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.Pause(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Running),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         StopCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.Stop(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         ResetCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.Reset(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         MonitorCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.Monitor?.Toggle(),
@@ -602,14 +602,14 @@ public class MainViewModel : ViewModelBase, IDisposable
                 x => x.EmulatorState,
                 x => x.IsExternalDebuggerAttached,
                 (state, isExternalDebuggerAttached) => state == EmulatorState.Running && !isExternalDebuggerAttached),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         StatsCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.ToggleStatisticsPanel(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
-            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         ClearLogCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -630,7 +630,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.LogMessages.Count,
                 count => count > 0),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         ToggleScriptEnabledCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
             (fileName) =>
@@ -641,7 +641,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 _hostApp.ScriptingEngine.SetScriptEnabled(fileName, newEnabled);
             },
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         ReloadScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
             (fileName) =>
@@ -649,7 +649,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 _hostApp.ScriptingEngine.ReloadScript(fileName);
             },
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         AddScriptCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -657,7 +657,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 RequestAddScript?.Invoke(this, EventArgs.Empty);
             },
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         EditScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
             (fileName) =>
@@ -665,7 +665,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 RequestEditScript?.Invoke(this, fileName);
             },
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         DeleteScriptCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
             async (fileName) =>
@@ -677,17 +677,17 @@ public class MainViewModel : ViewModelBase, IDisposable
                     _hostApp.DeleteScript(fileName);
             },
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         RefreshScriptsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () => _hostApp.RefreshScripts(),
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         OpenScriptFolderCommand = ReactiveCommandHelper.CreateSafeCommand(
             () => RequestOpenScriptFolder?.Invoke(this, EventArgs.Empty),
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         SortByColumnCommand = ReactiveCommandHelper.CreateSafeCommand<ScriptSortColumn>(
             col =>
@@ -706,7 +706,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 this.RaisePropertyChanged(nameof(HooksSortIndicator));
             },
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         // Emulator Options command - only enabled when emulator is uninitialized
         EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -717,7 +717,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         // Initialize timer for batched log UI updates
         InitializeLogUpdateTimer();
@@ -745,7 +745,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         LoadExamplesCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.LoadExamplesAsync(),
             null,
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
         RefreshScriptStatuses();
         _hostApp.ScriptingEngine.ScriptStatusChanged += OnScriptStatusChanged;
     }

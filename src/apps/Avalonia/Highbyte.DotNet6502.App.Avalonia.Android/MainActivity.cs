@@ -1,5 +1,6 @@
-﻿using Android.App;
+using Android.App;
 using Android.Content.PM;
+using Android.Runtime;
 using Avalonia;
 using Avalonia.Android;
 using Highbyte.DotNet6502.App.Avalonia.Core;
@@ -12,11 +13,18 @@ namespace Highbyte.DotNet6502.App.Avalonia.Android;
     Icon = "@drawable/icon",
     MainLauncher = true,
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
-public class MainActivity : AvaloniaMainActivity<Highbyte.DotNet6502.App.Avalonia.Core.App>
+public class MainActivity : AvaloniaMainActivity
 {
-    protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
+}
+
+[Application]
+public class AndroidApp : AvaloniaAndroidApplication<App>
+{
+    protected AndroidApp(IntPtr javaReference, JniHandleOwnership transfer)
+        : base(javaReference, transfer)
     {
-        return base.CustomizeAppBuilder(builder)
-            .WithInterFont();
     }
+
+    protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
+        => base.CustomizeAppBuilder(builder).WithInterFont();
 }

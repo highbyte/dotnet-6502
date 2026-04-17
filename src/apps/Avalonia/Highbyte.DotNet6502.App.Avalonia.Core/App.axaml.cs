@@ -5,9 +5,6 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core.Plugins;
-using Avalonia.Diagnostics;
-using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
@@ -23,6 +20,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
+using ReactiveUI.Builder;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
@@ -173,17 +171,28 @@ public partial class App : Application
     {
         WriteBootstrapLog("AppOnFrameworkInitializationCompleted called");
 
-#if DEBUG
-        // Rebind Avalonia built-in DevTools away from F12 because it's used by the emulator Monitor
-        // Instead use Ctrl+F12, and only attach DevTools when running as a desktop application.
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
-        {
-            this.AttachDevTools(new DevToolsOptions
-            {
-                Gesture = new KeyGesture(Key.F12, KeyModifiers.Control)
-            });
-        }
-#endif
+        // Initialize ReactiveUI 23.x (required — without this, the first use of
+        // ReactiveObject/WhenAnyValue throws TypeInitializationException with
+        // "ReactiveUI has not been initialized"). Formerly done by Avalonia.ReactiveUI's
+        // UseReactiveUI(), which was deprecated in v12; we replace it with the stock
+        // ReactiveUI builder and point the UI scheduler at our Avalonia dispatcher shim.
+        //
+        // Order matters: WithCoreServices() returns an IAppBuilder (terminal interface),
+        // so it must come after the IReactiveUIBuilder-returning methods.
+        var rxBuilder = RxAppBuilder.CreateReactiveUIBuilder()
+            .WithPlatformServices()
+            .WithMainThreadScheduler(AvaloniaDispatcherScheduler.Instance, setRxApp: true);
+
+        // Reactive exception handler (desktop only — in WASM ReactiveUI's handler uses
+        // threading APIs that throw PlatformNotSupportedException; exceptions there fall
+        // through to Avalonia's UI thread handler instead).
+        if (_emulatorConfig.UseGlobalExceptionHandler && !PlatformDetection.IsRunningInWebAssembly())
+            rxBuilder = rxBuilder.WithExceptionHandler(Observer.Create<Exception>(OnReactiveUIException));
+
+        rxBuilder.WithCoreServices().BuildApp();
+
+        // TODO: when Avalonia.Diagnostics 12.x ships, re-add the AttachDevTools call
+        // (DEBUG-only, rebound to Ctrl+F12 because F12 is used by the emulator Monitor).
 
         // Initialize the emulator host app
         WriteBootstrapLog("Calling InitializeHostApp");
@@ -196,8 +205,6 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             WriteBootstrapLog("ApplicationLifetime is IClassicDesktopStyleApplicationLifetime");
-
-            DisableAvaloniaDataAnnotationValidation();
 
             // Get MainViewModel from DI and set as DataContext
             // MainWindow.Content (MainView) is created by XAML and inherits DataContext
@@ -280,19 +287,6 @@ public partial class App : Application
         _serviceProvider = services.BuildServiceProvider();
     }
 
-    private void DisableAvaloniaDataAnnotationValidation()
-    {
-        // Get an array of plugins to remove
-        var dataValidationPluginsToRemove =
-            BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
-
-        // remove each entry found
-        foreach (var plugin in dataValidationPluginsToRemove)
-        {
-            BindingPlugins.DataValidators.Remove(plugin);
-        }
-    }
-
     /// <summary>
     /// Get the service provider for dependency injection.
     /// </summary>
@@ -367,25 +361,9 @@ public partial class App : Application
         // Set up handler for unhandled exceptions in tasks
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        // Set up ReactiveUI exception handler ONLY on desktop platforms
-        // In WebAssembly, ReactiveUI's exception handling uses threading which causes PlatformNotSupportedException
-        // Instead, let exceptions bubble up to Avalonia's UI thread handler which works correctly in WASM
-        if (!PlatformDetection.IsRunningInWebAssembly())
-        {
-            try
-            {
-                RxApp.DefaultExceptionHandler = Observer.Create<Exception>(OnReactiveUIException);
-                _logger.LogInformation("ReactiveUI exception handler configured successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to configure ReactiveUI exception handler");
-            }
-        }
-        else
-        {
-            _logger.LogInformation("Skipping ReactiveUI exception handler in WebAssembly - exceptions will be caught by ReactiveCommandHelper");
-        }
+        // NOTE: The ReactiveUI-specific exception handler is registered later, via the
+        // RxAppBuilder chain in OnFrameworkInitializationCompleted (builder must be the one
+        // to set it because RxState.DefaultExceptionHandler is read-only in 23.x).
 
         _logger.LogInformation("Global exception handlers configured successfully for error dialog mode");
     }
