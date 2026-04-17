@@ -103,11 +103,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         DownloadRomsToByteArrayCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadRomsToByteArrayAsync,
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         DownloadRomsToFilesCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadROMsToFilesAsync,
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         ClearRomsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -115,11 +115,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 UnloadRoms();
                 return Task.CompletedTask;
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         TestAIBackendCommand = ReactiveCommandHelper.CreateSafeCommand(
             TestAIBackendAsync,
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         ResetCorsProxyOverrideURLCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -127,7 +127,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 CorsProxyOverrideURL = string.Empty;
                 return Task.CompletedTask;
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
@@ -137,7 +137,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                     ConfigurationChanged?.Invoke(this, true);
                 }
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         CancelCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -145,7 +145,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 ConfigurationChanged?.Invoke(this, false);
                 return Task.CompletedTask;
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
     }
 
     public event EventHandler<bool>? ConfigurationChanged;

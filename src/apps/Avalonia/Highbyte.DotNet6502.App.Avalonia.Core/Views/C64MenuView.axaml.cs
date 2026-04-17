@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -58,19 +59,24 @@ public partial class C64MenuView : UserControl
     private void OnClipboardCopyRequested(object? sender, string text)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (TopLevel.GetTopLevel(this) is { } topLevel)
+            if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
             {
-                await topLevel.Clipboard?.SetTextAsync(text)!;
+                using var data = new DataTransfer();
+                data.Add(DataTransferItem.CreateText(text));
+                await clipboard.SetDataAsync(data);
             }
         });
 
     private void OnClipboardPasteRequested(object? sender, EventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (ViewModel != null && TopLevel.GetTopLevel(this) is { } topLevel)
+            if (ViewModel != null
+                && TopLevel.GetTopLevel(this) is { } topLevel
+                && topLevel.Clipboard is { } clipboard)
             {
-                var text = await topLevel.Clipboard?.GetTextAsync()!;
-                ViewModel.ClipboardPasteResult = text;
+                using var data = await clipboard.TryGetDataAsync();
+                if (data is not null)
+                    ViewModel.ClipboardPasteResult = await data.TryGetTextAsync();
             }
         });
 

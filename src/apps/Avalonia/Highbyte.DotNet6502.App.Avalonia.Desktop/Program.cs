@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
-using Avalonia.ReactiveUI;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
@@ -393,7 +392,6 @@ internal sealed partial class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
-            .UseReactiveUI()
             .AfterSetup(_ =>
             {
                 // Set up the Avalonia logger bridge to route logs via Avalonia Logger through ILogger

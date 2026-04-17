@@ -36,11 +36,11 @@ public class MonitorViewModel : ViewModelBase
         SendCommand = ReactiveCommandHelper.CreateSafeCommand(
             ExecuteSend,
             canExecute: Observable.Return(true),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
         CloseCommand = ReactiveCommandHelper.CreateSafeCommand(
             ExecuteClose,
             canExecute: Observable.Return(true),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
     }
 
     public ReactiveCommand<Unit, Unit> SendCommand { get; }

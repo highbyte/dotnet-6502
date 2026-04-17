@@ -72,12 +72,12 @@ public class DebugSoundViewModel : ViewModelBase
             {
                 CloseRequested?.Invoke(this, true);
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         InitAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             InitAudio,
             canExecute: this.WhenAnyValue(x => x.IsAudioNotInitialized),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         PlayAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             PlayAudio,
@@ -86,7 +86,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsWavePlayerPaused,
                 x => x.IsWavePlayerStopped,
                 (initialized, paused, stopped) => initialized && (paused || stopped)),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         PauseAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             PauseAudio,
@@ -94,7 +94,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         StopAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             StopAudio,
@@ -103,7 +103,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsWavePlayerPlaying,
                 x => x.IsWavePlayerPaused,
                 (initialized, playing, paused) => initialized && (playing || paused)),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         PlayCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
@@ -114,7 +114,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         StopCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
@@ -125,7 +125,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
 
         PlaySynthCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -137,7 +137,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         StartSynthReleaseCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
@@ -148,7 +148,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         StopSynthCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
@@ -159,7 +159,7 @@ public class DebugSoundViewModel : ViewModelBase
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
     }
 

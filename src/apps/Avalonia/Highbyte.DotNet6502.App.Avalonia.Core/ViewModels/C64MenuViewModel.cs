@@ -92,47 +92,47 @@ public class C64MenuViewModel : ViewModelBase
         CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await CopyBasicSourceCode(),
             this.WhenAnyValue(x => x.IsCopyPasteEnabled),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         PasteTextCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await PasteTextInternal(),
             this.WhenAnyValue(x => x.IsCopyPasteEnabled),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         ToggleDiskImageCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await ToggleDiskImageInternal(),
             this.WhenAnyValue(x => x.CanToggleDisk),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         LoadPreloadedDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await LoadPreloadedDiskImage(),
             Observable.Return(true),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
              async () => await LoadAssemblyExample(),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         LoadBasicExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await LoadBasicExample(),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         LoadBasicFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBasicFile(fileBuffer),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         SaveBasicFileCommand = ReactiveCommandHelper.CreateSafeCommandWithResult<byte[]>(
             async () => await GetBasicProgramAsPrgFileBytes(),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
 
         LoadBinaryFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBinaryFile(fileBuffer),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
-            RxApp.MainThreadScheduler);
+            RxSchedulers.MainThreadScheduler);
     }
 
     private EmulatorState EmulatorState => _avaloniaHostApp.EmulatorState;

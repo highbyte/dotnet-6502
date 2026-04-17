@@ -60,7 +60,7 @@ public class EmulatorConfigViewModel : ViewModelBase
                     ConfigurationChanged?.Invoke(this, true);
                 }
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         CancelCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -68,7 +68,7 @@ public class EmulatorConfigViewModel : ViewModelBase
                 ConfigurationChanged?.Invoke(this, false);
                 return Task.CompletedTask;
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         // Show info message on desktop about permanent settings
         if (!IsRunningInWebAssembly)

@@ -78,21 +78,21 @@ public class ErrorViewModel : ViewModelBase
             {
                 ShowDetails = !ShowDetails;
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         ContinueCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 CloseRequested?.Invoke(this, false);
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         ExitCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 CloseRequested?.Invoke(this, true);
             },
-            outputScheduler: RxApp.MainThreadScheduler);
+            outputScheduler: RxSchedulers.MainThreadScheduler);
 
     }
 
