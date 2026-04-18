@@ -21,7 +21,7 @@ LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Informatio
 if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 {
     AllocConsole();
-    Console.Title = "DotNet6502 Emulator (SilkNetNative) - Log Output";
+    Console.Title = "DotNet 6502 Emulator (SilkNetNative) - Log Output";
 }
 
 // Note: Don't call Console.WriteLine before AllocConsole() is called (Windows). Otherwise no logs will show in console.
@@ -118,7 +118,7 @@ windowOptions.FramesPerSecond = 60.0f;  // TODO: With Vsync=false the FramesPerS
 
 windowOptions.VSync = false;  // TODO: With Vsync=true Silk.NET seem to use incorrect UpdatePerSecond. The actual FPS its called is 10 lower than it should be (measured in the OnUpdate method)
 windowOptions.WindowState = WindowState.Normal;
-windowOptions.Title = "Highbyte.DotNet6502 emulator + Silk.NET (with ImGui, SkiaSharp, OpenGL, NAudio)";
+windowOptions.Title = "DotNet 6502 Emulator + Silk.NET (with ImGui, SkiaSharp, OpenGL, NAudio)";
 windowOptions.Size = new Vector2D<int>(windowWidth, windowHeight);
 windowOptions.WindowBorder = WindowBorder.Fixed;
 windowOptions.API = GraphicsAPI.Default; // = Default = OpenGL 3.3 with forward compatibility

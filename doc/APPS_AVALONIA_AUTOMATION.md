@@ -136,8 +136,8 @@ Some controls inside nested `UserControl`s do not traverse cleanly to the macOS 
 On macOS, the shortcuts are discoverable by walking the app's menu bar via peekaboo:
 
 ```sh
-peekaboo menu list --app "DotNet6502 Emulator"
-peekaboo menu click --app "DotNet6502 Emulator" --path "C64 > Toggle Configuration section"
+peekaboo menu list --app "DotNet 6502 Emulator"
+peekaboo menu click --app "DotNet 6502 Emulator" --path "C64 > Toggle Configuration section"
 ```
 
 On Windows / Linux, the same shortcuts are dispatched by the main window's key bindings; an automation harness simulates the key combo instead of clicking a menu.
@@ -185,16 +185,16 @@ peekaboo permissions
 dotnet run --project src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop
 
 # In another terminal, capture the current AX state
-peekaboo see --app "DotNet6502 Emulator"
+peekaboo see --app "DotNet 6502 Emulator"
 
 # With an annotated screenshot showing clickable element IDs (elem_NN)
-peekaboo see --app "DotNet6502 Emulator" --annotate /tmp/ax.png
+peekaboo see --app "DotNet 6502 Emulator" --annotate /tmp/ax.png
 
 # Full JSON dump for scripting
-peekaboo see --app "DotNet6502 Emulator" --json > /tmp/ax.json
+peekaboo see --app "DotNet 6502 Emulator" --json > /tmp/ax.json
 ```
 
-The app's process name under macOS is `DotNet6502 Emulator` (set via `Application.Name` in `App.axaml`, which Avalonia applies to `NSApplication` at startup). Confirm with:
+The app's process name under macOS is `DotNet 6502 Emulator` (set via `Application.Name` in `App.axaml`, which Avalonia applies to `NSApplication` at startup). Confirm with:
 
 ```sh
 peekaboo list
@@ -206,16 +206,16 @@ peekaboo's `click` command has several selection modes:
 
 ```sh
 # 1. By the short "elem_NN" id from the latest `see` snapshot:
-peekaboo click --on elem_24 --app "DotNet6502 Emulator" --window-index 0
+peekaboo click --on elem_24 --app "DotNet 6502 Emulator" --window-index 0
 
 # 2. By a specific snapshot id (useful if you captured earlier):
-peekaboo click --on elem_24 --snapshot <UUID-from-see> --app "DotNet6502 Emulator" --window-index 0
+peekaboo click --on elem_24 --snapshot <UUID-from-see> --app "DotNet 6502 Emulator" --window-index 0
 
 # 3. By text query (matches Name/title/label):
-peekaboo click "Start" --app "DotNet6502 Emulator" --window-index 0
+peekaboo click "Start" --app "DotNet 6502 Emulator" --window-index 0
 
 # 4. By absolute screen coordinates:
-peekaboo click --coords "440,595" --app "DotNet6502 Emulator" --window-index 0
+peekaboo click --coords "440,595" --app "DotNet 6502 Emulator" --window-index 0
 ```
 
 ## Gotchas (learned the hard way)
@@ -233,10 +233,10 @@ peekaboo click --coords "440,595" --app "DotNet6502 Emulator" --window-index 0
 - **Sidebar buttons (C64MenuView) are not reachable via peekaboo `click`.** Controls in the left-hand sidebar — `DownloadAndRunDiskButton`, `PreloadedDiskComboBox`, `LoadBasicButton`, etc. — do not appear in the AX tree that peekaboo enumerates, so neither text-query nor `elem_NN` clicks work. `peekaboo click --coords` also fails because it still attempts AX focus resolution internally when `--app` is given. The reliable fallback is **AppleScript coordinate-click**, which does a raw hit-test outside the AX tree:
 
   ```applescript
-  tell application "DotNet6502 Emulator" to activate
+  tell application "DotNet 6502 Emulator" to activate
   delay 0.5
   tell application "System Events"
-      tell process "DotNet6502 Emulator"
+      tell process "DotNet 6502 Emulator"
           set winPos to position of window 1
           -- Replace (dx, dy) with the button's offset from the window's top-left corner
           click at {(item 1 of winPos) + dx, (item 2 of winPos) + dy}
@@ -250,19 +250,19 @@ peekaboo click --coords "440,595" --app "DotNet6502 Emulator" --window-index 0
 
 ```sh
 # Snapshot and find Start button
-SNAP=$(peekaboo see --app "DotNet6502 Emulator" --json | jq -r '.snapshot_id')
-START=$(peekaboo see --app "DotNet6502 Emulator" --json \
+SNAP=$(peekaboo see --app "DotNet 6502 Emulator" --json | jq -r '.snapshot_id')
+START=$(peekaboo see --app "DotNet 6502 Emulator" --json \
         | jq -r '.. | objects | select(.identifier == "StartButton") | .id')
 
 # 1. Click Start — emulator boots into C64 BASIC
 peekaboo click --on "$START" --snapshot "$SNAP" \
-               --app "DotNet6502 Emulator" --window-index 0
+               --app "DotNet 6502 Emulator" --window-index 0
 
 # 2. Click Log tab by coordinates (tab row is ~y=595 at the given window size)
-peekaboo click --coords "440,595" --app "DotNet6502 Emulator" --window-index 0
+peekaboo click --coords "440,595" --app "DotNet 6502 Emulator" --window-index 0
 
 # Verify
-peekaboo see --app "DotNet6502 Emulator" --annotate /tmp/after.png
+peekaboo see --app "DotNet 6502 Emulator" --annotate /tmp/after.png
 ```
 
 The JSON path shapes above are illustrative — adjust with your peekaboo version's output schema. `peekaboo list` + `peekaboo see --json` are the two fundamental queries to script anything more involved.

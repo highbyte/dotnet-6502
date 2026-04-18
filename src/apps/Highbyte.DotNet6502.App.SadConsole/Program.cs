@@ -21,7 +21,7 @@ LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Informatio
 if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 {
     AllocConsole();
-    System.Console.Title = "DotNet6502 Emulator (SadConsole) - Log Output";
+    System.Console.Title = "DotNet 6502 Emulator (SadConsole) - Log Output";
 }
 
 // Note: Don't call Console.WriteLine before AllocConsole() is called (Windows). Otherwise no logs will show in console.

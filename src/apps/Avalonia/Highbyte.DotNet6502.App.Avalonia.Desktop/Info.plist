@@ -15,7 +15,7 @@
     <key>CFBundleName</key>
     <string>DotNet6502</string>
     <key>CFBundleDisplayName</key>
-    <string>DotNet6502 Emulator</string>
+    <string>DotNet 6502 Emulator</string>
     <key>CFBundleIdentifier</key>
     <string>com.highbyte.dotnet6502</string>
     <key>CFBundleVersion</key>

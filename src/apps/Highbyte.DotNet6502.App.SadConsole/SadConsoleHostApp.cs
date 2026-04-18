@@ -162,7 +162,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         // Start SadConsole window
         Game.Create(builder);
 
-        Settings.WindowTitle = "Highbyte.DotNet6502 emulator + SadConsole (with NAudio)";
+        Settings.WindowTitle = "DotNet 6502 Emulator + SadConsole (with NAudio)";
         Settings.ResizeMode = Settings.WindowResizeOptions.None;
 
         try
