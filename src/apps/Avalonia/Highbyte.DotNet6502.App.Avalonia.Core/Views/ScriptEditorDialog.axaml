@@ -3,6 +3,8 @@
         xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
         x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.ScriptEditorDialog"
         x:DataType="vm:ScriptEditorViewModel"
+        AutomationProperties.AutomationId="ScriptEditorDialog"
+        AutomationProperties.Name="Lua script editor"
         Width="640"
         MinWidth="400"
         MinHeight="320">
@@ -22,6 +24,8 @@
                        VerticalAlignment="Center"
                        Margin="0,0,8,0"/>
             <TextBox x:Name="FileNameBox"
+                     AutomationProperties.AutomationId="FileNameBox"
+                     AutomationProperties.Name="Script file name"
                      Grid.Column="1"
                      Text="{Binding FileName}"
                      IsReadOnly="{Binding !IsNew}"
@@ -31,6 +35,8 @@
 
         <!-- Code editor -->
         <TextBox x:Name="ContentBox"
+                 AutomationProperties.AutomationId="ContentBox"
+                 AutomationProperties.Name="Script content"
                  Grid.Row="2"
                  Text="{Binding Content}"
                  AcceptsReturn="True"
@@ -49,8 +55,12 @@
                     HorizontalAlignment="Right"
                     Spacing="8">
             <Button Content="Cancel"
+                    AutomationProperties.AutomationId="CancelButton"
+                    AutomationProperties.Name="Cancel"
                     Command="{Binding CancelCommand}"/>
             <Button Content="Save"
+                    AutomationProperties.AutomationId="SaveButton"
+                    AutomationProperties.Name="Save script"
                     Command="{Binding SaveCommand}"
                     Classes="accent"/>
         </StackPanel>

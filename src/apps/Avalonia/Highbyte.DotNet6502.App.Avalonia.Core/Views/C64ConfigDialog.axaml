@@ -4,6 +4,8 @@
         xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
         x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64ConfigDialog"
         x:DataType="vm:C64ConfigDialogViewModel"
+        AutomationProperties.AutomationId="C64ConfigDialog"
+        AutomationProperties.Name="C64 configuration"
         Title="C64 Configuration"
         Width="1020"
         Height="650"

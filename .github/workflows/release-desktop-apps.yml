@@ -109,7 +109,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Download checksum files from release
+      - name: Download checksum files and macOS zip from release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -118,6 +118,9 @@ jobs:
               --repo ${{ github.repository }} \
               --pattern "checksums-${runtime}.sha256"
           done
+          gh release download "${{ github.event.release.tag_name }}" \
+            --repo ${{ github.repository }} \
+            --pattern "DotNet6502-Avalonia-osx-arm64.zip"
 
       - name: Extract SHA256 hashes
         id: hashes
@@ -136,10 +139,17 @@ jobs:
           echo "headless_win_x64=$(extract_hash Headless win-x64)" >> "$GITHUB_OUTPUT"
           echo "headless_win_arm64=$(extract_hash Headless win-arm64)" >> "$GITHUB_OUTPUT"
 
+      - name: Extract macOS app bundle name from zip
+        id: app_bundle
+        run: |
+          APP_NAME=$(zipinfo -1 DotNet6502-Avalonia-osx-arm64.zip | grep -E '^[^/]+\.app/$' | sed 's|/$||' | head -1)
+          echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Update Homebrew tap
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_MANAGER_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
+          APP_NAME: ${{ steps.app_bundle.outputs.app_name }}
           OSX_ARM64_HASH: ${{ steps.hashes.outputs.osx_arm64 }}
           LINUX_X64_HASH: ${{ steps.hashes.outputs.linux_x64 }}
           LINUX_ARM64_HASH: ${{ steps.hashes.outputs.linux_arm64 }}
@@ -153,6 +163,9 @@ jobs:
           # Update Cask (macOS desktop app)
           sed -i "s/version \".*\"/version \"${VERSION}\"/" Casks/dotnet-6502.rb
           sed -i "s/sha256 \".*\"/sha256 \"${OSX_ARM64_HASH}\"/" Casks/dotnet-6502.rb
+          # Update .app bundle name (read from the actual release zip, not source)
+          sed -i "s|app \".*\.app\"|app \"${APP_NAME}\"|" Casks/dotnet-6502.rb
+          sed -i "s|binary \".*\.app/Contents/MacOS/|binary \"${APP_NAME}/Contents/MacOS/|" Casks/dotnet-6502.rb
 
           # Update Formulas - use Python for multi-hash replacement
           python3 <<'PYEOF'

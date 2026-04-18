@@ -29,6 +29,8 @@
                            Classes="secondary-text"
                            VerticalAlignment="Center"/>
                 <ComboBox Grid.Row="0" Grid.Column="1"
+                          AutomationProperties.AutomationId="DefaultEmulatorComboBox"
+                          AutomationProperties.Name="Default emulator"
                           ItemsSource="{Binding AvailableEmulators}"
                           SelectedItem="{Binding SelectedDefaultEmulator}"
                           Width="150"
@@ -58,6 +60,8 @@
                            VerticalAlignment="Center"/>
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Classes="spacing-tight">
                   <Slider Minimum="1" Maximum="4"
+                          AutomationProperties.AutomationId="DefaultScaleSlider"
+                          AutomationProperties.Name="Default scale"
                           Value="{Binding DefaultDrawScale}"
                           TickFrequency="0.5"
                           IsSnapToTickEnabled="True"
@@ -87,6 +91,8 @@
                          Classes=""/>
 
               <CheckBox Content="Show error dialogs"
+                        AutomationProperties.AutomationId="ShowErrorDialogCheckBox"
+                        AutomationProperties.Name="Show error dialogs"
                         IsChecked="{Binding ShowErrorDialog}"
                         Classes=""/>
               
@@ -105,6 +111,8 @@
                          Classes=""/>
 
               <CheckBox Content="Show Debug tab"
+                        AutomationProperties.AutomationId="ShowDebugTabCheckBox"
+                        AutomationProperties.Name="Show Debug tab"
                         IsChecked="{Binding ShowDebugTab}"
                         Classes=""/>
               
@@ -128,6 +136,8 @@
                            Classes="secondary-text"
                            VerticalAlignment="Center"/>
                 <ComboBox Grid.Row="0" Grid.Column="1"
+                          AutomationProperties.AutomationId="AudioProfileComboBox"
+                          AutomationProperties.Name="Audio profile"
                           ItemsSource="{Binding AudioSettingsProfiles}"
                           SelectedItem="{Binding SelectedAudioSettingsProfile}"
                           Width="150"
@@ -151,6 +161,8 @@
                          Classes=""/>
 
               <CheckBox Content="Stop on BRK instruction"
+                        AutomationProperties.AutomationId="StopOnBrkCheckBox"
+                        AutomationProperties.Name="Stop on BRK instruction"
                         IsChecked="{Binding StopAfterBRKInstruction}"
                         Classes=""/>
               
@@ -160,6 +172,8 @@
                          Margin="20,0,0,8"/>
 
               <CheckBox Content="Stop on unknown instruction"
+                        AutomationProperties.AutomationId="StopOnUnknownInstructionCheckBox"
+                        AutomationProperties.Name="Stop on unknown instruction"
                         IsChecked="{Binding StopAfterUnknownInstruction}"
                         Classes=""/>
               
@@ -185,6 +199,8 @@
                            Classes="secondary-text"
                            VerticalAlignment="Center"/>
                 <TextBox Grid.Row="0" Grid.Column="1"
+                         AutomationProperties.AutomationId="LuaScriptDirectoryTextBox"
+                         AutomationProperties.Name="Lua script directory"
                          Text="{Binding LuaScriptDirectory}"
                          IsReadOnly="True"
                          Background="#1A000000"
@@ -205,6 +221,8 @@
                            Classes="secondary-text"
                            VerticalAlignment="Center"/>
                 <TextBox Grid.Row="0" Grid.Column="1"
+                         AutomationProperties.AutomationId="LuaStorePrefixTextBox"
+                         AutomationProperties.Name="Lua store prefix"
                          Text="{Binding LuaStorePrefix}"
                          IsReadOnly="True"
                          Background="#1A000000"
@@ -255,10 +273,14 @@
                    IsVisible="{Binding IsBusy}"
                    IsIndeterminate="True"/>
       <Button Grid.Column="1"
+              AutomationProperties.AutomationId="CancelButton"
+              AutomationProperties.Name="Cancel"
               Content="Cancel"
               Classes="cancel"
               Command="{Binding CancelCommand}"/>
       <Button Grid.Column="2"
+              AutomationProperties.AutomationId="OkButton"
+              AutomationProperties.Name="Save emulator options"
               Content="{Binding OkButtonText}"
               Classes="primary"
               IsDefault="True"

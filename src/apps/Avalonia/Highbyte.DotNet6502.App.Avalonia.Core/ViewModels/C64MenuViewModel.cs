@@ -7,6 +7,7 @@ using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
@@ -20,7 +21,7 @@ using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
-public class C64MenuViewModel : ViewModelBase
+public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 {
     private readonly AvaloniaHostApp _avaloniaHostApp;
     private readonly ILoggerFactory _loggerFactory;
@@ -57,6 +58,14 @@ public class C64MenuViewModel : ViewModelBase
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
     public ReactiveCommand<Unit, byte[]> SaveBasicFileCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
+
+    // Section toggle / joystick commands used by both the UI click handlers and the menu/shortcut bridge.
+    public ReactiveCommand<Unit, Unit> ToggleDiskSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
+    public ReactiveCommand<int, Unit> SetActiveJoystickCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleJoystickKeyboardCommand { get; }
+    public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
     // --- End ReactiveUI Commands ---
 
     public C64MenuViewModel(
@@ -132,6 +141,40 @@ public class C64MenuViewModel : ViewModelBase
         LoadBinaryFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBinaryFile(fileBuffer),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleDiskSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => ToggleSection(C64MenuSection.Disk),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleLoadSaveSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => ToggleSection(C64MenuSection.LoadSave),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleConfigSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => ToggleSection(C64MenuSection.Config),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        SetActiveJoystickCommand = ReactiveCommandHelper.CreateSafeCommand<int>(
+            port => CurrentJoystick = port,
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleJoystickKeyboardCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => JoystickKeyboardEnabled = !JoystickKeyboardEnabled,
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        SetKeyboardJoystickCommand = ReactiveCommandHelper.CreateSafeCommand<int>(
+            port =>
+            {
+                if (IsKeyboardJoystickSelectionEnabled)
+                    KeyboardJoystick = port;
+            },
+            null,
             RxSchedulers.MainThreadScheduler);
     }
 
@@ -330,6 +373,186 @@ public class C64MenuViewModel : ViewModelBase
 
             return !C64HostConfig.IsValid(out _);
         }
+    }
+
+    // Section expansion state — bound from XAML so both UI clicks and keyboard shortcuts
+    // go through the same ViewModel state.
+    private bool _isDiskSectionExpanded = true;
+    public bool IsDiskSectionExpanded
+    {
+        get => _isDiskSectionExpanded;
+        private set
+        {
+            if (_isDiskSectionExpanded == value)
+                return;
+            _isDiskSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsDiskSectionExpanded));
+            this.RaisePropertyChanged(nameof(DiskSectionHeaderText));
+        }
+    }
+
+    private bool _isLoadSaveSectionExpanded = false;
+    public bool IsLoadSaveSectionExpanded
+    {
+        get => _isLoadSaveSectionExpanded;
+        private set
+        {
+            if (_isLoadSaveSectionExpanded == value)
+                return;
+            _isLoadSaveSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsLoadSaveSectionExpanded));
+            this.RaisePropertyChanged(nameof(LoadSaveSectionHeaderText));
+        }
+    }
+
+    private bool _isConfigSectionExpanded = false;
+    public bool IsConfigSectionExpanded
+    {
+        get => _isConfigSectionExpanded;
+        private set
+        {
+            if (_isConfigSectionExpanded == value)
+                return;
+            _isConfigSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsConfigSectionExpanded));
+            this.RaisePropertyChanged(nameof(ConfigSectionHeaderText));
+        }
+    }
+
+    public string DiskSectionHeaderText => (IsDiskSectionExpanded ? "▼ " : "▶ ") + "Disk Drive & .D64 images";
+    public string LoadSaveSectionHeaderText => (IsLoadSaveSectionExpanded ? "▼ " : "▶ ") + "Load/Save";
+    public string ConfigSectionHeaderText => (IsConfigSectionExpanded ? "▼ " : "▶ ") + "Configuration";
+
+    private enum C64MenuSection { Disk, LoadSave, Config }
+
+    private void ToggleSection(C64MenuSection section)
+    {
+        bool newState = section switch
+        {
+            C64MenuSection.Disk => !IsDiskSectionExpanded,
+            C64MenuSection.LoadSave => !IsLoadSaveSectionExpanded,
+            C64MenuSection.Config => !IsConfigSectionExpanded,
+            _ => false,
+        };
+
+        SetSectionExpanded(section, newState, collapseOthers: newState);
+    }
+
+    private void SetSectionExpanded(C64MenuSection section, bool expanded, bool collapseOthers)
+    {
+        switch (section)
+        {
+            case C64MenuSection.Disk:
+                IsDiskSectionExpanded = expanded;
+                if (collapseOthers && expanded)
+                {
+                    IsLoadSaveSectionExpanded = false;
+                    IsConfigSectionExpanded = false;
+                }
+                break;
+            case C64MenuSection.LoadSave:
+                IsLoadSaveSectionExpanded = expanded;
+                if (collapseOthers && expanded)
+                {
+                    IsDiskSectionExpanded = false;
+                    IsConfigSectionExpanded = false;
+                }
+                break;
+            case C64MenuSection.Config:
+                IsConfigSectionExpanded = expanded;
+                if (collapseOthers && expanded)
+                {
+                    IsDiskSectionExpanded = false;
+                    IsLoadSaveSectionExpanded = false;
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Called by the View when validation errors are present: collapse Disk/LoadSave and expand Config.
+    /// </summary>
+    public void ExpandConfigSectionOnValidationError()
+    {
+        IsDiskSectionExpanded = false;
+        IsLoadSaveSectionExpanded = false;
+        IsConfigSectionExpanded = true;
+    }
+
+    // --- ISystemMenuContributor ---
+    public string MenuLabel => "C64";
+
+    public IReadOnlyList<NativeMenuItemBase> GetNativeMenuItems()
+    {
+        // On macOS, NativeMenu items appear in the OS-level system menu bar (not the app window),
+        // which is the desired UX. The menu bar is also exposed via the macOS Accessibility API,
+        // making shortcuts self-describing and discoverable by AI agents at runtime.
+        // Use Meta+Alt (⌘⌥) as the primary modifier so hints show as "⌘⌥L" etc.
+        const KeyModifiers macBase = KeyModifiers.Meta | KeyModifiers.Alt;
+        //const KeyModifiers macBase = KeyModifiers.Alt;
+        const KeyModifiers macShift = KeyModifiers.Meta | KeyModifiers.Alt | KeyModifiers.Shift;
+
+        return new NativeMenuItemBase[]
+        {
+            BuildMenuItem("Toggle Disk Drive section", new KeyGesture(Key.D, macShift), ToggleDiskSectionCommand),
+            BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macBase), ToggleLoadSaveSectionCommand),
+            BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macBase), ToggleConfigSectionCommand),
+            new NativeMenuItemSeparator(),
+            BuildMenuItem("Active joystick: Port 1", new KeyGesture(Key.D1, macBase), SetActiveJoystickCommand, 1),
+            BuildMenuItem("Active joystick: Port 2", new KeyGesture(Key.D2, macBase), SetActiveJoystickCommand, 2),
+            new NativeMenuItemSeparator(),
+            BuildMenuItem("Toggle Joystick KB", new KeyGesture(Key.K, macBase), ToggleJoystickKeyboardCommand),
+            BuildMenuItem("Keyboard joystick: Port 1", new KeyGesture(Key.D1, macShift), SetKeyboardJoystickCommand, 1),
+            BuildMenuItem("Keyboard joystick: Port 2", new KeyGesture(Key.D2, macShift), SetKeyboardJoystickCommand, 2),
+        };
+    }
+
+    public IReadOnlyList<KeyBinding> GetKeyBindings()
+    {
+        // On Windows/Linux, NativeMenu would render as in-window chrome, which is not the desired
+        // UX (on macOS it goes to the OS system menu bar, which is fine there). KeyBindings are
+        // used instead: registered on the main Window, they fire regardless of which child has focus.
+        // Ctrl+Alt combos are safe alongside the C64 emulator's own Ctrl+key color combinations
+        // (those trigger on plain Ctrl, without Alt).
+        const KeyModifiers nonMacBase = KeyModifiers.Control | KeyModifiers.Alt;
+        const KeyModifiers nonMacShift = KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift;
+
+        return new[]
+        {
+            BuildKeyBinding(new KeyGesture(Key.D, nonMacShift), ToggleDiskSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.L, nonMacBase), ToggleLoadSaveSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.C, nonMacBase), ToggleConfigSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.D1, nonMacBase), SetActiveJoystickCommand, 1),
+            BuildKeyBinding(new KeyGesture(Key.D2, nonMacBase), SetActiveJoystickCommand, 2),
+            BuildKeyBinding(new KeyGesture(Key.K, nonMacBase), ToggleJoystickKeyboardCommand),
+            BuildKeyBinding(new KeyGesture(Key.D1, nonMacShift), SetKeyboardJoystickCommand, 1),
+            BuildKeyBinding(new KeyGesture(Key.D2, nonMacShift), SetKeyboardJoystickCommand, 2),
+        };
+    }
+
+    private static NativeMenuItem BuildMenuItem(string header, KeyGesture gesture, System.Windows.Input.ICommand command, object? parameter = null)
+    {
+        var item = new NativeMenuItem
+        {
+            Header = header,
+            Gesture = gesture,
+            Command = command,
+        };
+        if (parameter != null)
+            item.CommandParameter = parameter;
+        return item;
+    }
+
+    private static KeyBinding BuildKeyBinding(KeyGesture gesture, System.Windows.Input.ICommand command, object? parameter = null)
+    {
+        var binding = new KeyBinding
+        {
+            Gesture = gesture,
+            Command = command,
+        };
+        if (parameter != null)
+            binding.CommandParameter = parameter;
+        return binding;
     }
 
     private void InitializeC64Data()

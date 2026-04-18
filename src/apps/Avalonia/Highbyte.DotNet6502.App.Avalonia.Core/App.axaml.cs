@@ -164,6 +164,16 @@ public partial class App : Application
 
         AvaloniaXamlLoader.Load(this);
 
+        // Pre-register an empty NativeMenu on macOS so Avalonia's backend subscribes to
+        // Items.CollectionChanged before any window is shown. ApplyMenuContributor then
+        // mutates the items of this same object at runtime instead of replacing the menu,
+        // which is required for the macOS menu bar and its keyboard shortcuts to work.
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                System.Runtime.InteropServices.OSPlatform.OSX))
+        {
+            NativeMenu.SetMenu(this, new NativeMenu());
+        }
+
         WriteBootstrapLog("App Initialize end");
     }
 

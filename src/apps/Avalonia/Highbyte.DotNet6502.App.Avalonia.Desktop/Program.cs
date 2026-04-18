@@ -157,7 +157,7 @@ internal sealed partial class Program
         if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !noConsoleWindow)
         {
             AllocConsole();
-            Console.Title = "DotNet6502 Emulator - Log Output";
+            Console.Title = "DotNet 6502 Emulator - Log Output";
         }
 
         WriteBootstrapLog("Starting.");

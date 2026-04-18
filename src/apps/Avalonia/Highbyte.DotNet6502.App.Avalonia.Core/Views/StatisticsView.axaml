@@ -5,7 +5,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.StatisticsView"
-             x:DataType="vm:StatisticsViewModel">
+             x:DataType="vm:StatisticsViewModel"
+             AutomationProperties.AutomationId="StatisticsView"
+             AutomationProperties.Name="Statistics panel">
 
     <StackPanel Classes="spacing-large"
                 Grid.IsSharedSizeScope="True">

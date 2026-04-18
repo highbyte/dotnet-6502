@@ -48,7 +48,9 @@
                         <TextBlock Grid.Column="0" 
                                     Text="{Binding Name}:"
                                     Classes="secondary-text"/>
-                        <TextBox Grid.Column="1" 
+                        <TextBox Grid.Column="1"
+                                AutomationProperties.AutomationId="{Binding Name, StringFormat='RomFileTextBox.{0}'}"
+                                AutomationProperties.Name="{Binding Name, StringFormat='{}{0} ROM file name'}"
                                 Text="{Binding RomFile, Mode=TwoWay}"
                                 Watermark="File name"
                                 Classes="field-aligned"/>
@@ -66,6 +68,8 @@
                                 Text="ROM directory:"
                                 Classes="secondary-text"/>
                     <TextBox Grid.Column="1"
+                            AutomationProperties.AutomationId="RomDirectoryTextBox"
+                            AutomationProperties.Name="ROM directory"
                             Text="{Binding RomDirectory}"
                             Watermark="Directory path"
                             Classes="field-aligned"/>
@@ -76,6 +80,7 @@
             <StackPanel Orientation="Horizontal" Classes="spacing-normal">
                 <!-- Clear for WASM app to clear ROM byte arrays -->
                 <Button Content="Clear"
+                        AutomationProperties.AutomationId="ClearRomsButton"
                         Command="{Binding ClearRomsCommand}"
                         MinWidth="90"
                         Classes="danger"
@@ -83,6 +88,7 @@
                         IsEnabled="{Binding IsNotBusy}"/>
                 <!-- Load button for WASM app to files via file picker to in-memory byte array -->
                 <Button Content="Load ROMs from files"
+                        AutomationProperties.AutomationId="LoadRomsButton"
                         MinWidth="150"
                         Classes="extraWide"
                         IsVisible="{Binding IsRunningInWebAssembly}"
@@ -90,6 +96,7 @@
                         Click="LoadRoms_Click"/>
                 <!-- Download button for WASM app to in-memory byte array -->
                 <Button Content="Download ROMs"
+                        AutomationProperties.AutomationId="DownloadRomsButton"
                         Command="{Binding DownloadRomsToByteArrayCommand}"
                         MinWidth="130"
                         Classes="primary wide"
@@ -98,6 +105,7 @@
 
                 <!-- Download button for Desktop app to files -->
                 <Button Content="Download ROM Files"
+                        AutomationProperties.AutomationId="DownloadRomFilesButton"
                         Command="{Binding DownloadRomsToFilesCommand}"
                         MinWidth="130"
                         Classes="primary extraWide"
@@ -121,6 +129,8 @@
                                 Text="Render provider:" 
                                 Classes="secondary-text"/>
                     <ComboBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="RenderProviderComboBox"
+                            AutomationProperties.Name="Render provider"
                             ItemsSource="{Binding RenderProviders}"
                             SelectedItem="{Binding SelectedRenderProvider}"
                             ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
@@ -133,10 +143,12 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" 
-                                Text="Render target:" 
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                Text="Render target:"
                                 Classes="secondary-text"/>
                     <ComboBox Grid.Row="1" Grid.Column="1"
+                            AutomationProperties.AutomationId="RenderTargetComboBox"
+                            AutomationProperties.Name="Render target"
                             ItemsSource="{Binding RenderTargets}"
                             SelectedItem="{Binding SelectedRenderTarget}"
                             ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
@@ -163,6 +175,8 @@
 
                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
                         <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                AutomationProperties.AutomationId="SidAudioCheckBox"
+                                AutomationProperties.Name="Enable SID audio"
                                 Content="Enable SID audio (experimental)"
                                 IsChecked="{Binding AudioEnabled}"
                                 Classes=""/>
@@ -184,6 +198,8 @@
                             Classes="secondary-text"
                             IsEnabled="false" />
                 <ComboBox Grid.Row="0" Grid.Column="1"
+                        AutomationProperties.AutomationId="HostJoystickComboBox"
+                        AutomationProperties.Name="Active joystick port"
                         ItemsSource="{Binding AvailableJoysticks}"
                         SelectedItem="{Binding SelectedHostJoystick}"
                         Classes="small"
@@ -192,14 +208,18 @@
                         IsEnabled="false" />
 
                 <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                        AutomationProperties.AutomationId="KeyboardJoystickEnableCheckBox"
+                        AutomationProperties.Name="Enable keyboard joystick controls"
                         Content="Enable keyboard joystick controls"
                         IsChecked="{Binding KeyboardJoystickEnabled}"
                         Classes=""/>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" 
-                            Text="Keyboard joystick port:" 
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                            Text="Keyboard joystick port:"
                             Classes="secondary-text"/>
                 <ComboBox Grid.Row="2" Grid.Column="1"
+                        AutomationProperties.AutomationId="KeyboardJoystickPortComboBox"
+                        AutomationProperties.Name="Keyboard joystick port"
                         ItemsSource="{Binding AvailableJoysticks}"
                         SelectedItem="{Binding SelectedKeyboardJoystick}"
                         Classes="small"
@@ -209,6 +229,8 @@
 
             <!-- Collapsible Keyboard Mappings Section -->
             <Expander Header="Keyboard mappings"
+                        AutomationProperties.AutomationId="KeyboardMappingsExpander"
+                        AutomationProperties.Name="Keyboard mappings"
                         Classes="small secondary-text"
                         IsExpanded="False">
                 <ItemsControl ItemsSource="{Binding KeyboardMappings}"
@@ -241,11 +263,15 @@
                                    Text="CORS proxy:"
                                    Classes="secondary-text"/>
                         <TextBox Grid.Column="1"
+                                 AutomationProperties.AutomationId="CorsProxyTextBox"
+                                 AutomationProperties.Name="CORS proxy URL"
                                  Text="{Binding CorsProxyOverrideURL, Mode=TwoWay}"
                                  Watermark="{Binding CorsProxyOverrideURLWatermark}"
                                  Classes="field-aligned"
                                  KeyDown="CorsProxyTextBox_KeyDown"/>
                         <Button Grid.Column="2"
+                                AutomationProperties.AutomationId="CorsProxyResetButton"
+                                AutomationProperties.Name="Reset CORS proxy"
                                 Content="Reset"
                                 Command="{Binding ResetCorsProxyOverrideURLCommand}"
                                 Margin="4,0,0,0"
@@ -266,6 +292,8 @@
                 <TextBlock Text="Basic AI Coding Assistant"
                             Classes=""/>
                 <Button Content="i"
+                        AutomationProperties.AutomationId="AiHelpButton"
+                        AutomationProperties.Name="AI coding assistant help"
                         Classes="info"
                         ToolTip.Tip="Click for more information about the AI coding assistant"
                         Click="OpenAIHelpUrl_Click"/>
@@ -276,6 +304,8 @@
                             Text="AI backend type:" 
                             Classes="secondary-text"/>
                 <ComboBox Grid.Row="0" Grid.Column="1"
+                        AutomationProperties.AutomationId="AiBackendComboBox"
+                        AutomationProperties.Name="AI backend type"
                         ItemsSource="{Binding AIBackendTypes}"
                         SelectedItem="{Binding SelectedAIBackendTypeOption}"
                         Classes="h-stretch">
@@ -292,6 +322,8 @@
                         Classes="secondary-text"
                         IsVisible="{Binding ShowOpenAISettings}"/>
                 <TextBox Grid.Row="1" Grid.Column="1"
+                        AutomationProperties.AutomationId="OpenAiApiKeyTextBox"
+                        AutomationProperties.Name="OpenAI API key"
                         Text="{Binding OpenAIApiKey}"
                         Watermark="Enter OpenAI API key"
                         Classes=""
@@ -303,6 +335,8 @@
                         Classes="secondary-text"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="2" Grid.Column="1"
+                        AutomationProperties.AutomationId="OllamaEndpointTextBox"
+                        AutomationProperties.Name="Ollama endpoint"
                         Text="{Binding OpenAISelfHostedEndpoint}"
                         Watermark="http://localhost:11434/api"
                         Classes=""
@@ -313,6 +347,8 @@
                         Classes="secondary-text"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="3" Grid.Column="1"
+                        AutomationProperties.AutomationId="OllamaModelNameTextBox"
+                        AutomationProperties.Name="Ollama model name"
                         Text="{Binding OpenAISelfHostedModelName}"
                         Watermark="codellama:13b-code"
                         Classes=""
@@ -323,6 +359,8 @@
                         Classes="secondary-text"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="4" Grid.Column="1"
+                        AutomationProperties.AutomationId="OllamaApiKeyTextBox"
+                        AutomationProperties.Name="Ollama API key"
                         Text="{Binding OpenAISelfHostedApiKey}"
                         Watermark="Optional API key"
                         Classes=""
@@ -333,6 +371,8 @@
                         Classes="secondary-text"
                         IsVisible="{Binding ShowCustomEndpointSettings}"/>
                 <TextBox Grid.Row="5" Grid.Column="1"
+                        AutomationProperties.AutomationId="CustomEndpointApiKeyTextBox"
+                        AutomationProperties.Name="Custom endpoint API key"
                         Text="{Binding CustomEndpointApiKey}"
                         Watermark="API key - leave blank for default"
                         Classes=""
@@ -342,6 +382,8 @@
             <!-- Test Button and Status -->
             <StackPanel Classes="spacing-tight" IsVisible="{Binding ShowAITestButton}">
                 <Button Content="Test Connection"
+                        AutomationProperties.AutomationId="TestAiBackendButton"
+                        AutomationProperties.Name="Test AI backend connection"
                         Command="{Binding TestAIBackendCommand}"
                         MinWidth="130"
                         Classes="primary"/>
@@ -396,10 +438,14 @@
                    IsVisible="{Binding IsBusy}"
                    IsIndeterminate="True"/>
       <Button Grid.Column="1"
+              AutomationProperties.AutomationId="CancelButton"
+              AutomationProperties.Name="Cancel"
               Content="Cancel"
               Classes="cancel"
               Command="{Binding CancelCommand}"/>
       <Button Grid.Column="2"
+              AutomationProperties.AutomationId="OkButton"
+              AutomationProperties.Name="Save configuration"
               Content="{Binding OkButtonText}"
               Classes="primary"
               IsDefault="True"

@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Timers;
+using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Systems;
@@ -69,6 +70,17 @@ public class MainViewModel : ViewModelBase, IDisposable
     }
 
     public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Currently-active system menu contributor (supplies macOS native menu + keyboard shortcuts).
+    /// Swaps when <see cref="SelectedSystemName"/> changes; null when no system is selected.
+    /// </summary>
+    private ISystemMenuContributor? _activeMenuContributor;
+    public ISystemMenuContributor? ActiveMenuContributor
+    {
+        get => _activeMenuContributor;
+        private set => this.RaiseAndSetIfChanged(ref _activeMenuContributor, value);
+    }
 
     // Computed properties for control enabled states based on EmulatorState
     public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
@@ -737,7 +749,11 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         // System-specific ViewModel initializations
         this.WhenAnyValue(x => x.SelectedSystemName)
-                 .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
+                 .Subscribe(_ =>
+                 {
+                     this.RaisePropertyChanged(nameof(IsC64SystemSelected));
+                     ActiveMenuContributor = ResolveMenuContributor();
+                 });
 
         // Initialize scripts tab data and subscribe to status changes
         CanManageScripts = _hostApp.CanManageScripts;
@@ -772,6 +788,15 @@ public class MainViewModel : ViewModelBase, IDisposable
     public async Task InitializeAsync()
     {
         await SetDefaultSystemSelection();
+    }
+
+    private ISystemMenuContributor? ResolveMenuContributor()
+    {
+        // Each system's menu ViewModel implements ISystemMenuContributor when it contributes
+        // shortcuts. Add more `else if` branches here as new systems gain shortcuts.
+        if (IsC64SystemSelected && C64MenuViewModel is ISystemMenuContributor c64Contributor)
+            return c64Contributor;
+        return null;
     }
 
     private async Task SetDefaultSystemSelection()

@@ -107,7 +107,7 @@ The Avalonia desktop application supports optional console logging for debugging
 
 On Windows, the application opens a **separate console window** for log output. This is because Windows GUI applications (WinExe) don't have a console attached by default.
 
-- A new console window titled "DotNet6502 Emulator - Log Output" will appear
+- A new console window titled "DotNet 6502 Emulator - Log Output" will appear
 - Log messages are displayed in this dedicated window
 - The console window closes automatically when the application exits
 

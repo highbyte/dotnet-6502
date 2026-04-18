@@ -3,6 +3,8 @@
              xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.EmulatorPlaceholderView"
              x:DataType="vm:EmulatorPlaceholderViewModel"
+             AutomationProperties.AutomationId="EmulatorPlaceholderView"
+             AutomationProperties.Name="DotNet 6502 Emulator placeholder"
              Focusable="False"
              IsTabStop="False">
 
@@ -13,7 +15,7 @@
                Height="256"
                HorizontalAlignment="Center" />
         
-        <TextBlock Text="DotNet 6502 emulator"
+        <TextBlock Text="DotNet 6502 Emulator"
                    HorizontalAlignment="Center"
                    Classes="h1" />
     </StackPanel>

@@ -49,7 +49,7 @@ dotnet-6502
 
 On macOS, the app is also installed to `/Applications` and can be launched from Launchpad, Spotlight, or Finder like any other Mac app.
 
-On Windows (Scoop), a Start Menu shortcut **DotNet6502 Emulator** is also created.
+On Windows (Scoop), a Start Menu shortcut **DotNet 6502 Emulator** is also created.
 
 ### Updating
 

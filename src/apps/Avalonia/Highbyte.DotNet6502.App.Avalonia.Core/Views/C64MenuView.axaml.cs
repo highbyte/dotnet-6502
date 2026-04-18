@@ -120,34 +120,13 @@ public partial class C64MenuView : UserControl
 
     private void UpdateSectionStatesIfNeeded()
     {
-        // If there are validation errors, expand config section and collapse others
+        // If there are validation errors, expand config section and collapse others.
+        // Section state now lives on the ViewModel; XAML IsVisible is bound to it.
         try
         {
             if (ViewModel != null && ViewModel.HasConfigValidationErrors)
             {
-                // Collapse Disk Section
-                var diskHeaderButton = this.FindControl<Button>("DiskSectionHeader");
-                var diskContentBorder = this.FindControl<Border>("DiskSectionContent");
-                if (diskHeaderButton != null && diskContentBorder != null)
-                {
-                    SetSectionState(diskHeaderButton, diskContentBorder, expanded: false);
-                }
-
-                // Collapse Load/Save Section
-                var loadSaveHeaderButton = this.FindControl<Button>("LoadSaveSectionHeader");
-                var loadSaveContentBorder = this.FindControl<Border>("LoadSaveSectionContent");
-                if (loadSaveHeaderButton != null && loadSaveContentBorder != null)
-                {
-                    SetSectionState(loadSaveHeaderButton, loadSaveContentBorder, expanded: false);
-                }
-
-                // Expand Config Section
-                var configHeaderButton = this.FindControl<Button>("ConfigSectionHeader");
-                var configContentBorder = this.FindControl<Border>("ConfigSectionContent");
-                if (configHeaderButton != null && configContentBorder != null)
-                {
-                    SetSectionState(configHeaderButton, configContentBorder, expanded: true);
-                }
+                ViewModel.ExpandConfigSectionOnValidationError();
 
                 var c64ConfigButton = this.FindControl<Button>("C64Config");
                 if (c64ConfigButton != null)
@@ -455,85 +434,6 @@ public partial class C64MenuView : UserControl
                 }
             }
         });
-
-    // Section toggle handlers (pure UI functionality)
-    private void ToggleDiskSection_Click(object? sender, RoutedEventArgs e)
-    {
-        ToggleSection("DiskSectionHeader", "DiskSectionContent",
-            new[] { ("LoadSaveSectionHeader", "LoadSaveSectionContent"),
-                    ("ConfigSectionHeader", "ConfigSectionContent") });
-    }
-
-    private void ToggleLoadSaveSection_Click(object? sender, RoutedEventArgs e)
-    {
-        ToggleSection("LoadSaveSectionHeader", "LoadSaveSectionContent",
-            new[] { ("DiskSectionHeader", "DiskSectionContent"),
-                    ("ConfigSectionHeader", "ConfigSectionContent") });
-    }
-
-    private void ToggleConfigSection_Click(object? sender, RoutedEventArgs e)
-    {
-        ToggleSection("ConfigSectionHeader", "ConfigSectionContent",
-            new[] { ("DiskSectionHeader", "DiskSectionContent"),
-                    ("LoadSaveSectionHeader", "LoadSaveSectionContent") });
-    }
-
-    /// <summary>
-    /// Toggles a collapsible section and collapses other specified sections if this one is being expanded.
-    /// The arrow character (▼/▶) at the start of the button content is automatically toggled.
-    /// </summary>
-    private void ToggleSection(
-        string headerButtonName,
-        string contentBorderName,
-        (string headerName, string contentName)[] otherSectionsToCollapse)
-    {
-        var headerButton = this.FindControl<Button>(headerButtonName);
-        var contentBorder = this.FindControl<Border>(contentBorderName);
-
-        if (headerButton != null && contentBorder != null)
-        {
-            bool newExpandedState = !contentBorder.IsVisible;
-            SetSectionState(headerButton, contentBorder, newExpandedState);
-
-            // Collapse other sections if this section is being expanded
-            if (newExpandedState)
-            {
-                foreach (var (headerName, contentName) in otherSectionsToCollapse)
-                {
-                    var otherHeaderButton = this.FindControl<Button>(headerName);
-                    var otherContentBorder = this.FindControl<Border>(contentName);
-
-                    if (otherHeaderButton != null && otherContentBorder != null)
-                    {
-                        SetSectionState(otherHeaderButton, otherContentBorder, expanded: false);
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Sets the state of a collapsible section (expanded or collapsed).
-    /// Updates both the visibility of the content and the arrow character in the header button.
-    /// </summary>
-    private void SetSectionState(Button headerButton, Border contentBorder, bool expanded)
-    {
-        contentBorder.IsVisible = expanded;
-
-        if (headerButton.Content is string content)
-        {
-            if (expanded)
-            {
-                // Expand: change ▶ to ▼
-                headerButton.Content = content.Replace("▶", "▼");
-            }
-            else
-            {
-                // Collapse: change ▼ to ▶
-                headerButton.Content = content.Replace("▼", "▶");
-            }
-        }
-    }
 
     private CancellationTokenSource _buttonFlashCancellation;
 }

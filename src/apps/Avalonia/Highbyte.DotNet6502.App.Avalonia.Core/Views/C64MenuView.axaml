@@ -25,10 +25,14 @@
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0"
                     Content="Copy"
+                    AutomationProperties.AutomationId="CopyBasicButton"
+                    AutomationProperties.Name="Copy BASIC source to clipboard"
                     Command="{Binding CopyBasicSourceCommand}"
                     Classes="small"/>
             <Button Grid.Column="1"
                     Content="Paste"
+                    AutomationProperties.AutomationId="PasteTextButton"
+                    AutomationProperties.Name="Paste text from clipboard"
                     Command="{Binding PasteTextCommand}"
                     Classes="small"/>
         </Grid>
@@ -42,11 +46,14 @@
             </Grid.ColumnDefinitions>
             <CheckBox Grid.Column="0"
                       Content="AI Basic (F9)"
+                      AutomationProperties.AutomationId="AiBasicCheckBox"
                       Classes=""
                       IsChecked="{Binding BasicCodingAssistantEnabled}"
                       IsEnabled="{Binding BasicCodingAssistantAvailable}"/>
             <Button Grid.Column="2"
                     Content="i"
+                    AutomationProperties.AutomationId="AiBasicInfoButton"
+                    AutomationProperties.Name="About AI BASIC coding assistant"
                     Classes="info"
                     Click="OpenBasicAssistantInfo_Click"/>
         </Grid>
@@ -54,11 +61,16 @@
         <!-- Disk Drive & D64 images -->
         <StackPanel>
             <Button Name="DiskSectionHeader"
-                    Content="▼ Disk Drive &amp; .D64 images"
+                    AutomationProperties.AutomationId="DiskSectionHeader"
+                    AutomationProperties.Name="Toggle disk drive section"
+                    Content="{Binding DiskSectionHeaderText}"
                     Classes="section-toggle"
-                    Click="ToggleDiskSection_Click"/>
+                    Command="{Binding ToggleDiskSectionCommand}"/>
 
-            <Border Name="DiskSectionContent" Classes="collapsible-content">
+            <Border Name="DiskSectionContent"
+                    AutomationProperties.AutomationId="DiskSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsDiskSectionExpanded}">
                 <StackPanel Classes="spacing-tight">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -68,10 +80,14 @@
                         <Button Grid.Column="0"
                                 Content="{Binding DiskToggleButtonText}"
                                 Name="DiskToggleButton"
+                                AutomationProperties.AutomationId="DiskToggleButton"
+                                AutomationProperties.Name="Attach or detach disk image"
                                 Command="{Binding ToggleDiskImageCommand}"
                                 Classes="small"/>
                         <Button Grid.Column="1"
                                 Content="i"
+                                AutomationProperties.AutomationId="DiskInfoButton"
+                                AutomationProperties.Name="About disk drive and .D64 images"
                                 Classes="info"
                                 Click="OpenDiskInfo_Click"/>
                     </Grid>
@@ -84,6 +100,8 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="PreloadedDiskComboBox"
+                                  AutomationProperties.Name="Preloaded D64 program"
                                   ItemsSource="{Binding PreloadedD64Programs}"
                                   SelectedValue="{Binding SelectedPreloadedDisk}"
                                   DisplayMemberBinding="{Binding Value}"
@@ -93,11 +111,14 @@
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="i"
+                                AutomationProperties.AutomationId="PreloadedDiskInfoButton"
+                                AutomationProperties.Name="About preloaded D64 programs"
                                 Classes="info"
                                 Click="OpenDiskInfo_Click"/>
                     </Grid>
 
                     <Button Content="Download &amp; Run"
+                            AutomationProperties.AutomationId="DownloadAndRunDiskButton"
                             Classes="primary small"
                             Command="{Binding LoadPreloadedDiskCommand}"
                             IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
@@ -113,11 +134,16 @@
         <!-- Load/Save -->
         <StackPanel>
             <Button Name="LoadSaveSectionHeader"
-                    Content="▼ Load/Save"
+                    AutomationProperties.AutomationId="LoadSaveSectionHeader"
+                    AutomationProperties.Name="Toggle Load/Save section"
+                    Content="{Binding LoadSaveSectionHeaderText}"
                     Classes="section-toggle"
-                    Click="ToggleLoadSaveSection_Click"/>
+                    Command="{Binding ToggleLoadSaveSectionCommand}"/>
 
-            <Border Name="LoadSaveSectionContent" Classes="collapsible-content" IsVisible="False">
+            <Border Name="LoadSaveSectionContent"
+                    AutomationProperties.AutomationId="LoadSaveSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsLoadSaveSectionExpanded}">
                 <StackPanel Classes="spacing-tight">
                     <TextBlock Text="Load/save .prg files"
                                Classes="small secondary-text"/>
@@ -129,17 +155,20 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                                 Content="Load Basic"
+                                AutomationProperties.AutomationId="LoadBasicButton"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="LoadBasicFile_Click"
                                 Classes="small"/>
                         <Button Grid.Column="1"
                                 Content="Save Basic"
+                                AutomationProperties.AutomationId="SaveBasicButton"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="SaveBasicFile_Click"
                                 Classes="small"/>
                     </Grid>
 
                     <Button Content="Load &amp; start binary"
+                            AutomationProperties.AutomationId="LoadBinaryButton"
                             Classes="primary small"
                             IsEnabled="{Binding IsFileOperationEnabled}"
                             Click="LoadBinaryFile_Click"/>
@@ -152,6 +181,8 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="AssemblyExampleComboBox"
+                                  AutomationProperties.Name="Assembly example file"
                                   ItemsSource="{Binding AssemblyExamples}"
                                   SelectedValue="{Binding SelectedAssemblyExample}"
                                   DisplayMemberBinding="{Binding Value}"
@@ -162,6 +193,7 @@
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
+                                AutomationProperties.AutomationId="LoadAssemblyExampleButton"
                                 VerticalAlignment="Stretch"
                                 Classes="primary small"
                                 Command="{Binding LoadAssemblyExampleCommand}"/>
@@ -175,6 +207,8 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="BasicExampleComboBox"
+                                  AutomationProperties.Name="Basic example file"
                                   ItemsSource="{Binding BasicExamples}"
                                   SelectedValue="{Binding SelectedBasicExample}"
                                   DisplayMemberBinding="{Binding Value}"
@@ -185,6 +219,7 @@
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load"
+                                AutomationProperties.AutomationId="LoadBasicExampleButton"
                                 VerticalAlignment="Stretch"
                                 Classes="primary small"
                                 Command="{Binding LoadBasicExampleCommand}"/>
@@ -196,11 +231,16 @@
         <!-- Configuration -->
         <StackPanel>
             <Button Name="ConfigSectionHeader"
-                    Content="▼ Configuration"
+                    AutomationProperties.AutomationId="ConfigSectionHeader"
+                    AutomationProperties.Name="Toggle Configuration section"
+                    Content="{Binding ConfigSectionHeaderText}"
                     Classes="section-toggle"
-                    Click="ToggleConfigSection_Click"/>
+                    Command="{Binding ToggleConfigSectionCommand}"/>
 
-            <Border Name="ConfigSectionContent" Classes="collapsible-content" IsVisible="False">
+            <Border Name="ConfigSectionContent"
+                    AutomationProperties.AutomationId="ConfigSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsConfigSectionExpanded}">
                 <StackPanel Classes="spacing-tight">
                     <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
@@ -211,6 +251,8 @@
                                    Text="Active joystick:"
                                    Classes="small secondary-text"/>
                         <ComboBox Grid.Column="1"
+                                  AutomationProperties.AutomationId="ActiveJoystickComboBox"
+                                  AutomationProperties.Name="Active joystick"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding CurrentJoystick}"
                                   Classes="small"
@@ -224,9 +266,12 @@
                         </Grid.ColumnDefinitions>
                         <CheckBox Grid.Column="0"
                                   Content="Joystick KB:"
+                                  AutomationProperties.AutomationId="JoystickKeyboardCheckBox"
                                   Classes="small"
                                   IsChecked="{Binding JoystickKeyboardEnabled}"/>
                         <ComboBox Grid.Column="1"
+                                  AutomationProperties.AutomationId="KeyboardJoystickComboBox"
+                                  AutomationProperties.Name="Keyboard joystick port"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding KeyboardJoystick}"
                                   IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
@@ -235,6 +280,8 @@
                     </Grid>
 
                     <Button Name ="C64Config"
+                            AutomationProperties.AutomationId="C64ConfigButton"
+                            AutomationProperties.Name="Open C64 configuration dialog"
                             Content="C64 Config"
                             Click="OpenC64Config_Click"
                             IsEnabled="{Binding IsC64ConfigEnabled}"
