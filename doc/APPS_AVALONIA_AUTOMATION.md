@@ -230,6 +230,22 @@ peekaboo click --coords "440,595" --app "DotNet6502 Emulator" --window-index 0
 
 - **AXIdentifier-based clicking isn't directly supported.** peekaboo's `--id` / `--on` flags take the `elem_NN` token from a `see` snapshot, not the `AutomationProperties.AutomationId` string. To select by AutomationId, parse the JSON from `peekaboo see --json` and look for `identifier == "StartButton"` to find the corresponding `elem_NN`, then pass that to `click --on`.
 
+- **Sidebar buttons (C64MenuView) are not reachable via peekaboo `click`.** Controls in the left-hand sidebar — `DownloadAndRunDiskButton`, `PreloadedDiskComboBox`, `LoadBasicButton`, etc. — do not appear in the AX tree that peekaboo enumerates, so neither text-query nor `elem_NN` clicks work. `peekaboo click --coords` also fails because it still attempts AX focus resolution internally when `--app` is given. The reliable fallback is **AppleScript coordinate-click**, which does a raw hit-test outside the AX tree:
+
+  ```applescript
+  tell application "DotNet6502 Emulator" to activate
+  delay 0.5
+  tell application "System Events"
+      tell process "DotNet6502 Emulator"
+          set winPos to position of window 1
+          -- Replace (dx, dy) with the button's offset from the window's top-left corner
+          click at {(item 1 of winPos) + dx, (item 2 of winPos) + dy}
+      end tell
+  end tell
+  ```
+
+  From a shell script, wrap this in `osascript -e '...'` or `osascript <<'EOF' ... EOF`. Verified working for `DownloadAndRunDiskButton` (offset approx. `x+90, y+585` at default window size). For sidebar actions that have a C64 menu shortcut (toggle sections, set joystick port), prefer `peekaboo menu click` over coordinate hacks — those are more robust to window size changes.
+
 ## Worked example: start the emulator, then open the Log tab
 
 ```sh
