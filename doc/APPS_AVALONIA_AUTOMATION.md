@@ -112,6 +112,36 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - `StatisticsView` (root)
 - `C64InfoView` (root, keyboard mapping reference)
 
+# Keyboard shortcuts (system menu contributions)
+
+Some controls inside nested `UserControl`s do not traverse cleanly to the macOS AX tree (see "known gaps" below — the left-pane `C64MenuView` sections are the most visible example). To keep those operations reachable for agents and keyboard users, the active system's menu ViewModel implements `ISystemMenuContributor` ([`Core/SystemSetup/ISystemMenuContributor.cs`](../src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/SystemSetup/ISystemMenuContributor.cs)) and contributes:
+- A `NativeMenu` that Avalonia installs on the **macOS system menu bar** (shown under a top-level header for the active system, e.g. `C64`). On macOS, `NativeMenu` items appear in the OS-level menu bar *outside* the app window — which is the desired UX. The macOS Accessibility API also exposes these items with their `Gesture` string, making shortcuts self-describing: an AI agent can discover them at runtime via `peekaboo menu list` without needing any prior documentation.
+- A parallel list of `KeyBinding`s applied to the main window on **Windows / Linux**. `NativeMenu` on these platforms would render as in-window chrome, which is not desired, so `KeyBinding`s are used instead. The shortcuts fire regardless of which child control has focus, but they are invisible to accessibility tools — an automation agent needs to know them in advance (e.g. from this document).
+
+`MainViewModel.ActiveMenuContributor` swaps when `SelectedSystemName` changes; `MainView.axaml.cs` applies the new menu / keybindings, and clears the previous one on teardown.
+
+## C64 shortcuts (active when the C64 system is selected)
+
+| Action                           | macOS               | Windows / Linux       |
+| -------------------------------- | ------------------- | --------------------- |
+| Toggle Disk Drive section        | `⌘⌥⇧D`         | `Ctrl+Alt+Shift+D`    |
+| Toggle Load/Save section         | `⌘⌥L`            | `Ctrl+Alt+L`          |
+| Toggle Configuration section     | `⌘⌥C`            | `Ctrl+Alt+C`          |
+| Active joystick → Port 1         | `⌘⌥1`            | `Ctrl+Alt+1`          |
+| Active joystick → Port 2         | `⌘⌥2`            | `Ctrl+Alt+2`          |
+| Toggle Joystick KB               | `⌘⌥K`            | `Ctrl+Alt+K`          |
+| Keyboard joystick → Port 1       | `⌘⌥⇧1`         | `Ctrl+Alt+Shift+1`    |
+| Keyboard joystick → Port 2       | `⌘⌥⇧2`         | `Ctrl+Alt+Shift+2`    |
+
+On macOS, the shortcuts are discoverable by walking the app's menu bar via peekaboo:
+
+```sh
+peekaboo menu list --app "DotNet6502 Emulator"
+peekaboo menu click --app "DotNet6502 Emulator" --path "C64 > Toggle Configuration section"
+```
+
+On Windows / Linux, the same shortcuts are dispatched by the main window's key bindings; an automation harness simulates the key combo instead of clicking a menu.
+
 # What is NOT surfaced (known gaps)
 
 1. **Individual `TabItem` controls on macOS** — verified with `peekaboo see` after running the app. The `InformationTabControl` surfaces, but its `TabItem` children (`InformationTab`, `LogTab`, etc.) do not appear as distinct clickable elements in the AX tree, *despite* having explicit `AutomationProperties.AutomationId` + `Name`. The AX tree on macOS reports roles limited to `button`, `group`, `menu`, `other`, `slider` — no `AXTabGroup` / `AXTab`.

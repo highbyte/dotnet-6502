@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -8,6 +9,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Configuration;
@@ -32,6 +34,10 @@ public partial class MainView : UserControl
     // For log auto-scroll
     private ScrollViewer? _logScrollViewer;
     private bool _logAutoScrollEnabled = true;
+
+    // KeyBindings added to the MainWindow on behalf of the current system menu contributor.
+    // Tracked so we can remove them when the active contributor swaps or the view detaches.
+    private readonly System.Collections.Generic.List<KeyBinding> _contributorKeyBindings = new();
 
     // Parameterless constructor - child views created by XAML!
     public MainView()
@@ -61,6 +67,10 @@ public partial class MainView : UserControl
             if (DataContext is MainViewModel viewModel)
             {
                 await viewModel.InitializeAsync();
+                // Explicit apply after initialization completes: the reactive chain fires
+                // during InitializeAsync but NativeMenu.SetMenu may require the call to
+                // originate on the UI thread AFTER the window is fully shown.
+                ApplyMenuContributor(_subscribedViewModel?.ActiveMenuContributor);
             }
 
             // TODO: When not having the emulator started, need to set focus to the EmulatorView to capture keyboard input.
@@ -118,6 +128,8 @@ public partial class MainView : UserControl
             _subscribedViewModel.LogMessages.CollectionChanged += LogMessages_CollectionChanged;
             // Set up tab selection tracking
             SetupTabSelectionTracking();
+            // Apply menu + shortcuts for the initial contributor (may already be resolved)
+            ApplyMenuContributor(_subscribedViewModel.ActiveMenuContributor);
         }
     }
 
@@ -128,6 +140,11 @@ public partial class MainView : UserControl
         if (e.PropertyName == nameof(MainViewModel.ValidationErrors))
         {
             CheckAndSelectValidationErrorsTab();
+        }
+
+        if (e.PropertyName == nameof(MainViewModel.ActiveMenuContributor) && _subscribedViewModel != null)
+        {
+            ApplyMenuContributor(_subscribedViewModel.ActiveMenuContributor);
         }
 
         if (e.PropertyName == nameof(MainViewModel.IsMonitorVisible) && DataContext is MainViewModel viewModel)
@@ -345,6 +362,9 @@ public partial class MainView : UserControl
     {
         base.OnDetachedFromVisualTree(e);
 
+        // Tear down any menu + keybindings we contributed while attached.
+        ApplyMenuContributor(null);
+
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -357,11 +377,104 @@ public partial class MainView : UserControl
             _subscribedViewModel = null;
         }
     }
+
+    /// <summary>
+    /// Replaces any previously-applied menu/keybindings with those from <paramref name="contributor"/>.
+    /// Pass null to clear (e.g. on detach or when no system is selected).
+    ///
+    /// Platform split:
+    /// - macOS:         <see cref="NativeMenu"/> is installed on the Application. On macOS this
+    ///                  appears in the OS-level system menu bar (outside the app window), which is
+    ///                  the desired UX. The items are also exposed via the macOS Accessibility API
+    ///                  (AXMenuItem), making shortcuts self-describing for AI agents.
+    /// - Windows/Linux: <see cref="NativeMenu"/> would render as in-window chrome on these platforms,
+    ///                  which is not desired. <see cref="KeyBinding"/>s are added to the MainWindow
+    ///                  instead — shortcuts fire regardless of focus but are not visible in any menu.
+    /// - WASM:          No-op; neither applies in the browser target.
+    /// </summary>
+    private void ApplyMenuContributor(ISystemMenuContributor? contributor)
+    {
+        if (PlatformDetection.IsRunningInWebAssembly())
+            return;
+
+        // NativeMenu.SetMenu must be called on the UI thread on macOS.
+        // SelectedSystemName PropertyChanged can fire on a background thread after an async await.
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => ApplyMenuContributor(contributor));
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        var window = topLevel as Window;
+
+        // Remove any previously-added key bindings from the window.
+        if (window != null)
+        {
+            foreach (var kb in _contributorKeyBindings)
+                window.KeyBindings.Remove(kb);
+        }
+        _contributorKeyBindings.Clear();
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            // On macOS: mutate the items of the pre-registered NativeMenu object (set in
+            // App.Initialize) rather than replacing the menu. Replacing the object stops
+            // Avalonia's backend from tracking it, so shortcuts and the menu bar stop working.
+            var appMenu = Application.Current is { } a ? NativeMenu.GetMenu(a) : null;
+            if (appMenu == null)
+            {
+                // Fallback: pre-registration didn't happen (e.g. non-macOS path ran first).
+                appMenu = new NativeMenu();
+                if (Application.Current is { } currentApp2)
+                    NativeMenu.SetMenu(currentApp2, appMenu);
+            }
+
+            appMenu.Items.Clear();
+
+            if (contributor != null)
+            {
+                var systemRoot = new NativeMenuItem { Header = contributor.MenuLabel };
+                var submenu = new NativeMenu();
+                foreach (var item in contributor.GetNativeMenuItems())
+                    submenu.Items.Add(item);
+                systemRoot.Menu = submenu;
+                appMenu.Items.Add(systemRoot);
+
+                Logger.LogInformation("[NativeMenu] Updated existing NativeMenu for contributor '{Label}': {Count} top-level items",
+                    contributor.MenuLabel, appMenu.Items.Count);
+            }
+            else
+            {
+                Logger.LogInformation("[NativeMenu] Cleared NativeMenu (no contributor)");
+            }
+        }
+        else
+        {
+            // On Windows/Linux: NativeMenu would render as in-window chrome, which is not the
+            // desired UX (unlike macOS where it goes to the OS system menu bar). Use window-level
+            // KeyBindings instead — shortcuts fire regardless of which child has focus, but they
+            // are invisible to accessibility tools and require prior knowledge to discover.
+            if (window != null && contributor != null)
+            {
+                foreach (var kb in contributor.GetKeyBindings())
+                {
+                    window.KeyBindings.Add(kb);
+                    _contributorKeyBindings.Add(kb);
+                }
+            }
+        }
+    }
     private void MainView_AttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         // Directly find the LogScrollViewer by name
         _logScrollViewer = this.FindControl<ScrollViewer>("LogScrollViewer");
         _logScrollViewer?.ScrollChanged += LogScrollViewer_ScrollChanged;
+
+        // Now that the MainView has a TopLevel (Window), apply the contributor's native menu /
+        // keybindings — the earlier call during DataContextChanged could not find the window.
+        if (_subscribedViewModel != null)
+            ApplyMenuContributor(_subscribedViewModel.ActiveMenuContributor);
     }
 
     private void LogScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)

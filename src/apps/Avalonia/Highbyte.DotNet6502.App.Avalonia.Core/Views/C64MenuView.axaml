@@ -63,13 +63,14 @@
             <Button Name="DiskSectionHeader"
                     AutomationProperties.AutomationId="DiskSectionHeader"
                     AutomationProperties.Name="Toggle disk drive section"
-                    Content="▼ Disk Drive &amp; .D64 images"
+                    Content="{Binding DiskSectionHeaderText}"
                     Classes="section-toggle"
-                    Click="ToggleDiskSection_Click"/>
+                    Command="{Binding ToggleDiskSectionCommand}"/>
 
             <Border Name="DiskSectionContent"
                     AutomationProperties.AutomationId="DiskSectionContent"
-                    Classes="collapsible-content">
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsDiskSectionExpanded}">
                 <StackPanel Classes="spacing-tight">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -135,13 +136,14 @@
             <Button Name="LoadSaveSectionHeader"
                     AutomationProperties.AutomationId="LoadSaveSectionHeader"
                     AutomationProperties.Name="Toggle Load/Save section"
-                    Content="▼ Load/Save"
+                    Content="{Binding LoadSaveSectionHeaderText}"
                     Classes="section-toggle"
-                    Click="ToggleLoadSaveSection_Click"/>
+                    Command="{Binding ToggleLoadSaveSectionCommand}"/>
 
             <Border Name="LoadSaveSectionContent"
                     AutomationProperties.AutomationId="LoadSaveSectionContent"
-                    Classes="collapsible-content" IsVisible="False">
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsLoadSaveSectionExpanded}">
                 <StackPanel Classes="spacing-tight">
                     <TextBlock Text="Load/save .prg files"
                                Classes="small secondary-text"/>
@@ -231,13 +233,14 @@
             <Button Name="ConfigSectionHeader"
                     AutomationProperties.AutomationId="ConfigSectionHeader"
                     AutomationProperties.Name="Toggle Configuration section"
-                    Content="▼ Configuration"
+                    Content="{Binding ConfigSectionHeaderText}"
                     Classes="section-toggle"
-                    Click="ToggleConfigSection_Click"/>
+                    Command="{Binding ToggleConfigSectionCommand}"/>
 
             <Border Name="ConfigSectionContent"
                     AutomationProperties.AutomationId="ConfigSectionContent"
-                    Classes="collapsible-content" IsVisible="False">
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsConfigSectionExpanded}">
                 <StackPanel Classes="spacing-tight">
                     <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
