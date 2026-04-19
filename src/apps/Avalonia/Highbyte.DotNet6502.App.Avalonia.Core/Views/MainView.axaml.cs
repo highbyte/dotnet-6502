@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia;
@@ -15,6 +16,7 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ReactiveUI;
 using AvaloniaAnimation = Avalonia.Animation;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -38,6 +40,20 @@ public partial class MainView : UserControl
     // KeyBindings added to the MainWindow on behalf of the current system menu contributor.
     // Tracked so we can remove them when the active contributor swaps or the view detaches.
     private readonly System.Collections.Generic.List<KeyBinding> _contributorKeyBindings = new();
+
+    // Permanent tab-navigation KeyBindings (Windows/Linux). Added once on attach; never swapped.
+    private readonly System.Collections.Generic.List<KeyBinding> _generalKeyBindings = new();
+
+    // Tab navigation shortcut definitions — order determines NativeMenu display order.
+    private static readonly (Key Key, string TabItemName, string Label)[] TabNavigationShortcuts =
+    {
+        (Key.I, "InformationTabItem",  "Information"),
+        (Key.C, "ConfigStatusTabItem", "Config status"),
+        (Key.L, "LogTabItem",          "Log"),
+        (Key.S, "ScriptsTabItem",      "Scripts"),
+        (Key.G, "GeneralInfoTabItem",  "General info"),
+        (Key.D, "DebugTabItem",        "Debug"),
+    };
 
     // Parameterless constructor - child views created by XAML!
     public MainView()
@@ -365,6 +381,14 @@ public partial class MainView : UserControl
         // Tear down any menu + keybindings we contributed while attached.
         ApplyMenuContributor(null);
 
+        // Remove permanent tab-navigation key bindings.
+        if (TopLevel.GetTopLevel(this) is Window window)
+        {
+            foreach (var kb in _generalKeyBindings)
+                window.KeyBindings.Remove(kb);
+        }
+        _generalKeyBindings.Clear();
+
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -432,6 +456,23 @@ public partial class MainView : UserControl
 
             appMenu.Items.Clear();
 
+            // Always add View menu for tab navigation (order-independent, works regardless of system).
+            var viewRoot = new NativeMenuItem { Header = "View" };
+            var viewMenu = new NativeMenu();
+            const KeyModifiers macViewMod = KeyModifiers.Meta | KeyModifiers.Alt;
+            foreach (var (key, tabItemName, label) in TabNavigationShortcuts)
+            {
+                var name = tabItemName;
+                viewMenu.Items.Add(new NativeMenuItem
+                {
+                    Header = label,
+                    Gesture = new KeyGesture(key, macViewMod),
+                    Command = ReactiveCommand.Create(() => SelectTab(name))
+                });
+            }
+            viewRoot.Menu = viewMenu;
+            appMenu.Items.Add(viewRoot);
+
             if (contributor != null)
             {
                 var systemRoot = new NativeMenuItem { Header = contributor.MenuLabel };
@@ -475,6 +516,47 @@ public partial class MainView : UserControl
         // keybindings — the earlier call during DataContextChanged could not find the window.
         if (_subscribedViewModel != null)
             ApplyMenuContributor(_subscribedViewModel.ActiveMenuContributor);
+
+        // Register always-on tab navigation shortcuts (Windows/Linux only; macOS uses NativeMenu).
+        ApplyGeneralKeyBindings();
+    }
+
+    // Selects a bottom tab by its Name attribute, regardless of tab order.
+    private void SelectTab(string tabItemName)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (this.FindControl<TabControl>("InformationTabControl") is not { } tabControl) return;
+            if (this.FindControl<TabItem>(tabItemName) is not { } tabItem) return;
+            tabControl.SelectedItem = tabItem;
+        });
+    }
+
+    // Registers permanent Ctrl+Alt+<key> KeyBindings on the Window for tab navigation.
+    // Windows/Linux only — on macOS the same shortcuts live in the "View" NativeMenu section.
+    private void ApplyGeneralKeyBindings()
+    {
+        if (PlatformDetection.IsRunningInWebAssembly()) return;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return;
+
+        if (TopLevel.GetTopLevel(this) is not Window window) return;
+
+        foreach (var kb in _generalKeyBindings)
+            window.KeyBindings.Remove(kb);
+        _generalKeyBindings.Clear();
+
+        const KeyModifiers mod = KeyModifiers.Control | KeyModifiers.Alt;
+        foreach (var (key, tabItemName, _) in TabNavigationShortcuts)
+        {
+            var name = tabItemName;
+            var kb = new KeyBinding
+            {
+                Gesture = new KeyGesture(key, mod),
+                Command = ReactiveCommand.Create(() => SelectTab(name))
+            };
+            window.KeyBindings.Add(kb);
+            _generalKeyBindings.Add(kb);
+        }
     }
 
     private void LogScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -486,6 +568,34 @@ public partial class MainView : UserControl
         bool isAtBottom = _logScrollViewer.Offset.Y >= _logScrollViewer.Extent.Height - _logScrollViewer.Viewport.Height - tolerance;
         _logAutoScrollEnabled = isAtBottom;
     }
+
+    private void LogEntryContextMenu_CopyMessage_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var dataContext = (sender as MenuItem)?.DataContext ?? ((sender as MenuItem)?.Parent as ContextMenu)?.DataContext;
+            if (dataContext is LogDisplayEntry entry
+                && TopLevel.GetTopLevel(this) is { } topLevel
+                && topLevel.Clipboard is { } clipboard)
+            {
+                using var data = new DataTransfer();
+                data.Add(DataTransferItem.CreateText(entry.Message));
+                await clipboard.SetDataAsync(data);
+            }
+        });
+
+    private void CopyAllLog_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (_subscribedViewModel == null) return;
+            if (TopLevel.GetTopLevel(this) is not { } topLevel) return;
+            if (topLevel.Clipboard is not { } clipboard) return;
+
+            var text = string.Join(Environment.NewLine,
+            _subscribedViewModel.LogMessages.Select(m => m.Message));
+            using var data = new DataTransfer();
+            data.Add(DataTransferItem.CreateText(text));
+            await clipboard.SetDataAsync(data);
+        });
 
     private void LogMessages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {

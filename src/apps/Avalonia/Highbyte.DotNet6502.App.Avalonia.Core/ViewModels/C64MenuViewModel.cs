@@ -495,8 +495,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         return new NativeMenuItemBase[]
         {
             BuildMenuItem("Toggle Disk Drive section", new KeyGesture(Key.D, macShift), ToggleDiskSectionCommand),
-            BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macBase), ToggleLoadSaveSectionCommand),
-            BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macBase), ToggleConfigSectionCommand),
+            BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macShift), ToggleLoadSaveSectionCommand),
+            BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macShift), ToggleConfigSectionCommand),
             new NativeMenuItemSeparator(),
             BuildMenuItem("Active joystick: Port 1", new KeyGesture(Key.D1, macBase), SetActiveJoystickCommand, 1),
             BuildMenuItem("Active joystick: Port 2", new KeyGesture(Key.D2, macBase), SetActiveJoystickCommand, 2),
@@ -520,8 +520,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         return new[]
         {
             BuildKeyBinding(new KeyGesture(Key.D, nonMacShift), ToggleDiskSectionCommand),
-            BuildKeyBinding(new KeyGesture(Key.L, nonMacBase), ToggleLoadSaveSectionCommand),
-            BuildKeyBinding(new KeyGesture(Key.C, nonMacBase), ToggleConfigSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.L, nonMacShift), ToggleLoadSaveSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.C, nonMacShift), ToggleConfigSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.D1, nonMacBase), SetActiveJoystickCommand, 1),
             BuildKeyBinding(new KeyGesture(Key.D2, nonMacBase), SetActiveJoystickCommand, 2),
             BuildKeyBinding(new KeyGesture(Key.K, nonMacBase), ToggleJoystickKeyboardCommand),

@@ -1061,7 +1061,7 @@ public class LogDisplayEntry
     public LogDisplayEntry(LogEntry logEntry)
     {
         LogLevel = logEntry.LogLevel;
-        Message = logEntry.Message;
+        Message = logEntry.Message.TrimEnd();
         Symbol = GetSymbolForLogLevel(logEntry.LogLevel);
         FormattedDisplay = $"{Symbol} {Message}";
 

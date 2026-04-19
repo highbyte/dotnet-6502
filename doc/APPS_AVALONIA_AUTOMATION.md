@@ -112,35 +112,58 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - `StatisticsView` (root)
 - `C64InfoView` (root, keyboard mapping reference)
 
-# Keyboard shortcuts (system menu contributions)
+# Keyboard shortcuts
 
-Some controls inside nested `UserControl`s do not traverse cleanly to the macOS AX tree (see "known gaps" below — the left-pane `C64MenuView` sections are the most visible example). To keep those operations reachable for agents and keyboard users, the active system's menu ViewModel implements `ISystemMenuContributor` ([`Core/SystemSetup/ISystemMenuContributor.cs`](../src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/SystemSetup/ISystemMenuContributor.cs)) and contributes:
-- A `NativeMenu` that Avalonia installs on the **macOS system menu bar** (shown under a top-level header for the active system, e.g. `C64`). On macOS, `NativeMenu` items appear in the OS-level menu bar *outside* the app window — which is the desired UX. The macOS Accessibility API also exposes these items with their `Gesture` string, making shortcuts self-describing: an AI agent can discover them at runtime via `peekaboo menu list` without needing any prior documentation.
-- A parallel list of `KeyBinding`s applied to the main window on **Windows / Linux**. `NativeMenu` on these platforms would render as in-window chrome, which is not desired, so `KeyBinding`s are used instead. The shortcuts fire regardless of which child control has focus, but they are invisible to accessibility tools — an automation agent needs to know them in advance (e.g. from this document).
+The app exposes two layers of shortcuts:
 
-`MainViewModel.ActiveMenuContributor` swaps when `SelectedSystemName` changes; `MainView.axaml.cs` applies the new menu / keybindings, and clears the previous one on teardown.
+1. **General tab-navigation shortcuts** — always active, independent of which emulator system is running.
+2. **System-specific shortcuts** — active only when a particular system is selected (e.g. C64). The active system's menu ViewModel implements `ISystemMenuContributor` ([`Core/SystemSetup/ISystemMenuContributor.cs`](../src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/SystemSetup/ISystemMenuContributor.cs)).
+
+On macOS both layers appear in the OS-level **system menu bar** (outside the app window) — general shortcuts under a `View` top-level menu, system-specific shortcuts under the system name (e.g. `C64`). The macOS Accessibility API exposes these with their `Gesture` string, so an AI agent can discover them at runtime without prior documentation:
+
+```sh
+peekaboo menu list --app "DotNet 6502 Emulator"
+```
+
+On **Windows / Linux**, `NativeMenu` would render as in-window chrome (not desired), so `KeyBinding`s registered on the main window are used instead. They fire regardless of which child control has focus, but are invisible to accessibility tools — an agent needs to know them from this document.
+
+## Tab navigation shortcuts (always active)
+
+These shortcuts jump directly to a named tab regardless of tab order — reordering tabs in code does **not** break automation scripts.
+
+| Tab             | macOS    | Windows / Linux    |
+| --------------- | -------- | ------------------ |
+| Information     | `⌘⌥I` | `Ctrl+Alt+I`       |
+| Config status   | `⌘⌥C` | `Ctrl+Alt+C`       |
+| Log             | `⌘⌥L` | `Ctrl+Alt+L`       |
+| Scripts         | `⌘⌥S` | `Ctrl+Alt+S`       |
+| General info    | `⌘⌥G` | `Ctrl+Alt+G`       |
+| Debug           | `⌘⌥D` | `Ctrl+Alt+D`       |
+
+On macOS, click via the menu bar instead of counting arrow-key presses:
+
+```sh
+peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > View > Log"
+```
 
 ## C64 shortcuts (active when the C64 system is selected)
 
 | Action                           | macOS               | Windows / Linux       |
 | -------------------------------- | ------------------- | --------------------- |
 | Toggle Disk Drive section        | `⌘⌥⇧D`         | `Ctrl+Alt+Shift+D`    |
-| Toggle Load/Save section         | `⌘⌥L`            | `Ctrl+Alt+L`          |
-| Toggle Configuration section     | `⌘⌥C`            | `Ctrl+Alt+C`          |
+| Toggle Load/Save section         | `⌘⌥⇧L`         | `Ctrl+Alt+Shift+L`    |
+| Toggle Configuration section     | `⌘⌥⇧C`         | `Ctrl+Alt+Shift+C`    |
 | Active joystick → Port 1         | `⌘⌥1`            | `Ctrl+Alt+1`          |
 | Active joystick → Port 2         | `⌘⌥2`            | `Ctrl+Alt+2`          |
 | Toggle Joystick KB               | `⌘⌥K`            | `Ctrl+Alt+K`          |
 | Keyboard joystick → Port 1       | `⌘⌥⇧1`         | `Ctrl+Alt+Shift+1`    |
 | Keyboard joystick → Port 2       | `⌘⌥⇧2`         | `Ctrl+Alt+Shift+2`    |
 
-On macOS, the shortcuts are discoverable by walking the app's menu bar via peekaboo:
+On macOS, click via the menu bar:
 
 ```sh
-peekaboo menu list --app "DotNet 6502 Emulator"
-peekaboo menu click --app "DotNet 6502 Emulator" --path "C64 > Toggle Configuration section"
+peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > C64 > Toggle Configuration section"
 ```
-
-On Windows / Linux, the same shortcuts are dispatched by the main window's key bindings; an automation harness simulates the key combo instead of clicking a menu.
 
 # What is NOT surfaced (known gaps)
 
@@ -148,7 +171,24 @@ On Windows / Linux, the same shortcuts are dispatched by the main window's key b
 
    This is most likely an Avalonia `TabItemAutomationPeer` / macOS NSAccessibility bridge limitation, not a bug in this codebase. Worth filing an issue upstream in `avaloniaui/Avalonia`.
 
-   **Workaround**: click the tab by screen coordinates (see the peekaboo section below), or use keyboard navigation (`Ctrl+Tab` / arrow keys when the tab control is focused).
+   **Workaround**: use keyboard navigation — this is the **reliable** approach. Find the `InformationTabControl` element via `peekaboo see`, click it to give it focus, then press the right-arrow key once per tab step:
+
+   ```sh
+   # Capture the AX tree and find InformationTabControl's elem_NN
+   peekaboo see --app "DotNet 6502 Emulator" --json | jq '.. | objects | select(.identifier == "InformationTabControl") | .id'
+   # → e.g. "elem_49"
+
+   # Focus the tab control
+   peekaboo click --on elem_49 --app "DotNet 6502 Emulator" --window-index 0
+
+   # Navigate right to reach the target tab (count depends on which tab is currently active)
+   # Tab order: Information → ConfigStatus → Log → Scripts → GeneralInfo → Debug
+   peekaboo press right   # repeat as needed
+   ```
+
+   The number of right-arrow presses depends on the **currently active tab**, not a fixed offset. If "Information" is active, pressing right twice reaches "Log". If another tab is already active, adjust accordingly.
+
+   **Avoid** clicking by screen coordinates for tabs: coordinates are window-size-dependent and scale across display densities. **Avoid** `peekaboo click "Log"`: text-query matching is global and can hit an element with the same label in another app or inside the tab's content area (e.g. Ghostty's "Log Out" menu).
 
 2. **Collapsed/conditional content** only appears in the AX tree when its container is rendered. Examples:
    - `C64MenuView` section contents (`DiskSectionContent`, `LoadSaveSectionContent`, `ConfigSectionContent`) — only visible when the section header is expanded.
@@ -224,7 +264,7 @@ peekaboo click --coords "440,595" --app "DotNet 6502 Emulator" --window-index 0
 
 - **Don't use `--no-auto-focus` from a terminal.** The terminal emulator (e.g. Ghostty) reclaims focus between commands, so a `--no-auto-focus` click lands on the terminal window at the same screen coordinates — `click` still reports "✅ Click successful" but against the wrong app. Let peekaboo's auto-focus bring the Avalonia window forward.
 
-- **Text-query clicks can hit the wrong element.** `peekaboo click "Log"` may match a `TextBlock` labelled "Log" *inside* the tab content rather than the tab header, because the header is behind the Avalonia TabItem AX gap described above. When targeting tabs specifically, use coordinates.
+- **Text-query clicks are unreliable for tabs — and can hit other apps.** `peekaboo click "Log"` searches globally across all visible AX elements. It can match a label *inside the tab content*, a menu item in another app (e.g. Ghostty's "Log Out" item), or any other element named "Log" that happens to be on screen. For tab navigation, always use the keyboard approach described in "Known Gaps" item 1 above.
 
 - **Screenshot coordinates vs. screen coordinates.** The annotated screenshot from `peekaboo see --annotate` is scaled to roughly 0.75× the window-point size. To convert a pixel position in the screenshot to a click coordinate, scale by ~1.33× and add the window's screen offset (`peekaboo list` shows the window Position).
 
@@ -258,8 +298,8 @@ START=$(peekaboo see --app "DotNet 6502 Emulator" --json \
 peekaboo click --on "$START" --snapshot "$SNAP" \
                --app "DotNet 6502 Emulator" --window-index 0
 
-# 2. Click Log tab by coordinates (tab row is ~y=595 at the given window size)
-peekaboo click --coords "440,595" --app "DotNet 6502 Emulator" --window-index 0
+# 2. Navigate to the Log tab via its named menu shortcut (order-independent)
+peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > View > Log"
 
 # Verify
 peekaboo see --app "DotNet 6502 Emulator" --annotate /tmp/after.png

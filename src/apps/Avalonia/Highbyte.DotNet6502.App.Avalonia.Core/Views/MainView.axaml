@@ -339,7 +339,7 @@
                                     
                                     <!-- Log content -->
                                     <ScrollViewer Grid.Column="0" x:Name="LogScrollViewer" Classes="auto-scroll">
-                                    <ItemsControl ItemsSource="{Binding LogMessages}" Classes="vertical-tight">
+                                    <ItemsControl ItemsSource="{Binding LogMessages}" Classes="vertical-tight" Padding="0,0,0,14">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <StackPanel />
@@ -353,7 +353,7 @@
                                                 <Setter Property="TextWrapping" Value="NoWrap"/>
                                                 <Setter Property="Margin" Value="0"/>
                                                 <Setter Property="HorizontalAlignment" Value="Left"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="VerticalAlignment" Value="Top"/>
                                             </Style>
                                             <Style Selector="TextBlock.log-trace">
                                                 <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
@@ -383,17 +383,36 @@
                                                 <Setter Property="Margin" Value="0"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                             </Style>
+                                            <Style Selector="SelectableTextBlock.log-message">
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+                                                <Setter Property="FontSize" Value="10"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="Margin" Value="0"/>
+                                                <Setter Property="VerticalAlignment" Value="Top"/>
+                                            </Style>
                                         </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid Margin="0,0,0,2">
+                                                <Grid Margin="0,0,0,2" ClipToBounds="True">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="12"/>
+                                                    </Grid.RowDefinitions>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="16" />  <!-- Fixed width for symbol alignment -->
                                                         <ColumnDefinition Width="*" />   <!-- Flexible width for message -->
                                                     </Grid.ColumnDefinitions>
-                                                    
+                                                    <Grid.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="Copy message"
+                                                                      Click="LogEntryContextMenu_CopyMessage_Click"
+                                                                      AutomationProperties.AutomationId="LogCopyMessageMenuItem"/>
+                                                        </ContextMenu>
+                                                    </Grid.ContextMenu>
+
                                                     <!-- Symbol container with proper alignment -->
-                                                    <TextBlock Grid.Column="0" 
+                                                    <TextBlock Grid.Column="0"
                                                         Text="{Binding Symbol}"
                                                         Classes="log-symbol"
                                                         Classes.log-trace="{Binding IsTrace}"
@@ -402,9 +421,9 @@
                                                         Classes.log-warning="{Binding IsWarning}"
                                                         Classes.log-error="{Binding IsError}"
                                                         Classes.log-critical="{Binding IsCritical}"/>
-                                                    
-                                                    <!-- Message text -->
-                                                    <TextBlock Grid.Column="1" 
+
+                                                    <!-- Message text (selectable for Cmd+C / Ctrl+C) -->
+                                                    <SelectableTextBlock Grid.Column="1"
                                                         Text="{Binding Message}"
                                                         Classes="log-message"/>
                                                 </Grid>
@@ -413,17 +432,29 @@
                                     </ItemsControl>
                                 </ScrollViewer>
                                 
-                                <!-- Clear button column -->
+                                <!-- Log action buttons column -->
                                 <Border Grid.Column="1" Classes="v-top" Margin="4,0,0,0">
-                                    <Button Command="{Binding ClearLogCommand}"
-                                            AutomationProperties.AutomationId="ClearLogButton"
-                                            Classes="small"
-                                            Width="60"
-                                            Height="20"
-                                            FontSize="10"
-                                            ToolTip.Tip="Clear log messages">
-                                        Clear
-                                    </Button>
+                                    <StackPanel Spacing="4">
+                                        <Button Click="CopyAllLog_Click"
+                                                AutomationProperties.AutomationId="CopyAllLogButton"
+                                                AutomationProperties.Name="Copy all log"
+                                                Classes="small"
+                                                Width="60"
+                                                Height="20"
+                                                FontSize="10"
+                                                ToolTip.Tip="Copy all log messages to clipboard">
+                                            Copy all
+                                        </Button>
+                                        <Button Command="{Binding ClearLogCommand}"
+                                                AutomationProperties.AutomationId="ClearLogButton"
+                                                Classes="small"
+                                                Width="60"
+                                                Height="20"
+                                                FontSize="10"
+                                                ToolTip.Tip="Clear log messages">
+                                            Clear
+                                        </Button>
+                                    </StackPanel>
                                 </Border>
                                 </Grid>
                             </Border>
