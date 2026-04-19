@@ -432,17 +432,29 @@
                                     </ItemsControl>
                                 </ScrollViewer>
                                 
-                                <!-- Clear button column -->
+                                <!-- Log action buttons column -->
                                 <Border Grid.Column="1" Classes="v-top" Margin="4,0,0,0">
-                                    <Button Command="{Binding ClearLogCommand}"
-                                            AutomationProperties.AutomationId="ClearLogButton"
-                                            Classes="small"
-                                            Width="60"
-                                            Height="20"
-                                            FontSize="10"
-                                            ToolTip.Tip="Clear log messages">
-                                        Clear
-                                    </Button>
+                                    <StackPanel Spacing="4">
+                                        <Button Click="CopyAllLog_Click"
+                                                AutomationProperties.AutomationId="CopyAllLogButton"
+                                                AutomationProperties.Name="Copy all log"
+                                                Classes="small"
+                                                Width="60"
+                                                Height="20"
+                                                FontSize="10"
+                                                ToolTip.Tip="Copy all log messages to clipboard">
+                                            Copy all
+                                        </Button>
+                                        <Button Command="{Binding ClearLogCommand}"
+                                                AutomationProperties.AutomationId="ClearLogButton"
+                                                Classes="small"
+                                                Width="60"
+                                                Height="20"
+                                                FontSize="10"
+                                                ToolTip.Tip="Clear log messages">
+                                            Clear
+                                        </Button>
+                                    </StackPanel>
                                 </Border>
                                 </Grid>
                             </Border>

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia;
@@ -580,6 +581,20 @@ public partial class MainView : UserControl
                 data.Add(DataTransferItem.CreateText(entry.Message));
                 await clipboard.SetDataAsync(data);
             }
+        });
+
+    private void CopyAllLog_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (_subscribedViewModel == null) return;
+            if (TopLevel.GetTopLevel(this) is not { } topLevel) return;
+            if (topLevel.Clipboard is not { } clipboard) return;
+
+            var text = string.Join(Environment.NewLine,
+            _subscribedViewModel.LogMessages.Select(m => m.Message));
+            using var data = new DataTransfer();
+            data.Add(DataTransferItem.CreateText(text));
+            await clipboard.SetDataAsync(data);
         });
 
     private void LogMessages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
