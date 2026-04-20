@@ -88,6 +88,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
     // Debug tab visibility from config
+    public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTools || PlatformDetection.IsRunningOnDesktop();
     public bool IsDebugToolsVisible => _emulatorConfig.ShowDebugTools;
 
     // Private field to cache validation errors
@@ -340,7 +341,26 @@ public class MainViewModel : ViewModelBase, IDisposable
         private set => this.RaiseAndSetIfChanged(ref _isRemoteClientConnected, value);
     }
 
-    private int _remoteControlPort = 6600;
+    private bool _isRemoteClientBannerVisible;
+    public bool IsRemoteClientBannerVisible
+    {
+        get => _isRemoteClientBannerVisible;
+        private set => this.RaiseAndSetIfChanged(ref _isRemoteClientBannerVisible, value);
+    }
+
+    private double _remoteClientBannerOpacity;
+    public double RemoteClientBannerOpacity
+    {
+        get => _remoteClientBannerOpacity;
+        private set => this.RaiseAndSetIfChanged(ref _remoteClientBannerOpacity, value);
+    }
+
+    private static readonly TimeSpan RemoteClientBannerFadeDuration = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan RemoteClientBannerMinimumVisibleDuration = TimeSpan.FromSeconds(1);
+    private System.Threading.CancellationTokenSource? _remoteClientBannerAnimationCts;
+    private DateTimeOffset? _remoteClientBannerShownAtUtc;
+
+    private int _remoteControlPort = IRemoteControlController.DefaultPort;
     public int RemoteControlPort
     {
         get => _remoteControlPort;
@@ -350,10 +370,13 @@ public class MainViewModel : ViewModelBase, IDisposable
     public string RemoteControlStatusText => _remoteControlController switch
     {
         null => "",
-        { IsClientConnected: true } => "Connected",
         { IsListening: true } => $"Listening on :{_remoteControlController.Port}",
         _ => "Off"
     };
+
+    public string RemoteControlToggleButtonText => _isRemoteControlListening ? "Stop" : "Start";
+
+    public ReactiveCommand<Unit, Unit> ToggleRemoteControlCommand { get; }
 
     public void ClearMonitorViewModel()
     {
@@ -366,6 +389,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void RefreshConfigProperties()
     {
+        this.RaisePropertyChanged(nameof(IsDebugTabVisible));
         this.RaisePropertyChanged(nameof(IsDebugToolsVisible));
     }
 
@@ -579,7 +603,12 @@ public class MainViewModel : ViewModelBase, IDisposable
         {
             _isRemoteControlListening = _remoteControlController.IsListening;
             _isRemoteClientConnected = _remoteControlController.IsClientConnected;
-            _remoteControlPort = _remoteControlController.Port;
+            if (_remoteControlController.IsListening)
+                _remoteControlPort = _remoteControlController.Port;
+            _isRemoteClientBannerVisible = _isRemoteClientConnected;
+            _remoteClientBannerOpacity = _isRemoteClientConnected ? 1.0 : 0.0;
+            if (_isRemoteClientConnected)
+                _remoteClientBannerShownAtUtc = DateTimeOffset.UtcNow;
             _remoteControlController.StateChanged += OnRemoteControllerStateChanged;
         }
 
@@ -594,6 +623,17 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.IsExternalDebugClientConnected,
                 connected => !connected),
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleRemoteControlCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () =>
+            {
+                if (_remoteControlController!.IsListening)
+                    await _remoteControlController.StopAsync();
+                else
+                    await _remoteControlController.StartAsync(Math.Max(1, _remoteControlPort));
+            },
+            canExecute: null,
             RxSchedulers.MainThreadScheduler);
 
         // Initialize ReactiveCommands for ComboBox selections
@@ -1049,11 +1089,77 @@ public class MainViewModel : ViewModelBase, IDisposable
         global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             IsRemoteControlListening = _remoteControlController?.IsListening ?? false;
-            IsRemoteClientConnected = _remoteControlController?.IsClientConnected ?? false;
+            bool isRemoteClientConnected = _remoteControlController?.IsClientConnected ?? false;
+            IsRemoteClientConnected = isRemoteClientConnected;
             if (_remoteControlController != null)
                 RemoteControlPort = _remoteControlController.Port;
             this.RaisePropertyChanged(nameof(RemoteControlStatusText));
+            this.RaisePropertyChanged(nameof(RemoteControlToggleButtonText));
+
+            _ = UpdateRemoteClientBannerAsync(isRemoteClientConnected);
         });
+    }
+
+    private async Task UpdateRemoteClientBannerAsync(bool isConnected)
+    {
+        _remoteClientBannerAnimationCts?.Cancel();
+        _remoteClientBannerAnimationCts?.Dispose();
+
+        var animationCts = new System.Threading.CancellationTokenSource();
+        _remoteClientBannerAnimationCts = animationCts;
+        var cancellationToken = animationCts.Token;
+
+        try
+        {
+            if (isConnected)
+            {
+                _remoteClientBannerShownAtUtc = DateTimeOffset.UtcNow;
+
+                if (IsRemoteClientBannerVisible)
+                {
+                    RemoteClientBannerOpacity = 1.0;
+                    return;
+                }
+
+                IsRemoteClientBannerVisible = true;
+                RemoteClientBannerOpacity = 0.0;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                RemoteClientBannerOpacity = 1.0;
+                return;
+            }
+
+            if (!IsRemoteClientBannerVisible)
+                return;
+
+            if (RemoteClientBannerOpacity < 1.0)
+            {
+                RemoteClientBannerOpacity = 1.0;
+                await Task.Delay(RemoteClientBannerFadeDuration, cancellationToken);
+            }
+
+            if (_remoteClientBannerShownAtUtc.HasValue)
+            {
+                var elapsedVisibleTime = DateTimeOffset.UtcNow - _remoteClientBannerShownAtUtc.Value;
+                var remainingVisibleTime = RemoteClientBannerMinimumVisibleDuration - elapsedVisibleTime;
+                if (remainingVisibleTime > TimeSpan.Zero)
+                    await Task.Delay(remainingVisibleTime, cancellationToken);
+            }
+
+            RemoteClientBannerOpacity = 0.0;
+            await Task.Delay(RemoteClientBannerFadeDuration, cancellationToken);
+
+            if (!IsRemoteClientConnected)
+            {
+                IsRemoteClientBannerVisible = false;
+                _remoteClientBannerShownAtUtc = null;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     /// <summary>
@@ -1083,6 +1189,10 @@ public class MainViewModel : ViewModelBase, IDisposable
         // Unsubscribe from remote control controller events
         if (_remoteControlController != null)
             _remoteControlController.StateChanged -= OnRemoteControllerStateChanged;
+
+        _remoteClientBannerAnimationCts?.Cancel();
+        _remoteClientBannerAnimationCts?.Dispose();
+        _remoteClientBannerAnimationCts = null;
 
         // Unsubscribe from monitor events
         if (_currentMonitor != null)

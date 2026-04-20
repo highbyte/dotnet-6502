@@ -6,7 +6,7 @@ using System.Text.Json;
 // Usage: dotnet-6502-remote [--port <port>] [--host <host>] <command> [params...]
 // Usage: dotnet-6502-remote --help
 
-const int DefaultPort = 6600;
+const int DefaultPort = 6510;
 const string DefaultHost = "127.0.0.1";
 
 // Command definitions for --help output and self-description
@@ -266,7 +266,7 @@ void PrintHelp()
     Console.WriteLine();
     Console.WriteLine("EXAMPLES:");
     Console.WriteLine("  dotnet-6502-remote emu.state");
-    Console.WriteLine("  dotnet-6502-remote --port 6600 emu.start");
+    Console.WriteLine("  dotnet-6502-remote --port 6510 emu.start");
     Console.WriteLine("  dotnet-6502-remote mem.read --addr C000 --len 16");
     Console.WriteLine("  dotnet-6502-remote mem.write --addr C000 --data 169,0,133,208");
     Console.WriteLine("  dotnet-6502-remote joystick.set --port 1 --up --fire");

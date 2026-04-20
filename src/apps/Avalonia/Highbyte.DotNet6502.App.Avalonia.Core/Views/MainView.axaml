@@ -782,6 +782,7 @@
 
                         <!-- Debug  -->
                         <TabItem Name="DebugAndRemotingTabItem" Header="Debug &amp; Remoting"
+                                 IsVisible="{Binding IsDebugTabVisible}"
                                  AutomationProperties.AutomationId="DebugAndRemotingTab"
                                  AutomationProperties.Name="Debug &amp; Remoting tab">
                             <Border Classes="tab-content">
@@ -837,12 +838,70 @@
                                                        Classes="accent bold"
                                                        FontSize="11"/>
                                             <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+                                                <!-- Start/Stop toggle button -->
+                                                <Button Content="{Binding RemoteControlToggleButtonText}"
+                                                        AutomationProperties.AutomationId="RemoteControlToggleButton"
+                                                        AutomationProperties.Name="Start or stop the TCP remote control server"
+                                                        Command="{Binding ToggleRemoteControlCommand}"
+                                                        Classes="small"
+                                                        MinWidth="46"
+                                                        Height="20"
+                                                        FontSize="10"
+                                                        ToolTip.Tip="Start or stop the TCP remote control server"/>
+                                                <!-- Port label + number -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Port:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <NumericUpDown Value="{Binding RemoteControlPort}"
+                                                                  AutomationProperties.AutomationId="RemoteControlPortInput"
+                                                                  AutomationProperties.Name="Remote control server TCP port"
+                                                                  IsEnabled="{Binding !IsRemoteControlListening}"
+                                                                  Minimum="0" Maximum="65535"
+                                                                  FormatString="0"
+                                                                  ShowButtonSpinner="False"
+                                                                  Width="56"
+                                                                  Classes="small"
+                                                                  ToolTip.Tip="TCP port for the remote control server (default: 6510)"/>
+                                                </StackPanel>
+                                                <!-- Status text -->
                                                 <TextBlock Text="{Binding RemoteControlStatusText}"
                                                            AutomationProperties.AutomationId="RemoteControlStatusText"
                                                            AutomationProperties.Name="Remote control server status"
                                                            FontSize="10"
                                                            VerticalAlignment="Center"
                                                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                                <!-- Fixed-width transient client indicator to avoid layout churn in the tab -->
+                                                <Border Width="68"
+                                                        Height="18"
+                                                        CornerRadius="9"
+                                                        Background="#180080FF"
+                                                        BorderBrush="#500080FF"
+                                                        BorderThickness="1"
+                                                        VerticalAlignment="Center"
+                                                        Opacity="{Binding RemoteClientBannerOpacity}"
+                                                        IsHitTestVisible="False">
+                                                    <Border.Transitions>
+                                                        <Transitions>
+                                                            <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                                                        </Transitions>
+                                                    </Border.Transitions>
+                                                    <StackPanel Orientation="Horizontal"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Spacing="4">
+                                                        <Ellipse Width="6"
+                                                                 Height="6"
+                                                                 Fill="#FF0080FF"
+                                                                 VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Client"
+                                                                   FontSize="9"
+                                                                   FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="#FF0080FF"/>
+                                                    </StackPanel>
+                                                </Border>
                                             </StackPanel>
                                         </StackPanel>
 
@@ -1008,11 +1067,17 @@
         </Border>
         <!-- Remote Client Connected Banner (Bottom) -->
         <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3"
-                IsVisible="{Binding IsRemoteClientConnected}"
+                IsVisible="{Binding IsRemoteClientBannerVisible}"
+                Opacity="{Binding RemoteClientBannerOpacity}"
                 Background="#400080FF"
                 BorderBrush="#FF0080FF"
                 BorderThickness="0,1,0,0"
                 Height="24">
+            <Border.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                </Transitions>
+            </Border.Transitions>
             <TextBlock AutomationProperties.AutomationId="RemoteClientConnectedBanner"
                        AutomationProperties.Name="Remote client connected indicator"
                        FontSize="11"

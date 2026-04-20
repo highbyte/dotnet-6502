@@ -19,11 +19,11 @@ WriteBootstrapLog("Starting headless emulator.");
 
 // Parse debug adapter arguments
 bool enableExternalDebug = args.Contains("--enableExternalDebug");
-int debugPort = ParseDebugPort(args, defaultPort: 6502);
+int debugPort = ParsePortArgument(args, "--debug-port") ?? 6502;
 bool debugWait = args.Contains("--debug-wait");
 
 // Parse remote control arguments
-int? remotePort = ParseOptionalPort(args, "--remote-port");
+int? remotePort = ParsePortArgument(args, "--remote-port");
 bool allowRemoteQuit = args.Contains("--allow-remote-quit");
 
 // Parse automated startup arguments
@@ -244,20 +244,7 @@ static List<string> ParseMultipleStringArgument(string[] args, string argumentNa
     return result;
 }
 
-static int ParseDebugPort(string[] args, int defaultPort)
-{
-    for (int i = 0; i < args.Length - 1; i++)
-    {
-        if (args[i] == "--debug-port")
-        {
-            if (int.TryParse(args[i + 1], out var port) && port > 0 && port <= 65535)
-                return port;
-        }
-    }
-    return defaultPort;
-}
-
-static int? ParseOptionalPort(string[] args, string argumentName)
+static int? ParsePortArgument(string[] args, string argumentName)
 {
     for (int i = 0; i < args.Length - 1; i++)
     {

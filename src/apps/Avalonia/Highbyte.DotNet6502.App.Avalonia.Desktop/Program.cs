@@ -181,11 +181,11 @@ internal sealed partial class Program
 
         // Parse debug adapter arguments
         bool enableExternalDebug = args.Contains("--enableExternalDebug");
-        int debugPort = ParseDebugPort(args, defaultPort: 6502);
+        int debugPort = ParsePortArgument(args, "--debug-port") ?? 6502;
         bool debugWait = args.Contains("--debug-wait");
 
         // Parse remote control arguments
-        int? remotePort = ParseOptionalPort(args, "--remote-port");
+        int? remotePort = ParsePortArgument(args, "--remote-port");
 
         // Parse automated startup arguments
         string? systemName = AutomatedStartupHandler.ParseStringArgument(args, "--system");
@@ -463,31 +463,12 @@ internal sealed partial class Program
     }
 
     /// <summary>
-    /// Parses the debug port from command line arguments.
-    /// Usage: --debug-port 6502
-    /// Returns defaultPort if not specified or invalid.
+    /// Parses a port number from command line arguments.
+    /// Returns null if the argument is not present, enabling the caller
+    /// to decide whether the associated feature should be activated or what default to use.
+    /// Usage: --debug-port 6502 or --remote-port 6510
     /// </summary>
-    private static int ParseDebugPort(string[] args, int defaultPort)
-    {
-        for (int i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == "--debug-port")
-            {
-                if (int.TryParse(args[i + 1], out var port) && port > 0 && port <= 65535)
-                {
-                    return port;
-                }
-            }
-        }
-        return defaultPort;
-    }
-
-    /// <summary>
-    /// Parses an optional port from command line arguments.
-    /// Returns null if the argument is not present.
-    /// Usage: --remote-port 6600
-    /// </summary>
-    private static int? ParseOptionalPort(string[] args, string argumentName)
+    private static int? ParsePortArgument(string[] args, string argumentName)
     {
         for (int i = 0; i < args.Length - 1; i++)
         {

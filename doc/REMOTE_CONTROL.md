@@ -19,24 +19,24 @@ Key design points:
 
 ```sh
 # Start on a fixed port
-dotnet run --project src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop -- --remote-port 6600
+dotnet run --project src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop -- --remote-port 6510
 
 # Or via the published binary
-./Highbyte.DotNet6502.App.Avalonia.Desktop --remote-port 6600
+./Highbyte.DotNet6502.App.Avalonia.Desktop --remote-port 6510
 ```
 
-When the server is listening the **Debug & Remoting tab** shows a *Remote Control Server* section with the status `Listening on :6600`. When a client connects a blue banner appears at the bottom of the window: `• Remote Control Connected (port 6600)`.
+When the server is listening the **Debug & Remoting tab** shows a *Remote Control Server* section with the status `Listening on :6510`. When a client connects a blue banner appears at the bottom of the window: `• Remote Control Connected (port 6510)`.
 
 ### Headless
 
 ```sh
 dotnet run --project src/apps/Highbyte.DotNet6502.App.Headless -- \
-  --remote-port 6600 \
+  --remote-port 6510 \
   --system C64 --start
 
 # Allow the emu.quit command (disabled by default on headless too unless opted in)
 dotnet run --project src/apps/Highbyte.DotNet6502.App.Headless -- \
-  --remote-port 6600 --allow-remote-quit \
+  --remote-port 6510 --allow-remote-quit \
   --system C64 --start
 ```
 
@@ -469,7 +469,7 @@ dotnet build src/apps/Highbyte.DotNet6502.App.RemoteClient -c Release
 | Option          | Default     | Description                  |
 |-----------------|-------------|------------------------------|
 | `--host <host>` | `127.0.0.1` | Server hostname or IP        |
-| `--port <port>` | `6600`      | TCP port                     |
+| `--port <port>` | `6510`      | TCP port                     |
 | `--help`        |             | Print usage and exit         |
 
 ### Usage examples
@@ -479,7 +479,7 @@ dotnet build src/apps/Highbyte.DotNet6502.App.RemoteClient -c Release
 dotnet-6502-remote emu.state
 
 # Start the emulator
-dotnet-6502-remote --port 6600 emu.start
+dotnet-6502-remote --port 6510 emu.start
 
 # Read 16 bytes from $C000
 dotnet-6502-remote mem.read --addr C000 --len 16
@@ -520,13 +520,13 @@ These examples use `nc` (netcat) and standard Unix tools. On macOS, `nc` is avai
 ### Single command
 
 ```sh
-echo '{"id":1,"cmd":"emu.state"}' | nc -G2 localhost 6600
+echo '{"id":1,"cmd":"emu.state"}' | nc -G2 localhost 6510
 ```
 
 On Linux (where `-G` is not available):
 
 ```sh
-echo '{"id":1,"cmd":"emu.state"}' | nc -q1 localhost 6600
+echo '{"id":1,"cmd":"emu.state"}' | nc -q1 localhost 6510
 ```
 
 ### Multi-command session (one connection, multiple requests)
@@ -539,23 +539,23 @@ echo '{"id":1,"cmd":"emu.state"}' | nc -q1 localhost 6600
   echo '{"id":3,"cmd":"cpu.get"}'
   echo '{"id":4,"cmd":"mem.read","addr":"0400","len":8}'
   sleep 0.1
-) | nc localhost 6600
+) | nc localhost 6510
 ```
 
 ### Parse response with `jq`
 
 ```sh
 # Print just the state field
-echo '{"id":1,"cmd":"emu.state"}' | nc -G2 localhost 6600 | jq -r '.state'
+echo '{"id":1,"cmd":"emu.state"}' | nc -G2 localhost 6510 | jq -r '.state'
 
 # Read memory and format as hex
 echo '{"id":1,"cmd":"mem.read","addr":"0400","len":40}' \
-  | nc -G2 localhost 6600 \
+  | nc -G2 localhost 6510 \
   | jq '.data | map(. | tostring) | join(",")'
 
 # Save screenshot to PNG
 echo '{"id":1,"cmd":"screenshot"}' \
-  | nc -G2 localhost 6600 \
+  | nc -G2 localhost 6510 \
   | jq -r '.data' \
   | base64 --decode > /tmp/screen.png
 ```
@@ -564,7 +564,7 @@ echo '{"id":1,"cmd":"screenshot"}' \
 
 ```sh
 #!/usr/bin/env bash
-PORT=6600
+PORT=6510
 HOST=localhost
 
 echo "Starting emulator..."
@@ -586,11 +586,11 @@ done
 ```sh
 # Write 42 ($2A) to address $C100
 echo '{"id":1,"cmd":"mem.write","addr":"D020","data":[1]}' \
-  | nc -G2 localhost 6600
+  | nc -G2 localhost 6510
 
 # Read it back
 echo '{"id":2,"cmd":"mem.read","addr":"C100","len":1}' \
-  | nc -G2 localhost 6600 \
+  | nc -G2 localhost 6510 \
   | jq '.data[0]'
 # → 42
 ```
@@ -601,7 +601,7 @@ Add this to your `~/.bashrc` or `~/.zshrc`:
 
 ```sh
 emu() {
-  local port="${EMU_PORT:-6600}"
+  local port="${EMU_PORT:-6510}"
   local host="${EMU_HOST:-localhost}"
   echo "$1" | nc -G2 "$host" "$port"
 }
@@ -619,7 +619,7 @@ emu '{"cmd":"mem.read","addr":"C000","len":16}'
 
 ```powershell
 $json = '{"id":1,"cmd":"emu.state"}'
-$tcp  = [System.Net.Sockets.TcpClient]::new("127.0.0.1", 6600)
+$tcp  = [System.Net.Sockets.TcpClient]::new("127.0.0.1", 6510)
 $stream = $tcp.GetStream()
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($json + "`n")
 $stream.Write($bytes, 0, $bytes.Length)
@@ -638,7 +638,7 @@ function Invoke-EmuCommand {
     param(
         [string]$Command,
         [string]$Host = "127.0.0.1",
-        [int]$Port = 6600
+        [int]$Port = 6510
     )
     $tcp    = [System.Net.Sockets.TcpClient]::new($Host, $Port)
     $stream = $tcp.GetStream()
@@ -667,7 +667,7 @@ function Invoke-EmuSession {
     param(
         [string[]]$Commands,
         [string]$Host = "127.0.0.1",
-        [int]$Port = 6600
+        [int]$Port = 6510
     )
     $tcp    = [System.Net.Sockets.TcpClient]::new($Host, $Port)
     $stream = $tcp.GetStream()
@@ -701,7 +701,7 @@ function Save-EmuScreenshot {
     param(
         [string]$OutputPath,
         [string]$Host = "127.0.0.1",
-        [int]$Port = 6600
+        [int]$Port = 6510
     )
     $resp = Invoke-EmuCommand '{"id":1,"cmd":"screenshot"}' -Host $Host -Port $Port
     if (-not $resp.ok) { throw "Screenshot failed: $($resp.error)" }

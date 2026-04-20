@@ -48,7 +48,13 @@
       "loadProgram": true,
       "runProgram": true,
       "stopOnEntry": false,
-      "stopOnBRK": true
+      "stopOnBRK": true,
+
+      // Emulator host configuration:
+      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
+      // Override with a full path if not in PATH, e.g.:
+      //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
+      //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop",
     },
     {
       "type": "dotnet6502",
