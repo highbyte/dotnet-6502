@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -16,6 +17,7 @@ using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -30,7 +32,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp, IRemotableHostApp
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -622,6 +624,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     {
         RunEmulatorOneFrame();
         await DrainPendingScriptActionsAsync();
+        await DrainPendingRemoteActionsAsync();
     }
 
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
@@ -886,5 +889,15 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     {
         _deleteScript?.Invoke(fileName);
         ScriptingEngine.DeleteScript(fileName);
+    }
+
+    // IRemotableHostApp — screenshot capture
+    public byte[]? CaptureScreenshotPng()
+    {
+        var renderTarget = GetRenderTarget<AvaloniaBitmapTwoLayerRenderTarget>();
+        if (renderTarget == null) return null;
+        using var ms = new MemoryStream();
+        renderTarget.Bitmap.Save(ms);
+        return ms.ToArray();
     }
 }

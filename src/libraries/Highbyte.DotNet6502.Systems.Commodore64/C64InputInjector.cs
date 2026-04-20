@@ -1,9 +1,9 @@
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.Systems.Commodore64.Scripting;
+namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64ScriptInputProvider : IScriptInputProvider
+public class C64InputInjector : IInputInjector
 {
     private readonly C64 _c64;
 
@@ -91,7 +91,7 @@ public class C64ScriptInputProvider : IScriptInputProvider
         ["fire"]  = C64JoystickAction.Fire,
     };
 
-    public C64ScriptInputProvider(C64 c64)
+    public C64InputInjector(C64 c64)
     {
         _c64 = c64;
     }

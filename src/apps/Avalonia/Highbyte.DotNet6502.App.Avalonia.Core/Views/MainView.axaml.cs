@@ -47,12 +47,12 @@ public partial class MainView : UserControl
     // Tab navigation shortcut definitions — order determines NativeMenu display order.
     private static readonly (Key Key, string TabItemName, string Label)[] TabNavigationShortcuts =
     {
-        (Key.I, "InformationTabItem",  "Information"),
-        (Key.C, "ConfigStatusTabItem", "Config status"),
-        (Key.L, "LogTabItem",          "Log"),
-        (Key.S, "ScriptsTabItem",      "Scripts"),
-        (Key.G, "GeneralInfoTabItem",  "General info"),
-        (Key.D, "DebugTabItem",        "Debug"),
+        (Key.I, "InformationTabItem",     "Information"),
+        (Key.C, "ConfigStatusTabItem",     "Config status"),
+        (Key.L, "LogTabItem",              "Log"),
+        (Key.S, "ScriptsTabItem",          "Scripts"),
+        (Key.D, "DebugAndRemotingTabItem", "Debug & Remoting"),
+        (Key.G, "GeneralInfoTabItem",      "General info"),
     };
 
     // Parameterless constructor - child views created by XAML!

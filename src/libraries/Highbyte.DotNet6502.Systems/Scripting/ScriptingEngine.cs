@@ -210,9 +210,9 @@ public class ScriptingEngine : IScriptingEngine
 
     public void OnSystemStarted(ISystem system)
     {
-        _logger.LogInformation("[Scripting] OnSystemStarted: system={System}, ScriptInputProvider={Provider}", system.Name, system.ScriptInputProvider?.GetType().Name ?? "null");
+        _logger.LogInformation("[Scripting] OnSystemStarted: system={System}, InputInjector={Provider}", system.Name, system.InputInjector?.GetType().Name ?? "null");
         _adapter.OnSystemStarted(system);
-        _adapter.SetInputProvider(system.ScriptInputProvider);
+        _adapter.SetInputProvider(system.InputInjector);
         _frameCount = 0;
     }
 

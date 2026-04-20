@@ -28,7 +28,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaTcpProxy? _tcpProxy;
     private LuaScreenshotProxy? _screenshotProxy;
     private ScriptingConfig? _config;
-    private IScriptInputProvider? _inputProvider;
+    private IInputInjector? _inputProvider;
     private IHostApp? _hostApp;
 
     // Tracks how each coroutine last yielded, keyed on the MoonSharp Coroutine object
@@ -1310,7 +1310,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _ => AdapterCoroutineState.Dead
     };
 
-    public void SetInputProvider(IScriptInputProvider? provider) => _inputProvider = provider;
+    public void SetInputProvider(IInputInjector? provider) => _inputProvider = provider;
 
     public void ClearScriptInput() => _inputProvider?.Clear();
 

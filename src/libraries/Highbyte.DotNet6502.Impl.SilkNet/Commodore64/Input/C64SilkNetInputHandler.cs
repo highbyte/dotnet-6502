@@ -65,7 +65,7 @@ public class C64SilkNetInputHandler : IInputHandler
     {
         var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
 
-        c64.ScriptInputProvider?.ApplyInjectedKeysTo(c64KeysDown);
+        c64.InputInjector?.ApplyInjectedKeysTo(c64KeysDown);
 
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
@@ -118,7 +118,7 @@ public class C64SilkNetInputHandler : IInputHandler
         var c64JoystickActions = GetC64JoystickActionsFromSilkNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
         c64.Cia1.Joystick.SetJoystickActions(_c64SilkNetConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
 
-        c64.ScriptInputProvider?.ApplyInjectedJoystickActionsTo(c64.Cia1.Joystick);
+        c64.InputInjector?.ApplyInjectedJoystickActionsTo(c64.Cia1.Joystick);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromSilkNetGamepad(HashSet<ButtonName> gamepadButtonsDown)

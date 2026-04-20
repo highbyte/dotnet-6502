@@ -17,6 +17,7 @@ using System.Threading;
 using Highbyte.DotNet6502.Utils;
 using System.Diagnostics;
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
@@ -183,6 +184,9 @@ internal sealed partial class Program
         int debugPort = ParseDebugPort(args, defaultPort: 6502);
         bool debugWait = args.Contains("--debug-wait");
 
+        // Parse remote control arguments
+        int? remotePort = ParseOptionalPort(args, "--remote-port");
+
         // Parse automated startup arguments
         string? systemName = AutomatedStartupHandler.ParseStringArgument(args, "--system");
         string? systemVariant = AutomatedStartupHandler.ParseStringArgument(args, "--systemVariant");
@@ -273,6 +277,16 @@ internal sealed partial class Program
         // ----------
         var debugController = new AvaloniaExternalDebugController(new AvaloniaDebugServerEnvironment(), loggerFactory);
 
+        // ----------
+        // Set up remote control controller (started if --remote-port is provided)
+        // ----------
+        var remoteController = new RemoteControlController(new AvaloniaRemoteControlEnvironment(loggerFactory), loggerFactory);
+        if (remotePort.HasValue)
+        {
+            WriteBootstrapLog($"Starting TCP remote control server on port {remotePort.Value}.");
+            Task.Run(async () => await remoteController.StartAsync(remotePort.Value)).Wait();
+        }
+
         if (enableExternalDebug)
         {
             WriteBootstrapLog($"Starting TCP debug adapter server on port {debugPort}.");
@@ -309,7 +323,7 @@ internal sealed partial class Program
         // Start Avalonia app
         // ----------
         WriteBootstrapLog($"Starting Avalonia app.");
-        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, scriptingEngine, skipDefaultSystemSelection);
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, remoteController, scriptingEngine, skipDefaultSystemSelection);
 
         // If automated startup is requested, handle it after the app starts
         if (systemName != null)
@@ -375,6 +389,7 @@ internal sealed partial class Program
         AvaloniaLoggerBridge avaloniaLoggerBridge,
         IGamepad? gamepad = null,
         IExternalDebugController? externalDebugController = null,
+        IRemoteControlController? remoteControlController = null,
         IScriptingEngine? scriptingEngine = null,
         bool skipDefaultSystemSelection = false)
         => AppBuilder.Configure(() => new Core.App(
@@ -387,6 +402,7 @@ internal sealed partial class Program
                 saveCustomConfigSection: null,
                 gamepad: gamepad,
                 externalDebugController: externalDebugController,
+                remoteControlController: remoteControlController,
                 scriptingEngine: scriptingEngine,
                 skipDefaultSystemSelection: skipDefaultSystemSelection))
             .UsePlatformDetect()
@@ -464,6 +480,24 @@ internal sealed partial class Program
             }
         }
         return defaultPort;
+    }
+
+    /// <summary>
+    /// Parses an optional port from command line arguments.
+    /// Returns null if the argument is not present.
+    /// Usage: --remote-port 6600
+    /// </summary>
+    private static int? ParseOptionalPort(string[] args, string argumentName)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == argumentName)
+            {
+                if (int.TryParse(args[i + 1], out var port) && port > 0 && port <= 65535)
+                    return port;
+            }
+        }
+        return null;
     }
 }
 

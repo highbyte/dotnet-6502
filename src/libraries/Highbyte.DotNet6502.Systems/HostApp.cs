@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
@@ -132,6 +133,9 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
 
+    // Remote control action queue (drained each frame via DrainPendingRemoteActionsAsync)
+    private readonly ConcurrentQueue<Action> _pendingRemoteActions = new();
+
     // Scripting
     private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
 
@@ -195,6 +199,26 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     /// InvokeScriptingTick() from your async timer callback.
     /// </summary>
     protected Task DrainPendingScriptActionsAsync() => _scriptingEngine.DrainPendingActionsAsync();
+
+    /// <summary>
+    /// Enqueues an action to be executed at the next frame boundary.
+    /// Thread-safe; called from the remote control session thread.
+    /// </summary>
+    public void EnqueueRemoteAction(Action action) => _pendingRemoteActions.Enqueue(action);
+
+    /// <summary>
+    /// Drains all pending remote actions. Call after RunEmulatorOneFrame() in the timer callback,
+    /// alongside DrainPendingScriptActionsAsync().
+    /// </summary>
+    protected Task DrainPendingRemoteActionsAsync()
+    {
+        while (_pendingRemoteActions.TryDequeue(out var action))
+        {
+            try { action(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Remote action threw exception"); }
+        }
+        return Task.CompletedTask;
+    }
 
     // --- End Scripting ---
 

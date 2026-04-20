@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
@@ -10,7 +11,7 @@ namespace Highbyte.DotNet6502.App.Headless;
 /// Headless host app for running the emulator without any UI, rendering, audio, or user input.
 /// Driven entirely by CLI parameters and Lua scripts.
 /// </summary>
-public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>, IDebuggableHostApp
+public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>, IDebuggableHostApp, IRemotableHostApp
 {
     private new readonly ILogger _logger;
     private readonly CancellationTokenSource _appCts;
@@ -212,10 +213,14 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
         {
             RunEmulatorOneFrame();
             await DrainPendingScriptActionsAsync();
+            await DrainPendingRemoteActionsAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception in update timer.");
         }
     }
+
+    // IRemotableHostApp — no rendering in headless
+    public byte[]? CaptureScreenshotPng() => null;
 }

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -87,7 +88,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
     // Debug tab visibility from config
-    public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTab;
+    public bool IsDebugToolsVisible => _emulatorConfig.ShowDebugTools;
 
     // Private field to cache validation errors
     private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _validationErrors;
@@ -320,6 +321,40 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     public ReactiveCommand<Unit, Unit> ToggleExternalDebugCommand { get; }
 
+    // Remote control server properties (Desktop only; null controller → all false/zero)
+    private readonly IRemoteControlController? _remoteControlController;
+
+    public bool IsRemoteControlAvailable => _remoteControlController != null;
+
+    private bool _isRemoteControlListening;
+    public bool IsRemoteControlListening
+    {
+        get => _isRemoteControlListening;
+        private set => this.RaiseAndSetIfChanged(ref _isRemoteControlListening, value);
+    }
+
+    private bool _isRemoteClientConnected;
+    public bool IsRemoteClientConnected
+    {
+        get => _isRemoteClientConnected;
+        private set => this.RaiseAndSetIfChanged(ref _isRemoteClientConnected, value);
+    }
+
+    private int _remoteControlPort = 6600;
+    public int RemoteControlPort
+    {
+        get => _remoteControlPort;
+        set => this.RaiseAndSetIfChanged(ref _remoteControlPort, value);
+    }
+
+    public string RemoteControlStatusText => _remoteControlController switch
+    {
+        null => "",
+        { IsClientConnected: true } => "Connected",
+        { IsListening: true } => $"Listening on :{_remoteControlController.Port}",
+        _ => "Off"
+    };
+
     public void ClearMonitorViewModel()
     {
         MonitorViewModel = null;
@@ -331,7 +366,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void RefreshConfigProperties()
     {
-        this.RaisePropertyChanged(nameof(IsDebugTabVisible));
+        this.RaisePropertyChanged(nameof(IsDebugToolsVisible));
     }
 
     // --- End Binding Properties ---
@@ -536,6 +571,16 @@ public class MainViewModel : ViewModelBase, IDisposable
             _isExternalDebugClientConnected = _externalDebugController.IsClientConnected;
             _externalDebugPort = _externalDebugController.Port;
             _externalDebugController.StateChanged += OnExternalDebugControllerStateChanged;
+        }
+
+        // Remote control server (Desktop only — null on Browser)
+        _remoteControlController = App.Current?.RemoteControlController;
+        if (_remoteControlController != null)
+        {
+            _isRemoteControlListening = _remoteControlController.IsListening;
+            _isRemoteClientConnected = _remoteControlController.IsClientConnected;
+            _remoteControlPort = _remoteControlController.Port;
+            _remoteControlController.StateChanged += OnRemoteControllerStateChanged;
         }
 
         ToggleExternalDebugCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -999,6 +1044,18 @@ public class MainViewModel : ViewModelBase, IDisposable
         });
     }
 
+    private void OnRemoteControllerStateChanged(object? sender, EventArgs e)
+    {
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            IsRemoteControlListening = _remoteControlController?.IsListening ?? false;
+            IsRemoteClientConnected = _remoteControlController?.IsClientConnected ?? false;
+            if (_remoteControlController != null)
+                RemoteControlPort = _remoteControlController.Port;
+            this.RaisePropertyChanged(nameof(RemoteControlStatusText));
+        });
+    }
+
     /// <summary>
     /// Handles PropertyChanged events from the AvaloniaMonitor.
     /// Updates IsMonitorVisible which will trigger MainView to show/hide the monitor UI.
@@ -1022,6 +1079,10 @@ public class MainViewModel : ViewModelBase, IDisposable
         // Unsubscribe from external debug controller events
         if (_externalDebugController != null)
             _externalDebugController.StateChanged -= OnExternalDebugControllerStateChanged;
+
+        // Unsubscribe from remote control controller events
+        if (_remoteControlController != null)
+            _remoteControlController.StateChanged -= OnRemoteControllerStateChanged;
 
         // Unsubscribe from monitor events
         if (_currentMonitor != null)
