@@ -219,7 +219,6 @@ public class ScriptingEngine : IScriptingEngine
     public void InvokeBeforeFrame()
     {
         _frameCount++;
-        _adapter.ClearScriptInput();
         var activeHandles = GetActiveHandles(filterByYieldType: ScriptYieldType.FrameAdvance);
         _adapter.ResumeFrameAdvanceCoroutines(activeHandles, OnResumeResult);
         _adapter.ResumePendingHttpCoroutines(GetAllNonFailedHandles(), OnResumeResult);

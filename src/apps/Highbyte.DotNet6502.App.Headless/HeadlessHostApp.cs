@@ -213,7 +213,6 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
         {
             RunEmulatorOneFrame();
             await DrainPendingScriptActionsAsync();
-            await DrainPendingRemoteActionsAsync();
         }
         catch (Exception ex)
         {

@@ -25,7 +25,7 @@ public class RemoteCommand
     [JsonPropertyName("data")]
     public JsonElement? Data { get; set; }
 
-    // joystick.set
+    // joystick.set / joystick.press / joystick.release / joystick.releaseall
     [JsonPropertyName("port")]
     public int? Port { get; set; }
 

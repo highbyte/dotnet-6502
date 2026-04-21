@@ -1,0 +1,190 @@
+using System.Text.Json;
+
+namespace Highbyte.DotNet6502.App.RemoteClient;
+
+internal sealed class RemoteClientRequestBuildResult
+{
+    public Dictionary<string, object?>? Request { get; init; }
+    public string? OutputFile { get; init; }
+    public string? Error { get; init; }
+}
+
+internal static class RemoteClientRequestBuilder
+{
+    public static RemoteClientRequestBuildResult Build(string[] cmdArgs)
+    {
+        if (cmdArgs.Length == 0)
+        {
+            return new RemoteClientRequestBuildResult { Error = "No command specified. Use --help for usage." };
+        }
+
+        var cmd = cmdArgs[0];
+        var parameters = ParseParams(cmdArgs[1..]);
+        var request = new Dictionary<string, object?> { ["id"] = 1, ["cmd"] = cmd };
+        string? outputFile = null;
+
+        switch (cmd)
+        {
+            case "emu.state":
+            case "emu.start":
+            case "emu.stop":
+            case "emu.pause":
+            case "emu.reset":
+            case "emu.quit":
+            case "cpu.get":
+            case "keyboard.releaseall":
+            case "keyboard.getall":
+            case "c64.isbasicstarted":
+            case "c64.getbasicsource":
+                break;
+
+            case "mem.read":
+                if (parameters.TryGetValue("addr", out var addr)) request["addr"] = addr;
+                if (parameters.TryGetValue("len", out var len) && int.TryParse(len, out int lenInt)) request["len"] = lenInt;
+                break;
+
+            case "mem.write":
+                if (parameters.TryGetValue("addr", out var writeAddr)) request["addr"] = writeAddr;
+                if (parameters.TryGetValue("data", out var data))
+                    request["data"] = data!.Split(',').Select(b => int.Parse(b.Trim())).ToArray();
+                break;
+
+            case "joystick.set":
+                if (parameters.TryGetValue("port", out var port) && int.TryParse(port, out int parsedPort))
+                    request["port"] = parsedPort;
+
+                var joystickParseError = ApplyJoystickState(parameters, request, allowExplicitFalse: true);
+                if (joystickParseError != null)
+                    return new RemoteClientRequestBuildResult { Error = joystickParseError };
+                break;
+
+            case "joystick.press":
+            case "joystick.release":
+                if (parameters.TryGetValue("port", out var holdPort) && int.TryParse(holdPort, out int parsedHoldPort))
+                    request["port"] = parsedHoldPort;
+
+                var holdParseError = ApplyJoystickState(parameters, request, allowExplicitFalse: false);
+                if (holdParseError != null)
+                    return new RemoteClientRequestBuildResult { Error = holdParseError };
+                break;
+
+            case "joystick.releaseall":
+                if (parameters.TryGetValue("port", out var releaseAllPort) && int.TryParse(releaseAllPort, out int parsedReleaseAllPort))
+                    request["port"] = parsedReleaseAllPort;
+                else
+                    return new RemoteClientRequestBuildResult { Error = "joystick.releaseall requires --port <1|2>." };
+                break;
+
+            case "keyboard.press":
+            case "keyboard.release":
+            case "keyboard.iskeydown":
+                if (parameters.TryGetValue("key", out var key)) request["key"] = key;
+                break;
+
+            case "c64.type":
+                if (parameters.TryGetValue("text", out var text)) request["text"] = text;
+                break;
+
+            case "screenshot":
+                if (parameters.TryGetValue("output", out var outFile)) outputFile = outFile;
+                break;
+
+            case "ui.message":
+                if (parameters.TryGetValue("text", out var message)) request["text"] = message;
+                if (parameters.TryGetValue("level", out var level)) request["level"] = level;
+                break;
+
+            default:
+                return new RemoteClientRequestBuildResult { Error = $"Unknown command: {cmd}. Use --help for usage." };
+        }
+
+        return new RemoteClientRequestBuildResult
+        {
+            Request = request,
+            OutputFile = outputFile,
+        };
+    }
+
+    private static string? ApplyJoystickState(Dictionary<string, string?> parameters, Dictionary<string, object?> request, bool allowExplicitFalse)
+    {
+        foreach (var action in new[] { "up", "down", "left", "right", "fire" })
+        {
+            var parseResult = ParseJoystickState(parameters, action, allowExplicitFalse);
+            if (parseResult.Error != null)
+                return parseResult.Error;
+            if (parseResult.Value.HasValue)
+                request[action] = parseResult.Value.Value;
+        }
+
+        return null;
+    }
+
+    private static (bool? Value, string? Error) ParseJoystickState(Dictionary<string, string?> parameters, string action, bool allowExplicitFalse)
+    {
+        var releaseAlias = $"no-{action}";
+        var hasPositive = parameters.TryGetValue(action, out var rawValue);
+        var hasNegative = parameters.ContainsKey(releaseAlias);
+
+        if (!allowExplicitFalse)
+        {
+            if (hasNegative)
+                return (null, $"--{releaseAlias} is only supported for joystick.set.");
+
+            if (!hasPositive)
+                return (null, null);
+
+            if (rawValue == null)
+                return (true, null);
+
+            if (bool.TryParse(rawValue, out var parsedLatchedBool))
+            {
+                return parsedLatchedBool
+                    ? (true, null)
+                    : (null, $"Only joystick.set accepts explicit false values for --{action}.");
+            }
+
+            return (null, $"Invalid boolean value for --{action}: {rawValue}. Use true or false.");
+        }
+
+        if (hasPositive && hasNegative)
+        {
+            return (null, $"Conflicting options for joystick action '{action}': use either --{action} or --{releaseAlias}, not both.");
+        }
+
+        if (hasNegative)
+            return (false, null);
+
+        if (!hasPositive)
+            return (null, null);
+
+        if (rawValue == null)
+            return (true, null);
+
+        if (bool.TryParse(rawValue, out var parsedBool))
+            return (parsedBool, null);
+
+        return (null, $"Invalid boolean value for --{action}: {rawValue}. Use true or false.");
+    }
+
+    private static Dictionary<string, string?> ParseParams(string[] args)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (!args[i].StartsWith("--"))
+                continue;
+
+            var key = args[i][2..];
+            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+            {
+                result[key] = args[i + 1];
+                i++;
+            }
+            else
+            {
+                result[key] = null;
+            }
+        }
+        return result;
+    }
+}

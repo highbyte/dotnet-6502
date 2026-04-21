@@ -25,6 +25,12 @@ public interface IInputInjector
     int JoystickPortCount { get; }
 
     /// <summary>
+    /// Starts a new emulator frame by clearing frame-scoped injected input.
+    /// Held input remains active until explicitly released.
+    /// </summary>
+    void BeginFrame();
+
+    /// <summary>
     /// Injects a key press for the current frame. The key name must be
     /// one returned by <see cref="GetAvailableKeys"/>.
     /// </summary>
@@ -44,6 +50,21 @@ public interface IInputInjector
     void KeyReleaseAll();
 
     /// <summary>
+    /// Presses and holds a key until it is explicitly released.
+    /// </summary>
+    void HoldKey(string keyName);
+
+    /// <summary>
+    /// Releases a previously held key.
+    /// </summary>
+    void ReleaseHeldKey(string keyName);
+
+    /// <summary>
+    /// Releases all currently held keys.
+    /// </summary>
+    void ReleaseAllHeldKeys();
+
+    /// <summary>
     /// Returns true if the given key is currently pressed, whether by the
     /// user or by an injection. The key name must be one returned by
     /// <see cref="GetAvailableKeys"/>.
@@ -57,6 +78,23 @@ public interface IInputInjector
     void SetJoystickAction(int port, string actionName, bool pressed);
 
     /// <summary>
+    /// Presses and holds a joystick action until it is explicitly released.
+    /// The action name should be one returned by <see cref="GetAvailableJoystickActions"/>.
+    /// </summary>
+    void HoldJoystickAction(int port, string actionName);
+
+    /// <summary>
+    /// Releases a previously held joystick action.
+    /// The action name should be one returned by <see cref="GetAvailableJoystickActions"/>.
+    /// </summary>
+    void ReleaseHeldJoystickAction(int port, string actionName);
+
+    /// <summary>
+    /// Releases all held joystick actions on the specified port.
+    /// </summary>
+    void ReleaseAllHeldJoystickActions(int port);
+
+    /// <summary>
     /// Returns true if the given joystick action is active on the specified
     /// port (1-based), whether by the user or by an injection.
     /// The action name should be one returned by <see cref="GetAvailableJoystickActions"/>.
@@ -64,8 +102,7 @@ public interface IInputInjector
     bool IsJoystickActionDown(int port, string actionName);
 
     /// <summary>
-    /// Resets all injected input state. Called before each frame so
-    /// injected inputs do not persist across frames unless re-injected.
+    /// Resets all injected input state, both frame-scoped and held.
     /// </summary>
     void Clear();
 }

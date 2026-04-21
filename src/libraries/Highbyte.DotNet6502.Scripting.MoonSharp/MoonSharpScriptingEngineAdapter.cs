@@ -1312,8 +1312,6 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
 
     public void SetInputProvider(IInputInjector? provider) => _inputProvider = provider;
 
-    public void ClearScriptInput() => _inputProvider?.Clear();
-
     /// <summary>
     /// Returns the filename of the script whose coroutine is currently executing.
     /// Used to tag deferred actions with the script that enqueued them, so only

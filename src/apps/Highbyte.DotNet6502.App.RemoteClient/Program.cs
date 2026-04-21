@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using Highbyte.DotNet6502.App.RemoteClient;
 
 // Remote client for the DotNet 6502 emulator TCP remote control server.
 // Usage: dotnet-6502-remote [--port <port>] [--host <host>] <command> [params...]
@@ -21,7 +22,10 @@ var commands = new[]
     ("cpu.get",       "",                           "Get CPU registers"),
     ("mem.read",      "--addr <hex> --len <int>",   "Read bytes from memory"),
     ("mem.write",     "--addr <hex> --data <b,b,..>","Write bytes to memory"),
-    ("joystick.set",       "--port <1|2> [--up] [--down] [--left] [--right] [--fire]", "Set joystick state"),
+    ("joystick.set",       "--port <1|2> [--up|--no-up] [--down|--no-down] [--left|--no-left] [--right|--no-right] [--fire|--no-fire]", "Set joystick state"),
+    ("joystick.press",     "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Press and hold joystick actions"),
+    ("joystick.release",   "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Release held joystick actions"),
+    ("joystick.releaseall","--port <1|2>",                   "Release all held joystick actions on one port"),
     ("keyboard.press",     "--key <keyname>",              "Press (hold) a named key"),
     ("keyboard.release",   "--key <keyname>",              "Release a previously pressed key"),
     ("keyboard.releaseall","",                             "Release all injected keys"),
@@ -74,14 +78,16 @@ if (cmdIndex >= args.Length)
     return 2;
 }
 
-// Build the JSON request from the command and remaining args
 var cmdArgs = args[cmdIndex..];
-var requestObj = BuildRequest(cmdArgs, out string? outputFile);
-if (requestObj == null)
+var buildResult = RemoteClientRequestBuilder.Build(cmdArgs);
+if (buildResult.Error != null)
 {
-    Console.Error.WriteLine($"Unknown command: {cmdArgs[0]}. Use --help for usage.");
+    Console.Error.WriteLine(buildResult.Error);
     return 2;
 }
+
+var requestObj = buildResult.Request!;
+var outputFile = buildResult.OutputFile;
 
 var requestJson = JsonSerializer.Serialize(requestObj);
 
@@ -149,99 +155,6 @@ catch (Exception ex)
     return 1;
 }
 
-Dictionary<string, object?>? BuildRequest(string[] cmdArgs, out string? outputFile)
-{
-    outputFile = null;
-    if (cmdArgs.Length == 0) return null;
-
-    var cmd = cmdArgs[0];
-    var p = ParseParams(cmdArgs[1..]);
-
-    var req = new Dictionary<string, object?> { ["id"] = 1, ["cmd"] = cmd };
-
-    switch (cmd)
-    {
-        case "emu.state": case "emu.start": case "emu.stop":
-        case "emu.pause": case "emu.reset": case "emu.quit":
-        case "cpu.get":
-            break;
-
-        case "mem.read":
-            if (p.TryGetValue("addr", out var addr)) req["addr"] = addr;
-            if (p.TryGetValue("len", out var len) && int.TryParse(len, out int lenInt)) req["len"] = lenInt;
-            break;
-
-        case "mem.write":
-            if (p.TryGetValue("addr", out var wAddr)) req["addr"] = wAddr;
-            if (p.TryGetValue("data", out var data))
-                req["data"] = data!.Split(',').Select(b => int.Parse(b.Trim())).ToArray();
-            break;
-
-        case "joystick.set":
-            if (p.TryGetValue("port", out var jp) && int.TryParse(jp, out int jport)) req["port"] = jport;
-            if (p.ContainsKey("up"))    req["up"]    = true;
-            if (p.ContainsKey("down"))  req["down"]  = true;
-            if (p.ContainsKey("left"))  req["left"]  = true;
-            if (p.ContainsKey("right")) req["right"] = true;
-            if (p.ContainsKey("fire"))  req["fire"]  = true;
-            break;
-
-        case "keyboard.press":
-        case "keyboard.release":
-        case "keyboard.iskeydown":
-            if (p.TryGetValue("key", out var key)) req["key"] = key;
-            break;
-
-        case "keyboard.releaseall":
-        case "keyboard.getall":
-            break;
-
-        case "c64.type":
-            if (p.TryGetValue("text", out var text)) req["text"] = text;
-            break;
-
-        case "c64.isbasicstarted":
-        case "c64.getbasicsource":
-            break;
-
-        case "screenshot":
-            if (p.TryGetValue("output", out var outFile)) outputFile = outFile;
-            break;
-
-        case "ui.message":
-            if (p.TryGetValue("text", out var msg)) req["text"] = msg;
-            if (p.TryGetValue("level", out var level)) req["level"] = level;
-            break;
-
-        default:
-            return null;
-    }
-
-    return req;
-}
-
-Dictionary<string, string?> ParseParams(string[] args)
-{
-    var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-    for (int i = 0; i < args.Length; i++)
-    {
-        if (args[i].StartsWith("--"))
-        {
-            var key = args[i][2..];
-            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
-            {
-                result[key] = args[i + 1];
-                i++;
-            }
-            else
-            {
-                result[key] = null; // flag with no value
-            }
-        }
-    }
-    return result;
-}
-
 void PrintHelp()
 {
     Console.WriteLine("dotnet-6502-remote — Remote control client for the DotNet 6502 Emulator");
@@ -270,6 +183,10 @@ void PrintHelp()
     Console.WriteLine("  dotnet-6502-remote mem.read --addr C000 --len 16");
     Console.WriteLine("  dotnet-6502-remote mem.write --addr C000 --data 169,0,133,208");
     Console.WriteLine("  dotnet-6502-remote joystick.set --port 1 --up --fire");
+    Console.WriteLine("  dotnet-6502-remote joystick.press --port 1 --up --fire");
+    Console.WriteLine("  dotnet-6502-remote joystick.release --port 1 --up");
+    Console.WriteLine("  dotnet-6502-remote joystick.releaseall --port 1");
+    Console.WriteLine("  dotnet-6502-remote joystick.set --port 1 --no-up --fire false");
     Console.WriteLine("  dotnet-6502-remote keyboard.press --key space");
     Console.WriteLine("  dotnet-6502-remote keyboard.release --key space");
     Console.WriteLine("  dotnet-6502-remote keyboard.releaseall");

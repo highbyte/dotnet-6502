@@ -133,7 +133,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
 
-    // Remote control action queue (drained each frame via DrainPendingRemoteActionsAsync)
+    // Remote control action queue (drained at the frame boundary via DrainPendingRemoteActions)
     private readonly ConcurrentQueue<Action> _pendingRemoteActions = new();
 
     // Scripting
@@ -207,17 +207,15 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     public void EnqueueRemoteAction(Action action) => _pendingRemoteActions.Enqueue(action);
 
     /// <summary>
-    /// Drains all pending remote actions. Call after RunEmulatorOneFrame() in the timer callback,
-    /// alongside DrainPendingScriptActionsAsync().
+    /// Drains all pending remote actions at the frame boundary.
     /// </summary>
-    protected Task DrainPendingRemoteActionsAsync()
+    protected void DrainPendingRemoteActions()
     {
         while (_pendingRemoteActions.TryDequeue(out var action))
         {
             try { action(); }
             catch (Exception ex) { _logger.LogWarning(ex, "Remote action threw exception"); }
         }
-        return Task.CompletedTask;
     }
 
     // --- End Scripting ---
@@ -515,6 +513,9 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput);
         if (!shouldRun)
             return;
+
+        CurrentRunningSystem?.InputInjector?.BeginFrame();
+        DrainPendingRemoteActions();
 
         // Frame is definitely going to run — invoke scripting before-frame hook
         _scriptTime!.Start();

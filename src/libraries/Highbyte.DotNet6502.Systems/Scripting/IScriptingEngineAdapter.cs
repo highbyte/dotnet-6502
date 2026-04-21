@@ -137,10 +137,4 @@ public interface IScriptingEngineAdapter
     /// </summary>
     void SetInputProvider(IInputInjector? provider);
 
-    /// <summary>
-    /// Clears all injected input state held by the input provider.
-    /// Called at the start of each frame before scripts run so that injected
-    /// inputs do not persist across frames unless re-injected.
-    /// </summary>
-    void ClearScriptInput();
 }

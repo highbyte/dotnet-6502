@@ -616,7 +616,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
     {
-        InvokeScriptingTick();
+        InvokeScriptingTick();  
         await DrainPendingScriptActionsAsync();
     }
 
@@ -624,7 +624,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     {
         RunEmulatorOneFrame();
         await DrainPendingScriptActionsAsync();
-        await DrainPendingRemoteActionsAsync();
     }
 
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)

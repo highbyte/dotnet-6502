@@ -42,6 +42,9 @@ public class RemoteCommandDispatcher
                 "mem.read"     => HandleMemRead(cmd.Id, cmd),
                 "mem.write"    => await HandleFrameAsync(cmd.Id, h => MemWriteDirect(h, cmd)),
                 "joystick.set"       => await HandleFrameAsync(cmd.Id, h => JoystickSetDirect(h, cmd)),
+                "joystick.press"     => await HandleFrameAsync(cmd.Id, h => JoystickPressDirect(h, cmd)),
+                "joystick.release"   => await HandleFrameAsync(cmd.Id, h => JoystickReleaseDirect(h, cmd)),
+                "joystick.releaseall"=> await HandleFrameAsync(cmd.Id, h => JoystickReleaseAllDirect(h, cmd)),
                 "keyboard.press"     => await HandleFrameAsync(cmd.Id, h => KeyboardPressDirect(h, cmd)),
                 "keyboard.release"   => await HandleFrameAsync(cmd.Id, h => KeyboardReleaseDirect(h, cmd)),
                 "keyboard.releaseall"=> await HandleFrameAsync(cmd.Id, h => KeyboardReleaseAllDirect(h)),
@@ -218,8 +221,7 @@ public class RemoteCommandDispatcher
 
     private static void JoystickSetDirect(IRemotableHostApp h, RemoteCommand cmd)
     {
-        var sys = h.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
-        var input = sys.InputInjector ?? throw new InvalidOperationException("System has no input injector");
+        var input = GetInputProvider(h);
         int port = cmd.Port ?? 1;
 
         SetJoystickBool(input, port, "Up",    cmd.Up);
@@ -229,29 +231,72 @@ public class RemoteCommandDispatcher
         SetJoystickBool(input, port, "Fire",  cmd.Fire);
     }
 
+    private static void JoystickPressDirect(IRemotableHostApp h, RemoteCommand cmd)
+    {
+        var input = GetInputProvider(h);
+        int port = cmd.Port ?? 1;
+
+        SetHeldJoystickBool(input, port, "Up", cmd.Up, pressed: true);
+        SetHeldJoystickBool(input, port, "Down", cmd.Down, pressed: true);
+        SetHeldJoystickBool(input, port, "Left", cmd.Left, pressed: true);
+        SetHeldJoystickBool(input, port, "Right", cmd.Right, pressed: true);
+        SetHeldJoystickBool(input, port, "Fire", cmd.Fire, pressed: true);
+    }
+
+    private static void JoystickReleaseDirect(IRemotableHostApp h, RemoteCommand cmd)
+    {
+        var input = GetInputProvider(h);
+        int port = cmd.Port ?? 1;
+
+        SetHeldJoystickBool(input, port, "Up", cmd.Up, pressed: false);
+        SetHeldJoystickBool(input, port, "Down", cmd.Down, pressed: false);
+        SetHeldJoystickBool(input, port, "Left", cmd.Left, pressed: false);
+        SetHeldJoystickBool(input, port, "Right", cmd.Right, pressed: false);
+        SetHeldJoystickBool(input, port, "Fire", cmd.Fire, pressed: false);
+    }
+
+    private static void JoystickReleaseAllDirect(IRemotableHostApp h, RemoteCommand cmd)
+    {
+        var input = GetInputProvider(h);
+        if (!cmd.Port.HasValue)
+            throw new ArgumentException("Missing 'port' parameter");
+        input.ReleaseAllHeldJoystickActions(cmd.Port.Value);
+    }
+
     private static void SetJoystickBool(IInputInjector input, int port, string action, bool? value)
     {
         if (value.HasValue)
             input.SetJoystickAction(port, action, value.Value);
     }
 
+    private static void SetHeldJoystickBool(IInputInjector input, int port, string action, bool? value, bool pressed)
+    {
+        if (value != true)
+            return;
+
+        if (pressed)
+            input.HoldJoystickAction(port, action);
+        else
+            input.ReleaseHeldJoystickAction(port, action);
+    }
+
     private static void KeyboardPressDirect(IRemotableHostApp h, RemoteCommand cmd)
     {
         if (string.IsNullOrEmpty(cmd.Key)) throw new ArgumentException("Missing 'key' parameter");
         var input = GetInputProvider(h);
-        input.KeyPress(cmd.Key);
+        input.HoldKey(cmd.Key);
     }
 
     private static void KeyboardReleaseDirect(IRemotableHostApp h, RemoteCommand cmd)
     {
         if (string.IsNullOrEmpty(cmd.Key)) throw new ArgumentException("Missing 'key' parameter");
         var input = GetInputProvider(h);
-        input.KeyRelease(cmd.Key);
+        input.ReleaseHeldKey(cmd.Key);
     }
 
     private static void KeyboardReleaseAllDirect(IRemotableHostApp h)
     {
-        GetInputProvider(h).KeyReleaseAll();
+        GetInputProvider(h).ReleaseAllHeldKeys();
     }
 
     private RemoteCommandResult HandleKeyIsDown(int? id, RemoteCommand cmd)

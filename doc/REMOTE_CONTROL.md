@@ -241,11 +241,84 @@ Sets joystick direction and fire button state for the next frame. Any combinatio
 
 Only the fields you include are changed; omitted fields are not touched.
 
+When using `dotnet-6502-remote`, you can explicitly clear an action with `--no-up`, `--no-down`, `--no-left`, `--no-right`, or `--no-fire`. The client also accepts `--up false` style boolean values. This is mainly useful when multiple `joystick.set` updates are queued before the same frame boundary; across frames, `joystick.set` is already non-persistent and must be resent every frame to remain active.
+
 ```json
 {"id": 10, "cmd": "joystick.set", "port": 1, "up": true, "fire": false}
 ```
 ```json
 {"id": 10, "ok": true}
+```
+
+---
+
+### `joystick.press`
+
+Presses and holds joystick actions on the selected port. Held joystick actions stay active across frames until explicitly released with `joystick.release` or `joystick.releaseall`. Executed at the next frame boundary.
+
+**Parameters**
+
+| Parameter | Type | Description                    |
+|-----------|------|--------------------------------|
+| `port`    | int  | Joystick port: `1` or `2`      |
+| `up`      | bool | Hold Up direction when `true`  |
+| `down`    | bool | Hold Down direction when `true`|
+| `left`    | bool | Hold Left direction when `true`|
+| `right`   | bool | Hold Right direction when `true`|
+| `fire`    | bool | Hold Fire button when `true`   |
+
+Only fields explicitly set to `true` are applied; omitted or `false` fields are ignored.
+
+```json
+{"id": 10, "cmd": "joystick.press", "port": 1, "up": true, "fire": true}
+```
+```json
+{"id": 10, "ok": true}
+```
+
+---
+
+### `joystick.release`
+
+Releases held joystick actions on the selected port. Executed at the next frame boundary.
+
+**Parameters**
+
+| Parameter | Type | Description                          |
+|-----------|------|--------------------------------------|
+| `port`    | int  | Joystick port: `1` or `2`            |
+| `up`      | bool | Release Up direction when `true`     |
+| `down`    | bool | Release Down direction when `true`   |
+| `left`    | bool | Release Left direction when `true`   |
+| `right`   | bool | Release Right direction when `true`  |
+| `fire`    | bool | Release Fire button when `true`      |
+
+Only fields explicitly set to `true` are applied; omitted or `false` fields are ignored.
+
+```json
+{"id": 11, "cmd": "joystick.release", "port": 1, "up": true}
+```
+```json
+{"id": 11, "ok": true}
+```
+
+---
+
+### `joystick.releaseall`
+
+Releases all held joystick actions on one port. Executed at the next frame boundary.
+
+**Parameters**
+
+| Parameter | Type | Description               |
+|-----------|------|---------------------------|
+| `port`    | int  | Joystick port: `1` or `2` |
+
+```json
+{"id": 12, "cmd": "joystick.releaseall", "port": 1}
+```
+```json
+{"id": 12, "ok": true}
 ```
 
 ---
@@ -493,8 +566,21 @@ dotnet-6502-remote cpu.get
 # Set joystick port 1: up + fire
 dotnet-6502-remote joystick.set --port 1 --up --fire
 
+# Hold joystick port 1 up + fire until release
+dotnet-6502-remote joystick.press --port 1 --up --fire
+
+# Release held joystick up on port 1
+dotnet-6502-remote joystick.release --port 1 --up
+
+# Release all held joystick actions on port 1
+dotnet-6502-remote joystick.releaseall --port 1
+
+# Clear joystick port 1 up + fire explicitly for the next frame only
+dotnet-6502-remote joystick.set --port 1 --no-up --fire false
+
 # Press and release the Return key
-dotnet-6502-remote keyboard.key --text return
+dotnet-6502-remote keyboard.press --key return
+dotnet-6502-remote keyboard.release --key return
 
 # Paste text into the C64 keyboard buffer (C64 only)
 dotnet-6502-remote c64.type --text "LOAD\"*\",8,1"
@@ -764,7 +850,7 @@ for ($i = 0; $i -lt 30; $i++) {
 |---------------------------|--------------------------|
 | Read-only queries         | Session thread (direct)  |
 | `emu.start/stop/pause/...`| UI thread via dispatcher |
-| `mem.write`, `joystick.set`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
+| `mem.write`, `joystick.set`, `joystick.press/release/releaseall`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
 | `keyboard.iskeydown`, `keyboard.getall` | Session thread (direct read) |
 
 ---
@@ -775,6 +861,7 @@ for ($i = 0; $i -lt 30; $i++) {
 - **`emu.quit` is disabled in Avalonia Desktop** by default. It is available in headless mode when `--allow-remote-quit` is passed.
 - **`screenshot` returns an error in headless mode** because no renderer is active.
 - **Loopback only.** The server binds to `127.0.0.1`; it is not reachable over the network.
-- **`keyboard.press` holds a key until `keyboard.release` or `keyboard.releaseall`.** The client controls press duration by choosing when to release. Keys are applied at frame boundary via the same `IInputInjector` interface used by Lua scripts.
+- **`keyboard.press` holds a key until `keyboard.release` or `keyboard.releaseall`.** The client controls press duration by choosing when to release. Keys are applied at frame boundary and remain held until released.
+- **`joystick.press` holds joystick actions until `joystick.release` or `joystick.releaseall`.** Use this for ergonomic hold/release remote control.
 - **`c64.type` is C64-specific.** Other systems do not implement text paste and will return an error. The text is fed into the C64 keyboard buffer across frames — if the buffer is full the remaining characters wait until space is available.
-- **Injected joystick actions from `joystick.set` are not persistent** — they must be resent every frame to hold a direction, unlike `keyboard.press` which is stateful.
+- **Injected joystick actions from `joystick.set` are not persistent** — they must be resent every frame to hold a direction. Use `joystick.press` if you want stateful joystick hold/release behavior.

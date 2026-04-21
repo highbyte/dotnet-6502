@@ -7,8 +7,14 @@ public class C64InputInjector : IInputInjector
 {
     private readonly C64 _c64;
 
-    private readonly HashSet<C64Key> _injectedKeys = new();
-    private readonly Dictionary<int, HashSet<C64JoystickAction>> _injectedJoystickActions = new()
+    private readonly HashSet<C64Key> _frameInjectedKeys = new();
+    private readonly HashSet<C64Key> _heldKeys = new();
+    private readonly Dictionary<int, HashSet<C64JoystickAction>> _heldJoystickActions = new()
+    {
+        { 1, new HashSet<C64JoystickAction>() },
+        { 2, new HashSet<C64JoystickAction>() }
+    };
+    private readonly Dictionary<int, HashSet<C64JoystickAction>> _frameInjectedJoystickActions = new()
     {
         { 1, new HashSet<C64JoystickAction>() },
         { 2, new HashSet<C64JoystickAction>() }
@@ -108,61 +114,111 @@ public class C64InputInjector : IInputInjector
 
     public int JoystickPortCount => 2;
 
+    public void BeginFrame()
+    {
+        _frameInjectedKeys.Clear();
+        _frameInjectedJoystickActions[1].Clear();
+        _frameInjectedJoystickActions[2].Clear();
+    }
+
     public void KeyPress(string keyName)
     {
         if (StringToC64Key.TryGetValue(keyName, out var c64Key))
-            _injectedKeys.Add(c64Key);
+            _frameInjectedKeys.Add(c64Key);
     }
 
     public void KeyRelease(string keyName)
     {
         if (StringToC64Key.TryGetValue(keyName, out var c64Key))
-            _injectedKeys.Remove(c64Key);
+            _frameInjectedKeys.Remove(c64Key);
     }
 
     public void KeyReleaseAll()
     {
-        _injectedKeys.Clear();
+        _frameInjectedKeys.Clear();
+    }
+
+    public void HoldKey(string keyName)
+    {
+        if (StringToC64Key.TryGetValue(keyName, out var c64Key))
+            _heldKeys.Add(c64Key);
+    }
+
+    public void ReleaseHeldKey(string keyName)
+    {
+        if (StringToC64Key.TryGetValue(keyName, out var c64Key))
+            _heldKeys.Remove(c64Key);
+    }
+
+    public void ReleaseAllHeldKeys()
+    {
+        _heldKeys.Clear();
     }
 
     public bool IsKeyDown(string keyName)
     {
         if (!StringToC64Key.TryGetValue(keyName, out var c64Key))
             return false;
-        return _c64.Cia1.Keyboard.IsKeyCurrentlyPressed(c64Key) || _injectedKeys.Contains(c64Key);
+        return _c64.Cia1.Keyboard.IsKeyCurrentlyPressed(c64Key)
+            || _heldKeys.Contains(c64Key)
+            || _frameInjectedKeys.Contains(c64Key);
     }
 
     public void SetJoystickAction(int port, string actionName, bool pressed)
     {
-        if (port < 1 || port > 2) return;
-        if (!StringToC64JoystickAction.TryGetValue(actionName, out var action)) return;
+        if (!TryGetJoystickAction(port, actionName, out var action)) return;
 
         if (pressed)
-            _injectedJoystickActions[port].Add(action);
+            _frameInjectedJoystickActions[port].Add(action);
         else
-            _injectedJoystickActions[port].Remove(action);
+            _frameInjectedJoystickActions[port].Remove(action);
+    }
+
+    public void HoldJoystickAction(int port, string actionName)
+    {
+        if (!TryGetJoystickAction(port, actionName, out var action)) return;
+        _heldJoystickActions[port].Add(action);
+    }
+
+    public void ReleaseHeldJoystickAction(int port, string actionName)
+    {
+        if (!TryGetJoystickAction(port, actionName, out var action)) return;
+        _heldJoystickActions[port].Remove(action);
+    }
+
+    public void ReleaseAllHeldJoystickActions(int port)
+    {
+        if (port < 1 || port > 2) return;
+        _heldJoystickActions[port].Clear();
     }
 
     public bool IsJoystickActionDown(int port, string actionName)
     {
-        if (port < 1 || port > 2) return false;
-        if (!StringToC64JoystickAction.TryGetValue(actionName, out var action)) return false;
+        if (!TryGetJoystickAction(port, actionName, out var action)) return false;
 
         var realActions = _c64.Cia1.Joystick.CurrentJoystickActions;
         return (realActions.TryGetValue(port, out var set) && set.Contains(action))
-            || _injectedJoystickActions[port].Contains(action);
+            || _heldJoystickActions[port].Contains(action)
+            || _frameInjectedJoystickActions[port].Contains(action);
     }
 
     public void Clear()
     {
-        _injectedKeys.Clear();
-        _injectedJoystickActions[1].Clear();
-        _injectedJoystickActions[2].Clear();
+        _heldKeys.Clear();
+        _heldJoystickActions[1].Clear();
+        _heldJoystickActions[2].Clear();
+        BeginFrame();
     }
 
     public void ApplyInjectedKeysTo(List<C64Key> c64KeysDown)
     {
-        foreach (var key in _injectedKeys)
+        foreach (var key in _heldKeys)
+        {
+            if (!c64KeysDown.Contains(key))
+                c64KeysDown.Add(key);
+        }
+
+        foreach (var key in _frameInjectedKeys)
         {
             if (!c64KeysDown.Contains(key))
                 c64KeysDown.Add(key);
@@ -173,8 +229,18 @@ public class C64InputInjector : IInputInjector
     {
         for (int port = 1; port <= 2; port++)
         {
-            if (_injectedJoystickActions[port].Count > 0)
-                joystick.SetJoystickActions(port, _injectedJoystickActions[port], overwrite: false);
+            if (_heldJoystickActions[port].Count > 0)
+                joystick.SetJoystickActions(port, _heldJoystickActions[port], overwrite: false);
+
+            if (_frameInjectedJoystickActions[port].Count > 0)
+                joystick.SetJoystickActions(port, _frameInjectedJoystickActions[port], overwrite: false);
         }
+    }
+
+    private static bool TryGetJoystickAction(int port, string actionName, out C64JoystickAction action)
+    {
+        action = default;
+        if (port < 1 || port > 2) return false;
+        return StringToC64JoystickAction.TryGetValue(actionName, out action);
     }
 }
