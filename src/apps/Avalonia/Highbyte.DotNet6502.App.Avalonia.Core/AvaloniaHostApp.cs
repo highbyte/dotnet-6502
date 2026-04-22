@@ -56,7 +56,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     internal IScriptingEngine ScriptingEngine => base.ScriptingEngine;
 
     private PeriodicAsyncTimer? _updateTimer;
-    private PeriodicAsyncTimer? _scriptingTickTimer;
 
     private EmulatorDisplayControlBase? _renderControl;
 
@@ -340,21 +339,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         base.OnAfterStop();
     }
 
-    protected override void StopScriptingTimer()
-    {
-        if (_scriptingTickTimer != null)
-        {
-            _scriptingTickTimer.Elapsed -= ScriptingTickTimerElapsed;
-            _scriptingTickTimer.Stop();
-            _scriptingTickTimer.Dispose();
-            _scriptingTickTimer = null;
-        }
-    }
+    protected override IScriptingTickTimer CreateScriptingTickTimer(double intervalMs) =>
+        new PeriodicAsyncTimer { IntervalMilliseconds = intervalMs };
 
     protected override void OnScriptingEngineSet()
     {
-        _scriptingTickTimer = CreateScriptingTickTimer();
-        _scriptingTickTimer.Start();
         _ = Dispatcher.UIThread.InvokeAsync(DrainPendingScriptActionsAsync);
     }
 
@@ -602,22 +591,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _updateTimer.Dispose();
             _updateTimer = null;
         }
-    }
-
-    private PeriodicAsyncTimer CreateScriptingTickTimer()
-    {
-        var timer = new PeriodicAsyncTimer
-        {
-            IntervalMilliseconds = 16.0 // ~60 Hz, independent of system refresh rate
-        };
-        timer.Elapsed += ScriptingTickTimerElapsed;
-        return timer;
-    }
-
-    private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
-    {
-        InvokeScriptingTick();  
-        await DrainPendingScriptActionsAsync();
     }
 
     private async void UpdateTimerElapsed(object? sender, EventArgs e)

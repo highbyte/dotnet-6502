@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
@@ -10,7 +11,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// A timer that uses .NET built-in PeriodicTimer.
 /// As PeriodicTimer runs on the thread it is created on, we need to marshal the Elapsed event to the UI thread.
 /// </summary>
-public class PeriodicAsyncTimer : IDisposable, IAsyncDisposable
+public class PeriodicAsyncTimer : IScriptingTickTimer, IAsyncDisposable
 {
     private CancellationTokenSource? _cts;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
@@ -20,6 +21,12 @@ public class PeriodicAsyncTimer : IDisposable, IAsyncDisposable
     public long TimeSinceLastTickMilliseconds { get; private set; }
 
     public event EventHandler? Elapsed;
+
+    event EventHandler IScriptingTickTimer.Elapsed
+    {
+        add => Elapsed += value;
+        remove => Elapsed -= value;
+    }
 
     public void Start()
     {
