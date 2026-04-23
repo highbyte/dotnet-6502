@@ -66,6 +66,18 @@ The Avalonia desktop and browser apps support [Lua scripting](doc/SCRIPTING.md) 
 | ----------------------------------------------- | ------------------------------------------------- |
 | <img src="doc/Screenshots/AvaloniaDesktop_C64_Scripting.png" title="VLua scripts in Desktop app"/> | <img src="doc/Screenshots/AvaloniaBrowser_C64_Scripting.png" title="Lua scripts in Browser app"/> | 
 
+## Remote control
+
+The Avalonia desktop app and the headless app expose a **TCP remote control endpoint** that lets external processes inspect and drive a running emulator instance in real time. A persistent, newline-delimited JSON protocol is used — one client at a time. Useful for automation, AI agent integration, and tooling that needs ad-hoc access without embedding a Lua script inside the emulator process.
+
+The **Debug & Remoting tab** shows the server status. While a client is connected a blue banner appears at the bottom of the window.
+
+See [TCP Remote Control documentation](doc/REMOTE_CONTROL.md) for the full protocol reference and command list.
+
+| [Remote control in desktop app](doc/REMOTE_CONTROL.md)|
+| ----------------------------------------------- |
+| <img src="doc/Screenshots/AvaloniaDesktop_RemoteControl.png" title="Avalonia Desktop app with active TCP remote control client" width="50%"/> |
+
 ## Other features
 
 | [Run 6502 machine code in your own .NET apps](doc/CPU_LIBRARY.md)  | [Machine code monitor](doc/MONITOR.md) | [C64 Basic AI code completion](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md) | 

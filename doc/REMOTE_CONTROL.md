@@ -17,6 +17,8 @@ Key design points:
 
 ### Avalonia Desktop
 
+**Option 1 — command line (server starts automatically on launch):**
+
 ```sh
 # Start on a fixed port
 dotnet run --project src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop -- --remote-port 6510
@@ -24,6 +26,12 @@ dotnet run --project src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop 
 # Or via the published binary
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --remote-port 6510
 ```
+
+**Option 2 — from the UI (start/stop at any time without restarting the app):**
+
+1. Open the **Debug & Remoting tab** (via the `View` menu → `Debug & Remoting`).
+2. In the *Remote Control Server* section, enter the desired port number.
+3. Click **Start** to begin listening.
 
 When the server is listening the **Debug & Remoting tab** shows a *Remote Control Server* section with the status `Listening on :6510`. When a client connects a blue banner appears at the bottom of the window: `• Remote Control Connected (port 6510)`.
 
@@ -818,7 +826,7 @@ for ($i = 0; $i -lt 30; $i++) {
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  External process (AI agent, script, dotnet-6502-remote) │
+│ External process (AI agent, script, dotnet-6502-remote) │
 └──────────────────────┬──────────────────────────────────┘
                        │ TCP (newline-delimited JSON)
                        ▼
