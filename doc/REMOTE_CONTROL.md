@@ -536,13 +536,17 @@ A thin CLI wrapper is provided that hides the JSON framing, handles connection s
 
 ### Installation
 
+Pre-built binaries are available via Homebrew (macOS/Linux), Scoop (Windows), or manual download. See [INSTALL_REMOTE_CLIENT.md](INSTALL_REMOTE_CLIENT.md) for platform-specific instructions.
+
+Run from source (development):
+
 ```sh
 # Run directly from source
 dotnet run --project src/apps/Highbyte.DotNet6502.App.RemoteClient -- --help
 
 # Or build and add to PATH
 dotnet build src/apps/Highbyte.DotNet6502.App.RemoteClient -c Release
-# binary: src/apps/Highbyte.DotNet6502.App.RemoteClient/bin/Release/net10.0/dotnet-6502-remote
+# binary: src/apps/Highbyte.DotNet6502.App.RemoteClient/bin/Release/net10.0/Highbyte.DotNet6502.App.RemoteClient
 ```
 
 ### Global options

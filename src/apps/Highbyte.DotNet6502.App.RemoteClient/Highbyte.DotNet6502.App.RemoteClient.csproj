@@ -4,7 +4,5 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>dotnet-6502-remote</AssemblyName>
-    <RootNamespace>Highbyte.DotNet6502.App.RemoteClient</RootNamespace>
   </PropertyGroup>
 </Project>

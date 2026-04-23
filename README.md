@@ -74,6 +74,8 @@ The **Debug & Remoting tab** shows the server status. While a client is connecte
 
 See [TCP Remote Control documentation](doc/REMOTE_CONTROL.md) for the full protocol reference and command list.
 
+A ready-made CLI client, `dotnet-6502-remote`, is distributed separately — see [Install Remote Client](doc/INSTALL_REMOTE_CLIENT.md) for download and installation instructions.
+
 | [Remote control in desktop app](doc/REMOTE_CONTROL.md)|
 | ----------------------------------------------- |
 | <img src="doc/Screenshots/AvaloniaDesktop_RemoteControl.png" title="Avalonia Desktop app with active TCP remote control client" width="50%"/> |
