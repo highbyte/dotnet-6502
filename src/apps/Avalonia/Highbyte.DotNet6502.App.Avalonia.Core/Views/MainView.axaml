@@ -848,6 +848,20 @@
                                                         Height="20"
                                                         FontSize="10"
                                                         ToolTip.Tip="Start or stop the TCP remote control server"/>
+                                                <!-- Bind address label + text box -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Bind:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBox Text="{Binding RemoteControlBindAddress}"
+                                                             AutomationProperties.AutomationId="RemoteControlBindAddressInput"
+                                                             AutomationProperties.Name="Remote control server bind IP address"
+                                                             IsEnabled="{Binding !IsRemoteControlListening}"
+                                                             Width="110"
+                                                             Classes="small"
+                                                             ToolTip.Tip="IP address to bind to (default: 127.0.0.1 for loopback only; use 0.0.0.0 to accept connections from any network interface — note the protocol is unauthenticated)"/>
+                                                </StackPanel>
                                                 <!-- Port label + number -->
                                                 <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                                     <TextBlock Text="Port:"

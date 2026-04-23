@@ -367,10 +367,17 @@ public class MainViewModel : ViewModelBase, IDisposable
         set => this.RaiseAndSetIfChanged(ref _remoteControlPort, value);
     }
 
+    private string _remoteControlBindAddress = IRemoteControlController.DefaultBindAddress;
+    public string RemoteControlBindAddress
+    {
+        get => _remoteControlBindAddress;
+        set => this.RaiseAndSetIfChanged(ref _remoteControlBindAddress, value);
+    }
+
     public string RemoteControlStatusText => _remoteControlController switch
     {
         null => "",
-        { IsListening: true } => $"Listening on :{_remoteControlController.Port}",
+        { IsListening: true } => $"Listening on {_remoteControlController.BindAddress}:{_remoteControlController.Port}",
         _ => "Off"
     };
 
@@ -604,7 +611,10 @@ public class MainViewModel : ViewModelBase, IDisposable
             _isRemoteControlListening = _remoteControlController.IsListening;
             _isRemoteClientConnected = _remoteControlController.IsClientConnected;
             if (_remoteControlController.IsListening)
+            {
                 _remoteControlPort = _remoteControlController.Port;
+                _remoteControlBindAddress = _remoteControlController.BindAddress;
+            }
             _isRemoteClientBannerVisible = _isRemoteClientConnected;
             _remoteClientBannerOpacity = _isRemoteClientConnected ? 1.0 : 0.0;
             if (_isRemoteClientConnected)
@@ -631,7 +641,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 if (_remoteControlController!.IsListening)
                     await _remoteControlController.StopAsync();
                 else
-                    await _remoteControlController.StartAsync(Math.Max(1, _remoteControlPort));
+                    await _remoteControlController.StartAsync(Math.Max(1, _remoteControlPort), _remoteControlBindAddress);
             },
             canExecute: null,
             RxSchedulers.MainThreadScheduler);
@@ -1092,7 +1102,10 @@ public class MainViewModel : ViewModelBase, IDisposable
             bool isRemoteClientConnected = _remoteControlController?.IsClientConnected ?? false;
             IsRemoteClientConnected = isRemoteClientConnected;
             if (_remoteControlController != null)
+            {
                 RemoteControlPort = _remoteControlController.Port;
+                RemoteControlBindAddress = _remoteControlController.BindAddress;
+            }
             this.RaisePropertyChanged(nameof(RemoteControlStatusText));
             this.RaisePropertyChanged(nameof(RemoteControlToggleButtonText));
 

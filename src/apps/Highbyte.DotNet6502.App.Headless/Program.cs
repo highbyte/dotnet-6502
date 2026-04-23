@@ -24,6 +24,7 @@ bool debugWait = args.Contains("--debug-wait");
 
 // Parse remote control arguments
 int? remotePort = ParsePortArgument(args, "--remote-port");
+string? remoteBindAddress = AutomatedStartupHandler.ParseStringArgument(args, "--remote-bind-address");
 bool allowRemoteQuit = args.Contains("--allow-remote-quit");
 
 // Parse automated startup arguments
@@ -130,8 +131,19 @@ var remoteEnvironment = new HeadlessRemoteControlEnvironment(loggerFactory, allo
 var remoteController = new RemoteControlController(remoteEnvironment, loggerFactory);
 if (remotePort.HasValue)
 {
-    logger.LogInformation("Starting TCP remote control server on port {RemotePort}.", remotePort.Value);
-    await remoteController.StartAsync(remotePort.Value);
+    var effectiveBindAddress = string.IsNullOrWhiteSpace(remoteBindAddress)
+        ? IRemoteControlController.DefaultBindAddress
+        : remoteBindAddress.Trim();
+    logger.LogInformation("Starting TCP remote control server on {BindAddress}:{RemotePort}.", effectiveBindAddress, remotePort.Value);
+    try
+    {
+        await remoteController.StartAsync(remotePort.Value, effectiveBindAddress);
+    }
+    catch (ArgumentException ex)
+    {
+        logger.LogError("Failed to start remote control server: {Message}", ex.Message);
+        return 1;
+    }
 }
 
 // ----------

@@ -1,3 +1,4 @@
+using System.Net;
 using Highbyte.DotNet6502.Remoting.Tcp;
 using Microsoft.Extensions.Logging;
 
@@ -41,6 +42,7 @@ public class RemoteControlController : IRemoteControlController, IDisposable
     }
 
     public int Port { get; private set; }
+    public string BindAddress { get; private set; } = IRemoteControlController.DefaultBindAddress;
 
     public event EventHandler? StateChanged;
 
@@ -51,18 +53,28 @@ public class RemoteControlController : IRemoteControlController, IDisposable
         _logger = loggerFactory?.CreateLogger<RemoteControlController>();
     }
 
-    public async Task StartAsync(int port)
+    public async Task StartAsync(int port, string? bindAddress = null)
     {
         if (_isListening) return;
 
+        var effectiveAddress = string.IsNullOrWhiteSpace(bindAddress)
+            ? IRemoteControlController.DefaultBindAddress
+            : bindAddress.Trim();
+
+        if (!IPAddress.TryParse(effectiveAddress, out var parsedAddress))
+            throw new ArgumentException(
+                $"Invalid bind address '{effectiveAddress}'. Expected an IPv4 or IPv6 literal (e.g. 127.0.0.1, 0.0.0.0, ::1).",
+                nameof(bindAddress));
+
         Port = port;
+        BindAddress = effectiveAddress;
         _server = new TcpRemoteControlServer(_loggerFactory);
         _server.ClientConnected += OnClientConnected;
-        await _server.StartAsync(port);
+        await _server.StartAsync(port, parsedAddress);
         Port = _server.Port;
         IsListening = true;
 
-        _logger?.LogInformation("[RemoteControl] Listening on port {Port}", Port);
+        _logger?.LogInformation("[RemoteControl] Listening on {BindAddress}:{Port}", BindAddress, Port);
     }
 
     public async Task StopAsync()

@@ -20,6 +20,7 @@ public class TcpRemoteControlServer : IDisposable
     public event EventHandler<TcpClientConnectedEventArgs>? ClientConnected;
 
     public int Port { get; private set; }
+    public IPAddress BindAddress { get; private set; } = IPAddress.Loopback;
     public bool IsListening { get; private set; }
 
     public TcpRemoteControlServer(ILoggerFactory? loggerFactory = null)
@@ -27,16 +28,17 @@ public class TcpRemoteControlServer : IDisposable
         _logger = loggerFactory?.CreateLogger<TcpRemoteControlServer>();
     }
 
-    public async Task StartAsync(int port = 0)
+    public async Task StartAsync(int port = 0, IPAddress? bindAddress = null)
     {
         if (IsListening)
             throw new InvalidOperationException("Server is already started");
 
-        _listener = new TcpListener(IPAddress.Loopback, port);
+        BindAddress = bindAddress ?? IPAddress.Loopback;
+        _listener = new TcpListener(BindAddress, port);
         _listener.Start();
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
 
-        _logger?.LogInformation("[RemoteControl TCP] Started listening on port {Port}", Port);
+        _logger?.LogInformation("[RemoteControl TCP] Started listening on {BindAddress}:{Port}", BindAddress, Port);
 
         _cts = new CancellationTokenSource();
         _listenTask = Task.Run(() => ListenForClientsAsync(_cts.Token));

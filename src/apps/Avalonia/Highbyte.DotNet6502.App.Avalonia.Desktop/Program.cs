@@ -67,6 +67,22 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--remote-port &lt;port&gt;</c></term>
+    ///     <description>
+    ///       Start the TCP remote control server on the specified port.
+    ///       Port must be between 1 and 65535. The server can also be started later from the
+    ///       <b>Debug &amp; Remoting</b> tab in the UI.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--remote-bind-address &lt;ip&gt;</c></term>
+    ///     <description>
+    ///       IP address the remote control server binds to. Defaults to <c>127.0.0.1</c> (loopback only).
+    ///       Use <c>0.0.0.0</c> to accept connections from any network interface (note: the protocol is unauthenticated;
+    ///       only expose to trusted networks). Only has effect together with <c>--remote-port</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--system &lt;name&gt;</c></term>
     ///     <description>
     ///       Pre-select a system (e.g. <c>C64</c>, <c>Generic</c>).
@@ -186,6 +202,7 @@ internal sealed partial class Program
 
         // Parse remote control arguments
         int? remotePort = ParsePortArgument(args, "--remote-port");
+        string? remoteBindAddress = AutomatedStartupHandler.ParseStringArgument(args, "--remote-bind-address");
 
         // Parse automated startup arguments
         string? systemName = AutomatedStartupHandler.ParseStringArgument(args, "--system");
@@ -283,8 +300,19 @@ internal sealed partial class Program
         var remoteController = new RemoteControlController(new AvaloniaRemoteControlEnvironment(loggerFactory), loggerFactory);
         if (remotePort.HasValue)
         {
-            WriteBootstrapLog($"Starting TCP remote control server on port {remotePort.Value}.");
-            Task.Run(async () => await remoteController.StartAsync(remotePort.Value)).Wait();
+            var effectiveBindAddress = string.IsNullOrWhiteSpace(remoteBindAddress)
+                ? IRemoteControlController.DefaultBindAddress
+                : remoteBindAddress!.Trim();
+            WriteBootstrapLog($"Starting TCP remote control server on {effectiveBindAddress}:{remotePort.Value}.");
+            try
+            {
+                Task.Run(async () => await remoteController.StartAsync(remotePort.Value, effectiveBindAddress)).Wait();
+            }
+            catch (AggregateException aex) when (aex.InnerException is ArgumentException iae)
+            {
+                WriteBootstrapLog($"Failed to start remote control server: {iae.Message}", LogLevel.Error);
+                return 1;
+            }
         }
 
         if (enableExternalDebug)
