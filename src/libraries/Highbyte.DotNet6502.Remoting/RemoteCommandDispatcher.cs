@@ -33,21 +33,21 @@ public class RemoteCommandDispatcher
             return cmd.Cmd switch
             {
                 "emu.state"    => HandleEmuState(cmd.Id),
-                "emu.start"    => await HandleUiAsync(cmd.Id, async h => await h.Start()),
-                "emu.stop"     => await HandleUiAsync(cmd.Id, h => { h.Stop();  return Task.CompletedTask; }),
-                "emu.pause"    => await HandleUiAsync(cmd.Id, h => { h.Pause(); return Task.CompletedTask; }),
-                "emu.reset"    => await HandleUiAsync(cmd.Id, async h => await h.Reset()),
+                "emu.start"    => await HandleUiAsync(cmd.Id, async hostApp => await hostApp.Start()),
+                "emu.stop"     => await HandleUiAsync(cmd.Id, hostApp => { hostApp.Stop();  return Task.CompletedTask; }),
+                "emu.pause"    => await HandleUiAsync(cmd.Id, hostApp => { hostApp.Pause(); return Task.CompletedTask; }),
+                "emu.reset"    => await HandleUiAsync(cmd.Id, async hostApp => await hostApp.Reset()),
                 "emu.quit"     => HandleEmuQuit(cmd.Id),
                 "cpu.get"      => HandleCpuGet(cmd.Id),
                 "mem.read"     => HandleMemRead(cmd.Id, cmd),
-                "mem.write"    => await HandleFrameAsync(cmd.Id, h => MemWriteDirect(h, cmd)),
-                "joystick.set"       => await HandleFrameAsync(cmd.Id, h => JoystickSetDirect(h, cmd)),
-                "joystick.press"     => await HandleFrameAsync(cmd.Id, h => JoystickPressDirect(h, cmd)),
-                "joystick.release"   => await HandleFrameAsync(cmd.Id, h => JoystickReleaseDirect(h, cmd)),
-                "joystick.releaseall"=> await HandleFrameAsync(cmd.Id, h => JoystickReleaseAllDirect(h, cmd)),
-                "keyboard.press"     => await HandleFrameAsync(cmd.Id, h => KeyboardPressDirect(h, cmd)),
-                "keyboard.release"   => await HandleFrameAsync(cmd.Id, h => KeyboardReleaseDirect(h, cmd)),
-                "keyboard.releaseall"=> await HandleFrameAsync(cmd.Id, h => KeyboardReleaseAllDirect(h)),
+                "mem.write"    => await HandleFrameAsync(cmd.Id, hostApp => MemWriteDirect(hostApp, cmd)),
+                "joystick.set"       => await HandleFrameAsync(cmd.Id, hostApp => JoystickSetDirect(hostApp, cmd)),
+                "joystick.press"     => await HandleFrameAsync(cmd.Id, hostApp => JoystickPressDirect(hostApp, cmd)),
+                "joystick.release"   => await HandleFrameAsync(cmd.Id, hostApp => JoystickReleaseDirect(hostApp, cmd)),
+                "joystick.releaseall"=> await HandleFrameAsync(cmd.Id, hostApp => JoystickReleaseAllDirect(hostApp, cmd)),
+                "keyboard.press"     => await HandleFrameAsync(cmd.Id, hostApp => KeyboardPressDirect(hostApp, cmd)),
+                "keyboard.release"   => await HandleFrameAsync(cmd.Id, hostApp => KeyboardReleaseDirect(hostApp, cmd)),
+                "keyboard.releaseall"=> await HandleFrameAsync(cmd.Id, hostApp => KeyboardReleaseAllDirect(hostApp)),
                 "keyboard.iskeydown" => HandleKeyIsDown(cmd.Id, cmd),
                 "keyboard.getall"    => HandleKeyGetAll(cmd.Id),
                 "c64.type"           => await HandleC64TypeAsync(cmd.Id, cmd),
@@ -69,21 +69,21 @@ public class RemoteCommandDispatcher
 
     private RemoteCommandResult HandleEmuState(int? id)
     {
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
         return new RemoteCommandResult
         {
             Id = id, Ok = true,
-            State = h.EmulatorState.ToString(),
-            System = h.SelectedSystemName,
+            State = hostApp.EmulatorState.ToString(),
+            System = hostApp.SelectedSystemName,
         };
     }
 
     private RemoteCommandResult HandleCpuGet(int? id)
     {
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
-        var sys = h.CurrentRunningSystem;
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        var sys = hostApp.CurrentRunningSystem;
         if (sys == null) return Err(id, "Emulator not running");
         var cpu = sys.CPU;
         var ps = cpu.ProcessorStatus;
@@ -101,9 +101,9 @@ public class RemoteCommandDispatcher
 
     private RemoteCommandResult HandleMemRead(int? id, RemoteCommand cmd)
     {
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
-        var sys = h.CurrentRunningSystem;
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        var sys = hostApp.CurrentRunningSystem;
         if (sys == null) return Err(id, "Emulator not running");
 
         if (string.IsNullOrWhiteSpace(cmd.Addr))
@@ -123,9 +123,9 @@ public class RemoteCommandDispatcher
 
     private RemoteCommandResult HandleScreenshot(int? id)
     {
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
-        var png = h.CaptureScreenshotPng();
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        var png = hostApp.CaptureScreenshotPng();
         if (png == null) return Err(id, "Screenshot not available");
         return new RemoteCommandResult
         {
@@ -146,9 +146,9 @@ public class RemoteCommandDispatcher
     {
         if (!_environment.SupportsQuit)
             return Err(id, "emu.quit is not supported in this environment");
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
-        _environment.RunOnUiThread(() => h.QuitApplication());
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        _environment.RunOnUiThread(() => hostApp.QuitApplication());
         return Ok(id);
     }
 
@@ -156,15 +156,15 @@ public class RemoteCommandDispatcher
 
     private async Task<RemoteCommandResult> HandleUiAsync(int? id, Func<IRemotableHostApp, Task> action)
     {
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _environment.RunOnUiThread(async () =>
         {
             try
             {
-                await action(h);
+                await action(hostApp);
                 tcs.TrySetResult(true);
             }
             catch (Exception ex)
@@ -181,15 +181,16 @@ public class RemoteCommandDispatcher
 
     private async Task<RemoteCommandResult> HandleFrameAsync(int? id, Action<IRemotableHostApp> action)
     {
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        if (hostApp.EmulatorState != EmulatorState.Running) return Err(id, $"Emulator is not running (state: {hostApp.EmulatorState})");
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        h.EnqueueRemoteAction(() =>
+        hostApp.EnqueueRemoteAction(() =>
         {
             try
             {
-                action(h);
+                action(hostApp);
                 tcs.TrySetResult(true);
             }
             catch (Exception ex)
@@ -204,7 +205,7 @@ public class RemoteCommandDispatcher
 
     // --- Frame-boundary action implementations ---
 
-    private static void MemWriteDirect(IRemotableHostApp h, RemoteCommand cmd)
+    private static void MemWriteDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
     {
         if (string.IsNullOrWhiteSpace(cmd.Addr))
             throw new ArgumentException("Missing 'addr'");
@@ -213,15 +214,15 @@ public class RemoteCommandDispatcher
         if (cmd.Data == null || cmd.Data.Value.ValueKind != JsonValueKind.Array)
             throw new ArgumentException("'data' must be a JSON array of byte values");
 
-        var sys = h.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
+        var sys = hostApp.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
         int i = 0;
         foreach (var elem in cmd.Data.Value.EnumerateArray())
             sys.Mem[(ushort)((addr + i++) & 0xFFFF)] = (byte)elem.GetInt32();
     }
 
-    private static void JoystickSetDirect(IRemotableHostApp h, RemoteCommand cmd)
+    private static void JoystickSetDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
     {
-        var input = GetInputProvider(h);
+        var input = GetInputProvider(hostApp);
         int port = cmd.Port ?? 1;
 
         SetJoystickBool(input, port, "Up",    cmd.Up);
@@ -231,9 +232,9 @@ public class RemoteCommandDispatcher
         SetJoystickBool(input, port, "Fire",  cmd.Fire);
     }
 
-    private static void JoystickPressDirect(IRemotableHostApp h, RemoteCommand cmd)
+    private static void JoystickPressDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
     {
-        var input = GetInputProvider(h);
+        var input = GetInputProvider(hostApp);
         int port = cmd.Port ?? 1;
 
         SetHeldJoystickBool(input, port, "Up", cmd.Up, pressed: true);
@@ -243,9 +244,9 @@ public class RemoteCommandDispatcher
         SetHeldJoystickBool(input, port, "Fire", cmd.Fire, pressed: true);
     }
 
-    private static void JoystickReleaseDirect(IRemotableHostApp h, RemoteCommand cmd)
+    private static void JoystickReleaseDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
     {
-        var input = GetInputProvider(h);
+        var input = GetInputProvider(hostApp);
         int port = cmd.Port ?? 1;
 
         SetHeldJoystickBool(input, port, "Up", cmd.Up, pressed: false);
@@ -255,9 +256,9 @@ public class RemoteCommandDispatcher
         SetHeldJoystickBool(input, port, "Fire", cmd.Fire, pressed: false);
     }
 
-    private static void JoystickReleaseAllDirect(IRemotableHostApp h, RemoteCommand cmd)
+    private static void JoystickReleaseAllDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
     {
-        var input = GetInputProvider(h);
+        var input = GetInputProvider(hostApp);
         if (!cmd.Port.HasValue)
             throw new ArgumentException("Missing 'port' parameter");
         input.ReleaseAllHeldJoystickActions(cmd.Port.Value);
@@ -280,31 +281,31 @@ public class RemoteCommandDispatcher
             input.ReleaseHeldJoystickAction(port, action);
     }
 
-    private static void KeyboardPressDirect(IRemotableHostApp h, RemoteCommand cmd)
+    private static void KeyboardPressDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
     {
         if (string.IsNullOrEmpty(cmd.Key)) throw new ArgumentException("Missing 'key' parameter");
-        var input = GetInputProvider(h);
+        var input = GetInputProvider(hostApp);
         input.HoldKey(cmd.Key);
     }
 
-    private static void KeyboardReleaseDirect(IRemotableHostApp h, RemoteCommand cmd)
+    private static void KeyboardReleaseDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
     {
         if (string.IsNullOrEmpty(cmd.Key)) throw new ArgumentException("Missing 'key' parameter");
-        var input = GetInputProvider(h);
+        var input = GetInputProvider(hostApp);
         input.ReleaseHeldKey(cmd.Key);
     }
 
-    private static void KeyboardReleaseAllDirect(IRemotableHostApp h)
+    private static void KeyboardReleaseAllDirect(IRemotableHostApp hostApp)
     {
-        GetInputProvider(h).ReleaseAllHeldKeys();
+        GetInputProvider(hostApp).ReleaseAllHeldKeys();
     }
 
     private RemoteCommandResult HandleKeyIsDown(int? id, RemoteCommand cmd)
     {
         if (string.IsNullOrEmpty(cmd.Key)) return Err(id, "Missing 'key' parameter");
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
-        var sys = h.CurrentRunningSystem;
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        var sys = hostApp.CurrentRunningSystem;
         if (sys == null) return Err(id, "Emulator not running");
         var input = sys.InputInjector;
         if (input == null) return Err(id, "System has no input injector");
@@ -313,18 +314,18 @@ public class RemoteCommandDispatcher
 
     private RemoteCommandResult HandleKeyGetAll(int? id)
     {
-        var h = _environment.GetHostApp();
-        if (h == null) return Err(id, "Emulator not initialized");
-        var sys = h.CurrentRunningSystem;
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        var sys = hostApp.CurrentRunningSystem;
         if (sys == null) return Err(id, "Emulator not running");
         var input = sys.InputInjector;
         if (input == null) return Err(id, "System has no input injector");
         return new RemoteCommandResult { Id = id, Ok = true, Data = input.GetAvailableKeys() };
     }
 
-    private static IInputInjector GetInputProvider(IRemotableHostApp h)
+    private static IInputInjector GetInputProvider(IRemotableHostApp hostApp)
     {
-        var sys = h.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
+        var sys = hostApp.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
         return sys.InputInjector ?? throw new InvalidOperationException("System has no input injector");
     }
 
@@ -354,9 +355,9 @@ public class RemoteCommandDispatcher
     private C64? GetC64System(int? id, out RemoteCommandResult? error)
     {
         error = null;
-        var h = _environment.GetHostApp();
-        if (h == null) { error = Err(id, "Emulator not initialized"); return null; }
-        var sys = h.CurrentRunningSystem;
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) { error = Err(id, "Emulator not initialized"); return null; }
+        var sys = hostApp.CurrentRunningSystem;
         if (sys == null) { error = Err(id, "Emulator not running"); return null; }
         if (sys is not C64 c64) { error = Err(id, "Current system is not a C64"); return null; }
         return c64;

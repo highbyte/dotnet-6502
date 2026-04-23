@@ -865,6 +865,7 @@ for ($i = 0; $i -lt 30; $i++) {
 
 ## Limitations
 
+- **Frame-boundary commands require the emulator to be running.** `mem.write`, `keyboard.press/release/releaseall`, `joystick.set/press/release/releaseall`, and `c64.type` return an immediate error (`"Emulator is not running"`) if the emulator state is `Paused` or `Uninitialized`. Use `emu.state` to confirm `Running` before sending these commands, or send `emu.start` first.
 - **One client at a time.** A second connection attempt is accepted only after the first client disconnects.
 - **`emu.quit` is disabled in Avalonia Desktop** by default. It is available in headless mode when `--allow-remote-quit` is passed.
 - **`screenshot` returns an error in headless mode** because no renderer is active.
