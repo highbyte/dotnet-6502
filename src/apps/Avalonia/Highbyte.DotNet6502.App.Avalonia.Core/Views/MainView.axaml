@@ -25,22 +25,6 @@
         <Style Selector="Button.sort-header:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent"/>
         </Style>
-        <Style Selector="NumericUpDown.port-input">
-            <Setter Property="Height" Value="22"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="NumericUpDown.port-input /template/ ButtonSpinner">
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="NumericUpDown.port-input /template/ TextBox">
-            <Setter Property="Padding" Value="4,0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
     </UserControl.Styles>
 
     <Grid ShowGridLines="False">
@@ -828,24 +812,16 @@
                                                                Classes="accent bold"
                                                                FontSize="10"
                                                                VerticalAlignment="Center"/>
-                                                    <Border Width="68"
-                                                            Height="24"
-                                                            Background="{DynamicResource SecondaryBg}"
-                                                            BorderBrush="{DynamicResource BorderColor}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="2"
-                                                            ClipToBounds="True">
-                                                        <NumericUpDown Value="{Binding ExternalDebugPort}"
-                                                                       AutomationProperties.AutomationId="ExternalDebugPortInput"
-                                                                       AutomationProperties.Name="External debug server TCP port"
-                                                                       IsEnabled="{Binding !IsExternalDebugListening}"
-                                                                       Minimum="0" Maximum="65535"
-                                                                       FormatString="0"
-                                                                       ShowButtonSpinner="False"
-                                                                       HorizontalAlignment="Stretch"
-                                                                       Classes="small port-input"
-                                                                       ToolTip.Tip="TCP port for the debug adapter server (default: 6502)"/>
-                                                    </Border>
+                                                    <TextBox Text="{Binding ExternalDebugPortText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.AutomationId="ExternalDebugPortInput"
+                                                             AutomationProperties.Name="External debug server TCP port"
+                                                             IsEnabled="{Binding !IsExternalDebugListening}"
+                                                             Width="68"
+                                                             MaxLength="5"
+                                                             Classes="small"
+                                                             TextInput="OnDigitsOnlyTextInput"
+                                                             TextChanged="OnPortTextChanged"
+                                                             ToolTip.Tip="{Binding ExternalDebugPortInputToolTip}"/>
                                                 </StackPanel>
                                                 <!-- Status text -->
                                                 <TextBlock Text="{Binding ExternalDebugStatusText}"
@@ -878,13 +854,15 @@
                                                                Classes="accent bold"
                                                                FontSize="10"
                                                                VerticalAlignment="Center"/>
-                                                    <TextBox Text="{Binding RemoteControlBindAddress}"
+                                                    <TextBox Text="{Binding RemoteControlBindAddressText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                              AutomationProperties.AutomationId="RemoteControlBindAddressInput"
                                                              AutomationProperties.Name="Remote control server bind IP address"
                                                              IsEnabled="{Binding !IsRemoteControlListening}"
                                                              Width="110"
                                                              Classes="small"
-                                                             ToolTip.Tip="IP address to bind to (default: 127.0.0.1 for loopback only; use 0.0.0.0 to accept connections from any network interface — note the protocol is unauthenticated)"/>
+                                                             TextInput="OnIpv4TextInput"
+                                                             TextChanged="OnIpv4TextChanged"
+                                                             ToolTip.Tip="{Binding RemoteControlBindAddressInputToolTip}"/>
                                                 </StackPanel>
                                                 <!-- Port label + number -->
                                                 <StackPanel Orientation="Horizontal" Classes="spacing-tight">
@@ -892,24 +870,16 @@
                                                                Classes="accent bold"
                                                                FontSize="10"
                                                                VerticalAlignment="Center"/>
-                                                    <Border Width="68"
-                                                            Height="24"
-                                                            Background="{DynamicResource SecondaryBg}"
-                                                            BorderBrush="{DynamicResource BorderColor}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="2"
-                                                            ClipToBounds="True">
-                                                        <NumericUpDown Value="{Binding RemoteControlPort}"
-                                                                       AutomationProperties.AutomationId="RemoteControlPortInput"
-                                                                       AutomationProperties.Name="Remote control server TCP port"
-                                                                       IsEnabled="{Binding !IsRemoteControlListening}"
-                                                                       Minimum="0" Maximum="65535"
-                                                                       FormatString="0"
-                                                                       ShowButtonSpinner="False"
-                                                                       HorizontalAlignment="Stretch"
-                                                                       Classes="small port-input"
-                                                                       ToolTip.Tip="TCP port for the remote control server (default: 6510)"/>
-                                                    </Border>
+                                                    <TextBox Text="{Binding RemoteControlPortText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.AutomationId="RemoteControlPortInput"
+                                                             AutomationProperties.Name="Remote control server TCP port"
+                                                             IsEnabled="{Binding !IsRemoteControlListening}"
+                                                             Width="68"
+                                                             MaxLength="5"
+                                                             Classes="small"
+                                                             TextInput="OnDigitsOnlyTextInput"
+                                                             TextChanged="OnPortTextChanged"
+                                                             ToolTip.Tip="{Binding RemoteControlPortInputToolTip}"/>
                                                 </StackPanel>
                                                 <!-- Status text -->
                                                 <TextBlock Text="{Binding RemoteControlStatusText}"
