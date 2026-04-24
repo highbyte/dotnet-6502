@@ -60,6 +60,14 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--debug-bind-address &lt;ip&gt;</c></term>
+    ///     <description>
+    ///       IP address the debug adapter server binds to. Defaults to <c>127.0.0.1</c> (loopback only).
+    ///       Use <c>0.0.0.0</c> to accept connections from any network interface (note: the debug adapter is unauthenticated
+    ///       and exposes emulator debugging control; only expose to trusted networks). Only has effect together with <c>--debug-port</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--debug-wait</c></term>
     ///     <description>
     ///       Wait for debug client to connect before starting the application.
@@ -198,6 +206,7 @@ internal sealed partial class Program
         // Parse debug adapter arguments
         bool enableExternalDebug = args.Contains("--enableExternalDebug");
         int debugPort = ParsePortArgument(args, "--debug-port") ?? 6502;
+        string? debugBindAddress = AutomatedStartupHandler.ParseStringArgument(args, "--debug-bind-address");
         bool debugWait = args.Contains("--debug-wait");
 
         // Parse remote control arguments
@@ -317,10 +326,21 @@ internal sealed partial class Program
 
         if (enableExternalDebug)
         {
-            WriteBootstrapLog($"Starting TCP debug adapter server on port {debugPort}.");
+            var effectiveDebugBindAddress = string.IsNullOrWhiteSpace(debugBindAddress)
+                ? IExternalDebugController.DefaultBindAddress
+                : debugBindAddress!.Trim();
+            WriteBootstrapLog($"Starting TCP debug adapter server on {effectiveDebugBindAddress}:{debugPort}.");
 
             // Start listening immediately — the adapter handles connecting before a system is running.
-            Task.Run(async () => await debugController.StartAsync(debugPort)).Wait();
+            try
+            {
+                Task.Run(async () => await debugController.StartAsync(debugPort, effectiveDebugBindAddress)).Wait();
+            }
+            catch (AggregateException aex) when (aex.InnerException is ArgumentException iae)
+            {
+                WriteBootstrapLog($"Failed to start debug adapter server: {iae.Message}", LogLevel.Error);
+                return 1;
+            }
 
             if (debugWait)
             {

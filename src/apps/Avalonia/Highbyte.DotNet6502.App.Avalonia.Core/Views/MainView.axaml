@@ -806,6 +806,22 @@
                                                         Height="20"
                                                         FontSize="10"
                                                         ToolTip.Tip="Start or stop the TCP debug adapter server"/>
+                                                <!-- Bind address label + text box -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Bind:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBox Text="{Binding ExternalDebugBindAddressText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.AutomationId="ExternalDebugBindAddressInput"
+                                                             AutomationProperties.Name="External debug server bind IP address"
+                                                             IsEnabled="{Binding !IsExternalDebugListening}"
+                                                             Width="110"
+                                                             Classes="small"
+                                                             TextInput="OnIpv4TextInput"
+                                                             TextChanged="OnIpv4TextChanged"
+                                                             ToolTip.Tip="{Binding ExternalDebugBindAddressInputToolTip}"/>
+                                                </StackPanel>
                                                 <!-- Port label + number (no spinners, fixed width) -->
                                                 <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                                     <TextBlock Text="Port:"

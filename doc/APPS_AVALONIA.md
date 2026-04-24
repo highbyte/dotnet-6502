@@ -69,6 +69,7 @@ When a Lua script is supplied the script owns all emulator setup and lifecycle �
 | `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
 | `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
 | `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
+| `--debug-bind-address <ip>` | IP address to bind the debug adapter server to (default: `127.0.0.1`) |
 | `--debug-wait` | Wait for a debug client to connect before starting |
 
 > [!IMPORTANT]
@@ -90,6 +91,7 @@ Used when driving the emulator from the command line without a script — primar
 | `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
 | `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
 | `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
+| `--debug-bind-address <ip>` | IP address to bind the debug adapter server to (default: `127.0.0.1`) |
 | `--debug-wait` | Wait for a debug client to connect before starting |
 
 ### Examples
@@ -103,6 +105,9 @@ Used when driving the emulator from the command line without a script — primar
 
 # Start with debug adapter for VS Code, waiting for client
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
+
+# Start with debug adapter bound to all interfaces (use only on trusted networks)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-bind-address 0.0.0.0
 ```
 
 ## UI

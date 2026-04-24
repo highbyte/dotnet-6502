@@ -25,6 +25,11 @@ public class TcpDebugAdapterServer : IDisposable
     public int Port { get; private set; }
 
     /// <summary>
+    /// Gets the IP address the server is bound to.
+    /// </summary>
+    public IPAddress BindAddress { get; private set; } = IPAddress.Loopback;
+
+    /// <summary>
     /// Gets whether the server is currently listening for connections.
     /// </summary>
     public bool IsListening { get; private set; }
@@ -40,18 +45,20 @@ public class TcpDebugAdapterServer : IDisposable
     /// Can be called again after <see cref="Stop"/> to restart the server.
     /// </summary>
     /// <param name="port">Port to listen on. Use 0 for a random available port.</param>
-    public async Task StartAsync(int port = 0)
+    /// <param name="bindAddress">IP address to bind to. Defaults to loopback.</param>
+    public async Task StartAsync(int port = 0, IPAddress? bindAddress = null)
     {
         if (IsListening)
             throw new InvalidOperationException("Server is already started");
 
-        _listener = new TcpListener(IPAddress.Loopback, port);
+        BindAddress = bindAddress ?? IPAddress.Loopback;
+        _listener = new TcpListener(BindAddress, port);
         _listener.Start();
 
         // Get the actual port (useful when port=0)
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
 
-        SafeLog($"[TCP Server] Started listening on port {Port}", LogLevel.Information);
+        SafeLog($"[TCP Server] Started listening on {BindAddress}:{Port}", LogLevel.Information);
 
         _cts = new CancellationTokenSource();
         // Run on the thread pool to avoid capturing the UI synchronization context.

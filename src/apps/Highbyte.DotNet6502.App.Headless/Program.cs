@@ -20,6 +20,7 @@ WriteBootstrapLog("Starting headless emulator.");
 // Parse debug adapter arguments
 bool enableExternalDebug = args.Contains("--enableExternalDebug");
 int debugPort = ParsePortArgument(args, "--debug-port") ?? 6502;
+string? debugBindAddress = AutomatedStartupHandler.ParseStringArgument(args, "--debug-bind-address");
 bool debugWait = args.Contains("--debug-wait");
 
 // Parse remote control arguments
@@ -107,8 +108,19 @@ var debugController = new HeadlessExternalDebugController(debugEnvironment, logg
 
 if (enableExternalDebug)
 {
-    logger.LogInformation("Starting TCP debug adapter server on port {DebugPort}.", debugPort);
-    await debugController.StartAsync(debugPort);
+    var effectiveDebugBindAddress = string.IsNullOrWhiteSpace(debugBindAddress)
+        ? IExternalDebugController.DefaultBindAddress
+        : debugBindAddress.Trim();
+    logger.LogInformation("Starting TCP debug adapter server on {BindAddress}:{DebugPort}.", effectiveDebugBindAddress, debugPort);
+    try
+    {
+        await debugController.StartAsync(debugPort, effectiveDebugBindAddress);
+    }
+    catch (ArgumentException ex)
+    {
+        logger.LogError("Failed to start debug adapter server: {Message}", ex.Message);
+        return 1;
+    }
 
     if (debugWait)
     {

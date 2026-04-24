@@ -28,7 +28,9 @@ The debug adapter now supports TCP transport in addition to STDIN/STDOUT, enabli
 
 - **Highbyte.DotNet6502.App.Avalonia.Desktop**
   - Integrated `TcpDebugAdapterServer` for TCP-based debugging
+  - Accepts `--enableExternalDebug` to enable the TCP debug server
   - Accepts `--debug-port <port>` command-line argument
+  - Accepts `--debug-bind-address <ip>` command-line argument (defaults to `127.0.0.1`)
   - Accepts `--debug-wait` flag to wait for debugger connection before starting
   - Runs debug adapter server on background thread
 
@@ -39,19 +41,25 @@ The debug adapter now supports TCP transport in addition to STDIN/STDOUT, enabli
 Start the Avalonia Desktop app with debug adapter enabled:
 
 ```bash
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502
+./Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502
 ```
 
 To wait for the debugger to connect before starting:
 
 ```bash
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait
+./Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --debug-wait
+```
+
+To bind the server to a different interface, add `--debug-bind-address <ip>`. For example, use `0.0.0.0` to accept connections on any local interface:
+
+```bash
+./Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --debug-bind-address 0.0.0.0 --debug-wait
 ```
 
 Combined with console logging:
 
 ```bash
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --console-log -l Debug
+./Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --console-log -l Debug
 ```
 
 ### VSCode Configuration
@@ -60,17 +68,17 @@ To debug the Avalonia Desktop app from VSCode, you'll need to add a launch confi
 
 ```json
 {
-    "type": "dotnet6502-debug",
+    "type": "dotnet6502",
     "request": "attach",
     "name": "Attach to Avalonia Desktop",
-    "debugServer": 6502,
+    "debugHost": "127.0.0.1",
+    "debugPort": 6502,
     "program": "${workspaceFolder}/samples/Assembler/GenericComputer/snake6502/build/snake6502.prg",
-    "stopOnEntry": true,
-    "trace": true
+    "stopOnEntry": true
 }
 ```
 
-**Note:** The VSCode extension may need updates to support the `debugServer` configuration property for TCP connections.
+**Note:** The emulator can bind the debug server to a specific IP via `--debug-bind-address`, and the VS Code extension can connect to a matching host via `debugHost`. Both still default to `127.0.0.1`, which remains the right default for local debugging.
 
 ## Implementation Details
 
@@ -86,7 +94,7 @@ The `TcpTransport` class implements `IDebugAdapterTransport` using a `TcpClient`
 
 The `TcpDebugAdapterServer` class:
 
-- Listens on `IPAddress.Loopback` (localhost only)
+- Listens on a configurable bind address (default: `127.0.0.1`, loopback only)
 - Accepts a single client connection at a time
 - Fires `ClientConnected` event with a `TcpTransport` instance
 - Supports port 0 for random port assignment
@@ -95,8 +103,8 @@ The `TcpDebugAdapterServer` class:
 
 The Avalonia Desktop app:
 
-1. Parses `--debug-port` and `--debug-wait` command-line arguments
-2. Creates a `TcpDebugAdapterServer` when debug port is specified
+1. Parses `--enableExternalDebug`, `--debug-port`, `--debug-bind-address`, and `--debug-wait` command-line arguments
+2. Creates a `TcpDebugAdapterServer` when external debug is enabled
 3. Handles `ClientConnected` event by:
    - Creating `DapProtocol` and `DebugAdapterLogic` instances
    - Starting a message loop on a background thread
@@ -120,9 +128,9 @@ This log file contains:
 ## Future Enhancements
 
 1. **VSCode Extension Updates**
-   - Add support for `debugServer` configuration property
-   - Allow attaching to running desktop applications
    - Provide UI for discovering running instances
+   - Offer a quick-pick or command to populate `debugHost`/`debugPort` from known emulator sessions
+   - Validate common misconfigurations (for example `debugHost: 0.0.0.0`) before trying to connect
 
 2. **Multiple Client Support**
    - Allow multiple simultaneous debug connections
@@ -142,13 +150,14 @@ This log file contains:
 
 1. Start the Avalonia Desktop app with debug port:
    ```bash
-   ./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait --console-log
+   ./Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --debug-wait --console-log
    ```
 
 2. Connect with a TCP client (e.g., `nc`):
    ```bash
-   nc localhost 6502
+   nc 127.0.0.1 6502
    ```
+   If you started the emulator with `--debug-bind-address 0.0.0.0`, connecting to `127.0.0.1` from the same machine still works.
 
 3. Send a DAP initialize request:
    ```

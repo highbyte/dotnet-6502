@@ -322,11 +322,29 @@ public class MainViewModel : ViewModelBase, IDisposable
     public string? ExternalDebugPortValidationMessage => IsExternalDebugPortValid ? null : "Enter a TCP port from 1 to 65535.";
     public string ExternalDebugPortInputToolTip => ExternalDebugPortValidationMessage ?? "TCP port for the debug adapter server (default: 6502).";
 
+    private string _externalDebugBindAddress = IExternalDebugController.DefaultBindAddress;
+    private string _externalDebugBindAddressText = IExternalDebugController.DefaultBindAddress;
+    public string ExternalDebugBindAddress
+    {
+        get => _externalDebugBindAddress;
+        set => this.RaiseAndSetIfChanged(ref _externalDebugBindAddress, value);
+    }
+
+    public string ExternalDebugBindAddressText
+    {
+        get => _externalDebugBindAddressText;
+        set => SetIpv4Text(value, ref _externalDebugBindAddressText, nameof(ExternalDebugBindAddressText), nameof(IsExternalDebugBindAddressValid), nameof(ExternalDebugBindAddressValidationMessage), nameof(ExternalDebugBindAddressInputToolTip), bindAddress => ExternalDebugBindAddress = bindAddress);
+    }
+
+    public bool IsExternalDebugBindAddressValid => IsValidIpv4Address(_externalDebugBindAddressText);
+    public string? ExternalDebugBindAddressValidationMessage => IsExternalDebugBindAddressValid ? null : "Enter an IPv4 address as four groups of digits from 0 to 255 separated by periods.";
+    public string ExternalDebugBindAddressInputToolTip => ExternalDebugBindAddressValidationMessage ?? "IP address to bind the debug adapter server to (default: 127.0.0.1 for loopback only; use 0.0.0.0 to accept connections from any network interface; the debug adapter is unauthenticated and exposes debugging control).";
+
     public string ExternalDebugStatusText => _externalDebugController switch
     {
         null => "",
         { IsClientConnected: true } => "Connected",
-        { IsListening: true } => $"Listening on :{_externalDebugController.Port}",
+        { IsListening: true } => $"Listening on {_externalDebugController.BindAddress}:{_externalDebugController.Port}",
         _ => "Off"
     };
 
@@ -636,6 +654,8 @@ public class MainViewModel : ViewModelBase, IDisposable
             _isExternalDebugClientConnected = _externalDebugController.IsClientConnected;
             _externalDebugPort = _externalDebugController.Port;
             _externalDebugPortText = _externalDebugPort.ToString(CultureInfo.InvariantCulture);
+            _externalDebugBindAddress = _externalDebugController.BindAddress;
+            _externalDebugBindAddressText = _externalDebugBindAddress;
             _externalDebugController.StateChanged += OnExternalDebugControllerStateChanged;
         }
 
@@ -665,13 +685,14 @@ public class MainViewModel : ViewModelBase, IDisposable
                 if (_externalDebugController!.IsListening)
                     await _externalDebugController.StopAsync();
                 else
-                    await _externalDebugController.StartAsync(_externalDebugPort);
+                    await _externalDebugController.StartAsync(_externalDebugPort, _externalDebugBindAddress);
             },
             this.WhenAnyValue(
                 x => x.IsExternalDebugClientConnected,
                 x => x.IsExternalDebugListening,
                 x => x.IsExternalDebugPortValid,
-                (connected, listening, isPortValid) => !connected && (listening || isPortValid)),
+                x => x.IsExternalDebugBindAddressValid,
+                (connected, listening, isPortValid, isBindAddressValid) => !connected && (listening || (isPortValid && isBindAddressValid))),
             RxSchedulers.MainThreadScheduler);
 
         ToggleRemoteControlCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -1131,7 +1152,10 @@ public class MainViewModel : ViewModelBase, IDisposable
             IsExternalDebugListening = _externalDebugController?.IsListening ?? false;
             IsExternalDebugClientConnected = _externalDebugController?.IsClientConnected ?? false;
             if (_externalDebugController != null)
+            {
                 ExternalDebugPortText = _externalDebugController.Port.ToString(CultureInfo.InvariantCulture);
+                ExternalDebugBindAddressText = _externalDebugController.BindAddress;
+            }
             this.RaisePropertyChanged(nameof(ExternalDebugStatusText));
             this.RaisePropertyChanged(nameof(ExternalDebugToggleButtonText));
         });

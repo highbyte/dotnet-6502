@@ -8,6 +8,7 @@ import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
 import * as jsonc from 'jsonc-parser';
 
 const outputChannel = vscode.window.createOutputChannel('dotnet-6502 Debugger');
+const DEFAULT_DEBUG_HOST = '127.0.0.1';
 
 export function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('[6502 Debug] Extension activating...');
@@ -430,6 +431,11 @@ function resolveExecutable(executablePath: string): string | undefined {
 class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
     private emulatorProcess: child_process.ChildProcess | undefined;
 
+    private getDebugHost(config: vscode.DebugConfiguration): string {
+        const debugHost = typeof config.debugHost === 'string' ? config.debugHost.trim() : '';
+        return debugHost || DEFAULT_DEBUG_HOST;
+    }
+
     resolveDebugConfiguration(
         folder: vscode.WorkspaceFolder | undefined,
         config: vscode.DebugConfiguration,
@@ -450,7 +456,8 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
         // Attach mode: connect to an already-running emulator via TCP
         if (config.request === 'attach') {
             const debugPort = config.debugPort || 6502;
-            outputChannel.appendLine(`[6502 Debug] Attach mode: connecting to emulator on port ${debugPort}`);
+            const debugHost = this.getDebugHost(config);
+            outputChannel.appendLine(`[6502 Debug] Attach mode: connecting to emulator on ${debugHost}:${debugPort}`);
 
             const launchOnlyProps = ['system', 'systemVariant', 'waitForSystemReady', 'loadProgram', 'runProgram']
                 .filter(p => config[p] !== undefined);
@@ -463,6 +470,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
             config.__programAlreadyLoaded = true;
             config.__emulatorDebugPort = debugPort;
+            config.__emulatorDebugHost = debugHost;
             config.__waitingForEmulator = true;
             return config;
         }
@@ -504,6 +512,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
             const executablePath = config.emulatorExecutable;
             const debugPort = config.debugPort || 6502;
+            const debugHost = this.getDebugHost(config);
             const system = config.system || 'C64';
             const systemVariant = config.systemVariant;
             const waitForReady = config.waitForSystemReady !== false; // Default true
@@ -658,11 +667,12 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
                 // Emulator host will start the system, load PRG, and then start TCP server
                 // We need to wait for the TCP server to be ready before connecting
-                outputChannel.appendLine(`[6502 Debug] Emulator host launched, will wait for TCP server on port ${debugPort}`);
+                outputChannel.appendLine(`[6502 Debug] Emulator host launched, will wait for TCP server on ${debugHost}:${debugPort}`);
 
                 // Don't set debugServer yet - we'll set it after verifying the server is ready
-                // Store the port for later use
+                // Store the host/port for later use
                 config.__emulatorDebugPort = debugPort;
+                config.__emulatorDebugHost = debugHost;
                 config.__waitingForEmulator = true;
 
             } catch (error) {
@@ -701,23 +711,24 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         // Emulator mode: wait for the emulator's TCP debug server, then connect
         if (session.configuration.__waitingForEmulator) {
             const port = session.configuration.__emulatorDebugPort;
+            const host = session.configuration.__emulatorDebugHost || DEFAULT_DEBUG_HOST;
             const isAttach = session.configuration.request === 'attach';
             // Attach mode: emulator should already be running, so use a short default timeout.
             // Launch mode: emulator needs time to boot, so use a longer default timeout.
             const defaultTimeout = isAttach ? 5 : 120;
             const timeoutSeconds = session.configuration.startupTimeout || defaultTimeout;
             const timeoutMs = timeoutSeconds * 1000;
-            outputChannel.appendLine(`[6502 Debug] Waiting for emulator host TCP server on port ${port} (timeout: ${timeoutSeconds}s, mode: ${isAttach ? 'attach' : 'launch'})...`);
+            outputChannel.appendLine(`[6502 Debug] Waiting for emulator host TCP server on ${host}:${port} (timeout: ${timeoutSeconds}s, mode: ${isAttach ? 'attach' : 'launch'})...`);
 
-            const isReady = await this.waitForTcpServerListening(port, timeoutMs);
+            const isReady = await this.waitForTcpServerListening(host, port, timeoutMs);
             if (!isReady) {
                 const hint = isAttach ? ' Is the emulator running with --enableExternalDebug?' : '';
-                vscode.window.showErrorMessage(`Emulator host TCP debug server did not respond within ${timeoutSeconds} seconds on port ${port}.${hint}`);
+                vscode.window.showErrorMessage(`Emulator host TCP debug server did not respond within ${timeoutSeconds} seconds on ${host}:${port}.${hint}`);
                 return undefined;
             }
 
-            outputChannel.appendLine(`[6502 Debug] Emulator host TCP server is ready on port ${port}`);
-            return this.createTcpDebugAdapter(port);
+            outputChannel.appendLine(`[6502 Debug] Emulator host TCP server is ready on ${host}:${port}`);
+            return this.createTcpDebugAdapter(host, port);
         }
 
         // Minimal mode: launch the debug adapter as a child process (STDIO)
@@ -726,7 +737,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         return this.createExecutableDebugAdapter(executablePath);
     }
 
-    private async waitForTcpServerListening(port: number, timeoutMs: number): Promise<boolean> {
+    private async waitForTcpServerListening(host: string, port: number, timeoutMs: number): Promise<boolean> {
         // Wait for the TCP server to start accepting connections
         // Note: This will create one connection that the server accepts but we immediately close
         // The server will handle this gracefully (it expects a DAP initialize message)
@@ -754,7 +765,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
                         reject(new Error('connection refused'));
                     });
                     
-                    socket.connect(port, '127.0.0.1');
+                    socket.connect(port, host);
                 });
                 
                 // Port is listening - wait a moment for the server to reject the empty connection
@@ -769,11 +780,10 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         return false;
     }
     
-    private createTcpDebugAdapter(port: number): vscode.DebugAdapterDescriptor | undefined {
+    private createTcpDebugAdapter(host: string, port: number): vscode.DebugAdapterDescriptor | undefined {
         try {
-            // Return a DebugAdapterServer that connects to the specified port
-            const server = new DebugAdapterServer(port, '127.0.0.1');
-            outputChannel.appendLine(`[6502 Debug] ✓ Created DebugAdapterServer for port ${port}`);
+            const server = new DebugAdapterServer(port, host);
+            outputChannel.appendLine(`[6502 Debug] ✓ Created DebugAdapterServer for ${host}:${port}`);
             return server;
         } catch (error) {
             const errorMsg = `[6502 Debug] Error creating TCP debug adapter: ${error}`;
