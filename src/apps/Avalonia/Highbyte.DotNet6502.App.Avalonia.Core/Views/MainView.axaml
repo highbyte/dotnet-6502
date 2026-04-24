@@ -28,7 +28,7 @@
         <Style Selector="NumericUpDown.port-input">
             <Setter Property="Height" Value="22"/>
             <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
@@ -828,7 +828,7 @@
                                                                Classes="accent bold"
                                                                FontSize="10"
                                                                VerticalAlignment="Center"/>
-                                                    <Border Width="56"
+                                                    <Border Width="68"
                                                             Height="24"
                                                             Background="{DynamicResource SecondaryBg}"
                                                             BorderBrush="{DynamicResource BorderColor}"
@@ -892,7 +892,7 @@
                                                                Classes="accent bold"
                                                                FontSize="10"
                                                                VerticalAlignment="Center"/>
-                                                    <Border Width="56"
+                                                    <Border Width="68"
                                                             Height="24"
                                                             Background="{DynamicResource SecondaryBg}"
                                                             BorderBrush="{DynamicResource BorderColor}"
