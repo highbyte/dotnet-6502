@@ -47,9 +47,7 @@ public class ScriptingEngine : IScriptingEngine
     ];
 
     public bool IsEnabled => true;
-    public string ScriptDirectory => string.IsNullOrEmpty(_config.ScriptDirectory)
-        ? string.Empty
-        : Path.GetFullPath(_config.ScriptDirectory);
+    public string ScriptDirectory => _config.ResolvedScriptDirectory();
     public event EventHandler? ScriptStatusChanged;
 
     public ScriptingEngine(IScriptingEngineAdapter adapter, ScriptingConfig config, ILoggerFactory loggerFactory)
@@ -158,7 +156,7 @@ public class ScriptingEngine : IScriptingEngine
             return;
         }
 
-        var dir = _config.ScriptDirectory;
+        var dir = _config.ResolvedScriptDirectory();
 
         if (!Directory.Exists(dir))
         {
@@ -314,7 +312,7 @@ public class ScriptingEngine : IScriptingEngine
         }
         else
         {
-            filePath = Path.Combine(_config.ScriptDirectory, fileName);
+            filePath = Path.Combine(_config.ResolvedScriptDirectory(), fileName);
             if (!File.Exists(filePath))
             {
                 _logger.LogError("[Scripting] Cannot reload {File}: file not found at {Path}", fileName, filePath);

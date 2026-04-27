@@ -141,7 +141,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         if (config.AllowFileIO)
         {
             var fileBaseDir = string.IsNullOrWhiteSpace(config.FileBaseDirectory)
-                ? config.ScriptDirectory
+                ? config.ResolvedScriptDirectory()
                 : config.FileBaseDirectory;
             _fileProxy = new LuaFileProxy(fileBaseDir, config.AllowFileWrite);
 
@@ -326,7 +326,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             if (storeBackend == null && !string.IsNullOrEmpty(config.ScriptDirectory))
             {
                 var subDir = string.IsNullOrEmpty(config.StoreSubDirectory) ? ".store" : config.StoreSubDirectory;
-                var storeDir = Path.Combine(Path.GetFullPath(config.ScriptDirectory), subDir);
+                var storeDir = Path.Combine(config.ResolvedScriptDirectory(), subDir);
                 storeBackend = new FileSystemScriptStore(storeDir);
             }
 
