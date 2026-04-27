@@ -13,15 +13,20 @@ const string DefaultHost = "127.0.0.1";
 // Command definitions for --help output and self-description
 var commands = new[]
 {
-    ("emu.state",     "",                           "Get emulator state and system name"),
-    ("emu.start",     "",                           "Start the emulator"),
-    ("emu.stop",      "",                           "Stop the emulator"),
-    ("emu.pause",     "",                           "Pause the emulator"),
-    ("emu.reset",     "",                           "Reset the emulator"),
-    ("emu.quit",      "",                           "Quit the emulator (headless only)"),
-    ("cpu.get",       "",                           "Get CPU registers"),
-    ("mem.read",      "--addr <hex> --len <int>",   "Read bytes from memory"),
-    ("mem.write",     "--addr <hex> --data <b,b,..>","Write bytes to memory"),
+    ("emu.state",        "",                              "Get emulator state, system, and variant"),
+    ("emu.start",        "",                              "Start (or resume from paused) the emulator"),
+    ("emu.stop",         "",                              "Stop the emulator"),
+    ("emu.pause",        "",                              "Pause the emulator"),
+    ("emu.reset",        "",                              "Reset the emulator"),
+    ("emu.quit",         "",                              "Quit the emulator (headless only)"),
+    ("emu.systems",      "",                              "List available system names"),
+    ("emu.selectsystem", "--name <system>",               "Select a system (emulator must be stopped)"),
+    ("emu.variants",     "",                              "List config variants for the current system"),
+    ("emu.selectvariant","--name <variant>",              "Select a config variant (emulator must be stopped)"),
+    ("cpu.get",          "",                              "Get CPU registers"),
+    ("cpu.set",          "[--pc <hex>] [--a <0-255>] [--x <0-255>] [--y <0-255>] [--sp <0-255>] [--flags <NVUBDIZC>]", "Set CPU registers"),
+    ("mem.read",         "--addr <hex> --len <int>",      "Read bytes from memory"),
+    ("mem.write",        "--addr <hex> --data <b,b,..>",  "Write bytes to memory"),
     ("joystick.set",       "--port <1|2> [--up|--no-up] [--down|--no-down] [--left|--no-left] [--right|--no-right] [--fire|--no-fire]", "Set joystick state"),
     ("joystick.press",     "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Press and hold joystick actions"),
     ("joystick.release",   "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Release held joystick actions"),
@@ -31,9 +36,10 @@ var commands = new[]
     ("keyboard.releaseall","",                             "Release all injected keys"),
     ("keyboard.iskeydown", "--key <keyname>",              "Check if a key is currently down"),
     ("keyboard.getall",    "",                             "List all valid key names for the current system"),
-    ("c64.type",           "--text <string>",             "Paste text into C64 keyboard buffer (C64 only)"),
-    ("c64.isbasicstarted", "",                             "Check if C64 BASIC has finished initializing (C64 only)"),
-    ("c64.getbasicsource", "",                             "Get the current BASIC program as text (C64 only)"),
+    ("c64.type",           "--text <string>",                         "Paste text into C64 keyboard buffer (C64 only)"),
+    ("c64.loadprg",        "--file <path.prg> | --data <base64>",    "Load a PRG file into C64 memory (C64 only)"),
+    ("c64.isbasicstarted", "",                                        "Check if C64 BASIC has finished initializing (C64 only)"),
+    ("c64.getbasicsource", "",                                        "Get the current BASIC program as text (C64 only)"),
     ("screenshot",    "[--output <file.png>]",      "Capture screenshot (Base64 PNG or saved to file)"),
     ("ui.message",    "--text <string> [--level info|warning|error]", "Display message in emulator UI"),
 };
@@ -180,6 +186,13 @@ void PrintHelp()
     Console.WriteLine("EXAMPLES:");
     Console.WriteLine("  dotnet-6502-remote emu.state");
     Console.WriteLine("  dotnet-6502-remote --port 6510 emu.start");
+    Console.WriteLine("  dotnet-6502-remote emu.systems");
+    Console.WriteLine("  dotnet-6502-remote emu.selectsystem --name C64");
+    Console.WriteLine("  dotnet-6502-remote emu.variants");
+    Console.WriteLine("  dotnet-6502-remote emu.selectvariant --name \"C64 - Default\"");
+    Console.WriteLine("  dotnet-6502-remote cpu.get");
+    Console.WriteLine("  dotnet-6502-remote cpu.set --pc C000 --a 0");
+    Console.WriteLine("  dotnet-6502-remote cpu.set --flags \"----I---\"");
     Console.WriteLine("  dotnet-6502-remote mem.read --addr C000 --len 16");
     Console.WriteLine("  dotnet-6502-remote mem.write --addr C000 --data 169,0,133,208");
     Console.WriteLine("  dotnet-6502-remote joystick.set --port 1 --up --fire");
@@ -193,6 +206,7 @@ void PrintHelp()
     Console.WriteLine("  dotnet-6502-remote keyboard.iskeydown --key return");
     Console.WriteLine("  dotnet-6502-remote keyboard.getall");
     Console.WriteLine("  dotnet-6502-remote c64.type --text \"LOAD\\\"*\\\",8,1\"");
+    Console.WriteLine("  dotnet-6502-remote c64.loadprg --file /path/to/program.prg");
     Console.WriteLine("  dotnet-6502-remote c64.isbasicstarted");
     Console.WriteLine("  dotnet-6502-remote c64.getbasicsource");
     Console.WriteLine("  dotnet-6502-remote screenshot --output /tmp/screen.png");

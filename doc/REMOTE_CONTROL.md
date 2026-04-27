@@ -113,14 +113,15 @@ Returns the current emulator state and selected system name.
 
 **Response fields**
 
-| Field    | Type   | Description                                              |
-|----------|--------|----------------------------------------------------------|
-| `state`  | string | `Uninitialized`, `Running`, or `Paused`                  |
-| `system` | string | Currently selected system, e.g. `C64` or `Generic`      |
+| Field     | Type   | Description                                              |
+|-----------|--------|----------------------------------------------------------|
+| `state`   | string | `Uninitialized`, `Running`, or `Paused`                  |
+| `system`  | string | Currently selected system, e.g. `C64` or `Generic`      |
+| `variant` | string | Currently selected configuration variant, e.g. `C64NTSC`|
 
 **Response example**
 ```json
-{"id": 1, "ok": true, "state": "Uninitialized", "system": "C64"}
+{"id": 1, "ok": true, "state": "Running", "system": "C64", "variant": "C64NTSC"}
 ```
 
 ---
@@ -128,6 +129,10 @@ Returns the current emulator state and selected system name.
 ### `emu.start`
 
 Starts the emulator. Equivalent to clicking the **Start** button in the UI.
+
+When the emulator is `Paused`, this command **resumes** it rather than reinitializing — the existing system runner is reused. Use `emu.reset` if you want a fresh start from the `Paused` state.
+
+> There is no separate `emu.resume` command; `emu.start` serves both roles.
 
 ```json
 {"id": 2, "cmd": "emu.start"}
@@ -190,6 +195,86 @@ Terminates the host application. **Headless only** — requires `--allow-remote-
 
 ---
 
+### `emu.systems`
+
+Returns the names of all available systems the emulator supports.
+
+```json
+{"id": 6, "cmd": "emu.systems"}
+```
+
+**Response fields**
+
+| Field  | Type            | Description            |
+|--------|-----------------|------------------------|
+| `data` | array of string | Available system names |
+
+```json
+{"id": 6, "ok": true, "data": ["C64", "Generic"]}
+```
+
+---
+
+### `emu.selectsystem`
+
+Selects the active system. **The emulator must be stopped** (`Uninitialized` state) before calling this command; use `emu.stop` first if needed.
+
+**Parameters**
+
+| Parameter | Type   | Description               |
+|-----------|--------|---------------------------|
+| `name`    | string | System name, e.g. `C64`  |
+
+```json
+{"id": 7, "cmd": "emu.selectsystem", "name": "C64"}
+```
+```json
+{"id": 7, "ok": true}
+```
+
+After selecting a system, call `emu.variants` to see which configuration variants are available, then `emu.selectvariant` to pick one before starting with `emu.start`.
+
+---
+
+### `emu.variants`
+
+Returns the available configuration variants for the currently selected system (e.g. `C64NTSC`, `C64PAL`).
+
+```json
+{"id": 8, "cmd": "emu.variants"}
+```
+
+**Response fields**
+
+| Field  | Type            | Description                     |
+|--------|-----------------|----------------------------------|
+| `data` | array of string | Configuration variant names     |
+
+```json
+{"id": 8, "ok": true, "data": ["C64NTSC", "C64PAL"]}
+```
+
+---
+
+### `emu.selectvariant`
+
+Selects a configuration variant for the current system. **The emulator must be stopped** (`Uninitialized` state).
+
+**Parameters**
+
+| Parameter | Type   | Description                    |
+|-----------|--------|--------------------------------|
+| `name`    | string | Variant name, e.g. `C64NTSC`  |
+
+```json
+{"id": 9, "cmd": "emu.selectvariant", "name": "C64NTSC"}
+```
+```json
+{"id": 9, "ok": true}
+```
+
+---
+
 ### `cpu.get`
 
 Returns all CPU registers. The emulator must be running or paused.
@@ -207,10 +292,45 @@ Returns all CPU registers. The emulator must be running or paused.
 | `x`     | int    | X register                         |
 | `y`     | int    | Y register                         |
 | `sp`    | int    | Stack Pointer                      |
-| `flags` | string | Processor status bits: `NV-BDIZC`  |
+| `flags` | string | 8-char processor status: each position is the flag letter (`N`,`V`,`U`,`B`,`D`,`I`,`Z`,`C`) or `-` when clear |
 
 ```json
 {"id": 7, "ok": true, "pc": "E5CD", "a": 0, "x": 0, "y": 0, "sp": 255, "flags": "----I--C"}
+```
+
+---
+
+### `cpu.set`
+
+Sets one or more CPU registers. At least one parameter must be supplied. Executed at the next frame boundary, so the emulator must be `Running`.
+
+**Parameters** (all optional; omitted registers are left unchanged)
+
+| Parameter | Type   | Description                                                                       |
+|-----------|--------|-----------------------------------------------------------------------------------|
+| `pc`      | string | Program Counter as a hex string, e.g. `C000`                                     |
+| `a`       | int    | Accumulator (0–255)                                                               |
+| `x`       | int    | X register (0–255)                                                                |
+| `y`       | int    | Y register (0–255)                                                                |
+| `sp`      | int    | Stack Pointer (0–255)                                                             |
+| `flags`   | string | Processor status — 8-char string in `NVUBDIZC` format, same as `cpu.get` output  |
+
+For `flags`, each character is the flag letter when set or `-` when clear. Example: `"----I---"` sets only the InterruptDisable flag. You can copy the `flags` value directly from a `cpu.get` response.
+
+```json
+{"id": 1, "cmd": "cpu.set", "a": 42, "x": 0, "flags": "------Z-"}
+```
+```json
+{"id": 1, "ok": true}
+```
+
+Set only the program counter:
+
+```json
+{"id": 2, "cmd": "cpu.set", "pc": "C000"}
+```
+```json
+{"id": 2, "ok": true}
 ```
 
 ---
@@ -511,6 +631,33 @@ Pastes a string of text into the C64's keyboard buffer character by character. C
 
 ---
 
+### `c64.loadprg`
+
+Loads a Commodore 64 PRG file into memory. The first two bytes of the data are the little-endian load address; the remaining bytes are written to memory starting at that address. Executed at the next frame boundary, so the emulator must be `Running`.
+
+**C64 only.** Returns an error on other systems.
+
+**Parameters**
+
+| Parameter | Type   | Description                                      |
+|-----------|--------|--------------------------------------------------|
+| `data`    | string | Base64-encoded PRG file bytes (address + payload)|
+
+```json
+{"id": 16, "cmd": "c64.loadprg", "data": "AMCqu8w="}
+```
+```json
+{"id": 16, "ok": true}
+```
+
+When using `dotnet-6502-remote`, pass `--file <path.prg>` and the client reads and encodes the file for you:
+
+```sh
+dotnet-6502-remote c64.loadprg --file /path/to/program.prg
+```
+
+---
+
 ### `c64.isbasicstarted`
 
 Returns whether C64 BASIC has finished initializing. Checks the `TXTAB` pointer at `$002B–$002C`; it equals `$0801` once BASIC is ready. Use this to poll before sending `c64.type` commands.
@@ -586,8 +733,18 @@ dotnet build src/apps/Highbyte.DotNet6502.App.RemoteClient -c Release
 # Check emulator state
 dotnet-6502-remote emu.state
 
-# Start the emulator
+# Start the emulator (also resumes from paused)
 dotnet-6502-remote --port 6510 emu.start
+
+# List available systems and variants
+dotnet-6502-remote emu.systems
+dotnet-6502-remote emu.variants
+
+# Switch system (requires emulator to be stopped first)
+dotnet-6502-remote emu.stop
+dotnet-6502-remote emu.selectsystem --name C64
+dotnet-6502-remote emu.selectvariant --name C64NTSC
+dotnet-6502-remote emu.start
 
 # Read 16 bytes from $C000
 dotnet-6502-remote mem.read --addr C000 --len 16
@@ -597,6 +754,15 @@ dotnet-6502-remote mem.write --addr C000 --data 169,42,133,254
 
 # Get CPU registers
 dotnet-6502-remote cpu.get
+
+# Set CPU registers (set A and force InterruptDisable flag)
+dotnet-6502-remote cpu.set --a 42 --flags "----I---"
+
+# Jump to a specific address
+dotnet-6502-remote cpu.set --pc C000
+
+# Load a PRG file into C64 memory
+dotnet-6502-remote c64.loadprg --file /path/to/program.prg
 
 # Set joystick port 1: up + fire
 dotnet-6502-remote joystick.set --port 1 --up --fire
@@ -883,21 +1049,24 @@ for ($i = 0; $i -lt 30; $i++) {
 
 | Command type              | Execution thread         |
 |---------------------------|--------------------------|
-| Read-only queries         | Session thread (direct)  |
-| `emu.start/stop/pause/...`| UI thread via dispatcher |
-| `mem.write`, `joystick.set`, `joystick.press/release/releaseall`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
+| Read-only queries (`emu.state`, `emu.systems`, `emu.variants`, `cpu.get`, `mem.read`, `screenshot`, `ui.message`, `c64.isbasicstarted`, `c64.getbasicsource`) | Session thread (direct) |
+| `emu.start/stop/pause/reset/quit`, `emu.selectsystem`, `emu.selectvariant` | UI thread via dispatcher |
+| `mem.write`, `cpu.set`, `c64.loadprg`, `joystick.set/press/release/releaseall`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
 | `keyboard.iskeydown`, `keyboard.getall` | Session thread (direct read) |
 
 ---
 
 ## Limitations
 
-- **Frame-boundary commands require the emulator to be running.** `mem.write`, `keyboard.press/release/releaseall`, `joystick.set/press/release/releaseall`, and `c64.type` return an immediate error (`"Emulator is not running"`) if the emulator state is `Paused` or `Uninitialized`. Use `emu.state` to confirm `Running` before sending these commands, or send `emu.start` first.
+- **Frame-boundary commands require the emulator to be running.** `mem.write`, `cpu.set`, `keyboard.press/release/releaseall`, `joystick.set/press/release/releaseall`, `c64.type`, and `c64.loadprg` return an immediate error if the emulator state is `Paused` or `Uninitialized`. Use `emu.state` to confirm `Running` before sending these commands, or send `emu.start` first.
+- **There is no `emu.resume` command.** `emu.start` serves dual purpose: it starts the emulator from `Uninitialized` *and* resumes from `Paused`. The existing system state is preserved on resume; use `emu.reset` for a hard restart.
+- **`emu.selectsystem` and `emu.selectvariant` require the emulator to be stopped** (`Uninitialized`). Call `emu.stop` first, then select, then `emu.start`.
 - **One client at a time.** A second connection attempt is accepted only after the first client disconnects.
 - **`emu.quit` is disabled in Avalonia Desktop** by default. It is available in headless mode when `--allow-remote-quit` is passed.
 - **`screenshot` returns an error in headless mode** because no renderer is active.
 - **Loopback by default.** The server binds to `127.0.0.1` unless `--remote-bind-address` (or the **Bind** field in the Debug & Remoting tab) is set to a different interface. The wire protocol is unauthenticated — only bind to non-loopback addresses on trusted networks.
 - **`keyboard.press` holds a key until `keyboard.release` or `keyboard.releaseall`.** The client controls press duration by choosing when to release. Keys are applied at frame boundary and remain held until released.
 - **`joystick.press` holds joystick actions until `joystick.release` or `joystick.releaseall`.** Use this for ergonomic hold/release remote control.
-- **`c64.type` is C64-specific.** Other systems do not implement text paste and will return an error. The text is fed into the C64 keyboard buffer across frames — if the buffer is full the remaining characters wait until space is available.
+- **`c64.type` and `c64.loadprg` are C64-specific.** Other systems do not implement these and will return an error. The text/PRG is applied at the next frame boundary.
+- **`c64.type` feeds text across frames** — if the C64 keyboard buffer is full the remaining characters wait until space is available.
 - **Injected joystick actions from `joystick.set` are not persistent** — they must be resent every frame to hold a direction. Use `joystick.press` if you want stateful joystick hold/release behavior.

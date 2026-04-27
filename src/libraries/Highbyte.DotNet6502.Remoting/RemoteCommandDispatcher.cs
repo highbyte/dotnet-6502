@@ -37,10 +37,20 @@ public class RemoteCommandDispatcher
                 "emu.stop"     => await HandleUiAsync(cmd.Id, hostApp => { hostApp.Stop();  return Task.CompletedTask; }),
                 "emu.pause"    => await HandleUiAsync(cmd.Id, hostApp => { hostApp.Pause(); return Task.CompletedTask; }),
                 "emu.reset"    => await HandleUiAsync(cmd.Id, async hostApp => await hostApp.Reset()),
-                "emu.quit"     => HandleEmuQuit(cmd.Id),
+                "emu.quit"          => HandleEmuQuit(cmd.Id),
+                "emu.systems"       => HandleEmuSystems(cmd.Id),
+                "emu.selectsystem"  => string.IsNullOrEmpty(cmd.Name)
+                    ? Err(cmd.Id, "Missing 'name' parameter")
+                    : await HandleUiAsync(cmd.Id, async hostApp => await hostApp.SelectSystem(cmd.Name)),
+                "emu.variants"      => HandleEmuVariants(cmd.Id),
+                "emu.selectvariant" => string.IsNullOrEmpty(cmd.Name)
+                    ? Err(cmd.Id, "Missing 'name' parameter")
+                    : await HandleUiAsync(cmd.Id, async hostApp => await hostApp.SelectSystemConfigurationVariant(cmd.Name)),
                 "cpu.get"      => HandleCpuGet(cmd.Id),
+                "cpu.set"      => await HandleFrameAsync(cmd.Id, hostApp => CpuSetDirect(hostApp, cmd)),
                 "mem.read"     => HandleMemRead(cmd.Id, cmd),
                 "mem.write"    => await HandleFrameAsync(cmd.Id, hostApp => MemWriteDirect(hostApp, cmd)),
+                "c64.loadprg"        => await HandleFrameAsync(cmd.Id, hostApp => C64LoadPrgDirect(hostApp, cmd)),
                 "joystick.set"       => await HandleFrameAsync(cmd.Id, hostApp => JoystickSetDirect(hostApp, cmd)),
                 "joystick.press"     => await HandleFrameAsync(cmd.Id, hostApp => JoystickPressDirect(hostApp, cmd)),
                 "joystick.release"   => await HandleFrameAsync(cmd.Id, hostApp => JoystickReleaseDirect(hostApp, cmd)),
@@ -76,6 +86,7 @@ public class RemoteCommandDispatcher
             Id = id, Ok = true,
             State = hostApp.EmulatorState.ToString(),
             System = hostApp.SelectedSystemName,
+            Variant = hostApp.SelectedSystemConfigurationVariant,
         };
     }
 
@@ -84,7 +95,7 @@ public class RemoteCommandDispatcher
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) return Err(id, "Emulator not initialized");
         var sys = hostApp.CurrentRunningSystem;
-        if (sys == null) return Err(id, "Emulator not running");
+        if (sys == null) return Err(id, "Emulator not started");
         var cpu = sys.CPU;
         var ps = cpu.ProcessorStatus;
         return new RemoteCommandResult
@@ -104,7 +115,7 @@ public class RemoteCommandDispatcher
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) return Err(id, "Emulator not initialized");
         var sys = hostApp.CurrentRunningSystem;
-        if (sys == null) return Err(id, "Emulator not running");
+        if (sys == null) return Err(id, "Emulator not started");
 
         if (string.IsNullOrWhiteSpace(cmd.Addr))
             return Err(id, "Missing 'addr' parameter");
@@ -140,6 +151,20 @@ public class RemoteCommandDispatcher
         if (string.IsNullOrEmpty(cmd.Text)) return Err(id, "Missing 'text' parameter");
         _environment.DisplayRemoteMessage(cmd.Text, cmd.Level ?? "info");
         return Ok(id);
+    }
+
+    private RemoteCommandResult HandleEmuSystems(int? id)
+    {
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        return new RemoteCommandResult { Id = id, Ok = true, Data = hostApp.AvailableSystemNames.Order().ToArray() };
+    }
+
+    private RemoteCommandResult HandleEmuVariants(int? id)
+    {
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        return new RemoteCommandResult { Id = id, Ok = true, Data = hostApp.AllSelectedSystemConfigurationVariants.ToArray() };
     }
 
     private RemoteCommandResult HandleEmuQuit(int? id)
@@ -218,6 +243,61 @@ public class RemoteCommandDispatcher
         int i = 0;
         foreach (var elem in cmd.Data.Value.EnumerateArray())
             sys.Mem[(ushort)((addr + i++) & 0xFFFF)] = (byte)elem.GetInt32();
+    }
+
+    private static void CpuSetDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
+    {
+        if (cmd.PC == null && !cmd.A.HasValue && !cmd.X.HasValue && !cmd.Y.HasValue && !cmd.SP.HasValue && cmd.Flags == null)
+            throw new ArgumentException("No registers specified; provide at least one of: pc, a, x, y, sp, flags");
+
+        var sys = hostApp.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
+        var cpu = sys.CPU;
+
+        if (cmd.PC != null)
+        {
+            if (!ushort.TryParse(cmd.PC, System.Globalization.NumberStyles.HexNumber, null, out var pc))
+                throw new ArgumentException($"Invalid hex address for 'pc': {cmd.PC}");
+            cpu.PC = pc;
+        }
+        if (cmd.A.HasValue)  { if (cmd.A.Value  is < 0 or > 255) throw new ArgumentException("'a' must be 0–255");  cpu.A  = (byte)cmd.A.Value;  }
+        if (cmd.X.HasValue)  { if (cmd.X.Value  is < 0 or > 255) throw new ArgumentException("'x' must be 0–255");  cpu.X  = (byte)cmd.X.Value;  }
+        if (cmd.Y.HasValue)  { if (cmd.Y.Value  is < 0 or > 255) throw new ArgumentException("'y' must be 0–255");  cpu.Y  = (byte)cmd.Y.Value;  }
+        if (cmd.SP.HasValue) { if (cmd.SP.Value is < 0 or > 255) throw new ArgumentException("'sp' must be 0–255"); cpu.SP = (byte)cmd.SP.Value; }
+        if (cmd.Flags != null) cpu.ProcessorStatus.Value = ParseFlagsString(cmd.Flags);
+    }
+
+    private static byte ParseFlagsString(string flags)
+    {
+        if (flags.Length != 8)
+            throw new ArgumentException($"'flags' must be exactly 8 characters (NVUBDIZC format, e.g. \"----I---\"), got: \"{flags}\"");
+        byte value = 0;
+        ReadOnlySpan<char> flagLetters = ['N', 'V', 'U', 'B', 'D', 'I', 'Z', 'C'];
+        for (int i = 0; i < 8; i++)
+        {
+            if (char.ToUpperInvariant(flags[i]) == flagLetters[i])
+                value |= (byte)(1 << (7 - i));
+        }
+        return value;
+    }
+
+    private static void C64LoadPrgDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
+    {
+        if (cmd.Data == null || cmd.Data.Value.ValueKind != System.Text.Json.JsonValueKind.String)
+            throw new ArgumentException("'data' must be a base64-encoded string containing the PRG file bytes");
+
+        byte[] prgBytes;
+        try { prgBytes = Convert.FromBase64String(cmd.Data.Value.GetString()!); }
+        catch { throw new ArgumentException("'data' is not valid base64"); }
+
+        if (prgBytes.Length < 3)
+            throw new ArgumentException("PRG data too short: minimum 3 bytes (2-byte load address + at least 1 data byte)");
+
+        var sys = hostApp.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
+        if (sys is not C64 c64) throw new InvalidOperationException("Current system is not a C64");
+
+        ushort loadAddr = (ushort)(prgBytes[0] | (prgBytes[1] << 8));
+        for (int i = 2; i < prgBytes.Length; i++)
+            c64.Mem[(ushort)((loadAddr + i - 2) & 0xFFFF)] = prgBytes[i];
     }
 
     private static void JoystickSetDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
@@ -306,7 +386,7 @@ public class RemoteCommandDispatcher
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) return Err(id, "Emulator not initialized");
         var sys = hostApp.CurrentRunningSystem;
-        if (sys == null) return Err(id, "Emulator not running");
+        if (sys == null) return Err(id, "Emulator not started");
         var input = sys.InputInjector;
         if (input == null) return Err(id, "System has no input injector");
         return new RemoteCommandResult { Id = id, Ok = true, IsDown = input.IsKeyDown(cmd.Key) };
@@ -317,7 +397,7 @@ public class RemoteCommandDispatcher
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) return Err(id, "Emulator not initialized");
         var sys = hostApp.CurrentRunningSystem;
-        if (sys == null) return Err(id, "Emulator not running");
+        if (sys == null) return Err(id, "Emulator not started");
         var input = sys.InputInjector;
         if (input == null) return Err(id, "System has no input injector");
         return new RemoteCommandResult { Id = id, Ok = true, Data = input.GetAvailableKeys() };
@@ -358,7 +438,7 @@ public class RemoteCommandDispatcher
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) { error = Err(id, "Emulator not initialized"); return null; }
         var sys = hostApp.CurrentRunningSystem;
-        if (sys == null) { error = Err(id, "Emulator not running"); return null; }
+        if (sys == null) { error = Err(id, "Emulator not started"); return null; }
         if (sys is not C64 c64) { error = Err(id, "Current system is not a C64"); return null; }
         return c64;
     }

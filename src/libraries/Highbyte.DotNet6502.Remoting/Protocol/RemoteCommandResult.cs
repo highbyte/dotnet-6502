@@ -28,6 +28,10 @@ public class RemoteCommandResult
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? System { get; set; }
 
+    [JsonPropertyName("variant")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Variant { get; set; }
+
     // mem.read / screenshot
     [JsonPropertyName("data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -54,4 +54,27 @@ public class RemoteCommand
 
     [JsonPropertyName("level")]
     public string? Level { get; set; }
+
+    // cpu.set
+    [JsonPropertyName("pc")]
+    public string? PC { get; set; }
+
+    [JsonPropertyName("a")]
+    public int? A { get; set; }
+
+    [JsonPropertyName("x")]
+    public int? X { get; set; }
+
+    [JsonPropertyName("y")]
+    public int? Y { get; set; }
+
+    [JsonPropertyName("sp")]
+    public int? SP { get; set; }
+
+    [JsonPropertyName("flags")]
+    public string? Flags { get; set; }
+
+    // emu.selectsystem / emu.selectvariant
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 }

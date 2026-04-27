@@ -31,11 +31,27 @@ internal static class RemoteClientRequestBuilder
             case "emu.pause":
             case "emu.reset":
             case "emu.quit":
+            case "emu.systems":
+            case "emu.variants":
             case "cpu.get":
             case "keyboard.releaseall":
             case "keyboard.getall":
             case "c64.isbasicstarted":
             case "c64.getbasicsource":
+                break;
+
+            case "emu.selectsystem":
+            case "emu.selectvariant":
+                if (parameters.TryGetValue("name", out var sysName)) request["name"] = sysName;
+                break;
+
+            case "cpu.set":
+                if (parameters.TryGetValue("pc", out var cpuPc)) request["pc"] = cpuPc;
+                if (parameters.TryGetValue("a", out var cpuA) && int.TryParse(cpuA, out int aVal)) request["a"] = aVal;
+                if (parameters.TryGetValue("x", out var cpuX) && int.TryParse(cpuX, out int xVal)) request["x"] = xVal;
+                if (parameters.TryGetValue("y", out var cpuY) && int.TryParse(cpuY, out int yVal)) request["y"] = yVal;
+                if (parameters.TryGetValue("sp", out var cpuSp) && int.TryParse(cpuSp, out int spVal)) request["sp"] = spVal;
+                if (parameters.TryGetValue("flags", out var cpuFlags)) request["flags"] = cpuFlags;
                 break;
 
             case "mem.read":
@@ -83,6 +99,23 @@ internal static class RemoteClientRequestBuilder
 
             case "c64.type":
                 if (parameters.TryGetValue("text", out var text)) request["text"] = text;
+                break;
+
+            case "c64.loadprg":
+                if (parameters.TryGetValue("file", out var prgFile))
+                {
+                    if (!File.Exists(prgFile))
+                        return new RemoteClientRequestBuildResult { Error = $"File not found: {prgFile}" };
+                    request["data"] = Convert.ToBase64String(File.ReadAllBytes(prgFile!));
+                }
+                else if (parameters.TryGetValue("data", out var prgData))
+                {
+                    request["data"] = prgData;
+                }
+                else
+                {
+                    return new RemoteClientRequestBuildResult { Error = "c64.loadprg requires --file <path.prg> or --data <base64>" };
+                }
                 break;
 
             case "screenshot":
