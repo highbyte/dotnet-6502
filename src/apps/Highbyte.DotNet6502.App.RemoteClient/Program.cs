@@ -25,8 +25,9 @@ var commands = new[]
     ("emu.selectvariant","--name <variant>",              "Select a config variant (emulator must be stopped)"),
     ("cpu.get",          "",                              "Get CPU registers"),
     ("cpu.set",          "[--pc <hex>] [--a <0-255>] [--x <0-255>] [--y <0-255>] [--sp <0-255>] [--flags <NVUBDIZC>]", "Set CPU registers"),
-    ("mem.read",         "--addr <hex> --len <int>",      "Read bytes from memory"),
-    ("mem.write",        "--addr <hex> --data <b,b,..>",  "Write bytes to memory"),
+    ("mem.read",         "--addr <hex> --len <int>",                          "Read bytes from memory"),
+    ("mem.write",        "--addr <hex> --data <b,b,..>",                       "Write bytes to memory"),
+    ("mem.loadbin",      "--addr <hex> --file <path> | --data <base64>",       "Load binary file into memory at a specific address"),
     ("joystick.set",       "--port <1|2> [--up|--no-up] [--down|--no-down] [--left|--no-left] [--right|--no-right] [--fire|--no-fire]", "Set joystick state"),
     ("joystick.press",     "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Press and hold joystick actions"),
     ("joystick.release",   "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Release held joystick actions"),
@@ -195,6 +196,7 @@ void PrintHelp()
     Console.WriteLine("  dotnet-6502-remote cpu.set --flags \"----I---\"");
     Console.WriteLine("  dotnet-6502-remote mem.read --addr C000 --len 16");
     Console.WriteLine("  dotnet-6502-remote mem.write --addr C000 --data 169,0,133,208");
+    Console.WriteLine("  dotnet-6502-remote mem.loadbin --addr 0801 --file /path/to/binary.bin");
     Console.WriteLine("  dotnet-6502-remote joystick.set --port 1 --up --fire");
     Console.WriteLine("  dotnet-6502-remote joystick.press --port 1 --up --fire");
     Console.WriteLine("  dotnet-6502-remote joystick.release --port 1 --up");

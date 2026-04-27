@@ -375,6 +375,34 @@ Writes bytes into the system's address space. Executed at the next frame boundar
 
 ---
 
+### `mem.loadbin`
+
+Loads raw binary data into the system's address space at a specified address. Unlike `mem.write` (which takes a JSON integer array), this command accepts a base64-encoded byte string — convenient for larger payloads and binary files. Bytes are written directly with no header interpretation. Executed at the next frame boundary.
+
+For C64 PRG files that include a 2-byte load-address header, use `c64.loadprg` instead.
+
+**Parameters**
+
+| Parameter | Type   | Description                              |
+|-----------|--------|------------------------------------------|
+| `addr`    | string | Start address as a hex string (e.g. `0801`) |
+| `data`    | string | Base64-encoded raw bytes                 |
+
+```json
+{"id": 10, "cmd": "mem.loadbin", "addr": "C000", "data": "qrtM"}
+```
+```json
+{"id": 10, "ok": true}
+```
+
+When using `dotnet-6502-remote`, pass `--file <path>` and the client reads and encodes the file:
+
+```sh
+dotnet-6502-remote mem.loadbin --addr 0801 --file /path/to/binary.bin
+```
+
+---
+
 ### `joystick.set`
 
 Sets joystick direction and fire button state for the next frame. Any combination of directions may be active simultaneously. Executed at the next frame boundary.
@@ -1051,7 +1079,7 @@ for ($i = 0; $i -lt 30; $i++) {
 |---------------------------|--------------------------|
 | Read-only queries (`emu.state`, `emu.systems`, `emu.variants`, `cpu.get`, `mem.read`, `screenshot`, `ui.message`, `c64.isbasicstarted`, `c64.getbasicsource`) | Session thread (direct) |
 | `emu.start/stop/pause/reset/quit`, `emu.selectsystem`, `emu.selectvariant` | UI thread via dispatcher |
-| `mem.write`, `cpu.set`, `c64.loadprg`, `joystick.set/press/release/releaseall`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
+| `mem.write`, `mem.loadbin`, `cpu.set`, `c64.loadprg`, `joystick.set/press/release/releaseall`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
 | `keyboard.iskeydown`, `keyboard.getall` | Session thread (direct read) |
 
 ---

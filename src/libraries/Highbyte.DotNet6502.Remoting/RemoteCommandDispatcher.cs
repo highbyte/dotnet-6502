@@ -50,6 +50,7 @@ public class RemoteCommandDispatcher
                 "cpu.set"      => await HandleFrameAsync(cmd.Id, hostApp => CpuSetDirect(hostApp, cmd)),
                 "mem.read"     => HandleMemRead(cmd.Id, cmd),
                 "mem.write"    => await HandleFrameAsync(cmd.Id, hostApp => MemWriteDirect(hostApp, cmd)),
+                "mem.loadbin"  => await HandleFrameAsync(cmd.Id, hostApp => MemLoadBinDirect(hostApp, cmd)),
                 "c64.loadprg"        => await HandleFrameAsync(cmd.Id, hostApp => C64LoadPrgDirect(hostApp, cmd)),
                 "joystick.set"       => await HandleFrameAsync(cmd.Id, hostApp => JoystickSetDirect(hostApp, cmd)),
                 "joystick.press"     => await HandleFrameAsync(cmd.Id, hostApp => JoystickPressDirect(hostApp, cmd)),
@@ -278,6 +279,24 @@ public class RemoteCommandDispatcher
                 value |= (byte)(1 << (7 - i));
         }
         return value;
+    }
+
+    private static void MemLoadBinDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
+    {
+        if (string.IsNullOrWhiteSpace(cmd.Addr))
+            throw new ArgumentException("Missing 'addr' parameter");
+        if (!ushort.TryParse(cmd.Addr, System.Globalization.NumberStyles.HexNumber, null, out var addr))
+            throw new ArgumentException($"Invalid hex address: {cmd.Addr}");
+        if (cmd.Data == null || cmd.Data.Value.ValueKind != System.Text.Json.JsonValueKind.String)
+            throw new ArgumentException("'data' must be a base64-encoded string");
+
+        byte[] bytes;
+        try { bytes = Convert.FromBase64String(cmd.Data.Value.GetString()!); }
+        catch { throw new ArgumentException("'data' is not valid base64"); }
+
+        var sys = hostApp.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
+        for (int i = 0; i < bytes.Length; i++)
+            sys.Mem[(ushort)((addr + i) & 0xFFFF)] = bytes[i];
     }
 
     private static void C64LoadPrgDirect(IRemotableHostApp hostApp, RemoteCommand cmd)

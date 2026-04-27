@@ -65,6 +65,24 @@ internal static class RemoteClientRequestBuilder
                     request["data"] = data!.Split(',').Select(b => int.Parse(b.Trim())).ToArray();
                 break;
 
+            case "mem.loadbin":
+                if (parameters.TryGetValue("addr", out var binAddr)) request["addr"] = binAddr;
+                if (parameters.TryGetValue("file", out var binFile))
+                {
+                    if (!File.Exists(binFile))
+                        return new RemoteClientRequestBuildResult { Error = $"File not found: {binFile}" };
+                    request["data"] = Convert.ToBase64String(File.ReadAllBytes(binFile!));
+                }
+                else if (parameters.TryGetValue("data", out var binData))
+                {
+                    request["data"] = binData;
+                }
+                else
+                {
+                    return new RemoteClientRequestBuildResult { Error = "mem.loadbin requires --file <path> or --data <base64>" };
+                }
+                break;
+
             case "joystick.set":
                 if (parameters.TryGetValue("port", out var port) && int.TryParse(port, out int parsedPort))
                     request["port"] = parsedPort;
