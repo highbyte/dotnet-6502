@@ -32,12 +32,12 @@ var commands = new[]
     ("joystick.press",     "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Press and hold joystick actions"),
     ("joystick.release",   "[--port <1|2>] [--up] [--down] [--left] [--right] [--fire]", "Release held joystick actions"),
     ("joystick.releaseall","--port <1|2>",                   "Release all held joystick actions on one port"),
-    ("keyboard.press",     "--key <keyname>",              "Press (hold) a named key"),
+    ("keyboard.press",     "--key <keyname>",              "Press (hold) a named key (use keyboard.getall to list valid names)"),
     ("keyboard.release",   "--key <keyname>",              "Release a previously pressed key"),
     ("keyboard.releaseall","",                             "Release all injected keys"),
     ("keyboard.iskeydown", "--key <keyname>",              "Check if a key is currently down"),
     ("keyboard.getall",    "",                             "List all valid key names for the current system"),
-    ("c64.type",           "--text <string>",                         "Paste text into C64 keyboard buffer (C64 only)"),
+    ("c64.type",           "--text <string>",                         "Paste text into C64 keyboard buffer (C64 only; use lowercase letters — see NOTES)"),
     ("c64.loadprg",        "--file <path.prg> | --data <base64>",    "Load a PRG file into C64 memory (C64 only)"),
     ("c64.isbasicstarted", "",                                        "Check if C64 BASIC has finished initializing (C64 only)"),
     ("c64.getbasicsource", "",                                        "Get the current BASIC program as text (C64 only)"),
@@ -207,10 +207,28 @@ void PrintHelp()
     Console.WriteLine("  dotnet-6502-remote keyboard.releaseall");
     Console.WriteLine("  dotnet-6502-remote keyboard.iskeydown --key return");
     Console.WriteLine("  dotnet-6502-remote keyboard.getall");
-    Console.WriteLine("  dotnet-6502-remote c64.type --text \"LOAD\\\"*\\\",8,1\"");
+    Console.WriteLine("  dotnet-6502-remote c64.type --text \"load\\\"*\\\",8,1\"");
     Console.WriteLine("  dotnet-6502-remote c64.loadprg --file /path/to/program.prg");
     Console.WriteLine("  dotnet-6502-remote c64.isbasicstarted");
     Console.WriteLine("  dotnet-6502-remote c64.getbasicsource");
     Console.WriteLine("  dotnet-6502-remote screenshot --output /tmp/screen.png");
     Console.WriteLine("  dotnet-6502-remote ui.message --text \"Hello from remote\" --level info");
+    Console.WriteLine();
+    Console.WriteLine("NOTES:");
+    Console.WriteLine("  * c64.type case mapping: The C64 default mode displays lowercase input 'a'-'z'");
+    Console.WriteLine("    as uppercase A-Z on screen. Uppercase input 'A'-'Z' produces graphics chars.");
+    Console.WriteLine("    Use lowercase text for BASIC keywords: \"sys 49152\" displays as SYS 49152.");
+    Console.WriteLine();
+    Console.WriteLine("  * keyboard.getall: Call this first to discover valid key names for the current");
+    Console.WriteLine("    system (e.g. space, return, a-z, f1, f3, f5, f7, crsrdown, crsrright, stop).");
+    Console.WriteLine();
+    Console.WriteLine("  * cpu.set --pc <addr>: The simplest way to start machine code on any system.");
+    Console.WriteLine("    Write code with mem.write, then set the PC — no BASIC or keyboard needed.");
+    Console.WriteLine("    Takes effect at the next frame boundary. Best for programs that loop");
+    Console.WriteLine("    forever or never return. For routines ending with RTS, use c64.type");
+    Console.WriteLine("    with \"sys <addr>\" instead so BASIC sets up the proper return address.");
+    Console.WriteLine();
+    Console.WriteLine("  * Frame-boundary commands (mem.write, keyboard.press/release, c64.type,");
+    Console.WriteLine("    c64.loadprg, joystick.*) require the emulator to be Running. Use emu.state");
+    Console.WriteLine("    to confirm before sending them.");
 }

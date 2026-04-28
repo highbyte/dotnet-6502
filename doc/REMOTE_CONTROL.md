@@ -595,6 +595,32 @@ Returns the list of all valid key names for the currently running system.
 {"id": 15, "ok": true, "data": ["space","return","a","b",...]}
 ```
 
+#### C64 key name reference
+
+Call `keyboard.getall` at runtime for the authoritative list. Common C64 key names:
+
+| Key name | Physical key |
+|----------|-------------|
+| `space` | Space bar |
+| `return` | Return (Enter) |
+| `a`–`z` | Letter keys A–Z |
+| `0`–`9` | Digit keys |
+| `+` `-` `*` `/` `:` `;` `=` `.` `,` `@` | Punctuation keys |
+| `lira` | Pound sign (£) |
+| `leftarrow` | ← left-arrow key (top-left of keyboard) |
+| `rightarrow` | ↑ up-arrow key |
+| `stop` | RUN/STOP |
+| `cbm` | Commodore key |
+| `ctrl` | CTRL |
+| `lshift` / `rshift` | Left / Right Shift |
+| `home` | CLR/HOME |
+| `delete` | INST/DEL |
+| `crsrdown` | Cursor Down |
+| `crsrright` | Cursor Right |
+| `f1` `f3` `f5` `f7` | Function keys F1 / F3 / F5 / F7 |
+
+> Cursor Up = `crsrdown` + `lshift` held. Cursor Left = `crsrright` + `lshift` held. F2/F4/F6/F8 = corresponding F-key + `lshift` held.
+
 ---
 
 ### `screenshot`
@@ -648,14 +674,41 @@ Pastes a string of text into the C64's keyboard buffer character by character. C
 
 | Parameter | Type   | Description                                           |
 |-----------|--------|-------------------------------------------------------|
-| `text`    | string | Text to paste, e.g. `LOAD"*",8,1\nRUN\n`             |
+| `text`    | string | Text to paste, e.g. `load"*",8,1\nrun\n`             |
 
 ```json
-{"id": 16, "cmd": "c64.type", "text": "LOAD\"*\",8,1\n"}
+{"id": 16, "cmd": "c64.type", "text": "load\"*\",8,1\n"}
 ```
 ```json
 {"id": 16, "ok": true}
 ```
+
+#### PETSCII case mapping
+
+> ⚠️ **Use lowercase letters in the `text` parameter to produce uppercase letters on the C64 screen.**
+
+The C64 boots into *upper/graphics* character mode. In this mode the PETSCII code range $41–$5A (produced by lowercase `a`–`z` input) renders as the uppercase Latin alphabet A–Z, while $C1–$DA (produced by uppercase `A`–`Z` input) renders as graphics characters.
+
+| Input character | PETSCII code | Displayed on C64 screen |
+|-----------------|--------------|--------------------------|
+| `a`–`z` (lowercase) | $41–$5A | **A–Z** (uppercase letters) |
+| `A`–`Z` (uppercase) | $C1–$DA | Graphics / symbols |
+| `0`–`9`, punctuation | Same as ASCII | Digits and punctuation |
+
+**Practical rule:** write all BASIC keywords and commands in lowercase in the `text` value.
+
+```sh
+# Correct — displays LOAD"*",8,1 on the C64 screen
+dotnet-6502-remote c64.type --text 'load"*",8,1'
+
+# Wrong — each letter maps to a graphics character, BASIC gives SYNTAX ERROR
+dotnet-6502-remote c64.type --text 'LOAD"*",8,1'
+
+# Correct — displays SYS 49152 and executes the machine code at $C000
+dotnet-6502-remote c64.type --text "sys 49152"
+```
+
+Newline (`\n`) in the text is equivalent to pressing Return on the C64 keyboard.
 
 ---
 
@@ -811,8 +864,8 @@ dotnet-6502-remote joystick.set --port 1 --no-up --fire false
 dotnet-6502-remote keyboard.press --key return
 dotnet-6502-remote keyboard.release --key return
 
-# Paste text into the C64 keyboard buffer (C64 only)
-dotnet-6502-remote c64.type --text "LOAD\"*\",8,1"
+# Paste text into the C64 keyboard buffer (C64 only; use lowercase — see c64.type section)
+dotnet-6502-remote c64.type --text "load\"*\",8,1"
 
 # Take a screenshot and save to a file
 dotnet-6502-remote screenshot --output /tmp/screen.png
@@ -825,6 +878,101 @@ dotnet-6502-remote emu.quit
 ```
 
 Exit codes: `0` = success, `1` = server returned an error or connection failed, `2` = bad arguments.
+
+---
+
+## Common Automation Workflows
+
+This section shows end-to-end patterns for typical C64 automation tasks using the `dotnet-6502-remote` CLI. The same command sequence translates directly to JSON requests over the raw TCP connection.
+
+### Typing a BASIC command and running it
+
+Poll `c64.isbasicstarted` before sending text — the C64 BASIC ROM takes several frames to initialize after `emu.start`.
+
+```sh
+dotnet-6502-remote emu.start
+
+# Poll until BASIC is ready (repeat until isbasicstarted is true)
+dotnet-6502-remote c64.isbasicstarted
+# → {"ok":true,"isbasicstarted":true}
+
+# Type the BASIC command in LOWERCASE (lowercase input → uppercase on C64 screen)
+dotnet-6502-remote c64.type --text 'load"*",8,1'
+dotnet-6502-remote keyboard.press --key return
+dotnet-6502-remote keyboard.release --key return
+```
+
+Shell poll loop:
+
+```sh
+until dotnet-6502-remote c64.isbasicstarted | grep -q '"isbasicstarted":true'; do
+  sleep 0.5
+done
+dotnet-6502-remote c64.type --text "list"
+dotnet-6502-remote keyboard.press --key return
+dotnet-6502-remote keyboard.release --key return
+```
+
+### Writing and running machine code
+
+There are two ways to jump to machine code. Setting the PC directly is simpler and works on any system.
+
+#### Method 1: Set PC directly (recommended for agents)
+
+`cpu.set --pc` sets the program counter at the next frame boundary. No BASIC, no keyboard input, no PETSCII — just write code and point the CPU at it.
+
+```sh
+dotnet-6502-remote emu.start
+
+# Write machine code to $C000 as comma-separated decimal bytes
+# Example: LDA #$42 (169,66), STA $D020 (141,32,208), RTS (96)
+dotnet-6502-remote mem.write --addr C000 --data 169,66,141,32,208,96
+
+# Verify the bytes were written
+dotnet-6502-remote mem.read --addr C000 --len 6
+
+# Jump to the routine — takes effect at next frame boundary
+dotnet-6502-remote cpu.set --pc C000
+
+# Confirm the CPU is executing inside the routine
+dotnet-6502-remote cpu.get
+
+# Capture the result visually
+dotnet-6502-remote screenshot --output /tmp/result.png
+```
+
+> **Note:** `cpu.set --pc` does not push a return address. If the routine ends with `RTS`, it will pop whatever is on the stack (potentially crashing). Use this method for programs that loop forever, or end with a `JMP` or `BRK`. Use the `SYS` method below when the routine is designed to return to BASIC via `RTS`.
+
+#### Method 2: Via BASIC SYS command (C64 only)
+
+This approach uses the C64 BASIC interpreter to call the routine, so BASIC must be running and the routine must end with `RTS` to return cleanly to BASIC.
+
+```sh
+dotnet-6502-remote emu.start
+
+dotnet-6502-remote mem.write --addr C000 --data 169,66,141,32,208,96
+dotnet-6502-remote mem.read --addr C000 --len 6
+
+# Wait until BASIC is ready before using the keyboard buffer
+dotnet-6502-remote c64.isbasicstarted   # repeat until "isbasicstarted":true
+
+# Type SYS in LOWERCASE — "sys 49152" displays as SYS 49152 on the C64 screen
+dotnet-6502-remote c64.type --text "sys 49152"
+dotnet-6502-remote keyboard.press --key return
+dotnet-6502-remote keyboard.release --key return
+
+dotnet-6502-remote cpu.get
+dotnet-6502-remote screenshot --output /tmp/result.png
+```
+
+### Discovering valid key names at runtime
+
+```sh
+dotnet-6502-remote keyboard.getall
+# → {"ok":true,"data":["space","return","a","b",...,"f7","crsrdown","crsrright","stop",...]}
+```
+
+Use this before calling `keyboard.press` to confirm the exact spelling of a key for the currently running system. Key names are case-insensitive in the protocol.
 
 ---
 
