@@ -244,7 +244,7 @@ dotnet-6502/
 
 - **File Access**: Reads user-specified `.prg`/`.bin`/`.dbg` files and source files (for hover context)
 - **Execution**: Runs in isolated CPU emulator (no system access)
-- **Network**: TCP localhost only (emulator mode on configurable port, default 6502)
+- **Network**: The emulator debug server supports a configurable bind address and defaults to `127.0.0.1`; the VS Code extension connects to configurable `debugHost`/`debugPort` values and defaults `debugHost` to `127.0.0.1` (emulator mode on configurable port, default 6502)
 
 ## Maintenance Notes
 

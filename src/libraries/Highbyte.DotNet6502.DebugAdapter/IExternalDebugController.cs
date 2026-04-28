@@ -9,6 +9,12 @@ namespace Highbyte.DotNet6502.DebugAdapter;
 /// </summary>
 public interface IExternalDebugController
 {
+    /// <summary>
+    /// Default bind address for the debug adapter server.
+    /// Loopback-only so external debugging is opt-in.
+    /// </summary>
+    const string DefaultBindAddress = "127.0.0.1";
+
     /// <summary>Whether the TCP server is currently listening for connections.</summary>
     bool IsListening { get; }
 
@@ -18,11 +24,14 @@ public interface IExternalDebugController
     /// <summary>The port the server is (or was last) listening on.</summary>
     int Port { get; }
 
+    /// <summary>The IP address the server is (or was last) bound to.</summary>
+    string BindAddress { get; }
+
     /// <summary>
-    /// Starts listening for incoming DAP connections on <paramref name="port"/>.
-    /// No-op if already listening.
+    /// Starts listening for incoming DAP connections on <paramref name="bindAddress"/>:<paramref name="port"/>.
+    /// No-op if already listening. If <paramref name="bindAddress"/> is null or empty, loopback is used.
     /// </summary>
-    Task StartAsync(int port);
+    Task StartAsync(int port, string? bindAddress = null);
 
     /// <summary>
     /// Stops accepting new connections. Any active session continues until the client

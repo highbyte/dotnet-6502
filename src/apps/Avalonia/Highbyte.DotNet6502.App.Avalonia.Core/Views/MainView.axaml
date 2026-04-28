@@ -33,6 +33,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
@@ -349,11 +350,11 @@
                                             <!-- Log level color styles -->
                                             <Style Selector="TextBlock.log-symbol">
                                                 <Setter Property="FontSize" Value="10"/>
-                                                <Setter Property="Height" Value="12"/>
+                                                <Setter Property="Height" Value="10"/>
                                                 <Setter Property="TextWrapping" Value="NoWrap"/>
                                                 <Setter Property="Margin" Value="0"/>
                                                 <Setter Property="HorizontalAlignment" Value="Left"/>
-                                                <Setter Property="VerticalAlignment" Value="Top"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
                                             </Style>
                                             <Style Selector="TextBlock.log-trace">
                                                 <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
@@ -384,7 +385,7 @@
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                             </Style>
                                             <Style Selector="SelectableTextBlock.log-message">
-                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="Padding" Value="4,1"/>
                                                 <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
                                                 <Setter Property="FontSize" Value="10"/>
                                                 <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
@@ -395,13 +396,13 @@
                                         </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid Margin="0,0,0,2" ClipToBounds="True">
+                                                <Grid Margin="0,0,0,0">
                                                     <Grid.RowDefinitions>
-                                                        <RowDefinition Height="12"/>
+                                                        <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="16" />  <!-- Fixed width for symbol alignment -->
-                                                        <ColumnDefinition Width="*" />   <!-- Flexible width for message -->
+                                                        <ColumnDefinition Width="Auto" />   <!-- Auto width for message to allow horizontal scrolling -->
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.ContextMenu>
                                                         <ContextMenu>
@@ -779,6 +780,198 @@
                             </Border>
                         </TabItem>
 
+                        <!-- Debug  -->
+                        <TabItem Name="DebugAndRemotingTabItem" Header="Debug &amp; Remoting"
+                                 IsVisible="{Binding IsDebugTabVisible}"
+                                 AutomationProperties.AutomationId="DebugAndRemotingTab"
+                                 AutomationProperties.Name="Debug &amp; Remoting tab">
+                            <Border Classes="tab-content">
+                                <ScrollViewer Classes="auto-scroll">
+                                    <StackPanel Classes="spacing-tight">
+
+                                        <!-- External Debug Server (Desktop only; hidden on Browser via IsExternalDebugServerAvailable) -->
+                                        <StackPanel Classes="spacing-tight"
+                                                    IsVisible="{Binding IsExternalDebugServerAvailable}">
+                                            <TextBlock Text="VSCode Debug Server"
+                                                       Classes="accent bold"
+                                                       FontSize="11"/>
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+                                                <!-- Start/Stop toggle button -->
+                                                <Button Content="{Binding ExternalDebugToggleButtonText}"
+                                                        AutomationProperties.AutomationId="ExternalDebugToggleButton"
+                                                        AutomationProperties.Name="Start or stop the TCP debug adapter server"
+                                                        Command="{Binding ToggleExternalDebugCommand}"
+                                                        Classes="small"
+                                                        MinWidth="46"
+                                                        Height="20"
+                                                        FontSize="10"
+                                                        ToolTip.Tip="Start or stop the TCP debug adapter server"/>
+                                                <!-- Bind address label + text box -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Bind:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBox Text="{Binding ExternalDebugBindAddressText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.AutomationId="ExternalDebugBindAddressInput"
+                                                             AutomationProperties.Name="External debug server bind IP address"
+                                                             IsEnabled="{Binding !IsExternalDebugListening}"
+                                                             Width="90"
+                                                             Classes="small"
+                                                             TextInput="OnIpv4TextInput"
+                                                             TextChanged="OnIpv4TextChanged"
+                                                             ToolTip.Tip="{Binding ExternalDebugBindAddressInputToolTip}"/>
+                                                </StackPanel>
+                                                <!-- Port label + number (no spinners, fixed width) -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Port:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBox Text="{Binding ExternalDebugPortText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.AutomationId="ExternalDebugPortInput"
+                                                             AutomationProperties.Name="External debug server TCP port"
+                                                             IsEnabled="{Binding !IsExternalDebugListening}"
+                                                             Width="68"
+                                                             MaxLength="5"
+                                                             Classes="small"
+                                                             TextInput="OnDigitsOnlyTextInput"
+                                                             TextChanged="OnPortTextChanged"
+                                                             ToolTip.Tip="{Binding ExternalDebugPortInputToolTip}"/>
+                                                </StackPanel>
+                                                <!-- Status text -->
+                                                <TextBlock Text="{Binding ExternalDebugStatusText}"
+                                                           FontSize="10"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Remote Control Server (Desktop only; hidden on Browser via IsRemoteControlAvailable) -->
+                                        <StackPanel Classes="spacing-tight"
+                                                    IsVisible="{Binding IsRemoteControlAvailable}">
+                                            <TextBlock Text="Remote Control Server"
+                                                       Classes="accent bold"
+                                                       FontSize="11"/>
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+                                                <!-- Start/Stop toggle button -->
+                                                <Button Content="{Binding RemoteControlToggleButtonText}"
+                                                        AutomationProperties.AutomationId="RemoteControlToggleButton"
+                                                        AutomationProperties.Name="Start or stop the TCP remote control server"
+                                                        Command="{Binding ToggleRemoteControlCommand}"
+                                                        Classes="small"
+                                                        MinWidth="46"
+                                                        Height="20"
+                                                        FontSize="10"
+                                                        ToolTip.Tip="Start or stop the TCP remote control server"/>
+                                                <!-- Bind address label + text box -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Bind:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBox Text="{Binding RemoteControlBindAddressText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.AutomationId="RemoteControlBindAddressInput"
+                                                             AutomationProperties.Name="Remote control server bind IP address"
+                                                             IsEnabled="{Binding !IsRemoteControlListening}"
+                                                             Width="90"
+                                                             Classes="small"
+                                                             TextInput="OnIpv4TextInput"
+                                                             TextChanged="OnIpv4TextChanged"
+                                                             ToolTip.Tip="{Binding RemoteControlBindAddressInputToolTip}"/>
+                                                </StackPanel>
+                                                <!-- Port label + number -->
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <TextBlock Text="Port:"
+                                                               Classes="accent bold"
+                                                               FontSize="10"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBox Text="{Binding RemoteControlPortText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.AutomationId="RemoteControlPortInput"
+                                                             AutomationProperties.Name="Remote control server TCP port"
+                                                             IsEnabled="{Binding !IsRemoteControlListening}"
+                                                             Width="68"
+                                                             MaxLength="5"
+                                                             Classes="small"
+                                                             TextInput="OnDigitsOnlyTextInput"
+                                                             TextChanged="OnPortTextChanged"
+                                                             ToolTip.Tip="{Binding RemoteControlPortInputToolTip}"/>
+                                                </StackPanel>
+                                                <!-- Status text -->
+                                                <TextBlock Text="{Binding RemoteControlStatusText}"
+                                                           AutomationProperties.AutomationId="RemoteControlStatusText"
+                                                           AutomationProperties.Name="Remote control server status"
+                                                           FontSize="10"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                                <!-- Fixed-width transient client indicator to avoid layout churn in the tab -->
+                                                <Border Width="68"
+                                                        Height="18"
+                                                        CornerRadius="9"
+                                                        Background="#180080FF"
+                                                        BorderBrush="#500080FF"
+                                                        BorderThickness="1"
+                                                        VerticalAlignment="Center"
+                                                        Opacity="{Binding RemoteClientBannerOpacity}"
+                                                        IsHitTestVisible="False">
+                                                    <Border.Transitions>
+                                                        <Transitions>
+                                                            <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                                                        </Transitions>
+                                                    </Border.Transitions>
+                                                    <StackPanel Orientation="Horizontal"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Spacing="4">
+                                                        <Ellipse Width="6"
+                                                                 Height="6"
+                                                                 Fill="#FF0080FF"
+                                                                 VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Client"
+                                                                   FontSize="9"
+                                                                   FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="#FF0080FF"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Debug tool buttons -->
+                                        <StackPanel Classes="spacing-tight" IsVisible="{Binding IsDebugToolsVisible}">
+
+                                            <TextBlock Text="Misc. Debug Tools"
+                                                       Classes="accent bold"
+                                                       FontSize="11"/>
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+
+                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                                    <Button Click="OpenSoundDebug_Click"
+                                                            AutomationProperties.AutomationId="DebugSoundButton"
+                                                            IsEnabled="{Binding IsEmulatorUninitialized}"
+                                                            Classes="small"
+                                                            MinWidth="60"
+                                                            Height="20"
+                                                            FontSize="10">
+                                                        Debug sound
+                                                    </Button>
+                                                    <Button Click="OpenGamepadDebug_Click"
+                                                            AutomationProperties.AutomationId="DebugGamepadButton"
+                                                            IsEnabled="{Binding IsEmulatorUninitialized}"
+                                                            Classes="small"
+                                                            MinWidth="60"
+                                                            Height="20"
+                                                            FontSize="10">
+                                                        Debug gamepad
+                                                    </Button>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+
                         <!-- General info -->
                         <TabItem Name="GeneralInfoTabItem" Header="General info"
                                  AutomationProperties.AutomationId="GeneralInfoTab"
@@ -861,95 +1054,8 @@
 
                                 </StackPanel>
                             </ScrollViewer>
-
                         </TabItem>
 
-
-                        <!-- Debug  -->
-                        <TabItem Name="DebugTabItem" Header="Debug"
-                                 AutomationProperties.AutomationId="DebugTab"
-                                 AutomationProperties.Name="Debug tab"
-                                 IsVisible="{Binding IsDebugTabVisible}">
-                            <Border Classes="tab-content">
-                                <ScrollViewer Classes="auto-scroll">
-                                    <StackPanel Classes="spacing-tight">
-
-                                        <!-- External Debug Server (Desktop only; hidden on Browser via IsExternalDebugServerAvailable) -->
-                                        <StackPanel Classes="spacing-tight"
-                                                    IsVisible="{Binding IsExternalDebugServerAvailable}">
-                                            <TextBlock Text="VSCode Debug Server"
-                                                       Classes="accent bold"
-                                                       FontSize="11"/>
-                                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
-                                                <!-- Start/Stop toggle button -->
-                                                <Button Content="{Binding ExternalDebugToggleButtonText}"
-                                                        AutomationProperties.AutomationId="ExternalDebugToggleButton"
-                                                        AutomationProperties.Name="Start or stop the TCP debug adapter server"
-                                                        Command="{Binding ToggleExternalDebugCommand}"
-                                                        Classes="small"
-                                                        MinWidth="46"
-                                                        Height="20"
-                                                        FontSize="10"
-                                                        ToolTip.Tip="Start or stop the TCP debug adapter server"/>
-                                                <!-- Port label + number (no spinners, fixed width) -->
-                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
-                                                    <TextBlock Text="Port:"
-                                                               Classes="accent bold"
-                                                               FontSize="10"
-                                                               VerticalAlignment="Center"/>
-                                                    <NumericUpDown Value="{Binding ExternalDebugPort}"
-                                                                  AutomationProperties.AutomationId="ExternalDebugPortInput"
-                                                                  AutomationProperties.Name="External debug server TCP port"
-                                                                  IsEnabled="{Binding !IsExternalDebugListening}"
-                                                                  Minimum="0" Maximum="65535"
-                                                                  FormatString="0"
-                                                                  ShowButtonSpinner="False"
-                                                                  Width="56"
-                                                                  Classes="small"
-                                                                  ToolTip.Tip="TCP port for the debug adapter server (default: 6502)"/>
-                                                </StackPanel>
-                                                <!-- Status text -->
-                                                <TextBlock Text="{Binding ExternalDebugStatusText}"
-                                                           FontSize="10"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                                            </StackPanel>
-                                        </StackPanel>
-
-                                        <!-- Debug tool buttons -->
-                                        <StackPanel Classes="spacing-tight">
-
-                                            <TextBlock Text="Misc. Debug Tools"
-                                                       Classes="accent bold"
-                                                       FontSize="11"/>
-                                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
-
-                                                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
-                                                    <Button Click="OpenSoundDebug_Click"
-                                                            AutomationProperties.AutomationId="DebugSoundButton"
-                                                            IsEnabled="{Binding IsEmulatorUninitialized}"
-                                                            Classes="small"
-                                                            MinWidth="60"
-                                                            Height="20"
-                                                            FontSize="10">
-                                                        Debug sound
-                                                    </Button>
-                                                    <Button Click="OpenGamepadDebug_Click"
-                                                            AutomationProperties.AutomationId="DebugGamepadButton"
-                                                            IsEnabled="{Binding IsEmulatorUninitialized}"
-                                                            Classes="small"
-                                                            MinWidth="60"
-                                                            Height="20"
-                                                            FontSize="10">
-                                                        Debug gamepad
-                                                    </Button>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Border>
-                        </TabItem>
                     </TabControl>
                 </Border>
             </Grid>
@@ -990,6 +1096,33 @@
                        Foreground="#FFFF8C00"
                        FontWeight="Bold"
                        FontSize="11"/>
+        </Border>
+        <!-- Remote Client Connected Banner (Bottom) -->
+        <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3"
+                IsVisible="{Binding IsRemoteClientBannerVisible}"
+                Opacity="{Binding RemoteClientBannerOpacity}"
+                Background="#400080FF"
+                BorderBrush="#FF0080FF"
+                BorderThickness="0,1,0,0"
+                Height="24">
+            <Border.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                </Transitions>
+            </Border.Transitions>
+            <TextBlock AutomationProperties.AutomationId="RemoteClientConnectedBanner"
+                       AutomationProperties.Name="Remote client connected indicator"
+                       FontSize="11"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#FF0080FF">
+                <TextBlock.Text>
+                    <MultiBinding StringFormat="&#x2022; Remote Control Connected (port {0})">
+                        <Binding Path="RemoteControlPort"/>
+                    </MultiBinding>
+                </TextBlock.Text>
+            </TextBlock>
         </Border>
     </Grid>
 </UserControl>

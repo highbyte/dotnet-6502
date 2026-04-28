@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
@@ -10,13 +11,12 @@ namespace Highbyte.DotNet6502.App.Headless;
 /// Headless host app for running the emulator without any UI, rendering, audio, or user input.
 /// Driven entirely by CLI parameters and Lua scripts.
 /// </summary>
-public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>, IDebuggableHostApp
+public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>, IDebuggableHostApp, IRemotableHostApp
 {
     private new readonly ILogger _logger;
     private readonly CancellationTokenSource _appCts;
 
     private HeadlessPeriodicTimer? _updateTimer;
-    private HeadlessPeriodicTimer? _scriptingTickTimer;
 
     // IDebuggableHostApp
     public bool WaitForExternalDebugger { get; set; }
@@ -111,23 +111,14 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
 
     // --- Scripting timer ---
 
+    protected override IScriptingTickTimer CreateScriptingTickTimer(double intervalMs) =>
+        new HeadlessPeriodicTimer { IntervalMilliseconds = intervalMs };
+
     protected override void OnScriptingEngineSet()
     {
-        _scriptingTickTimer = CreateScriptingTickTimer();
-        _scriptingTickTimer.Start();
-        // Drain any pending actions synchronously on this thread
+        // Drain any pending actions synchronously on this thread so top-level script
+        // side effects (e.g. emu.start()) complete before Program.cs moves on.
         DrainPendingScriptActionsAsync().GetAwaiter().GetResult();
-    }
-
-    protected override void StopScriptingTimer()
-    {
-        if (_scriptingTickTimer != null)
-        {
-            _scriptingTickTimer.Elapsed -= ScriptingTickTimerElapsed;
-            _scriptingTickTimer.Stop();
-            _scriptingTickTimer.Dispose();
-            _scriptingTickTimer = null;
-        }
     }
 
     // --- Frame execution gating ---
@@ -186,26 +177,6 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
         }
     }
 
-    private HeadlessPeriodicTimer CreateScriptingTickTimer()
-    {
-        var timer = new HeadlessPeriodicTimer { IntervalMilliseconds = 16.0 }; // ~60 Hz
-        timer.Elapsed += ScriptingTickTimerElapsed;
-        return timer;
-    }
-
-    private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
-    {
-        try
-        {
-            InvokeScriptingTick();
-            await DrainPendingScriptActionsAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unhandled exception in scripting tick timer.");
-        }
-    }
-
     private async void UpdateTimerElapsed(object? sender, EventArgs e)
     {
         try
@@ -218,4 +189,7 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
             _logger.LogError(ex, "Unhandled exception in update timer.");
         }
     }
+
+    // IRemotableHostApp — no rendering in headless
+    public byte[]? CaptureScreenshotPng() => null;
 }

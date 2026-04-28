@@ -56,14 +56,7 @@ By default `appsettings.json` expects them in `%HOME%/Downloads/C64` (i.e. `~/Do
 
 When a Lua script is supplied the script owns the full emulator lifecycle — it calls `emu.start()`, loads programs, and quits when done.
 
-| Argument | Description |
-|---|---|
-| `--script <path>` | Load and run a Lua script (can be specified multiple times) |
-| `--scriptDir <path>` | Override the script directory from `appsettings.json` |
-| `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
-| `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
-| `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
-| `--debug-wait` | Wait for a debug client to connect before starting |
+See [Parameter reference](#parameter-reference) for [`--script` and `--scriptDir`](#scripting-parameters), [logging](#logging), [debug adapter](#debug-adapter), and [remote control](#remote-control) options.
 
 > [!IMPORTANT]
 > `--script` and `--scriptDir` are **mutually exclusive** with `--system`, `--systemVariant`, `--start`, `--waitForSystemReady`, `--loadPrg`, and `--runLoadedProgram`. The script is responsible for all emulator setup and lifecycle. Combining them is an error.
@@ -71,6 +64,19 @@ When a Lua script is supplied the script owns the full emulator lifecycle — it
 ### Automated startup mode (`--start`)
 
 Used when driving the emulator from the command line without a script — primarily by the VS Code debugger extension.
+
+See [Parameter reference](#parameter-reference) for [`--system`, `--start`, and related options](#automated-startup-parameters), [logging](#logging), [debug adapter](#debug-adapter), and [remote control](#remote-control) options.
+
+### Parameter reference
+
+#### Scripting parameters
+
+| Argument | Description |
+|---|---|
+| `--script <path>` | Load and run a Lua script (can be specified multiple times) |
+| `--scriptDir <path>` | Override the script directory from `appsettings.json` |
+
+#### Automated startup parameters
 
 | Argument | Description |
 |---|---|
@@ -80,10 +86,31 @@ Used when driving the emulator from the command line without a script — primar
 | `--waitForSystemReady` | Wait until the system reports ready before continuing. Requires `--start`. |
 | `--loadPrg <path>` | Load a `.prg` file into memory. Requires `--start`. |
 | `--runLoadedProgram` | Run the loaded `.prg` file after loading. Requires `--start` and `--loadPrg`. |
+
+#### Logging
+
+| Argument | Description |
+|---|---|
 | `--log-level <level>` / `-l <level>` | Set console log level (Trace/Debug/Information/Warning/Error) |
+
+#### Debug adapter
+
+| Argument | Description |
+|---|---|
 | `--enableExternalDebug` | Enable VS Code debug adapter (DAP) over TCP |
 | `--debug-port <port>` | TCP port for the debug adapter (default: 6502) |
+| `--debug-bind-address <ip>` | IP address to bind the debug adapter server to (default: `127.0.0.1`) |
 | `--debug-wait` | Wait for a debug client to connect before starting |
+
+#### Remote control
+
+| Argument | Description |
+|---|---|
+| `--remote-port <port>` | Start the TCP remote control server on this port |
+| `--remote-bind-address <ip>` | IP address to bind the remote control server to (default: `127.0.0.1`) |
+| `--allow-remote-quit` | Allow the `emu.quit` remote control command to terminate the app |
+
+See [REMOTE_CONTROL.md](REMOTE_CONTROL.md) for the remote control protocol and usage.
 
 ## Lua scripting
 The same Lua scripting API available in the Avalonia apps is fully supported here. Scripts are the primary way to control the emulator. Example scripts are included in the `scripts/` directory:
@@ -109,7 +136,7 @@ The same Lua scripting API available in the Avalonia apps is fully supported her
 See [Scripting](SCRIPTING.md) for the full Lua API reference.
 
 ## External debug adapter
-The headless app supports the [Debug Adapter Protocol (DAP)](https://microsoft.github.io/debug-adapter-protocol/) over TCP, allowing VS Code to attach a debugger while the emulator runs headless.
+The headless app supports the [Debug Adapter Protocol (DAP)](https://microsoft.github.io/debug-adapter-protocol/) over TCP, allowing VS Code to attach a debugger while the emulator runs headless. By default the server binds to `127.0.0.1`; pass `--debug-bind-address <ip>` to change the interface. `0.0.0.0` accepts connections on any network interface, so only use it on trusted networks because the debug adapter is unauthenticated.
 
 See the [VS Code debugger extension](../tools/vscode-extension/README.md) for details.
 
@@ -124,9 +151,29 @@ Start a C64 and run a Lua script (script owns all setup and lifecycle):
 dotnet-6502-headless --script scripts/example_c64_basic_readwrite.lua
 ```
 
-Start with debug adapter listening on port 6502, waiting for client (no script):
+Start with debug adapter listening on `127.0.0.1:6502`, waiting for client (no script):
 ```
 dotnet-6502-headless --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
+```
+
+Start with debug adapter listening on all interfaces at port 6502 (trusted networks only):
+```
+dotnet-6502-headless --system C64 --start --enableExternalDebug --debug-port 6502 --debug-bind-address 0.0.0.0 --debug-wait
+```
+
+Start with remote control server on port 6510 (loopback only):
+```
+dotnet-6502-headless --system C64 --start --remote-port 6510
+```
+
+Start with remote control server accessible from the network (trusted networks only):
+```
+dotnet-6502-headless --system C64 --start --remote-port 6510 --remote-bind-address 0.0.0.0
+```
+
+Start with remote control and allow `emu.quit` command:
+```
+dotnet-6502-headless --system C64 --start --remote-port 6510 --allow-remote-quit
 ```
 
 Example console output:

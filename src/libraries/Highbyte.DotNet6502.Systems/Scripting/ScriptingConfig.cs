@@ -104,4 +104,20 @@ public class ScriptingConfig
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public IScriptStore? StoreBackend { get; set; }
+
+    /// <summary>
+    /// Returns <see cref="ScriptDirectory"/> resolved to an absolute path.
+    /// For relative paths, tries the current working directory first; if that directory
+    /// does not exist, falls back to <see cref="AppContext.BaseDirectory"/> (the binary's
+    /// output folder). This ensures that example scripts copied to the build output are
+    /// found when the app is launched via <c>dotnet run</c>, where the CWD is the project
+    /// source directory rather than the bin folder.
+    /// </summary>
+    public string ResolvedScriptDirectory()
+    {
+        if (string.IsNullOrEmpty(ScriptDirectory) || Path.IsPathRooted(ScriptDirectory))
+            return ScriptDirectory;
+        var cwdPath = Path.GetFullPath(ScriptDirectory);
+        return Directory.Exists(cwdPath) ? cwdPath : Path.GetFullPath(ScriptDirectory, AppContext.BaseDirectory);
+    }
 }

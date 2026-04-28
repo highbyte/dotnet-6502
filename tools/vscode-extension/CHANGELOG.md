@@ -4,6 +4,9 @@ All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension wi
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-24
+New setting `debugHost` for attaching to emulator running on other computer. Currently disassembly debug only (without source).
+
 ## [0.1.6] - 2026-04-17
 Docs link changed.
 

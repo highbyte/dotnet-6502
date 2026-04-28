@@ -26,5 +26,5 @@ public interface ISystem
     IRenderProvider? RenderProvider { get; }
     List<IRenderProvider> RenderProviders { get; }
 
-    IScriptInputProvider? ScriptInputProvider => null;
+    IInputInjector? InputInjector => null;
 }

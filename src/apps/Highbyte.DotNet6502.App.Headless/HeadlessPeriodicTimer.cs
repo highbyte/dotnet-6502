@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.App.Headless;
 
@@ -6,7 +7,7 @@ namespace Highbyte.DotNet6502.App.Headless;
 /// A periodic timer for headless (no-UI) execution.
 /// Uses .NET <see cref="PeriodicTimer"/> without any UI-thread marshaling.
 /// </summary>
-public sealed class HeadlessPeriodicTimer : IDisposable
+public sealed class HeadlessPeriodicTimer : IScriptingTickTimer
 {
     private CancellationTokenSource? _cts;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
@@ -16,6 +17,12 @@ public sealed class HeadlessPeriodicTimer : IDisposable
     public long TimeSinceLastTickMilliseconds { get; private set; }
 
     public event EventHandler? Elapsed;
+
+    event EventHandler IScriptingTickTimer.Elapsed
+    {
+        add => Elapsed += value;
+        remove => Elapsed -= value;
+    }
 
     public void Start()
     {

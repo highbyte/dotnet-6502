@@ -50,6 +50,11 @@ jobs:
           chmod u+x src/apps/Highbyte.DotNet6502.App.Headless/publish.sh
           src/apps/Highbyte.DotNet6502.App.Headless/publish.sh ${{ matrix.runtime }}
 
+      - name: Publish RemoteClient App
+        run: |
+          chmod u+x src/apps/Highbyte.DotNet6502.App.RemoteClient/publish.sh
+          src/apps/Highbyte.DotNet6502.App.RemoteClient/publish.sh ${{ matrix.runtime }}
+
       - name: Zip Apps
         run: |
           cd src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/${{ matrix.runtime }}
@@ -64,6 +69,9 @@ jobs:
           cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.Headless/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-Headless-${{ matrix.runtime }}.zip .
 
+          cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.RemoteClient/publish/${{ matrix.runtime }}
+          zip -r $GITHUB_WORKSPACE/DotNet6502-RemoteClient-${{ matrix.runtime }}.zip .
+
       - name: Generate SHA256 checksums
         run: |
           cd $GITHUB_WORKSPACE
@@ -71,6 +79,7 @@ jobs:
           sha256sum DotNet6502-Avalonia-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
           sha256sum DotNet6502-SadConsole-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
           sha256sum DotNet6502-Headless-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
+          sha256sum DotNet6502-RemoteClient-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
 
       - name: Upload Release Assets
         if: github.event_name == 'release'
@@ -82,6 +91,7 @@ jobs:
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip \
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip \
             DotNet6502-Headless-${{ matrix.runtime }}.zip \
+            DotNet6502-RemoteClient-${{ matrix.runtime }}.zip \
             checksums-${{ matrix.runtime }}.sha256
 
       - name: Upload Workflow Artifacts (non-release)
@@ -94,6 +104,7 @@ jobs:
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip
             DotNet6502-Headless-${{ matrix.runtime }}.zip
+            DotNet6502-RemoteClient-${{ matrix.runtime }}.zip
             checksums-${{ matrix.runtime }}.sha256
 
   update-package-managers:
@@ -138,6 +149,11 @@ jobs:
           echo "headless_linux_arm64=$(extract_hash Headless linux-arm64)" >> "$GITHUB_OUTPUT"
           echo "headless_win_x64=$(extract_hash Headless win-x64)" >> "$GITHUB_OUTPUT"
           echo "headless_win_arm64=$(extract_hash Headless win-arm64)" >> "$GITHUB_OUTPUT"
+          echo "remote_osx_arm64=$(extract_hash RemoteClient osx-arm64)" >> "$GITHUB_OUTPUT"
+          echo "remote_linux_x64=$(extract_hash RemoteClient linux-x64)" >> "$GITHUB_OUTPUT"
+          echo "remote_linux_arm64=$(extract_hash RemoteClient linux-arm64)" >> "$GITHUB_OUTPUT"
+          echo "remote_win_x64=$(extract_hash RemoteClient win-x64)" >> "$GITHUB_OUTPUT"
+          echo "remote_win_arm64=$(extract_hash RemoteClient win-arm64)" >> "$GITHUB_OUTPUT"
 
       - name: Extract macOS app bundle name from zip
         id: app_bundle
@@ -156,6 +172,9 @@ jobs:
           HEADLESS_OSX_ARM64_HASH: ${{ steps.hashes.outputs.headless_osx_arm64 }}
           HEADLESS_LINUX_X64_HASH: ${{ steps.hashes.outputs.headless_linux_x64 }}
           HEADLESS_LINUX_ARM64_HASH: ${{ steps.hashes.outputs.headless_linux_arm64 }}
+          REMOTE_OSX_ARM64_HASH: ${{ steps.hashes.outputs.remote_osx_arm64 }}
+          REMOTE_LINUX_X64_HASH: ${{ steps.hashes.outputs.remote_linux_x64 }}
+          REMOTE_LINUX_ARM64_HASH: ${{ steps.hashes.outputs.remote_linux_arm64 }}
         run: |
           git clone "https://x-access-token:${GH_TOKEN}@github.com/highbyte/homebrew-dotnet-6502.git"
           cd homebrew-dotnet-6502
@@ -198,6 +217,12 @@ jobs:
               os.environ["HEADLESS_LINUX_X64_HASH"],
               os.environ["HEADLESS_LINUX_ARM64_HASH"],
           ])
+          # dotnet-6502-remote formula: macOS arm64, then Linux x64, then Linux arm64
+          update_formula("Formula/dotnet-6502-remote.rb", version, [
+              os.environ["REMOTE_OSX_ARM64_HASH"],
+              os.environ["REMOTE_LINUX_X64_HASH"],
+              os.environ["REMOTE_LINUX_ARM64_HASH"],
+          ])
           PYEOF
 
           git config user.name "github-actions[bot]"
@@ -214,6 +239,8 @@ jobs:
           WIN_ARM64_HASH: ${{ steps.hashes.outputs.win_arm64 }}
           HEADLESS_WIN_X64_HASH: ${{ steps.hashes.outputs.headless_win_x64 }}
           HEADLESS_WIN_ARM64_HASH: ${{ steps.hashes.outputs.headless_win_arm64 }}
+          REMOTE_WIN_X64_HASH: ${{ steps.hashes.outputs.remote_win_x64 }}
+          REMOTE_WIN_ARM64_HASH: ${{ steps.hashes.outputs.remote_win_arm64 }}
         run: |
           git clone "https://x-access-token:${GH_TOKEN}@github.com/highbyte/scoop-dotnet-6502.git"
           cd scoop-dotnet-6502
@@ -236,8 +263,9 @@ jobs:
                   json.dump(manifest, f, indent=4)
                   f.write("\n")
 
-          update_manifest("bucket/dotnet-6502.json",         "Avalonia", os.environ["WIN_X64_HASH"],         os.environ["WIN_ARM64_HASH"])
-          update_manifest("bucket/dotnet-6502-headless.json", "Headless", os.environ["HEADLESS_WIN_X64_HASH"], os.environ["HEADLESS_WIN_ARM64_HASH"])
+          update_manifest("bucket/dotnet-6502.json",         "Avalonia",     os.environ["WIN_X64_HASH"],          os.environ["WIN_ARM64_HASH"])
+          update_manifest("bucket/dotnet-6502-headless.json", "Headless",    os.environ["HEADLESS_WIN_X64_HASH"], os.environ["HEADLESS_WIN_ARM64_HASH"])
+          update_manifest("bucket/dotnet-6502-remote.json",   "RemoteClient", os.environ["REMOTE_WIN_X64_HASH"],   os.environ["REMOTE_WIN_ARM64_HASH"])
           PYEOF
 
           git config user.name "github-actions[bot]"

@@ -47,9 +47,7 @@ public class ScriptingEngine : IScriptingEngine
     ];
 
     public bool IsEnabled => true;
-    public string ScriptDirectory => string.IsNullOrEmpty(_config.ScriptDirectory)
-        ? string.Empty
-        : Path.GetFullPath(_config.ScriptDirectory);
+    public string ScriptDirectory => _config.ResolvedScriptDirectory();
     public event EventHandler? ScriptStatusChanged;
 
     public ScriptingEngine(IScriptingEngineAdapter adapter, ScriptingConfig config, ILoggerFactory loggerFactory)
@@ -158,7 +156,7 @@ public class ScriptingEngine : IScriptingEngine
             return;
         }
 
-        var dir = _config.ScriptDirectory;
+        var dir = _config.ResolvedScriptDirectory();
 
         if (!Directory.Exists(dir))
         {
@@ -210,16 +208,15 @@ public class ScriptingEngine : IScriptingEngine
 
     public void OnSystemStarted(ISystem system)
     {
-        _logger.LogInformation("[Scripting] OnSystemStarted: system={System}, ScriptInputProvider={Provider}", system.Name, system.ScriptInputProvider?.GetType().Name ?? "null");
+        _logger.LogInformation("[Scripting] OnSystemStarted: system={System}, InputInjector={Provider}", system.Name, system.InputInjector?.GetType().Name ?? "null");
         _adapter.OnSystemStarted(system);
-        _adapter.SetInputProvider(system.ScriptInputProvider);
+        _adapter.SetInputProvider(system.InputInjector);
         _frameCount = 0;
     }
 
     public void InvokeBeforeFrame()
     {
         _frameCount++;
-        _adapter.ClearScriptInput();
         var activeHandles = GetActiveHandles(filterByYieldType: ScriptYieldType.FrameAdvance);
         _adapter.ResumeFrameAdvanceCoroutines(activeHandles, OnResumeResult);
         _adapter.ResumePendingHttpCoroutines(GetAllNonFailedHandles(), OnResumeResult);
@@ -315,7 +312,7 @@ public class ScriptingEngine : IScriptingEngine
         }
         else
         {
-            filePath = Path.Combine(_config.ScriptDirectory, fileName);
+            filePath = Path.Combine(_config.ResolvedScriptDirectory(), fileName);
             if (!File.Exists(filePath))
             {
                 _logger.LogError("[Scripting] Cannot reload {File}: file not found at {Path}", fileName, filePath);

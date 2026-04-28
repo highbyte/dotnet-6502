@@ -47,12 +47,12 @@ public partial class MainView : UserControl
     // Tab navigation shortcut definitions — order determines NativeMenu display order.
     private static readonly (Key Key, string TabItemName, string Label)[] TabNavigationShortcuts =
     {
-        (Key.I, "InformationTabItem",  "Information"),
-        (Key.C, "ConfigStatusTabItem", "Config status"),
-        (Key.L, "LogTabItem",          "Log"),
-        (Key.S, "ScriptsTabItem",      "Scripts"),
-        (Key.G, "GeneralInfoTabItem",  "General info"),
-        (Key.D, "DebugTabItem",        "Debug"),
+        (Key.I, "InformationTabItem",     "Information"),
+        (Key.C, "ConfigStatusTabItem",     "Config status"),
+        (Key.L, "LogTabItem",              "Log"),
+        (Key.S, "ScriptsTabItem",          "Scripts"),
+        (Key.D, "DebugAndRemotingTabItem", "Debug & Remoting"),
+        (Key.G, "GeneralInfoTabItem",      "General info"),
     };
 
     // Parameterless constructor - child views created by XAML!
@@ -202,6 +202,58 @@ public partial class MainView : UserControl
                 }
             }
         });
+    }
+
+    private void OnDigitsOnlyTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.Text) && e.Text.Any(ch => !char.IsDigit(ch)))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void OnIpv4TextInput(object? sender, TextInputEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.Text) && e.Text.Any(ch => !char.IsDigit(ch) && ch != '.'))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void OnPortTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (sender is not TextBox textBox)
+            return;
+
+        var rawText = textBox.Text ?? string.Empty;
+        var filteredText = new string(rawText.Where(char.IsDigit).Take(5).ToArray());
+        if (filteredText.Length > 0 && (!int.TryParse(filteredText, out var parsedPort) || parsedPort < 1 || parsedPort > 65535))
+        {
+            filteredText = textBox.Tag as string ?? string.Empty;
+        }
+
+        if (!string.Equals(textBox.Text, filteredText, StringComparison.Ordinal))
+        {
+            textBox.Text = filteredText;
+            textBox.CaretIndex = filteredText.Length;
+            return;
+        }
+
+        textBox.Tag = filteredText;
+    }
+
+    private void OnIpv4TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (sender is not TextBox textBox)
+            return;
+
+        var rawText = textBox.Text ?? string.Empty;
+        var filteredText = new string(rawText.Where(ch => char.IsDigit(ch) || ch == '.').ToArray());
+        if (!string.Equals(textBox.Text, filteredText, StringComparison.Ordinal))
+        {
+            textBox.Text = filteredText;
+            textBox.CaretIndex = filteredText.Length;
+        }
     }
 
     private void MainView_Loaded(object? sender, RoutedEventArgs e)

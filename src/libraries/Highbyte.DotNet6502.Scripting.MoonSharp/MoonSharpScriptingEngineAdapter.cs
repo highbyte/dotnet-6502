@@ -28,7 +28,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaTcpProxy? _tcpProxy;
     private LuaScreenshotProxy? _screenshotProxy;
     private ScriptingConfig? _config;
-    private IScriptInputProvider? _inputProvider;
+    private IInputInjector? _inputProvider;
     private IHostApp? _hostApp;
 
     // Tracks how each coroutine last yielded, keyed on the MoonSharp Coroutine object
@@ -141,7 +141,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         if (config.AllowFileIO)
         {
             var fileBaseDir = string.IsNullOrWhiteSpace(config.FileBaseDirectory)
-                ? config.ScriptDirectory
+                ? config.ResolvedScriptDirectory()
                 : config.FileBaseDirectory;
             _fileProxy = new LuaFileProxy(fileBaseDir, config.AllowFileWrite);
 
@@ -326,7 +326,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             if (storeBackend == null && !string.IsNullOrEmpty(config.ScriptDirectory))
             {
                 var subDir = string.IsNullOrEmpty(config.StoreSubDirectory) ? ".store" : config.StoreSubDirectory;
-                var storeDir = Path.Combine(Path.GetFullPath(config.ScriptDirectory), subDir);
+                var storeDir = Path.Combine(config.ResolvedScriptDirectory(), subDir);
                 storeBackend = new FileSystemScriptStore(storeDir);
             }
 
@@ -1310,9 +1310,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _ => AdapterCoroutineState.Dead
     };
 
-    public void SetInputProvider(IScriptInputProvider? provider) => _inputProvider = provider;
-
-    public void ClearScriptInput() => _inputProvider?.Clear();
+    public void SetInputProvider(IInputInjector? provider) => _inputProvider = provider;
 
     /// <summary>
     /// Returns the filename of the script whose coroutine is currently executing.

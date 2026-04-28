@@ -200,7 +200,7 @@ There are three ways to use the debugger, each with different launch.json config
 |------|-----------|----------------|-------------|
 | **Launch (minimal)** | `launch` | `minimal` (default) | Launches a standalone 6502 debug adapter. No system emulation — just CPU, memory, and your program. Communicates via STDIO. |
 | **Launch (emulator)** | `launch` | `emulator` | Launches an emulator host app (e.g., Avalonia Desktop with C64 emulation), loads your program, and connects the debugger via TCP. |
-| **Attach** | `attach` | — | Connects to an already-running emulator host app via TCP. Start the emulator manually via command line (`--enableExternalDebug`) or via the **VSCode Debug Server** toggle in the Avalonia app's Debug tab. |
+| **Attach** | `attach` | — | Connects to an already-running emulator host app via TCP. Start the emulator manually via command line (`--enableExternalDebug`, optional `--debug-bind-address <ip>`) or via the **VSCode Debug Server** toggle in the Avalonia app's Debug tab. |
 
 ### Launch Configuration Parameters
 
@@ -217,6 +217,7 @@ There are three ways to use the debugger, each with different launch.json config
 | `debugAdapter` | string | `"minimal"` | Yes | Yes | — | `"minimal"` for standalone adapter, `"emulator"` to launch emulator host app. |
 | `emulatorExecutable` | string | *(auto)* | Yes | Yes | — | Executable path or name. Defaults to `Highbyte.DotNet6502.DebugAdapter.ConsoleApp` (minimal) or `Highbyte.DotNet6502.App.Avalonia.Desktop` (emulator). Resolved via PATH, then repo build output. |
 | `debugPort` | number | `6502` | — | Yes | Yes | TCP port for debug adapter communication. |
+| `debugHost` | string | `"127.0.0.1"` | — | Yes | Yes | TCP host or IP address the extension connects to. Most useful for attach mode; leave it at loopback for locally launched emulator sessions unless the emulator is intentionally listening on another interface. |
 | `system` | string | `"C64"` | — | Yes | — | System to start in emulator host (e.g., `"C64"`, `"Generic"`). |
 | `systemVariant` | string | — | — | Yes | — | System variant (uses first variant if not specified). |
 | `startupTimeout` | number | `120` | — | Yes | — | Seconds to wait for emulator host TCP server to start. |
@@ -286,35 +287,36 @@ There are three ways to use the debugger, each with different launch.json config
   "type": "dotnet6502",
   "request": "attach",
   "name": "Attach to Emulator",
+  "debugHost": "127.0.0.1",
   "debugPort": 6502,
   "stopOnEntry": true
 }
 ```
 
-For attach mode, enable the TCP debug server in the emulator first — there are two ways:
+For attach mode, enable the TCP debug server in the emulator first — there are two ways. The emulator supports a configurable bind address (`--debug-bind-address <ip>` or the **Bind** field in the UI), and the extension supports a matching `debugHost` setting. Both default to `127.0.0.1`, which remains the right default for local debugging. Set both explicitly only when you intentionally want VS Code to connect to another machine, container, VM, or non-loopback local interface.
 
 **Option A — Via the Avalonia app UI** (recommended):
 1. Start `Highbyte.DotNet6502.App.Avalonia.Desktop` normally (no extra arguments needed)
 2. Start a system (e.g. C64) from the emulator
-3. Go to the **Debug** tab in the Information Area (middle column)
-
-   > **Note:** The **Debug** tab must be enabled first. Go to **Options → Developer Options** and check **Show Debug Tab**.
-   >
-   > To make this permanent, set `"ShowDebugTab": true` in the `"Highbyte.DotNet6502.AvaloniaConfig"` section of `appsettings.json`:
-   > ```json
-   > {
-   >   "Highbyte.DotNet6502.AvaloniaConfig": {
-   >     "ShowDebugTab": true
-   >   }
-   > }
-   > ```
-
-4. In the **VSCode Debug Server** section, set the port (default: `6502`) and click **Start**
+3. Go to the **Debug & Remoting** tab in the Information Area (middle column)
+4. In the **VSCode Debug Server** section, keep **Bind** at `127.0.0.1` for local VS Code attach, set the port (default: `6502`), and click **Start**
 5. Press **F5** in VSCode to attach
 
 **Option B — Via command line**:
 ```bash
-Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --system C64 --start
+Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --debug-bind-address 127.0.0.1 --system C64 --start
+```
+
+Remote attach example:
+```json
+{
+  "type": "dotnet6502",
+  "request": "attach",
+  "name": "Attach to remote emulator",
+  "debugHost": "192.168.1.50",
+  "debugPort": 6502,
+  "stopOnEntry": true
+}
 ```
 
 **Attach with build task (auto-detect .dbg file for source debugging):**
@@ -778,6 +780,8 @@ The primary `.dbg` file is auto-detected from the program path (or specified via
 When using `"debugAdapter": "emulator"` (launch) or `"request": "attach"`:
 
 1. The emulator host starts with: `--enableExternalDebug --debug-port 6502 --system C64 --start --waitForSystemReady --loadPrg <path>`
+   - The emulator defaults the TCP debug bind address to `127.0.0.1`.
+   - The extension defaults `debugHost` to `127.0.0.1` too, but you can override it for remote attach scenarios.
 2. The emulator starts the specified system (e.g., C64)
 3. Waits for the system to be ready (BASIC prompt appears)
 4. Loads the PRG file into memory at the address specified in the file

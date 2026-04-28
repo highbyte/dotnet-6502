@@ -23,7 +23,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private string _selectedDefaultEmulator;
     private float _defaultDrawScale;
     private bool _showErrorDialog;
-    private bool _showDebugTab;
+    private bool _showDebugTools;
     private WavePlayerSettingsProfile _selectedAudioSettingsProfile;
     private bool _stopAfterBRKInstruction;
     private bool _stopAfterUnknownInstruction;
@@ -45,7 +45,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _selectedDefaultEmulator = _emulatorConfig.DefaultEmulator;
         _defaultDrawScale = _emulatorConfig.DefaultDrawScale;
         _showErrorDialog = _emulatorConfig.ShowErrorDialog;
-        _showDebugTab = _emulatorConfig.ShowDebugTab;
+        _showDebugTools = _emulatorConfig.ShowDebugTools;
         _selectedAudioSettingsProfile = _emulatorConfig.AudioSettingsProfile;
         _stopAfterBRKInstruction = _emulatorConfig.Monitor.StopAfterBRKInstruction;
         _stopAfterUnknownInstruction = _emulatorConfig.Monitor.StopAfterUnknownInstruction;
@@ -161,15 +161,15 @@ public class EmulatorConfigViewModel : ViewModelBase
         }
     }
 
-    public bool ShowDebugTab
+    public bool ShowDebugTools
     {
-        get => _showDebugTab;
+        get => _showDebugTools;
         set
         {
-            if (_showDebugTab == value)
+            if (_showDebugTools == value)
                 return;
 
-            this.RaiseAndSetIfChanged(ref _showDebugTab, value);
+            this.RaiseAndSetIfChanged(ref _showDebugTools, value);
         }
     }
 
@@ -243,7 +243,7 @@ public class EmulatorConfigViewModel : ViewModelBase
             _emulatorConfig.DefaultEmulator = _selectedDefaultEmulator;
             _emulatorConfig.DefaultDrawScale = _defaultDrawScale;
             _emulatorConfig.ShowErrorDialog = _showErrorDialog;
-            _emulatorConfig.ShowDebugTab = _showDebugTab;
+            _emulatorConfig.ShowDebugTools = _showDebugTools;
             _emulatorConfig.AudioSettingsProfile = _selectedAudioSettingsProfile;
             _emulatorConfig.Monitor.StopAfterBRKInstruction = _stopAfterBRKInstruction;
             _emulatorConfig.Monitor.StopAfterUnknownInstruction = _stopAfterUnknownInstruction;

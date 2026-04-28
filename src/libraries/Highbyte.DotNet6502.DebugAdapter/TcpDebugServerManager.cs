@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Net;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 
@@ -53,18 +54,23 @@ public sealed class TcpDebugServerManager : IDisposable
     public int Port => _debugServer.Port;
 
     /// <summary>
+    /// Gets the IP address the TCP server is bound to.
+    /// </summary>
+    public IPAddress BindAddress => _debugServer.BindAddress;
+
+    /// <summary>
     /// Raised when <see cref="IsClientConnected"/> changes (client connected or disconnected).
     /// May be fired from a background thread; subscribers should dispatch to the UI thread if needed.
     /// </summary>
     public event EventHandler? StateChanged;
 
     /// <summary>
-    /// Starts the TCP debug adapter server on the specified port.
+    /// Starts the TCP debug adapter server on the specified bind address and port.
     /// Begins accepting connections immediately — no waiting for automated startup.
     /// </summary>
-    public async Task StartAsync(int port)
+    public async Task StartAsync(int port, IPAddress? bindAddress = null)
     {
-        await _debugServer.StartAsync(port);
+        await _debugServer.StartAsync(port, bindAddress);
     }
 
     /// <summary>

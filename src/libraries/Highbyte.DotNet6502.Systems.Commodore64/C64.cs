@@ -7,7 +7,6 @@ using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
-using Highbyte.DotNet6502.Systems.Commodore64.Scripting;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
@@ -74,8 +73,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
     public C64BasicTokenParser BasicTokenParser { get; private set; } = default!;
     public C64TextPaste TextPaste { get; private set; } = default!;
-    public C64ScriptInputProvider? ScriptInputProvider { get; private set; }
-    IScriptInputProvider? ISystem.ScriptInputProvider => ScriptInputProvider;
+    public C64InputInjector? InputInjector { get; private set; }
+    IInputInjector? ISystem.InputInjector => InputInjector;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -275,7 +274,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
         c64.BasicTokenParser = new C64BasicTokenParser(c64, loggerFactory);
         c64.TextPaste = new C64TextPaste(c64, loggerFactory);
-        c64.ScriptInputProvider = new C64ScriptInputProvider(c64);
+        c64.InputInjector = new C64InputInjector(c64);
 
         // Configure the current memory configuration on startup
         SetStartupBank(c64);

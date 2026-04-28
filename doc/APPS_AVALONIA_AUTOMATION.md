@@ -56,7 +56,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **Emulator control**: `StartButton`, `PauseButton`, `ResetButton`, `StopButton`, `MonitorButton`, `StatsButton`
 - **Display/audio**: `ScaleSlider`, `AudioCheckBox`, `AudioVolumeSlider`, `OptionsButton`
 - **Status**: `EmulatorStateText`
-- **Bottom tab control**: `InformationTabControl` with tabs `InformationTab`, `ConfigStatusTab`, `LogTab`, `ScriptsTab`, `GeneralInfoTab`, `DebugTab`
+- **Bottom tab control**: `InformationTabControl` with tabs `InformationTab`, `ConfigStatusTab`, `LogTab`, `ScriptsTab`, `GeneralInfoTab`, `DebugAndRemotingTab`
 - **Log tab**: `ClearLogButton`
 - **Scripts tab**: `ScriptsBannerRefreshButton`, `ScriptFolderLink`, `AddScriptButton`, `LoadExamplesButton`, `ScriptsRefreshButton`; sort headers `SortByFileNameButton`, `SortByStatusButton`, `SortByYieldButton`, `SortByHooksButton`
 - **Script rows (dynamic)**: `ScriptRow.ToggleEnabled.<FileName>`, `ScriptRow.Reload.<FileName>`, `ScriptRow.Edit.<FileName>`, `ScriptRow.Delete.<FileName>`
@@ -84,7 +84,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 
 ## EmulatorConfigUserControl (general options)
 
-`DefaultEmulatorComboBox`, `DefaultScaleSlider`, `ShowErrorDialogCheckBox`, `ShowDebugTabCheckBox`, `AudioProfileComboBox`, `StopOnBrkCheckBox`, `StopOnUnknownInstructionCheckBox`, `LuaScriptDirectoryTextBox`, `LuaStorePrefixTextBox`, `CancelButton`, `OkButton`.
+`DefaultEmulatorComboBox`, `DefaultScaleSlider`, `ShowErrorDialogCheckBox`, `ShowDebugToolsCheckBox`, `AudioProfileComboBox`, `StopOnBrkCheckBox`, `StopOnUnknownInstructionCheckBox`, `LuaScriptDirectoryTextBox`, `LuaStorePrefixTextBox`, `CancelButton`, `OkButton`.
 
 ## MonitorDialog / MonitorUserControl
 
@@ -192,7 +192,7 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 
 2. **Collapsed/conditional content** only appears in the AX tree when its container is rendered. Examples:
    - `C64MenuView` section contents (`DiskSectionContent`, `LoadSaveSectionContent`, `ConfigSectionContent`) — only visible when the section header is expanded.
-   - `Debug` tab contents — hidden until `ShowDebugTab` is enabled in `EmulatorConfig`.
+   - Some tools in `Debug & Remoting` tab contents — hidden until `ShowDebugTools` is enabled in `EmulatorConfig`.
    - Dialog controls (`C64ConfigDialog`, `MonitorDialog`, `ScriptEditorDialog`) — only exist while the dialog is open.
 
    To automate these, expand/open the container first, then re-query the AX tree.

@@ -180,6 +180,11 @@
                 "description": "TCP port for debug adapter communication (emulator mode only)",
                 "default": 6502
               },
+              "debugHost": {
+                "type": "string",
+                "description": "TCP host or IP address the extension connects to for emulator mode. Defaults to 127.0.0.1.",
+                "default": "127.0.0.1"
+              },
               "system": {
                 "type": "string",
                 "description": "System to start in emulator host (emulator mode only)",
@@ -219,6 +224,11 @@
                 "type": "number",
                 "description": "TCP port to connect to the emulator host debug adapter server",
                 "default": 6502
+              },
+              "debugHost": {
+                "type": "string",
+                "description": "TCP host or IP address to connect to in attach mode. Defaults to 127.0.0.1.",
+                "default": "127.0.0.1"
               },
               "program": {
                 "type": "string",
@@ -266,6 +276,7 @@
             "type": "dotnet6502",
             "request": "attach",
             "name": "Attach to Emulator Host (dotnet-6502)",
+            "debugHost": "127.0.0.1",
             "debugPort": 6502,
             "program": "${workspaceFolder}/program.prg",
             "stopOnEntry": true
@@ -294,6 +305,7 @@
               "stopOnEntry": true,
               "debugAdapter": "emulator",
               "system": "C64",
+              "debugHost": "127.0.0.1",
               "debugPort": 6502,
               "waitForSystemReady": true,
               "loadProgram": true,
@@ -307,6 +319,7 @@
               "type": "dotnet6502",
               "request": "attach",
               "name": "Attach to Emulator Host (dotnet-6502)",
+              "debugHost": "127.0.0.1",
               "debugPort": 6502,
               "program": "^\"\\${workspaceFolder}/program.prg\"",
               "stopOnEntry": true

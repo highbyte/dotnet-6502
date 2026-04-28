@@ -95,7 +95,7 @@ public class AvaloniaC64InputHandler : IInputHandler
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }
 
-        c64.ScriptInputProvider?.ApplyInjectedKeysTo(c64KeysDown);
+        c64.InputInjector?.ApplyInjectedKeysTo(c64KeysDown);
 
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
@@ -149,7 +149,7 @@ public class AvaloniaC64InputHandler : IInputHandler
         var c64JoystickActions = GetC64JoystickActionsFromGamepad(_inputHandlerContext.GamepadButtonsDown);
         c64.Cia1.Joystick.SetJoystickActions(_inputConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
 
-        c64.ScriptInputProvider?.ApplyInjectedJoystickActionsTo(c64.Cia1.Joystick);
+        c64.InputInjector?.ApplyInjectedJoystickActionsTo(c64.Cia1.Joystick);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromGamepad(HashSet<GamepadButton> gamepadButtonsDown)

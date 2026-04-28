@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.DebugAdapter;
 using Microsoft.Extensions.Logging;
@@ -37,6 +38,9 @@ internal sealed class AvaloniaExternalDebugController : IExternalDebugController
     private int _port = 6502;
     public int Port => _port;
 
+    private string _bindAddress = IExternalDebugController.DefaultBindAddress;
+    public string BindAddress => _bindAddress;
+
     public event EventHandler? StateChanged;
 
     public AvaloniaExternalDebugController(ITcpDebugServerEnvironment environment, ILoggerFactory? loggerFactory = null)
@@ -47,12 +51,22 @@ internal sealed class AvaloniaExternalDebugController : IExternalDebugController
     }
 
     /// <inheritdoc/>
-    public async Task StartAsync(int port)
+    public async Task StartAsync(int port, string? bindAddress = null)
     {
         if (_isListening)
             return;
 
+        var effectiveAddress = string.IsNullOrWhiteSpace(bindAddress)
+            ? IExternalDebugController.DefaultBindAddress
+            : bindAddress.Trim();
+
+        if (!IPAddress.TryParse(effectiveAddress, out var parsedAddress))
+            throw new ArgumentException(
+                $"Invalid bind address '{effectiveAddress}'. Expected an IPv4 or IPv6 literal (e.g. 127.0.0.1, 0.0.0.0, ::1).",
+                nameof(bindAddress));
+
         _port = port;
+        _bindAddress = effectiveAddress;
 
         var debugLogFilePath = Path.Combine(
             Path.GetTempPath(),
@@ -65,7 +79,9 @@ internal sealed class AvaloniaExternalDebugController : IExternalDebugController
         _serverManager = new TcpDebugServerManager(debugLogWriter, _environment, _loggerFactory);
         _serverManager.StateChanged += OnServerManagerStateChanged;
 
-        await _serverManager.StartAsync(port);
+        await _serverManager.StartAsync(port, parsedAddress);
+        _port = _serverManager.Port;
+        _bindAddress = _serverManager.BindAddress.ToString();
         IsListening = true; // fires StateChanged
     }
 

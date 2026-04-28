@@ -110,13 +110,13 @@
               <TextBlock Text="Developer Options"
                          Classes=""/>
 
-              <CheckBox Content="Show Debug tab"
-                        AutomationProperties.AutomationId="ShowDebugTabCheckBox"
-                        AutomationProperties.Name="Show Debug tab"
-                        IsChecked="{Binding ShowDebugTab}"
+              <CheckBox Content="Show Debug tools"
+                        AutomationProperties.AutomationId="ShowDebugToolsCheckBox"
+                        AutomationProperties.Name="Show Debug tools"
+                        IsChecked="{Binding ShowDebugTools}"
                         Classes=""/>
               
-              <TextBlock Text="When enabled, shows the Debug tab in the main view. Useful for development and debugging purposes."
+              <TextBlock Text="When enabled, shows the Debug tools in the Debug and Remoting tab in the main view. Useful for development and debugging purposes."
                          Classes="small secondary-text"
                          TextWrapping="Wrap"/>
             </StackPanel>

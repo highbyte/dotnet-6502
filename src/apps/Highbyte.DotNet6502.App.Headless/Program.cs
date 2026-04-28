@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.App.Headless;
 using Highbyte.DotNet6502.App.Headless.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
@@ -18,8 +19,14 @@ WriteBootstrapLog("Starting headless emulator.");
 
 // Parse debug adapter arguments
 bool enableExternalDebug = args.Contains("--enableExternalDebug");
-int debugPort = ParseDebugPort(args, defaultPort: 6502);
+int debugPort = ParsePortArgument(args, "--debug-port") ?? 6502;
+string? debugBindAddress = AutomatedStartupHandler.ParseStringArgument(args, "--debug-bind-address");
 bool debugWait = args.Contains("--debug-wait");
+
+// Parse remote control arguments
+int? remotePort = ParsePortArgument(args, "--remote-port");
+string? remoteBindAddress = AutomatedStartupHandler.ParseStringArgument(args, "--remote-bind-address");
+bool allowRemoteQuit = args.Contains("--allow-remote-quit");
 
 // Parse automated startup arguments
 string? systemName = AutomatedStartupHandler.ParseStringArgument(args, "--system");
@@ -101,8 +108,19 @@ var debugController = new HeadlessExternalDebugController(debugEnvironment, logg
 
 if (enableExternalDebug)
 {
-    logger.LogInformation("Starting TCP debug adapter server on port {DebugPort}.", debugPort);
-    await debugController.StartAsync(debugPort);
+    var effectiveDebugBindAddress = string.IsNullOrWhiteSpace(debugBindAddress)
+        ? IExternalDebugController.DefaultBindAddress
+        : debugBindAddress.Trim();
+    logger.LogInformation("Starting TCP debug adapter server on {BindAddress}:{DebugPort}.", effectiveDebugBindAddress, debugPort);
+    try
+    {
+        await debugController.StartAsync(debugPort, effectiveDebugBindAddress);
+    }
+    catch (ArgumentException ex)
+    {
+        logger.LogError("Failed to start debug adapter server: {Message}", ex.Message);
+        return 1;
+    }
 
     if (debugWait)
     {
@@ -115,6 +133,28 @@ if (enableExternalDebug)
         {
             logger.LogWarning("Debug client connection timeout, continuing startup anyway.");
         }
+    }
+}
+
+// ----------
+// Set up remote control controller
+// ----------
+var remoteEnvironment = new HeadlessRemoteControlEnvironment(loggerFactory, allowQuit: allowRemoteQuit);
+var remoteController = new RemoteControlController(remoteEnvironment, loggerFactory);
+if (remotePort.HasValue)
+{
+    var effectiveBindAddress = string.IsNullOrWhiteSpace(remoteBindAddress)
+        ? IRemoteControlController.DefaultBindAddress
+        : remoteBindAddress.Trim();
+    logger.LogInformation("Starting TCP remote control server on {BindAddress}:{RemotePort}.", effectiveBindAddress, remotePort.Value);
+    try
+    {
+        await remoteController.StartAsync(remotePort.Value, effectiveBindAddress);
+    }
+    catch (ArgumentException ex)
+    {
+        logger.LogError("Failed to start remote control server: {Message}", ex.Message);
+        return 1;
     }
 }
 
@@ -140,6 +180,9 @@ var hostApp = new HeadlessHostApp(systemList, loggerFactory, appCts);
 
 // Wire the debug environment to the host app
 debugEnvironment.HostApp = hostApp;
+
+// Wire the remote environment to the host app
+remoteEnvironment.HostApp = hostApp;
 
 // Set scripting engine
 hostApp.SetScriptingEngine(scriptingEngine ?? new NoScriptingEngine());
@@ -185,6 +228,8 @@ logger.LogInformation("Shutting down.");
 hostApp.Close();
 if (enableExternalDebug)
     await debugController.StopAsync();
+if (remotePort.HasValue)
+    await remoteController.StopAsync();
 
 logger.LogInformation("Headless emulator exited.");
 return 0;
@@ -223,17 +268,17 @@ static List<string> ParseMultipleStringArgument(string[] args, string argumentNa
     return result;
 }
 
-static int ParseDebugPort(string[] args, int defaultPort)
+static int? ParsePortArgument(string[] args, string argumentName)
 {
     for (int i = 0; i < args.Length - 1; i++)
     {
-        if (args[i] == "--debug-port")
+        if (args[i] == argumentName)
         {
             if (int.TryParse(args[i + 1], out var port) && port > 0 && port <= 65535)
                 return port;
         }
     }
-    return defaultPort;
+    return null;
 }
 
 // Partial class needed for UserSecrets

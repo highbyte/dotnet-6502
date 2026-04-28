@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -11,6 +12,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -87,7 +89,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
     // Debug tab visibility from config
-    public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTab;
+    public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTools || PlatformDetection.IsRunningOnDesktop();
+    public bool IsDebugToolsVisible => _emulatorConfig.ShowDebugTools;
 
     // Private field to cache validation errors
     private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _validationErrors;
@@ -302,23 +305,137 @@ public class MainViewModel : ViewModelBase, IDisposable
     }
 
     private int _externalDebugPort = 6502;
+    private string _externalDebugPortText = "6502";
     public int ExternalDebugPort
     {
         get => _externalDebugPort;
         set => this.RaiseAndSetIfChanged(ref _externalDebugPort, value);
     }
 
+    public string ExternalDebugPortText
+    {
+        get => _externalDebugPortText;
+        set => SetPortText(value, ref _externalDebugPortText, nameof(ExternalDebugPortText), nameof(IsExternalDebugPortValid), nameof(ExternalDebugPortValidationMessage), nameof(ExternalDebugPortInputToolTip), port => ExternalDebugPort = port);
+    }
+
+    public bool IsExternalDebugPortValid => TryParsePortText(_externalDebugPortText, out _);
+    public string? ExternalDebugPortValidationMessage => IsExternalDebugPortValid ? null : "Enter a TCP port from 1 to 65535.";
+    public string ExternalDebugPortInputToolTip => ExternalDebugPortValidationMessage ?? "TCP port for the debug adapter server (default: 6502).";
+
+    private string _externalDebugBindAddress = IExternalDebugController.DefaultBindAddress;
+    private string _externalDebugBindAddressText = IExternalDebugController.DefaultBindAddress;
+    public string ExternalDebugBindAddress
+    {
+        get => _externalDebugBindAddress;
+        set => this.RaiseAndSetIfChanged(ref _externalDebugBindAddress, value);
+    }
+
+    public string ExternalDebugBindAddressText
+    {
+        get => _externalDebugBindAddressText;
+        set => SetIpv4Text(value, ref _externalDebugBindAddressText, nameof(ExternalDebugBindAddressText), nameof(IsExternalDebugBindAddressValid), nameof(ExternalDebugBindAddressValidationMessage), nameof(ExternalDebugBindAddressInputToolTip), bindAddress => ExternalDebugBindAddress = bindAddress);
+    }
+
+    public bool IsExternalDebugBindAddressValid => IsValidIpv4Address(_externalDebugBindAddressText);
+    public string? ExternalDebugBindAddressValidationMessage => IsExternalDebugBindAddressValid ? null : "Enter an IPv4 address as four groups of digits from 0 to 255 separated by periods.";
+    public string ExternalDebugBindAddressInputToolTip => ExternalDebugBindAddressValidationMessage ?? "IP address to bind the debug adapter server to (default: 127.0.0.1 for loopback only; use 0.0.0.0 to accept connections from any network interface; the debug adapter is unauthenticated and exposes debugging control).";
+
     public string ExternalDebugStatusText => _externalDebugController switch
     {
         null => "",
         { IsClientConnected: true } => "Connected",
-        { IsListening: true } => $"Listening on :{_externalDebugController.Port}",
+        { IsListening: true } => $"Listening on {_externalDebugController.BindAddress}:{_externalDebugController.Port}",
         _ => "Off"
     };
 
     public string ExternalDebugToggleButtonText => _isExternalDebugListening ? "Stop" : "Start";
 
     public ReactiveCommand<Unit, Unit> ToggleExternalDebugCommand { get; }
+
+    // Remote control server properties (Desktop only; null controller → all false/zero)
+    private readonly IRemoteControlController? _remoteControlController;
+
+    public bool IsRemoteControlAvailable => _remoteControlController != null;
+
+    private bool _isRemoteControlListening;
+    public bool IsRemoteControlListening
+    {
+        get => _isRemoteControlListening;
+        private set => this.RaiseAndSetIfChanged(ref _isRemoteControlListening, value);
+    }
+
+    private bool _isRemoteClientConnected;
+    public bool IsRemoteClientConnected
+    {
+        get => _isRemoteClientConnected;
+        private set => this.RaiseAndSetIfChanged(ref _isRemoteClientConnected, value);
+    }
+
+    private bool _isRemoteClientBannerVisible;
+    public bool IsRemoteClientBannerVisible
+    {
+        get => _isRemoteClientBannerVisible;
+        private set => this.RaiseAndSetIfChanged(ref _isRemoteClientBannerVisible, value);
+    }
+
+    private double _remoteClientBannerOpacity;
+    public double RemoteClientBannerOpacity
+    {
+        get => _remoteClientBannerOpacity;
+        private set => this.RaiseAndSetIfChanged(ref _remoteClientBannerOpacity, value);
+    }
+
+    private static readonly TimeSpan RemoteClientBannerFadeDuration = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan RemoteClientBannerMinimumVisibleDuration = TimeSpan.FromSeconds(1);
+    private System.Threading.CancellationTokenSource? _remoteClientBannerAnimationCts;
+    private DateTimeOffset? _remoteClientBannerShownAtUtc;
+
+    private int _remoteControlPort = IRemoteControlController.DefaultPort;
+    private string _remoteControlPortText = IRemoteControlController.DefaultPort.ToString(CultureInfo.InvariantCulture);
+    public int RemoteControlPort
+    {
+        get => _remoteControlPort;
+        set => this.RaiseAndSetIfChanged(ref _remoteControlPort, value);
+    }
+
+    public string RemoteControlPortText
+    {
+        get => _remoteControlPortText;
+        set => SetPortText(value, ref _remoteControlPortText, nameof(RemoteControlPortText), nameof(IsRemoteControlPortValid), nameof(RemoteControlPortValidationMessage), nameof(RemoteControlPortInputToolTip), port => RemoteControlPort = port);
+    }
+
+    public bool IsRemoteControlPortValid => TryParsePortText(_remoteControlPortText, out _);
+    public string? RemoteControlPortValidationMessage => IsRemoteControlPortValid ? null : "Enter a TCP port from 1 to 65535.";
+    public string RemoteControlPortInputToolTip => RemoteControlPortValidationMessage ?? "TCP port for the remote control server (default: 6510).";
+
+    private string _remoteControlBindAddress = IRemoteControlController.DefaultBindAddress;
+    private string _remoteControlBindAddressText = IRemoteControlController.DefaultBindAddress;
+    public string RemoteControlBindAddress
+    {
+        get => _remoteControlBindAddress;
+        set => this.RaiseAndSetIfChanged(ref _remoteControlBindAddress, value);
+    }
+
+    public string RemoteControlBindAddressText
+    {
+        get => _remoteControlBindAddressText;
+        set => SetIpv4Text(value, ref _remoteControlBindAddressText, nameof(RemoteControlBindAddressText), nameof(IsRemoteControlBindAddressValid), nameof(RemoteControlBindAddressValidationMessage), nameof(RemoteControlBindAddressInputToolTip), bindAddress => RemoteControlBindAddress = bindAddress);
+    }
+
+    public bool IsRemoteControlBindAddressValid => IsValidIpv4Address(_remoteControlBindAddressText);
+    public string? RemoteControlBindAddressValidationMessage => IsRemoteControlBindAddressValid ? null : "Enter an IPv4 address as four groups of digits from 0 to 255 separated by periods.";
+    public string RemoteControlBindAddressInputToolTip => RemoteControlBindAddressValidationMessage ?? "IP address to bind to (default: 127.0.0.1 for loopback only; use 0.0.0.0 to accept connections from any network interface; the protocol is unauthenticated).";
+
+    public string RemoteControlStatusText => _remoteControlController switch
+    {
+        null => "",
+        { IsListening: true } => $"Listening on {_remoteControlController.BindAddress}:{_remoteControlController.Port}",
+        _ => "Off"
+    };
+
+    public string RemoteControlToggleButtonText => _isRemoteControlListening ? "Stop" : "Start";
+
+    public ReactiveCommand<Unit, Unit> ToggleRemoteControlCommand { get; }
 
     public void ClearMonitorViewModel()
     {
@@ -332,6 +449,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public void RefreshConfigProperties()
     {
         this.RaisePropertyChanged(nameof(IsDebugTabVisible));
+        this.RaisePropertyChanged(nameof(IsDebugToolsVisible));
     }
 
     // --- End Binding Properties ---
@@ -535,7 +653,30 @@ public class MainViewModel : ViewModelBase, IDisposable
             _isExternalDebugListening = _externalDebugController.IsListening;
             _isExternalDebugClientConnected = _externalDebugController.IsClientConnected;
             _externalDebugPort = _externalDebugController.Port;
+            _externalDebugPortText = _externalDebugPort.ToString(CultureInfo.InvariantCulture);
+            _externalDebugBindAddress = _externalDebugController.BindAddress;
+            _externalDebugBindAddressText = _externalDebugBindAddress;
             _externalDebugController.StateChanged += OnExternalDebugControllerStateChanged;
+        }
+
+        // Remote control server (Desktop only — null on Browser)
+        _remoteControlController = App.Current?.RemoteControlController;
+        if (_remoteControlController != null)
+        {
+            _isRemoteControlListening = _remoteControlController.IsListening;
+            _isRemoteClientConnected = _remoteControlController.IsClientConnected;
+            if (_remoteControlController.IsListening)
+            {
+                _remoteControlPort = _remoteControlController.Port;
+                _remoteControlBindAddress = _remoteControlController.BindAddress;
+            }
+            _remoteControlPortText = _remoteControlPort.ToString(CultureInfo.InvariantCulture);
+            _remoteControlBindAddressText = _remoteControlBindAddress;
+            _isRemoteClientBannerVisible = _isRemoteClientConnected;
+            _remoteClientBannerOpacity = _isRemoteClientConnected ? 1.0 : 0.0;
+            if (_isRemoteClientConnected)
+                _remoteClientBannerShownAtUtc = DateTimeOffset.UtcNow;
+            _remoteControlController.StateChanged += OnRemoteControllerStateChanged;
         }
 
         ToggleExternalDebugCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -544,11 +685,29 @@ public class MainViewModel : ViewModelBase, IDisposable
                 if (_externalDebugController!.IsListening)
                     await _externalDebugController.StopAsync();
                 else
-                    await _externalDebugController.StartAsync(Math.Max(1, _externalDebugPort));
+                    await _externalDebugController.StartAsync(_externalDebugPort, _externalDebugBindAddress);
             },
             this.WhenAnyValue(
                 x => x.IsExternalDebugClientConnected,
-                connected => !connected),
+                x => x.IsExternalDebugListening,
+                x => x.IsExternalDebugPortValid,
+                x => x.IsExternalDebugBindAddressValid,
+                (connected, listening, isPortValid, isBindAddressValid) => !connected && (listening || (isPortValid && isBindAddressValid))),
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleRemoteControlCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () =>
+            {
+                if (_remoteControlController!.IsListening)
+                    await _remoteControlController.StopAsync();
+                else
+                    await _remoteControlController.StartAsync(_remoteControlPort, _remoteControlBindAddress);
+            },
+            this.WhenAnyValue(
+                x => x.IsRemoteControlListening,
+                x => x.IsRemoteControlPortValid,
+                x => x.IsRemoteControlBindAddressValid,
+                (listening, isPortValid, isBindAddressValid) => listening || (isPortValid && isBindAddressValid)),
             RxSchedulers.MainThreadScheduler);
 
         // Initialize ReactiveCommands for ComboBox selections
@@ -993,10 +1152,217 @@ public class MainViewModel : ViewModelBase, IDisposable
             IsExternalDebugListening = _externalDebugController?.IsListening ?? false;
             IsExternalDebugClientConnected = _externalDebugController?.IsClientConnected ?? false;
             if (_externalDebugController != null)
-                ExternalDebugPort = _externalDebugController.Port;
+            {
+                ExternalDebugPortText = _externalDebugController.Port.ToString(CultureInfo.InvariantCulture);
+                ExternalDebugBindAddressText = _externalDebugController.BindAddress;
+            }
             this.RaisePropertyChanged(nameof(ExternalDebugStatusText));
             this.RaisePropertyChanged(nameof(ExternalDebugToggleButtonText));
         });
+    }
+
+    private void OnRemoteControllerStateChanged(object? sender, EventArgs e)
+    {
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            IsRemoteControlListening = _remoteControlController?.IsListening ?? false;
+            bool isRemoteClientConnected = _remoteControlController?.IsClientConnected ?? false;
+            IsRemoteClientConnected = isRemoteClientConnected;
+            if (_remoteControlController != null)
+            {
+                RemoteControlPortText = _remoteControlController.Port.ToString(CultureInfo.InvariantCulture);
+                RemoteControlBindAddressText = _remoteControlController.BindAddress;
+            }
+            this.RaisePropertyChanged(nameof(RemoteControlStatusText));
+            this.RaisePropertyChanged(nameof(RemoteControlToggleButtonText));
+
+            _ = UpdateRemoteClientBannerAsync(isRemoteClientConnected);
+        });
+    }
+
+    private static string FilterDigits(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return new string(value.Where(char.IsDigit).ToArray());
+    }
+
+    private static string FilterIpv4Characters(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return new string(value.Where(ch => char.IsDigit(ch) || ch == '.').ToArray());
+    }
+
+    private static bool TryParsePortText(string? value, out int port)
+    {
+        if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out port))
+            return false;
+
+        return port >= 1 && port <= 65535;
+    }
+
+    private static bool IsValidIpv4Address(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var parts = value.Split('.');
+        if (parts.Length != 4)
+            return false;
+
+        foreach (var part in parts)
+        {
+            if (part.Length is < 1 or > 3)
+                return false;
+
+            if (!part.All(char.IsDigit))
+                return false;
+
+            if (!int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out var octet))
+                return false;
+
+            if (octet < 0 || octet > 255)
+                return false;
+        }
+
+        return true;
+    }
+
+    private void SetPortText(
+        string? value,
+        ref string field,
+        string textPropertyName,
+        string isValidPropertyName,
+        string validationMessagePropertyName,
+        string toolTipPropertyName,
+        Action<int> applyValidValue)
+    {
+        var rawValue = value ?? string.Empty;
+        var filteredValue = FilterDigits(rawValue);
+        var acceptedValue = filteredValue;
+
+        if (rawValue.Length == 0)
+        {
+            acceptedValue = string.Empty;
+        }
+        else if (filteredValue.Length == 0 || filteredValue.Length > 5 || !TryParsePortText(filteredValue, out var parsedPort))
+        {
+            acceptedValue = field;
+        }
+        else
+        {
+            applyValidValue(parsedPort);
+        }
+
+        UpdateFilteredText(value, acceptedValue, ref field, textPropertyName);
+        RaiseInputValidationProperties(isValidPropertyName, validationMessagePropertyName, toolTipPropertyName);
+    }
+
+    private void SetIpv4Text(
+        string? value,
+        ref string field,
+        string textPropertyName,
+        string isValidPropertyName,
+        string validationMessagePropertyName,
+        string toolTipPropertyName,
+        Action<string> applyValidValue)
+    {
+        var filteredValue = FilterIpv4Characters(value);
+        UpdateFilteredText(value, filteredValue, ref field, textPropertyName);
+
+        if (IsValidIpv4Address(filteredValue))
+        {
+            applyValidValue(filteredValue);
+        }
+
+        RaiseInputValidationProperties(isValidPropertyName, validationMessagePropertyName, toolTipPropertyName);
+    }
+
+    private void UpdateFilteredText(string? rawValue, string filteredValue, ref string field, string textPropertyName)
+    {
+        if (!string.Equals(field, filteredValue, StringComparison.Ordinal))
+        {
+            field = filteredValue;
+            this.RaisePropertyChanged(textPropertyName);
+            return;
+        }
+
+        if (!string.Equals(rawValue ?? string.Empty, filteredValue, StringComparison.Ordinal))
+        {
+            this.RaisePropertyChanged(textPropertyName);
+        }
+    }
+
+    private void RaiseInputValidationProperties(string isValidPropertyName, string validationMessagePropertyName, string toolTipPropertyName)
+    {
+        this.RaisePropertyChanged(isValidPropertyName);
+        this.RaisePropertyChanged(validationMessagePropertyName);
+        this.RaisePropertyChanged(toolTipPropertyName);
+    }
+
+    private async Task UpdateRemoteClientBannerAsync(bool isConnected)
+    {
+        _remoteClientBannerAnimationCts?.Cancel();
+        _remoteClientBannerAnimationCts?.Dispose();
+
+        var animationCts = new System.Threading.CancellationTokenSource();
+        _remoteClientBannerAnimationCts = animationCts;
+        var cancellationToken = animationCts.Token;
+
+        try
+        {
+            if (isConnected)
+            {
+                _remoteClientBannerShownAtUtc = DateTimeOffset.UtcNow;
+
+                if (IsRemoteClientBannerVisible)
+                {
+                    RemoteClientBannerOpacity = 1.0;
+                    return;
+                }
+
+                IsRemoteClientBannerVisible = true;
+                RemoteClientBannerOpacity = 0.0;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                RemoteClientBannerOpacity = 1.0;
+                return;
+            }
+
+            if (!IsRemoteClientBannerVisible)
+                return;
+
+            if (RemoteClientBannerOpacity < 1.0)
+            {
+                RemoteClientBannerOpacity = 1.0;
+                await Task.Delay(RemoteClientBannerFadeDuration, cancellationToken);
+            }
+
+            if (_remoteClientBannerShownAtUtc.HasValue)
+            {
+                var elapsedVisibleTime = DateTimeOffset.UtcNow - _remoteClientBannerShownAtUtc.Value;
+                var remainingVisibleTime = RemoteClientBannerMinimumVisibleDuration - elapsedVisibleTime;
+                if (remainingVisibleTime > TimeSpan.Zero)
+                    await Task.Delay(remainingVisibleTime, cancellationToken);
+            }
+
+            RemoteClientBannerOpacity = 0.0;
+            await Task.Delay(RemoteClientBannerFadeDuration, cancellationToken);
+
+            if (!IsRemoteClientConnected)
+            {
+                IsRemoteClientBannerVisible = false;
+                _remoteClientBannerShownAtUtc = null;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     /// <summary>
@@ -1022,6 +1388,14 @@ public class MainViewModel : ViewModelBase, IDisposable
         // Unsubscribe from external debug controller events
         if (_externalDebugController != null)
             _externalDebugController.StateChanged -= OnExternalDebugControllerStateChanged;
+
+        // Unsubscribe from remote control controller events
+        if (_remoteControlController != null)
+            _remoteControlController.StateChanged -= OnRemoteControllerStateChanged;
+
+        _remoteClientBannerAnimationCts?.Cancel();
+        _remoteClientBannerAnimationCts?.Dispose();
+        _remoteClientBannerAnimationCts = null;
 
         // Unsubscribe from monitor events
         if (_currentMonitor != null)

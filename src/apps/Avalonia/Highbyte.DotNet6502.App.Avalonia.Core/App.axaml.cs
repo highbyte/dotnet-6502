@@ -9,6 +9,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
+using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
@@ -59,6 +60,12 @@ public partial class App : Application
     public IExternalDebugController? ExternalDebugController { get; private set; }
 
     /// <summary>
+    /// Runtime controller for the TCP remote control server.
+    /// Non-null only on Desktop and Headless; null on Browser.
+    /// </summary>
+    public IRemoteControlController? RemoteControlController { get; private set; }
+
+    /// <summary>
     /// Static reference to the current App instance (for debug adapter integration).
     /// </summary>
     public static App? Current { get; private set; }
@@ -102,6 +109,7 @@ public partial class App : Application
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null,
         IGamepad? gamepad = null,
         IExternalDebugController? externalDebugController = null,
+        IRemoteControlController? remoteControlController = null,
         IScriptingEngine? scriptingEngine = null,
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
@@ -129,6 +137,7 @@ public partial class App : Application
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
         ExternalDebugController = externalDebugController;
+        RemoteControlController = remoteControlController;
 
         // Initialize static logger factory for use in Views and other classes where DI is not available
         AppLogger.Factory = loggerFactory;

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
@@ -132,8 +133,17 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
 
+    // Remote control action queue (drained at the frame boundary via DrainPendingRemoteActions)
+    private readonly ConcurrentQueue<Action> _pendingRemoteActions = new();
+
     // Scripting
     private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
+    private IScriptingTickTimer? _scriptingTickTimer;
+
+    /// <summary>
+    /// Interval between scripting coroutine resume ticks. Roughly 60 Hz, independent of the emulator frame rate.
+    /// </summary>
+    protected const double ScriptingTickIntervalMs = 16.0;
 
     /// <summary>Exposes the scripting engine to subclasses (e.g., for Scripts tab UI).</summary>
     protected IScriptingEngine ScriptingEngine => _scriptingEngine;
@@ -174,27 +184,81 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _scriptingEngine.SetHostApp(this);
         _scriptingEngine.LoadScripts();
         if (_scriptingEngine.IsEnabled)
+        {
+            _scriptingTickTimer = CreateScriptingTickTimer(ScriptingTickIntervalMs);
+            if (_scriptingTickTimer != null)
+            {
+                _scriptingTickTimer.Elapsed += ScriptingTickTimerElapsed;
+                _scriptingTickTimer.Start();
+            }
+            else
+            {
+                _logger.LogWarning("Scripting engine is enabled but host did not supply a scripting tick timer; emu.yield() coroutines will not resume.");
+            }
             OnScriptingEngineSet();
-    }
-
-    /// <summary>Override to start the platform-specific emu.yield() tick timer.</summary>
-    protected virtual void OnScriptingEngineSet() { }
-
-    /// <summary>Override to stop/dispose the tick timer. Called from <see cref="OnAfterClose"/>.</summary>
-    protected virtual void StopScriptingTimer() { }
-
-    /// <summary>Resumes emu.yield() coroutines. Call from the platform-specific tick timer callback.</summary>
-    protected void InvokeScriptingTick()
-    {
-        if (_scriptingEngine.IsEnabled)
-            _scriptingEngine.ResumeCoroutines();
+        }
     }
 
     /// <summary>
-    /// Drains deferred script actions (e.g. emu.start()). Call after RunEmulatorOneFrame() and after
-    /// InvokeScriptingTick() from your async timer callback.
+    /// Override to supply the platform-specific periodic timer driving emu.yield() coroutine resumption.
+    /// Return null if this host does not support scripting (default).
+    /// </summary>
+    protected virtual IScriptingTickTimer? CreateScriptingTickTimer(double intervalMs) => null;
+
+    /// <summary>
+    /// Optional post-setup hook invoked after the scripting engine is wired and the tick timer started.
+    /// Override to perform an initial drain of pending script actions (e.g. emu.start() from top-level script).
+    /// </summary>
+    protected virtual void OnScriptingEngineSet() { }
+
+    private void StopScriptingTimer()
+    {
+        if (_scriptingTickTimer != null)
+        {
+            _scriptingTickTimer.Elapsed -= ScriptingTickTimerElapsed;
+            _scriptingTickTimer.Stop();
+            _scriptingTickTimer.Dispose();
+            _scriptingTickTimer = null;
+        }
+    }
+
+    private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_scriptingEngine.IsEnabled)
+                _scriptingEngine.ResumeCoroutines();
+            await _scriptingEngine.DrainPendingActionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled exception in scripting tick timer.");
+        }
+    }
+
+    /// <summary>
+    /// Drains deferred script actions (e.g. emu.start()). Call after RunEmulatorOneFrame() from the
+    /// host's emulator update loop, so script-initiated emulator state changes take effect at the frame boundary.
     /// </summary>
     protected Task DrainPendingScriptActionsAsync() => _scriptingEngine.DrainPendingActionsAsync();
+
+    /// <summary>
+    /// Enqueues an action to be executed at the next frame boundary.
+    /// Thread-safe; called from the remote control session thread.
+    /// </summary>
+    public void EnqueueRemoteAction(Action action) => _pendingRemoteActions.Enqueue(action);
+
+    /// <summary>
+    /// Drains all pending remote actions at the frame boundary.
+    /// </summary>
+    protected void DrainPendingRemoteActions()
+    {
+        while (_pendingRemoteActions.TryDequeue(out var action))
+        {
+            try { action(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Remote action threw exception"); }
+        }
+    }
 
     // --- End Scripting ---
 
@@ -492,7 +556,13 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (!shouldRun)
             return;
 
-        // Frame is definitely going to run — invoke scripting before-frame hook
+        // Frame is definitely going to run
+
+        // Handle remote control action
+        CurrentRunningSystem?.InputInjector?.BeginFrame();
+        DrainPendingRemoteActions();
+
+        // Invoke scripting before-frame hook
         _scriptTime!.Start();
         _scriptingEngine.InvokeBeforeFrame();
         _scriptTime!.Stop(cont: true); // accumulate; don't record until after-frame scripting completes
