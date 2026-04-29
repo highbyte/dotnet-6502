@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+    x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.StatusBar"
+    x:DataType="vm:MainViewModel">
+    <Border Padding="0,2,0,4"
+            Background="{DynamicResource ViewDefaultBg}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+            BorderThickness="0,1,0,0">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left zone: emulator state, CPU info (placeholder) -->
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
+                        Margin="8,0"
+                        Spacing="12"
+                        VerticalAlignment="Center"/>
+
+            <!-- Center zone: transient messages (placeholder) -->
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8"/>
+
+            <!-- Right zone: connection indicators -->
+            <StackPanel Grid.Column="2"
+                        Orientation="Horizontal"
+                        Margin="8,0"
+                        Spacing="12"
+                        VerticalAlignment="Center">
+
+                <StackPanel AutomationProperties.AutomationId="StatusBarDebuggerIndicator"
+                            AutomationProperties.Name="External debugger attached indicator"
+                            Orientation="Horizontal"
+                            Spacing="5"
+                            VerticalAlignment="Center"
+                            Opacity="{Binding ExternalDebuggerIndicatorOpacity}">
+                    <StackPanel.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                        </Transitions>
+                    </StackPanel.Transitions>
+                    <Ellipse Width="7" Height="7" Fill="#FFFF8C00" VerticalAlignment="Center" Margin="0,1,0,0"/>
+                    <TextBlock Text="Debugger"
+                               Foreground="#FFFF8C00"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel AutomationProperties.AutomationId="StatusBarRemoteClientIndicator"
+                            AutomationProperties.Name="Remote client connected indicator"
+                            Orientation="Horizontal"
+                            Spacing="5"
+                            VerticalAlignment="Center"
+                            Opacity="{Binding RemoteClientIndicatorOpacity}">
+                    <StackPanel.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                        </Transitions>
+                    </StackPanel.Transitions>
+                    <Ellipse Width="7" Height="7" Fill="#FF0080FF" VerticalAlignment="Center" Margin="0,1,0,0"/>
+                    <TextBlock Text="Remote"
+                               Foreground="#FF0080FF"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

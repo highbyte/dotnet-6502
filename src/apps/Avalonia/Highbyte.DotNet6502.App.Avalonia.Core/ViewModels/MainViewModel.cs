@@ -371,24 +371,18 @@ public class MainViewModel : ViewModelBase, IDisposable
         private set => this.RaiseAndSetIfChanged(ref _isRemoteClientConnected, value);
     }
 
-    private bool _isRemoteClientBannerVisible;
-    public bool IsRemoteClientBannerVisible
+    private double _remoteClientIndicatorOpacity;
+    public double RemoteClientIndicatorOpacity
     {
-        get => _isRemoteClientBannerVisible;
-        private set => this.RaiseAndSetIfChanged(ref _isRemoteClientBannerVisible, value);
+        get => _remoteClientIndicatorOpacity;
+        private set => this.RaiseAndSetIfChanged(ref _remoteClientIndicatorOpacity, value);
     }
 
-    private double _remoteClientBannerOpacity;
-    public double RemoteClientBannerOpacity
-    {
-        get => _remoteClientBannerOpacity;
-        private set => this.RaiseAndSetIfChanged(ref _remoteClientBannerOpacity, value);
-    }
+    private static readonly TimeSpan RemoteClientIndicatorMinimumVisibleDuration = TimeSpan.FromSeconds(1);
+    private System.Threading.CancellationTokenSource? _remoteClientIndicatorCts;
+    private DateTimeOffset? _remoteClientIndicatorShownAtUtc;
 
-    private static readonly TimeSpan RemoteClientBannerFadeDuration = TimeSpan.FromMilliseconds(250);
-    private static readonly TimeSpan RemoteClientBannerMinimumVisibleDuration = TimeSpan.FromSeconds(1);
-    private System.Threading.CancellationTokenSource? _remoteClientBannerAnimationCts;
-    private DateTimeOffset? _remoteClientBannerShownAtUtc;
+    public double ExternalDebuggerIndicatorOpacity => IsExternalDebuggerAttached ? 1.0 : 0.0;
 
     private int _remoteControlPort = IRemoteControlController.DefaultPort;
     private string _remoteControlPortText = IRemoteControlController.DefaultPort.ToString(CultureInfo.InvariantCulture);
@@ -561,6 +555,17 @@ public class MainViewModel : ViewModelBase, IDisposable
             .WhenAnyValue(x => x.IsExternalDebuggerAttached)
             .ToProperty(this, x => x.IsExternalDebuggerAttached);
 
+        this.WhenAnyValue(x => x.IsExternalDebuggerAttached)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(ExternalDebuggerIndicatorOpacity)));
+
+        _remoteClientIndicatorOpacity = _isRemoteClientConnected ? 1.0 : 0.0;
+        if (_isRemoteClientConnected)
+            _remoteClientIndicatorShownAtUtc = DateTimeOffset.UtcNow;
+
+        this.WhenAnyValue(x => x.IsRemoteClientConnected)
+            .Skip(1)
+            .Subscribe(connected => _ = UpdateRemoteClientIndicatorAsync(connected));
+
         // Subscribe to EmulatorState changes AFTER ToProperty to ensure the value is updated first
         this.WhenAnyValue(x => x.EmulatorState)
              .Subscribe(_ =>
@@ -672,10 +677,6 @@ public class MainViewModel : ViewModelBase, IDisposable
             }
             _remoteControlPortText = _remoteControlPort.ToString(CultureInfo.InvariantCulture);
             _remoteControlBindAddressText = _remoteControlBindAddress;
-            _isRemoteClientBannerVisible = _isRemoteClientConnected;
-            _remoteClientBannerOpacity = _isRemoteClientConnected ? 1.0 : 0.0;
-            if (_isRemoteClientConnected)
-                _remoteClientBannerShownAtUtc = DateTimeOffset.UtcNow;
             _remoteControlController.StateChanged += OnRemoteControllerStateChanged;
         }
 
@@ -1175,8 +1176,6 @@ public class MainViewModel : ViewModelBase, IDisposable
             }
             this.RaisePropertyChanged(nameof(RemoteControlStatusText));
             this.RaisePropertyChanged(nameof(RemoteControlToggleButtonText));
-
-            _ = UpdateRemoteClientBannerAsync(isRemoteClientConnected);
         });
     }
 
@@ -1303,62 +1302,34 @@ public class MainViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(toolTipPropertyName);
     }
 
-    private async Task UpdateRemoteClientBannerAsync(bool isConnected)
+    private async Task UpdateRemoteClientIndicatorAsync(bool isConnected)
     {
-        _remoteClientBannerAnimationCts?.Cancel();
-        _remoteClientBannerAnimationCts?.Dispose();
+        _remoteClientIndicatorCts?.Cancel();
+        _remoteClientIndicatorCts?.Dispose();
 
-        var animationCts = new System.Threading.CancellationTokenSource();
-        _remoteClientBannerAnimationCts = animationCts;
-        var cancellationToken = animationCts.Token;
+        var cts = new System.Threading.CancellationTokenSource();
+        _remoteClientIndicatorCts = cts;
+        var cancellationToken = cts.Token;
 
         try
         {
             if (isConnected)
             {
-                _remoteClientBannerShownAtUtc = DateTimeOffset.UtcNow;
-
-                if (IsRemoteClientBannerVisible)
-                {
-                    RemoteClientBannerOpacity = 1.0;
-                    return;
-                }
-
-                IsRemoteClientBannerVisible = true;
-                RemoteClientBannerOpacity = 0.0;
-
-                await Task.Delay(TimeSpan.FromMilliseconds(16), cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-
-                RemoteClientBannerOpacity = 1.0;
+                _remoteClientIndicatorShownAtUtc = DateTimeOffset.UtcNow;
+                RemoteClientIndicatorOpacity = 1.0;
                 return;
             }
 
-            if (!IsRemoteClientBannerVisible)
-                return;
-
-            if (RemoteClientBannerOpacity < 1.0)
+            if (_remoteClientIndicatorShownAtUtc.HasValue)
             {
-                RemoteClientBannerOpacity = 1.0;
-                await Task.Delay(RemoteClientBannerFadeDuration, cancellationToken);
+                var elapsed = DateTimeOffset.UtcNow - _remoteClientIndicatorShownAtUtc.Value;
+                var remaining = RemoteClientIndicatorMinimumVisibleDuration - elapsed;
+                if (remaining > TimeSpan.Zero)
+                    await Task.Delay(remaining, cancellationToken);
             }
 
-            if (_remoteClientBannerShownAtUtc.HasValue)
-            {
-                var elapsedVisibleTime = DateTimeOffset.UtcNow - _remoteClientBannerShownAtUtc.Value;
-                var remainingVisibleTime = RemoteClientBannerMinimumVisibleDuration - elapsedVisibleTime;
-                if (remainingVisibleTime > TimeSpan.Zero)
-                    await Task.Delay(remainingVisibleTime, cancellationToken);
-            }
-
-            RemoteClientBannerOpacity = 0.0;
-            await Task.Delay(RemoteClientBannerFadeDuration, cancellationToken);
-
-            if (!IsRemoteClientConnected)
-            {
-                IsRemoteClientBannerVisible = false;
-                _remoteClientBannerShownAtUtc = null;
-            }
+            RemoteClientIndicatorOpacity = 0.0;
+            _remoteClientIndicatorShownAtUtc = null;
         }
         catch (OperationCanceledException)
         {
@@ -1393,9 +1364,9 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (_remoteControlController != null)
             _remoteControlController.StateChanged -= OnRemoteControllerStateChanged;
 
-        _remoteClientBannerAnimationCts?.Cancel();
-        _remoteClientBannerAnimationCts?.Dispose();
-        _remoteClientBannerAnimationCts = null;
+        _remoteClientIndicatorCts?.Cancel();
+        _remoteClientIndicatorCts?.Dispose();
+        _remoteClientIndicatorCts = null;
 
         // Unsubscribe from monitor events
         if (_currentMonitor != null)
