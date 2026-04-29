@@ -59,7 +59,7 @@
   </Target>
 
   <Target Name="CopyImages" AfterTargets="AfterBuild">
-    <Copy SourceFiles="..\..\..\resources\images\logo.png" DestinationFolder="wwwroot\images" />
+    <Copy SourceFiles="..\..\..\resources\images\logo-simple-text.png" DestinationFiles="wwwroot\images\logo.png" />
   </Target>
   
 </Project>
