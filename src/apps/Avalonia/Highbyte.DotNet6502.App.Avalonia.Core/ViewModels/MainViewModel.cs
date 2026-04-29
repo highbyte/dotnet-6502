@@ -86,7 +86,38 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     // Computed properties for control enabled states based on EmulatorState
     public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
+    public bool IsEmulatorPaused => EmulatorState == EmulatorState.Paused;
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
+
+    public string StatusEmulatorStateText => EmulatorState switch
+    {
+        EmulatorState.Running => "Running",
+        EmulatorState.Paused => "Paused",
+        _ => "Idle",
+    };
+
+    public string StatusSystemText
+    {
+        get
+        {
+            var name = SelectedSystemName;
+            var variant = SelectedSystemVariant;
+            if (string.IsNullOrEmpty(name) || name == "DEFAULT SYSTEM")
+                return string.Empty;
+            if (string.IsNullOrEmpty(variant) || variant == "DEFAULT VARIANT")
+                return name;
+            return $"{name} ({variant})";
+        }
+    }
+
+    private string _statusFpsText = string.Empty;
+    public string StatusFpsText
+    {
+        get => _statusFpsText;
+        private set => this.RaiseAndSetIfChanged(ref _statusFpsText, value);
+    }
+
+    private global::Avalonia.Threading.DispatcherTimer? _statusFpsTimer;
 
     // Debug tab visibility from config
     public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTools || PlatformDetection.IsRunningOnDesktop();
@@ -572,9 +603,21 @@ public class MainViewModel : ViewModelBase, IDisposable
               {
                   // Notify all computed properties that depend on EmulatorState
                   this.RaisePropertyChanged(nameof(IsEmulatorRunning));
+                  this.RaisePropertyChanged(nameof(IsEmulatorPaused));
                   this.RaisePropertyChanged(nameof(IsEmulatorUninitialized));
                   this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
+                  this.RaisePropertyChanged(nameof(StatusEmulatorStateText));
               });
+
+        this.WhenAnyValue(x => x.SelectedSystemName, x => x.SelectedSystemVariant)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(StatusSystemText)));
+
+        _statusFpsTimer = new global::Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1),
+        };
+        _statusFpsTimer.Tick += (_, _) => UpdateStatusFps();
+        _statusFpsTimer.Start();
 
         _scale = _hostApp
             .WhenAnyValue(x => x.Scale)
@@ -1302,6 +1345,29 @@ public class MainViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(toolTipPropertyName);
     }
 
+    private void UpdateStatusFps()
+    {
+        if (EmulatorState != EmulatorState.Running)
+        {
+            StatusFpsText = string.Empty;
+            return;
+        }
+
+        try
+        {
+            var fpsStat = _hostApp.GetStats()
+                .FirstOrDefault(s => s.name.EndsWith("OnUpdateFPS", StringComparison.OrdinalIgnoreCase));
+            if (fpsStat.stat is Highbyte.DotNet6502.Systems.Instrumentation.Stats.AveragedStat averaged && averaged.Value.HasValue)
+                StatusFpsText = $"{Math.Round(averaged.Value.Value)} fps";
+            else
+                StatusFpsText = string.Empty;
+        }
+        catch
+        {
+            StatusFpsText = string.Empty;
+        }
+    }
+
     private async Task UpdateRemoteClientIndicatorAsync(bool isConnected)
     {
         _remoteClientIndicatorCts?.Cancel();
@@ -1367,6 +1433,12 @@ public class MainViewModel : ViewModelBase, IDisposable
         _remoteClientIndicatorCts?.Cancel();
         _remoteClientIndicatorCts?.Dispose();
         _remoteClientIndicatorCts = null;
+
+        if (_statusFpsTimer != null)
+        {
+            _statusFpsTimer.Stop();
+            _statusFpsTimer = null;
+        }
 
         // Unsubscribe from monitor events
         if (_currentMonitor != null)
