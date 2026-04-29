@@ -4,6 +4,10 @@
 
 The debug adapter now supports TCP transport in addition to STDIN/STDOUT, enabling debugging of desktop GUI applications like the Avalonia Desktop app.
 
+> **Remote debugging across machines:** See [REMOTE_DEBUGGING.md](REMOTE_DEBUGGING.md) for how
+> to attach from a VS Code instance on one machine to an emulator running on another, using
+> `pathMappings` and the DAP `source` request fallback.
+
 ## Architecture
 
 ### Library Structure
