@@ -93,6 +93,13 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // Register command to generate remote attach config
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotnet6502.generateRemoteAttachConfig', async (uri: vscode.Uri) => {
+            await generateRemoteAttachConfigCommand(uri);
+        })
+    );
+
     // Register command to view memory
     context.subscriptions.push(
         vscode.commands.registerCommand('dotnet6502.viewMemory', async () => {
@@ -165,6 +172,70 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     outputChannel.appendLine('[6502 Debug] Extension deactivating...');
+}
+
+/**
+ * Command to generate a remote attach launch configuration with pathMappings pre-filled.
+ * Prompts the user for: remote host, port, remote workspace root, remote dbgFile path.
+ */
+async function generateRemoteAttachConfigCommand(uri: vscode.Uri | undefined): Promise<void> {
+    const workspaceFolder = uri
+        ? vscode.workspace.getWorkspaceFolder(uri)
+        : vscode.workspace.workspaceFolders?.[0];
+
+    if (!workspaceFolder) {
+        vscode.window.showErrorMessage('A workspace folder is required to generate a remote attach config.');
+        return;
+    }
+
+    const remoteHost = await vscode.window.showInputBox({
+        prompt: 'Remote debug adapter host IP or hostname',
+        placeHolder: '192.168.1.100',
+        validateInput: v => v.trim() ? undefined : 'Host is required'
+    });
+    if (!remoteHost) { return; }
+
+    const remotePortStr = await vscode.window.showInputBox({
+        prompt: 'Remote debug adapter TCP port',
+        value: '6502',
+        validateInput: v => /^\d+$/.test(v.trim()) ? undefined : 'Enter a valid port number'
+    });
+    if (!remotePortStr) { return; }
+    const remotePort = parseInt(remotePortStr.trim(), 10);
+
+    const remoteRoot = await vscode.window.showInputBox({
+        prompt: 'Project root directory on the remote machine (remoteRoot)',
+        placeHolder: '/home/ubuntu/project',
+        validateInput: v => v.trim() ? undefined : 'Remote root is required'
+    });
+    if (!remoteRoot) { return; }
+
+    const remoteDbgFile = await vscode.window.showInputBox({
+        prompt: 'Path to the .dbg file on the remote machine (leave blank to skip)',
+        placeHolder: `${remoteRoot.trim()}/program.dbg`
+    });
+
+    const configName = `Remote Attach to ${remoteHost.trim()} (dotnet-6502)`;
+    const newConfig: Record<string, unknown> = {
+        type: 'dotnet6502',
+        request: 'attach',
+        name: configName,
+        debugHost: remoteHost.trim(),
+        debugPort: remotePort,
+        pathMappings: [
+            {
+                localRoot: '${workspaceFolder}',
+                remoteRoot: remoteRoot.trim()
+            }
+        ],
+        useRemoteSources: true,
+        stopOnEntry: true
+    };
+    if (remoteDbgFile?.trim()) {
+        newConfig.dbgFile = remoteDbgFile.trim();
+    }
+
+    await upsertLaunchConfiguration(workspaceFolder, newConfig, 'remote-attach');
 }
 
 // ---------------------------------------------------------------------------
@@ -1421,23 +1492,121 @@ class AddressDecorationManager implements vscode.Disposable {
 }
 
 /**
+ * Translates source file paths between the local (VS Code) machine and the remote
+ * (debug adapter) machine based on user-configured pathMappings.
+ *
+ * Used only for attach configurations with a non-empty pathMappings array.
+ * Longest-prefix matching: when multiple entries apply, the one with the longest
+ * remoteRoot (or localRoot) prefix wins.
+ */
+class RemotePathMapper {
+    private readonly byRemote: Array<{ localRoot: string; remoteRoot: string }>;
+    private readonly byLocal: Array<{ localRoot: string; remoteRoot: string }>;
+
+    constructor(mappings: Array<{ localRoot: string; remoteRoot: string }>) {
+        this.byRemote = [...mappings].sort((a, b) => b.remoteRoot.length - a.remoteRoot.length);
+        this.byLocal  = [...mappings].sort((a, b) => b.localRoot.length  - a.localRoot.length);
+    }
+
+    hasMapping(): boolean { return this.byRemote.length > 0; }
+
+    /** Translates a remote (adapter) path to a local (VS Code) path. Pass-through if no match. */
+    toLocal(remotePath: string): string {
+        if (!remotePath) { return remotePath; }
+        const norm = remotePath.replace(/\\/g, '/');
+        for (const { localRoot, remoteRoot } of this.byRemote) {
+            const rr = remoteRoot.replace(/\\/g, '/');
+            if (norm.toLowerCase().startsWith(rr.toLowerCase() + '/') ||
+                norm.toLowerCase() === rr.toLowerCase()) {
+                const suffix = norm.slice(rr.length);
+                return localRoot.replace(/\//g, path.sep) + suffix.replace(/\//g, path.sep);
+            }
+        }
+        return remotePath;
+    }
+
+    /** Translates a local (VS Code) path to a remote (adapter) path. Pass-through if no match. */
+    toRemote(localPath: string): string {
+        if (!localPath) { return localPath; }
+        const norm = localPath.replace(/\\/g, '/');
+        for (const { localRoot, remoteRoot } of this.byLocal) {
+            const lr = localRoot.replace(/\\/g, '/');
+            if (norm.toLowerCase().startsWith(lr.toLowerCase() + '/') ||
+                norm.toLowerCase() === lr.toLowerCase()) {
+                const suffix = norm.slice(lr.length);
+                return remoteRoot.replace(/\\/g, '/') + suffix.replace(/\\/g, '/');
+            }
+        }
+        return localPath;
+    }
+}
+
+/** Rewrites source.path inside a DAP message object in-place. Returns the modified object. */
+function translateSourcePath(obj: any, translate: (p: string) => string): any {
+    if (!obj || typeof obj !== 'object') { return obj; }
+    if (obj.source && typeof obj.source === 'object' && typeof obj.source.path === 'string') {
+        obj.source.path = translate(obj.source.path);
+    }
+    return obj;
+}
+
+/**
  * Hooks into DAP message traffic to:
  *  1. Trigger static address map fetching on the first `stopped` event.
  *  2. Intercept each `stackTrace` response (sent automatically by VSCode after
  *     every stop) to apply a dynamic decoration on the current stopped line —
  *     which is especially useful inside macro bodies where addresses differ per call.
+ *  3. When the session is an attach with pathMappings, perform bidirectional path
+ *     translation so VS Code always sees local paths and the adapter always sees
+ *     remote paths.
  */
 class DotNet6502DebugTrackerFactory implements vscode.DebugAdapterTrackerFactory {
     constructor(private readonly manager: AddressDecorationManager) {}
 
     createDebugAdapterTracker(session: vscode.DebugSession): vscode.DebugAdapterTracker {
         let pendingStop = false;
+
+        const rawMappings: any[] = (session.configuration.request === 'attach' &&
+            Array.isArray(session.configuration.pathMappings))
+            ? session.configuration.pathMappings
+            : [];
+        const mapper = new RemotePathMapper(rawMappings);
+        const hasMapper = mapper.hasMapping();
+
         return {
+            // VS Code → adapter: translate local paths to remote paths in requests
+            onWillReceiveMessage: hasMapper ? (message: any) => {
+                if (!message || message.type !== 'request') { return; }
+                const args = message.arguments;
+                if (!args) { return; }
+                const cmd: string = message.command;
+
+                if (cmd === 'setBreakpoints' || cmd === 'breakpointLocations' || cmd === 'gotoTargets' || cmd === 'source') {
+                    translateSourcePath(args, p => mapper.toRemote(p));
+                }
+            } : undefined,
+
+            // Adapter → VS Code: translate remote paths to local paths in responses/events
             onDidSendMessage: (message: any) => {
                 if (message.type === 'event' && message.event === 'stopped') {
                     this.manager.fetchAndApply(session);
                     pendingStop = true;
                 }
+
+                if (hasMapper) {
+                    if (message.type === 'response' && message.command === 'stackTrace' && message.body?.stackFrames) {
+                        for (const frame of message.body.stackFrames) {
+                            translateSourcePath(frame, p => mapper.toLocal(p));
+                        }
+                    } else if (message.type === 'response' && message.command === 'setBreakpoints' && message.body?.breakpoints) {
+                        for (const bp of message.body.breakpoints) {
+                            translateSourcePath(bp, p => mapper.toLocal(p));
+                        }
+                    } else if (message.type === 'event' && (message.event === 'loadedSource' || message.event === 'output')) {
+                        translateSourcePath(message.body, p => mapper.toLocal(p));
+                    }
+                }
+
                 // VSCode automatically sends stackTrace after every stopped event.
                 // Intercept the response to get the top frame's PC without extra requests.
                 if (pendingStop && message.type === 'response' && message.command === 'stackTrace') {

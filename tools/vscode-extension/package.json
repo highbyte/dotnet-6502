@@ -46,6 +46,10 @@
         "title": "Generate Launch Config for C64 emulator (DotNet6502)"
       },
       {
+        "command": "dotnet6502.generateRemoteAttachConfig",
+        "title": "Generate Remote Attach Config (dotnet-6502)"
+      },
+      {
         "command": "dotnet6502.viewMemory",
         "title": "View Memory",
         "icon": "$(symbol-array)"
@@ -86,6 +90,11 @@
           "when": "resourceExtname == .asm",
           "command": "dotnet6502.generateEmulatorLaunchConfig",
           "group": "2_workspace@3"
+        },
+        {
+          "when": "resourceExtname == .asm",
+          "command": "dotnet6502.generateRemoteAttachConfig",
+          "group": "2_workspace@4"
         },
         {
           "when": "resourceExtname == .prg",
@@ -227,24 +236,48 @@
               },
               "debugHost": {
                 "type": "string",
-                "description": "TCP host or IP address to connect to in attach mode. Defaults to 127.0.0.1.",
+                "description": "TCP host or IP address to connect to in attach mode. Defaults to 127.0.0.1. For non-loopback (remote) connections the emulator must be started with --debug-bind-address 0.0.0.0.",
                 "default": "127.0.0.1"
               },
               "program": {
                 "type": "string",
-                "description": "Path to your .prg file (e.g. ${workspaceFolder}/myprog.prg). Used to locate debug symbols and determine program bounds. Not needed if dbgFile or preLaunchTask is specified.",
+                "description": "Path to the .prg file on the debug adapter machine (not the local VS Code machine when attaching remotely). Used to locate debug symbols and determine program bounds. Not needed if dbgFile is specified.",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {
                 "type": "string",
-                "description": "Path to ca65 .dbg file for source-level debugging",
+                "description": "Path to the ca65 .dbg file on the debug adapter machine (not the local VS Code machine when attaching remotely). Required for source-level debugging.",
                 "default": null
               },
               "dbgFiles": {
                 "type": "array",
                 "items": { "type": "string" },
-                "description": "Additional ca65 .dbg files to merge for multi-component source debugging (e.g. add ROM debug symbols alongside your program's .dbg file). If dbgFile is omitted, the first entry here becomes the primary.",
+                "description": "Additional ca65 .dbg files to merge (paths on the debug adapter machine). Useful for multi-component source debugging. If dbgFile is omitted, the first entry here becomes the primary.",
                 "default": null
+              },
+              "pathMappings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["localRoot", "remoteRoot"],
+                  "properties": {
+                    "localRoot": {
+                      "type": "string",
+                      "description": "Path prefix on the VS Code machine, e.g. ${workspaceFolder}"
+                    },
+                    "remoteRoot": {
+                      "type": "string",
+                      "description": "Corresponding path prefix on the debug adapter machine, e.g. /home/ubuntu/project"
+                    }
+                  }
+                },
+                "description": "Maps absolute paths between the local (VS Code) machine and the remote (debug adapter) machine. Required when attaching across machines with different filesystem layouts. Multiple entries are matched in order; the longest remoteRoot prefix wins.",
+                "default": []
+              },
+              "useRemoteSources": {
+                "type": "boolean",
+                "description": "When a source file in a stack frame has no pathMappings match, fetch its content from the remote debug adapter via the DAP 'source' request and display it as a read-only virtual document. Defaults to true for attach mode.",
+                "default": true
               },
               "stopOnEntry": {
                 "type": "boolean",
@@ -322,6 +355,26 @@
               "debugHost": "127.0.0.1",
               "debugPort": 6502,
               "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true
+            }
+          },
+          {
+            "label": "dotnet-6502: Remote Attach",
+            "description": "Attach to an emulator running on a remote machine with path mapping for cross-machine source debugging",
+            "body": {
+              "type": "dotnet6502",
+              "request": "attach",
+              "name": "Remote Attach to Emulator (dotnet-6502)",
+              "debugHost": "^\"<remote-host-ip>\"",
+              "debugPort": 6502,
+              "dbgFile": "^\"<path-on-remote-machine>/program.dbg\"",
+              "pathMappings": [
+                {
+                  "localRoot": "^\"\\${workspaceFolder}\"",
+                  "remoteRoot": "^\"<path-on-remote-machine>\""
+                }
+              ],
+              "useRemoteSources": true,
               "stopOnEntry": true
             }
           }

@@ -39,6 +39,10 @@ public class DebugAdapterLogic
     // Map from address to log message template for logpoints
     private readonly Dictionary<ushort, string> _logMessages = new();
     private int _nextBreakpointId = 1;
+    // Source reference tracking for DAP 'source' request (remote source fallback)
+    private readonly Dictionary<string, int> _sourcePathToReference = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<int, string> _sourceReferenceToPath = new();
+    private int _nextSourceReference = 1;
     private readonly bool _builtInExecution; // When true, the adapter runs the CPU itself (no external execution engine)
     private CancellationTokenSource? _executionCts;
     private const int THREAD_ID = 1;
@@ -520,6 +524,9 @@ public class DebugAdapterLogic
                         break;
                     case "getSourceAddressMap":
                         await HandleGetSourceAddressMapAsync(seq, arguments);
+                        break;
+                    case "source":
+                        await HandleSourceAsync(seq, arguments);
                         break;
                     default:
                         LogSafe($"[Handler] Unknown command: {command}", LogLevel.Warning);
@@ -1468,7 +1475,8 @@ public class DebugAdapterLogic
             frame["source"] = new JsonObject
             {
                 ["name"] = sourceFileName,
-                ["path"] = sourcePath
+                ["path"] = sourcePath,
+                ["sourceReference"] = AssignSourceReference(sourcePath)
             };
             frame["line"] = sourceInfo.LineNumber;
             frame["column"] = 0;
@@ -1497,6 +1505,45 @@ public class DebugAdapterLogic
         LogSafe($"[HandleStackTrace] sourceFound={sourceFound}, line={frame["line"]}, hasSource={frame.ContainsKey("source")}");
 
         await _protocol.SendResponseAsync(seq, "stackTrace", responseBody);
+    }
+
+    private int AssignSourceReference(string filePath)
+    {
+        if (_sourcePathToReference.TryGetValue(filePath, out var existing))
+            return existing;
+        var id = _nextSourceReference++;
+        _sourcePathToReference[filePath] = id;
+        _sourceReferenceToPath[id] = filePath;
+        return id;
+    }
+
+    private async Task HandleSourceAsync(int seq, JsonObject? args)
+    {
+        var source = args?["source"] as JsonObject;
+        string? filePath = source?["path"]?.ToString();
+
+        if (string.IsNullOrEmpty(filePath))
+        {
+            // Fall back to sourceReference lookup (VS Code sends this when path is not locally resolvable)
+            var refNode = args?["sourceReference"] ?? source?["sourceReference"];
+            if (refNode != null && int.TryParse(refNode.ToString(), out var refId))
+                _sourceReferenceToPath.TryGetValue(refId, out filePath);
+        }
+
+        LogSafe($"[HandleSource] path={filePath}");
+
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+        {
+            await _protocol.SendErrorResponseAsync(seq, "source", $"Source not found: {filePath}");
+            return;
+        }
+
+        var content = await File.ReadAllTextAsync(filePath);
+        await _protocol.SendResponseAsync(seq, "source", new JsonObject
+        {
+            ["content"] = content,
+            ["mimeType"] = "text/x-asm"
+        });
     }
 
     private async Task HandleScopesAsync(int seq, JsonObject? args)
@@ -1727,12 +1774,31 @@ public class DebugAdapterLogic
     /// a relative path like "kernal/init.s", or an absolute path).
     /// Uses path-suffix matching so "kernal/init.s" matches ".../kernal/init.s" but NOT ".../basic/init.s".
     /// </summary>
-    private static bool MatchesSourcePath(string editorAbsPath, string dbgKey)
+    private bool MatchesSourcePath(string editorAbsPath, string dbgKey)
     {
         var editorNorm = editorAbsPath.Replace('\\', '/');
         var keyNorm = dbgKey.Replace('\\', '/');
-        return string.Equals(editorNorm, keyNorm, StringComparison.OrdinalIgnoreCase)
-            || editorNorm.EndsWith('/' + keyNorm, StringComparison.OrdinalIgnoreCase);
+
+        // Exact match or suffix match (handles bare filename or relative .dbg path)
+        if (string.Equals(editorNorm, keyNorm, StringComparison.OrdinalIgnoreCase)
+            || editorNorm.EndsWith('/' + keyNorm, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Fallback: match by "parentDir/filename" when both paths are absolute.
+        // Fires when path mapping translates the local path but the dbg key is still the
+        // original remote absolute path — "dir/file" is a stronger signal than bare filename.
+        var keyParts = keyNorm.Split('/');
+        if (keyParts.Length >= 2 && Path.IsPathRooted(dbgKey))
+        {
+            var keySuffix = keyParts[^2] + '/' + keyParts[^1];
+            if (editorNorm.EndsWith('/' + keySuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                LogSafe($"[MatchesSourcePath] basename+dir fallback matched: editor={editorAbsPath}, key={dbgKey}", LogLevel.Warning);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// Merges additional .dbg files from the <c>dbgFiles</c> array in <paramref name="args"/> into
