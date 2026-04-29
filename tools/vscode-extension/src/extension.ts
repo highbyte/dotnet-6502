@@ -1581,7 +1581,7 @@ class DotNet6502DebugTrackerFactory implements vscode.DebugAdapterTrackerFactory
                 if (!args) { return; }
                 const cmd: string = message.command;
 
-                if (cmd === 'setBreakpoints' || cmd === 'breakpointLocations' || cmd === 'gotoTargets') {
+                if (cmd === 'setBreakpoints' || cmd === 'breakpointLocations' || cmd === 'gotoTargets' || cmd === 'source') {
                     translateSourcePath(args, p => mapper.toRemote(p));
                 }
             } : undefined,

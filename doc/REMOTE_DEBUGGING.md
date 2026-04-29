@@ -64,6 +64,33 @@ from the adapter (the adapter always sees its own remote path).
 
 ---
 
+## File Location Requirements
+
+The `.dbg` file **must always exist on the remote machine** — the debug adapter reads it
+directly from disk to build the address→source mapping. Without it the adapter cannot resolve
+any PC address to a source file or line number, and you will only see disassembly.
+
+The `.asm` source files are a separate concern: they need to be reachable by whichever
+mechanism resolves them for display in VS Code.
+
+| `.dbg` on remote | `.asm` on local | `.asm` on remote | Mechanism | Result |
+|:---:|:---:|:---:|---|---|
+| ✓ | ✓ | optional | `pathMappings` | VS Code opens local file directly — full editor experience |
+| ✓ | — | ✓ | `useRemoteSources` | Adapter serves file content on demand; shown as read-only virtual document |
+| ✓ | ✓ | ✓ | both | Local file used when path matches; remote fallback for anything outside the mapped root |
+| ✓ | — | — | neither | Disassembly view only — no source lines |
+
+**`pathMappings`** requires the `.asm` files to be present on the **local** machine (VS Code
+opens them directly by translated path).
+
+**`useRemoteSources`** requires the `.asm` files to be present on the **remote** machine (the
+adapter reads them from its own disk and sends the content to VS Code).
+
+The typical way to satisfy the `.dbg` (and `.prg`) requirement is to build on the remote
+machine, or `rsync`/`scp` the build artifacts up before attaching.
+
+---
+
 ## Quickstart
 
 ### Step 1 — Build on the remote machine
