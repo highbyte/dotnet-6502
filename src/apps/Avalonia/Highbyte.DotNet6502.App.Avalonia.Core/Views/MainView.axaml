@@ -243,6 +243,7 @@
 
         <!-- Main Emulator Display Area (Center) -->
         <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3"
+            Name="CenterPanel"
             Background="{DynamicResource ViewDefaultBg}"
             Classes="panel-container">
             
@@ -1069,6 +1070,8 @@
         </Border>
 
         <!-- Status Bar (Bottom; always present) -->
-        <views:StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"/>
+        <views:StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
+                         HorizontalAlignment="Left"
+                         Width="{Binding ElementName=CenterPanel, Path=Bounds.Right}"/>
     </Grid>
 </UserControl>
