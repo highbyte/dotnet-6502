@@ -70,6 +70,7 @@ plugins:
   - search
 
 extra:
+  generator: false
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/highbyte/dotnet-6502
@@ -93,7 +94,6 @@ nav:
         - Troubleshooting: desktop-apps/avalonia-desktop-troubleshooting.md
       - SadConsole: 
         - App: desktop-apps/sadconsole.md
-        - Automation: desktop-apps/sadconsole-automation.md
         - Troubleshooting: desktop-apps/sadconsole-troubleshooting.md
       - SilkNetNative: 
         - App: desktop-apps/silknet-native.md

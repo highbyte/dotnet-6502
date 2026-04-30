@@ -1,2 +1,0 @@
-# SadConsole app troubleshooting
-
