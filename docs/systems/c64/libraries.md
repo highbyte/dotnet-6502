@@ -1,4 +1,4 @@
-# Libraries
+# Libraries used by C64 system
 
 ## Core library
 

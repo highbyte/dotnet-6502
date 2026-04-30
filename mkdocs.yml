@@ -130,12 +130,13 @@ nav:
           - SilkNet.SDL: libraries/implementation/silknet-sdl.md
           - Skia: libraries/implementation/skia.md
   - Tools:
+      - Overview: tools/overview.md
       - VSCode debugger extension:
-          - Overview: tools/vscode-debugger/overview.md
           - Debugging: tools/vscode-debugger/debugging.md
           - Remote debugging: tools/vscode-debugger/remote-debugging.md
           - Development: tools/vscode-debugger/development.md
       - Remote control:
+          - Overview: tools/remote-control/overview.md
           - TCP protocol: tools/remote-control/tcp-protocol.md
           - Remote Client console app: tools/remote-control/remote-client.md
       - Scripting:
