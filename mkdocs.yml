@@ -1,0 +1,135 @@
+site_name: dotnet-6502
+site_description: 6502 CPU emulator and Commodore 64 and other system implementations in .NET
+site_author: Highbyte
+site_url: https://highbyte.github.io/dotnet-6502/
+repo_url: https://github.com/highbyte/dotnet-6502
+repo_name: highbyte/dotnet-6502
+edit_uri: edit/master/docs/
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  palette:
+    scheme: slate
+    primary: custom
+    accent: custom
+  font:
+    text: Fira Code
+    code: Fira Code
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.path
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - search.share
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 4
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.caret
+  - pymdownx.smartsymbols
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/highbyte/dotnet-6502
+
+nav:
+  - Home:
+      - Overview: index.md
+      - Limitations: home/limitations.md
+      - Quick start: home/quick-start.md
+  - Web apps:
+      - Overview: web-apps/overview.md
+      - Avalonia Browser app: web-apps/avalonia-browser.md
+      - Blazor Web Assembly app: web-apps/blazor-wasm.md
+  - Desktop apps:
+      - Overview: desktop-apps/overview.md
+      - Avalonia Desktop app: desktop-apps/avalonia-desktop.md
+      - SadConsole app: desktop-apps/sadconsole.md
+      - SilkNetNative app: desktop-apps/silknet-native.md
+      - Console Monitor app: desktop-apps/console-monitor.md
+  - Libraries:
+      - Overview: libraries/overview.md
+      - Core libraries:
+          - Overview: libraries/core/overview.md
+          - CPU: libraries/core/dotnet6502.md
+          - Systems: libraries/core/dotnet6502-systems.md
+          - DebugAdapter: libraries/core/dotnet6502-debugadapter.md
+          - Monitor: libraries/core/dotnet6502-monitor.md
+          - Remoting: libraries/core/dotnet6502-remoting.md
+          - Scripting.MoonSharp: libraries/core/dotnet6502-scripting-moonsharp.md
+      - System-specific core libraries:
+          - C64: libraries/system-specific/c64.md
+          - Generic: libraries/system-specific/generic.md
+      - Implementation libraries:
+          - Overview: libraries/implementation/overview.md
+          - AspNet: libraries/implementation/aspnet.md
+          - Avalonia: libraries/implementation/avalonia.md
+          - Browser: libraries/implementation/browser.md
+          - NAudio: libraries/implementation/naudio.md
+          - SadConsole: libraries/implementation/sadconsole.md
+          - SilkNet: libraries/implementation/silknet.md
+          - SilkNet.SDL: libraries/implementation/silknet-sdl.md
+          - Skia: libraries/implementation/skia.md
+  - Tools:
+      - VSCode debugger extension:
+          - Overview: tools/vscode-debugger/overview.md
+          - Debugging: tools/vscode-debugger/debugging.md
+          - Remote debugging: tools/vscode-debugger/remote-debugging.md
+          - Development: tools/vscode-debugger/development.md
+      - Remote control:
+          - TCP protocol: tools/remote-control/tcp-protocol.md
+          - Remote Client console app: tools/remote-control/remote-client.md
+  - Systems:
+      - Overview: systems/overview.md
+      - C64:
+          - Overview: systems/c64/overview.md
+          - ROMs: systems/c64/roms.md
+          - Libraries: systems/c64/libraries.md
+      - Generic:
+          - Overview: systems/generic/overview.md
+          - Libraries: systems/generic/libraries.md
+  - Development:
+      - Overview: development/overview.md
+      - VSCode extension: development/vscode-extension.md

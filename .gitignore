@@ -291,3 +291,7 @@ src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/appsettings.Developme
 
 # memsearch AI memory (kept in separate private repo)
 .memsearch/
+
+# MkDocs build output and local virtualenv
+/site/
+.venv-docs/
