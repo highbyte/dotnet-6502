@@ -31,6 +31,8 @@ theme:
     - search.suggest
     - search.highlight
     - search.share
+  logo: assets/logo-simple-128.png
+  favicon: assets/logo-simple-128.png
   icon:
     repo: fontawesome/brands/github
 
@@ -80,6 +82,7 @@ nav:
       - Overview: index.md
       - Limitations: home/limitations.md
       - Quick start: home/quick-start.md
+      - Development: home/development.md
       - References: home/references.md
   - Web apps:
       - Overview: web-apps/overview.md
@@ -152,6 +155,3 @@ nav:
       - Generic:
           - Overview: systems/generic/overview.md
           - Libraries: systems/generic/libraries.md
-  - Development:
-      - Overview: development/overview.md
-      - VSCode extension: development/vscode-extension.md
