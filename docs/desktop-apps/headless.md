@@ -143,7 +143,7 @@ Edit `appsettings.json` in the app directory to configure ROM paths and scriptin
 
 For development system requirements, see [Development](../home/development.md).
 
-### Visual Studio 2026 (Windows)
+### Visual Studio (Windows)
 
 Open solution `dotnet-6502.sln`. Set project `Highbyte.DotNet6502.App.Headless` as startup and start with F5.
 
