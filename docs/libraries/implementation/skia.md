@@ -23,5 +23,3 @@ TODO
 ### Generic-specific render targets
 
 TODO
-
-## System-specific namespaces

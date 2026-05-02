@@ -30,4 +30,3 @@ TODO
 
 ## Logging
 
-## System-specific namespaces

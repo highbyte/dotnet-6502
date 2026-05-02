@@ -20,5 +20,3 @@ TODO
 ### C64
 
 Experimental (non-complete) emulation of C64 SID audio chip.
-
-## System-specific namespaces

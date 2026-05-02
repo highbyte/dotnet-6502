@@ -29,5 +29,3 @@ TODO
 ### Generic
 
 TODO
-
-## System-specific namespaces

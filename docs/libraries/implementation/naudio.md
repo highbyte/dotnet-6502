@@ -10,4 +10,3 @@ Library: `Highbyte.DotNet6502.Impl.NAudio`
 
 TODO
 
-## System-specific namespaces

@@ -14,7 +14,7 @@ Technologies:
 
 ## Installation
 
-TODO: Manual download, see section in [installation.md](installation.md)
+Manual download, see section in [installation.md](installation.md)
 
 ## Features
 
@@ -36,13 +36,9 @@ TODO
 
 Press button or toggle with F12.
 
-TODO
-
 ### Stats
 
 Press button or toggle with F11.
-
-TODO
 
 ## How to run locally for development
 
