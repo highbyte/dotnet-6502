@@ -307,7 +307,7 @@ public partial class C64MenuView : UserControl
         // Open the info link for Basic coding assistant
         if (TopLevel.GetTopLevel(this) is { } topLevel)
         {
-            topLevel.Launcher.LaunchUriAsync(new Uri("https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md"));
+            topLevel.Launcher.LaunchUriAsync(new Uri("https://highbyte.github.io/dotnet-6502/docs/systems/c64/code-completion/"));
         }
     }
 
@@ -316,7 +316,7 @@ public partial class C64MenuView : UserControl
         // Open the info link for disk functionality
         if (TopLevel.GetTopLevel(this) is { } topLevel)
         {
-            topLevel.Launcher.LaunchUriAsync(new Uri("https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md"));
+            topLevel.Launcher.LaunchUriAsync(new Uri("https://highbyte.github.io/dotnet-6502/docs/systems/c64/compatible-programs/"));
         }
     }
 

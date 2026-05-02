@@ -743,7 +743,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _aiTestStatusIsSuccess, value);
     }
 
-    public string AIHelpUrl => "https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md";
+    public string AIHelpUrl => "https://highbyte.github.io/dotnet-6502/docs/systems/c64/code-completion/";
 
     private void LoadAIConfiguration()
     {

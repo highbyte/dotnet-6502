@@ -222,7 +222,7 @@ public class C64ConfigUIConsole : Window
             Name = "openBasicAIHelpURLButton",
             Position = (codingAssistantTestButton.Bounds.MaxExtentX, codingAssistantInfoLabel.Position.Y),
         };
-        openBasicAIHelpURLButton.Click += (s, e) => OpenURL("https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md");
+        openBasicAIHelpURLButton.Click += (s, e) => OpenURL("https://highbyte.github.io/dotnet-6502/docs/systems/c64/code-completion/");
         Controls.Add(openBasicAIHelpURLButton);
 
 

@@ -77,7 +77,7 @@
       // Prerequisites on the remote machine:
       //   1. Build the sample:  ca65 / ld65 -> smooth_scroller_and_raster2.prg + .dbg
       //   2. Start emulator:    dotnet-6502 --enableExternalDebug --debug-bind-address 0.0.0.0 --debug-port 6502 --system C64 --start
-      // See doc/REMOTE_DEBUGGING.md for full setup instructions.
+      // See https://highbyte.github.io/dotnet-6502/docs/tools/vscode-debugger/debugging/ for full setup instructions.
       "debugHost": "100.94.143.107", // IP address of the remote machine running the emulator
       "debugPort": 6502,
       // Paths below are on the remote (debug adapter) machine, not the local VS Code machine:

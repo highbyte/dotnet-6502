@@ -86,3 +86,4 @@ jobs:
             app/**/*
             app-test/**/*
             app2/**/*
+            docs/**/*
