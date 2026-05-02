@@ -1,0 +1,67 @@
+name: Publish documentation site to GitHub Pages
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/**'
+      - 'includes/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - '.github/workflows/docs-publish-to-gh-pages.yml'
+
+# Prevent concurrent deployments to GitHub Pages
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+env:
+  DOCS_GH_PAGES_DIR: "docs"
+  BUILD_OUTPUT_WORKING_DIR: "site"
+  GH_PAGES_WORKING_DIR: "ghpages"
+  GH_PAGES_BRANCH_NAME: "gh-pages"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install MkDocs and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+
+      - name: Build static site with MkDocs
+        run: mkdocs build --strict --site-dir ${{ env.BUILD_OUTPUT_WORKING_DIR }}
+
+      # Stage the docs site under a sub-folder so other GitHub Pages content
+      # at the branch root (apps, redirect index) is not affected.
+      - name: Stage docs into GitHub Pages working dir
+        run: |
+          mkdir -p ${{ env.GH_PAGES_WORKING_DIR }}/${{ env.DOCS_GH_PAGES_DIR }}
+          cp -r ${{ env.BUILD_OUTPUT_WORKING_DIR }}/. ${{ env.GH_PAGES_WORKING_DIR }}/${{ env.DOCS_GH_PAGES_DIR }}/
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@4a3abc783e1a24aeb44c16e869ad83caf6b4cc23
+        with:
+          branch: ${{ env.GH_PAGES_BRANCH_NAME }}
+          folder: ${{ env.GH_PAGES_WORKING_DIR }}
+          single-commit: true
+          clean: false
+          # Preserve sibling app folders when this workflow runs.
+          clean-exclude: |
+            app/**/*
+            app-test/**/*
+            app2/**/*
+            app2-test/**/*

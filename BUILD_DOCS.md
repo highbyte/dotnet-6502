@@ -71,8 +71,10 @@ With the virtual environment activated:
 mkdocs serve
 ```
 
-Open <http://127.0.0.1:8000> in a browser. Edits to any file under `docs/` or
-`mkdocs.yml` will trigger an automatic reload.
+Open <http://127.0.0.1:8000/dotnet-6502/docs/> in a browser (the local path
+mirrors the published path so internal links behave the same as in production).
+Edits to any file under `docs/` or `mkdocs.yml` will trigger an automatic
+reload.
 
 To bind to a different port or host:
 
@@ -103,6 +105,26 @@ source .venv-docs/bin/activate          # macOS/Linux
 ```
 
 Then run `mkdocs serve` or `mkdocs build` as above.
+
+---
+
+## Publishing to GitHub Pages
+
+The site is published to <https://highbyte.github.io/dotnet-6502/docs/> by the
+[`docs-publish-to-gh-pages.yml`](.github/workflows/docs-publish-to-gh-pages.yml)
+workflow. It runs:
+
+- automatically on pushes to `master` that touch `docs/`, `includes/`,
+  `mkdocs.yml`, `requirements-docs.txt`, or the workflow file itself
+- on demand via **Actions → Publish documentation site to GitHub Pages → Run workflow**
+
+The workflow builds with `mkdocs build --strict` and deploys the output into the
+`docs/` sub-folder of the `gh-pages` branch using
+`JamesIves/github-pages-deploy-action` with `clean: false`. Sibling folders
+(`app/`, `app-test/`, `app2/`, `app2-test/`) are preserved on every deploy.
+
+The bare URL <https://highbyte.github.io/dotnet-6502/> returns 404 by design;
+all shared links should point at `/docs/` (or one of the `/appN/` paths).
 
 ---
 

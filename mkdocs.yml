@@ -1,7 +1,7 @@
 site_name: dotnet-6502
 site_description: 6502 CPU emulator and Commodore 64 and other system implementations in .NET
 site_author: Highbyte
-site_url: https://highbyte.github.io/dotnet-6502/
+site_url: https://highbyte.github.io/dotnet-6502/docs/
 repo_url: https://github.com/highbyte/dotnet-6502
 repo_name: highbyte/dotnet-6502
 edit_uri: edit/master/docs/
