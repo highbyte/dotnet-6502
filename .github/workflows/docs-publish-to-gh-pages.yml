@@ -38,9 +38,7 @@ jobs:
           cache-dependency-path: requirements-docs.txt
 
       - name: Install MkDocs and dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-docs.txt
+        run: pip install --only-binary :all: -r requirements-docs.txt
 
       - name: Build static site with MkDocs
         run: mkdocs build --strict --site-dir ${{ env.BUILD_OUTPUT_WORKING_DIR }}
