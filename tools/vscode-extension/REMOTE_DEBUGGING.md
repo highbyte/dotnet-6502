@@ -2,7 +2,7 @@
 
 This document explains how to use the `dotnet6502` VS Code debugger to debug 6502 programs running on a **remote machine** — that is, a machine where the emulator runs but that has a different filesystem layout than the VS Code machine.
 
-See [Debugging](debugging.md) for background on the TCP debug adapter architecture.
+See [README.md](README.md) for background on the TCP debug adapter architecture.
 
 ---
 

@@ -13,10 +13,10 @@ For app-specific launch flags (autostart a system, load a `.prg`, enable scripti
 ## Which tool when?
 
 - **"I want to write 6502 assembly and step through it."** — [VSCode debugger extension](vscode-debugger/debugging.md).
+- **"I want to debug from a different machine than the emulator runs on."** — [REMOTE_DEBUGGING.md](https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension/REMOTE_DEBUGGING.md).
 - **"I want a script that exercises the emulator deterministically every time it runs."** — [Lua scripting](scripting/overview.md). Scripts live with the emulator process and can drive input, read state, and use HTTP/TCP/file APIs.
 - **"I want my own external process (in any language) to query and control the emulator."** — [Remote control](remote-control/overview.md). Speaks newline-delimited JSON over TCP from anywhere.
 - **"I want to launch the emulator with specific options once."** — see CLI arguments on the [Avalonia Desktop](../desktop-apps/avalonia-desktop.md#cli-arguments) or [Headless](../desktop-apps/headless.md#cli-arguments) page.
-- **"I want to debug from a different machine than the emulator runs on."** — [VSCode debugger / Remote debugging](vscode-debugger/remote-debugging.md).
 
 ## Lua scripting vs Remote control — when to choose which
 

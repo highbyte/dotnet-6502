@@ -137,7 +137,6 @@ nav:
       - Overview: tools/overview.md
       - VSCode debugger extension:
           - Debugging: tools/vscode-debugger/debugging.md
-          - Remote debugging: tools/vscode-debugger/remote-debugging.md
           - Development: tools/vscode-debugger/development.md
       - Remote control:
           - Overview: tools/remote-control/overview.md
