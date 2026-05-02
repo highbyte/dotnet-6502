@@ -295,3 +295,5 @@ src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/appsettings.Developme
 # MkDocs build output and local virtualenv
 /site/
 .venv-docs/
+
+.playwright-cli/
