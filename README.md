@@ -1,14 +1,14 @@
 <p align="center">
   <img src="resources/images/logo.png" width="5%" height="5%" title="DotNet 6502 logo">
 </p>
-<h2 align="center"> 
+<h2 align="center">
   A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502">6502 CPU</a> emulator for .NET
 </h2>
 
-[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](doc/DEVELOP.md)
-[![language](https://img.shields.io/badge/language-C%23-239120)](doc/DEVELOP.md)
-[![OS](https://img.shields.io/badge/OS-windows%2C%20macOS%2C%20linux-0078D4)](doc/DEVELOP.md)
-[![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](#)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://highbyte.github.io/dotnet-6502/docs/home/development/)
+[![language](https://img.shields.io/badge/language-C%23-239120)](https://highbyte.github.io/dotnet-6502/docs/home/development/)
+[![OS](https://img.shields.io/badge/OS-windows%2C%20macOS%2C%20linux-0078D4)](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/installation/)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](https://highbyte.github.io/dotnet-6502/docs/web-apps/overview/)
 [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502)
 [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502)
 [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY)
@@ -23,132 +23,51 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/highbyte/dotnet-6502)](#)
 [![GitHub License](https://img.shields.io/github/license/highbyte/dotnet-6502)](LICENSE)
 
-# Overview / purpose
+# Overview
 
-.NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems (such as Commodore 64) in different UI contexts. Links below for details on each library/app.
+.NET cross-platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems (such as Commodore 64) in different UI contexts — browser, desktop, and headless.
 
 > [!IMPORTANT]
-> This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations) below.
+> This is mainly a programming exercise that may or may not turn into something more. See [Limitations](#limitations) below.
 
-## Web apps
+## 📖 Documentation
 
-| [Avalonia WebAssembly app](doc/APPS_AVALONIA.md)| [Blazor WebAssembly app](doc/APPS_BLAZOR_WASM.md) |
-| ----------------------------------------------- | ------------------------------------------------- |
-| <img src="doc/Screenshots/AvaloniaBrowser_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma´s Revenge"/> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/></a> | 
+Full documentation lives at **<https://highbyte.github.io/dotnet-6502/docs/>** — apps, libraries, tools, systems, and development guides.
 
+## Try it in your browser
 
-## Desktop apps
+| [Avalonia WebAssembly](https://highbyte.se/dotnet-6502/app2) | [Blazor WebAssembly](https://highbyte.se/dotnet-6502/app) |
+| ------------------------------------------------------------ | --------------------------------------------------------- |
+| <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="doc/Screenshots/AvaloniaBrowser_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma's Revenge"/></a> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/></a> |
 
-|[Avalonia desktop app](doc/APPS_AVALONIA.md) | [SadConsole desktop app](doc/APPS_SADCONSOLE.md) | [SilkNet desktop app](doc/APPS_SILKNET_NATIVE.md) |
-| ------------------------------------------- | ------------------------------------------------ | ------------------------------------------------- |
-| <img src="doc/Screenshots/AvaloniaDesktop_C64_Basic.png" title="Avalonia Desktop app, C64 Basic" /> | <img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" /> | <img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" /> |
+## Other apps and features
 
-See [Desktop Apps](doc/INSTALL_DESKTOP_APPS.md) for download links for pre-built executables and instructions for Windows, Linux, and macOS.
+- **Desktop apps** for Windows, Linux, and macOS — Avalonia, SadConsole, and SilkNet variants. See [Desktop apps](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/installation/).
+- **Headless app** for automation, scripting, and CI workflows — no UI, controlled via CLI and Lua. See [Headless](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/headless/).
+- **VS Code debugger extension** for source and disassembly debugging of 6502 code. See [VSCode debugger](https://highbyte.github.io/dotnet-6502/docs/tools/vscode-debugger/debugging/).
+- **Lua scripting** for driving the emulator — selecting systems, controlling emulation, reading/writing memory, injecting input. See [Scripting](https://highbyte.github.io/dotnet-6502/docs/tools/scripting/overview/).
+- **TCP remote control** lets external processes inspect and drive a running emulator over a newline-delimited JSON protocol. See [Remote control](https://highbyte.github.io/dotnet-6502/docs/tools/remote-control/overview/).
+- **C64 Basic AI code completion** in the Blazor browser app. See [AI code completion](https://highbyte.github.io/dotnet-6502/docs/systems/c64/code-completion/).
 
-## Headless app
+## Libraries
 
-[Headless app](doc/APPS_HEADLESS.md) — runs the emulator without any UI, rendering, audio, or user input. Controlled entirely via CLI arguments and Lua scripts. Useful for automation, scripting, and CI workflows.
-
-See [Install Headless App](doc/INSTALL_HEADLESS.md) for download links and installation instructions for Windows, Linux, and macOS.
-
-
-## VS Code debugger extension
-
-| [VSCode source debugging](tools/vscode-extension/README.md)| [VSCode disassembly debugging](tools/vscode-extension/README.md) |
-| ----------------------------------------------- | ------------------------------------------------- |
-| <img src="doc/Screenshots/VSCode_source_debug.png" title="VSCode source debug"/> | <img src="doc/Screenshots/VSCode_disassembly_debug.png" title="VSCode disassembly debug"/> | 
-
-## Lua scripting
-
-The Avalonia desktop and browser apps support [Lua scripting](doc/SCRIPTING.md) for automating the emulator — selecting systems, controlling emulation, reading/writing memory, injecting input, and more.
-
-| [Lua scripts in desktop app](doc/SCRIPTING.md)| [Lua scripts in browser app](doc/SCRIPTING.md) |
-| ----------------------------------------------- | ------------------------------------------------- |
-| <img src="doc/Screenshots/AvaloniaDesktop_C64_Scripting.png" title="VLua scripts in Desktop app"/> | <img src="doc/Screenshots/AvaloniaBrowser_C64_Scripting.png" title="Lua scripts in Browser app"/> | 
-
-## Remote control
-
-The Avalonia desktop app and the headless app expose a **TCP remote control endpoint** that lets external processes inspect and drive a running emulator instance in real time. A persistent, newline-delimited JSON protocol is used — one client at a time. Useful for automation, AI agent integration, and tooling that needs ad-hoc access without embedding a Lua script inside the emulator process.
-
-The **Debug & Remoting tab** shows the server status. While a client is connected a blue banner appears at the bottom of the window.
-
-See [TCP Remote Control documentation](doc/REMOTE_CONTROL.md) for the full protocol reference and command list.
-
-A ready-made CLI client, `dotnet-6502-remote`, is distributed separately — see [Install Remote Client](doc/INSTALL_REMOTE_CLIENT.md) for download and installation instructions.
-
-| [Remote control in desktop app](doc/REMOTE_CONTROL.md)|
-| ----------------------------------------------- |
-| <img src="doc/Screenshots/AvaloniaDesktop_RemoteControl.png" title="Avalonia Desktop app with active TCP remote control client" width="50%"/> |
-
-## Other features
-
-| [Run 6502 machine code in your own .NET apps](doc/CPU_LIBRARY.md)  | [Machine code monitor](doc/MONITOR.md) | [C64 Basic AI code completion](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md) | 
-| -------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
-| ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') | ![C64 Basic AI code completion](doc/Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion') |
-
-
-## Common libraries
-- [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
-  - Core library for executing 6502 machine code, not bound to any specific emulated system/computer, and does not have any UI or I/O code.
-- [`Highbyte.DotNet6502.Monitor`](doc/MONITOR.md)
-  - Machine code monitor library used as a base for host apps using the `Highbyte.DotNet6502` library.
-- [`Highbyte.DotNet6502.Systems`](doc/SYSTEMS.md)
-  - Library for common interfaces and implementations for running computers ("systems") that uses the `Highbyte.DotNet6502` library.
-
-## System/computer-specific libraries
-Contains core system/computer emulation logic, but with no UI or I/O dependencies.
-Implements abstractions in `Highbyte.DotNet6502.Systems`.
-- [`Highbyte.DotNet6502.Systems.Commodore64`](doc/SYSTEMS_C64.md) 
-  - Logic for emulating a Commodore 64 (C64).
-  - Runs C64 ROMs (Kernal, Basic, Chargen).
-  - List of apps/games listed that's been tested to work [here](doc/SYSTEMS_C64_COMPATIBLE_PRG.md)
-
-- [`Highbyte.DotNet6502.Systems.Generic`](doc/SYSTEMS_GENERIC.md) 
-  - Logic for emulating a generic computer based on 6502 CPU.
-
-## System-specific libraries for I/O
-Implements rendering, input handling, and audio using different technologies per emulated system/computer. Implements abstractions in `Highbyte.DotNet6502.Systems`. These libraries are used from relevant UI host apps (see below).
-- [`Highbyte.DotNet6502.Impl.AspNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implaspnet)
-  - General system-specific input and audio code for AspNet Blazor `WASM` app.
-- [`Highbyte.DotNet6502.Impl.Avalonia`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implavalonia)
-  - General and system-specific render and input code for `Avalonia` (browser and desktop) apps .
-- [`Highbyte.DotNet6502.Impl.Browser`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implbrowser)
-  - General JavaScript input code for `Avalonia` browser app.
-- [`Highbyte.DotNet6502.Impl.NAudio`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implnaudio) 
-  - General and system-specific audio code for `Avalonia` (browser and desktop), `SilkNetNative` and `SadConsole` apps.
-- [`Highbyte.DotNet6502.Impl.SadConsole`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsadconsole) 
-  - General and system-specific rendering and input code for `SadConsole` app.
-- [`Highbyte.DotNet6502.Impl.SilkNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsilknet) 
-  - General and system-specific rendering (OpenGL shaders) and input code for `SilkNetNative` app.
-- [`Highbyte.DotNet6502.Impl.SilkNet.SDL`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsilknetsdl) 
-  - General and system-specific input code for `Avalonia` desktop app.
-- [`Highbyte.DotNet6502.Impl.Skia`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implskia)
-  - General and system-specific rendering with SkiaSharp for `SilkNetNative`, and Blazor `WASM` apps.
-
-## Other apps
-### [`Highbyte.DotNet6502.App.ConsoleMonitor`](doc/APPS_CONSOLE_MONITOR.md)
-
-## C64 Basic AI code completion
-See [here](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md)
+Published as NuGet packages under `Highbyte.DotNet6502.*` — a core CPU library, system emulation libraries (Commodore 64, Generic), and per-host I/O implementations (Avalonia, Blazor, SadConsole, SilkNet, etc.). See [Libraries](https://highbyte.github.io/dotnet-6502/docs/libraries/) for the full catalog and architecture.
 
 # Limitations
+
 > [!IMPORTANT]
-> - Correct emulation of all aspects of computers such as Commodore 64 is not likely.
+> - Correct emulation of all aspects of computers such as the Commodore 64 is not likely.
 > - Not the fastest emulator.
-> - A real Commodore 64 uses the _6510_ CPU and not the 6502 CPU. But for the purpose of this emulator the 6502 CPU works fine as they are generally the same (same instruction set).
-> - Code coverage is currently limited to the core [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) library.
+> - A real Commodore 64 uses the *6510* CPU; for the purpose of this emulator the 6502 is treated as equivalent (same instruction set).
+> - Code coverage is currently limited to the core `Highbyte.DotNet6502` library.
 
-Missing features (but not limited to):
-- 6502 CPU
-  - Support for unofficial opcodes.
-- Systems
-  - Commodore 64: cycle-exact rendering, full disk drive support, tape drive support, accurate/stable audio, etc.
+For the full list of missing features and constraints, see [Limitations](https://highbyte.github.io/dotnet-6502/docs/home/limitations/).
 
-# How to develop
-See [here](doc/DEVELOP.md)
+# Development & references
 
-# References 
-See [here](doc/REFERENCES_AND_INSPIRATION.md).
+- [Development guide](https://highbyte.github.io/dotnet-6502/docs/home/development/)
+- [References & inspiration](https://highbyte.github.io/dotnet-6502/docs/home/references/)
 
 # Credits
+
 - [Kristoffer Strube](https://github.com/KristofferStrube) for the original Blazor WASM async interop code for [WebAudio](https://github.com/KristofferStrube/Blazor.WebAudio), [DOM](https://github.com/KristofferStrube/Blazor.DOM), and [IDL](https://github.com/KristofferStrube/Blazor.WebIDL) that was the basis for a synchronous implementation in this repo. Copyright notice [here](src/libraries/Highbyte.DotNet6502.Impl.AspNet/JSInterop/JSInterop_OriginalLicense.MD).
