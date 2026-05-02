@@ -37,23 +37,9 @@ The C64 emulator now includes limited support for the Commodore 1541 disk drive.
 
 *Note: Only basic directory and file loading is supported. Advanced disk operations, file writing, and copy protection schemes are not supported.*
 
-## Implementations
+## Implementation libraries
 
-- System logic [`Highbyte.DotNet6502.Systems.Commodore64`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Systems.Commodore64)
-
-- Rendering
-    - [`Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.SilkNet/Commodore64/Video/)
-    - [`Highbyte.DotNet6502.Impl.Skia.Commodore64.Video`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.Skia/Commodore64/Video/)
-    - [`Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.SadConsole/Commodore64/Video/)
-
-- Input
-    - [`Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.SilkNet/Commodore64/Input/)
-    - [`Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.AspNet/Commodore64/Input/)
-    - [`Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.SadConsole/Commodore64/Input/)
-
-- Audio
-    - [`Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.NAudio/Commodore64/Audio/)
-    - [`Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio`](https://github.com/highbyte/dotnet-6502/tree/master/src/libraries/Highbyte.DotNet6502.Impl.AspNet/Commodore64/Audio/)
+For the libraries used to render, accept input, and produce audio, see [Libraries](libraries.md).
 
 ## Monitor commands
 
