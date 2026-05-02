@@ -63,7 +63,30 @@ pip install -r requirements-docs.txt
 
 ---
 
-## 3. Serve the site locally with live reload
+## 3. Upgrade dependencies
+
+Dependencies are managed with [`pip-tools`](https://pip-tools.readthedocs.io/). The file you edit is `requirements-docs.in` (top-level only); the lock file `requirements-docs.txt` is auto-generated.
+
+**One-time setup:**
+
+```bash
+python3 -m pip install pip-tools
+```
+
+**To upgrade mkdocs-material** (or add new deps):
+
+1. Edit `requirements-docs.in` — e.g. change `mkdocs-material==9.7.6` to a newer version.
+2. Regenerate the lock file:
+
+```bash
+python3 -m piptools compile requirements-docs.in -o requirements-docs.txt
+```
+
+3. Commit both `requirements-docs.in` and `requirements-docs.txt`.
+
+---
+
+## 4. Serve the site locally with live reload
 
 With the virtual environment activated:
 
