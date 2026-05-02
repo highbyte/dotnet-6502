@@ -4,7 +4,7 @@ UI automation and accessibility for the Avalonia desktop and browser apps.
 
 ## Overview
 
-The Avalonia desktop and browser apps expose accessibility metadata so that screen readers and UI-automation agents (including AI agents) can identify, describe, and operate every interactive control.
+The Avalonia desktop app exposes accessibility metadata so that screen readers and UI-automation agents (including AI agents) can identify, describe, and operate every interactive control.
 
 This is implemented by setting attached properties from the `Avalonia.Automation` namespace on controls in `.axaml`:
 
