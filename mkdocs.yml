@@ -81,7 +81,6 @@ nav:
   - Home:
       - Overview: index.md
       - Limitations: home/limitations.md
-      - Quick start: home/quick-start.md
       - Development: home/development.md
       - References: home/references.md
   - Web apps:
@@ -131,6 +130,7 @@ nav:
           - Skia: libraries/implementation/skia.md
   - Tools:
       - Overview: tools/overview.md
+      - CLI arguments: tools/cli-arguments.md
       - VSCode debugger extension:
           - Debugging: tools/vscode-debugger/debugging.md
           - Remote debugging: tools/vscode-debugger/remote-debugging.md
@@ -138,6 +138,7 @@ nav:
       - Remote control:
           - Overview: tools/remote-control/overview.md
           - TCP protocol: tools/remote-control/tcp-protocol.md
+          - Examples: tools/remote-control/examples.md
           - Remote Client console app: tools/remote-control/remote-client.md
       - Scripting:
           - Overview: tools/scripting/overview.md
