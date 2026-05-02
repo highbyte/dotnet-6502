@@ -2,7 +2,7 @@
 
 Cross-platform desktop console application whose only UI is a machine code monitor.
 
-<img align="top" src="../assets/screenshots/ConsoleMonitor.png" width="25%" height="25%" title="Machine code monitor native console host window" />
+![Machine code monitor native console host window](../assets/screenshots/ConsoleMonitor.png){ width="25%" }
 
 !!! note
     There is also the [VS Code debugger extension](../tools/vscode-debugger/debugging.md) that can be used for debugging both assembly source and raw disassembly. It's a lot more powerful than the built-in machine code monitor described here.

@@ -2,8 +2,8 @@
 
 Cross-platform desktop app written with [`SadConsole`](https://github.com/Thraka/SadConsole) terminal/ascii/console/game engine.
 
-<img align="top" src="../assets/screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app, C64 Basic" />
-<img align="top" src="../assets/screenshots/SadConsole_C64_Monitor.png" width="38%" height="38%" title="SadConsole native app, C64 Monitor" />
+![SadConsole native app, C64 Basic](../assets/screenshots/SadConsole_C64_Basic.png){ width="25%" }
+![SadConsole native app, C64 Monitor](../assets/screenshots/SadConsole_C64_Monitor.png){ width="38%" }
 
 Technologies:
 

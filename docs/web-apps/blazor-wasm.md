@@ -4,9 +4,9 @@
 
 Web app written with [Blazor WebAssembly](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor).
 
-<img align="top" src="../assets/screenshots/BlazorWASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" />
-<img align="top" src="../assets/screenshots/BlazorWASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Last Ninja" />
-<img align="top" src="../assets/screenshots/BlazorWASM_C64_Monitor.png" width="36%" height="25%" title="Blazor WebAssembly app, C64 monitor" />
+![Blazor WebAssembly app, C64 Basic](../assets/screenshots/BlazorWASM_C64_Basic.png){ width="25%" }
+![Blazor WebAssembly app, C64 Last Ninja](../assets/screenshots/BlazorWASM_C64_LastNinja.png){ width="25%" }
+![Blazor WebAssembly app, C64 monitor](../assets/screenshots/BlazorWASM_C64_Monitor.png){ width="36%" }
 
 Technologies:
 

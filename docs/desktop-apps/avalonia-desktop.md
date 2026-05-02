@@ -2,9 +2,9 @@
 
 Cross-platform desktop app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Browser app](../web-apps/avalonia-browser.md).
 
-<img align="top" src="../assets/screenshots/AvaloniaDesktop_C64_Basic.png" width="25%" height="25%" title="Avalonia Desktop app, C64 Basic" />
-<img align="top" src="../assets/screenshots/AvaloniaDesktop_C64_raster_scroll.png" width="25%" height="25%" title="Avalonia Desktop app, C64 scroll" />
-<img align="top" src="../assets/screenshots/AvaloniaDesktop_C64_Monitor.png" width="25%" height="25%" title="Avalonia Desktop app, C64 monitor" />
+![Avalonia Desktop app, C64 Basic](../assets/screenshots/AvaloniaDesktop_C64_Basic.png){ width="25%" }
+![Avalonia Desktop app, C64 scroll](../assets/screenshots/AvaloniaDesktop_C64_raster_scroll.png){ width="25%" }
+![Avalonia Desktop app, C64 monitor](../assets/screenshots/AvaloniaDesktop_C64_Monitor.png){ width="25%" }
 
 Technologies:
 
@@ -23,21 +23,14 @@ See [Desktop apps installation](installation.md) for package manager and manual 
 
 - A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in `appsettings.json` and possible to change in the UI. An auto-download option also exists (license required). See [Systems / C64 / ROMs](../systems/c64/roms.md) for details.
 
-- Renderer provider `Rasterizer` → target `Avalonia 2-layer bitmap`
-    - Character mode (normal and multi-color).
-    - Bitmap mode (normal and bitmap mode).
-    - Sprites (normal and multi-color).
-    - Rendering of raster lines for border and background colors.
-
-- Renderer provider `Video commands` → target `Skia commands`
-    - Character mode (normal).
+--8<-- "avalonia-c64-renderers.md"
 
 - Input using `Avalonia` (keyboard) + `SDL` (joystick).
 - Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
 
 ### System: Generic computer
 
-The example 6502 machine code that is loaded and run by default for the *Generic* computer is an assembled version of [this 6502 assembly code](https://github.com/highbyte/dotnet-6502/blob/master/samples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.asm).
+--8<-- "avalonia-generic-computer.md"
 
 ### Lua scripting
 

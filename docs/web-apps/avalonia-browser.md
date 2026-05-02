@@ -4,9 +4,9 @@
 
 Cross-platform browser app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Desktop app](../desktop-apps/avalonia-desktop.md).
 
-<img align="top" src="../assets/screenshots/AvaloniaBrowser_C64_Basic.png" width="33%" height="33%" title="Avalonia Browser WebAssembly app, C64 Basic" />
-<img align="top" src="../assets/screenshots/AvaloniaBrowser_C64_Montezuma.png" width="33%" height="33%" title="Avalonia Browser WebAssembly app, C64 Montezuma's Revenge" />
-<img align="top" src="../assets/screenshots/AvaloniaBrowser_C64_Monitor.png" width="33%" height="33%" title="Avalonia Browser WebAssembly app, C64 monitor" />
+![Avalonia Browser WebAssembly app, C64 Basic](../assets/screenshots/AvaloniaBrowser_C64_Basic.png){ width="33%" }
+![Avalonia Browser WebAssembly app, C64 Montezuma's Revenge](../assets/screenshots/AvaloniaBrowser_C64_Montezuma.png){ width="33%" }
+![Avalonia Browser WebAssembly app, C64 monitor](../assets/screenshots/AvaloniaBrowser_C64_Monitor.png){ width="33%" }
 
 Technologies:
 
@@ -29,21 +29,14 @@ To self-host, see [Run from command line](#run-from-command-line) below.
 
 - Via the C64 config UI you have to upload binaries for the ROMs that a C64 uses (Kernal, Basic, Chargen). Or use the convenient auto-download functionality (with a license notice). For details on ROM files, see [Systems / C64 / ROMs](../systems/c64/roms.md).
 
-- Renderer provider `Rasterizer` → target `Avalonia 2-layer bitmap`
-    - Character mode (normal and multi-color).
-    - Bitmap mode (normal and bitmap mode).
-    - Sprites (normal and multi-color).
-    - Rendering of raster lines for border and background colors.
-
-- Renderer provider `Video commands` → target `Skia commands`
-    - Character mode (normal).
+--8<-- "avalonia-c64-renderers.md"
 
 - Input using `Avalonia`.
 - Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
 
 ### System: Generic computer
 
-The example 6502 machine code that is loaded and run by default for the *Generic* computer is an assembled version of [this 6502 assembly code](https://github.com/highbyte/dotnet-6502/blob/master/samples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.asm).
+--8<-- "avalonia-generic-computer.md"
 
 ### Lua scripting
 

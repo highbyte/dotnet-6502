@@ -2,9 +2,9 @@
 
 Cross-platform desktop app written in .NET using [Silk.NET](https://github.com/dotnet/Silk.NET).
 
-<img align="top" src="../assets/screenshots/SilkNetNative_C64_Basic.png" width="25%" height="25%" title="SilkNet native app, C64 Basic" />
-<img align="top" src="../assets/screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SilkNet native app, C64 raster and scroll" />
-<img align="top" src="../assets/screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SilkNet native app, C64 monitor" />
+![SilkNet native app, C64 Basic](../assets/screenshots/SilkNetNative_C64_Basic.png){ width="25%" }
+![SilkNet native app, C64 raster and scroll](../assets/screenshots/SilkNetNative_C64_raster_scroll.png){ width="25%" }
+![SilkNet native app, C64 monitor](../assets/screenshots/SilkNetNative_Monitor.png){ width="25%" }
 
 Technologies:
 
