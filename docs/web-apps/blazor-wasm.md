@@ -72,7 +72,7 @@ A toggleable stats window by pressing F11.
 
 For development system requirements, see details under [Development](../home/development.md).
 
-### Visual Studio 2026 / 2022 (Windows)
+### Visual Studio 2026 (Windows)
 
 Open solution `dotnet-6502.sln`.
 Set project `Highbyte.DotNet6502.App.WASM` as startup, and start with F5.

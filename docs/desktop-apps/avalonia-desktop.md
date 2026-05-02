@@ -44,10 +44,6 @@ The app exposes a TCP-based debug adapter for source-level debugging from VS Cod
 
 The app can expose a TCP remote control endpoint that lets external processes drive the running emulator. See [Tools / Remote control](../tools/remote-control/overview.md).
 
-### CLI arguments
-
-The desktop app can be launched from the command line with arguments to control logging, scripting, debug adapter, and remote control. See [Tools / CLI arguments](../tools/cli-arguments.md) for the full reference.
-
 ### UI
 
 #### Menu
@@ -64,6 +60,34 @@ An Avalonia implementation of the [machine code monitor](../libraries/core/dotne
 
 A toggleable stats window by pressing F11.
 
+## CLI arguments
+
+The desktop app can be launched from the command line with arguments to control logging, scripting, debug adapter, and remote control.
+
+--8<-- "cli-arguments-reference.md"
+
+### Examples
+
+```sh
+# Run a Lua script (script owns all setup and lifecycle)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --script scripts/example_c64_basic_readwrite.lua
+
+# Start C64 and load a .prg file via CLI (no script)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadPrg game.prg --runLoadedProgram
+
+# Start with debug adapter for VS Code, waiting for client
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
+
+# Start with debug adapter bound to all interfaces (use only on trusted networks)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-bind-address 0.0.0.0
+
+# Start with remote control server on port 6510 (loopback only)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --remote-port 6510
+
+# Start with remote control server accessible from the network (trusted networks only)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --remote-port 6510 --remote-bind-address 0.0.0.0
+```
+
 ## How to run locally for development
 
 For development system requirements, see [Development](../home/development.md).
@@ -72,7 +96,7 @@ For development system requirements, see [Development](../home/development.md).
 
 See [Avalonia Desktop app troubleshooting](avalonia-desktop-troubleshooting.md).
 
-### Visual Studio 2026 / 2022 (Windows)
+### Visual Studio 2026 (Windows)
 
 Open solution `dotnet-6502.sln`. Set project `Highbyte.DotNet6502.App.Avalonia.Desktop` as startup, and start with F5.
 

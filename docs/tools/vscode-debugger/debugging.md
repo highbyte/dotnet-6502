@@ -30,7 +30,7 @@ Combined with console logging:
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --console-log -l Debug
 ```
 
-For the full set of debug-adapter CLI flags, see [CLI arguments](../cli-arguments.md#debug-adapter).
+For the full set of debug-adapter CLI flags, see the **CLI arguments → Debug adapter** section on the [Avalonia Desktop](../../desktop-apps/avalonia-desktop.md#cli-arguments) or [Headless](../../desktop-apps/headless.md#cli-arguments) page.
 
 ## VSCode Configuration
 

@@ -21,10 +21,6 @@ See [Desktop apps installation](installation.md#headless) for package manager an
 - **C64** — requires ROM files (Kernal, Basic, Chargen). See [Systems / C64 / ROMs](../systems/c64/roms.md).
 - **Generic computer** — built-in example 6502 programs (Snake, Scroll, HelloWorld).
 
-### CLI arguments
-
-The headless app is driven entirely from the command line. See [Tools / CLI arguments](../tools/cli-arguments.md) for the full reference.
-
 ### Lua scripting
 
 The same Lua scripting API available in the Avalonia apps is fully supported here. Scripts are the primary way to control the emulator. Example scripts are included in the `scripts/` directory:
@@ -57,7 +53,13 @@ The headless app supports the [Debug Adapter Protocol (DAP)](https://microsoft.g
 
 The headless app can expose a TCP remote control endpoint that lets external processes drive the running emulator. See [Tools / Remote control](../tools/remote-control/overview.md).
 
-## Example usage
+## CLI arguments
+
+The headless app is driven entirely from the command line.
+
+--8<-- "cli-arguments-reference.md"
+
+### Examples
 
 Examples below use `dotnet-6502-headless` as installed via Homebrew or Scoop.
 
@@ -141,7 +143,7 @@ Edit `appsettings.json` in the app directory to configure ROM paths and scriptin
 
 For development system requirements, see [Development](../home/development.md).
 
-### Visual Studio 2026 / 2022 (Windows)
+### Visual Studio 2026 (Windows)
 
 Open solution `dotnet-6502.sln`. Set project `Highbyte.DotNet6502.App.Headless` as startup and start with F5.
 

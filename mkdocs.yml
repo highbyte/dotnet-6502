@@ -132,7 +132,6 @@ nav:
           - Skia: libraries/implementation/skia.md
   - Tools:
       - Overview: tools/overview.md
-      - CLI arguments: tools/cli-arguments.md
       - VSCode debugger extension:
           - Debugging: tools/vscode-debugger/debugging.md
           - Remote debugging: tools/vscode-debugger/remote-debugging.md

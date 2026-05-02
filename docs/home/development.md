@@ -15,7 +15,7 @@ Requirements and local development setup.
 
 - Develop in:
     - VSCode (Windows, Linux, Mac)
-    - Visual Studio 2026 / 2022 (Windows)
+    - Visual Studio 2026 (Windows)
     - Or other preferred editor.
 
 ## Tests
