@@ -2,7 +2,7 @@
 
 A Visual Studio Code extension for debugging 6502 assembly source and machine code programs using the `dotnet-6502` emulator from <https://github.com/highbyte/dotnet-6502>.
 
-> _In the `dotnet-6502` emulator there is also a built-in simpler [machine code monitor](https://github.com/highbyte/dotnet-6502/blob/master/doc/MONITOR.md) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than this VS Code extension._
+> _In the `dotnet-6502` emulator there is also a built-in simpler [machine code monitor](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/console-monitor/) in the emulator itself that can be activated with F12 (or pressing the Monitor button). It has less features than this VS Code extension._
 
 ## Installing the VSCode extension from the Marketplace
 
@@ -23,7 +23,7 @@ code --install-extension highbyte.dotnet-6502-debugger
 The debugger extension connects to a debugger adapter in the dotnet-6502 emulator Avalonia UI desktop app.
 
 Depenencies
-- Required: [**`dotnet-6502`**](https://github.com/highbyte/dotnet-6502/blob/master/doc/INSTALL_DESKTOP_APPS.md#install-via-package-manager) emulator Avalonia UI desktop app.
+- Required: [**`dotnet-6502`**](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/installation/#install-via-package-manager) emulator Avalonia UI desktop app.
 - Optional: [**`cc65`**](https://github.com/cc65/cc65) compiler/assembler toolchain for source debugging.
 
 > If a dependency is missing, the extension will detect it and offer to run the install command for you.

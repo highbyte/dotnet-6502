@@ -38,7 +38,7 @@ Full documentation lives at **<https://highbyte.github.io/dotnet-6502/docs/>** â
 
 | [Avalonia WebAssembly](https://highbyte.se/dotnet-6502/app2) | [Blazor WebAssembly](https://highbyte.se/dotnet-6502/app) |
 | ------------------------------------------------------------ | --------------------------------------------------------- |
-| <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="doc/Screenshots/AvaloniaBrowser_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma's Revenge"/></a> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/></a> |
+| <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="docs/assets/screenshots/AvaloniaBrowser_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma's Revenge"/></a> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="docs/assets/screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/></a> |
 
 ## Other apps and features
 
