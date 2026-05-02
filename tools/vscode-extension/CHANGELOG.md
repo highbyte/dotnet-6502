@@ -4,6 +4,9 @@ All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension wi
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-05-02
+Update documentation.
+
 ## [0.2.1] - 2026-04-30
 Fixes remote debugging so it works with source.
 
