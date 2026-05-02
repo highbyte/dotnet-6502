@@ -395,8 +395,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "prepackage": "npm run copy-icon",
-    "package": "vsce package",
-    "publish": "vsce publish"
+    "package": "vsce package --baseContentUrl https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension",
+    "publish": "vsce publish --baseContentUrl https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

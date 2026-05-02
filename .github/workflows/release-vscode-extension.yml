@@ -61,6 +61,6 @@ jobs:
 
       - name: Publish to VSCode Marketplace
         working-directory: tools/vscode-extension
-        run: npx vsce publish ${{ env.PRE_RELEASE }} --no-git-tag-version
+        run: npx vsce publish ${{ env.PRE_RELEASE }} --no-git-tag-version --baseContentUrl https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
