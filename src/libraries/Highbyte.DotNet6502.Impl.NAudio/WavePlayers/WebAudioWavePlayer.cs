@@ -14,7 +14,11 @@ public partial class NullWavePlayer : IWavePlayer
 
     public WaveFormat OutputWaveFormat => WaveFormat.CreateIeeeFloatWaveFormat(1, 1);
 
-    public event EventHandler<StoppedEventArgs> PlaybackStopped;
+    public event EventHandler<StoppedEventArgs> PlaybackStopped
+    {
+        add { }
+        remove { }
+    }
 
     public void Dispose() { }
 

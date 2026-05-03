@@ -116,9 +116,12 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
 
     protected override void OnScriptingEngineSet()
     {
-        // Drain any pending actions synchronously on this thread so top-level script
-        // side effects (e.g. emu.start()) complete before Program.cs moves on.
-        DrainPendingScriptActionsAsync().GetAwaiter().GetResult();
+        // Headless startup drains script actions explicitly from Program.cs.
+    }
+
+    internal async Task DrainStartupScriptActionsAsync()
+    {
+        await DrainPendingScriptActionsAsync().ConfigureAwait(false);
     }
 
     // --- Frame execution gating ---
@@ -177,7 +180,10 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
         }
     }
 
-    private async void UpdateTimerElapsed(object? sender, EventArgs e)
+    private void UpdateTimerElapsed(object? sender, EventArgs e)
+        => ObserveBackgroundTask(UpdateTimerElapsedAsync());
+
+    private async Task UpdateTimerElapsedAsync()
     {
         try
         {
@@ -187,6 +193,30 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception in update timer.");
+        }
+    }
+
+    private void ObserveBackgroundTask(Task task)
+    {
+        if (task.IsCompleted)
+        {
+            LogBackgroundTaskFailure(task);
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static (completedTask, state) => ((HeadlessHostApp)state!).LogBackgroundTaskFailure(completedTask),
+            this,
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private void LogBackgroundTaskFailure(Task task)
+    {
+        if (task.Exception is { } exception)
+        {
+            _logger.LogError(exception.GetBaseException(), "Unhandled exception in update timer.");
         }
     }
 

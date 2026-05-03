@@ -26,7 +26,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
     // --------------------
     // Injected variables
     // --------------------
-    private readonly ILogger _logger;
+    private new readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
     public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
@@ -60,7 +60,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     private SadConsoleInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
-    private InfoConsole _infoConsole;
+    private InfoConsole? _infoConsole;
     private const int MENU_POSITION_X = 0;
     private const int MENU_POSITION_Y = 0;
 
@@ -77,7 +77,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     private const int LOGS_UPDATE_EVERY_X_FRAME = 60 * 1;
     private int _logsFrameCount = 0;
-    private DrawImage _logoDrawImage;
+    private DrawImage? _logoDrawImage;
 
     /// <summary>
     /// Constructor
@@ -153,7 +153,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         // ----------
 
         var builder = new Builder()
-            .SetScreenSize(StartupScreenWidth, StartupScreenHeight)
+            .SetWindowSizeInCells(StartupScreenWidth, StartupScreenHeight)
             .ConfigureFonts(ConfigureFontsFromEmbeddedResources)
             .SetStartingScreen(CreateMainSadConsoleScreen)
             .IsStartingScreenFocused(false) // Let the object focused in the create method remain.
@@ -279,16 +279,56 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         if (_logsFrameCount >= LOGS_UPDATE_EVERY_X_FRAME)
         {
             _logsFrameCount = 0;
-            _infoConsole.UpdateLogs();
+            GetInfoConsoleOrThrow().UpdateLogs();
         }
     }
 
     // System-specific character and color transformation for SadConsole rendering
-    private Func<int, Color, Color, (int tranformedCharacter, Color transformedFgColor, Color transformedBgColor)>? GetTransformCharacterAndColor(ISystem system)
+    private Func<int, Color, Color, (int transformedCharacter, Color transformedFgColor, Color transformedBgColor)>? GetTransformCharacterAndColor(ISystem? system)
     {
-        if (CurrentSystemRunner!.System is C64 c64)
+        if (system is C64 c64)
             return new C64SadConsoleRenderTargetCustomization(c64).TransformCharacterAndColor;
         return null;
+    }
+
+    private EmulatorConsole GetEmulatorConsoleOrThrow()
+    {
+        return _sadConsoleEmulatorConsole ?? throw new DotNet6502Exception("SadConsole emulator console is not initialized.");
+    }
+
+    private ScreenObject GetSadConsoleScreenOrThrow()
+    {
+        return _sadConsoleScreen ?? throw new DotNet6502Exception("SadConsole screen is not initialized.");
+    }
+
+    private MenuConsole GetMenuConsoleOrThrow()
+    {
+        return _menuConsole ?? throw new DotNet6502Exception("SadConsole menu console is not initialized.");
+    }
+
+    private MonitorConsole GetMonitorConsoleOrThrow()
+    {
+        return _monitorConsole ?? throw new DotNet6502Exception("SadConsole monitor console is not initialized.");
+    }
+
+    private MonitorStatusConsole GetMonitorStatusConsoleOrThrow()
+    {
+        return _monitorStatusConsole ?? throw new DotNet6502Exception("SadConsole monitor status console is not initialized.");
+    }
+
+    private InfoConsole GetInfoConsoleOrThrow()
+    {
+        return _infoConsole ?? throw new DotNet6502Exception("SadConsole info console is not initialized.");
+    }
+
+    private DrawImage GetLogoDrawImageOrThrow()
+    {
+        return _logoDrawImage ?? throw new DotNet6502Exception("SadConsole logo image is not initialized.");
+    }
+
+    private ISystem GetCurrentRunningSystemOrThrow()
+    {
+        return CurrentRunningSystem ?? throw new DotNet6502Exception("No system is currently running.");
     }
 
     private IScreenObject CreateMainSadConsoleScreen(GameHost gameHost)
@@ -390,7 +430,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             {
                 // Common source and render targets, independent of emulated system and the host renderer
                 rtp.AddRenderTargetType<SadConsoleCommandTarget>(() => new SadConsoleCommandTarget(
-                    _sadConsoleEmulatorConsole,
+                    GetEmulatorConsoleOrThrow(),
                     offsetX: EmulatorConsole.USE_CONSOLE_BORDER ? 1 : 0,
                     offsetY: EmulatorConsole.USE_CONSOLE_BORDER ? 1 : 0,
                     transformCharacterAndColor: GetTransformCharacterAndColor(CurrentRunningSystem)));
@@ -431,7 +471,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             _sadConsoleScreen!.Children.Add(_systemMenuConsole);
         }
 
-        _infoConsole.ShowSelectedSystemInfoHelp();
+        GetInfoConsoleOrThrow().ShowSelectedSystemInfoHelp();
     }
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
@@ -442,8 +482,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             // Create emulator console
             if (_sadConsoleEmulatorConsole != null)
             {
-                if (_sadConsoleScreen.Children.Contains(_sadConsoleEmulatorConsole))
-                    _sadConsoleScreen.Children.Remove(_sadConsoleEmulatorConsole);
+                var sadConsoleScreen = GetSadConsoleScreenOrThrow();
+                if (sadConsoleScreen.Children.Contains(_sadConsoleEmulatorConsole))
+                    sadConsoleScreen.Children.Remove(_sadConsoleEmulatorConsole);
             }
 
             IFont font;
@@ -467,9 +508,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             }
             _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, CommonHostSystemConfig.DefaultFontSize, SadConsoleUISettings.CreateEmulatorConsoleDrawBoxBorderParameters(font.SolidGlyphIndex));
             _sadConsoleEmulatorConsole.UsePixelPositioning = true;
-            _sadConsoleEmulatorConsole.Position = new Point((_menuConsole!.Position.X * _menuConsole.Font.GlyphWidth) + (_menuConsole.Width * _menuConsole.Font.GlyphWidth), 0);
+            var menuConsole = GetMenuConsoleOrThrow();
+            _sadConsoleEmulatorConsole.Position = new Point((menuConsole.Position.X * menuConsole.Font.GlyphWidth) + (menuConsole.Width * menuConsole.Font.GlyphWidth), 0);
             _sadConsoleEmulatorConsole.IsFocused = true;
-            _sadConsoleScreen!.Children.Add(_sadConsoleEmulatorConsole);
+            GetSadConsoleScreenOrThrow().Children.Add(_sadConsoleEmulatorConsole);
 
             // Resize main window to fit menu, emulator, and other consoles
             Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
@@ -482,15 +524,16 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         // Init monitor for current system started if this system was not started before
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
         {
-            _monitorConsole.Init();
+            GetMonitorConsoleOrThrow().Init();
         }
 
         SetEmulatorConsoleFocus();
 
-        if (_infoConsole.IsVisible)
+        var infoConsole = GetInfoConsoleOrThrow();
+        if (infoConsole.IsVisible)
         {
             // Enable instrumentations if info console is visible
-            CurrentRunningSystem!.InstrumentationEnabled = true;
+            GetCurrentRunningSystemOrThrow().InstrumentationEnabled = true;
 
             if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
             {
@@ -503,10 +546,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
     public override void OnBeforeStop()
     {
         // Disable monitor if it is visible
-        if (_monitorConsole!.IsVisible)
+        if (GetMonitorConsoleOrThrow().IsVisible)
             DisableMonitor();
         // Clear stats in info console if it is visible (logs will still be shown)
-        if (_infoConsole.IsVisible)
+        if (GetInfoConsoleOrThrow().IsVisible)
             ClearInfoStats();
     }
     public override void OnAfterStop()
@@ -514,8 +557,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         // Remove the console containing the running system
         if (_sadConsoleEmulatorConsole != null)
         {
-            if (_sadConsoleScreen!.Children.Contains(_sadConsoleEmulatorConsole))
-                _sadConsoleScreen.Children.Remove(_sadConsoleEmulatorConsole);
+            var sadConsoleScreen = GetSadConsoleScreenOrThrow();
+            if (sadConsoleScreen.Children.Contains(_sadConsoleEmulatorConsole))
+                sadConsoleScreen.Children.Remove(_sadConsoleEmulatorConsole);
             _sadConsoleEmulatorConsole.Dispose();
             _sadConsoleEmulatorConsole = null;
         }
@@ -560,32 +604,34 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         shouldReceiveInput = false;
 
         // Don't update emulator state when monitor is enabled/visible
-        if (_monitorConsole.IsVisible)
+        if (GetMonitorConsoleOrThrow().IsVisible)
             return;
 
         shouldRun = true;
 
         // Only receive input to emulator if it has focus
-        if (_sadConsoleEmulatorConsole.IsFocused)
+        if (GetEmulatorConsoleOrThrow().IsFocused)
             shouldReceiveInput = true;
     }
 
     public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
     {
         // Push stats to info console
-        if (CurrentRunningSystem!.InstrumentationEnabled)
+        var currentRunningSystem = GetCurrentRunningSystemOrThrow();
+        if (currentRunningSystem.InstrumentationEnabled)
         {
+            var infoConsole = GetInfoConsoleOrThrow();
             _statsFrameCount++;
             if (_statsFrameCount >= STATS_UPDATE_EVERY_X_FRAME)
             {
                 _statsFrameCount = 0;
-                _infoConsole.UpdateStats();
+                infoConsole.UpdateStats();
             }
             _debugInfoFrameCount++;
             if (_debugInfoFrameCount >= DEBUGINFO_UPDATE_EVERY_X_FRAME)
             {
                 _debugInfoFrameCount = 0;
-                _infoConsole.UpdateSystemDebugInfo();
+                infoConsole.UpdateSystemDebugInfo();
             }
         }
 
@@ -625,9 +671,11 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     private int CalculateWindowWidthPixels()
     {
-        var menuConsoleWidthPixels = _menuConsole.WidthPixels;
+        var menuConsole = GetMenuConsoleOrThrow();
+        var infoConsole = GetInfoConsoleOrThrow();
+        var menuConsoleWidthPixels = menuConsole.WidthPixels;
         var emulatorConsoleWidthPixels = Math.Max((_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels : 0)
-                                            , (_infoConsole != null && _infoConsole.IsVisible ? _infoConsole.WidthPixels : 0));
+                                            , (infoConsole.IsVisible ? infoConsole.WidthPixels : 0));
         var monitorConsoleWidthPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.WidthPixels : 0);
         var widthPixels = menuConsoleWidthPixels + emulatorConsoleWidthPixels + monitorConsoleWidthPixels;
         return widthPixels;
@@ -635,9 +683,11 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     private int CalculateWindowHeightPixels()
     {
-        var menuConsoleHeightPixels = _menuConsole.HeightPixels + (_systemMenuConsole != null ? _systemMenuConsole.HeightPixels : 0);
-        var emulatorConsoleHeightPixels = (_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels + (_infoConsole.IsVisible ? _infoConsole.HeightPixels : 0) : 0);
-        var monitorConsoleHeightPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.HeightPixels + _monitorStatusConsole.HeightPixels : 0);
+        var menuConsole = GetMenuConsoleOrThrow();
+        var infoConsole = GetInfoConsoleOrThrow();
+        var menuConsoleHeightPixels = menuConsole.HeightPixels + (_systemMenuConsole != null ? _systemMenuConsole.HeightPixels : 0);
+        var emulatorConsoleHeightPixels = (_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels + (infoConsole.IsVisible ? infoConsole.HeightPixels : 0) : 0);
+        var monitorConsoleHeightPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.HeightPixels + GetMonitorStatusConsoleOrThrow().HeightPixels : 0);
 
         // Calculate Max of the variables above
         var heightPixels = new int[] { menuConsoleHeightPixels, emulatorConsoleHeightPixels, monitorConsoleHeightPixels }.Max();
@@ -650,7 +700,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
 
-        if (_monitorConsole!.IsVisible)
+        if (GetMonitorConsoleOrThrow().IsVisible)
         {
             DisableMonitor();
         }
@@ -662,21 +712,21 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     public void DisableMonitor()
     {
-        _monitorConsole.Disable();
-        _monitorStatusConsole.Disable();
+        GetMonitorConsoleOrThrow().Disable();
+        GetMonitorStatusConsoleOrThrow().Disable();
         OnMonitorStateChange(monitorEnabled: false);
     }
 
     public void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
-        _monitorConsole.Enable(execEvaluatorTriggerResult);
-        _monitorStatusConsole.Enable();
+        GetMonitorConsoleOrThrow().Enable(execEvaluatorTriggerResult);
+        GetMonitorStatusConsoleOrThrow().Enable();
         OnMonitorStateChange(monitorEnabled: true);
     }
 
     public void ToggleInfo()
     {
-        if (_infoConsole!.IsVisible)
+        if (GetInfoConsoleOrThrow().IsVisible)
         {
             DisableInfo();
         }
@@ -688,13 +738,16 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     public void DisableInfo()
     {
-        _infoConsole.Disable();
+        var infoConsole = GetInfoConsoleOrThrow();
+        infoConsole.Disable();
         if (CurrentRunningSystem != null)
             CurrentRunningSystem!.InstrumentationEnabled = false;
 
         // Enable logo when info console is disabled (as it shouldn't be covered by the info console)
-        if (!_sadConsoleScreen.SadComponents.Contains(_logoDrawImage))
-            _sadConsoleScreen.SadComponents.Add(_logoDrawImage);
+        var sadConsoleScreen = GetSadConsoleScreenOrThrow();
+        var logoDrawImage = GetLogoDrawImageOrThrow();
+        if (!sadConsoleScreen.SadComponents.Contains(logoDrawImage))
+            sadConsoleScreen.SadComponents.Add(logoDrawImage);
 
         // Resize main window to fit menu, emulator, monitor and other visible consoles
         Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
@@ -706,35 +759,40 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         if (EmulatorState != EmulatorState.Uninitialized)
             CurrentRunningSystem!.InstrumentationEnabled = true;
 
-        _infoConsole.Enable();
+        var infoConsole = GetInfoConsoleOrThrow();
+        var menuConsole = GetMenuConsoleOrThrow();
+        infoConsole.Enable();
         // Assume _sadConsoleEmulatorConsole has enabled pixel positioning
-        _infoConsole.UsePixelPositioning = true;
+        infoConsole.UsePixelPositioning = true;
         if (_sadConsoleEmulatorConsole != null && _sadConsoleEmulatorConsole.IsVisible)
         {
             //_infoConsole.Position = (_sadConsoleEmulatorConsole.Position.X, _sadConsoleEmulatorConsole.Position.Y + (_sadConsoleEmulatorConsole.Height * (int)(_sadConsoleEmulatorConsole.Font.GlyphHeight * _emulatorConfig.FontSizeScaleFactor)));
-            _infoConsole.Position = (_sadConsoleEmulatorConsole.Position.X, _sadConsoleEmulatorConsole.Position.Y + _sadConsoleEmulatorConsole.HeightPixels);
+            infoConsole.Position = (_sadConsoleEmulatorConsole.Position.X, _sadConsoleEmulatorConsole.Position.Y + _sadConsoleEmulatorConsole.HeightPixels);
         }
         else
         {
-            _infoConsole.Position = (_menuConsole.Position.X + _menuConsole.WidthPixels, _menuConsole.Position.Y);
+            infoConsole.Position = (menuConsole.Position.X + menuConsole.WidthPixels, menuConsole.Position.Y);
         }
 
-        if (_monitorConsole.IsVisible)
+        if (GetMonitorConsoleOrThrow().IsVisible)
             EnableMonitor(); // Re-enable to trigger calculation of monitor console position
 
         // Resize main window to fit menu, emulator, monitor and other visible consoles
         Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
 
         // Remove logo when info console is enabled (as it may partially cover the logo)
-        if (_sadConsoleScreen.SadComponents.Contains(_logoDrawImage))
-            _sadConsoleScreen.SadComponents.Remove(_logoDrawImage);
+        var sadConsoleScreen = GetSadConsoleScreenOrThrow();
+        var logoDrawImage = GetLogoDrawImageOrThrow();
+        if (sadConsoleScreen.SadComponents.Contains(logoDrawImage))
+            sadConsoleScreen.SadComponents.Remove(logoDrawImage);
 
         //OnStatsStateChange(statsEnabled: true);
     }
     public void ClearInfoStats()
     {
-        _infoConsole.ClearStats();
-        _infoConsole.ClearSystemDebugInfo();
+        var infoConsole = GetInfoConsoleOrThrow();
+        infoConsole.ClearStats();
+        infoConsole.ClearSystemDebugInfo();
     }
 
     public void SetVolumePercent(float volumePercent)

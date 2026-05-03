@@ -25,7 +25,7 @@ public static class CodeSuggestionConfigurator
                 _ => throw new NotImplementedException($"CodeSuggestionBackendType '{codeSuggestionBackendType}' is not implemented.")
             };
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             if (defaultToNoneIdConfigError)
                 codeSuggestion = new NoCodeSuggestion();

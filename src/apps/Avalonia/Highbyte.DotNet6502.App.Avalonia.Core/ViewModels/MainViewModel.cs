@@ -295,8 +295,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             if (_audioEnabled != value)
             {
                 this.RaiseAndSetIfChanged(ref _audioEnabled, value);
-                // Update the host app when the value changes from UI
-                _hostApp.SetAudioEnabled(value).Wait();
+                SafeAsyncHelper.Execute(() => _hostApp.SetAudioEnabled(value));
             }
         }
     }
@@ -680,7 +679,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
             .Select(config => config?.SystemConfig?.AudioEnabled ?? false)
-            .Subscribe(async enabled =>
+            .Subscribe(enabled =>
             {
                 if (_audioEnabled != enabled)
                 {
@@ -990,7 +989,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     public async Task InitializeAsync()
     {
-        await SetDefaultSystemSelection();
+        await SetDefaultSystemSelectionAsync();
     }
 
     private ISystemMenuContributor? ResolveMenuContributor()
@@ -1002,7 +1001,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         return null;
     }
 
-    private async Task SetDefaultSystemSelection()
+    private async Task SetDefaultSystemSelectionAsync()
     {
         if (HostApp == null)
             return;
@@ -1370,8 +1369,11 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private async Task UpdateRemoteClientIndicatorAsync(bool isConnected)
     {
-        _remoteClientIndicatorCts?.Cancel();
-        _remoteClientIndicatorCts?.Dispose();
+        if (_remoteClientIndicatorCts != null)
+        {
+            await _remoteClientIndicatorCts.CancelAsync();
+            _remoteClientIndicatorCts.Dispose();
+        }
 
         var cts = new System.Threading.CancellationTokenSource();
         _remoteClientIndicatorCts = cts;

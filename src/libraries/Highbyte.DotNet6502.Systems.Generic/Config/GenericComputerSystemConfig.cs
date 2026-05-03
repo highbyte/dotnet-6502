@@ -73,15 +73,21 @@ public class GenericComputerSystemConfig : ISystemConfig
         };
         return supportedRenderProviders;
     }
-    public void SetRenderProviderType(Type renderProviderType)
+    public void SetRenderProviderType(Type? renderProviderType)
     {
+        if (renderProviderType == null)
+        {
+            RenderProviderType = null;
+            return;
+        }
+
         var supportedRenderProviders = GetSupportedRenderProviderTypes();
         if (!supportedRenderProviders.Contains(renderProviderType))
             throw new DotNet6502Exception($"RenderProvider type {renderProviderType.FullName} is not supported.");
         RenderProviderType = renderProviderType;
     }
 
-    public void SetRenderTargetType(Type renderTargetType)
+    public void SetRenderTargetType(Type? renderTargetType)
     {
         RenderTargetType = renderTargetType;
 

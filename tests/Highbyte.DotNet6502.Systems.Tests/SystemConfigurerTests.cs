@@ -122,7 +122,7 @@ public class SystemConfigurerTests
         {
             return new List<Type> { typeof(NullRenderProvider) };
         }
-        public void SetRenderProviderType(Type renderProviderType)
+        public void SetRenderProviderType(Type? renderProviderType)
         {
             RenderProviderType = renderProviderType;
         }
@@ -162,7 +162,7 @@ public class SystemConfigurerTests
         {
             return new List<Type> { typeof(NullRenderProvider) };
         }
-        public void SetRenderProviderType(Type renderProviderType)
+        public void SetRenderProviderType(Type? renderProviderType)
         {
             RenderProviderType = renderProviderType;
         }

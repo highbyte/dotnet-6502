@@ -25,11 +25,15 @@ public class EmulatorViewModel : ViewModelBase
         {
             if (_hostApp.EmulatorState == EmulatorState.Running)
             {
+                var currentRunningSystem = _hostApp.CurrentRunningSystem;
+                if (currentRunningSystem == null)
+                    return;
+
                 // When the CurrentRunningSystem property changes (system started), trigger render configuration
                 var args = new RenderConfigurationEventArgs(
                     _hostApp.GetRenderCoordinator(),
                     _hostApp.GetRenderTarget<IAvaloniaBitmapRenderTarget>(),
-                    _hostApp.CurrentRunningSystem.Screen
+                    currentRunningSystem.Screen
                 );
                 RequestRenderConfiguration?.Invoke(this, args);
 

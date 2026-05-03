@@ -1,5 +1,6 @@
 ﻿@using Highbyte.DotNet6502.Systems
 @using Highbyte.DotNet6502.Systems.Generic;
+@using Highbyte.DotNet6502.App.WASM
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 @using Highbyte.DotNet6502.Utils;
 
@@ -118,7 +119,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        Parent.OnPause(new());
+        await Parent.OnPause(new());
 
         var prgBytes = await HttpClient!.GetByteArrayAsync(url);
         // Load file into memory, assume starting at address specified in two first bytes of .prg file

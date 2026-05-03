@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MessagePack" />
+    <PackageReference Include="MessagePack.Annotations" />
     <PackageReference Include="StreamJsonRpc" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>

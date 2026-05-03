@@ -1,6 +1,7 @@
 using Blazored.LocalStorage;
 using Blazored.Modal;
 using Blazored.Modal.Services;
+using Highbyte.DotNet6502.App.WASM;
 using Highbyte.DotNet6502.App.WASM.Emulator;
 using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 using Highbyte.DotNet6502.App.WASM.Emulator.Skia;
@@ -84,7 +85,7 @@ public partial class Index
         set
         {
             _emulatorConfig.CurrentDrawScale = value;
-            UpdateCanvasSize();
+            WasmTaskHelper.Observe(UpdateCanvasSize(), nameof(UpdateCanvasSize));
         }
     }
 
@@ -692,8 +693,8 @@ public partial class Index
         System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
 
         var fileBuffer = new byte[file.Size];
-        //var fileStream = e.File.OpenReadStream(file.Size);
-        await file.OpenReadStream().ReadAsync(fileBuffer);
+        await using var fileStream = file.OpenReadStream();
+        await fileStream.ReadExactlyAsync(fileBuffer);
         //var fileSize = fileBuffer.Length;
 
         _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);

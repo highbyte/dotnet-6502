@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
@@ -170,6 +171,32 @@ public class C64LegacyRenderTarget2 : ICustomRenderTarget<PayloadC64>, IDisposab
         return ValueTask.CompletedTask;
     }
 
+    [MemberNotNull(
+        nameof(_skiaPixelArrayBitmap_TextAndBitmap),
+        nameof(_skiaPixelArrayBitmap_Sprites),
+        nameof(_skiaPixelArrayBitmap_LineData),
+        nameof(_c64SkiaColors))]
+    [MemberNotNull(
+        nameof(_sKRuntimeEffect),
+        nameof(_sKRuntimeEffectUniforms),
+        nameof(_sKRuntimeEffectChildren),
+        nameof(_shaderPaint))]
+    [MemberNotNull(
+        nameof(_oneLineBorderPixels),
+        nameof(_oneCharLineBg0Pixels),
+        nameof(_bitmapEightPixelsBg0Map),
+        nameof(_bitmapEightPixelsBg1Map),
+        nameof(_bitmapEightPixelsBg2Map),
+        nameof(_bitmapEightPixelsBg3Map),
+        nameof(_bitmapEightPixelsMultiColorMap),
+        nameof(_bitmapEightHiresPixelsActual),
+        nameof(_bitmapEightMulticolorPixelsActual))]
+    [MemberNotNull(
+        nameof(_borderStat),
+        nameof(_textAndBitmapScreenStat),
+        nameof(_spritesStat),
+        nameof(_lineDataImageStat),
+        nameof(_drawCanvasWithShaderStat))]
     private void Init()
     {
         _c64SkiaColors = new C64SkiaColors(_c64.ColorMapName);
@@ -215,6 +242,11 @@ public class C64LegacyRenderTarget2 : ICustomRenderTarget<PayloadC64>, IDisposab
         _skiaPixelArrayBitmap_LineData.Free();
     }
 
+    [MemberNotNull(
+        nameof(_sKRuntimeEffect),
+        nameof(_sKRuntimeEffectUniforms),
+        nameof(_sKRuntimeEffectChildren),
+        nameof(_shaderPaint))]
     private void InitShader(C64 c64)
     {
         // --------------------
@@ -312,6 +344,9 @@ public class C64LegacyRenderTarget2 : ICustomRenderTarget<PayloadC64>, IDisposab
         }
     }
 
+    [MemberNotNull(
+        nameof(_skiaPixelArrayBitmap_TextAndBitmap),
+        nameof(_skiaPixelArrayBitmap_Sprites))]
     private void InitTextAndSpritesBitmap(C64 c64)
     {
         var vic2 = c64.Vic2;
@@ -328,6 +363,14 @@ public class C64LegacyRenderTarget2 : ICustomRenderTarget<PayloadC64>, IDisposab
         _skiaPixelArrayBitmap_Sprites = SkiaBitmapBackedByPixelArray.Create(width, height);
     }
 
+    [MemberNotNull(
+        nameof(_oneLineBorderPixels),
+        nameof(_oneCharLineBg0Pixels),
+        nameof(_bitmapEightPixelsBg0Map),
+        nameof(_bitmapEightPixelsBg1Map),
+        nameof(_bitmapEightPixelsBg2Map),
+        nameof(_bitmapEightPixelsBg3Map),
+        nameof(_bitmapEightPixelsMultiColorMap))]
     private void InitBitPatternToPixelMapsForTextDisplay(C64 c64)
     {
         // Create 8 precalculated pixels for each 8 bit pattern of text display, per possible background color.
@@ -426,6 +469,9 @@ public class C64LegacyRenderTarget2 : ICustomRenderTarget<PayloadC64>, IDisposab
         }
     }
 
+    [MemberNotNull(
+        nameof(_bitmapEightHiresPixelsActual),
+        nameof(_bitmapEightMulticolorPixelsActual))]
     private void InitBitPatternToPixelMapsForBitmapDisplay()
     {
         // Create 8 precalculated pixels for each 8 bit pattern of bitmap display, per possible background/foreground color combination.
@@ -500,6 +546,7 @@ public class C64LegacyRenderTarget2 : ICustomRenderTarget<PayloadC64>, IDisposab
         }
     }
 
+    [MemberNotNull(nameof(_skiaPixelArrayBitmap_LineData))]
     private void InitLineDataBitmap(C64 c64)
     {
         // Line data to send to shader in form of a texture

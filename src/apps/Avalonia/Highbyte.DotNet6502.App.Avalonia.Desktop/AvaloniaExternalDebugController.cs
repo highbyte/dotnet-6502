@@ -74,7 +74,7 @@ internal sealed class AvaloniaExternalDebugController : IExternalDebugController
         var debugLogWriter = new StreamWriter(debugLogFilePath, append: true) { AutoFlush = true };
         var startedAt = DateTime.Now;
         _logger?.LogInformation("Debug adapter server started at {StartedAt}", startedAt);
-        debugLogWriter.WriteLine($"Debug adapter server started at {startedAt}");
+        await debugLogWriter.WriteLineAsync($"Debug adapter server started at {startedAt}");
 
         _serverManager = new TcpDebugServerManager(debugLogWriter, _environment, _loggerFactory);
         _serverManager.StateChanged += OnServerManagerStateChanged;

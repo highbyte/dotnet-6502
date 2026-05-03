@@ -53,9 +53,12 @@ public class MenuConsole : ControlsConsole
         };
         selectSystemComboBox.SelectedItemChanged += async (s, e) =>
         {
-            await _sadConsoleHostApp.SelectSystem(selectSystemComboBox.SelectedItem.ToString());
+            if (selectSystemComboBox.SelectedItem is not string systemName)
+                return;
 
-            var selectSystemVariantComboBox = Controls["selectSystemVariantComboBox"] as ComboBox;
+            await _sadConsoleHostApp.SelectSystem(systemName);
+
+            var selectSystemVariantComboBox = GetControlOrThrow<ComboBox>("selectSystemVariantComboBox");
             selectSystemVariantComboBox.SetItems(_sadConsoleHostApp.AllSelectedSystemConfigurationVariants.ToArray());
             selectSystemVariantComboBox.SelectedIndex = 0;
             IsDirty = true;
@@ -71,9 +74,10 @@ public class MenuConsole : ControlsConsole
         };
         selectSystemVariantComboBox.SelectedItemChanged += async (s, e) =>
         {
-            if (selectSystemVariantComboBox.SelectedIndex >= 0)
+            if (selectSystemVariantComboBox.SelectedIndex >= 0
+                && selectSystemVariantComboBox.SelectedItem is string configurationVariant)
             {
-                await _sadConsoleHostApp.SelectSystemConfigurationVariant(selectSystemVariantComboBox.SelectedItem.ToString());
+                await _sadConsoleHostApp.SelectSystemConfigurationVariant(configurationVariant);
                 IsDirty = true;
             }
         };
@@ -160,7 +164,14 @@ public class MenuConsole : ControlsConsole
             Name = "selectFontSizeComboBox",
             SelectedItem = Sizes.One,   // Will be overritten by SetEmulatorFontSize when a system is selected
         };
-        selectFontSizeBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.CommonHostSystemConfig.DefaultFontSize = (IFont.Sizes)e.Item; IsDirty = true; };
+        selectFontSizeBox.SelectedItemChanged += (s, e) =>
+        {
+            if (e.Item is not IFont.Sizes fontSize)
+                return;
+
+            _sadConsoleHostApp.CommonHostSystemConfig.DefaultFontSize = fontSize;
+            IsDirty = true;
+        };
         Controls.Add(selectFontSizeBox);
 
         // Load Basic
@@ -208,14 +219,21 @@ public class MenuConsole : ControlsConsole
             {
                 try
                 {
-                    var fileName = window.SelectedFile.FullName;
+                    if (window.SelectedFile is not FileInfo selectedFile)
+                        return;
+
+                    var currentSystem = _sadConsoleHostApp.CurrentRunningSystem;
+                    if (currentSystem == null)
+                        return;
+
+                    var fileName = selectedFile.FullName;
                     BinaryLoader.Load(
-                        _sadConsoleHostApp.CurrentRunningSystem.Mem,
+                        currentSystem.Mem,
                         fileName,
                         out ushort loadedAtAddress,
                         out ushort fileLength);
 
-                    _sadConsoleHostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+                    currentSystem.CPU.PC = loadedAtAddress;
                 }
                 catch (Exception ex)
                 {
@@ -242,31 +260,31 @@ public class MenuConsole : ControlsConsole
 
     private async Task SetControlStates()
     {
-        var systemComboBox = Controls["selectSystemComboBox"];
+        var systemComboBox = GetControlOrThrow<ComboBox>("selectSystemComboBox");
         systemComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
-        var selectSystemVariantComboBox = Controls["selectSystemVariantComboBox"];
+        var selectSystemVariantComboBox = GetControlOrThrow<ComboBox>("selectSystemVariantComboBox");
         selectSystemVariantComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
-        var statusLabel = Controls["statusValueLabel"] as Label;
-        statusLabel!.DisplayText = _sadConsoleHostApp.EmulatorState.ToString();
+        var statusLabel = GetControlOrThrow<Label>("statusValueLabel");
+        statusLabel.DisplayText = _sadConsoleHostApp.EmulatorState.ToString();
 
-        var startButton = Controls["startButton"];
+        var startButton = GetControlOrThrow<Button>("startButton");
         startButton.IsEnabled = _sadConsoleHostApp.IsSystemConfigValid().Result && _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Running;
 
-        var pauseButton = Controls["pauseButton"];
+        var pauseButton = GetControlOrThrow<Button>("pauseButton");
         pauseButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
 
-        var stopButton = Controls["stopButton"];
+        var stopButton = GetControlOrThrow<Button>("stopButton");
         stopButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
-        var resetButton = Controls["resetButton"];
+        var resetButton = GetControlOrThrow<Button>("resetButton");
         resetButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
-        var monitorButton = Controls["monitorButton"];
+        var monitorButton = GetControlOrThrow<Button>("monitorButton");
         monitorButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
-        var audioEnabledCheckBox = Controls["audioEnabledCheckBox"] as CheckBox;
+        var audioEnabledCheckBox = GetControlOrThrow<CheckBox>("audioEnabledCheckBox");
         if (await _sadConsoleHostApp.IsAudioSupported())
         {
             audioEnabledCheckBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
@@ -278,16 +296,16 @@ public class MenuConsole : ControlsConsole
             audioEnabledCheckBox.IsSelected = false;
         }
 
-        var audioVolumeLabel = Controls["audioVolumeLabel"];
-        var audioVolumeSlider = Controls["audioVolumeSlider"];
+        var audioVolumeLabel = GetControlOrThrow<Label>("audioVolumeLabel");
+        var audioVolumeSlider = GetControlOrThrow<ScrollBar>("audioVolumeSlider");
         audioVolumeSlider.IsEnabled = await _sadConsoleHostApp.IsAudioSupported() && await _sadConsoleHostApp.IsAudioEnabled();
         audioVolumeSlider.IsVisible = audioVolumeSlider.IsEnabled;
         audioVolumeLabel.IsVisible = audioVolumeSlider.IsEnabled;
 
-        var selectFontSizeComboBox = Controls["selectFontSizeComboBox"];
+        var selectFontSizeComboBox = GetControlOrThrow<ComboBox>("selectFontSizeComboBox");
         selectFontSizeComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
-        var loadBinaryButton = Controls["loadBinaryButton"];
+        var loadBinaryButton = GetControlOrThrow<Button>("loadBinaryButton");
         loadBinaryButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
         if (_sadConsoleHostApp.SystemMenuConsole != null)
@@ -296,8 +314,13 @@ public class MenuConsole : ControlsConsole
 
     internal void SetEmulatorFontSize(IFont.Sizes defaultFontSize)
     {
-        var selectFontSizeComboBox = Controls["selectFontSizeComboBox"] as ComboBox;
+        var selectFontSizeComboBox = GetControlOrThrow<ComboBox>("selectFontSizeComboBox");
         selectFontSizeComboBox.SelectedItem = defaultFontSize;
         IsDirty = true;
+    }
+
+    private T GetControlOrThrow<T>(string name) where T : class
+    {
+        return Controls[name] as T ?? throw new InvalidOperationException($"Control '{name}' is not initialized.");
     }
 }

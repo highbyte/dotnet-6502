@@ -21,7 +21,11 @@ public sealed class AvaloniaInvalidateRenderLoop : IRenderLoop
     public RenderTriggerMode Mode => RenderTriggerMode.ManualInvalidation;
 
     /// Fired once per Avalonia frame; argument is a monotonically increasing host time.
-    public event EventHandler<TimeSpan>? FrameTick;
+    public event EventHandler<TimeSpan>? FrameTick
+    {
+        add { }
+        remove { }
+    }
 
     /// For host-driven loops 
     public void RequestRedraw()

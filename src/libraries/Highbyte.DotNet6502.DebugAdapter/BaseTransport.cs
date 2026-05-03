@@ -44,7 +44,7 @@ public abstract class BaseTransport : IDebugAdapterTransport
 
             if (!headers.ContainsKey("Content-Length"))
             {
-                _log.WriteLine($"[{_transportName} Transport] No Content-Length header, connection closed");
+                await _log.WriteLineAsync($"[{_transportName} Transport] No Content-Length header, connection closed");
                 Disconnected?.Invoke(this, EventArgs.Empty);
                 return null;
             }
@@ -59,7 +59,7 @@ public abstract class BaseTransport : IDebugAdapterTransport
                 var n = await _readStream.ReadAsync(buffer, bytesRead, contentLength - bytesRead);
                 if (n == 0)
                 {
-                    _log.WriteLine($"[{_transportName} Transport] Stream ended while reading body");
+                    await _log.WriteLineAsync($"[{_transportName} Transport] Stream ended while reading body");
                     Disconnected?.Invoke(this, EventArgs.Empty);
                     return null;
                 }
@@ -67,15 +67,15 @@ public abstract class BaseTransport : IDebugAdapterTransport
             }
 
             var json = Encoding.UTF8.GetString(buffer);
-            _log.WriteLine($"[{_transportName} Transport] Received: {json}");
-            _log.Flush();
+            await _log.WriteLineAsync($"[{_transportName} Transport] Received: {json}");
+            await _log.FlushAsync();
 
             return JsonSerializer.Deserialize<JsonObject>(json);
         }
         catch (Exception ex)
         {
-            _log.WriteLine($"[{_transportName} Transport] Error reading message: {ex.Message}");
-            _log.Flush();
+            await _log.WriteLineAsync($"[{_transportName} Transport] Error reading message: {ex.Message}");
+            await _log.FlushAsync();
             Disconnected?.Invoke(this, EventArgs.Empty);
             return null;
         }
@@ -95,13 +95,13 @@ public abstract class BaseTransport : IDebugAdapterTransport
             await _writeStream.WriteAsync(bytes, 0, bytes.Length);
             await _writeStream.FlushAsync();
 
-            _log.WriteLine($"[{_transportName} Transport] Sent: {json}");
-            _log.Flush();
+            await _log.WriteLineAsync($"[{_transportName} Transport] Sent: {json}");
+            await _log.FlushAsync();
         }
         catch (Exception ex)
         {
-            _log.WriteLine($"[{_transportName} Transport] Error sending message: {ex.Message}");
-            _log.Flush();
+            await _log.WriteLineAsync($"[{_transportName} Transport] Error sending message: {ex.Message}");
+            await _log.FlushAsync();
             Disconnected?.Invoke(this, EventArgs.Empty);
         }
     }

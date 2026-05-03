@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
@@ -18,7 +19,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private uint TransparentColor { get; }
     private bool FlipY { get; }
 
-    protected string StatsCategory { get; }
+    private string StatsCategory { get; } = string.Empty;
     public Instrumentations Instrumentations { get; } = new();
     private ElapsedMillisecondsTimedStatSystem _spritesStat;
     private ElapsedMillisecondsTimedStatSystem _renderArraysStat;
@@ -141,6 +142,14 @@ public sealed class Vic2RasterizerUintPixelGenerator
         Init();
     }
 
+    [MemberNotNull(
+        nameof(_c64ToRenderColorMap),
+        nameof(_spritesStat),
+        nameof(_renderArraysStat),
+        nameof(_oneLineSameColorPixels),
+        nameof(_eightPixelsOneColorAndBackground),
+        nameof(_eightPixelsTwoColors),
+        nameof(_eightPixelsThreeColorsAndBackground))]
     private void Init()
     {
         _c64ToRenderColorMap = new();
@@ -312,6 +321,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var height = vic2Screen.VisibleHeight;
     }
 
+    [MemberNotNull(
+        nameof(_oneLineSameColorPixels),
+        nameof(_eightPixelsOneColorAndBackground),
+        nameof(_eightPixelsTwoColors),
+        nameof(_eightPixelsThreeColorsAndBackground))]
     private void InitBitPatternToPixelMaps(C64 c64)
     {
         // Create 8 precalculated pixels (with colors to be used in the shader) for each 8 bit pattern suited for C64 normal color or multicolor text/bitmap.

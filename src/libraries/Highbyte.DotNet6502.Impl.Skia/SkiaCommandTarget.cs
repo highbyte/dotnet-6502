@@ -21,14 +21,15 @@ public sealed class SkiaCommandTarget : ICommandTarget, IDisposable
     private readonly int _cellHeight;
 
     private readonly SKPaint _fillPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill };
-    private readonly SKPaint _textPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill, LcdRenderText = true, SubpixelText = true };
+    private readonly SKPaint _textPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill };
+    private readonly SKFont _textFont = new() { Edging = SKFontEdging.SubpixelAntialias, Subpixel = true };
     private readonly SKTypeface _typeFace;
     //private readonly SKPaintMaps _skPaintMaps;
 
     // Color caches to avoid repeated SKColor allocations
     private static readonly ConcurrentDictionary<uint, SKColor> _argbColorCache = new();
     private static readonly ConcurrentDictionary<Color, SKColor> _systemColorCache = new();
-    private Func<byte, string> _glyphToUnicodeMapper;
+    private Func<byte, string>? _glyphToUnicodeMapper;
     private const int MaxColorCacheItemSize = 1024; // Prevent unlimited memory growth
 
     public string Name => "SkiaCommandTarget";
@@ -48,10 +49,9 @@ public sealed class SkiaCommandTarget : ICommandTarget, IDisposable
         _cellWidth = cellWidth;
         _cellHeight = cellHeight;
 
-        if (_typeFace == null)
-            _typeFace = LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
-        _textPaint.Typeface = _typeFace;
-        _textPaint.TextSize = fontSize;
+        _typeFace = typeface ?? LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
+        _textFont.Typeface = _typeFace;
+        _textFont.Size = fontSize;
 
         //_skPaintMaps = new SKPaintMaps(
         //    textSize: (int)fontSize,
@@ -145,7 +145,7 @@ public sealed class SkiaCommandTarget : ICommandTarget, IDisposable
             canvas.DrawRect(px, py, _cellWidth, _cellHeight, _fillPaint);
             // Draw character
             //canvas.DrawText(character, x, y + (_cellWidth - 2), _textPaint);
-            canvas.DrawText(text, px, py + _cellWidth, _textPaint);
+            canvas.DrawText(text, px, py + _cellWidth, SKTextAlign.Left, _textFont, _textPaint);
             canvas.Restore();
         }
         else
@@ -235,6 +235,7 @@ public sealed class SkiaCommandTarget : ICommandTarget, IDisposable
     {
         _fillPaint.Dispose();
         _textPaint.Dispose();
+        _textFont.Dispose();
         _typeFace.Dispose();
     }
 

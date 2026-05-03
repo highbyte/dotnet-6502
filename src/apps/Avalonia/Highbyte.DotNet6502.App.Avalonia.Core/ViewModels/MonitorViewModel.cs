@@ -34,11 +34,11 @@ public class MonitorViewModel : ViewModelBase
 
         // Initialize ReactiveUI commands
         SendCommand = ReactiveCommandHelper.CreateSafeCommand(
-            ExecuteSend,
+            ExecuteSendAsync,
             canExecute: Observable.Return(true),
             outputScheduler: RxSchedulers.MainThreadScheduler);
         CloseCommand = ReactiveCommandHelper.CreateSafeCommand(
-            ExecuteClose,
+            ExecuteCloseAsync,
             canExecute: Observable.Return(true),
             outputScheduler: RxSchedulers.MainThreadScheduler);
     }
@@ -58,12 +58,12 @@ public class MonitorViewModel : ViewModelBase
 
     public bool IsMonitorVisible => _monitor.IsVisible;
 
-    private async Task ExecuteSend()
+    private async Task ExecuteSendAsync()
     {
         Submit();
     }
 
-    private async Task ExecuteClose()
+    private async Task ExecuteCloseAsync()
     {
         // Disable the monitor directly - AvaloniaMonitor will raise PropertyChanged
         _monitor.Disable();

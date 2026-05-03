@@ -34,7 +34,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// </summary>
 public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp, IRemotableHostApp
 {
-    private readonly ILogger _logger;
+    private new readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
     private readonly ILoggerFactory _loggerFactory;
     private readonly DotNet6502InMemLogStore _logStore;
@@ -45,7 +45,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
-    private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
 
     private readonly SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> _systemList;
@@ -53,7 +52,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
-    internal IScriptingEngine ScriptingEngine => base.ScriptingEngine;
+    internal new IScriptingEngine ScriptingEngine => base.ScriptingEngine;
 
     private PeriodicAsyncTimer? _updateTimer;
 
@@ -118,7 +117,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _debugAdapter.OnDebuggerResumed = null;
         }
         _debugAdapter = null;
-        CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+        if (CurrentSystemRunner != null)
+        {
+            if (_originalBreakpointEvaluator != null)
+                CurrentSystemRunner.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+            else
+                CurrentSystemRunner.ClearCustomExecEvaluator();
+        }
         IsExternalDebuggerAttached = false;
     }
 
@@ -205,7 +210,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;
         _emulatorConfig.CurrentDrawScale = _emulatorConfig.DefaultDrawScale;
-        _defaultAudioEnabled = true;
         _defaultAudioVolumePercent = 20.0f;
         _systemList = systemList;
         _wavePlayerFactory = new WavePlayerFactory(_loggerFactory, _emulatorConfig);
@@ -254,7 +258,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         OnPropertyChanged(nameof(SelectedSystemName));
         OnPropertyChanged(nameof(CurrentHostSystemConfig));
 
-        ValidateConfigAsync();
+        SafeAsyncHelper.Execute(ValidateConfigAsync);
         base.OnAfterSelectedSystemChanged();
     }
 
@@ -593,7 +597,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
     }
 
-    private async void UpdateTimerElapsed(object? sender, EventArgs e)
+    private void UpdateTimerElapsed(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(UpdateTimerElapsedAsync);
+
+    private async Task UpdateTimerElapsedAsync()
     {
         RunEmulatorOneFrame();
         await DrainPendingScriptActionsAsync();
@@ -703,7 +710,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
                 // Remember existing volume setting
                 masterVolumePercent = _audioHandlerContext == NAudioAudioHandlerContext.SilentAudioHandlerContext ? _defaultAudioVolumePercent : _audioHandlerContext.MasterVolumePercent; 
                 _audioHandlerContext.Cleanup();
-                _audioHandlerContext = null;
+                _audioHandlerContext = default!;
             }
             else
             {
@@ -811,7 +818,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         KeyUpEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
     }
 
-    internal async Task PersistEmulatorConfig()
+    internal async Task PersistEmulatorConfigAsync()
     {
         if (_saveCustomConfigString == null)
             return;
@@ -820,7 +827,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         await _saveCustomConfigString(configSectionName, json, null);
     }
 
-    internal async Task PersistConfigString(string configSectionName, string json)
+    internal async Task PersistConfigStringAsync(string configSectionName, string json)
     {
         if (_saveCustomConfigString == null)
             return;
@@ -829,7 +836,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         await _saveCustomConfigString(configSectionName, json, null);
     }
 
-    internal async Task PersistConfigSection(string configSectionName, IConfigurationSection configSection)
+    internal async Task PersistConfigSectionAsync(string configSectionName, IConfigurationSection configSection)
     {
         if (_saveCustomConfigSection == null)
             return;

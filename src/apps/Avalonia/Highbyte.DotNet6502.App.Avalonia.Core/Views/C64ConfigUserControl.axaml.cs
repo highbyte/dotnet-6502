@@ -82,11 +82,11 @@ public partial class C64ConfigUserControl : UserControl
     private void OnRomLicenseAcknowledgementRequested(object? sender, RomLicenseAcknowledgementEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {
-            var result = await ShowRomLicenseOverlay();
+            var result = await ShowRomLicenseOverlayAsync();
             e.SetResult(result);
         });
 
-    private async Task<bool> ShowRomLicenseOverlay()
+    private async Task<bool> ShowRomLicenseOverlayAsync()
     {
         var tcs = new TaskCompletionSource<bool>();
 
@@ -127,13 +127,7 @@ public partial class C64ConfigUserControl : UserControl
             BorderThickness = new Thickness(0),
             Cursor = new Cursor(StandardCursorType.Hand)
         };
-        urlButton.Click += (_, _) =>
-        {
-            if (TopLevel.GetTopLevel(this) is { } tl)
-            {
-                tl.Launcher.LaunchUriAsync(new Uri(C64SystemConfig.DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL));
-            }
-        };
+        urlButton.Click += (_, _) => SafeAsyncHelper.Execute(() => LaunchUriIfAvailableAsync(C64SystemConfig.DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL));
 
         var dialogContent = new Border
         {
@@ -287,7 +281,10 @@ public partial class C64ConfigUserControl : UserControl
         }
     }
 
-    private async void LoadRoms_Click(object? sender, RoutedEventArgs e)
+    private void LoadRoms_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(LoadRomsAsync);
+
+    private async Task LoadRomsAsync()
     {
         if (TopLevel.GetTopLevel(this)?.StorageProvider == null)
             return;
@@ -329,19 +326,39 @@ public partial class C64ConfigUserControl : UserControl
 
             if (romDataList.Count > 0)
             {
-                await ViewModel.LoadRomsFromDataAsync(romDataList);
+                var viewModel = ViewModel;
+                if (viewModel != null)
+                {
+                    await viewModel.LoadRomsFromDataAsync(romDataList);
+                }
             }
         }
     }
 
     private void OpenAIHelpUrl_Click(object? sender, RoutedEventArgs e)
-    {
-        if (ViewModel == null)
-            return;
+        => SafeAsyncHelper.Execute(OpenAIHelpUrlAsync);
 
-        if (TopLevel.GetTopLevel(this) is { } tl)
+    private Task OpenAIHelpUrlAsync()
+    {
+        var viewModel = ViewModel;
+        if (viewModel == null)
+            return Task.CompletedTask;
+
+        if (TopLevel.GetTopLevel(this) is { Launcher: { } launcher })
         {
-            tl.Launcher.LaunchUriAsync(new Uri(ViewModel.AIHelpUrl));
+            return launcher.LaunchUriAsync(new Uri(viewModel.AIHelpUrl));
         }
+
+        return Task.CompletedTask;
+    }
+
+    private Task LaunchUriIfAvailableAsync(string uri)
+    {
+        if (TopLevel.GetTopLevel(this) is { Launcher: { } launcher })
+        {
+            return launcher.LaunchUriAsync(new Uri(uri));
+        }
+
+        return Task.CompletedTask;
     }
 }

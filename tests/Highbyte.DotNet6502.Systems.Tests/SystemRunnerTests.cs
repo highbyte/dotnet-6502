@@ -176,8 +176,7 @@ public class TestSystem : ISystem
         return new ExecEvaluatorTriggerResult();
     }
 
-    private IRenderProvider? _renderProvider;
-    public IRenderProvider? RenderProvider => _renderProvider;
+    public IRenderProvider? RenderProvider => null;
     public List<IRenderProvider> RenderProviders { get; } = new();
 }
 
@@ -210,8 +209,7 @@ public class TestSystem2 : ISystem
         return new ExecEvaluatorTriggerResult();
     }
 
-    private IRenderProvider? _renderProvider;
-    public IRenderProvider? RenderProvider => _renderProvider;
+    public IRenderProvider? RenderProvider => null;
     public List<IRenderProvider> RenderProviders { get; } = new();
 }
 

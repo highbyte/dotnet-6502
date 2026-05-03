@@ -10,7 +10,7 @@ public static class GenericComputerExampleConfigs
         var exampleConfig = GetExampleConfigClone(exampleName);
         if (!systemConfig.ExamplePrograms.ContainsKey(exampleName))
             throw new ArgumentException($"No example program with name '{exampleName}' exists in system config.");
-        exampleConfig.ProgramBinaryFile = systemConfig.ExamplePrograms[exampleName];
+        exampleConfig.ProgramBinaryFile = systemConfig.ExamplePrograms[exampleName] ?? string.Empty;
         exampleConfig.RenderProviderType = systemConfig.RenderProviderType;
         return exampleConfig;
     }

@@ -58,8 +58,15 @@ public class C64SystemConfig : ISystemConfig
         return supportedRenderProviders;
     }
 
-    public void SetRenderProviderType(Type renderProviderType)
+    public void SetRenderProviderType(Type? renderProviderType)
     {
+        if (renderProviderType == null)
+        {
+            RenderProviderType = null;
+            _isDirty = true;
+            return;
+        }
+
         var supportedRenderProviders = GetSupportedRenderProviderTypes();
         if (!supportedRenderProviders.Contains(renderProviderType))
             throw new DotNet6502Exception($"RenderProvider type {renderProviderType.FullName} is not supported.");
@@ -68,7 +75,7 @@ public class C64SystemConfig : ISystemConfig
         _isDirty = true;
     }
 
-    public void SetRenderTargetType(Type renderTargetType)
+    public void SetRenderTargetType(Type? renderTargetType)
     {
         RenderTargetType = renderTargetType;
 

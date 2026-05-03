@@ -34,7 +34,7 @@ public static class MoonSharpScriptingConfigurator
         if (suppressConfigScripts)
         {
             logger.LogInformation("[Scripting] Suppressing scripts from configuration (automated startup mode).");
-            config.ScriptDirectory = null;
+            config.ScriptDirectory = string.Empty;
         }
 
         // Apply CLI overrides

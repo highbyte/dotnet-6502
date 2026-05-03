@@ -74,7 +74,7 @@ public abstract class EmulatorDisplayControlBase : Control
         _shouldEmitEmulationFrame = shouldEmitEmulationFrame;
     }
 
-    public override async void Render(DrawingContext context)
+    public override void Render(DrawingContext context)
     {
         if (_shouldEmitEmulationFrame())
             OnRender(context);

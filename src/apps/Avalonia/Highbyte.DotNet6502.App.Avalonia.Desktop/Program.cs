@@ -315,11 +315,14 @@ internal sealed partial class Program
             WriteBootstrapLog($"Starting TCP remote control server on {effectiveBindAddress}:{remotePort.Value}.");
             try
             {
-                Task.Run(async () => await remoteController.StartAsync(remotePort.Value, effectiveBindAddress)).Wait();
+                // Keep Avalonia startup on the original STA thread; awaiting here can resume Main on an MTA thread.
+#pragma warning disable VSTHRD002
+                remoteController.StartAsync(remotePort.Value, effectiveBindAddress).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
             }
-            catch (AggregateException aex) when (aex.InnerException is ArgumentException iae)
+            catch (ArgumentException ex)
             {
-                WriteBootstrapLog($"Failed to start remote control server: {iae.Message}", LogLevel.Error);
+                WriteBootstrapLog($"Failed to start remote control server: {ex.Message}", LogLevel.Error);
                 return 1;
             }
         }
@@ -334,11 +337,13 @@ internal sealed partial class Program
             // Start listening immediately — the adapter handles connecting before a system is running.
             try
             {
-                Task.Run(async () => await debugController.StartAsync(debugPort, effectiveDebugBindAddress)).Wait();
+#pragma warning disable VSTHRD002
+                debugController.StartAsync(debugPort, effectiveDebugBindAddress).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
             }
-            catch (AggregateException aex) when (aex.InnerException is ArgumentException iae)
+            catch (ArgumentException ex)
             {
-                WriteBootstrapLog($"Failed to start debug adapter server: {iae.Message}", LogLevel.Error);
+                WriteBootstrapLog($"Failed to start debug adapter server: {ex.Message}", LogLevel.Error);
                 return 1;
             }
 
@@ -381,15 +386,12 @@ internal sealed partial class Program
                 var startupLogger = loggerFactory.CreateLogger(nameof(Program));
 
                 // The App object is created lazily by Avalonia during StartWithClassicDesktopLifetime,
-                // so we need App.Current to exist before we can await WhenHostAppReadyAsync.
-                startupLogger.LogInformation("Waiting for Avalonia App instance...");
-                while (Core.App.Current == null)
+                // so poll until both the App and HostApp instances have been initialized.
+                startupLogger.LogInformation("Waiting for Avalonia HostApp initialization...");
+                while (Core.App.Current is not { IsHostAppReady: true })
                     await Task.Delay(10);
 
-                // Await proper readiness — the TCS guarantees all writes made before TrySetResult
-                // (including full HostApp construction) are visible to the continuation here.
-                startupLogger.LogInformation("Awaiting HostApp initialization...");
-                var hostApp = await Core.App.WhenHostAppReadyAsync.ConfigureAwait(false);
+                var hostApp = Core.App.Current.HostApp;
                 startupLogger.LogInformation("HostApp initialized.");
 
                 await AutomatedStartupHandler.ExecuteAsync(

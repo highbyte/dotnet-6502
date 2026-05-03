@@ -286,3 +286,14 @@ dotnet_diagnostic.IDE0161.severity = warning
 
 # CA1724: Type names should not match namespaces
 #dotnet_diagnostic.CA1724.severity = none
+
+# Avalonia XAML roots below are always instantiated from code with DI-backed constructors,
+# so runtime XAML loading is intentionally unreachable for them.
+[src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/App.axaml]
+avalonia_xaml_diagnostic.AVLN3001.severity = none
+
+[src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/Views/ErrorUserControl.axaml]
+avalonia_xaml_diagnostic.AVLN3001.severity = none
+
+[src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/Views/MonitorUserControl.axaml]
+avalonia_xaml_diagnostic.AVLN3001.severity = none

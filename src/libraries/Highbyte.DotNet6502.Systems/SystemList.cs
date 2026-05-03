@@ -12,7 +12,7 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
     private Func<TAudioHandlerContext>? _getAudioHandlerContext;
 
     public HashSet<string> Systems = new();
-    private RenderTargetProvider _renderTargetProvider;
+    private RenderTargetProvider? _renderTargetProvider;
     private readonly Dictionary<string, ISystemConfigurer<TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
 
     private const string DEFAULT_CONFIGURATION_VARIANT = "DEFAULT";
@@ -211,11 +211,13 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
     public async Task ApplySupportedRenderTargetToSystemConfig(string systemName)
     {
         var hostSystemConfig = await GetHostSystemConfig(systemName);
+        var renderTargetProvider = _renderTargetProvider
+            ?? throw new DotNet6502Exception("RenderTargetProvider has not been set. Call SetContext first.");
 
         // Make sure the current selected render provider is one that is supported by the host app.             
         var systemConfig = hostSystemConfig.SystemConfig;
         var systemRenderProviderTypes = systemConfig.GetSupportedRenderProviderTypes();
-        var availableSystemRenderProviders = _renderTargetProvider.GetCompatibleConcreteRenderProviderTypes(systemRenderProviderTypes ?? new List<Type>());
+        var availableSystemRenderProviders = renderTargetProvider.GetCompatibleConcreteRenderProviderTypes(systemRenderProviderTypes ?? new List<Type>());
         if (availableSystemRenderProviders.Count == 0)
             throw new DotNet6502Exception($"No compatible render provider is available for system {systemName}. Supported render providers: {string.Join(", ", systemRenderProviderTypes?.Select(t => t.Name) ?? new List<string>())}");
         systemConfig.SetRenderProviderType(availableSystemRenderProviders.First());

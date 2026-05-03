@@ -53,6 +53,8 @@ public partial class App : Application
     /// </summary>
     public IDebuggableHostApp HostApp => _hostApp;
 
+    public bool IsHostAppReady => _hostApp != null;
+
     /// <summary>
     /// Runtime controller for the external TCP debug server.
     /// Non-null only on Desktop; null on Browser (where TCP is unavailable).
@@ -68,7 +70,7 @@ public partial class App : Application
     /// <summary>
     /// Static reference to the current App instance (for debug adapter integration).
     /// </summary>
-    public static App? Current { get; private set; }
+    public new static App? Current { get; private set; }
 
     /// <summary>
     /// Completes when <see cref="HostApp"/> has been fully initialized and is ready for use.
@@ -452,7 +454,7 @@ public partial class App : Application
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    await ShowErrorOverlay(exception, title);
+                    await ShowErrorOverlayAsync(exception, title);
                 });
             }
             catch (Exception ex)
@@ -462,7 +464,7 @@ public partial class App : Application
         });
     }
 
-    private async Task ShowErrorOverlay(Exception exception, string title)
+    private async Task ShowErrorOverlayAsync(Exception exception, string title)
     {
         // Prevent multiple overlays from being shown at the same time
         if (_currentErrorOverlay != null)

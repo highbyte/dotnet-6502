@@ -1,5 +1,8 @@
 using System;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
@@ -15,23 +18,82 @@ internal static class SafeAsyncHelper
     /// In WASM, exceptions are forwarded to the global handler to prevent runtime termination.
     /// On desktop, exceptions propagate normally.
     /// </summary>
-    internal static async void Execute(Func<Task> asyncAction)
+    internal static void Execute(Func<Task> asyncAction)
+    {
+        try
+        {
+            Observe(asyncAction());
+        }
+        catch (Exception ex)
+        {
+            HandleException(ex);
+        }
+    }
+
+    internal static void Observe<T>(IObservable<T> observable)
+    {
+        try
+        {
+            observable.Subscribe(NoopObserver<T>.Instance);
+        }
+        catch (Exception ex)
+        {
+            HandleException(ex);
+        }
+    }
+
+    private static void Observe(Task task)
+    {
+        if (task.IsCompleted)
+        {
+            HandleCompletion(task);
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static completedTask => HandleCompletion(completedTask),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static void HandleCompletion(Task task)
+    {
+        if (task.IsCompletedSuccessfully || task.IsCanceled)
+            return;
+
+        if (task.Exception is not { } aggregateException)
+            return;
+
+        HandleException(aggregateException.GetBaseException());
+    }
+
+    private static void HandleException(Exception exception)
     {
         if (PlatformDetection.IsRunningInWebAssembly())
         {
-            try
-            {
-                await asyncAction();
-            }
-            catch (Exception ex)
-            {
-                App.WasmExceptionHandler?.Invoke(ex);
-            }
+            App.WasmExceptionHandler?.Invoke(exception);
+            return;
         }
-        else
+
+        Dispatcher.UIThread.Post(() => ExceptionDispatchInfo.Capture(exception).Throw());
+    }
+
+    private sealed class NoopObserver<T> : IObserver<T>
+    {
+        internal static readonly NoopObserver<T> Instance = new();
+
+        public void OnCompleted()
         {
-            // On desktop, let exceptions propagate to Dispatcher.UIThread.UnhandledException
-            await asyncAction();
+        }
+
+        public void OnError(Exception error)
+        {
+            HandleException(error);
+        }
+
+        public void OnNext(T value)
+        {
         }
     }
 }

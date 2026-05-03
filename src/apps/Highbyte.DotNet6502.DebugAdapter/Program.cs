@@ -13,7 +13,7 @@ class Program
         using var log = new StreamWriter(logFile, append: true);
         log.AutoFlush = true;
 
-        log.WriteLine($"[{DateTime.Now:HH:mm:ss}] Debug adapter starting...");
+        await log.WriteLineAsync($"[{DateTime.Now:HH:mm:ss}] Debug adapter starting...");
 
         try
         {
@@ -28,25 +28,25 @@ class Program
             var adapter = new DebugAdapterLogic(protocol, log, system, builtInExecution: true);
             adapter.OnExit += (terminateDebuggee) => _shouldExit = true;
 
-            log.WriteLine("[Main] Protocol initialized, entering message loop...");
+            await log.WriteLineAsync("[Main] Protocol initialized, entering message loop...");
 
             while (!_shouldExit)
             {
                 var message = await protocol.ReadMessageAsync();
                 if (message == null)
                 {
-                    log.WriteLine("[Main] Received null message, exiting");
+                    await log.WriteLineAsync("[Main] Received null message, exiting");
                     break;
                 }
 
                 await adapter.HandleMessageAsync(message);
             }
 
-            log.WriteLine("[Main] Exiting normally");
+            await log.WriteLineAsync("[Main] Exiting normally");
         }
         catch (Exception ex)
         {
-            log.WriteLine($"[Main] EXCEPTION: {ex}");
+            await log.WriteLineAsync($"[Main] EXCEPTION: {ex}");
         }
     }
 }

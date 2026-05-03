@@ -52,7 +52,7 @@
                                 AutomationProperties.AutomationId="{Binding Name, StringFormat='RomFileTextBox.{0}'}"
                                 AutomationProperties.Name="{Binding Name, StringFormat='{}{0} ROM file name'}"
                                 Text="{Binding RomFile, Mode=TwoWay}"
-                                Watermark="File name"
+                                PlaceholderText="File name"
                                 Classes="field-aligned"/>
                     </Grid>
                     </StackPanel>
@@ -71,7 +71,7 @@
                             AutomationProperties.AutomationId="RomDirectoryTextBox"
                             AutomationProperties.Name="ROM directory"
                             Text="{Binding RomDirectory}"
-                            Watermark="Directory path"
+                            PlaceholderText="Directory path"
                             Classes="field-aligned"/>
                 </Grid>
             </StackPanel>
@@ -266,7 +266,7 @@
                                  AutomationProperties.AutomationId="CorsProxyTextBox"
                                  AutomationProperties.Name="CORS proxy URL"
                                  Text="{Binding CorsProxyOverrideURL, Mode=TwoWay}"
-                                 Watermark="{Binding CorsProxyOverrideURLWatermark}"
+                                 PlaceholderText="{Binding CorsProxyOverrideURLWatermark}"
                                  Classes="field-aligned"
                                  KeyDown="CorsProxyTextBox_KeyDown"/>
                         <Button Grid.Column="2"
@@ -325,7 +325,7 @@
                         AutomationProperties.AutomationId="OpenAiApiKeyTextBox"
                         AutomationProperties.Name="OpenAI API key"
                         Text="{Binding OpenAIApiKey}"
-                        Watermark="Enter OpenAI API key"
+                        PlaceholderText="Enter OpenAI API key"
                         Classes=""
                         IsVisible="{Binding ShowOpenAISettings}"/>
 
@@ -338,7 +338,7 @@
                         AutomationProperties.AutomationId="OllamaEndpointTextBox"
                         AutomationProperties.Name="Ollama endpoint"
                         Text="{Binding OpenAISelfHostedEndpoint}"
-                        Watermark="http://localhost:11434/api"
+                        PlaceholderText="http://localhost:11434/api"
                         Classes=""
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
@@ -350,7 +350,7 @@
                         AutomationProperties.AutomationId="OllamaModelNameTextBox"
                         AutomationProperties.Name="Ollama model name"
                         Text="{Binding OpenAISelfHostedModelName}"
-                        Watermark="codellama:13b-code"
+                        PlaceholderText="codellama:13b-code"
                         Classes=""
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
@@ -362,7 +362,7 @@
                         AutomationProperties.AutomationId="OllamaApiKeyTextBox"
                         AutomationProperties.Name="Ollama API key"
                         Text="{Binding OpenAISelfHostedApiKey}"
-                        Watermark="Optional API key"
+                        PlaceholderText="Optional API key"
                         Classes=""
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
@@ -374,7 +374,7 @@
                         AutomationProperties.AutomationId="CustomEndpointApiKeyTextBox"
                         AutomationProperties.Name="Custom endpoint API key"
                         Text="{Binding CustomEndpointApiKey}"
-                        Watermark="API key - leave blank for default"
+                        PlaceholderText="API key - leave blank for default"
                         Classes=""
                         IsVisible="{Binding ShowCustomEndpointSettings}"/>
             </Grid>

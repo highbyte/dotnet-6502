@@ -224,7 +224,7 @@ public class DiskDrive1541 : IIECDevice
 
             if (_receiveBitPos == 8)
             {
-                _logger?.LogTrace($"[1541] Full byte received: ${{_currentReceivedByte:X2}}");
+                _logger?.LogTrace("[1541] Full byte received: {Byte:X2}", _receivedByte);
 
                 // Set DATA line to low (pulling) to signal we have received the full byte
                 // The talker is now watching the Data line. If the listener doesn't pull the Data line true within one millisecond it will know that something's wrong and may alarm appropriately.
@@ -279,10 +279,14 @@ public class DiskDrive1541 : IIECDevice
     /// </summary>   
     private void HandleReceiveEOI()
     {
+        var bus = _bus;
+        if (bus == null)
+            return;
+
         if (_byteReceiveTransferState == ByteTransferState.Step1_ReadyToReceive && !_eoiAcknowledgementHandled)
         {
 
-            if (_bus.DATALineState == BusLineState.Released && !_pulsingEOIAcknowledgement)
+            if (bus.DATALineState == BusLineState.Released && !_pulsingEOIAcknowledgement)
             {
                 _readyToReceiveTimeoutInstructionCounter++;
 
@@ -330,7 +334,11 @@ public class DiskDrive1541 : IIECDevice
 
     private void TalkTick()
     {
-        if (_bus.ATNLineState == BusLineState.Low)
+        var bus = _bus;
+        if (bus == null)
+            return;
+
+        if (bus.ATNLineState == BusLineState.Low)
         {
             // If ATN is held low by host (C64), we are in command reception mode, so don't send any data.
             return;
@@ -358,7 +366,7 @@ public class DiskDrive1541 : IIECDevice
 
         // Wait for the Talker to assume Listener role by it setting Clock line is low (true)
         if (_byteSendTransferState == ByteTransferState.Start
-            && _bus.DATALineState == BusLineState.Low)
+            && bus.DATALineState == BusLineState.Low)
         {
             // Talker (this drive) holds Clock line low (true) and Data released at the start of sending a byte
             SetLines(setCLKLine: DeviceLineState.Holding, setDATALine: DeviceLineState.NotHolding);
@@ -368,7 +376,7 @@ public class DiskDrive1541 : IIECDevice
         }
 
         if (_byteSendTransferState == ByteTransferState.Step1_ReadyToSend
-            && _bus.DATALineState == BusLineState.Low)
+            && bus.DATALineState == BusLineState.Low)
         {
             // Talker (this drive) releases Clock line (false) to indicate it's ready to send the byte
             SetLines(setCLKLine: DeviceLineState.NotHolding);
@@ -378,7 +386,7 @@ public class DiskDrive1541 : IIECDevice
         }
 
         if (_byteSendTransferState == ByteTransferState.Step1_ReadyToReceive
-            && _bus.DATALineState == BusLineState.Released
+            && bus.DATALineState == BusLineState.Released
             && !_awaitingEOIAcknowledgementEndPulse)
         {
             // Listener (C64) has released Data line, we can start sending bits - soon.
@@ -430,7 +438,7 @@ public class DiskDrive1541 : IIECDevice
         // Receiver acknowledgement of EOI (End Of Indicator) byte is by pulling the Data line low (true) for a brief period.
         if (_byteSendTransferState == ByteTransferState.Step1_ReadyToReceive
             && _awaitingEOIAcknowledgementStartPulse
-            && _bus.DATALineState == BusLineState.Low)
+            && bus.DATALineState == BusLineState.Low)
         {
             _awaitingEOIAcknowledgementStartPulse = false;
             _awaitingEOIAcknowledgementEndPulse = true;
@@ -439,7 +447,7 @@ public class DiskDrive1541 : IIECDevice
         // Receiver acknowledgement of EOI (End Of Indicator) byte is by releasing the Data line high (false) direly after pulling it low (true).
         if (_byteSendTransferState == ByteTransferState.Step1_ReadyToReceive
             && _awaitingEOIAcknowledgementEndPulse
-            && _bus.DATALineState == BusLineState.Released)
+            && bus.DATALineState == BusLineState.Released)
         {
             _awaitingEOIAcknowledgementStartPulse = false;
             _awaitingEOIAcknowledgementEndPulse = false;
@@ -474,7 +482,8 @@ public class DiskDrive1541 : IIECDevice
             _delayBeforeSettingSendBitInstructionCounter = 0;
 
             // Sending next bit, least significant bit first
-            bool bit = (_sendByte.Value & (1 << _sendBitPos)) != 0;
+            var sendByte = _sendByte ?? throw new InvalidOperationException("No byte is queued for sending.");
+            bool bit = (sendByte & (1 << _sendBitPos)) != 0;
 
             // Set the Data line to the bit value: 1 = Data line released (false), 0 = Data line pulled low (true).
             // And release the Clock line to signal that the bit is ready to be read by the listener (C64).
@@ -526,7 +535,7 @@ public class DiskDrive1541 : IIECDevice
         }
 
         if (_byteSendTransferState == ByteTransferState.Step4_Acknowledge
-            && _bus.DATALineState == BusLineState.Low)
+            && bus.DATALineState == BusLineState.Low)
         {
             // Listener (C64) has acknowledged the byte sent by pulling the Data line low (true).
 

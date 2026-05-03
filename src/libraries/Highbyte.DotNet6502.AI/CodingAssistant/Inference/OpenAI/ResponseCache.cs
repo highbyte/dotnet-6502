@@ -59,7 +59,7 @@ internal static class ResponseCache
     }
 
     private static string GetCacheFilePath(ChatParameters request)
-        => GetCacheFilePath(request, request.Messages.LastOrDefault()?.Text ?? "no_messages");
+        => GetCacheFilePath(request, request.Messages?.LastOrDefault()?.Text ?? "no_messages");
 
     private static string GetCacheFilePath<T>(T request, string summary)
         => Path.Combine(CacheDir.Value, $"{GetCacheKey(request, summary)}.response.txt");

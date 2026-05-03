@@ -186,6 +186,7 @@ remoteEnvironment.HostApp = hostApp;
 
 // Set scripting engine
 hostApp.SetScriptingEngine(scriptingEngine ?? new NoScriptingEngine());
+await hostApp.DrainStartupScriptActionsAsync();
 
 logger.LogInformation("Headless host app initialized.");
 

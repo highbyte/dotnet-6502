@@ -61,14 +61,9 @@ public class TcpDebugAdapterServer : IDisposable
         SafeLog($"[TCP Server] Started listening on {BindAddress}:{Port}", LogLevel.Information);
 
         _cts = new CancellationTokenSource();
-        // Run on the thread pool to avoid capturing the UI synchronization context.
-        // Without Task.Run, if StartAsync is called from the UI thread, the async
-        // continuations inside ListenForClientsAsync would be scheduled back onto the
-        // UI thread. Then calling _listenTask.Wait() on the UI thread in Stop() would
-        // deadlock: Wait() blocks the UI thread, while the continuation needs the UI
-        // thread to run. The 5-second timeout would expire, Dispose() would close the
-        // StreamWriter, and the finally-running continuation would throw
-        // ObjectDisposedException.
+        // Run on the thread pool to avoid capturing the caller's synchronization context.
+        // This keeps the accept loop independent from any UI thread and allows Stop()
+        // to cancel the listener without blocking the caller while shutdown completes.
         _listenTask = Task.Run(() => ListenForClientsAsync(_cts.Token));
         IsListening = true;
     }
@@ -123,16 +118,16 @@ public class TcpDebugAdapterServer : IDisposable
     {
         SafeLog("[TCP Server] Stopping...", LogLevel.Information);
 
-        _cts?.Cancel();
-        _listener?.Stop();
+        var cts = _cts;
+        var listener = _listener;
+        var listenTask = _listenTask;
 
-        if (_listenTask != null)
+        cts?.Cancel();
+        listener?.Stop();
+
+        if (listenTask != null)
         {
-            try
-            {
-                _listenTask.Wait(TimeSpan.FromSeconds(5));
-            }
-            catch { }
+            ObserveStopTask(listenTask);
         }
 
         // Reset state to allow restart via StartAsync
@@ -141,7 +136,33 @@ public class TcpDebugAdapterServer : IDisposable
         _listenTask = null;
         IsListening = false;
 
+        cts?.Dispose();
+
         SafeLog("[TCP Server] Stopped", LogLevel.Information);
+    }
+
+    private void ObserveStopTask(Task task)
+    {
+        if (task.IsCompleted)
+        {
+            LogStopFailure(task);
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static (completedTask, state) => ((TcpDebugAdapterServer)state!).LogStopFailure(completedTask),
+            this,
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private void LogStopFailure(Task task)
+    {
+        if (task.Exception is { } exception)
+        {
+            SafeLog($"[TCP Server] Listen task ended with error: {exception.GetBaseException().Message}", LogLevel.Warning);
+        }
     }
 
     public void Dispose()

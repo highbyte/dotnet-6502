@@ -71,6 +71,16 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         }
     }
 
+    private ISystem GetCurrentRunningSystemOrThrow()
+    {
+        return _silkNetHostApp.CurrentRunningSystem ?? throw new InvalidOperationException("No system is currently running.");
+    }
+
+    private C64 GetCurrentRunningC64OrThrow()
+    {
+        return _silkNetHostApp.CurrentRunningSystem as C64 ?? throw new InvalidOperationException("Current running system is not a C64.");
+    }
+
     public void PostOnRender()
     {
         ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT), ImGuiCond.Once);
@@ -254,14 +264,15 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 {
                     try
                     {
+                        var currentRunningSystem = GetCurrentRunningSystemOrThrow();
                         var fileName = dialogResult.Path;
                         BinaryLoader.Load(
-                            _silkNetHostApp.CurrentRunningSystem.Mem,
+                            currentRunningSystem.Mem,
                             fileName,
                             out ushort loadedAtAddress,
                             out ushort fileLength);
 
-                        _silkNetHostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+                        currentRunningSystem.CPU.PC = loadedAtAddress;
 
                         _silkNetHostApp.Start();
                         _deferredCollapseWindow = true;
@@ -348,10 +359,10 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             var c64SystemConfig = (C64SystemConfig)_silkNetHostApp.CurrentHostSystemConfig.SystemConfig;
             c64SystemConfig.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
 
-            if (EmulatorState != EmulatorState.Uninitialized)
+            if (EmulatorState != EmulatorState.Uninitialized
+                && _silkNetHostApp.CurrentRunningSystem is C64 c64)
             {
                 // System is running, also update the system directly
-                C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
                 c64.Cia1.Joystick.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
             }
         }
@@ -363,10 +374,10 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         {
             var c64SystemConfig = (C64SystemConfig)_silkNetHostApp.CurrentHostSystemConfig.SystemConfig;
             c64SystemConfig.KeyboardJoystick = _c64KeyboardJoystickIndex + 1;
-            if (EmulatorState != EmulatorState.Uninitialized)
+            if (EmulatorState != EmulatorState.Uninitialized
+                && _silkNetHostApp.CurrentRunningSystem is C64 c64)
             {
                 // System is running, also update the system directly
-                C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
                 c64.Cia1.Joystick.KeyboardJoystick = _c64KeyboardJoystickIndex + 1;
             }
         }
@@ -392,9 +403,10 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             {
                 try
                 {
+                    var currentRunningC64 = GetCurrentRunningC64OrThrow();
                     var fileName = dialogResult.Path;
                     BinaryLoader.Load(
-                        _silkNetHostApp.CurrentRunningSystem.Mem,
+                        currentRunningC64.Mem,
                         fileName,
                         out ushort loadedAtAddress,
                         out ushort fileLength);
@@ -407,7 +419,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                     else
                     {
                         // Init C64 BASIC memory variables
-                        ((C64)_silkNetHostApp.CurrentRunningSystem).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                        currentRunningC64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
                     }
                     _deferredCollapseWindow = true;
                 }
@@ -439,8 +451,11 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 try
                 {
                     var fileName = dialogResult.Path;
+                    if (_silkNetHostApp.CurrentRunningSystem is not C64 c64)
+                        return;
+
                     ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                    var endAddressValue = ((C64)_silkNetHostApp.CurrentRunningSystem).GetBasicProgramEndAddress();
+                    var endAddressValue = c64.GetBasicProgramEndAddress();
                     BinarySaver.Save(
                         _silkNetHostApp.CurrentRunningSystem.Mem,
                         fileName,

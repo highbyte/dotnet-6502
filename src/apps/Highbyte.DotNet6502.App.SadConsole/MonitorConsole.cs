@@ -14,8 +14,8 @@ internal class MonitorConsole : Console
     private readonly SadConsoleHostApp _sadConsoleHostApp;
     private readonly MonitorConfig _monitorConfig;
     private readonly Action _displayCPUStatus;
-    private SadConsoleMonitor _monitor;
-    public SadConsoleMonitor Monitor => _monitor;
+    private SadConsoleMonitor? _monitor;
+    public SadConsoleMonitor Monitor => GetMonitorOrThrow();
     private readonly ClassicConsoleKeyboardHandler _keyboardHandlerObject;
 
     /// <summary>
@@ -57,7 +57,7 @@ internal class MonitorConsole : Console
             return;
 
         //_monitor.WriteOutput(value, MessageSeverity.Information); // The entered command has already been printed to console here
-        var commandResult = _monitor.SendCommand(value);
+        var commandResult = GetMonitorOrThrow().SendCommand(value);
 
         _displayCPUStatus(); // Trigger draw of CPU status and system info
 
@@ -85,6 +85,11 @@ internal class MonitorConsole : Console
         Cursor.SetPrintAppearance(printForeground, Surface.DefaultBackground);
         Cursor.Print($"  {message}").NewLine();
         Cursor.SetPrintAppearance(Surface.DefaultForeground, Surface.DefaultBackground);
+    }
+
+    private SadConsoleMonitor GetMonitorOrThrow()
+    {
+        return _monitor ?? throw new InvalidOperationException("Monitor is not initialized.");
     }
 
     /// <summary>
@@ -121,18 +126,19 @@ internal class MonitorConsole : Console
     {
         Cursor.DisableWordBreak = false;
 
-        _monitor.ShowDescription();
+        var monitor = GetMonitorOrThrow();
+        monitor.ShowDescription();
 
-        _monitor.WriteOutput("");
-        _monitor.WriteOutput("Type '?' for help.");
-        _monitor.WriteOutput("Type '[command] -?' for help on command.");
-        _monitor.WriteOutput("Examples:");
-        _monitor.WriteOutput("  d");
-        _monitor.WriteOutput("  d c000");
-        _monitor.WriteOutput("  m c000");
-        _monitor.WriteOutput("  z");
-        _monitor.WriteOutput("  g");
-        _monitor.WriteOutput("");
+        monitor.WriteOutput("");
+        monitor.WriteOutput("Type '?' for help.");
+        monitor.WriteOutput("Type '[command] -?' for help on command.");
+        monitor.WriteOutput("Examples:");
+        monitor.WriteOutput("  d");
+        monitor.WriteOutput("  d c000");
+        monitor.WriteOutput("  m c000");
+        monitor.WriteOutput("  z");
+        monitor.WriteOutput("  g");
+        monitor.WriteOutput("");
 
         //_monitor.ShowHelp();
         Cursor.DisableWordBreak = true;
@@ -141,10 +147,11 @@ internal class MonitorConsole : Console
     // TODO: Implement Enable/Disable SadConsoleHostApp to call this Enable/Disable + MonitorStatusConsole.Enable/Disable
     public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
-        _monitor.Reset();   // Reset monitor working variables (like last disassembly location)
+        var monitor = GetMonitorOrThrow();
+        monitor.Reset();   // Reset monitor working variables (like last disassembly location)
 
         if (execEvaluatorTriggerResult != null)
-            _monitor.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+            monitor.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
 
         IsVisible = true;
         IsFocused = true;

@@ -150,9 +150,9 @@ public partial class EmulatorView : UserControl
         EmulatorDisplayControlBase renderControl;
         // Check if we have an Avalonia command target instead of bitmap target
         var avaloniaCommandTarget = HostApp?.GetRenderTarget<ICommandTarget>();
-        if (avaloniaCommandTarget is AvaloniaCommandTarget commandTarget)
+        if (avaloniaCommandTarget is AvaloniaCommandTarget commandTarget && renderCoordinator is CommandCoordinator commandCoordinator)
         {
-            renderControl = CreateAvaloniaCommandControl(renderCoordinator, commandTarget);
+            renderControl = CreateAvaloniaCommandControl(commandCoordinator, commandTarget);
         }
         else
         {
@@ -167,24 +167,26 @@ public partial class EmulatorView : UserControl
 
     private EmulatorBitmapDisplayControl CreateBitmapDisplayControl(IRenderCoordinator? renderCoordinator, IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget)
     {
+        var hostApp = HostApp;
         var control = new EmulatorBitmapDisplayControl(
             renderCoordinator,
             avaloniaBitmapRenderTarget,
             Scale,  // Use current Scale value
             true,
-            () => HostApp.EmulatorState != EmulatorState.Uninitialized);
+            () => hostApp != null && hostApp.EmulatorState != EmulatorState.Uninitialized);
         control.SetDisplaySize(320, 200);
         return control;
     }
 
-    private EmulatorAvaloniaCommandControl CreateAvaloniaCommandControl(IRenderCoordinator? renderCoordinator, AvaloniaCommandTarget avaloniaCommandTarget)
+    private EmulatorAvaloniaCommandControl CreateAvaloniaCommandControl(CommandCoordinator renderCoordinator, AvaloniaCommandTarget avaloniaCommandTarget)
     {
+        var hostApp = HostApp;
         var control = new EmulatorAvaloniaCommandControl(
             renderCoordinator,
             avaloniaCommandTarget,
             Scale,  // Use current Scale value
             true,
-            () => HostApp.EmulatorState != EmulatorState.Uninitialized);
+            () => hostApp != null && hostApp.EmulatorState != EmulatorState.Uninitialized);
         control.SetDisplaySize(320, 200);
         return control;
     }

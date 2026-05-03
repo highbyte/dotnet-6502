@@ -16,20 +16,20 @@ internal class InfoConsole : ControlsConsole
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
 
-    private List<Label> _statsLabels;
-    private List<Label> _statsLabelValues;
+    private readonly List<Label> _statsLabels = [];
+    private readonly List<Label> _statsLabelValues = [];
     private string _emptyStatsLabelRow = new string(' ', CONSOLE_WIDTH - 3 - 40);
     private string _emptyStatsLabelValueRow = new string(' ', 8);
 
-    private ListBox _logsListBox;
+    private ListBox? _logsListBox;
 
     private List<KeyValuePair<string, Panel>> _systemInfoPanels = new ();
 
     // Debug info panel
-    private List<Label> _debugInfoLabels;
-    private List<Label> _debugInfoLabelValues;
-    private string _emptyDebugInfoLabelRow;
-    private string _emptyDebugInfoLabelValueRow;
+    private readonly List<Label> _debugInfoLabels = [];
+    private readonly List<Label> _debugInfoLabelValues = [];
+    private string _emptyDebugInfoLabelRow = string.Empty;
+    private string _emptyDebugInfoLabelValueRow = string.Empty;
 
     /// <summary>
     /// Console to display information, stats, and logs
@@ -56,15 +56,14 @@ internal class InfoConsole : ControlsConsole
 
     private void CreateUIControls()
     {
+        var themeColors = Controls.ThemeColors ?? SadConsoleUISettings.ThemeColors;
 
         Panel statsPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
         {
-            _statsLabels = new List<Label>();
-            _statsLabelValues = new List<Label>();
             for (int i = 0; i < CONSOLE_HEIGHT - 5; i++)
             {
                 var statsLabel = CreateLabel(_emptyStatsLabelRow, 1, 1 + i, $"statsLabel{i}");
-                statsLabel.TextColor = Controls.ThemeColors.ControlForegroundNormal;
+                statsLabel.TextColor = themeColors.ControlForegroundNormal;
                 _statsLabels.Add(statsLabel);
 
                 var statsLabelValue = CreateLabel(_emptyStatsLabelValueRow, 1 + statsLabel.Width + 1, 1 + i, $"statsLabelValue{i}");
@@ -88,7 +87,7 @@ internal class InfoConsole : ControlsConsole
                 Name = "clearButton",
                 Position = (0, 0),
             };
-            clearButton.Click += (s, e) => { _logStore.Clear(); _logsListBox.Items.Clear(); IsDirty = true; };
+            clearButton.Click += (s, e) => { _logStore.Clear(); GetLogsListBoxOrThrow().Items.Clear(); IsDirty = true; };
             logsPanel.Add(clearButton);
 
             var systemLabel = CreateLabel("Log level:", 11, clearButton.Position.Y);
@@ -98,7 +97,14 @@ internal class InfoConsole : ControlsConsole
                 Name = "logLevelComboBox",
                 SelectedItem = _logConfig.LogLevel.ToString(),
             };
-            logLevelComboBox.SelectedItemChanged += (s, e) => { _logConfig.LogLevel = Enum.Parse<LogLevel>(logLevelComboBox.SelectedItem.ToString()); IsDirty = true; };
+            logLevelComboBox.SelectedItemChanged += (s, e) =>
+            {
+                if (logLevelComboBox.SelectedItem is not string logLevelName)
+                    return;
+
+                _logConfig.LogLevel = Enum.Parse<LogLevel>(logLevelName);
+                IsDirty = true;
+            };
             logsPanel.Add(logLevelComboBox);
 
 
@@ -109,7 +115,14 @@ internal class InfoConsole : ControlsConsole
                 Name = "maxMessagesComboBox",
                 SelectedItem = _logStore.MaxLogMessages,
             };
-            maxMessagesComboBox.SelectedItemChanged += (s, e) => { _logStore.MaxLogMessages = (int)maxMessagesComboBox.SelectedItem; IsDirty = true; };
+            maxMessagesComboBox.SelectedItemChanged += (s, e) =>
+            {
+                if (maxMessagesComboBox.SelectedItem is not int maxMessages)
+                    return;
+
+                _logStore.MaxLogMessages = maxMessages;
+                IsDirty = true;
+            };
             logsPanel.Add(maxMessagesComboBox);
 
 
@@ -135,16 +148,13 @@ internal class InfoConsole : ControlsConsole
         Panel debugInfoPanel = new Panel(10, 10);
         {
             var labelTitleLength = 28;
-            _debugInfoLabels = new List<Label>();
-            _debugInfoLabelValues = new List<Label>();
-
             _emptyDebugInfoLabelRow = new string(' ', labelTitleLength + 1);
             _emptyDebugInfoLabelValueRow = new string(' ', CONSOLE_WIDTH - 3 - labelTitleLength);
 
             for (int i = 0; i < CONSOLE_HEIGHT - 5; i++)
             {
                 var label = CreateLabel(_emptyDebugInfoLabelRow, 1, 1 + i, $"DebugInfoLabel{i}");
-                label.TextColor = Controls.ThemeColors.ControlForegroundNormal;
+                label.TextColor = themeColors.ControlForegroundNormal;
                 _debugInfoLabels.Add(label);
 
                 var labelValue = CreateLabel(_emptyDebugInfoLabelValueRow, 1 + labelTitleLength, 1 + i, $"DebugInfoLabelValue{i}");
@@ -167,35 +177,35 @@ internal class InfoConsole : ControlsConsole
         {
             const int colTab1 = 0; const int colTab2 = 30; const int colTab3 = 60;
             int row = 0;
-            CreateLabel("C64 keyboard mapping", colTab1, row, Controls.ThemeColors.White);
+            CreateLabel("C64 keyboard mapping", colTab1, row, themeColors.White);
             row++;
-            CreateLabel("Command", colTab1, row, Controls.ThemeColors.Title);
-            CreateLabel("C64 key", colTab2, row, Controls.ThemeColors.Title);
-            CreateLabel("PC/Mac key", colTab3, row, Controls.ThemeColors.Title);
+            CreateLabel("Command", colTab1, row, themeColors.Title);
+            CreateLabel("C64 key", colTab2, row, themeColors.Title);
+            CreateLabel("PC/Mac key", colTab3, row, themeColors.Title);
             row++;
-            CreateLabel("Stop run Basic prg", colTab1, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Run/stop", colTab2, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Esc", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Stop run Basic prg", colTab1, row, themeColors.ControlHostForeground);
+            CreateLabel("Run/stop", colTab2, row, themeColors.ControlHostForeground);
+            CreateLabel("Esc", colTab3, row, themeColors.ControlHostForeground);
             row++;
-            CreateLabel("Soft reset", colTab1, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Run/Stop + Restore", colTab2, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Esc + PgUp (fn+ArrowUp on Mac)", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Soft reset", colTab1, row, themeColors.ControlHostForeground);
+            CreateLabel("Run/Stop + Restore", colTab2, row, themeColors.ControlHostForeground);
+            CreateLabel("Esc + PgUp (fn+ArrowUp on Mac)", colTab3, row, themeColors.ControlHostForeground);
             row++;
-            CreateLabel("Change text color 1-8", colTab1, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("CTRL + numbers 1-8", colTab2, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Tab + numbers 1-8", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Change text color 1-8", colTab1, row, themeColors.ControlHostForeground);
+            CreateLabel("CTRL + numbers 1-8", colTab2, row, themeColors.ControlHostForeground);
+            CreateLabel("Tab + numbers 1-8", colTab3, row, themeColors.ControlHostForeground);
             row++;
-            CreateLabel("Change text color 9-16", colTab1, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("C= + numbers 1-8", colTab2, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("LeftCtrl + numbers 1-8", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Change text color 9-16", colTab1, row, themeColors.ControlHostForeground);
+            CreateLabel("C= + numbers 1-8", colTab2, row, themeColors.ControlHostForeground);
+            CreateLabel("LeftCtrl + numbers 1-8", colTab3, row, themeColors.ControlHostForeground);
             row++;
-            CreateLabel("AI Basic: accept suggestion", colTab1, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("CTRL", colTab2, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Tab", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("AI Basic: accept suggestion", colTab1, row, themeColors.ControlHostForeground);
+            CreateLabel("CTRL", colTab2, row, themeColors.ControlHostForeground);
+            CreateLabel("Tab", colTab3, row, themeColors.ControlHostForeground);
             row++;
-            CreateLabel("AI Basic: ignore suggestion", colTab1, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Any other key than CTRL", colTab2, row, Controls.ThemeColors.ControlHostForeground);
-            CreateLabel("Any other key than Tab", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("AI Basic: ignore suggestion", colTab1, row, themeColors.ControlHostForeground);
+            CreateLabel("Any other key than CTRL", colTab2, row, themeColors.ControlHostForeground);
+            CreateLabel("Any other key than Tab", colTab3, row, themeColors.ControlHostForeground);
 
             Label CreateLabel(string text, int col, int row, Color? textColor = null, string? name = null)
             {
@@ -214,7 +224,7 @@ internal class InfoConsole : ControlsConsole
         Panel genericSystemInfoPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
         {
             int row = 0;
-            CreateLabel("A generic 6502-based computer, with custom defined memory layout and IO functionality.", 0, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("A generic 6502-based computer, with custom defined memory layout and IO functionality.", 0, row, themeColors.ControlHostForeground);
 
             Label CreateLabel(string text, int col, int row, Color? textColor = null, string? name = null)
             {
@@ -235,6 +245,16 @@ internal class InfoConsole : ControlsConsole
         TabControl tab = new TabControl(tabs, CONSOLE_WIDTH, CONSOLE_HEIGHT) { Name = "tab" };
         tab.Position = (0, 0);
         Controls.Add(tab);
+    }
+
+    private ListBox GetLogsListBoxOrThrow()
+    {
+        return _logsListBox ?? throw new InvalidOperationException("Logs list box is not initialized.");
+    }
+
+    private TabControl GetTabControlOrThrow()
+    {
+        return Controls["tab"] as TabControl ?? throw new InvalidOperationException("Info tab control is not initialized.");
     }
 
     protected override void OnIsDirtyChanged()
@@ -273,15 +293,16 @@ internal class InfoConsole : ControlsConsole
 
     public void UpdateLogs()
     {
-        _logsListBox.Items.Clear();
+        var logsListBox = GetLogsListBoxOrThrow();
+        logsListBox.Items.Clear();
 
         foreach (var line in _logStore.GetLogMessages().ToList())
         {
             var trimmedLine = line.TrimEnd('\r', '\n');
             //_logsListBox.Items.Add(new ColoredString(trimmedLine, foreground: Controls.ThemeColors.White, background: Controls.ThemeColors.ControlHostBackground));
-            _logsListBox.Items.Add(trimmedLine);
+            logsListBox.Items.Add(trimmedLine);
         }
-        _logsListBox.IsDirty = true;
+        logsListBox.IsDirty = true;
     }
 
     public void UpdateSystemDebugInfo()
@@ -334,7 +355,7 @@ internal class InfoConsole : ControlsConsole
     /// </summary>
     public void ShowSelectedSystemInfoHelp()
     {
-        var tab = Controls["tab"] as TabControl;
+        var tab = GetTabControlOrThrow();
         // Remove existing system info panel
         foreach (var systemInfoPanel in _systemInfoPanels)
         {

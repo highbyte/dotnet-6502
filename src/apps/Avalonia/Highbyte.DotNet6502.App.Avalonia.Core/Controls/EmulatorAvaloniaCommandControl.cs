@@ -1,8 +1,11 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Media;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Rendering.VideoCommands;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 
@@ -12,7 +15,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 /// </summary>
 public class EmulatorAvaloniaCommandControl : EmulatorDisplayControlBase
 {
-    private readonly IRenderCoordinator? _renderCoordinator;
+    private readonly CommandCoordinator? _renderCoordinator;
     private readonly AvaloniaCommandTarget? _avaloniaCommandTarget;
 
     static EmulatorAvaloniaCommandControl()
@@ -21,7 +24,7 @@ public class EmulatorAvaloniaCommandControl : EmulatorDisplayControlBase
     }
 
     public EmulatorAvaloniaCommandControl(
-        IRenderCoordinator? renderCoordinator,
+        CommandCoordinator? renderCoordinator,
         AvaloniaCommandTarget? avaloniaCommandTarget,
         double scale,
         bool focusable,
@@ -34,23 +37,61 @@ public class EmulatorAvaloniaCommandControl : EmulatorDisplayControlBase
         Focusable = focusable;
     }
 
-    protected override async void OnRender(DrawingContext context)
+    protected override void OnRender(DrawingContext context)
     {
         if (_renderCoordinator == null || _avaloniaCommandTarget == null)
             return;
 
-        // Apply scale transformation to match the expected display size
-        using (context.PushTransform(Matrix.CreateScale(Scale, Scale)))
+        try
         {
-            // Set the drawing context on the command target so it can render
-            _avaloniaCommandTarget.SetDrawingContext(context);
+            // Apply scale transformation to match the expected display size.
+            // CommandCoordinator.FlushIfDirtyAsync completes synchronously for this control,
+            // so the drawing context remains valid for the full command execution.
+            using (context.PushTransform(Matrix.CreateScale(Scale, Scale)))
+            {
+                _avaloniaCommandTarget.SetDrawingContext(context);
 
-            // FlushIfDirtyAsync will invoke the render target, which will execute commands using the Avalonia drawing context
-            await _renderCoordinator.FlushIfDirtyAsync();
-
-            // Clear the drawing context after rendering
+                var flushTask = _renderCoordinator.FlushIfDirtyAsync();
+                if (!flushTask.IsCompletedSuccessfully)
+                {
+                    ObserveUnexpectedRenderTask(flushTask.AsTask());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"OnRender exception: {ex}");
+        }
+        finally
+        {
             _avaloniaCommandTarget.SetDrawingContext(null);
         }
+    }
+
+    private static void ObserveUnexpectedRenderTask(Task task)
+    {
+        if (task.IsCompleted)
+        {
+            LogUnexpectedRenderFailure(task);
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static completedTask => LogUnexpectedRenderFailure(completedTask),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static void LogUnexpectedRenderFailure(Task task)
+    {
+        if (task.Exception is { } exception)
+        {
+            System.Diagnostics.Debug.WriteLine($"OnRender exception: {exception.GetBaseException()}");
+            return;
+        }
+
+        System.Diagnostics.Debug.WriteLine("OnRender flush unexpectedly continued asynchronously.");
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

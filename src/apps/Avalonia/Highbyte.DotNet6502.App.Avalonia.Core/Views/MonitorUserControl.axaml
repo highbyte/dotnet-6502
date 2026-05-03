@@ -113,7 +113,7 @@
                      AutomationProperties.Name="Monitor command"
                      Text="{Binding InputText, Mode=TwoWay}"
                      KeyDown="CommandTextBox_KeyDown"
-                     Watermark="Enter monitor command"
+                     PlaceholderText="Enter monitor command"
                      Classes="monitor-font command-input"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Classes="spacing-normal">
                     <Button Content="Send"

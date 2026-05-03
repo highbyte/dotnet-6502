@@ -99,47 +99,47 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         // Initialize ReactiveCommands
         CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => await CopyBasicSourceCode(),
+            async () => await CopyBasicSourceCodeAsync(),
             this.WhenAnyValue(x => x.IsCopyPasteEnabled),
             RxSchedulers.MainThreadScheduler);
 
         PasteTextCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => await PasteTextInternal(),
+            async () => await PasteTextInternalAsync(),
             this.WhenAnyValue(x => x.IsCopyPasteEnabled),
             RxSchedulers.MainThreadScheduler);
 
         ToggleDiskImageCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => await ToggleDiskImageInternal(),
+            async () => await ToggleDiskImageInternalAsync(),
             this.WhenAnyValue(x => x.CanToggleDisk),
             RxSchedulers.MainThreadScheduler);
 
         LoadPreloadedDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => await LoadPreloadedDiskImage(),
+            async () => await LoadPreloadedDiskImageAsync(),
             Observable.Return(true),
             RxSchedulers.MainThreadScheduler);
 
         LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
-             async () => await LoadAssemblyExample(),
+             async () => await LoadAssemblyExampleAsync(),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
 
         LoadBasicExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => await LoadBasicExample(),
+            async () => await LoadBasicExampleAsync(),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
 
         LoadBasicFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
-            async (fileBuffer) => await LoadBasicFile(fileBuffer),
+            async (fileBuffer) => await LoadBasicFileAsync(fileBuffer),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
 
         SaveBasicFileCommand = ReactiveCommandHelper.CreateSafeCommandWithResult<byte[]>(
-            async () => await GetBasicProgramAsPrgFileBytes(),
+            async () => await GetBasicProgramAsPrgFileBytesAsync(),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
 
         LoadBinaryFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
-            async (fileBuffer) => await LoadBinaryFile(fileBuffer),
+            async (fileBuffer) => await LoadBinaryFileAsync(fileBuffer),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
 
@@ -601,7 +601,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     }
 
     // Core C64 functionality methods
-    private async Task CopyBasicSourceCode()
+    private async Task CopyBasicSourceCodeAsync()
     {
         if (_avaloniaHostApp?.EmulatorState != EmulatorState.Running ||
           !IsC64System())
@@ -613,7 +613,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             var sourceCode = c64.BasicTokenParser.GetBasicText();
 
             // Request View to copy to clipboard
-            await RequestClipboardCopy(sourceCode.ToLower());
+            await RequestClipboardCopyAsync(sourceCode.ToLower());
         }
         catch (Exception ex)
         {
@@ -621,18 +621,19 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
-    private async Task PasteTextInternal()
+    private async Task PasteTextInternalAsync()
     {
-        if (_avaloniaHostApp?.EmulatorState != EmulatorState.Running || !IsC64System())
+        var avaloniaHostApp = _avaloniaHostApp;
+        if (avaloniaHostApp == null || avaloniaHostApp.EmulatorState != EmulatorState.Running || !IsC64System())
             return;
 
         try
         {
             // Request text from View's clipboard
-            var text = await RequestClipboardPaste();
+            var text = await RequestClipboardPasteAsync();
             if (!string.IsNullOrEmpty(text))
             {
-                var c64 = (C64)_avaloniaHostApp.CurrentRunningSystem!;
+                var c64 = (C64)avaloniaHostApp.CurrentRunningSystem!;
                 c64.TextPaste.Paste(text);
             }
         }
@@ -642,14 +643,17 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
-    private async Task ToggleDiskImageInternal()
+    private async Task ToggleDiskImageInternalAsync()
     {
-        if (_avaloniaHostApp?.EmulatorState == EmulatorState.Uninitialized || !IsC64System())
+        var avaloniaHostApp = _avaloniaHostApp;
+        if (avaloniaHostApp == null || avaloniaHostApp.EmulatorState == EmulatorState.Uninitialized || !IsC64System())
             return;
 
         try
         {
-            var c64 = (C64)_avaloniaHostApp.CurrentRunningSystem!;
+            if (avaloniaHostApp.CurrentRunningSystem is not C64 c64)
+                return;
+
             var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
 
             if (diskDrive?.IsDisketteInserted == true)
@@ -660,7 +664,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             else
             {
                 // Request View to show file picker and attach disk image
-                await RequestAttachDiskImage();
+                await RequestAttachDiskImageAsync();
             }
 
             // Notify that the disk image state has changed
@@ -686,13 +690,13 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public string? ClipboardPasteResult { get; set; }
     public byte[]? DiskImageFileResult { get; set; }
 
-    private async Task RequestClipboardCopy(string text)
+    private async Task RequestClipboardCopyAsync(string text)
     {
         ClipboardCopyRequested?.Invoke(this, text);
         await Task.CompletedTask;
     }
 
-    private async Task<string?> RequestClipboardPaste()
+    private async Task<string?> RequestClipboardPasteAsync()
     {
         ClipboardPasteResult = null;
         ClipboardPasteRequested?.Invoke(this, EventArgs.Empty);
@@ -701,7 +705,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         return ClipboardPasteResult;
     }
 
-    private async Task RequestAttachDiskImage()
+    private async Task RequestAttachDiskImageAsync()
     {
         DiskImageFileResult = null;
         AttachDiskImageRequested?.Invoke(this, EventArgs.Empty);
@@ -727,8 +731,12 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
-    private async Task LoadPreloadedDiskImage()
+    private async Task LoadPreloadedDiskImageAsync()
     {
+        var hostApp = HostApp;
+        if (hostApp == null)
+            return;
+
         string selectedPreloadedDisk = SelectedPreloadedDisk;
         if (string.IsNullOrEmpty(selectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(selectedPreloadedDisk))
             return;
@@ -746,11 +754,13 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             {
                 _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-                var c64HostConfig = HostApp!.CurrentHostSystemConfig as C64HostConfig;
+                if (hostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+                    return;
+
                 _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
                    _loggerFactory,
                    _httpClient,
-                   HostApp!,
+                   hostApp,
                    corsProxyUrl: c64HostConfig.GetCorsProxyURL());
             }
 
@@ -758,7 +768,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 diskInfo,
                 setConfigCallback: async (diskInfo) =>
                 {
-                    if (HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+                    if (hostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
                         return;
 
                     var c64SystemConfig = c64HostConfig.SystemConfig;
@@ -780,9 +790,9 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                     c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
                     // Apply C64 variant setting to config object while emulator is stopped
-                    await HostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+                    await hostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
 
-                    HostApp.UpdateHostSystemConfig(c64HostConfig);
+                    hostApp.UpdateHostSystemConfig(c64HostConfig);
                 });
         }
         catch (Exception ex)
@@ -804,18 +814,19 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
-    private async Task LoadAssemblyExample()
+    private async Task LoadAssemblyExampleAsync()
     {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
+        var hostApp = HostApp;
+        if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
 
         string? file = SelectedAssemblyExample;
         if (string.IsNullOrEmpty(file))
             return;
 
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
+        bool wasRunning = hostApp.EmulatorState == Systems.EmulatorState.Running;
         if (wasRunning)
-            HostApp.Pause();
+            hostApp.Pause();
 
         try
         {
@@ -832,13 +843,13 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
             // Load file into memory
             BinaryLoader.Load(
-                HostApp.CurrentRunningSystem!.Mem,
+                hostApp.CurrentRunningSystem!.Mem,
                 prgBytes,
                 out ushort loadedAtAddress,
                 out ushort fileLength);
 
             // Set Program Counter to start of loaded file
-            HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+            hostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
             _logger.LogInformation($"Assembly example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
             _logger.LogInformation($"Program Counter set to {loadedAtAddress.ToHex()}");
@@ -851,22 +862,23 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         finally
         {
             if (wasRunning)
-                await HostApp.Start();
+                await hostApp.Start();
         }
     }
 
-    private async Task LoadBasicExample()
+    private async Task LoadBasicExampleAsync()
     {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
+        var hostApp = HostApp;
+        if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
 
         string? file = SelectedBasicExample;
         if (string.IsNullOrEmpty(file))
             return;
 
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
+        bool wasRunning = hostApp.EmulatorState == Systems.EmulatorState.Running;
         if (wasRunning)
-            HostApp.Pause();
+            hostApp.Pause();
 
         try
         {
@@ -883,12 +895,12 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
             // Load file into memory
             BinaryLoader.Load(
-                HostApp.CurrentRunningSystem!.Mem,
+                hostApp.CurrentRunningSystem!.Mem,
               prgBytes,
               out ushort loadedAtAddress,
                   out ushort fileLength);
 
-            var c64 = (C64)HostApp.CurrentRunningSystem!;
+            var c64 = (C64)hostApp.CurrentRunningSystem!;
             if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
             {
                 // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
@@ -912,23 +924,24 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         finally
         {
             if (wasRunning)
-                await HostApp.Start();
+                await hostApp.Start();
         }
     }
 
-    private async Task LoadBasicFile(byte[] fileBuffer)
+    private async Task LoadBasicFileAsync(byte[] fileBuffer)
     {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
+        var hostApp = HostApp;
+        if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
 
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
+        bool wasRunning = hostApp.EmulatorState == Systems.EmulatorState.Running;
         if (wasRunning)
-            HostApp.Pause();
+            hostApp.Pause();
 
         try
         {
             BinaryLoader.Load(
-                HostApp.CurrentRunningSystem!.Mem,
+                hostApp.CurrentRunningSystem!.Mem,
                 fileBuffer,
                 out ushort loadedAtAddress,
                 out ushort fileLength);
@@ -939,34 +952,38 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             }
             else
             {
-                var c64 = (C64)HostApp.CurrentRunningSystem!;
+                var c64 = (C64)hostApp.CurrentRunningSystem!;
                 c64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
             }
         }
         finally
         {
             if (wasRunning)
-                await HostApp.Start();
+                await hostApp.Start();
         }
     }
 
-    public async Task<byte[]> GetBasicProgramAsPrgFileBytes()
+    public async Task<byte[]> GetBasicProgramAsPrgFileBytesAsync()
     {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
+        var hostApp = HostApp;
+        if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return Array.Empty<byte>();
 
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
+        bool wasRunning = hostApp.EmulatorState == Systems.EmulatorState.Running;
         if (wasRunning)
-            HostApp.Pause();
+            hostApp.Pause();
 
         try
         {
             ushort startAddress = C64.BASIC_LOAD_ADDRESS;
-            var c64 = (C64)HostApp.CurrentRunningSystem!;
+            var currentRunningSystem = hostApp.CurrentRunningSystem;
+            if (currentRunningSystem is not C64 c64)
+                return Array.Empty<byte>();
+
             var endAddress = c64.GetBasicProgramEndAddress();
 
             var saveData = BinarySaver.BuildSaveData(
-                HostApp.CurrentRunningSystem.Mem,
+                currentRunningSystem.Mem,
                 startAddress,
                 endAddress,
                 addFileHeaderWithLoadAddress: true);
@@ -976,38 +993,39 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         finally
         {
             if (wasRunning)
-                await HostApp.Start();
+                await hostApp.Start();
         }
     }
 
-    private async Task LoadBinaryFile(byte[] fileBuffer)
+    private async Task LoadBinaryFileAsync(byte[] fileBuffer)
     {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
+        var hostApp = HostApp;
+        if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
 
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
+        bool wasRunning = hostApp.EmulatorState == Systems.EmulatorState.Running;
         if (wasRunning)
-            HostApp.Pause();
+            hostApp.Pause();
 
         try
         {
             BinaryLoader.Load(
-                HostApp.CurrentRunningSystem!.Mem,
+                hostApp.CurrentRunningSystem!.Mem,
                 fileBuffer,
                 out ushort loadedAtAddress,
                 out ushort fileLength);
 
-            HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+            hostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
             _logger.LogInformation($"Binary program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
             _logger.LogInformation($"Program Counter set to {loadedAtAddress.ToHex()}");
 
-            await HostApp.Start();
+            await hostApp.Start();
         }
         finally
         {
-            if (wasRunning && HostApp.EmulatorState != Systems.EmulatorState.Running)
-                await HostApp.Start();
+            if (wasRunning && hostApp.EmulatorState != Systems.EmulatorState.Running)
+                await hostApp.Start();
         }
     }
 

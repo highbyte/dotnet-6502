@@ -186,7 +186,7 @@ public class InputInjectionLifecycleTests
 
         public List<Type> GetSupportedRenderProviderTypes() => new List<Type> { typeof(NullRenderProvider) };
 
-        public void SetRenderProviderType(Type renderProviderType) => RenderProviderType = renderProviderType;
+        public void SetRenderProviderType(Type? renderProviderType) => RenderProviderType = renderProviderType;
 
         public void SetRenderTargetType(Type renderTargetType) => RenderTargetType = renderTargetType;
     }

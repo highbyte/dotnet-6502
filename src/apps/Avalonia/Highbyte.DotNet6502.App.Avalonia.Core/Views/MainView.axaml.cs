@@ -78,7 +78,7 @@ public partial class MainView : UserControl
             _isInitialized = true;
 
             // Start fade-in animation
-            await FadeIn();
+            await FadeInAsync();
 
             if (DataContext is MainViewModel viewModel)
             {
@@ -95,7 +95,7 @@ public partial class MainView : UserControl
             //Focusable = true;
         });
 
-    private async Task FadeIn()
+    private async Task FadeInAsync()
     {
         var animation = new AvaloniaAnimation.Animation
         {
@@ -656,13 +656,21 @@ public partial class MainView : UserControl
         if (_logAutoScrollEnabled)
         {
             // Scroll to bottom after layout/render
-            Dispatcher.UIThread.Post(async () =>
-            {
-                await Task.Delay(10); // Small delay to ensure layout
-                double maxY = Math.Max(0, _logScrollViewer.Extent.Height - _logScrollViewer.Viewport.Height);
-                _logScrollViewer.Offset = new Vector(_logScrollViewer.Offset.X, maxY);
-            }, DispatcherPriority.Loaded);
+            Dispatcher.UIThread.Post(
+                () => SafeAsyncHelper.Execute(ScrollLogToBottomAfterLayoutAsync),
+                DispatcherPriority.Loaded);
         }
+    }
+
+    private async Task ScrollLogToBottomAfterLayoutAsync()
+    {
+        await Task.Delay(10);
+
+        if (_logScrollViewer == null)
+            return;
+
+        double maxY = Math.Max(0, _logScrollViewer.Extent.Height - _logScrollViewer.Viewport.Height);
+        _logScrollViewer.Offset = new Vector(_logScrollViewer.Offset.X, maxY);
     }
 
     private void SetupTabSelectionTracking()
@@ -707,23 +715,27 @@ public partial class MainView : UserControl
         // Check for Ctrl+Shift+D to open the sound debug overlay
         if (e.Key == Key.D && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
         {
-            ShowSoundDebug();
+            SafeAsyncHelper.Execute(ShowSoundDebugAsync);
         }
     }
 
     private void OpenSoundDebug_Click(object? sender, RoutedEventArgs e)
-        => SafeAsyncHelper.Execute(ShowSoundDebug);
+        => SafeAsyncHelper.Execute(ShowSoundDebugAsync);
 
-    private async Task ShowSoundDebug()
+    private async Task ShowSoundDebugAsync()
     {
-        // Only allow opening the sound debug overlay when the emulator is uninitialized
-        if (_subscribedViewModel.HostApp.EmulatorState != EmulatorState.Uninitialized)
+        var subscribedViewModel = _subscribedViewModel;
+        if (subscribedViewModel == null)
             return;
 
-        await SoundDebugUserControlOverlay();
+        // Only allow opening the sound debug overlay when the emulator is uninitialized
+        if (subscribedViewModel.HostApp.EmulatorState != EmulatorState.Uninitialized)
+            return;
+
+        await SoundDebugUserControlOverlayAsync(subscribedViewModel.HostApp);
     }
 
-    private async Task SoundDebugUserControlOverlay()
+    private async Task SoundDebugUserControlOverlayAsync(AvaloniaHostApp hostApp)
     {
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
@@ -737,14 +749,14 @@ public partial class MainView : UserControl
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
-        var wavePlayerFactory = new WavePlayerFactory(loggerFactory, _subscribedViewModel!.HostApp.EmulatorConfig);
+        var wavePlayerFactory = new WavePlayerFactory(loggerFactory, hostApp.EmulatorConfig);
         var wavePlayer = wavePlayerFactory.CreateWavePlayer();
 
         // Create the UserControl-based config
         var configControl = new DebugSoundUserControl
         {
             DataContext = new DebugSoundViewModel(
-                _subscribedViewModel!.HostApp!,
+                hostApp,
                 serviceProvider.GetRequiredService<IConfiguration>(),
                 loggerFactory,
                 wavePlayer)
@@ -775,18 +787,18 @@ public partial class MainView : UserControl
     }
 
     private void OpenGamepadDebug_Click(object? sender, RoutedEventArgs e)
-        => SafeAsyncHelper.Execute(ShowGamepadDebug);
+        => SafeAsyncHelper.Execute(ShowGamepadDebugAsync);
 
-    private async Task ShowGamepadDebug()
+    private async Task ShowGamepadDebugAsync()
     {
         // Only allow opening the gamepad debug overlay when the emulator is uninitialized
         if (_subscribedViewModel?.HostApp.EmulatorState != EmulatorState.Uninitialized)
             return;
 
-        await GamepadDebugUserControlOverlay();
+        await GamepadDebugUserControlOverlayAsync();
     }
 
-    private async Task GamepadDebugUserControlOverlay()
+    private async Task GamepadDebugUserControlOverlayAsync()
     {
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
@@ -830,34 +842,34 @@ public partial class MainView : UserControl
     }
 
     private void OnEmulatorOptionsRequested(object? sender, EventArgs e)
-        => SafeAsyncHelper.Execute(EmulatorOptionsUserControlOverlay);
+        => SafeAsyncHelper.Execute(EmulatorOptionsUserControlOverlayAsync);
 
     private void OnRequestAddScript(object? sender, EventArgs e)
-        => SafeAsyncHelper.Execute(ShowAddScriptDialog);
+        => SafeAsyncHelper.Execute(ShowAddScriptDialogAsync);
 
     private void OnRequestEditScript(object? sender, string fileName)
-        => SafeAsyncHelper.Execute(() => ShowEditScriptDialog(fileName));
+        => SafeAsyncHelper.Execute(() => ShowEditScriptDialogAsync(fileName));
 
-    private async Task ShowAddScriptDialog()
+    private async Task ShowAddScriptDialogAsync()
     {
         if (_subscribedViewModel?.HostApp == null) return;
         var vm = new ScriptEditorViewModel(isNew: true);
-        await OpenScriptEditorDialog(vm);
+        await OpenScriptEditorDialogAsync(vm);
         if (vm.DialogResult is { } result)
             _subscribedViewModel.HostApp.SaveScript(result.fileName, result.content);
     }
 
-    private async Task ShowEditScriptDialog(string fileName)
+    private async Task ShowEditScriptDialogAsync(string fileName)
     {
         if (_subscribedViewModel?.HostApp == null) return;
         var content = _subscribedViewModel.HostApp.LoadScriptContent(fileName) ?? string.Empty;
         var vm = new ScriptEditorViewModel(isNew: false, fileName, content);
-        await OpenScriptEditorDialog(vm);
+        await OpenScriptEditorDialogAsync(vm);
         if (vm.DialogResult is { } result)
             _subscribedViewModel.HostApp.SaveScript(result.fileName, result.content);
     }
 
-    private async Task OpenScriptEditorDialog(ScriptEditorViewModel vm)
+    private async Task OpenScriptEditorDialogAsync(ScriptEditorViewModel vm)
     {
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
@@ -888,11 +900,11 @@ public partial class MainView : UserControl
     private void OnRequestDeleteScript(object? sender, DeleteScriptConfirmationEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {
-            var confirmed = await ShowDeleteScriptConfirmationOverlay(e.FileName);
+            var confirmed = await ShowDeleteScriptConfirmationOverlayAsync(e.FileName);
             e.SetResult(confirmed);
         });
 
-    private async Task<bool> ShowDeleteScriptConfirmationOverlay(string fileName)
+    private async Task<bool> ShowDeleteScriptConfirmationOverlayAsync(string fileName)
     {
         var tcs = new TaskCompletionSource<bool>();
         Panel? overlayPanel = null;
@@ -992,14 +1004,23 @@ public partial class MainView : UserControl
     }
 
     private void OnRequestOpenScriptFolder(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(OpenScriptFolderAsync);
+
+    private Task OpenScriptFolderAsync()
     {
         var dir = _subscribedViewModel?.ScriptDirectory;
-        if (string.IsNullOrEmpty(dir)) return;
-        var topLevel = TopLevel.GetTopLevel(this);
-        topLevel?.Launcher.LaunchUriAsync(new Uri("file://" + dir));
+        if (string.IsNullOrEmpty(dir))
+            return Task.CompletedTask;
+
+        if (TopLevel.GetTopLevel(this) is { } topLevel)
+        {
+            return topLevel.Launcher.LaunchUriAsync(new Uri("file://" + dir));
+        }
+
+        return Task.CompletedTask;
     }
 
-    private async Task EmulatorOptionsUserControlOverlay()
+    private async Task EmulatorOptionsUserControlOverlayAsync()
     {
         if (_subscribedViewModel?.HostApp == null)
             return;

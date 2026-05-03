@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Monitor;
+using Highbyte.DotNet6502.App.WASM;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 
@@ -53,13 +54,13 @@ public class WasmMonitor : MonitorBase
         DisplayStatus();
 
         Visible = true;
-        _wasmHostUIViewModel.SetMonitorState(true);
+        WasmTaskHelper.Observe(_wasmHostUIViewModel.SetMonitorState(true), "SetMonitorState(true)");
     }
 
     public void Disable()
     {
         Visible = false;
-        _wasmHostUIViewModel.SetMonitorState(false);
+        WasmTaskHelper.Observe(_wasmHostUIViewModel.SetMonitorState(false), "SetMonitorState(false)");
     }
 
     public void OnKeyDown(KeyboardEventArgs e)

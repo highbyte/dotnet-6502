@@ -18,7 +18,7 @@ namespace Highbyte.DotNet6502.Impl.Avalonia.Render;
 public sealed class AvaloniaCommandTarget : ICommandTarget, IDisposable
 {
     private DrawingContext? _currentContext;
-    private Func<byte, string> _glyphToUnicodeMapper;
+    private Func<byte, string>? _glyphToUnicodeMapper;
     private readonly Dictionary<uint, IBrush> _brushCache = new();
     private readonly int _cellWidth;
     private readonly int _cellHeight;

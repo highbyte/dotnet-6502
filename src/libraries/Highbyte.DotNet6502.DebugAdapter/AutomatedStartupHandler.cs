@@ -177,7 +177,7 @@ public static class AutomatedStartupHandler
                     if (waitForSystemReady)
                     {
                         logger.LogInformation("Waiting for system to be ready...");
-                        await WaitForSystemReady(hostApp, logger);
+                        await WaitForSystemReadyAsync(hostApp, logger);
                     }
 
                     // Load PRG if specified
@@ -260,7 +260,7 @@ public static class AutomatedStartupHandler
     /// <see cref="ISystemState.IsSystemReady"/> until it returns true or the
     /// timeout expires. Otherwise falls back to a fixed delay.
     /// </summary>
-    private static async Task WaitForSystemReady(IDebuggableHostApp hostApp, ILogger logger)
+    private static async Task WaitForSystemReadyAsync(IDebuggableHostApp hostApp, ILogger logger)
     {
         if (hostApp.CurrentRunningSystem is ISystemState systemState)
         {

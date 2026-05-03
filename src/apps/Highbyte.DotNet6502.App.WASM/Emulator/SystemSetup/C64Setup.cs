@@ -140,7 +140,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
     {
         var roms = new List<ROM>();
         string name;
-        byte[] data;
+        byte[]? data;
 
         name = C64SystemConfig.BASIC_ROM_NAME;
         data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}");
@@ -149,7 +149,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}"),
+                Data = data,
             });
         }
         name = C64SystemConfig.KERNAL_ROM_NAME;
@@ -159,7 +159,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}"),
+                Data = data,
             });
         }
         name = C64SystemConfig.CHARGEN_ROM_NAME;
@@ -169,7 +169,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}"),
+                Data = data,
             });
         }
 
@@ -221,7 +221,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
                 throw new NotImplementedException($"CodeSuggestionBackendType '{c64HostConfig.CodeSuggestionBackendType}' is not implemented.");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             if (defaultToNoneIdConfigError)
                 codeSuggestion = new NoCodeSuggestion();
