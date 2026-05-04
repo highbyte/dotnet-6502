@@ -24,10 +24,15 @@
         <SolidColorBrush x:Key="WarningColor">#B89D5F</SolidColorBrush>
         <SolidColorBrush x:Key="DangerColor">#A85E5E</SolidColorBrush>
         <SolidColorBrush x:Key="BorderColor">#4A5566</SolidColorBrush>
+
     </Application.Resources>
 
     <Application.Styles>
-        <FluentTheme />
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Dark" Accent="#6B8CAE" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
 
         <!-- Include style files organized by control type -->
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/TextStyles.axaml"/>
