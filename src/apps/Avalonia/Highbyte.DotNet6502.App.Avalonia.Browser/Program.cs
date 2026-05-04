@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text.Json;
@@ -32,14 +31,13 @@ internal sealed partial class Program
         "example_c64_download_and_run_prg.lua",
     ];
 
-    [RequiresUnreferencedCode("Calls JsonSerializer.Deserialize(String) and JsonSerializer.Serialize(object)")]
     private static async Task<int> Main(string[] args)
     {
         AppLogger.ConsoleLoggingEnabled = true;
         WriteBootstrapLog("Avalonia program starting.");
 
         // Load configuration from Browser Local Storage using source-generated JSON serialization
-        string configJson = await GetConfigStringFromLocalStorage(LOCAL_STORAGE_MAIN_CONFIG_KEY);
+        string configJson = await GetConfigStringFromLocalStorageAsync(LOCAL_STORAGE_MAIN_CONFIG_KEY);
         WriteBootstrapLog("Configuration loaded from browser local storage to JSON string.");
 
         var configDict = GetConfigDictionary(configJson);
@@ -98,8 +96,7 @@ internal sealed partial class Program
         // Binding is done here (not inside the library) so the AOT ConfigurationBindingGenerator
         // can see the ScriptingConfig call site and generate trim-safe code.
         WriteBootstrapLog("Reading scripting config.");
-        var scriptingConfig = new ScriptingConfig();
-        configuration.GetSection(ScriptingConfig.ConfigSectionName).Bind(scriptingConfig);
+        var scriptingConfig = GetScriptingConfig(configuration);
         scriptingConfig.ScriptLoader = LoadScriptsFromLocalStorage;
 
         // Wire localStorage-backed store backend (browser-only)
@@ -127,13 +124,13 @@ internal sealed partial class Program
         void DeleteScript(string name) => JSInterop.RemoveLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
 
         // Load-examples callback: fetches bundled scripts and saves any that are not yet in localStorage
-        Task LoadExamples() => SeedExampleScriptsAsync(SaveScript);
+        Task LoadExamplesAsync() => SeedExampleScriptsAsync(SaveScript);
 
         // Start Avalonia app
         try
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamples)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamplesAsync)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -208,6 +205,27 @@ internal sealed partial class Program
         return httpClient;
     }
 
+    private static ScriptingConfig GetScriptingConfig(IConfiguration configuration)
+    {
+        var section = configuration.GetSection(ScriptingConfig.ConfigSectionName);
+
+        return new ScriptingConfig
+        {
+            Enabled = section.GetValue(nameof(ScriptingConfig.Enabled), true),
+            ScriptDirectory = section.GetValue(nameof(ScriptingConfig.ScriptDirectory), string.Empty) ?? string.Empty,
+            MaxExecutionWarningMs = section.GetValue(nameof(ScriptingConfig.MaxExecutionWarningMs), 5),
+            MaxInstructionsPerResume = section.GetValue(nameof(ScriptingConfig.MaxInstructionsPerResume), 1_000_000),
+            EnableScriptsAtStart = section.GetValue(nameof(ScriptingConfig.EnableScriptsAtStart), false),
+            AllowFileIO = section.GetValue(nameof(ScriptingConfig.AllowFileIO), true),
+            AllowFileWrite = section.GetValue(nameof(ScriptingConfig.AllowFileWrite), false),
+            FileBaseDirectory = section.GetValue<string?>(nameof(ScriptingConfig.FileBaseDirectory)),
+            AllowHttpRequests = section.GetValue(nameof(ScriptingConfig.AllowHttpRequests), true),
+            AllowTcpClient = section.GetValue(nameof(ScriptingConfig.AllowTcpClient), false),
+            AllowStore = section.GetValue(nameof(ScriptingConfig.AllowStore), true),
+            StoreSubDirectory = section.GetValue(nameof(ScriptingConfig.StoreSubDirectory), ".store") ?? ".store",
+        };
+    }
+
     [SupportedOSPlatform("browser")]
     internal static partial class JSInterop
     {
@@ -265,19 +283,19 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task<string> GetConfigStringFromLocalStorage(string configKey)
+    private static async Task<string> GetConfigStringFromLocalStorageAsync(string configKey)
     {
         var jsonString = await Task.Run(() => JSInterop.GetLocalStorage(configKey) ?? string.Empty);
         return jsonString;
     }
 
-    private static async Task PersistStringToLocalStorage(string configKey, string configKeyJsonValue, string? localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY)
+    private static async Task PersistStringToLocalStorageAsync(string configKey, string configKeyJsonValue, string? localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY)
     {
         if (string.IsNullOrEmpty(localStorageKey))
             localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY;
 
         // Load existing config from Local Storage
-        string configJson = await GetConfigStringFromLocalStorage(localStorageKey);
+        string configJson = await GetConfigStringFromLocalStorageAsync(localStorageKey);
         WriteBootstrapLog("Configuration loaded from browser local storage to JSON string.");
 
         // Parse existing config or start with empty dictionary
@@ -326,13 +344,13 @@ internal sealed partial class Program
         WriteBootstrapLog("Updated configuration JSON string saved to browser local storage.");
     }
 
-    private static async Task PersistConfigSectionToLocalStorage(string configSectionName, IConfigurationSection configKeySection, string? localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY)
+    private static async Task PersistConfigSectionToLocalStorageAsync(string configSectionName, IConfigurationSection configKeySection, string? localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY)
     {
         // Serialize the IConfigurationSection to JSON string using source-generated serialization
         var configKeyJsonValue = JsonSerializer.Serialize(configKeySection.GetChildren().ToDictionary(x => x.Key, x => x.Value), HostConfigJsonContext.Default.DictionaryStringString);
 
         // Persist the JSON string to Local Storage
-        await PersistStringToLocalStorage(configSectionName, configKeyJsonValue);
+        await PersistStringToLocalStorageAsync(configSectionName, configKeyJsonValue);
     }
 
     // For Avalonia Browser, derive the app base URL (including hosting path)
@@ -399,8 +417,8 @@ internal sealed partial class Program
                                 logStore,
                                 logConfig,
                                 loggerFactory,
-                                saveCustomConfigString: PersistStringToLocalStorage,
-                                saveCustomConfigSection: PersistConfigSectionToLocalStorage,
+                                saveCustomConfigString: PersistStringToLocalStorageAsync,
+                                saveCustomConfigSection: PersistConfigSectionToLocalStorageAsync,
                                 gamepad: browserGamepad,
                                 scriptingEngine: scriptingEngine,
                                 loadScript: loadScript,

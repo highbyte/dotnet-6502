@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems;
+using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
@@ -95,6 +96,13 @@ public class C64LegacyRenderTarget : ICustomRenderTarget<PayloadC64>, IDisposabl
         return ValueTask.CompletedTask;
     }
 
+    [MemberNotNull(
+        nameof(_charGen),
+        nameof(_spriteImages),
+        nameof(_backgroundStat),
+        nameof(_borderStat),
+        nameof(_textScreenStat),
+        nameof(_spritesStat))]
     private void Init()
     {
         _charGen = new CharGen();

@@ -150,67 +150,77 @@ public class FilePickerConsole : Window
 
     private void FileListBox_SelectedItemChanged(object? sender, ListBox.SelectedItemEventArgs? e)
     {
-        if (e.Item != null)
+        if (e?.Item == null)
+            return;
+
+        var selectedItemTextBox = GetControlOrThrow<TextBox>("selectedItemTextBox");
+
+        if (e.Item is FileDirectoryListbox.FauxDirectory fauxDirectory)
         {
-            var selectedItemTextBox = Controls["selectedItemTextBox"] as TextBox;
+            // Detect parent directory change (..)
+            //Debug.WriteLine($"FauxDirectory: {fauxDirectory.Name}");
 
-            if (e.Item is FileDirectoryListbox.FauxDirectory fauxDirectory)
+            var fileListBox = GetControlOrThrow<FileDirectoryListbox>("fileListBox");
+            var currentFolder = fileListBox.CurrentFolder;
+            if (string.IsNullOrEmpty(currentFolder))
+                return;
+
+            if (_selectedDirectory.FullName != currentFolder)
             {
-                // Detect parent directory change (..)
-                //Debug.WriteLine($"FauxDirectory: {fauxDirectory.Name}");
-
-                var fileListBox = Controls["fileListBox"] as FileDirectoryListbox;
-                if (_selectedDirectory.FullName != fileListBox.CurrentFolder)
+                _selectedDirectory = new DirectoryInfo(currentFolder);
+                if (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
                 {
-                    _selectedDirectory = new DirectoryInfo(fileListBox.CurrentFolder);
-                    if (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
-                    {
-                        if (_selectedFile != null && _selectedDirectory.FullName != _selectedFile.Directory!.FullName)
-                            _selectedFile = new FileInfo(Path.Combine(_selectedDirectory.FullName, _selectedFile.Name));
-                    }
-                    else
-                    {
-                        // OpenFolder mode
-                        //selectedItemTextBox.Text = _selectedDirectory.Name;
-                        //selectedItemTextBox.IsDirty = true;
-                    }
+                    var selectedFileDirectory = _selectedFile?.Directory;
+                    if (_selectedFile != null && selectedFileDirectory != null && _selectedDirectory.FullName != selectedFileDirectory.FullName)
+                        _selectedFile = new FileInfo(Path.Combine(_selectedDirectory.FullName, _selectedFile.Name));
                 }
-            }
-
-            if (e.Item is DirectoryInfo directoryInfo)
-            {
-                //Debug.WriteLine($"DirectoryInfo: {directoryInfo.FullName}");
-
-                _selectedDirectory = directoryInfo;
-
-                if (_filePickerMode == FilePickerMode.OpenFolder)
+                else
                 {
+                    // OpenFolder mode
                     //selectedItemTextBox.Text = _selectedDirectory.Name;
                     //selectedItemTextBox.IsDirty = true;
                 }
-                else if (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
-                {
-                    if (_selectedFile != null && _selectedDirectory.FullName != _selectedFile.Directory.FullName)
-                        _selectedFile = new FileInfo(Path.Combine(_selectedDirectory.FullName, _selectedFile.Name));
-                }
             }
-            if (e.Item is FileInfo fileInfo)
-            {
-                //Debug.WriteLine($"FileInfo: {fileInfo.FullName}");
-
-                if (_filePickerMode == FilePickerMode.OpenFolder)
-                    return;
-
-                _selectedFile = fileInfo;
-                _selectedDirectory = fileInfo.Directory!;
-
-                selectedItemTextBox.Text = _selectedFile.Name;
-                selectedItemTextBox.IsDirty = true;
-            }
-
-            DebugPrintSelectedItems();
-            IsDirty = true;
         }
+
+        if (e.Item is DirectoryInfo directoryInfo)
+        {
+            //Debug.WriteLine($"DirectoryInfo: {directoryInfo.FullName}");
+
+            _selectedDirectory = directoryInfo;
+
+            if (_filePickerMode == FilePickerMode.OpenFolder)
+            {
+                //selectedItemTextBox.Text = _selectedDirectory.Name;
+                //selectedItemTextBox.IsDirty = true;
+            }
+            else if (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
+            {
+                var selectedFileDirectory = _selectedFile?.Directory;
+                if (_selectedFile != null && selectedFileDirectory != null && _selectedDirectory.FullName != selectedFileDirectory.FullName)
+                    _selectedFile = new FileInfo(Path.Combine(_selectedDirectory.FullName, _selectedFile.Name));
+            }
+        }
+
+        if (e.Item is FileInfo fileInfo)
+        {
+            //Debug.WriteLine($"FileInfo: {fileInfo.FullName}");
+
+            if (_filePickerMode == FilePickerMode.OpenFolder)
+                return;
+
+            if (fileInfo.Directory == null)
+                return;
+
+            _selectedFile = fileInfo;
+            _selectedDirectory = fileInfo.Directory;
+
+            selectedItemTextBox.Text = _selectedFile.Name;
+            selectedItemTextBox.IsDirty = true;
+        }
+
+        DebugPrintSelectedItems();
+        IsDirty = true;
     }
 
     private void DebugPrintSelectedItems()
@@ -231,12 +241,13 @@ public class FilePickerConsole : Window
 
     private void SetControlStates()
     {
-        var okButton = Controls["okButton"] as Button;
+        var okButton = GetControlOrThrow<Button>("okButton");
         if (_filePickerMode == FilePickerMode.OpenFile)
         {
             if (_selectedFile != null)
             {
-                if (_selectedFile.Directory.FullName != _selectedDirectory.FullName)
+                var selectedFileDirectory = _selectedFile.Directory;
+                if (selectedFileDirectory == null || selectedFileDirectory.FullName != _selectedDirectory.FullName)
                 {
                     // A file from another directory has been selected.
                     okButton.IsEnabled = false;
@@ -259,5 +270,10 @@ public class FilePickerConsole : Window
         {
             okButton.IsEnabled = _selectedDirectory.Exists;
         }
+    }
+
+    private T GetControlOrThrow<T>(string name) where T : class
+    {
+        return Controls[name] as T ?? throw new InvalidOperationException($"Control '{name}' is not initialized.");
     }
 }

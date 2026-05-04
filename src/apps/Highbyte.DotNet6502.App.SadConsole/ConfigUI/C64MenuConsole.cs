@@ -25,7 +25,7 @@ public class C64MenuConsole : ControlsConsole
     private readonly IConfiguration _configuration;
     private readonly ILogger _logger;
 
-    private C64SadConsoleInputHandler C64SadConsoleInputHandler => (C64SadConsoleInputHandler)_sadConsoleHostApp.CurrentSystemRunner.InputHandler;
+    private C64SadConsoleInputHandler C64SadConsoleInputHandler => GetInputHandlerOrThrow();
 
     public C64MenuConsole(
         SadConsoleHostApp sadConsoleHostApp,
@@ -155,9 +155,16 @@ public class C64MenuConsole : ControlsConsole
             {
                 try
                 {
-                    var fileName = window.SelectedFile!.FullName;
+                    if (window.SelectedFile is not FileInfo selectedFile)
+                        return;
+
+                    var currentSystem = _sadConsoleHostApp.CurrentRunningSystem;
+                    if (currentSystem == null)
+                        return;
+
+                    var fileName = selectedFile.FullName;
                     BinaryLoader.Load(
-                        _sadConsoleHostApp.CurrentRunningSystem!.Mem,
+                        currentSystem.Mem,
                         fileName,
                         out ushort loadedAtAddress,
                         out ushort fileLength);
@@ -170,7 +177,7 @@ public class C64MenuConsole : ControlsConsole
                     else
                     {
                         // Init C64 BASIC memory variables
-                        ((C64)_sadConsoleHostApp.CurrentRunningSystem).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                        ((C64)currentSystem).InitBasicMemoryVariables(loadedAtAddress, fileLength);
                     }
                 }
                 catch (Exception ex)
@@ -204,12 +211,18 @@ public class C64MenuConsole : ControlsConsole
             {
                 try
                 {
-                    var fileName = window.SelectedFile.FullName;
+                    if (window.SelectedFile is not FileInfo selectedFile)
+                        return;
+
+                    if (_sadConsoleHostApp.CurrentRunningSystem is not C64 c64)
+                        return;
+
+                    var fileName = selectedFile.FullName;
                     // TODO: Does FilePickerConsole check if file already exists and ask for overwrite? Or do this here?
                     ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                    var endAddressValue = ((C64)_sadConsoleHostApp.CurrentRunningSystem!).GetBasicProgramEndAddress();
+                    var endAddressValue = c64.GetBasicProgramEndAddress();
                     BinarySaver.Save(
-                        _sadConsoleHostApp.CurrentRunningSystem.Mem,
+                        c64.Mem,
                         fileName,
                         startAddressValue,
                         endAddressValue,
@@ -270,13 +283,17 @@ public class C64MenuConsole : ControlsConsole
                 {
                     try
                     {
-                        var fileName = window.SelectedFile!.FullName;
+                        if (window.SelectedFile is not FileInfo selectedFile)
+                            return;
+
+                        if (_sadConsoleHostApp.CurrentRunningSystem is not C64 c64)
+                            return;
+
+                        var fileName = selectedFile.FullName;
 
                         // Parse the D64 file
                         var d64DiskImage = D64Parser.ParseD64File(fileName);
 
-                        // Get the C64 system and access the DiskDrive1541
-                        var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
                         if (c64.IECBus.GetDeviceByNumber(8) is DiskDrive1541 diskDrive1541)
                         {
                             // Set the D64 disk image on the disk drive
@@ -374,7 +391,7 @@ public class C64MenuConsole : ControlsConsole
         var c64PasteTextButton = Controls["c64PasteTextButton"];
         c64PasteTextButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
 
-        var c64aiBasicAssistantCheckbox = Controls["c64aiBasicAssistantCheckbox"] as CheckBox;
+        var c64aiBasicAssistantCheckbox = GetControlOrThrow<CheckBox>("c64aiBasicAssistantCheckbox");
         if (_sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running && C64SadConsoleInputHandler.CodingAssistantAvailable)
         {
             c64aiBasicAssistantCheckbox.IsEnabled = true;
@@ -387,16 +404,16 @@ public class C64MenuConsole : ControlsConsole
         }
 
 
-        var validationMessageValueLabel = Controls["validationMessageValueLabel"] as Label;
+        var validationMessageValueLabel = GetControlOrThrow<Label>("validationMessageValueLabel");
         (var isOk, var validationErrors) = _sadConsoleHostApp.IsValidConfigWithDetails().Result;
         //validationMessageValueLabel!.DisplayText = isOk ? "" : string.Join(",", validationErrors!);
-        validationMessageValueLabel!.DisplayText = isOk ? "" : "Config errors.";
-        validationMessageValueLabel!.IsVisible = !isOk;
+        validationMessageValueLabel.DisplayText = isOk ? "" : "Config errors.";
+        validationMessageValueLabel.IsVisible = !isOk;
     }
 
     public Task ToggleBasicAIAssistant()
     {
-        var c64aiBasicAssistantCheckbox = Controls["c64aiBasicAssistantCheckbox"] as CheckBox;
+        var c64aiBasicAssistantCheckbox = GetControlOrThrow<CheckBox>("c64aiBasicAssistantCheckbox");
         c64aiBasicAssistantCheckbox.IsSelected = !c64aiBasicAssistantCheckbox.IsSelected;
         return Task.CompletedTask;
     }
@@ -426,5 +443,16 @@ public class C64MenuConsole : ControlsConsole
             return diskDrive1541.IsDisketteInserted;
         }
         return false;
+    }
+
+    private C64SadConsoleInputHandler GetInputHandlerOrThrow()
+    {
+        return _sadConsoleHostApp.CurrentSystemRunner?.InputHandler as C64SadConsoleInputHandler
+            ?? throw new InvalidOperationException("C64 SadConsole input handler is not initialized.");
+    }
+
+    private T GetControlOrThrow<T>(string name) where T : class
+    {
+        return Controls[name] as T ?? throw new InvalidOperationException($"Control '{name}' is not initialized.");
     }
 }

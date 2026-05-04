@@ -249,7 +249,7 @@ public class EmulatorConfigViewModel : ViewModelBase
             _emulatorConfig.Monitor.StopAfterUnknownInstruction = _stopAfterUnknownInstruction;
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
-            await _hostApp.PersistEmulatorConfig();
+            await _hostApp.PersistEmulatorConfigAsync();
 
             StatusMessage = "Configuration saved.";
             return true;

@@ -144,31 +144,38 @@ public partial class C64MenuView : UserControl
     private void StartButtonFlash(Button button, Color flashColor, bool stopAfterClick)
         => SafeAsyncHelper.Execute(async () =>
         {
-            _buttonFlashCancellation = new CancellationTokenSource();
+            if (_buttonFlashCancellation != null)
+            {
+                await _buttonFlashCancellation.CancelAsync();
+                _buttonFlashCancellation.Dispose();
+            }
+
+            var buttonFlashCancellation = new CancellationTokenSource();
+            _buttonFlashCancellation = buttonFlashCancellation;
             var originalBrush = button.Background;
             var flashBrush = new SolidColorBrush(flashColor);
 
             EventHandler<RoutedEventArgs>? tempHandler = null;
             tempHandler = (s, e) =>
             {
-                _buttonFlashCancellation?.Cancel();
-                button.Click -= tempHandler;
+                SafeAsyncHelper.Execute(async () =>
+                {
+                    await buttonFlashCancellation.CancelAsync();
+                    button.Click -= tempHandler;
+                });
             };
             if (stopAfterClick)
-            {
-                // Add the temporary handler
                 button.Click += tempHandler;
-            }
 
             try
             {
-                while (!_buttonFlashCancellation.Token.IsCancellationRequested)
+                while (!buttonFlashCancellation.Token.IsCancellationRequested)
                 {
                     button.Background = flashBrush;
-                    await Task.Delay(700, _buttonFlashCancellation.Token); // Match delay with flash duration to be at least as long as BrushTransition Duration (otherwise abrupt change may occur)
+                    await Task.Delay(700, buttonFlashCancellation.Token); // Match delay with flash duration to be at least as long as BrushTransition Duration (otherwise abrupt change may occur)
 
                     button.Background = originalBrush;
-                    await Task.Delay(2000, _buttonFlashCancellation.Token);
+                    await Task.Delay(2000, buttonFlashCancellation.Token);
                 }
             }
             catch (OperationCanceledException)
@@ -180,6 +187,10 @@ public partial class C64MenuView : UserControl
             {
                 // Clean up the handler in case animation completed naturally
                 button.Click -= tempHandler;
+                buttonFlashCancellation.Dispose();
+
+                if (ReferenceEquals(_buttonFlashCancellation, buttonFlashCancellation))
+                    _buttonFlashCancellation = null;
             }
         });
 
@@ -198,17 +209,17 @@ public partial class C64MenuView : UserControl
             if (PlatformDetection.IsRunningInWebAssembly())
             {
                 // For WASM, show usercontrol overlay instead of Window
-                await C64ConfigUserControlOverlay();
+                await C64ConfigUserControlOverlayAsync();
             }
             else
             {
                 // For desktop platforms, use the Window dialog
-                await ShowC64ConfigDialog();
+                await ShowC64ConfigDialogAsync();
                 //await C64ConfigUserControlOverlay();
             }
         });
 
-    private async Task ShowC64ConfigDialog()
+    private async Task ShowC64ConfigDialogAsync()
     {
         // Get C64ConfigDialogViewModel from DI
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
@@ -248,7 +259,7 @@ public partial class C64MenuView : UserControl
         }
     }
 
-    private async Task C64ConfigUserControlOverlay()
+    private async Task C64ConfigUserControlOverlayAsync()
     {
         // Get C64ConfigDialogViewModel from DI
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
@@ -303,21 +314,19 @@ public partial class C64MenuView : UserControl
     }
 
     private void OpenBasicAssistantInfo_Click(object? sender, RoutedEventArgs e)
-    {
-        // Open the info link for Basic coding assistant
-        if (TopLevel.GetTopLevel(this) is { } topLevel)
-        {
-            topLevel.Launcher.LaunchUriAsync(new Uri("https://highbyte.github.io/dotnet-6502/docs/systems/c64/code-completion/"));
-        }
-    }
+        => SafeAsyncHelper.Execute(() => LaunchUriIfAvailableAsync("https://highbyte.github.io/dotnet-6502/docs/systems/c64/code-completion/"));
 
     private void OpenDiskInfo_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(() => LaunchUriIfAvailableAsync("https://highbyte.github.io/dotnet-6502/docs/systems/c64/compatible-programs/"));
+
+    private Task LaunchUriIfAvailableAsync(string uri)
     {
-        // Open the info link for disk functionality
         if (TopLevel.GetTopLevel(this) is { } topLevel)
         {
-            topLevel.Launcher.LaunchUriAsync(new Uri("https://highbyte.github.io/dotnet-6502/docs/systems/c64/compatible-programs/"));
+            return topLevel.Launcher.LaunchUriAsync(new Uri(uri));
         }
+
+        return Task.CompletedTask;
     }
 
     // File operation event handlers - now delegate to ViewModel commands
@@ -384,7 +393,7 @@ public partial class C64MenuView : UserControl
                 if (file != null)
                 {
                     // Call ViewModel method directly to get the byte array
-                    var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytes();
+                    var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytesAsync();
 
                     await using var stream = await file.OpenWriteAsync();
                     await stream.WriteAsync(saveData);
@@ -435,5 +444,5 @@ public partial class C64MenuView : UserControl
             }
         });
 
-    private CancellationTokenSource _buttonFlashCancellation;
+    private CancellationTokenSource? _buttonFlashCancellation;
 }

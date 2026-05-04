@@ -9,8 +9,8 @@ namespace Highbyte.DotNet6502.Benchmarks.Commodore64.Render;
 [MemoryDiagnoser]
 public class Vic2RasterizerPixelWriteBenchmarks
 {
-    private uint[] _backBuffer;
-    private uint[] _sourceBuffer;
+    private uint[] _backBuffer = [];
+    private uint[] _sourceBuffer = [];
     private int _width;
     private int _height;
     private int _pixelCount;

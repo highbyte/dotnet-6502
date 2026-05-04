@@ -43,8 +43,13 @@ public class C64SilkNetOpenGlRendererTarget : ICustomRenderTarget<C64GpuPacket>,
     private BufferObject<ScreenLineData> _uboScreenLineData = default!;
     private BufferObject<SpriteData> _uboSpriteData = default!;
     private BufferObject<SpriteContentData> _uboSpriteContentData = default!;
-    private C64GpuPacket _c64GpuPacket;
+    private C64GpuPacket? _c64GpuPacket;
     private readonly C64SilkNetOpenGlRendererConfig _config;
+
+    private C64GpuPacket GetCurrentGpuPacketOrThrow()
+    {
+        return _c64GpuPacket ?? throw new InvalidOperationException("GPU packet has not been generated.");
+    }
 
     public C64SilkNetOpenGlRendererTarget(C64 c64, C64SilkNetOpenGlRendererConfig config, GL gl, IWindow window)
     {
@@ -191,7 +196,7 @@ public class C64SilkNetOpenGlRendererTarget : ICustomRenderTarget<C64GpuPacket>,
 
     public void DrawFrame()
     {
-        DrawFrame(_c64GpuPacket);
+        DrawFrame(GetCurrentGpuPacketOrThrow());
     }
 
     public void DrawFrame(C64GpuPacket c64GpuPacket)

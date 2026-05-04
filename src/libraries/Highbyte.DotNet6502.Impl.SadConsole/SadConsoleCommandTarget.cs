@@ -13,7 +13,7 @@ public sealed class SadConsoleCommandTarget : ICommandTarget
     private readonly Dictionary<uint, Color> _colorArgbCache = new();
     private readonly Dictionary<System.Drawing.Color, Color> _colorCache = new();
 
-    private readonly Func<int, Color, Color, (int tranformedCharacter, Color transformedFgColor, Color transformedBgColor)>? _transformCharacterAndColor;
+    private readonly Func<int, Color, Color, (int transformedCharacter, Color transformedFgColor, Color transformedBgColor)>? _transformCharacterAndColor;
 
     public string Name => "SadConsoleCommandTarget";
 
@@ -21,7 +21,7 @@ public sealed class SadConsoleCommandTarget : ICommandTarget
         ScreenSurface screenSurface,
         int offsetX = 0,
         int offsetY = 0,
-        Func<int, Color, Color, (int tranformedCharacter, Color transformedFgColor, Color transformedBgColor)>? transformCharacterAndColor = null)
+        Func<int, Color, Color, (int transformedCharacter, Color transformedFgColor, Color transformedBgColor)>? transformCharacterAndColor = null)
     {
         _screenSurface = screenSurface ?? throw new ArgumentNullException(nameof(screenSurface));
         _offsetX = offsetX;
@@ -110,8 +110,8 @@ public sealed class SadConsoleCommandTarget : ICommandTarget
     {
         if (_transformCharacterAndColor != null)
         {
-            var (tranformedCharacter, transformedFgColor, transformedBgColor) = _transformCharacterAndColor(emulatorCharacter, fgColor, bgColor);
-            emulatorCharacter = tranformedCharacter;
+            var (transformedCharacter, transformedFgColor, transformedBgColor) = _transformCharacterAndColor(emulatorCharacter, fgColor, bgColor);
+            emulatorCharacter = transformedCharacter;
             fgColor = transformedFgColor;
             bgColor = transformedBgColor;
         }

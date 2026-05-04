@@ -37,15 +37,13 @@ public partial class MonitorUserControl : UserControl
         _viewModel.RefreshStatus();
         ScrollToEnd();
 
-        // Set focus after a small delay to ensure the control is fully rendered
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(100);
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                _commandTextBox?.Focus();
-            });
-        });
+        SafeAsyncHelper.Execute(FocusCommandTextBoxAsync);
+    }
+
+    private async Task FocusCommandTextBoxAsync()
+    {
+        await Task.Delay(100);
+        await Dispatcher.UIThread.InvokeAsync(() => _commandTextBox?.Focus());
     }
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
@@ -69,8 +67,8 @@ public partial class MonitorUserControl : UserControl
         switch (e.Key)
         {
             case Key.Enter:
-                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
-                _viewModel.SendCommand.Execute();
+                var sendExecution = _viewModel.SendCommand.Execute();
+                SafeAsyncHelper.Observe(sendExecution);
                 break;
             case Key.Up:
                 _viewModel.NavigateHistoryPrevious();
@@ -92,8 +90,8 @@ public partial class MonitorUserControl : UserControl
                 // Don't toggle monitor if external debugger is attached
                 if (!_viewModel.IsExternalDebuggerAttached)
                 {
-                    // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
-                    _viewModel.CloseCommand.Execute();
+                    var closeExecution = _viewModel.CloseCommand.Execute();
+                    SafeAsyncHelper.Observe(closeExecution);
                 }
                 e.Handled = true;
                 break;

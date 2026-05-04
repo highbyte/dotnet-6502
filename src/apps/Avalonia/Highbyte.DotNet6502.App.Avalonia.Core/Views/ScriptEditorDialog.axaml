@@ -29,7 +29,7 @@
                      Grid.Column="1"
                      Text="{Binding FileName}"
                      IsReadOnly="{Binding !IsNew}"
-                     Watermark="e.g. myscript.lua"
+                     PlaceholderText="e.g. myscript.lua"
                      FontFamily="Consolas,Monaco,'Courier New',monospace"/>
         </Grid>
 

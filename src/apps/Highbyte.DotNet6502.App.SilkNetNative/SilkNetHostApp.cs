@@ -1,5 +1,7 @@
 using System.Numerics;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
@@ -24,7 +26,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     // --------------------
     // Injected variables
     // --------------------
-    private readonly ILogger _logger;
+    private new readonly ILogger _logger;
     private readonly IWindow _window;
     private readonly EmulatorConfig _emulatorConfig;
     public EmulatorConfig EmulatorConfig => _emulatorConfig;
@@ -38,7 +40,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     // --------------------
     // Other variables / constants
     // --------------------
-    private SkiaGlCanvasProvider _skiaGlCanvasProvider;
+    private SkiaGlCanvasProvider? _skiaGlCanvasProvider;
 
     private SilkNetInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
@@ -88,8 +90,18 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     private GL _gl = default!;
     private ImGuiController _imGuiController = default!;
 
-    private SKImage _logoImage;
+    private SKImage? _logoImage;
     private SKRect _logoImageDest;
+
+    private SkiaGlCanvasProvider GetSkiaGlCanvasProviderOrThrow()
+    {
+        return _skiaGlCanvasProvider ?? throw new InvalidOperationException("Skia GL canvas provider has not been initialized.");
+    }
+
+    private SKImage GetLogoImageOrThrow()
+    {
+        return _logoImage ?? throw new InvalidOperationException("Logo image has not been initialized.");
+    }
 
     /// <summary>
     /// Constructor
@@ -192,23 +204,23 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
                     // Common source and render targets, independent of emulated system and the host renderer
                     rtp.AddRenderTargetType<SkiaCanvasTwoLayerRenderTarget>(() => new SkiaCanvasTwoLayerRenderTarget(
                         new RenderSize(CurrentRunningSystem!.Screen.VisibleWidth, CurrentRunningSystem!.Screen.VisibleHeight),
-                        () => _skiaGlCanvasProvider.Canvas,
+                        () => GetSkiaGlCanvasProviderOrThrow().Canvas,
                         flush: true));
 
                     // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
                     rtp.AddRenderTargetType<C64LegacyRenderTarget>(() => new C64LegacyRenderTarget(
-                        (C64)CurrentRunningSystem,
-                        () => _skiaGlCanvasProvider.Canvas,
+                        GetCurrentC64OrThrow(),
+                        () => GetSkiaGlCanvasProviderOrThrow().Canvas,
                         flush: true));
                     // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
                     rtp.AddRenderTargetType<C64LegacyRenderTarget2>(() => new C64LegacyRenderTarget2(
-                        (C64)CurrentRunningSystem,
-                        () => _skiaGlCanvasProvider.Canvas,
+                        GetCurrentC64OrThrow(),
+                        () => GetSkiaGlCanvasProviderOrThrow().Canvas,
                         flush: true));
 
                     // GPU based custom source + render targets, specific to emulated system and the host renderer
                     rtp.AddRenderTargetType<C64SilkNetOpenGlRendererTarget>(() => new C64SilkNetOpenGlRendererTarget(
-                        (C64)CurrentRunningSystem,
+                        GetCurrentC64OrThrow(),
                         ((C64HostConfig)CurrentHostSystemConfig).SilkNetOpenGlRendererConfig,
                         _gl,
                         _window
@@ -216,7 +228,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
 
                     // Experimental Skia C64 command based target. WIP.
                     rtp.AddRenderTargetType<SkiaCommandTarget>(() => new SkiaCommandTarget(
-                        () => _skiaGlCanvasProvider.Canvas,
+                        () => GetSkiaGlCanvasProviderOrThrow().Canvas,
                         useCellCoordinates: true,
                         flush: true));
 
@@ -231,6 +243,11 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
                         shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
                     return renderloop;
                 });
+
+            C64 GetCurrentC64OrThrow()
+            {
+                return CurrentRunningSystem as C64 ?? throw new DotNet6502Exception("Current running system is not a C64.");
+            }
             _logger.LogInformation("OnLoad: Render configuration set.");
 
             ConfigureSilkNetInput();
@@ -541,7 +558,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
             else
             {
                 DrawLogo();
-                _skiaGlCanvasProvider.GRContext.Flush();
+                GetSkiaGlCanvasProviderOrThrow().GRContext.Flush();
             }
 
             // Render logs if enabled, regardless of if emulator was rendered or not
@@ -565,7 +582,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
                 _menu.PostOnRender();
 
             // Render error dialog if needed
-            RenderErrorDialog();
+            ObserveUiTask(RenderErrorDialog(), nameof(RenderErrorDialog));
 
             // Render any ImGui UI rendered above emulator.
             _imGuiController?.Render();
@@ -574,6 +591,23 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
         {
             HandleEventHandlerException(ex, nameof(OnAfterRender));
         }
+    }
+
+    private void ObserveUiTask(Task task, string operationName)
+    {
+        _ = task.ContinueWith(
+            static (completedTask, state) =>
+            {
+                if (completedTask.Exception is { } exception)
+                {
+                    var (hostApp, name) = ((SilkNetHostApp hostApp, string name))state!;
+                    hostApp.HandleEventHandlerException(exception.GetBaseException(), name);
+                }
+            },
+            (this, operationName),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private void OnResize(Vector2D<int> vec2)
@@ -877,11 +911,12 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
 
     private void DrawLogo()
     {
-        var canvas = _skiaGlCanvasProvider.Canvas;
+        var skiaGlCanvasProvider = GetSkiaGlCanvasProviderOrThrow();
+        var canvas = skiaGlCanvasProvider.Canvas;
         canvas.Clear();
-        canvas.DrawImage(_logoImage, _logoImageDest);
+        canvas.DrawImage(GetLogoImageOrThrow(), _logoImageDest);
 
         // Flush the SkiaSharp Context.
-        _skiaGlCanvasProvider.GRContext.Flush();
+        skiaGlCanvasProvider.GRContext.Flush();
     }
 }

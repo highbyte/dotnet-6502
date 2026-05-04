@@ -92,30 +92,23 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         GenericComputerConfig? genericComputerConfig = null;
         if (!string.IsNullOrEmpty(exampleProgramPath))
         {
-            try
+            // Check if exampleProgramPath starts with ExampleFileAssemblyName. If not prepend it.
+            if (!exampleProgramPath.StartsWith(ExampleFileAssemblyName!))
             {
-                // Check if exampleProgramPath starts with ExampleFileAssemblyName. If not prepend it.
-                if (!exampleProgramPath.StartsWith(ExampleFileAssemblyName!))
-                {
-                    exampleProgramPath = $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.Generic.{exampleProgramPath}";
-                }
-                var file = exampleProgramPath;
-                byte[] exampleProgramBytes;
-                // Load the .prg file from embedded resource
-                using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
-                {
-                    if (resourceStream == null)
-                        throw new Exception($"Cannot find file in embedded resources. Resource: {file}");
-                    // Read contents of stream as byte array
-                    exampleProgramBytes = new byte[resourceStream.Length];
-                    resourceStream.ReadExactly(exampleProgramBytes);
-                }
-                genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericComputerSystemConfig, exampleProgramBytes);
+                exampleProgramPath = $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.Generic.{exampleProgramPath}";
             }
-            catch (Exception ex)
+            var file = exampleProgramPath;
+            byte[] exampleProgramBytes;
+            // Load the .prg file from embedded resource
+            using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
             {
-                throw;
+                if (resourceStream == null)
+                    throw new Exception($"Cannot find file in embedded resources. Resource: {file}");
+                // Read contents of stream as byte array
+                exampleProgramBytes = new byte[resourceStream.Length];
+                resourceStream.ReadExactly(exampleProgramBytes);
             }
+            genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericComputerSystemConfig, exampleProgramBytes);
         }
 
         if (genericComputerConfig == null)

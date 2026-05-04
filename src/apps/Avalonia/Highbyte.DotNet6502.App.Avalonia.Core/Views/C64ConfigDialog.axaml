@@ -14,7 +14,7 @@
 
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        SystemDecorations="Full"
+        WindowDecorations="Full"
         ShowInTaskbar="False"
         Background="{DynamicResource ViewDefaultBg}">
   

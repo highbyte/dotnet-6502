@@ -12,7 +12,7 @@ public abstract class SadConsoleHostSystemConfigBase : IHostSystemConfig, IClone
 
     public abstract bool IsValid(out List<string> validationErrors);
 
-    protected ISystemConfig SystemConfig;
+    protected ISystemConfig SystemConfig = null!;
 
     ISystemConfig IHostSystemConfig.SystemConfig => SystemConfig;
 

@@ -34,10 +34,10 @@ public class PeriodicAsyncTimer : IScriptingTickTimer, IAsyncDisposable
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
-        _ = StartTimer();
+        _ = StartTimerAsync();
     }
 
-    private async Task StartTimer()
+    private async Task StartTimerAsync()
     {
         var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(IntervalMilliseconds));
 

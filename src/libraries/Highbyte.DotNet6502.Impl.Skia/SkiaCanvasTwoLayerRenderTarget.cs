@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Utils;
 
@@ -103,6 +104,11 @@ public sealed class SkiaCanvasTwoLayerRenderTarget : IRenderFrameTarget
         canvas.DrawRect(0, 0, backgroundImage.Width, backgroundImage.Height, _shaderPaint);
     }
 
+    [MemberNotNull(
+        nameof(_sKRuntimeEffect),
+        nameof(_sKRuntimeEffectUniforms),
+        nameof(_sKRuntimeEffectChildren),
+        nameof(_shaderPaint))]
     private void InitSkiaShader(RenderSize size)
     {
         // --------------------

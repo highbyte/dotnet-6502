@@ -56,7 +56,7 @@ public class C64ConfigUIConsole : Window
         };
         autoDownloadROMButton.Click += async (s, e) =>
         {
-            var autoDownloadROMInfoLabel = Controls["autoDownloadROMInfoLabel"] as Label;
+            var autoDownloadROMInfoLabel = GetControlOrThrow<Label>("autoDownloadROMInfoLabel");
             try
             {
                 await AutoDownloadROMs();
@@ -298,7 +298,10 @@ public class C64ConfigUIConsole : Window
         {
             if (window.DialogResult)
             {
-                C64SystemConfig.SetROM(romName, Path.GetFileName(window.SelectedFile!.FullName));
+                if (window.SelectedFile is not FileInfo selectedFile)
+                    return;
+
+                C64SystemConfig.SetROM(romName, Path.GetFileName(selectedFile.FullName));
                 IsDirty = true;
             }
         };
@@ -369,38 +372,43 @@ public class C64ConfigUIConsole : Window
 
     private void SetControlStates()
     {
-        var romDirectoryTextBox = Controls["romDirectoryTextBox"] as TextBox;
-        romDirectoryTextBox!.Text = C64SystemConfig.ROMDirectory;
-        romDirectoryTextBox!.IsDirty = true;
+        var romDirectoryTextBox = GetControlOrThrow<TextBox>("romDirectoryTextBox");
+        romDirectoryTextBox.Text = C64SystemConfig.ROMDirectory;
+        romDirectoryTextBox.IsDirty = true;
 
-        var kernalROMTextBox = Controls["kernalROMTextBox"] as TextBox;
-        kernalROMTextBox!.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.KERNAL_ROM_NAME).File!;
-        kernalROMTextBox!.IsDirty = true;
+        var kernalROMTextBox = GetControlOrThrow<TextBox>("kernalROMTextBox");
+        kernalROMTextBox.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.KERNAL_ROM_NAME).File!;
+        kernalROMTextBox.IsDirty = true;
 
-        var basicROMTextBox = Controls["basicROMTextBox"] as TextBox;
-        basicROMTextBox!.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.BASIC_ROM_NAME).File!;
-        basicROMTextBox!.IsDirty = true;
+        var basicROMTextBox = GetControlOrThrow<TextBox>("basicROMTextBox");
+        basicROMTextBox.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.BASIC_ROM_NAME).File!;
+        basicROMTextBox.IsDirty = true;
 
-        var chargenROMTextBox = Controls["chargenROMTextBox"] as TextBox;
-        chargenROMTextBox!.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.CHARGEN_ROM_NAME).File!;
-        chargenROMTextBox!.IsDirty = true;
+        var chargenROMTextBox = GetControlOrThrow<TextBox>("chargenROMTextBox");
+        chargenROMTextBox.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.CHARGEN_ROM_NAME).File!;
+        chargenROMTextBox.IsDirty = true;
 
-        var codingAssistantTestButton = Controls["codingAssistantTestButton"] as Button;
+        var codingAssistantTestButton = GetControlOrThrow<Button>("codingAssistantTestButton");
         codingAssistantTestButton.IsEnabled = C64HostConfig.CodeSuggestionBackendType != CodeSuggestionBackendTypeEnum.None;
 
         var isOk = C64SystemConfig.IsValid(out List<string> validationErrors);
-        var okButton = Controls["okButton"] as Button;
-        okButton!.IsEnabled = isOk;
+        var okButton = GetControlOrThrow<Button>("okButton");
+        okButton.IsEnabled = isOk;
 
-        var validationErrorsLabel = Controls["validationErrorsLabel"] as Label;
-        validationErrorsLabel!.IsVisible = !isOk;
-        var validationErrorsListBox = Controls["validationErrorsListBox"] as ListBox;
+        var validationErrorsLabel = GetControlOrThrow<Label>("validationErrorsLabel");
+        validationErrorsLabel.IsVisible = !isOk;
+        var validationErrorsListBox = GetControlOrThrow<ListBox>("validationErrorsListBox");
         validationErrorsListBox.IsVisible = !isOk;
-        validationErrorsListBox!.Items.Clear();
+        validationErrorsListBox.Items.Clear();
         foreach (var error in validationErrors)
         {
             var coloredString = new ColoredString(error, foreground: Color.Red, background: Color.Black);
-            validationErrorsListBox!.Items.Add(coloredString);
+            validationErrorsListBox.Items.Add(coloredString);
         }
+    }
+
+    private T GetControlOrThrow<T>(string name) where T : class
+    {
+        return Controls[name] as T ?? throw new InvalidOperationException($"Control '{name}' is not initialized.");
     }
 }

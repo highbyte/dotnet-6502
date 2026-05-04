@@ -11,7 +11,7 @@
         MinHeight="400"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        SystemDecorations="Full"
+        WindowDecorations="Full"
         ShowInTaskbar="False">
 
   <ContentControl x:Name="MonitorContent"/>

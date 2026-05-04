@@ -291,7 +291,7 @@ public sealed class TcpDebugServerManager : IDisposable
         else
         {
             // HostApp is not yet initialized — wait for it in the background.
-            _ = Task.Run(async () => await DeferredEmulatorStateSubscription(handler, sessionCts));
+            _ = Task.Run(async () => await DeferredEmulatorStateSubscriptionAsync(handler, sessionCts));
         }
     }
 
@@ -299,7 +299,7 @@ public sealed class TcpDebugServerManager : IDisposable
     /// Background task that waits for HostApp to become available, then subscribes
     /// to EmulatorState changes. Used when the TCP server starts before the host is ready.
     /// </summary>
-    private async Task DeferredEmulatorStateSubscription(PropertyChangedEventHandler handler, CancellationTokenSource sessionCts)
+    private async Task DeferredEmulatorStateSubscriptionAsync(PropertyChangedEventHandler handler, CancellationTokenSource sessionCts)
     {
         IDebuggableHostApp? currentHostApp = null;
         while (!sessionCts.IsCancellationRequested

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Versioning;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Microsoft.Extensions.Logging;
@@ -31,25 +32,31 @@ public class WavePlayerFactory
                 DesiredLatency = 40
             };
         }
-        else if (PlatformDetection.IsRunningInWebAssembly())
+        else if (OperatingSystem.IsBrowser())
         {
-            var profile = _emulatorConfig.AudioSettingsProfile;
-            _logger.LogInformation($"Creating NAudio WebAudioWavePlayer for browser platform with profile: {profile}");
-
-            // Create NAudio WavePlayer for browser (using WebAudio API JavaScript interop)
-            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile), _loggerFactory);
-
-            _logger.LogInformation("WebAudioWavePlayer created");
-
-            // Init capture of WebAudioWavePlayer.js JS logging to the .NET side (static JSExport interop method)
-            WebAudioWavePlayer.SetLogger(_loggerFactory.CreateLogger(typeof(WebAudioWavePlayer).Name));
-
-            _logger.LogInformation("WebAudioWavePlayer logger set");
+            wavePlayer = CreateBrowserWavePlayer();
         }
         else
         {
             throw new NotSupportedException("No suitable audio output available for the current platform.");
         }
+        return wavePlayer;
+    }
+
+    [SupportedOSPlatform("browser")]
+    private IWavePlayer CreateBrowserWavePlayer()
+    {
+        var profile = _emulatorConfig.AudioSettingsProfile;
+        _logger.LogInformation($"Creating NAudio WebAudioWavePlayer for browser platform with profile: {profile}");
+
+        var wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile), _loggerFactory);
+
+        _logger.LogInformation("WebAudioWavePlayer created");
+
+        // Init capture of WebAudioWavePlayer.js JS logging to the .NET side (static JSExport interop method)
+        WebAudioWavePlayer.SetLogger(_loggerFactory.CreateLogger(typeof(WebAudioWavePlayer).Name));
+
+        _logger.LogInformation("WebAudioWavePlayer logger set");
         return wavePlayer;
     }
 }

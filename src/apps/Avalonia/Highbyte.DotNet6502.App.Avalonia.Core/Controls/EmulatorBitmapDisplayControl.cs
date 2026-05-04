@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Media;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
@@ -40,27 +42,10 @@ public class EmulatorBitmapDisplayControl : EmulatorDisplayControlBase
 
         try
         {
-            // Call FlushIfDirtyAsync and handle result
             var valueTask = _renderCoordinator.FlushIfDirtyAsync();
-
-            // If the task is already completed, we can check it synchronously
-            if (valueTask.IsCompleted)
+            if (!valueTask.IsCompletedSuccessfully)
             {
-                // GetAwaiter().GetResult() will throw if the task faulted
-                valueTask.GetAwaiter().GetResult();
-            }
-            else
-            {
-                // Task is still pending - fire-and-forget but observe for exceptions
-                var task = valueTask.AsTask();
-                _ = task.ContinueWith(t =>
-                {
-                    if (t.IsFaulted && t.Exception != null)
-                    {
-                        // Rethrow from async context to be caught by outer catch
-                        throw t.Exception;
-                    }
-                });
+                ObserveRenderTask(valueTask.AsTask());
             }
         }
         catch (Exception ex)
@@ -78,6 +63,29 @@ public class EmulatorBitmapDisplayControl : EmulatorDisplayControlBase
         if (_avaloniaBitmapRenderTarget == null) return;
         var destRect = new Rect(0, 0, DisplayWidth * Scale, DisplayHeight * Scale);
         context.DrawImage(_avaloniaBitmapRenderTarget.Bitmap, destRect);
+    }
+
+    private static void ObserveRenderTask(Task task)
+    {
+        if (task.IsCompleted)
+        {
+            LogRenderFailure(task);
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static completedTask => LogRenderFailure(completedTask),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static void LogRenderFailure(Task task)
+    {
+        if (task.Exception is { } exception)
+        {
+            System.Diagnostics.Debug.WriteLine($"OnRender exception: {exception.GetBaseException()}");
+        }
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

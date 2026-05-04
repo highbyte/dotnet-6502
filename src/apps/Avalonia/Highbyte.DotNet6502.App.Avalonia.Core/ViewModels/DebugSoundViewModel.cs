@@ -75,12 +75,12 @@ public class DebugSoundViewModel : ViewModelBase
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
         InitAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
-            InitAudio,
+            InitAudioAsync,
             canExecute: this.WhenAnyValue(x => x.IsAudioNotInitialized),
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
         PlayAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
-            PlayAudio,
+            PlayAudioAsync,
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPaused,
@@ -89,7 +89,7 @@ public class DebugSoundViewModel : ViewModelBase
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
         PauseAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
-            PauseAudio,
+            PauseAudioAsync,
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
@@ -97,7 +97,7 @@ public class DebugSoundViewModel : ViewModelBase
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
         StopAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
-            StopAudio,
+            StopAudioAsync,
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
@@ -108,7 +108,7 @@ public class DebugSoundViewModel : ViewModelBase
         PlayCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
-                await PlaySound(SelectedSoundTest);
+                await PlaySoundAsync(SelectedSoundTest);
             },
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
@@ -119,7 +119,7 @@ public class DebugSoundViewModel : ViewModelBase
         StopCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
-                await StopSound(SelectedSoundTest);
+                await StopSoundAsync(SelectedSoundTest);
             },
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
@@ -131,7 +131,7 @@ public class DebugSoundViewModel : ViewModelBase
         PlaySynthCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
-                await PlaySynthSound();
+                await PlaySynthSoundAsync();
             },
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
@@ -142,7 +142,7 @@ public class DebugSoundViewModel : ViewModelBase
         StartSynthReleaseCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
-                await StartSynthRelease();
+                await StartSynthReleaseAsync();
             },
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
@@ -153,7 +153,7 @@ public class DebugSoundViewModel : ViewModelBase
         StopSynthCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
-                await StopSynthSound();
+                await StopSynthSoundAsync();
             },
             canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
@@ -235,7 +235,7 @@ public class DebugSoundViewModel : ViewModelBase
     public bool IsWavePlayerStopped => _wavePlayer.PlaybackState == PlaybackState.Stopped;
 
 
-    private async Task InitAudio()
+    private async Task InitAudioAsync()
     {
         // Setup audio rendering pipeline: Mixer -> Volume -> WavePlayer
         var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 1);
@@ -250,7 +250,7 @@ public class DebugSoundViewModel : ViewModelBase
         StatusMessage = "Audio initialized.";
     }
 
-    private async Task PlayAudio()
+    private async Task PlayAudioAsync()
     {
         _wavePlayer.Play();
         this.RaisePropertyChanged(nameof(IsWavePlayerPlaying));
@@ -260,7 +260,7 @@ public class DebugSoundViewModel : ViewModelBase
         StatusMessage = "Audio playback started.";
     }
 
-    private async Task PauseAudio()
+    private async Task PauseAudioAsync()
     {
         _wavePlayer.Pause();
         this.RaisePropertyChanged(nameof(IsWavePlayerPlaying));
@@ -271,16 +271,22 @@ public class DebugSoundViewModel : ViewModelBase
     }
 
     // NAudio stop all output
-    private async Task StopAudio()
+    private async Task StopAudioAsync()
     {
         _wavePlayer.Stop();
 
-        if (_synthEnvelopProvider != null)
-            _mixer.RemoveMixerInput(_synthEnvelopProvider);
+        var mixer = _mixer;
+        if (mixer == null)
+            return;
+
+        var synthEnvelopProvider = _synthEnvelopProvider;
+        if (synthEnvelopProvider != null)
+            mixer.RemoveMixerInput(synthEnvelopProvider);
         _synthEnvelopProvider = null;
 
-        if (_customSineWaveProvider != null)
-            _mixer.RemoveMixerInput(_customSineWaveProvider);
+        var customSineWaveProvider = _customSineWaveProvider;
+        if (customSineWaveProvider != null)
+            mixer.RemoveMixerInput(customSineWaveProvider);
         _customSineWaveProvider = null;
 
         this.RaisePropertyChanged(nameof(IsWavePlayerPlaying));
@@ -294,28 +300,34 @@ public class DebugSoundViewModel : ViewModelBase
     // Start of SynthEnvelopeProvider test
     // ------------------------------------------------------------------
     private SynthEnvelopeProvider? _synthEnvelopProvider = default!;
-    private async Task PlaySynthSound()
+    private async Task PlaySynthSoundAsync()
     {
-        if (_synthEnvelopProvider == null)
+        var mixer = _mixer;
+        if (mixer == null)
+            return;
+
+        var synthEnvelopProvider = _synthEnvelopProvider;
+        if (synthEnvelopProvider == null)
         {
             //_soundProvider = new SynthEnvelopeProvider(SignalGeneratorType.SawTooth);
-            _synthEnvelopProvider = new SynthEnvelopeProvider(
+            synthEnvelopProvider = new SynthEnvelopeProvider(
                 SignalGeneratorType.Triangle,
                 sampleRate: 48000);
+            _synthEnvelopProvider = synthEnvelopProvider;
         }
-        _synthEnvelopProvider.ResetADSR();
+        synthEnvelopProvider.ResetADSR();
 
-        _mixer.RemoveMixerInput(_synthEnvelopProvider);
-        _mixer.AddMixerInput(_synthEnvelopProvider);
+        mixer.RemoveMixerInput(synthEnvelopProvider);
+        mixer.AddMixerInput(synthEnvelopProvider);
 
-        _synthEnvelopProvider.Frequency = 240.0f;
+        synthEnvelopProvider.Frequency = 240.0f;
 
-        _synthEnvelopProvider.AttackSeconds = 0.2f;
-        _synthEnvelopProvider.DecaySeconds = 0.5f;
-        _synthEnvelopProvider.SustainLevel = 1.0f;
-        _synthEnvelopProvider.ReleaseSeconds = 2.0f;
+        synthEnvelopProvider.AttackSeconds = 0.2f;
+        synthEnvelopProvider.DecaySeconds = 0.5f;
+        synthEnvelopProvider.SustainLevel = 1.0f;
+        synthEnvelopProvider.ReleaseSeconds = 2.0f;
 
-        _synthEnvelopProvider.StartAttack();
+        synthEnvelopProvider.StartAttack();
 
         StatusMessage = "Synth attack phase triggered";
 
@@ -331,7 +343,7 @@ public class DebugSoundViewModel : ViewModelBase
 
         //await ReleaseAtDelay(releaseDelaySeconds * 1000);
     }
-    private async Task ReleaseAtDelay(int delayMs = 1000)
+    private async Task ReleaseAtDelayAsync(int delayMs = 1000)
     {
         await Task.Delay(delayMs);
         if (_synthEnvelopProvider == null)
@@ -339,7 +351,7 @@ public class DebugSoundViewModel : ViewModelBase
         _synthEnvelopProvider.StartRelease();
         StatusMessage = "Synth release phase triggered";
     }
-    private async Task StartSynthRelease()
+    private async Task StartSynthReleaseAsync()
     {
         if (_synthEnvelopProvider == null)
             return;
@@ -347,12 +359,17 @@ public class DebugSoundViewModel : ViewModelBase
         StatusMessage = "Synth release phase triggered";
     }
 
-    private async Task StopSynthSound()
+    private async Task StopSynthSoundAsync()
     {
-        if (_synthEnvelopProvider == null)
+        var mixer = _mixer;
+        if (mixer == null)
             return;
-        _synthEnvelopProvider.ResetADSR();
-        _mixer.RemoveMixerInput(_synthEnvelopProvider);
+
+        var synthEnvelopProvider = _synthEnvelopProvider;
+        if (synthEnvelopProvider == null)
+            return;
+        synthEnvelopProvider.ResetADSR();
+        mixer.RemoveMixerInput(synthEnvelopProvider);
         StatusMessage = "Stop playing Synth";
     }
 
@@ -364,12 +381,12 @@ public class DebugSoundViewModel : ViewModelBase
 
     public SoundTest[] SoundTestValues { get; } = Enum.GetValues<SoundTest>();
 
-    private async Task PlaySound(SoundTest soundTest)
+    private async Task PlaySoundAsync(SoundTest soundTest)
     {
         switch (soundTest)
         {
             case SoundTest.TestTone:
-                await PlaySineWave();
+                await PlaySineWaveAsync();
                 break;
             case SoundTest.WaveformSynthesis:
                 break;
@@ -378,12 +395,12 @@ public class DebugSoundViewModel : ViewModelBase
         }
     }
 
-    private async Task StopSound(SoundTest soundTest)
+    private async Task StopSoundAsync(SoundTest soundTest)
     {
         switch (soundTest)
         {
             case SoundTest.TestTone:
-                await StopSineWave();
+                await StopSineWaveAsync();
                 break;
             case SoundTest.WaveformSynthesis:
                 break;
@@ -392,21 +409,31 @@ public class DebugSoundViewModel : ViewModelBase
         }
     }
 
-    private async Task PlaySineWave()
+    private async Task PlaySineWaveAsync()
     {
+        var mixer = _mixer;
+        if (mixer == null)
+            return;
+
         if (_customSineWaveProvider != null)
             return;
-        _customSineWaveProvider = new SineWaveProvider32().ToSampleProvider();
-        _mixer.AddMixerInput(_customSineWaveProvider);
+        var customSineWaveProvider = new SineWaveProvider32().ToSampleProvider();
+        _customSineWaveProvider = customSineWaveProvider;
+        mixer.AddMixerInput(customSineWaveProvider);
 
         StatusMessage = "Playing Sine Wave (440 Hz).";
     }
 
-    private async Task StopSineWave()
+    private async Task StopSineWaveAsync()
     {
-        if (_customSineWaveProvider == null)
+        var mixer = _mixer;
+        if (mixer == null)
             return;
-        _mixer.RemoveMixerInput(_customSineWaveProvider);
+
+        var customSineWaveProvider = _customSineWaveProvider;
+        if (customSineWaveProvider == null)
+            return;
+        mixer.RemoveMixerInput(customSineWaveProvider);
         _customSineWaveProvider = null;
         StatusMessage = "Stop playing Sine Wave";
     }

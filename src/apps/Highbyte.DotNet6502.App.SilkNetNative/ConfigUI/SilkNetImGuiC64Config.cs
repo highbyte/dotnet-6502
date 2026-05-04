@@ -14,8 +14,8 @@ public class SilkNetImGuiC64Config
 {
     private readonly SilkNetHostApp _silkNetHostApp;
     private readonly SilkNetImGuiMenu _mainMenu;
-    private C64SystemConfig _systemConfig;
-    private C64HostConfig _hostConfig;
+    private C64SystemConfig? _systemConfig;
+    private C64HostConfig? _hostConfig;
 
     private int _selectedJoystickIndex;
     private string[] _availableJoysticks = [];
@@ -29,7 +29,7 @@ public class SilkNetImGuiC64Config
     private string? _chargenRomFile;
 
 
-    private List<(Type renderProviderType, Type renderTargetType)> _availableRendererProviderAndRenderTargetTypeCombinations;
+    private List<(Type renderProviderType, Type renderTargetType)> _availableRendererProviderAndRenderTargetTypeCombinations = [];
 
     private List<Type> _renderProviderTypes => _availableRendererProviderAndRenderTargetTypeCombinations.Select(t => t.renderProviderType).Distinct().ToList();
     private int _selectedRendererProviderIndex = 0;
@@ -59,10 +59,21 @@ public class SilkNetImGuiC64Config
         }
     }
 
+    private C64SystemConfig GetSystemConfigOrThrow()
+    {
+        return _systemConfig ?? throw new InvalidOperationException("C64 config dialog has not been initialized.");
+    }
+
+    private C64HostConfig GetHostConfigOrThrow()
+    {
+        return _hostConfig ?? throw new InvalidOperationException("C64 config dialog has not been initialized.");
+    }
+
     private void UpdateSelectedRenderProvider()
     {
+        var hostConfig = GetHostConfigOrThrow();
         if (_selectedRendererProviderType is not null)
-            _hostConfig.SystemConfig.SetRenderProviderType(_selectedRendererProviderType);
+            hostConfig.SystemConfig.SetRenderProviderType(_selectedRendererProviderType);
         if (_renderTargetTypes.Count > 0)
         {
             _selectedRendererTargetIndex = 0;
@@ -72,8 +83,9 @@ public class SilkNetImGuiC64Config
 
     private void UpdateSelectedRenderTarget()
     {
+        var hostConfig = GetHostConfigOrThrow();
         if (_selectedRendererTargetType is not null)
-            _hostConfig.SystemConfig.SetRenderTargetType(_selectedRendererTargetType);
+            hostConfig.SystemConfig.SetRenderTargetType(_selectedRendererTargetType);
     }
 
     private bool _openGLFineScrollPerRasterLineEnabled;
@@ -153,6 +165,9 @@ public class SilkNetImGuiC64Config
         _open = true;
         if (ImGui.BeginPopupModal(dialogLabel, ref _open, ImGuiWindowFlags.AlwaysAutoResize))
         {
+            var systemConfig = GetSystemConfigOrThrow();
+            var hostConfig = GetHostConfigOrThrow();
+
             //ImGui.Text("C64 model");
             //ImGui.LabelText("C64 model", $"{_config!.C64Model}");
             //ImGui.LabelText("VIC2 model", $"{_config!.Vic2Model}");
@@ -170,7 +185,7 @@ public class SilkNetImGuiC64Config
             ImGui.SameLine();
             if (ImGui.Button("Manual ROM download link"))
             {
-                var url = new Uri(_systemConfig.ROMDownloadUrls[C64SystemConfig.KERNAL_ROM_NAME]).GetLeftPart(UriPartial.Authority);
+                var url = new Uri(systemConfig.ROMDownloadUrls[C64SystemConfig.KERNAL_ROM_NAME]).GetLeftPart(UriPartial.Authority);
                 OpenURL(url);
             }
 
@@ -185,19 +200,19 @@ public class SilkNetImGuiC64Config
 
             if (ImGui.InputText("Directory", ref _romDirectory, 255))
             {
-                _systemConfig!.ROMDirectory = _romDirectory;
+                systemConfig.ROMDirectory = _romDirectory;
             }
             if (ImGui.InputText("Kernal file", ref _kernalRomFile, 100))
             {
-                _systemConfig!.SetROM(C64SystemConfig.KERNAL_ROM_NAME, _kernalRomFile);
+                systemConfig.SetROM(C64SystemConfig.KERNAL_ROM_NAME, _kernalRomFile);
             }
             if (ImGui.InputText("Basic file", ref _basicRomFile, 100))
             {
-                _systemConfig!.SetROM(C64SystemConfig.BASIC_ROM_NAME, _basicRomFile);
+                systemConfig.SetROM(C64SystemConfig.BASIC_ROM_NAME, _basicRomFile);
             }
             if (ImGui.InputText("CharGen file", ref _chargenRomFile, 100))
             {
-                _systemConfig!.SetROM(C64SystemConfig.CHARGEN_ROM_NAME, _chargenRomFile);
+                systemConfig.SetROM(C64SystemConfig.CHARGEN_ROM_NAME, _chargenRomFile);
             }
 
             ImGui.Separator();
@@ -225,13 +240,13 @@ public class SilkNetImGuiC64Config
             DrawWrappedHelpTextWithTooltip(_selectedRendererTargetType != null ? TypeDisplayHelper.GetHelpText(_selectedRendererTargetType) : string.Empty);
 
             // Renderer: OpenGL options
-            if (_hostConfig.SystemConfig.RenderProviderType == typeof(C64GpuProvider))
+            if (hostConfig.SystemConfig.RenderProviderType == typeof(C64GpuProvider))
             {
                 ImGui.Separator();
                 ImGui.Text("OpenGL renderer options:");
                 if (ImGui.Checkbox("Fine scroll per raster line (experimental)", ref _openGLFineScrollPerRasterLineEnabled))
                 {
-                    _hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine = _openGLFineScrollPerRasterLineEnabled;
+                    hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine = _openGLFineScrollPerRasterLineEnabled;
                 }
             }
 
@@ -243,12 +258,12 @@ public class SilkNetImGuiC64Config
             ImGui.PushItemWidth(35);
             if (ImGui.Combo("##joystick", ref _selectedJoystickIndex, _availableJoysticks, _availableJoysticks.Length))
             {
-                _hostConfig.InputConfig.CurrentJoystick = _selectedJoystickIndex + 1;
+                hostConfig.InputConfig.CurrentJoystick = _selectedJoystickIndex + 1;
             }
             ImGui.PopItemWidth();
 
             ImGui.BeginDisabled(disabled: true);
-            foreach (var mapKey in _hostConfig.InputConfig.GamePadToC64JoystickMap[_hostConfig.InputConfig.CurrentJoystick])
+            foreach (var mapKey in hostConfig.InputConfig.GamePadToC64JoystickMap[hostConfig.InputConfig.CurrentJoystick])
             {
                 ImGui.LabelText($"{string.Join(",", mapKey.Key)}", $"{string.Join(",", mapKey.Value)}");
             }
@@ -257,12 +272,12 @@ public class SilkNetImGuiC64Config
             // Keyboard joystick
             if (ImGui.Checkbox("Keyboard Joystick", ref _keyboardJoystickEnabled))
             {
-                _systemConfig.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
+                systemConfig.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
 
-                if (_silkNetHostApp.EmulatorState != EmulatorState.Uninitialized)
+                if (_silkNetHostApp.EmulatorState != EmulatorState.Uninitialized
+                    && _silkNetHostApp.CurrentRunningSystem is C64 c64)
                 {
                     // System is running, also update the system directly
-                    C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
                     c64.Cia1.Joystick.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
                 }
             }
@@ -272,24 +287,24 @@ public class SilkNetImGuiC64Config
             ImGui.PushItemWidth(35);
             if (ImGui.Combo("##keyboardJoystick", ref _keyboardJoystickIndex, _availableJoysticks, _availableJoysticks.Length))
             {
-                _systemConfig.KeyboardJoystick = _keyboardJoystickIndex + 1;
+                systemConfig.KeyboardJoystick = _keyboardJoystickIndex + 1;
             }
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
 
-            var keyToJoystickMap = _systemConfig!.KeyboardJoystickMap;
+            var keyToJoystickMap = systemConfig.KeyboardJoystickMap;
             ImGui.BeginDisabled(disabled: true);
-            foreach (var mapKey in keyToJoystickMap.GetMap(_systemConfig.KeyboardJoystick))
+            foreach (var mapKey in keyToJoystickMap.GetMap(systemConfig.KeyboardJoystick))
             {
                 ImGui.LabelText($"{string.Join(",", mapKey.Key)}", $"{string.Join(",", mapKey.Value)}");
             }
             ImGui.EndDisabled();
 
             // Update validation fields
-            if (_hostConfig!.IsDirty)
+            if (hostConfig.IsDirty)
             {
-                _hostConfig.ClearDirty();
-                _isValidConfig = _hostConfig.IsValid(out _validationErrors);
+                hostConfig.ClearDirty();
+                _isValidConfig = hostConfig.IsValid(out _validationErrors);
             }
             if (!_isValidConfig)
             {
@@ -311,7 +326,7 @@ public class SilkNetImGuiC64Config
             if (ImGui.Button("Ok"))
             {
                 Debug.WriteLine("Ok pressed");
-                _silkNetHostApp.UpdateHostSystemConfig(_hostConfig);
+                _silkNetHostApp.UpdateHostSystemConfig(hostConfig);
                 _mainMenu.InitC64ImGuiWorkingVariables();
                 ImGui.CloseCurrentPopup();
             }
@@ -338,23 +353,24 @@ public class SilkNetImGuiC64Config
 
         try
         {
-            var romFolder = PathHelper.ExpandOSEnvironmentVariables(_systemConfig.ROMDirectory);
-            await DownloadC64RomsAsync(_systemConfig.ROMDownloadUrls, romFolder);
+            var systemConfig = GetSystemConfigOrThrow();
+            var romFolder = PathHelper.ExpandOSEnvironmentVariables(systemConfig.ROMDirectory);
+            await DownloadC64RomsAsync(systemConfig.ROMDownloadUrls, romFolder);
 
             // Update the system config with the downloaded ROM files
-            foreach (var romDownload in _systemConfig.ROMDownloadUrls)
+            foreach (var romDownload in systemConfig.ROMDownloadUrls)
             {
                 var romName = romDownload.Key;
                 var romUrl = romDownload.Value;
                 var filename = Path.GetFileName(new Uri(romUrl).LocalPath);
-                _systemConfig.SetROM(romName, filename);
+                systemConfig.SetROM(romName, filename);
             }
 
             // Update the UI variables
-            _romDirectory = _systemConfig.ROMDirectory;
-            _kernalRomFile = _systemConfig.HasROM(C64SystemConfig.KERNAL_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.KERNAL_ROM_NAME).File! : "";
-            _basicRomFile = _systemConfig.HasROM(C64SystemConfig.BASIC_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.BASIC_ROM_NAME).File! : "";
-            _chargenRomFile = _systemConfig.HasROM(C64SystemConfig.CHARGEN_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.CHARGEN_ROM_NAME).File! : "";
+            _romDirectory = systemConfig.ROMDirectory;
+            _kernalRomFile = systemConfig.HasROM(C64SystemConfig.KERNAL_ROM_NAME) ? systemConfig.GetROM(C64SystemConfig.KERNAL_ROM_NAME).File! : "";
+            _basicRomFile = systemConfig.HasROM(C64SystemConfig.BASIC_ROM_NAME) ? systemConfig.GetROM(C64SystemConfig.BASIC_ROM_NAME).File! : "";
+            _chargenRomFile = systemConfig.HasROM(C64SystemConfig.CHARGEN_ROM_NAME) ? systemConfig.GetROM(C64SystemConfig.CHARGEN_ROM_NAME).File! : "";
 
             _downloadStatusMessage = "ROMs downloaded successfully!";
             _downloadSuccess = true;

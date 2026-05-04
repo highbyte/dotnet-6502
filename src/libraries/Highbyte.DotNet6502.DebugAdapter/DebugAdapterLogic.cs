@@ -1653,11 +1653,13 @@ public class DebugAdapterLogic
                         .OrderBy(s => s.Key))
                     {
                         var addr = kvp.Value.Value;
-                        var memByte = memory[addr];
+                        var labelValue = memory != null
+                            ? $"${addr:X4} [${memory[addr]:X2}]"
+                            : $"${addr:X4}";
                         variables.Add(new JsonObject
                         {
                             ["name"] = kvp.Key,
-                            ["value"] = $"${addr:X4} [${memByte:X2}]",
+                            ["value"] = labelValue,
                             ["type"] = "label",
                             ["variablesReference"] = 0,
                             ["memoryReference"] = $"0x{addr:X4}"

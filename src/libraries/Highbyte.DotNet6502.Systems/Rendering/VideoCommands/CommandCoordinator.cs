@@ -56,7 +56,7 @@ public sealed class CommandCoordinator : IRenderCoordinator, IDisposable
         _loop.RequestRedraw();
     }
 
-    public async ValueTask FlushIfDirtyAsync(CancellationToken ct = default)
+    public ValueTask FlushIfDirtyAsync(CancellationToken ct = default)
     {
         _renderFps.Update();
         _renderStat.Start();
@@ -71,15 +71,17 @@ public sealed class CommandCoordinator : IRenderCoordinator, IDisposable
         }
         finally
         {
+            _renderStat.Stop();
         }
 
-        _renderStat.Stop();
+        return ValueTask.CompletedTask;
     }
 
     public void Dispose() => _loop.FrameTick -= OnFrameTick;
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         Dispose();
+        return ValueTask.CompletedTask;
     }
 }

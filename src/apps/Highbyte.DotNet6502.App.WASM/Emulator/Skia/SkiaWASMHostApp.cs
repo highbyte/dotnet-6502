@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text;
+using Highbyte.DotNet6502.App.WASM;
 using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;
@@ -22,7 +23,7 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
     // --------------------
     // Injected variables
     // --------------------
-    private readonly ILogger _logger;
+    private new readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
     private readonly Func<SKCanvas> _getCanvas;
     private readonly Func<GRContext> _getGrContext;
@@ -31,7 +32,6 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
 
     public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
-    private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -54,7 +54,7 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
     private const int DEBUGMESSAGE_EVERY_X_FRAME = 1;
     private int _debugFrameCount = 0;
 
-    private AspNetRenderLoop _renderloop;
+    private AspNetRenderLoop? _renderloop;
 
     public SkiaWASMHostApp(
         SystemList<AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
@@ -81,7 +81,6 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
         _jsRuntime = jsRuntime;
         _wasmHostUIViewModel = wasmHostUIViewModel;
 
-        _defaultAudioEnabled = false;
         _defaultAudioVolumePercent = 20.0f;
 
         _inputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, _gamepadList);
@@ -107,12 +106,12 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
 
                 // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
                 rtp.AddRenderTargetType<C64LegacyRenderTarget>(() => new C64LegacyRenderTarget(
-                    (C64)CurrentRunningSystem,
+                    GetCurrentC64OrThrow(),
                     _getCanvas,
                     flush: false));
                 // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
                 rtp.AddRenderTargetType<C64LegacyRenderTarget2>(() => new C64LegacyRenderTarget2(
-                    (C64)CurrentRunningSystem,
+                    GetCurrentC64OrThrow(),
                     _getCanvas,
                     flush: false));
 
@@ -124,12 +123,18 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
             },
             () =>
             {
-                _renderloop = new AspNetRenderLoop(
+                var renderloop = new AspNetRenderLoop(
                     OnBeforeRender,
                     OnAfterRender,
                     shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
-                return _renderloop;
+                _renderloop = renderloop;
+                return renderloop;
             });
+
+        C64 GetCurrentC64OrThrow()
+        {
+            return CurrentRunningSystem as C64 ?? throw new DotNet6502Exception("Current running system is not a C64.");
+        }
     }
 
     /// <summary>
@@ -191,8 +196,8 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
 
     public override void OnAfterStop()
     {
-        _wasmHostUIViewModel.SetDebugState(visible: false);
-        _wasmHostUIViewModel.SetStatsState(visible: false);
+        WasmTaskHelper.Observe(_wasmHostUIViewModel.SetDebugState(visible: false), "SetDebugState(false)");
+        WasmTaskHelper.Observe(_wasmHostUIViewModel.SetStatsState(visible: false), "SetStatsState(false)");
         _monitor.Disable();
 
         _updateTimer!.Stop();
@@ -269,7 +274,7 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
     // New rendering pipeline with AspNetRenderLoop
     public void RaiseRenderLoopTick()
     {
-        _renderloop.RaiseFrameTick();
+        GetRenderLoopOrThrow().RaiseFrameTick();
     }
 
     public void SetVolumePercent(float volumePercent)
@@ -349,8 +354,8 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
         var key = e.Key;
         if (key == "F11")
         {
-            _wasmHostUIViewModel.ToggleDebugState();
-            _wasmHostUIViewModel.ToggleStatsState();
+            WasmTaskHelper.Observe(_wasmHostUIViewModel.ToggleDebugState(), nameof(_wasmHostUIViewModel.ToggleDebugState));
+            WasmTaskHelper.Observe(_wasmHostUIViewModel.ToggleStatsState(), nameof(_wasmHostUIViewModel.ToggleStatsState));
         }
         else if (key == "F12" && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
@@ -358,8 +363,9 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
         }
         else if (key == "F9" && EmulatorState == EmulatorState.Running)
         {
-            var toggeledAssistantState = !((C64AspNetInputHandler)CurrentSystemRunner.InputHandler).CodingAssistantEnabled;
-            ((C64AspNetInputHandler)CurrentSystemRunner.InputHandler).CodingAssistantEnabled = toggeledAssistantState;
+            var currentSystemRunner = CurrentSystemRunner ?? throw new DotNet6502Exception("No current system runner is active.");
+            var toggeledAssistantState = !((C64AspNetInputHandler)currentSystemRunner.InputHandler).CodingAssistantEnabled;
+            ((C64AspNetInputHandler)currentSystemRunner.InputHandler).CodingAssistantEnabled = toggeledAssistantState;
             ((C64HostConfig)CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = toggeledAssistantState;
         }
     }
@@ -394,5 +400,10 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
         {
             Monitor.Enable();
         }
+    }
+
+    private AspNetRenderLoop GetRenderLoopOrThrow()
+    {
+        return _renderloop ?? throw new DotNet6502Exception("Render loop has not been initialized.");
     }
 }

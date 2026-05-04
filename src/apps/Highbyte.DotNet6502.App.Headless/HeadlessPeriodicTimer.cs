@@ -29,10 +29,10 @@ public sealed class HeadlessPeriodicTimer : IScriptingTickTimer
         Stop();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
-        _ = RunLoop();
+        _ = RunLoopAsync();
     }
 
-    private async Task RunLoop()
+    private async Task RunLoopAsync()
     {
         var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(IntervalMilliseconds));
         try

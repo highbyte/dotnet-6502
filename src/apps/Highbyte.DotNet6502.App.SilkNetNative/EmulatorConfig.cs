@@ -9,7 +9,7 @@ public class EmulatorConfig
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.SilkNetNativeConfig";
 
-    public string DefaultEmulator { get; set; }
+    public string DefaultEmulator { get; set; } = string.Empty;
     public float DefaultDrawScale { get; set; }
     public float CurrentDrawScale { get; set; }
     public MonitorConfig Monitor { get; set; }

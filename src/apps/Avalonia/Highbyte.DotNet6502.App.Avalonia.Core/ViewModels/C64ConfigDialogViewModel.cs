@@ -132,7 +132,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
-                if (await TryApplyChanges())
+                if (await TryApplyChangesAsync())
                 {
                     ConfigurationChanged?.Invoke(this, true);
                 }
@@ -344,7 +344,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public async Task AutoDownloadRomsToByteArrayAsync()
     {
         // Request acknowledgement before downloading
-        if (!await RequestRomLicenseAcknowledgement())
+        if (!await RequestRomLicenseAcknowledgementAsync())
         {
             StatusMessage = "ROM download cancelled.";
             return;
@@ -385,7 +385,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public async Task AutoDownloadROMsToFilesAsync()
     {
         // Request acknowledgement before downloading
-        if (!await RequestRomLicenseAcknowledgement())
+        if (!await RequestRomLicenseAcknowledgementAsync())
         {
             StatusMessage = "";
             return;
@@ -559,7 +559,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         StatusMessage = "All ROMs cleared.";
     }
 
-    public async Task<bool> TryApplyChanges()
+    public async Task<bool> TryApplyChangesAsync()
     {
         try
         {
@@ -582,9 +582,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
             var openAIConfigSection = _openAIConfig.GetConfigurationSection(_configuration);
             var openAISelfhostedConfigSection = _openAISelfHostedConfig.GetConfigurationSection(_configuration);
             var customEndpointConfigSection = _customEndpointConfig.GetConfigurationSection(_configuration);
-            await _hostApp.PersistConfigSection(ApiConfig.CONFIG_SECTION, openAIConfigSection);
-            await _hostApp.PersistConfigSection(ApiConfig.CONFIG_SECTION_SELF_HOSTED, openAISelfhostedConfigSection);
-            await _hostApp.PersistConfigSection(CustomAIEndpointConfig.CONFIG_SECTION, customEndpointConfigSection);
+            await _hostApp.PersistConfigSectionAsync(ApiConfig.CONFIG_SECTION, openAIConfigSection);
+            await _hostApp.PersistConfigSectionAsync(ApiConfig.CONFIG_SECTION_SELF_HOSTED, openAISelfhostedConfigSection);
+            await _hostApp.PersistConfigSectionAsync(CustomAIEndpointConfig.CONFIG_SECTION, customEndpointConfigSection);
 
             StatusMessage = "Configuration saved.";
             return true;
@@ -1097,7 +1097,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             nameWithoutExtension.Contains(required, StringComparison.OrdinalIgnoreCase));
     }
 
-    private Task<bool> RequestRomLicenseAcknowledgement()
+    private Task<bool> RequestRomLicenseAcknowledgementAsync()
     {
         var tcs = new TaskCompletionSource<bool>();
         

@@ -16,13 +16,18 @@ public class C64SilkNetInputHandler : IInputHandler
     private readonly ILogger _logger;
     private readonly C64SilkNetInputConfig _c64SilkNetConfig;
 
-    private C64SilkNetKeyboard _c64SilkNetKeyboard;
+    private C64SilkNetKeyboard? _c64SilkNetKeyboard;
     //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
 
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
+
+    private C64SilkNetKeyboard GetKeyboardOrThrow()
+    {
+        return _c64SilkNetKeyboard ?? throw new InvalidOperationException("Silk.NET keyboard has not been initialized.");
+    }
 
 
     public C64SilkNetInputHandler(C64 c64, SilkNetInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, C64SilkNetInputConfig c64SilkNetConfig)
@@ -77,7 +82,7 @@ public class C64SilkNetInputHandler : IInputHandler
         capsLockOn = _inputHandlerContext!.GetCapsLockState();
         var c64KeysDown = new List<C64Key>();
         var foundMappings = new List<Key[]>();
-        var map = _c64SilkNetKeyboard.SilkNetToC64KeyMap;
+        var map = GetKeyboardOrThrow().SilkNetToC64KeyMap;
         foreach (var mapKeys in map.Keys)
         {
             int matchCount = 0;

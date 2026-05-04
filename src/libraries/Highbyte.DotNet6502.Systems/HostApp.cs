@@ -93,7 +93,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         {
             if (_currentHostSystemConfig == null)
             {
-                return null;
+                return null!;
                 // Trouble with Avalonia Browser binding because of timing of initialization would cause this exception to be thrown.
                 // throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
             }
@@ -240,7 +240,10 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     /// Drains deferred script actions (e.g. emu.start()). Call after RunEmulatorOneFrame() from the
     /// host's emulator update loop, so script-initiated emulator state changes take effect at the frame boundary.
     /// </summary>
-    protected Task DrainPendingScriptActionsAsync() => _scriptingEngine.DrainPendingActionsAsync();
+    protected async Task DrainPendingScriptActionsAsync()
+    {
+        await _scriptingEngine.DrainPendingActionsAsync().ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Enqueues an action to be executed at the next frame boundary.
@@ -599,11 +602,18 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         }
 
         var renderTargetType = CurrentHostSystemConfig.SystemConfig.RenderTargetType;
+        var renderProvider = CurrentSystemRunner?.System.RenderProvider;
+        if (renderProvider == null)
+        {
+            _renderCoordinator = null;
+            _currentRenderTarget = null;
+            return;
+        }
 
         // Assume CurrentSystemRunner.System.RenderProvider is set to the selected system's render provider (one of possibly many in in system.RenderProviders).
-        var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(CurrentSystemRunner!.System.RenderProvider.GetType(), renderTargetType);
+        var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(renderProvider.GetType(), renderTargetType);
         _currentRenderTarget = renderTarget;
-        _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(CurrentSystemRunner.System.RenderProvider, renderTarget, _instrumentations);
+        _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(renderProvider, renderTarget, _instrumentations);
     }
 
     public async Task<bool> IsSystemConfigValid()
@@ -629,13 +639,13 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         await _systemList.SetAudioEnabled(_selectedSystemName, enabled: enabled);
     }
 
-    public async Task<ISystem> GetSelectedSystem()
+    public async Task<ISystem?> GetSelectedSystem()
     {
         if (EmulatorState == EmulatorState.Uninitialized)
         {
             // If we haven't started started the selected system yet, return a temporary instance of the system (set in SelectSystem method).
             if (_selectedSystemTemporary == null)
-                return null; //throw new DotNet6502Exception("Internal state error.");
+                return null;
             return _selectedSystemTemporary;
         }
         // The emulator is running, return the current system runner's system.

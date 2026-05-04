@@ -832,7 +832,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         // Snapshot globals before resume to detect newly registered hooks
         var prevHooks = ScriptingEngine.HookNames.ToDictionary(
             h => h,
-            h => _script!.Globals.Get(h).Function);
+            h => (Closure?)_script!.Globals.Get(h).Function);
 
         _logProxy!.CurrentScriptFile = handle.FileName;
         // Ensure _allHandles includes this handle so that CurrentScriptFileName() can resolve

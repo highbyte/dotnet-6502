@@ -10,12 +10,12 @@ public class C64SadConsoleRenderTargetCustomization
         _c64 = c64;
     }
 
-    public (int tranformedCharacter, Color transformedFgColor, Color transformedBgColor) TransformCharacterAndColor(
+    public (int transformedCharacter, Color transformedFgColor, Color transformedBgColor) TransformCharacterAndColor(
         int emulatorCharacter,
         Color fgColor,
         Color bgColor)
     {
-        var tranformedCharacter = TranslateC64ScreenCodeToSadConsoleC64ROMFontIndex((byte)emulatorCharacter, out var inverted);
+        var transformedCharacter = TranslateC64ScreenCodeToSadConsoleC64ROMFontIndex((byte)emulatorCharacter, out var inverted);
         Color transformedFgColor;
         Color transformedBgColor;
         if (inverted)
@@ -28,7 +28,7 @@ public class C64SadConsoleRenderTargetCustomization
             transformedFgColor = fgColor;
             transformedBgColor = bgColor;
         }
-        return (tranformedCharacter, transformedFgColor, transformedBgColor);
+        return (transformedCharacter, transformedFgColor, transformedBgColor);
     }
 
     private byte TranslateC64ScreenCodeToSadConsoleC64ROMFontIndex(byte sourceByte, out bool inverted)

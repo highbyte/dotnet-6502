@@ -75,13 +75,15 @@ public class Sprite_collitions_debug
         int? collisionFoundSpriteScreenLine = null;
 
         int numberOfSpriteScreenLines = sprite.HeightPixels;
+        var spriteLineBuffer = new byte[sprite.WidthBytes];
+        var screenLineBuffer = new byte[sprite.WidthBytes];
         for (int spriteScreenLine = 0; spriteScreenLine < numberOfSpriteScreenLines; spriteScreenLine++)
         {
-            Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];
+            Span<byte> spriteLineData = spriteLineBuffer;
             _vic2SpriteManager.GetSpriteRowLineData(sprite, spriteScreenLine, ref spriteLineData);
             spriteLines.Add(spriteLineData.ToArray());
 
-            Span<byte> screenLineData = stackalloc byte[sprite.WidthBytes];
+            Span<byte> screenLineData = screenLineBuffer;
             _vic2SpriteManager.GetCharacterRowLineDataMatchingSpritePosition(sprite, spriteScreenLine, spriteLineData.Length, scrollX, scrollY, ref screenLineData);
             screenLines.Add(screenLineData.ToArray());
 
@@ -141,13 +143,15 @@ public class Sprite_collitions_debug
         int? collisionFoundSpriteScreenLine = null;
 
         int numberOfSpriteScreenLines = sprite0.HeightPixels;
+        var sprite0LineBuffer = new byte[sprite0.WidthBytes];
+        var sprite1LineBuffer = new byte[sprite0.WidthBytes];
         for (int spriteScreenLine = 0; spriteScreenLine < numberOfSpriteScreenLines; spriteScreenLine++)
         {
-            Span<byte> sprite0LineData = stackalloc byte[sprite0.WidthBytes];
+            Span<byte> sprite0LineData = sprite0LineBuffer;
             _vic2SpriteManager.GetSpriteRowLineData(sprite0, spriteScreenLine, ref sprite0LineData);
             sprite0Lines.Add(sprite0LineData.ToArray());
 
-            Span<byte> sprite1LineData = stackalloc byte[sprite0LineData.Length];
+            Span<byte> sprite1LineData = sprite1LineBuffer;
             _vic2SpriteManager.GetSpriteRowLineDataMatchingOtherSpritePosition(sprite0, sprite1, spriteScreenLine, ref sprite1LineData);
             sprite1Lines.Add(sprite1LineData.ToArray());
 

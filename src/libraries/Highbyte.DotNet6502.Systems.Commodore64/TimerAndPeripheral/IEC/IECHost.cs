@@ -1,7 +1,7 @@
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 public class IECHost
 {
-    private IECBus _iecBus;
+    private IECBus? _iecBus;
 
     private DeviceLineState _setATNLine = DeviceLineState.NotHolding;
     private DeviceLineState _setCLKLine = DeviceLineState.NotHolding;

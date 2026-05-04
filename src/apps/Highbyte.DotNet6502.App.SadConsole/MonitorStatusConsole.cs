@@ -58,6 +58,8 @@ internal class MonitorStatusConsole : ControlsConsole
 
     private void DisplayCPUStatus()
     {
+        var themeColors = Controls.ThemeColors ?? SadConsoleUISettings.ThemeColors;
+
         // Make sure to clear existing text before writing new text
         Surface.Print(1, 1, _emptyRow);
         for (int i = 0; i < NUMBER_OF_SYS_INFO_ROWS; i++)
@@ -65,7 +67,9 @@ internal class MonitorStatusConsole : ControlsConsole
             Surface.Print(1, 2 + i, _emptyRow);
         }
 
-        var system = _sadConsoleHostApp.CurrentRunningSystem!;
+        var system = _sadConsoleHostApp.CurrentRunningSystem;
+        if (system == null)
+            return;
 
         var cpuStateDictionary = OutputGen.GetProcessorStateDictionary(system.CPU, includeCycles: true);
         int row = 1;
@@ -73,11 +77,11 @@ internal class MonitorStatusConsole : ControlsConsole
         const string separator = ": ";
         foreach (var cpuState in cpuStateDictionary)
         {
-            Surface.Print(col, 1, cpuState.Key, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+            Surface.Print(col, 1, cpuState.Key, foreground: themeColors.ControlHostForeground, background: themeColors.ControlHostBackground);
             col += cpuState.Key.Length;
-            Surface.Print(col, 1, separator, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+            Surface.Print(col, 1, separator, foreground: themeColors.ControlHostForeground, background: themeColors.ControlHostBackground);
             col += separator.Length;
-            Surface.Print(col, 1, cpuState.Value, foreground: Controls.ThemeColors.White, background: Controls.ThemeColors.ControlHostBackground);
+            Surface.Print(col, 1, cpuState.Value, foreground: themeColors.White, background: themeColors.ControlHostBackground);
             col += cpuState.Value.Length + 1;
         }
 
@@ -87,9 +91,9 @@ internal class MonitorStatusConsole : ControlsConsole
         {
             if (i < system.SystemInfo.Count)
                 // TODO: Is a new string every time needed here? If system.SystemInfo items does not change, then a list of pre-created string can be initialized once and then reused..
-                Surface.Print(col, row, $"SYS: {system.SystemInfo[i]}", foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+                Surface.Print(col, row, $"SYS: {system.SystemInfo[i]}", foreground: themeColors.ControlHostForeground, background: themeColors.ControlHostBackground);
             else
-                Surface.Print(col, row, _emptyRow, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+                Surface.Print(col, row, _emptyRow, foreground: themeColors.ControlHostForeground, background: themeColors.ControlHostBackground);
             row++;
         }
     }

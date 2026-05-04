@@ -52,7 +52,7 @@ public class GenericComputerSetup : ISystemConfigurer<AspNetInputHandlerContext,
         {
             genericComputerHostConfig = new GenericComputerHostConfig();
 
-            genericComputerHostConfig.SystemConfig.ExamplePrograms = new Dictionary<string, string>
+            genericComputerHostConfig.SystemConfig.ExamplePrograms = new Dictionary<string, string?>
             {
                 { "Scroll", "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg" },
                 { "Snake", "6502binaries/Generic/Assembler/snake6502.prg" },
