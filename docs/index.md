@@ -1,7 +1,7 @@
 # dotnet-6502
 
 <p align="center">
-  <img src="assets/screenshots/AvaloniaDesktop_C64_Basic.png" width="60%" alt="DotNet 6502 emulator running C64 Basic" />
+  <img src="assets/logo-simple-text.png" width="25%" alt="DotNet 6502 logo" />
 </p>
 
 A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET — cross-platform libraries and applications for executing 6502 machine code, and emulating specific computer systems (such as the Commodore 64) in different UI contexts.

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/images/logo.png" width="5%" height="5%" title="DotNet 6502 logo">
+  <img src="resources/images/logo-simple-text.png" width="25%" title="DotNet 6502 logo">
 </p>
 <h2 align="center">
   A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502">6502 CPU</a> emulator for .NET
