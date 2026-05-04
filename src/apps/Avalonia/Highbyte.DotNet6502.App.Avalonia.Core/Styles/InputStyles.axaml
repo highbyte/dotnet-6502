@@ -188,8 +188,19 @@
     <!-- ========================================== -->
     
     <Style Selector="Slider">
+        <Style.Resources>
+            <GridLength x:Key="SliderPreContentMargin">6</GridLength>
+            <GridLength x:Key="SliderPostContentMargin">0</GridLength>
+            <x:Double x:Key="SliderHorizontalHeight">20</x:Double>
+        </Style.Resources>
         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+
+    <Style Selector="Slider.small">
+        <Setter Property="MinHeight" Value="20"/>
+        <Setter Property="Height" Value="20"/>
     </Style>
 
     <Style Selector="Slider /template/ Thumb">
