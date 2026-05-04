@@ -188,8 +188,19 @@
     <!-- ========================================== -->
     
     <Style Selector="Slider">
+        <Style.Resources>
+            <GridLength x:Key="SliderPreContentMargin">6</GridLength>
+            <GridLength x:Key="SliderPostContentMargin">0</GridLength>
+            <x:Double x:Key="SliderHorizontalHeight">20</x:Double>
+        </Style.Resources>
         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+
+    <Style Selector="Slider.small">
+        <Setter Property="MinHeight" Value="20"/>
+        <Setter Property="Height" Value="20"/>
     </Style>
 
     <Style Selector="Slider /template/ Thumb">
@@ -203,6 +214,17 @@
     <Style Selector="Slider.small /template/ Thumb">
         <Setter Property="Width" Value="10"/>
         <Setter Property="Height" Value="10"/>
+    </Style>
+
+    <!-- Override disabled colors to be more visible on dark background -->
+    <Style Selector="Slider:disabled /template/ Thumb">
+        <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
+    </Style>
+    <Style Selector="Slider:disabled /template/ RepeatButton#PART_DecreaseButton">
+        <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
+    </Style>
+    <Style Selector="Slider:disabled /template/ RepeatButton#PART_IncreaseButton">
+        <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
     </Style>
 
     <Style Selector="Slider.small">
