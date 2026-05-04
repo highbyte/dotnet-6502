@@ -216,6 +216,17 @@
         <Setter Property="Height" Value="10"/>
     </Style>
 
+    <!-- Override disabled colors to be more visible on dark background -->
+    <Style Selector="Slider:disabled /template/ Thumb">
+        <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
+    </Style>
+    <Style Selector="Slider:disabled /template/ RepeatButton#PART_DecreaseButton">
+        <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
+    </Style>
+    <Style Selector="Slider:disabled /template/ RepeatButton#PART_IncreaseButton">
+        <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
     <Style Selector="Slider.small">
         <Setter Property="MinHeight" Value="20"/>
         <Setter Property="Height" Value="20"/>
