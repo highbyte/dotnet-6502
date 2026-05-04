@@ -60,6 +60,7 @@
 
   <Target Name="CopyImages" AfterTargets="AfterBuild">
     <Copy SourceFiles="..\..\..\resources\images\logo-simple-text.png" DestinationFiles="wwwroot\images\logo.png" />
+    <Copy SourceFiles="..\..\..\resources\images\favicon.ico" DestinationFolder="wwwroot" />
   </Target>
   
 </Project>
