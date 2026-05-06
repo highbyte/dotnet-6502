@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
+using Highbyte.DotNet6502.Systems.Timing;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Headless;
@@ -16,7 +17,7 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
     private new readonly ILogger _logger;
     private readonly CancellationTokenSource _appCts;
 
-    private HeadlessPeriodicTimer? _updateTimer;
+    private FrameTimer? _updateTimer;
 
     // IDebuggableHostApp
     public bool WaitForExternalDebugger { get; set; }
@@ -112,7 +113,7 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
     // --- Scripting timer ---
 
     protected override IScriptingTickTimer CreateScriptingTickTimer(double intervalMs) =>
-        new HeadlessPeriodicTimer { IntervalMilliseconds = intervalMs };
+        new FrameTimer { IntervalMilliseconds = intervalMs };
 
     protected override void OnScriptingEngineSet()
     {
@@ -161,10 +162,10 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
 
     // --- Timer helpers ---
 
-    private HeadlessPeriodicTimer CreateUpdateTimerForSystem(ISystem system)
+    private FrameTimer CreateUpdateTimerForSystem(ISystem system)
     {
         double updateIntervalMS = (1 / system.Screen.RefreshFrequencyHz) * 1000;
-        var timer = new HeadlessPeriodicTimer { IntervalMilliseconds = updateIntervalMS };
+        var timer = new FrameTimer { IntervalMilliseconds = updateIntervalMS };
         timer.Elapsed += UpdateTimerElapsed;
         return timer;
     }

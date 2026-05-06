@@ -14,6 +14,7 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using Highbyte.DotNet6502.Systems.Timing;
 using Toolbelt.Blazor.Gamepad;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia;
@@ -43,7 +44,7 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
 
     private readonly IJSRuntime _jsRuntime;
     private readonly Highbyte.DotNet6502.App.WASM.Pages.Index _wasmHostUIViewModel;
-    private PeriodicAsyncTimer? _updateTimer;
+    private FrameTimer? _updateTimer;
 
     private WasmMonitor _monitor = default!;
     public WasmMonitor Monitor => _monitor;
@@ -213,11 +214,11 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
     }
 
 
-    private PeriodicAsyncTimer CreateUpdateTimerForSystem(ISystem system)
+    private FrameTimer CreateUpdateTimerForSystem(ISystem system)
     {
         // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
         double updateIntervalMS = (1 / system.Screen.RefreshFrequencyHz) * 1000;
-        var updateTimer = new PeriodicAsyncTimer();
+        var updateTimer = new FrameTimer();
         updateTimer.IntervalMilliseconds = updateIntervalMS;
         updateTimer.Elapsed += UpdateTimerElapsed;
         return updateTimer;
