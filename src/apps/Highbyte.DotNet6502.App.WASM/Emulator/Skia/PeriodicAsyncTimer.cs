@@ -37,35 +37,46 @@ public class PeriodicAsyncTimer
 
     private async Task StartTimer()
     {
-        var intervalMs = IntervalMilliseconds;
-        if (intervalMs <= 0)
+        var intervalTicks = (long)(IntervalMilliseconds * Stopwatch.Frequency / 1000.0);
+        if (intervalTicks <= 0)
             return;
 
-        var pollMs = Math.Max(1.0, intervalMs / 2.0);
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(pollMs));
-        var sw = Stopwatch.StartNew();
-        var lastNowMs = sw.Elapsed.TotalMilliseconds;
-        var accumulatedMs = 0.0;
+        // Track the deadline in Stopwatch ticks for full precision. WASM's
+        // Stopwatch.Elapsed.TotalMilliseconds rounds coarsely (Spectre clamps performance.now()
+        // to >= 0.1ms, sometimes 1-5ms), which makes the "now >= deadline" check fire ~1ms
+        // early per frame. Convert to ms only to ask Task.Delay how long to sleep. Use
+        // Task.Yield for sub-ms drain to avoid the browser's ~4ms Task.Delay floor.
+        var nextDeadlineTicks = Stopwatch.GetTimestamp() + intervalTicks;
+        var ct = _cts!.Token;
 
-        while (await timer.WaitForNextTickAsync(_cts!.Token))
+        while (!ct.IsCancellationRequested)
         {
-            var nowMs = sw.Elapsed.TotalMilliseconds;
-            accumulatedMs += nowMs - lastNowMs;
-            lastNowMs = nowMs;
-
-            // Cap accumulation to avoid burst catch-up after a tab suspension or long stall.
-            if (accumulatedMs > intervalMs * 5.0)
-                accumulatedMs = intervalMs;
-
-            while (accumulatedMs >= intervalMs)
+            long now;
+            while ((now = Stopwatch.GetTimestamp()) < nextDeadlineTicks)
             {
-                accumulatedMs -= intervalMs;
-
-                var time = _stopwatch.ElapsedMilliseconds;
-                TimeSinceLastTickMilliseconds = time - _lastTick;
-                _lastTick = time;
-                Elapsed?.Invoke(this, EventArgs.Empty);
+                var remainingMs = (nextDeadlineTicks - now) * 1000.0 / Stopwatch.Frequency;
+                try
+                {
+                    // Deliberately undershoot Task.Delay by 2ms; Task.Yield loop fine-grains
+                    // the final ~2ms for ms-or-better precision without Task.Delay overshoot.
+                    if (remainingMs >= 4.0)
+                        await Task.Delay((int)remainingMs - 2, ct);
+                    else
+                        await Task.Yield();
+                }
+                catch (TaskCanceledException) { return; }
             }
+
+            // Resync if we fell more than 5 frames behind (e.g. tab was backgrounded).
+            if (now - nextDeadlineTicks > intervalTicks * 5)
+                nextDeadlineTicks = now;
+
+            nextDeadlineTicks += intervalTicks;
+
+            var time = _stopwatch.ElapsedMilliseconds;
+            TimeSinceLastTickMilliseconds = time - _lastTick;
+            _lastTick = time;
+            Elapsed?.Invoke(this, EventArgs.Empty);
         }
     }
 

@@ -18,9 +18,11 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 ///   task. Sleeps while far from the deadline, spins for the final sub-millisecond. Gives
 ///   accurate fractional intervals (~0.1ms accuracy on average).
 ///
-/// - Browser/WASM (single-threaded): a coarse <see cref="PeriodicTimer"/> polling at half the
-///   target interval, with a wall-clock accumulator that fires Elapsed 0/1/2 times per OS
-///   tick to track the requested rate on average. Sleep+spin would block the UI thread.
+/// - Browser/WASM (single-threaded): an absolute-deadline loop driven by <see cref="Task.Delay"/>
+///   for big waits and <see cref="Task.Yield"/> for the final sub-ms drain. Deadlines are
+///   tracked in Stopwatch ticks (not <see cref="Stopwatch.Elapsed"/>.TotalMilliseconds, which
+///   WASM rounds coarsely). The deadline never resets to "now" - it advances by exactly
+///   intervalMs per fired frame, so any sleep overshoot is repaid next iteration.
 ///
 /// In both cases, Elapsed is invoked on the Avalonia UI thread.
 /// </summary>
@@ -99,35 +101,45 @@ public class PeriodicAsyncTimer : IScriptingTickTimer, IAsyncDisposable
 
     private async Task RunBrowserAsync(CancellationToken ct)
     {
-        var intervalMs = IntervalMilliseconds;
-        if (intervalMs <= 0)
+        var intervalTicks = (long)(IntervalMilliseconds * Stopwatch.Frequency / 1000.0);
+        if (intervalTicks <= 0)
             return;
 
-        // Poll at roughly half the target interval so the accumulator can fire on time.
-        // Browsers clamp PeriodicTimer to ~4ms in foreground tabs.
-        var pollMs = Math.Max(1.0, intervalMs / 2.0);
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(pollMs));
-        var sw = Stopwatch.StartNew();
-        var lastNowMs = sw.Elapsed.TotalMilliseconds;
-        var accumulatedMs = 0.0;
+        // Track the deadline as raw Stopwatch ticks. WASM's Stopwatch.Elapsed.TotalMilliseconds
+        // can round to coarse granularity (Spectre clamps performance.now() to >=0.1ms, sometimes
+        // 1-5ms), which makes the "now >= deadline" check fire up to ~1ms early per frame. Using
+        // ticks throughout keeps full precision; we convert to ms only to ask Task.Delay how long
+        // to sleep. The deadline still advances by exactly intervalTicks each fire, so overshoot
+        // is repaid by a shorter sleep next iteration.
+        //
+        // After Task.Delay returns, Task.Yield drains any final sub-ms slack without re-incurring
+        // the browser's ~4ms Task.Delay floor.
+        var nextDeadlineTicks = Stopwatch.GetTimestamp() + intervalTicks;
 
         try
         {
-            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(true))
+            while (!ct.IsCancellationRequested)
             {
-                var nowMs = sw.Elapsed.TotalMilliseconds;
-                accumulatedMs += nowMs - lastNowMs;
-                lastNowMs = nowMs;
-
-                // Cap accumulation to avoid burst catch-up after a tab suspension or long stall.
-                if (accumulatedMs > intervalMs * 5.0)
-                    accumulatedMs = intervalMs;
-
-                while (accumulatedMs >= intervalMs)
+                long now;
+                while ((now = Stopwatch.GetTimestamp()) < nextDeadlineTicks)
                 {
-                    accumulatedMs -= intervalMs;
-                    await FireElapsedOnUIThreadAsync().ConfigureAwait(true);
+                    var remainingMs = (nextDeadlineTicks - now) * 1000.0 / Stopwatch.Frequency;
+                    // Deliberately undershoot Task.Delay by 2ms. Browser timers can return slightly
+                    // early or late; undershooting guarantees we wake up before the deadline, and
+                    // then a Task.Yield loop fine-grains the final ~2ms - that gives ms-or-better
+                    // precision without the ~4ms Task.Delay clamp overshooting the deadline.
+                    if (remainingMs >= 4.0)
+                        await Task.Delay((int)remainingMs - 2, ct).ConfigureAwait(true);
+                    else
+                        await Task.Yield();
                 }
+
+                // Resync if we fell more than 5 frames behind (e.g. tab was backgrounded).
+                if (now - nextDeadlineTicks > intervalTicks * 5)
+                    nextDeadlineTicks = now;
+
+                nextDeadlineTicks += intervalTicks;
+                await FireElapsedOnUIThreadAsync().ConfigureAwait(true);
             }
         }
         catch (OperationCanceledException)
