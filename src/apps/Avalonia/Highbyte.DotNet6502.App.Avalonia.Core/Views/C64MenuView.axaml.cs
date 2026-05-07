@@ -67,16 +67,17 @@ public partial class C64MenuView : UserControl
             }
         });
 
-    private void OnClipboardPasteRequested(object? sender, EventArgs e)
+    private void OnClipboardPasteRequested(object? sender, TaskCompletionSource<string?> tcs)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (ViewModel != null
-                && TopLevel.GetTopLevel(this) is { } topLevel
-                && topLevel.Clipboard is { } clipboard)
+            if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
             {
                 using var data = await clipboard.TryGetDataAsync();
-                if (data is not null)
-                    ViewModel.ClipboardPasteResult = await data.TryGetTextAsync();
+                tcs.SetResult(data is not null ? await data.TryGetTextAsync() : null);
+            }
+            else
+            {
+                tcs.SetResult(null);
             }
         });
 

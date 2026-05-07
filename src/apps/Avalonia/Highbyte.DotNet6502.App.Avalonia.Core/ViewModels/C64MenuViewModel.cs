@@ -683,11 +683,10 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     // Events for View to handle clipboard and file operations
     public event EventHandler<string>? ClipboardCopyRequested;
-    public event EventHandler? ClipboardPasteRequested;
+    public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
     public event EventHandler? AttachDiskImageRequested;
 
     // Properties for View to provide results
-    public string? ClipboardPasteResult { get; set; }
     public byte[]? DiskImageFileResult { get; set; }
 
     private async Task RequestClipboardCopyAsync(string text)
@@ -698,11 +697,11 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task<string?> RequestClipboardPasteAsync()
     {
-        ClipboardPasteResult = null;
-        ClipboardPasteRequested?.Invoke(this, EventArgs.Empty);
-        // View should synchronously set ClipboardPasteResult
-        await Task.CompletedTask;
-        return ClipboardPasteResult;
+        if (ClipboardPasteRequested == null)
+            return null;
+        var tcs = new TaskCompletionSource<string?>();
+        ClipboardPasteRequested.Invoke(this, tcs);
+        return await tcs.Task;
     }
 
     private async Task RequestAttachDiskImageAsync()
