@@ -67,54 +67,65 @@ public partial class C64MenuView : UserControl
             }
         });
 
-    private void OnClipboardPasteRequested(object? sender, EventArgs e)
+    private void OnClipboardPasteRequested(object? sender, TaskCompletionSource<string?> tcs)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (ViewModel != null
-                && TopLevel.GetTopLevel(this) is { } topLevel
-                && topLevel.Clipboard is { } clipboard)
+            if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
             {
                 using var data = await clipboard.TryGetDataAsync();
-                if (data is not null)
-                    ViewModel.ClipboardPasteResult = await data.TryGetTextAsync();
+                tcs.SetResult(data is not null ? await data.TryGetTextAsync() : null);
+            }
+            else
+            {
+                tcs.SetResult(null);
             }
         });
 
-    private void OnAttachDiskImageRequested(object? sender, EventArgs e)
+    private void OnAttachDiskImageRequested(object? sender, TaskCompletionSource<byte[]?> tcs)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (ViewModel == null || TopLevel.GetTopLevel(this) is not { } topLevel)
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+            {
+                tcs.SetResult(null);
                 return;
+            }
 
             var storageProvider = topLevel.StorageProvider;
-            if (storageProvider.CanOpen)
+            if (!storageProvider.CanOpen)
             {
-                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = "Select D64 Disk Image",
-                    AllowMultiple = false,
-                    FileTypeFilter = new[]
-                    {
-                        new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
-                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                   }
-                });
+                tcs.SetResult(null);
+                return;
+            }
 
-                if (files.Count > 0)
+            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select D64 Disk Image",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
                 {
-                    try
-                    {
-                        await using var stream = await files[0].OpenReadAsync();
-                        var fileBuffer = new byte[stream.Length];
-                        await stream.ReadExactlyAsync(fileBuffer);
-
-                        ViewModel.DiskImageFileResult = fileBuffer;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogError(ex, "Error reading disk image file");
-                    }
+                    new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
                 }
+            });
+
+            if (files.Count > 0)
+            {
+                try
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    var fileBuffer = new byte[stream.Length];
+                    await stream.ReadExactlyAsync(fileBuffer);
+                    tcs.SetResult(fileBuffer);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error reading disk image file");
+                    tcs.SetResult(null);
+                }
+            }
+            else
+            {
+                tcs.SetResult(null);
             }
         });
 
