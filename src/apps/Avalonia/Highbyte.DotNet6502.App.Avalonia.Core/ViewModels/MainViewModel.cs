@@ -1356,8 +1356,8 @@ public class MainViewModel : ViewModelBase, IDisposable
         {
             var fpsStat = _hostApp.GetStats()
                 .FirstOrDefault(s => s.name.EndsWith("OnUpdateFPS", StringComparison.OrdinalIgnoreCase));
-            if (fpsStat.stat is Highbyte.DotNet6502.Systems.Instrumentation.Stats.AveragedStat averaged && averaged.Value.HasValue)
-                StatusFpsText = $"{Math.Round(averaged.Value.Value)} fps";
+            if (fpsStat.stat is Highbyte.DotNet6502.Systems.Instrumentation.Stats.PerSecondTimedStat perSecond && perSecond.Value.HasValue)
+                StatusFpsText = $"{Math.Round(perSecond.Value.Value)} fps";
             else
                 StatusFpsText = string.Empty;
         }

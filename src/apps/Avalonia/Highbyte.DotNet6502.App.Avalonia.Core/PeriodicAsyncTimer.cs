@@ -1,84 +1,16 @@
-using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Threading;
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Timing;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
 /// <summary>
-/// A timer that uses .NET built-in PeriodicTimer.
-/// As PeriodicTimer runs on the thread it is created on, we need to marshal the Elapsed event to the UI thread.
+/// Avalonia-specific <see cref="FrameTimer"/> that marshals the Elapsed event to the UI thread.
+/// All pacing/precision logic lives in <see cref="FrameTimer"/>.
 /// </summary>
-public class PeriodicAsyncTimer : IScriptingTickTimer, IAsyncDisposable
+public sealed class PeriodicAsyncTimer : FrameTimer
 {
-    private CancellationTokenSource? _cts;
-    private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
-    private long _lastTick;
-
-    public double IntervalMilliseconds { get; set; }
-    public long TimeSinceLastTickMilliseconds { get; private set; }
-
-    public event EventHandler? Elapsed;
-
-    event EventHandler IScriptingTickTimer.Elapsed
+    public PeriodicAsyncTimer()
+        : base(action => Dispatcher.UIThread.InvokeAsync(action, DispatcherPriority.Render).GetTask())
     {
-        add => Elapsed += value;
-        remove => Elapsed -= value;
-    }
-
-    public void Start()
-    {
-        Stop();
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        _ = StartTimerAsync();
-    }
-
-    private async Task StartTimerAsync()
-    {
-        var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(IntervalMilliseconds));
-
-        try
-        {
-            while (await timer.WaitForNextTickAsync(_cts!.Token))
-            {
-                var time = _stopwatch.ElapsedMilliseconds;
-                TimeSinceLastTickMilliseconds = time - _lastTick;
-                _lastTick = time;
-
-                // Marshal to UI thread for Avalonia
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    Elapsed?.Invoke(this, EventArgs.Empty);
-                }, DispatcherPriority.Render);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when cancellation is requested
-        }
-        finally
-        {
-            timer.Dispose();
-        }
-    }
-
-    public void Stop()
-    {
-        _cts?.Cancel();
-    }
-
-    public void Dispose()
-    {
-        Stop();
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        Dispose();
-        return ValueTask.CompletedTask;
     }
 }
