@@ -684,10 +684,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     // Events for View to handle clipboard and file operations
     public event EventHandler<string>? ClipboardCopyRequested;
     public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
-    public event EventHandler? AttachDiskImageRequested;
-
-    // Properties for View to provide results
-    public byte[]? DiskImageFileResult { get; set; }
+    public event EventHandler<TaskCompletionSource<byte[]?>>? AttachDiskImageRequested;
 
     private async Task RequestClipboardCopyAsync(string text)
     {
@@ -706,17 +703,19 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task RequestAttachDiskImageAsync()
     {
-        DiskImageFileResult = null;
-        AttachDiskImageRequested?.Invoke(this, EventArgs.Empty);
-        // View should handle file picker and set DiskImageFileResult
-        await Task.Delay(100); // Give UI time to process
+        if (AttachDiskImageRequested == null)
+            return;
 
-        if (DiskImageFileResult != null)
+        var tcs = new TaskCompletionSource<byte[]?>();
+        AttachDiskImageRequested.Invoke(this, tcs);
+        var fileBuffer = await tcs.Task;
+
+        if (fileBuffer != null)
         {
             try
             {
                 // Parse the D64 disk image
-                var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(DiskImageFileResult);
+                var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(fileBuffer);
 
                 // Set the disk image on the running C64's DiskDrive1541
                 var c64 = (C64)_avaloniaHostApp!.CurrentRunningSystem!;
