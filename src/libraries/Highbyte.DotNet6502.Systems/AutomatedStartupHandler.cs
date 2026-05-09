@@ -1,14 +1,16 @@
 using System.IO;
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.DebugAdapter;
+namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
-/// Handles automated startup of an emulator host from command-line parameters.
-/// Host-app-independent: all Avalonia/UI specifics are supplied by the caller
-/// via the <paramref name="uiThreadInvoker"/> delegate.
+/// Handles automated startup of an emulator host from command-line / URL parameters.
+/// Host-app-independent: callers are responsible for invoking <c>ExecuteAsync</c> on the
+/// thread the host requires (e.g. UI thread for Avalonia). Optional <c>lifecycleInvoker</c>
+/// lets the caller defer the post-selection start lifecycle to a different dispatcher
+/// priority (used by Browser/WASM to let the framework finish initial rendering first).
+/// External-debugger wiring is supplied via <c>prepareForExternalDebuggerStart</c>.
 /// </summary>
 public static class AutomatedStartupHandler
 {
@@ -97,14 +99,52 @@ public static class AutomatedStartupHandler
     /// <summary>
     /// Handles automated system startup, load, and run operations.
     /// </summary>
-    /// <param name="hostApp">The already-initialized debuggable host app.</param>
-    /// <param name="uiThreadInvoker">
-    /// Optional delegate that runs an async action on the host app's required thread
-    /// (e.g. <c>f =&gt; Dispatcher.UIThread.InvokeAsync(f)</c> for Avalonia).
-    /// When <see langword="null"/>, the action is called directly on the current thread.
+    /// <param name="hostApp">The already-initialized host app.</param>
+    /// <param name="enableExternalDebug">
+    /// When true, the caller has an external debugger active. Affects two branches:
+    /// (1) before <c>Start()</c> with no PRG to load, <paramref name="prepareForExternalDebuggerStart"/>
+    /// is invoked so the host can block CPU execution until the debugger attaches; and
+    /// (2) after a PRG is loaded but not run, the PC is left untouched so the debugger
+    /// can position it.
     /// </param>
+    /// <param name="prepareForExternalDebuggerStart">
+    /// Optional callback invoked before <c>hostApp.Start()</c> when
+    /// <paramref name="enableExternalDebug"/> is true and no PRG is to be loaded.
+    /// Typical implementation: <c>() =&gt; debuggableHostApp.WaitForExternalDebugger = true</c>.
+    /// </param>
+    /// <param name="onFatalError">
+    /// Optional callback invoked when a fatal error is encountered (e.g. unknown system / variant,
+    /// missing PRG file). When <see langword="null"/>, the process is terminated with
+    /// <c>Environment.Exit(1)</c> (previous default behaviour, preserved for desktop / headless).
+    /// Browser hosts should pass a non-null callback (typically a no-op or a UI notification)
+    /// to avoid terminating the WASM runtime.
+    /// </param>
+    /// <param name="lifecycleInvoker">
+    /// Optional delegate that wraps the post-selection startup lifecycle (system <c>Start()</c>,
+    /// optional <c>waitForSystemReady</c>, optional PRG load, and the <paramref name="onStartupComplete"/>
+    /// signal). When <see langword="null"/>, the lifecycle runs inline and is awaited synchronously
+    /// — the right behaviour for desktop / headless hosts.
+    /// <para>
+    /// The Browser host needs to defer the lifecycle so the framework can finish its initial
+    /// view rendering before the emulator starts hammering the UI thread. A typical browser
+    /// implementation queues the lifecycle on the UI dispatcher at <c>Background</c> priority
+    /// (fire-and-forget) and returns <see cref="Task.CompletedTask"/> immediately, e.g.:
+    /// <code>
+    /// lifecycleInvoker: lifecycle =&gt;
+    /// {
+    ///     Dispatcher.UIThread.Post(() =&gt; { _ = lifecycle(); }, DispatcherPriority.Background);
+    ///     return Task.CompletedTask;
+    /// }
+    /// </code>
+    /// </para>
+    /// </param>
+    /// <remarks>
+    /// The caller is responsible for invoking this method on the thread the host app requires
+    /// (e.g. Avalonia's UI thread). All host-app interactions before the lifecycle run inline
+    /// on that thread.
+    /// </remarks>
     public static async Task ExecuteAsync(
-        IDebuggableHostApp hostApp,
+        IHostApp hostApp,
         string systemName,
         string? systemVariant,
         bool autoStart,
@@ -114,60 +154,72 @@ public static class AutomatedStartupHandler
         bool enableExternalDebug,
         Action? onStartupComplete,
         ILoggerFactory loggerFactory,
-        Func<Func<Task>, Task>? uiThreadInvoker = null)
+        Action? prepareForExternalDebuggerStart = null,
+        Action? onFatalError = null,
+        Func<Func<Task>, Task>? lifecycleInvoker = null)
     {
         var logger = loggerFactory.CreateLogger(nameof(AutomatedStartupHandler));
-        Func<Func<Task>, Task> invoke = uiThreadInvoker ?? (f => f());
+        Func<Func<Task>, Task> invokeLifecycle = lifecycleInvoker ?? (f => f());
+        Action fatalError = onFatalError ?? (() => Environment.Exit(1));
 
         try
         {
-            // All HostApp operations run via the provided invoker (e.g. UI thread for Avalonia)
-            await invoke(async () =>
+            // Select the system
+            logger.LogInformation($"Selecting system: {systemName}");
+            if (!hostApp.AvailableSystemNames.Contains(systemName))
             {
-                // Select the system
-                logger.LogInformation($"Selecting system: {systemName}");
-                if (!hostApp.AvailableSystemNames.Contains(systemName))
+                logger.LogError($"System '{systemName}' not found. Available systems: {string.Join(", ", hostApp.AvailableSystemNames)}");
+                fatalError();
+                return;
+            }
+
+            await hostApp.SelectSystem(systemName);
+
+            // Select the system variant if specified
+            if (systemVariant != null)
+            {
+                logger.LogInformation($"Selecting system variant: {systemVariant}");
+                if (!hostApp.AllSelectedSystemConfigurationVariants.Contains(systemVariant))
                 {
-                    logger.LogError($"System '{systemName}' not found. Available systems: {string.Join(", ", hostApp.AvailableSystemNames)}");
-                    Environment.Exit(1);
+                    logger.LogError($"System variant '{systemVariant}' not found for system '{systemName}'. Available variants: {string.Join(", ", hostApp.AllSelectedSystemConfigurationVariants)}");
+                    fatalError();
                     return;
                 }
-
-                await hostApp.SelectSystem(systemName);
-
-                // Select the system variant if specified
-                if (systemVariant != null)
+                await hostApp.SelectSystemConfigurationVariant(systemVariant);
+            }
+            else
+            {
+                // Use first variant
+                if (hostApp.AllSelectedSystemConfigurationVariants.Count > 0)
                 {
-                    logger.LogInformation($"Selecting system variant: {systemVariant}");
-                    if (!hostApp.AllSelectedSystemConfigurationVariants.Contains(systemVariant))
-                    {
-                        logger.LogError($"System variant '{systemVariant}' not found for system '{systemName}'. Available variants: {string.Join(", ", hostApp.AllSelectedSystemConfigurationVariants)}");
-                        Environment.Exit(1);
-                        return;
-                    }
-                    await hostApp.SelectSystemConfigurationVariant(systemVariant);
+                    var firstVariant = hostApp.AllSelectedSystemConfigurationVariants[0];
+                    logger.LogInformation($"Using first available system variant: {firstVariant}");
+                    await hostApp.SelectSystemConfigurationVariant(firstVariant);
                 }
-                else
-                {
-                    // Use first variant
-                    if (hostApp.AllSelectedSystemConfigurationVariants.Count > 0)
-                    {
-                        var firstVariant = hostApp.AllSelectedSystemConfigurationVariants[0];
-                        logger.LogInformation($"Using first available system variant: {firstVariant}");
-                        await hostApp.SelectSystemConfigurationVariant(firstVariant);
-                    }
-                }
+            }
 
-                // Start the system if requested
-                if (autoStart)
+            // Start the system if requested. The lifecycle (Start + post-Start work) is
+            // dispatched via invokeLifecycle so hosts that need to defer the lifecycle to a
+            // lower dispatcher priority (e.g. Browser/WASM) can do so without coupling the
+            // handler to any UI framework. Default invoker is direct-await.
+            if (autoStart)
+            {
+                await invokeLifecycle(async () =>
                 {
                     // If external debugger is enabled and no PRG to load, block execution
                     // until the debugger connects. This allows debugging from the very
                     // first CPU instruction (e.g., C64 KERNAL boot sequence).
                     if (enableExternalDebug && loadPrgPath == null)
                     {
-                        hostApp.WaitForExternalDebugger = true;
-                        logger.LogInformation("WaitForExternalDebugger set: CPU will not execute until debugger connects.");
+                        if (prepareForExternalDebuggerStart != null)
+                        {
+                            prepareForExternalDebuggerStart();
+                            logger.LogInformation("WaitForExternalDebugger set: CPU will not execute until debugger connects.");
+                        }
+                        else
+                        {
+                            logger.LogWarning("enableExternalDebug=true but no prepareForExternalDebuggerStart callback provided; CPU will not block on debugger.");
+                        }
                     }
 
                     logger.LogInformation("Starting system...");
@@ -188,7 +240,7 @@ public static class AutomatedStartupHandler
                         if (!File.Exists(expandedPrgPath))
                         {
                             logger.LogError($"PRG file not found: {expandedPrgPath}");
-                            Environment.Exit(1);
+                            fatalError();
                             return;
                         }
 
@@ -196,7 +248,7 @@ public static class AutomatedStartupHandler
                         if (prgBytes.Length < 2)
                         {
                             logger.LogError($"PRG file too small (must be at least 2 bytes): {expandedPrgPath}");
-                            Environment.Exit(1);
+                            fatalError();
                             return;
                         }
 
@@ -241,12 +293,12 @@ public static class AutomatedStartupHandler
                         logger.LogInformation("Automated startup complete.");
                         onStartupComplete?.Invoke();
                     }
-                }
-                else
-                {
-                    // System not started — nothing to do, TCP server is already listening
-                }
-            });
+                });
+            }
+            else
+            {
+                // System not started — nothing to do, TCP server is already listening
+            }
         }
         catch (Exception ex)
         {
@@ -260,7 +312,7 @@ public static class AutomatedStartupHandler
     /// <see cref="ISystemState.IsSystemReady"/> until it returns true or the
     /// timeout expires. Otherwise falls back to a fixed delay.
     /// </summary>
-    private static async Task WaitForSystemReadyAsync(IDebuggableHostApp hostApp, ILogger logger)
+    private static async Task WaitForSystemReadyAsync(IHostApp hostApp, ILogger logger)
     {
         if (hostApp.CurrentRunningSystem is ISystemState systemState)
         {

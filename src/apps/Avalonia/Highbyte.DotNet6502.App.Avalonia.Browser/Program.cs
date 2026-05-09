@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Browser;
+using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.Browser.Input;
@@ -31,10 +32,67 @@ internal sealed partial class Program
         "example_c64_download_and_run_prg.lua",
     ];
 
+    /// <summary>
+    /// Application entry point.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>HTTP Query Parameters (URL-driven automation):</b>
+    /// </para>
+    /// <list type="table">
+    ///   <listheader>
+    ///     <term>Parameter</term>
+    ///     <description>Description</description>
+    ///   </listheader>
+    ///   <item>
+    ///     <term><c>system</c></term>
+    ///     <description>
+    ///       Pre-select a system (e.g. <c>C64</c>, <c>Generic</c>). Mirrors desktop <c>--system</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>systemVariant</c></term>
+    ///     <description>
+    ///       Pre-select a system variant. Requires <c>system</c>. Mirrors desktop <c>--systemVariant</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>start</c></term>
+    ///     <description>
+    ///       Auto-start the emulator after selection (boolean flag, e.g. <c>start=1</c>).
+    ///       Mirrors desktop <c>--start</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>waitForSystemReady</c></term>
+    ///     <description>
+    ///       Wait until the system reports ready (e.g. C64 BASIC prompt). Requires <c>start</c>.
+    ///       Mirrors desktop <c>--waitForSystemReady</c>.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// Boolean flags accept <c>1</c>, <c>true</c>, <c>yes</c>, or an empty value as truthy
+    /// (case-insensitive). All keys are case-insensitive.
+    /// </para>
+    /// <para>
+    /// <b>Example:</b> <c>?system=C64&amp;systemVariant=PAL&amp;start=1&amp;waitForSystemReady=1</c>
+    /// </para>
+    /// </remarks>
     private static async Task<int> Main(string[] args)
     {
         AppLogger.ConsoleLoggingEnabled = true;
         WriteBootstrapLog("Avalonia program starting.");
+
+        // Parse URL query parameters for automated startup. The browser host passes
+        // globalThis.location.href as args[0] (see wwwroot/main.js).
+        var automation = ParseAutomationQuery(args.Length > 0 ? args[0] : null);
+        if (automation.SystemName != null)
+        {
+            WriteBootstrapLog($"Automation requested via query: system={automation.SystemName}, " +
+                $"systemVariant={automation.SystemVariant ?? "(none)"}, start={automation.AutoStart}, " +
+                $"waitForSystemReady={automation.WaitForSystemReady}");
+        }
 
         // Load configuration from Browser Local Storage using source-generated JSON serialization
         string configJson = await GetConfigStringFromLocalStorageAsync(LOCAL_STORAGE_MAIN_CONFIG_KEY);
@@ -126,11 +184,68 @@ internal sealed partial class Program
         // Load-examples callback: fetches bundled scripts and saves any that are not yet in localStorage
         Task LoadExamplesAsync() => SeedExampleScriptsAsync(SaveScript);
 
+        // Build an automated-startup runner that MainViewModel.InitializeAsync will invoke once
+        // the Avalonia view tree is fully loaded. The runner selects the system synchronously,
+        // then defers the actual emulator Start (and any post-Start work) to the UI dispatcher
+        // at Background priority via lifecycleInvoker — that lets the framework finish its
+        // initial Loaded/Render passes before the C64 frame loop starts hammering the UI thread.
+        // The handler itself stays UI-framework-agnostic; only this delegate knows about Avalonia.
+        Func<IHostApp, Task>? automatedStartupRunner = null;
+        if (automation.SystemName != null)
+        {
+            automatedStartupRunner = async hostApp =>
+            {
+                var startupLogger = loggerFactory.CreateLogger(nameof(Program));
+                try
+                {
+                    await AutomatedStartupHandler.ExecuteAsync(
+                        hostApp,
+                        automation.SystemName,
+                        automation.SystemVariant,
+                        automation.AutoStart,
+                        automation.WaitForSystemReady,
+                        loadPrgPath: null,
+                        runLoadedProgram: false,
+                        enableExternalDebug: false,
+                        onStartupComplete: null,
+                        loggerFactory: loggerFactory,
+                        prepareForExternalDebuggerStart: null,
+                        onFatalError: () => startupLogger.LogError("Automated startup aborted; falling back to default UI."),
+                        lifecycleInvoker: lifecycle =>
+                        {
+                            startupLogger.LogInformation("Deferring auto-start lifecycle to UI dispatcher Background priority");
+                            Dispatcher.UIThread.Post(
+                                () =>
+                                {
+                                    var task = lifecycle();
+                                    // Observe exceptions from the deferred fire-and-forget task
+                                    // (handler swallows expected errors via onFatalError; this
+                                    // catches any unexpected ones so the WASM runtime stays alive).
+                                    _ = task.ContinueWith(
+                                        t =>
+                                        {
+                                            if (t.IsFaulted && t.Exception != null)
+                                                startupLogger.LogError(t.Exception, "Deferred auto-start lifecycle threw");
+                                        },
+                                        TaskScheduler.Default);
+                                },
+                                DispatcherPriority.Background);
+                            return Task.CompletedTask;
+                        });
+                }
+                catch (Exception ex)
+                {
+                    WriteBootstrapLog($"Automated startup runner failed: {ex.Message}", LogLevel.Error);
+                }
+            };
+        }
+
+
         // Start Avalonia app
         try
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamplesAsync)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamplesAsync, automatedStartupRunner: automatedStartupRunner)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -160,6 +275,86 @@ internal sealed partial class Program
     private static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information)
     {
         AppLogger.WriteBootstrapLog(message, logLevel, nameof(Program));
+    }
+
+    /// <summary>
+    /// Parsed automation parameters from the URL query string. <see cref="SystemName"/> is null
+    /// when no automation was requested.
+    /// </summary>
+    private sealed record BrowserAutomationParams(
+        string? SystemName,
+        string? SystemVariant,
+        bool AutoStart,
+        bool WaitForSystemReady);
+
+    /// <summary>
+    /// Parses URL query parameters into an automation request. Logs (and clears) any
+    /// invalid combinations rather than aborting startup, so the regular UI still loads.
+    /// </summary>
+    private static BrowserAutomationParams ParseAutomationQuery(string? url)
+    {
+        var empty = new BrowserAutomationParams(null, null, false, false);
+        if (string.IsNullOrWhiteSpace(url))
+            return empty;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
+            return empty;
+
+        // Build a case-insensitive map. Last value wins on duplicate keys.
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var raw = uri.Query.StartsWith('?') ? uri.Query[1..] : uri.Query;
+        foreach (var pair in raw.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = pair.IndexOf('=');
+            string key, value;
+            if (eq < 0)
+            {
+                key = Uri.UnescapeDataString(pair);
+                value = string.Empty;
+            }
+            else
+            {
+                key = Uri.UnescapeDataString(pair[..eq]);
+                value = Uri.UnescapeDataString(pair[(eq + 1)..]);
+            }
+            if (!string.IsNullOrEmpty(key))
+                map[key] = value;
+        }
+
+        static bool IsTruthy(string v) =>
+            v.Length == 0 ||
+            v.Equals("1", StringComparison.Ordinal) ||
+            v.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+            v.Equals("yes", StringComparison.OrdinalIgnoreCase);
+
+        string? systemName = map.TryGetValue("system", out var s) && !string.IsNullOrWhiteSpace(s) ? s : null;
+        string? systemVariant = map.TryGetValue("systemVariant", out var v) && !string.IsNullOrWhiteSpace(v) ? v : null;
+        bool autoStart = map.TryGetValue("start", out var st) && IsTruthy(st);
+        bool waitForReady = map.TryGetValue("waitForSystemReady", out var w) && IsTruthy(w);
+
+        // systemVariant requires system
+        if (systemVariant != null && systemName == null)
+        {
+            WriteBootstrapLog("Query parameter 'systemVariant' requires 'system'; ignoring 'systemVariant'.", LogLevel.Warning);
+            systemVariant = null;
+        }
+
+        // start / waitForSystemReady require system
+        if (systemName == null && (autoStart || waitForReady))
+        {
+            WriteBootstrapLog("Query parameters 'start' and 'waitForSystemReady' require 'system'; ignoring.", LogLevel.Warning);
+            autoStart = false;
+            waitForReady = false;
+        }
+
+        // waitForSystemReady requires start
+        if (waitForReady && !autoStart)
+        {
+            WriteBootstrapLog("Query parameter 'waitForSystemReady' requires 'start'; ignoring 'waitForSystemReady'.", LogLevel.Warning);
+            waitForReady = false;
+        }
+
+        return new BrowserAutomationParams(systemName, systemVariant, autoStart, waitForReady);
     }
 
     private static Dictionary<string, string?> GetConfigDictionary(string configJson)
@@ -407,7 +602,8 @@ internal sealed partial class Program
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
         Action<string>? deleteScript = null,
-        Func<Task>? loadExamples = null)
+        Func<Task>? loadExamples = null,
+        Func<IHostApp, Task>? automatedStartupRunner = null)
     {
         return AppBuilder.Configure(() =>
         {
@@ -424,7 +620,8 @@ internal sealed partial class Program
                                 loadScript: loadScript,
                                 saveScript: saveScript,
                                 deleteScript: deleteScript,
-                                loadExamples: loadExamples
+                                loadExamples: loadExamples,
+                                automatedStartupRunner: automatedStartupRunner
                             );
         })
         .AfterSetup(_ =>

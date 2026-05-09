@@ -368,20 +368,16 @@ internal sealed partial class Program
         bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram;
         var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "desktop");
 
-        // Skip the UI's default system selection when a script or --system arg will handle it,
-        // to avoid a race where the UI tries to select a system while the script/handler already has.
-        bool skipDefaultSystemSelection = systemName != null || scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
-
-        // ----------
-        // Start Avalonia app
-        // ----------
-        WriteBootstrapLog($"Starting Avalonia app.");
-        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, remoteController, scriptingEngine, skipDefaultSystemSelection);
-
-        // If automated startup is requested, handle it after the app starts
+        // Build an automated-startup runner that MainViewModel.InitializeAsync invokes from
+        // MainView.OnViewLoaded. When non-null, it suppresses the UI's default system selection.
+        //  - --system <name> (and friends): runner invokes AutomatedStartupHandler.
+        //  - --script / --scriptDir:        runner is a no-op (the script owns the lifecycle,
+        //                                    we just need to prevent default system selection).
+        //  - mutually exclusive (validated above): at most one of these applies.
+        Func<IHostApp, Task>? automatedStartupRunner = null;
         if (systemName != null)
         {
-            _ = Task.Run(async () =>
+            automatedStartupRunner = async _ =>
             {
                 var startupLogger = loggerFactory.CreateLogger(nameof(Program));
 
@@ -401,6 +397,8 @@ internal sealed partial class Program
 #pragma warning restore VSTHRD003
                 startupLogger.LogInformation("HostApp initialized.");
 
+                // hostApp is IHostApp here; cast to IDebuggableHostApp for the WaitForExternalDebugger setter.
+                var debuggableHostApp = hostApp as IDebuggableHostApp;
                 await AutomatedStartupHandler.ExecuteAsync(
                     hostApp,
                     systemName,
@@ -412,9 +410,23 @@ internal sealed partial class Program
                     enableExternalDebug,
                     onStartupComplete: () => debugController.SignalProgramReady(),
                     loggerFactory: loggerFactory,
-                    uiThreadInvoker: f => Dispatcher.UIThread.InvokeAsync(f));
-            });
+                    prepareForExternalDebuggerStart: debuggableHostApp != null
+                        ? () => debuggableHostApp.WaitForExternalDebugger = true
+                        : null);
+            };
         }
+        else if (scriptFilePaths.Count > 0 || scriptDirectoryOverride != null)
+        {
+            // Lua scripts handle the lifecycle themselves; the runner just exists to suppress
+            // the UI's default system selection so the script's SelectSystem isn't raced.
+            automatedStartupRunner = _ => Task.CompletedTask;
+        }
+
+        // ----------
+        // Start Avalonia app
+        // ----------
+        WriteBootstrapLog($"Starting Avalonia app.");
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, remoteController, scriptingEngine, automatedStartupRunner);
 
         app.StartWithClassicDesktopLifetime(args);
 
@@ -448,7 +460,7 @@ internal sealed partial class Program
         IExternalDebugController? externalDebugController = null,
         IRemoteControlController? remoteControlController = null,
         IScriptingEngine? scriptingEngine = null,
-        bool skipDefaultSystemSelection = false)
+        Func<IHostApp, Task>? automatedStartupRunner = null)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
@@ -461,7 +473,7 @@ internal sealed partial class Program
                 externalDebugController: externalDebugController,
                 remoteControlController: remoteControlController,
                 scriptingEngine: scriptingEngine,
-                skipDefaultSystemSelection: skipDefaultSystemSelection))
+                automatedStartupRunner: automatedStartupRunner))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
@@ -538,4 +550,3 @@ internal sealed partial class Program
         return null;
     }
 }
-

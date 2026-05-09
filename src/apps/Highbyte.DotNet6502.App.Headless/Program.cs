@@ -206,7 +206,7 @@ if (systemName != null)
         enableExternalDebug,
         onStartupComplete: () => debugController.SignalProgramReady(),
         loggerFactory: loggerFactory,
-        uiThreadInvoker: null); // No UI thread in headless mode
+        prepareForExternalDebuggerStart: () => hostApp.WaitForExternalDebugger = true);
 }
 
 // ----------

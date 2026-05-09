@@ -1006,10 +1006,17 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (HostApp == null)
             return;
 
-        // Skip default system selection if automated startup is handling it
-        if (HostApp.SkipDefaultSystemSelection)
+        // If an automated-startup runner was configured, invoke it instead of the default
+        // system selection. Browser uses this for URL-driven automation; Desktop uses it for
+        // CLI-driven automation; and the Lua-script case passes a no-op runner to express
+        // "skip default selection — the script owns the lifecycle".
+        // Running here (from MainView's Loaded event) means the view tree has been laid out
+        // and rendered at least once, which the browser frame loop's InvalidateVisual relies on.
+        var runner = App.Current?.AutomatedStartupRunner;
+        if (runner != null)
         {
-            _logger.LogInformation("Skipping default system selection - automated startup is active");
+            _logger.LogInformation("Running automated startup from MainViewModel.InitializeAsync");
+            await runner(HostApp);
             return;
         }
 

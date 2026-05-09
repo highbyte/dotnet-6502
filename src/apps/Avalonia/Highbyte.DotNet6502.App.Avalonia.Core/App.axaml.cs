@@ -44,7 +44,7 @@ public partial class App : Application
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
-    private readonly bool _skipDefaultSystemSelection;
+    private readonly Func<IHostApp, Task>? _automatedStartupRunner;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -54,6 +54,14 @@ public partial class App : Application
     public IDebuggableHostApp HostApp => _hostApp;
 
     public bool IsHostAppReady => _hostApp != null;
+
+    /// <summary>
+    /// Optional async runner invoked from <see cref="ViewModels.MainViewModel.SetDefaultSystemSelectionAsync"/>
+    /// when an automated startup has been requested (e.g. via URL query parameters in the Browser host).
+    /// Running automation from there guarantees the Avalonia view tree has been loaded and rendered
+    /// at least once, so subsequent <c>InvalidateVisual</c> calls actually trigger paint.
+    /// </summary>
+    public Func<IHostApp, Task>? AutomatedStartupRunner => _automatedStartupRunner;
 
     /// <summary>
     /// Runtime controller for the external TCP debug server.
@@ -100,7 +108,13 @@ public partial class App : Application
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
     /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
-    /// <param name="skipDefaultSystemSelection">When true, suppresses the UI's automatic default system selection on startup (e.g. when a script or automated startup handles it).</param>
+    /// <param name="automatedStartupRunner">
+    /// Optional automated-startup delegate invoked from <see cref="ViewModels.MainViewModel.SetDefaultSystemSelectionAsync"/>
+    /// after the view tree has been loaded. When non-null, the UI's default system selection is
+    /// suppressed and the runner is invoked instead — used by the Browser host for URL-driven
+    /// automation, by Desktop for CLI-driven automation, and as a no-op (<c>_ =&gt; Task.CompletedTask</c>)
+    /// when a Lua script is responsible for the lifecycle.
+    /// </param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
@@ -117,7 +131,7 @@ public partial class App : Application
         Action<string, string>? saveScript = null,
         Action<string>? deleteScript = null,
         Func<Task>? loadExamples = null,
-        bool skipDefaultSystemSelection = false)
+        Func<IHostApp, Task>? automatedStartupRunner = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -134,7 +148,7 @@ public partial class App : Application
         _saveScript = saveScript;
         _deleteScript = deleteScript;
         _loadExamples = loadExamples;
-        _skipDefaultSystemSelection = skipDefaultSystemSelection;
+        _automatedStartupRunner = automatedStartupRunner;
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
@@ -349,11 +363,6 @@ public partial class App : Application
 
             // Wire Lua scripting engine (NoScriptingEngine used when null, e.g. in WASM)
             _hostApp.SetScriptingEngine(_scriptingEngine ?? new NoScriptingEngine());
-
-            // Suppress UI default system selection when automated startup or a script handles it.
-            // Set before TrySetResult so the flag is visible to MainViewModel.InitializeAsync().
-            if (_skipDefaultSystemSelection)
-                _hostApp.SkipDefaultSystemSelection = true;
 
             // Signal waiters (e.g. automated startup on a background thread) that HostApp is ready.
             // TrySetResult guarantees all writes above are visible to awaiters before they resume.
