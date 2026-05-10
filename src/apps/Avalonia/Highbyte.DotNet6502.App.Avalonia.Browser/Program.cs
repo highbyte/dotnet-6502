@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
+using System.Text;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Browser;
@@ -304,7 +305,7 @@ internal sealed partial class Program
                 try
                 {
                     using var http = GetAppUrlHttpClient();
-                    urlScriptContent = await http.GetStringAsync(automation.ScriptUrl);
+                    urlScriptContent = await GetUtf8TextAsync(http, automation.ScriptUrl);
                     WriteBootstrapLog($"Fetched 'scriptUrl' from {automation.ScriptUrl} ({urlScriptContent.Length} chars).");
                 }
                 catch (Exception ex)
@@ -443,7 +444,7 @@ internal sealed partial class Program
                     try
                     {
                         using var http = GetAppUrlHttpClient();
-                        basicSourceText = await http.GetStringAsync(automation.BasicUrl);
+                        basicSourceText = await GetUtf8TextAsync(http, automation.BasicUrl);
                         if (string.IsNullOrWhiteSpace(basicSourceText))
                         {
                             startupLogger.LogError($"Fetched 'basicUrl' '{automation.BasicUrl}' but it contained no BASIC source.");
@@ -914,6 +915,15 @@ internal sealed partial class Program
         return httpClient;
     }
 
+    private static async Task<string> GetUtf8TextAsync(HttpClient httpClient, string requestUri)
+    {
+        var bytes = await httpClient.GetByteArrayAsync(requestUri);
+        var text = Encoding.UTF8.GetString(bytes);
+        return text.Length > 0 && text[0] == '\uFEFF'
+            ? text[1..]
+            : text;
+    }
+
     private static ScriptingConfig GetScriptingConfig(IConfiguration configuration)
     {
         var section = configuration.GetSection(ScriptingConfig.ConfigSectionName);
@@ -966,7 +976,7 @@ internal sealed partial class Program
 
             try
             {
-                var content = await http.GetStringAsync($"scripts/{scriptName}");
+                var content = await GetUtf8TextAsync(http, $"scripts/{scriptName}");
                 saveScript(scriptName, content);   // writes localStorage + hot-adds to engine
                 WriteBootstrapLog($"Seeded example script: {scriptName}");
             }
