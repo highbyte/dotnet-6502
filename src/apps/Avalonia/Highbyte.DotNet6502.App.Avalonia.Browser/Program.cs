@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Browser;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.Browser.Input;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
@@ -13,6 +14,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -412,6 +414,13 @@ internal sealed partial class Program
             {
                 var startupLogger = loggerFactory.CreateLogger(nameof(Program));
 
+                if (automation.AutoStart &&
+                    automation.SystemName.Equals(C64.SystemName, StringComparison.OrdinalIgnoreCase) &&
+                    !await EnsureC64RomsAvailableForAutomatedStartupAsync(hostApp, automation.SystemName, automation.SystemVariant, startupLogger))
+                {
+                    return;
+                }
+
                 // If a PRG URL is set, build a bytes provider that fetches over HTTP using the
                 // same HttpClient (with current app origin) that emulatorConfig already uses.
                 Func<Task<byte[]>>? prgBytesProvider = null;
@@ -550,6 +559,91 @@ internal sealed partial class Program
         }
         return 0;
     }
+
+    private static async Task<bool> EnsureC64RomsAvailableForAutomatedStartupAsync(
+        IHostApp hostApp,
+        string systemName,
+        string? systemVariant,
+        ILogger startupLogger)
+    {
+        startupLogger.LogInformation("Checking whether C64 ROMs are available for automated startup.");
+
+        if (!hostApp.AvailableSystemNames.Contains(systemName))
+        {
+            startupLogger.LogError("System '{SystemName}' not found. Available systems: {AvailableSystems}",
+                systemName,
+                string.Join(", ", hostApp.AvailableSystemNames));
+            return false;
+        }
+
+        await hostApp.SelectSystem(systemName);
+
+        if (!string.IsNullOrWhiteSpace(systemVariant))
+        {
+            if (!hostApp.AllSelectedSystemConfigurationVariants.Contains(systemVariant))
+            {
+                startupLogger.LogError("System variant '{SystemVariant}' not found for system '{SystemName}'. Available variants: {AvailableVariants}",
+                    systemVariant,
+                    systemName,
+                    string.Join(", ", hostApp.AllSelectedSystemConfigurationVariants));
+                return false;
+            }
+
+            await hostApp.SelectSystemConfigurationVariant(systemVariant);
+        }
+        else if (hostApp.AllSelectedSystemConfigurationVariants.Count > 0)
+        {
+            await hostApp.SelectSystemConfigurationVariant(hostApp.AllSelectedSystemConfigurationVariants[0]);
+        }
+
+        var (isValid, errors) = await hostApp.IsCurrentSystemConfigValid();
+        if (isValid || !HasOnlyMissingC64RomErrors(errors))
+            return true;
+
+        var serviceProvider = App.Current?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            startupLogger.LogError("Missing C64 ROMs detected, but the service provider was not available for the ROM download prompt.");
+            return false;
+        }
+
+        var romPromptService = serviceProvider.GetRequiredService<C64RomPromptService>();
+        if (!await romPromptService.ShowStartupDownloadPromptAsync())
+        {
+            startupLogger.LogInformation("User cancelled automated C64 ROM download prompt.");
+            return false;
+        }
+
+        var configViewModel = serviceProvider.GetRequiredService<C64ConfigDialogViewModel>();
+        if (!await configViewModel.DownloadRomsToByteArrayAsync(requireAcknowledgement: false))
+        {
+            startupLogger.LogError("Automatic C64 ROM download failed: {StatusMessage}",
+                configViewModel.StatusMessage ?? "Unknown error.");
+            return false;
+        }
+
+        if (!await configViewModel.TryApplyChangesAsync())
+        {
+            startupLogger.LogError("Automatic C64 ROM download could not be saved: {StatusMessage} {ValidationMessage}",
+                configViewModel.StatusMessage ?? string.Empty,
+                configViewModel.ValidationMessage ?? string.Empty);
+            return false;
+        }
+
+        var (isValidAfterDownload, errorsAfterDownload) = await hostApp.IsCurrentSystemConfigValid();
+        if (!isValidAfterDownload)
+        {
+            startupLogger.LogError("C64 configuration is still invalid after automatic ROM download: {Errors}",
+                string.Join(" | ", errorsAfterDownload));
+            return false;
+        }
+
+        startupLogger.LogInformation("C64 ROMs were downloaded automatically for browser startup.");
+        return true;
+    }
+
+    private static bool HasOnlyMissingC64RomErrors(IReadOnlyCollection<string> errors)
+        => errors.Count > 0 && errors.All(error => error.StartsWith("Missing ROMs:", StringComparison.Ordinal));
 
     private static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information)
     {

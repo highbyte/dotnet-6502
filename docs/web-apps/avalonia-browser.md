@@ -64,6 +64,8 @@ Query parameter names are case-insensitive. Boolean flags treat an empty value, 
 
 Validation rules are intentionally forgiving: invalid combinations are ignored and the normal UI still loads.
 
+When a URL starts `system=C64` and the app does not yet have the required C64 ROMs, the browser startup flow prompts the user to acknowledge the ROM download terms and can download the ROMs before continuing. This lets first-run automation links work without opening the C64 config dialog first.
+
 1. `systemVariant` requires `system`.
 2. `start` and `waitForSystemReady` require `system`.
 3. `waitForSystemReady` requires `start`.

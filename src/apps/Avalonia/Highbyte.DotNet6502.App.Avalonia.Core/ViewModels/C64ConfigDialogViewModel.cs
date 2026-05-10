@@ -341,13 +341,15 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
-    public async Task AutoDownloadRomsToByteArrayAsync()
+    public Task AutoDownloadRomsToByteArrayAsync()
+        => DownloadRomsToByteArrayAsync(requireAcknowledgement: true);
+
+    public async Task<bool> DownloadRomsToByteArrayAsync(bool requireAcknowledgement)
     {
-        // Request acknowledgement before downloading
-        if (!await RequestRomLicenseAcknowledgementAsync())
+        if (requireAcknowledgement && !await RequestRomLicenseAcknowledgementAsync())
         {
             StatusMessage = "ROM download cancelled.";
-            return;
+            return false;
         }
 
         try
@@ -368,10 +370,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
             }
 
             StatusMessage = "ROMs downloaded successfully.";
+            return true;
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error downloading ROMs: {ex.Message}";
+            return false;
         }
         finally
         {

@@ -8,7 +8,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
-internal class OverlayDialogHelper
+public class OverlayDialogHelper
 {
     private readonly IApplicationLifetime? _applicationLifetime;
 

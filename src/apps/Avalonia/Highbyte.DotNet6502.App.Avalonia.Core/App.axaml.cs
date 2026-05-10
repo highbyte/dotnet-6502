@@ -306,6 +306,7 @@ public partial class App : Application
 
         // Register helpers
         services.AddTransient<OverlayDialogHelper>((sp) => new OverlayDialogHelper(this.ApplicationLifetime));
+        services.AddTransient<C64RomPromptService>();
 
         // Register ViewModels as transient (new instance each time)
         services.AddTransient<MainViewModel>();
