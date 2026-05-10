@@ -10,6 +10,7 @@ using Highbyte.DotNet6502.Impl.Browser.Input;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
@@ -92,19 +93,47 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>basicText</c></term>
+    ///     <description>
+    ///       Base64url-encoded inline C64 BASIC source text (UTF-8) to paste into the running
+    ///       C64 after BASIC is ready. Requires <c>system=C64</c>, <c>start</c>, and
+    ///       <c>waitForSystemReady</c>. Mutually exclusive with <c>loadPrgUrl</c> /
+    ///       <c>runLoadedProgram</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>basicUrl</c></term>
+    ///     <description>
+    ///       URL (relative or absolute) to fetch C64 BASIC source text from. Same semantics as
+    ///       <c>basicText</c> but unconstrained by URL length. Requires <c>system=C64</c>,
+    ///       <c>start</c>, and <c>waitForSystemReady</c>. Mutually exclusive with
+    ///       <c>loadPrgUrl</c> / <c>runLoadedProgram</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>runBasic</c></term>
+    ///     <description>
+    ///       After <c>basicText</c> / <c>basicUrl</c> has been pasted, queue <c>run</c> followed
+    ///       by Return. (Lower-case — the C64 keyboard buffer expects unshifted characters; an
+    ///       upper-case <c>RUN</c> would arrive as the graphic / shifted glyphs and not be
+    ///       recognised by BASIC.) Requires <c>basicText</c> or <c>basicUrl</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>script</c></term>
     ///     <description>
     ///       Base64url-encoded inline Lua script to load and auto-enable at startup. The script
     ///       owns the emulator lifecycle, so this parameter is mutually exclusive with
-    ///       <c>system</c>, <c>start</c>, <c>waitForSystemReady</c>, <c>loadPrgUrl</c>, and
-    ///       <c>runLoadedProgram</c>. Gated by <c>Scripting.AllowUrlScripts</c> (default false).
+    ///       <c>system</c>, <c>start</c>, <c>waitForSystemReady</c>, <c>loadPrgUrl</c>,
+    ///       <c>runLoadedProgram</c>, <c>basicText</c>, <c>basicUrl</c>, and <c>runBasic</c>.
+    ///       Gated by <c>Scripting.AllowUrlScripts</c> (default false).
     ///     </description>
     ///   </item>
     ///   <item>
     ///     <term><c>scriptUrl</c></term>
     ///     <description>
     ///       URL (relative or absolute) to fetch a Lua script from. Same semantics as
-    ///       <c>script</c> but unconstrained by URL length. Mutually exclusive with <c>script</c>
+    ///       <c>script</c> but unconstrained by URL length. Mutually exclusive with <c>script</c>,
     ///       and with the system-driven parameters above. Gated by
     ///       <c>Scripting.AllowUrlScripts</c> (default false).
     ///     </description>
@@ -122,7 +151,13 @@ internal sealed partial class Program
     /// ?system=C64&amp;systemVariant=PAL&amp;start=1&amp;waitForSystemReady=1
     ///
     /// # Load and run a bundled PRG (same-origin URL)
-    /// ?system=C64&amp;start=1&amp;loadPrgUrl=Resources/Sample6502Programs/Basic/C64/HelloWorld.prg&amp;runLoadedProgram=1
+    /// ?system=C64&amp;start=1&amp;waitForSystemReady=1&amp;loadPrgUrl=prg/c64/smooth_scroller_and_raster.prg&amp;runLoadedProgram=1
+    ///
+    /// # Paste BASIC source from a browser-served text file and run it
+    /// ?system=C64&amp;start=1&amp;waitForSystemReady=1&amp;basicUrl=basic/c64/hello-world.bas&amp;runBasic=1
+    ///
+    /// # Paste inline BASIC source and run it
+    /// ?system=C64&amp;start=1&amp;waitForSystemReady=1&amp;basicText=MTAgYzE9NzpjMj0xNAoyMCBjPWMxCjMwIGlmIGM9YzEgdGhlbiBjPWMyIDogZ290byA1MAo0MCBpZiBjPWMyIHRoZW4gYz1jMQo1MCBwb2tlIDUzMjgwLGMKNjAgcHJpbnQgImhlbGxvIHdvcmxkISIKNzAgZm9yIGk9MSB0byAxNTA6bmV4dAo4MCBnb3RvIDMwCg&amp;runBasic=1
     ///
     /// # Run an inline Lua script (requires Scripting.AllowUrlScripts=true in browser localStorage config)
     /// ?script=bG9nLmluZm8oJ2hlbGxvJyk        # base64url of: log.info('hello')
@@ -137,6 +172,8 @@ internal sealed partial class Program
     /// default and must be opted in via the <c>Scripting.AllowUrlScripts</c> config flag stored
     /// in browser localStorage. <c>loadPrgUrl</c> bytes are inert until the user (or the same
     /// query via <c>runLoadedProgram</c>) directs the CPU to execute them, so it is not gated.
+    /// <c>basicText</c> / <c>basicUrl</c> use the normal C64 keyboard paste path and are limited
+    /// to the C64 system after BASIC reports ready.
     /// </para>
     /// </remarks>
     private static async Task<int> Main(string[] args)
@@ -152,7 +189,9 @@ internal sealed partial class Program
             WriteBootstrapLog($"Automation requested via query: system={automation.SystemName}, " +
                 $"systemVariant={automation.SystemVariant ?? "(none)"}, start={automation.AutoStart}, " +
                 $"waitForSystemReady={automation.WaitForSystemReady}, " +
-                $"loadPrgUrl={automation.LoadPrgUrl ?? "(none)"}, runLoadedProgram={automation.RunLoadedProgram}");
+                $"loadPrgUrl={automation.LoadPrgUrl ?? "(none)"}, runLoadedProgram={automation.RunLoadedProgram}, " +
+                $"basicText={(automation.BasicText != null ? $"{automation.BasicText.Length} chars" : "(none)")}, " +
+                $"basicUrl={automation.BasicUrl ?? "(none)"}, runBasic={automation.RunBasic}");
         }
         else if (automation.ScriptContent != null || automation.ScriptUrl != null)
         {
@@ -312,7 +351,8 @@ internal sealed partial class Program
         // Build an automated-startup runner that MainViewModel.InitializeAsync will invoke once
         // the Avalonia view tree is fully loaded. The runner is one of three things:
         //  - URL script-driven  → no-op (script owns the lifecycle; we just suppress default selection).
-        //  - URL system-driven  → AutomatedStartupHandler with optional loadPrgUrl fetch.
+        //  - URL system-driven  → AutomatedStartupHandler with optional loadPrgUrl fetch and/or
+        //                          C64 BASIC text paste after the system reports ready.
         //  - neither            → null (default system selection runs).
         // For system-driven, the post-selection lifecycle is deferred to the UI dispatcher at
         // Background priority via lifecycleInvoker so the framework finishes its initial
@@ -388,6 +428,52 @@ internal sealed partial class Program
                     };
                 }
 
+                string? basicSourceText = automation.BasicText;
+                if (automation.BasicUrl != null)
+                {
+                    try
+                    {
+                        using var http = GetAppUrlHttpClient();
+                        basicSourceText = await http.GetStringAsync(automation.BasicUrl);
+                        if (string.IsNullOrWhiteSpace(basicSourceText))
+                        {
+                            startupLogger.LogError($"Fetched 'basicUrl' '{automation.BasicUrl}' but it contained no BASIC source.");
+                            basicSourceText = null;
+                        }
+                        else
+                        {
+                            startupLogger.LogInformation($"Fetched BASIC source from '{automation.BasicUrl}' ({basicSourceText.Length} chars).");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        startupLogger.LogError($"Failed to fetch 'basicUrl' '{automation.BasicUrl}': {ex.Message}");
+                    }
+                }
+
+                Action? onStartupComplete = null;
+                if (!string.IsNullOrWhiteSpace(basicSourceText))
+                {
+                    var basicSourceToPaste = BuildC64BasicPasteText(basicSourceText, automation.RunBasic);
+                    var basicSourceDescription = automation.BasicUrl != null
+                        ? $"basicUrl={automation.BasicUrl}"
+                        : $"basicText ({basicSourceText.Length} chars)";
+                    var basicLineCount = CountNonEmptyLines(basicSourceText);
+                    onStartupComplete = () =>
+                    {
+                        if (hostApp.CurrentRunningSystem is not C64 c64)
+                        {
+                            startupLogger.LogError("C64 BASIC source automation requires the running system to be C64.");
+                            return;
+                        }
+
+                        startupLogger.LogInformation(
+                            $"Queueing C64 BASIC source from {basicSourceDescription} " +
+                            $"({basicLineCount} line(s), runBasic={automation.RunBasic}).");
+                        c64.TextPaste.Paste(basicSourceToPaste);
+                    };
+                }
+
                 try
                 {
                     await AutomatedStartupHandler.ExecuteAsync(
@@ -399,7 +485,7 @@ internal sealed partial class Program
                         loadPrgPath: null,
                         runLoadedProgram: automation.RunLoadedProgram,
                         enableExternalDebug: false,
-                        onStartupComplete: null,
+                        onStartupComplete: onStartupComplete,
                         loggerFactory: loggerFactory,
                         prepareForExternalDebuggerStart: null,
                         onFatalError: () => startupLogger.LogError("Automated startup aborted; falling back to default UI."),
@@ -474,7 +560,9 @@ internal sealed partial class Program
     /// Parsed automation parameters from the URL query string. <see cref="SystemName"/> is null
     /// when no system-driven automation was requested. <see cref="ScriptContent"/> /
     /// <see cref="ScriptUrl"/> are mutually exclusive with the system fields and own the
-    /// emulator lifecycle when present.
+    /// emulator lifecycle when present. <see cref="BasicText"/> / <see cref="BasicUrl"/> are
+    /// C64-only system-driven automation helpers that queue BASIC source via the normal keyboard
+    /// paste path once BASIC is ready.
     /// </summary>
     private sealed record BrowserAutomationParams(
         string? SystemName,
@@ -483,6 +571,9 @@ internal sealed partial class Program
         bool WaitForSystemReady,
         string? LoadPrgUrl,
         bool RunLoadedProgram,
+        string? BasicText,
+        string? BasicUrl,
+        bool RunBasic,
         string? ScriptContent,
         string? ScriptUrl);
 
@@ -492,7 +583,7 @@ internal sealed partial class Program
     /// </summary>
     private static BrowserAutomationParams ParseAutomationQuery(string? url)
     {
-        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null);
+        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null, false, null, null);
         if (string.IsNullOrWhiteSpace(url))
             return empty;
 
@@ -532,40 +623,15 @@ internal sealed partial class Program
         bool waitForReady = map.TryGetValue("waitForSystemReady", out var w) && IsTruthy(w);
         string? loadPrgUrl = map.TryGetValue("loadPrgUrl", out var lp) && !string.IsNullOrWhiteSpace(lp) ? lp : null;
         bool runLoaded = map.TryGetValue("runLoadedProgram", out var rl) && IsTruthy(rl);
+        string? basicB64 = map.TryGetValue("basicText", out var bt) && !string.IsNullOrWhiteSpace(bt) ? bt : null;
+        string? basicUrl = map.TryGetValue("basicUrl", out var bu) && !string.IsNullOrWhiteSpace(bu) ? bu : null;
+        bool runBasic = map.TryGetValue("runBasic", out var rb) && IsTruthy(rb);
         string? scriptB64 = map.TryGetValue("script", out var sc) && !string.IsNullOrWhiteSpace(sc) ? sc : null;
         string? scriptUrl = map.TryGetValue("scriptUrl", out var su) && !string.IsNullOrWhiteSpace(su) ? su : null;
 
         // Decode base64url-encoded inline script (RFC 4648 §5: '-' and '_' substitute '+' '/'; padding optional).
-        string? scriptContent = null;
-        if (scriptB64 != null)
-        {
-            WriteBootstrapLog($"Query 'script' raw value: '{scriptB64}' (length {scriptB64.Length}).");
-            try
-            {
-                var standardB64 = scriptB64.Replace('-', '+').Replace('_', '/');
-                switch (standardB64.Length % 4)
-                {
-                    case 2: standardB64 += "=="; break;
-                    case 3: standardB64 += "="; break;
-                    case 1:
-                        WriteBootstrapLog("Query parameter 'script' has invalid base64url length; ignoring 'script'.", LogLevel.Warning);
-                        standardB64 = null!;
-                        break;
-                }
-                if (standardB64 != null)
-                {
-                    var bytes = Convert.FromBase64String(standardB64);
-                    scriptContent = System.Text.Encoding.UTF8.GetString(bytes);
-                    var preview = scriptContent.Length <= 80 ? scriptContent : scriptContent[..80] + "...";
-                    WriteBootstrapLog($"Decoded 'script' to {scriptContent.Length} chars: \"{preview}\"");
-                }
-            }
-            catch (FormatException ex)
-            {
-                WriteBootstrapLog($"Query parameter 'script' is not valid base64url: {ex.Message}; ignoring 'script'.", LogLevel.Warning);
-                scriptContent = null;
-            }
-        }
+        string? basicText = DecodeBase64UrlUtf8QueryValue("basicText", basicB64);
+        string? scriptContent = DecodeBase64UrlUtf8QueryValue("script", scriptB64, logRawValue: true);
 
         // ── system-driven automation validation ──────────────────────────────────────────
         if (systemVariant != null && systemName == null)
@@ -594,6 +660,37 @@ internal sealed partial class Program
             WriteBootstrapLog("Query parameter 'runLoadedProgram' requires 'loadPrgUrl'; ignoring 'runLoadedProgram'.", LogLevel.Warning);
             runLoaded = false;
         }
+        if (basicText != null && basicUrl != null)
+        {
+            WriteBootstrapLog("Query parameters 'basicText' and 'basicUrl' are mutually exclusive; ignoring both.", LogLevel.Warning);
+            basicText = null;
+            basicUrl = null;
+            runBasic = false;
+        }
+        if ((basicText != null || basicUrl != null) &&
+            (!string.Equals(systemName, C64.SystemName, StringComparison.OrdinalIgnoreCase) || !autoStart || !waitForReady))
+        {
+            WriteBootstrapLog(
+                "Query parameters 'basicText'/'basicUrl' require 'system=C64', 'start', and 'waitForSystemReady'; ignoring BASIC source parameters.",
+                LogLevel.Warning);
+            basicText = null;
+            basicUrl = null;
+            runBasic = false;
+        }
+        if ((basicText != null || basicUrl != null) && (loadPrgUrl != null || runLoaded))
+        {
+            WriteBootstrapLog(
+                "Query parameters 'basicText'/'basicUrl' are mutually exclusive with 'loadPrgUrl' and 'runLoadedProgram'; ignoring BASIC source parameters.",
+                LogLevel.Warning);
+            basicText = null;
+            basicUrl = null;
+            runBasic = false;
+        }
+        if (runBasic && basicText == null && basicUrl == null)
+        {
+            WriteBootstrapLog("Query parameter 'runBasic' requires 'basicText' or 'basicUrl'; ignoring 'runBasic'.", LogLevel.Warning);
+            runBasic = false;
+        }
 
         // ── script-driven automation validation ──────────────────────────────────────────
         // 'script' and 'scriptUrl' are mutually exclusive.
@@ -605,18 +702,79 @@ internal sealed partial class Program
         }
         // Scripts own the lifecycle: incompatible with system-driven automation.
         if ((scriptContent != null || scriptUrl != null) &&
-            (systemName != null || autoStart || waitForReady || loadPrgUrl != null || runLoaded))
+            (systemName != null || autoStart || waitForReady || loadPrgUrl != null || runLoaded ||
+             basicText != null || basicUrl != null || runBasic))
         {
             WriteBootstrapLog(
                 "Query parameters 'script'/'scriptUrl' are mutually exclusive with 'system', 'start', " +
-                "'waitForSystemReady', 'loadPrgUrl', and 'runLoadedProgram'; ignoring script parameters.",
+                "'waitForSystemReady', 'loadPrgUrl', 'runLoadedProgram', 'basicText', 'basicUrl', and 'runBasic'; ignoring script parameters.",
                 LogLevel.Warning);
             scriptContent = null;
             scriptUrl = null;
         }
 
         return new BrowserAutomationParams(systemName, systemVariant, autoStart, waitForReady,
-            loadPrgUrl, runLoaded, scriptContent, scriptUrl);
+            loadPrgUrl, runLoaded, basicText, basicUrl, runBasic, scriptContent, scriptUrl);
+    }
+
+    private static string? DecodeBase64UrlUtf8QueryValue(string parameterName, string? base64UrlValue, bool logRawValue = false)
+    {
+        if (base64UrlValue == null)
+            return null;
+
+        if (logRawValue)
+            WriteBootstrapLog($"Query '{parameterName}' raw value: '{base64UrlValue}' (length {base64UrlValue.Length}).");
+        else
+            WriteBootstrapLog($"Query '{parameterName}' provided ({base64UrlValue.Length} chars).");
+
+        try
+        {
+            var standardB64 = base64UrlValue.Replace('-', '+').Replace('_', '/');
+            switch (standardB64.Length % 4)
+            {
+                case 2: standardB64 += "=="; break;
+                case 3: standardB64 += "="; break;
+                case 1:
+                    WriteBootstrapLog($"Query parameter '{parameterName}' has invalid base64url length; ignoring '{parameterName}'.", LogLevel.Warning);
+                    return null;
+            }
+
+            var bytes = Convert.FromBase64String(standardB64);
+            var decoded = System.Text.Encoding.UTF8.GetString(bytes);
+            if (string.IsNullOrWhiteSpace(decoded))
+            {
+                WriteBootstrapLog($"Query parameter '{parameterName}' decoded to empty/whitespace text; ignoring '{parameterName}'.", LogLevel.Warning);
+                return null;
+            }
+
+            var preview = decoded.Length <= 80 ? decoded : decoded[..80] + "...";
+            WriteBootstrapLog($"Decoded '{parameterName}' to {decoded.Length} chars: \"{preview}\"");
+            return decoded;
+        }
+        catch (FormatException ex)
+        {
+            WriteBootstrapLog($"Query parameter '{parameterName}' is not valid base64url: {ex.Message}; ignoring '{parameterName}'.", LogLevel.Warning);
+            return null;
+        }
+    }
+
+    private static string BuildC64BasicPasteText(string basicSource, bool runBasic)
+    {
+        var normalized = basicSource.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace("\r", "\n", StringComparison.Ordinal);
+        if (!normalized.EndsWith("\n", StringComparison.Ordinal))
+            normalized += "\n";
+        if (runBasic)
+            normalized += "run\n";
+        return normalized;
+    }
+
+    private static int CountNonEmptyLines(string text)
+    {
+        return text.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace("\r", "\n", StringComparison.Ordinal)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Length;
     }
 
     private static Dictionary<string, string?> GetConfigDictionary(string configJson)
