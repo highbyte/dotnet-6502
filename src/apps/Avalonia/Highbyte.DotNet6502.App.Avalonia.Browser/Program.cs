@@ -21,6 +21,11 @@ internal sealed partial class Program
     private const string LOCAL_STORAGE_SCRIPT_PREFIX = "dotnet6502.lua.";
     private const string LOCAL_STORAGE_STORE_PREFIX = "dotnet6502.store.";
 
+    // Synthetic file name used for a URL-injected Lua script. Kept transient (not persisted to
+    // localStorage); LoadScript() falls back to the in-memory content for this name so the
+    // script editor can show / edit it during the current session.
+    private const string URL_INJECTED_SCRIPT_NAME = "__url_script.lua";
+
     private static readonly string[] _exampleScriptNames =
     [
         "example_monitor.lua",
@@ -70,13 +75,68 @@ internal sealed partial class Program
     ///       Mirrors desktop <c>--waitForSystemReady</c>.
     ///     </description>
     ///   </item>
+    ///   <item>
+    ///     <term><c>loadPrgUrl</c></term>
+    ///     <description>
+    ///       URL (relative to the app origin or absolute) to fetch a <c>.prg</c> file from after
+    ///       the system has started. The fetched bytes must include the standard 2-byte
+    ///       little-endian load-address header. Requires <c>system</c> and <c>start</c>.
+    ///       Browser-equivalent of desktop <c>--loadPrg &lt;path&gt;</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>runLoadedProgram</c></term>
+    ///     <description>
+    ///       After PRG load, redirect <c>CPU.PC</c> to the load address so execution starts at
+    ///       the program. Requires <c>loadPrgUrl</c>. Mirrors desktop <c>--runLoadedProgram</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>script</c></term>
+    ///     <description>
+    ///       Base64url-encoded inline Lua script to load and auto-enable at startup. The script
+    ///       owns the emulator lifecycle, so this parameter is mutually exclusive with
+    ///       <c>system</c>, <c>start</c>, <c>waitForSystemReady</c>, <c>loadPrgUrl</c>, and
+    ///       <c>runLoadedProgram</c>. Gated by <c>Scripting.AllowUrlScripts</c> (default false).
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>scriptUrl</c></term>
+    ///     <description>
+    ///       URL (relative or absolute) to fetch a Lua script from. Same semantics as
+    ///       <c>script</c> but unconstrained by URL length. Mutually exclusive with <c>script</c>
+    ///       and with the system-driven parameters above. Gated by
+    ///       <c>Scripting.AllowUrlScripts</c> (default false).
+    ///     </description>
+    ///   </item>
     /// </list>
     /// <para>
     /// Boolean flags accept <c>1</c>, <c>true</c>, <c>yes</c>, or an empty value as truthy
     /// (case-insensitive). All keys are case-insensitive.
     /// </para>
     /// <para>
-    /// <b>Example:</b> <c>?system=C64&amp;systemVariant=PAL&amp;start=1&amp;waitForSystemReady=1</c>
+    /// <b>Examples:</b>
+    /// </para>
+    /// <code>
+    /// # System-driven: select C64 (PAL), start, wait for BASIC ready
+    /// ?system=C64&amp;systemVariant=PAL&amp;start=1&amp;waitForSystemReady=1
+    ///
+    /// # Load and run a bundled PRG (same-origin URL)
+    /// ?system=C64&amp;start=1&amp;loadPrgUrl=Resources/Sample6502Programs/Basic/C64/HelloWorld.prg&amp;runLoadedProgram=1
+    ///
+    /// # Run an inline Lua script (requires Scripting.AllowUrlScripts=true in browser localStorage config)
+    /// ?script=bG9nLmluZm8oJ2hlbGxvJyk        # base64url of: log.info('hello')
+    /// # (Lua scripts in this emulator use `log.info`/`log.debug`/`log.warn`/`log.error` — `print` is not defined.)
+    ///
+    /// # Run a Lua script fetched from a URL
+    /// ?scriptUrl=scripts/example_emulator_control.lua
+    /// </code>
+    /// <para>
+    /// <b>Security note:</b> URL-supplied Lua executes against the user's emulator and
+    /// localStorage. The <c>script</c> / <c>scriptUrl</c> parameters are therefore disabled by
+    /// default and must be opted in via the <c>Scripting.AllowUrlScripts</c> config flag stored
+    /// in browser localStorage. <c>loadPrgUrl</c> bytes are inert until the user (or the same
+    /// query via <c>runLoadedProgram</c>) directs the CPU to execute them, so it is not gated.
     /// </para>
     /// </remarks>
     private static async Task<int> Main(string[] args)
@@ -91,7 +151,14 @@ internal sealed partial class Program
         {
             WriteBootstrapLog($"Automation requested via query: system={automation.SystemName}, " +
                 $"systemVariant={automation.SystemVariant ?? "(none)"}, start={automation.AutoStart}, " +
-                $"waitForSystemReady={automation.WaitForSystemReady}");
+                $"waitForSystemReady={automation.WaitForSystemReady}, " +
+                $"loadPrgUrl={automation.LoadPrgUrl ?? "(none)"}, runLoadedProgram={automation.RunLoadedProgram}");
+        }
+        else if (automation.ScriptContent != null || automation.ScriptUrl != null)
+        {
+            WriteBootstrapLog(automation.ScriptUrl != null
+                ? $"Automation requested via query: scriptUrl={automation.ScriptUrl}"
+                : $"Automation requested via query: inline script ({automation.ScriptContent!.Length} chars)");
         }
 
         // Load configuration from Browser Local Storage using source-generated JSON serialization
@@ -172,12 +239,70 @@ internal sealed partial class Program
                 });
         }
 
+        // Resolve URL-supplied script (inline base64url or fetched from URL) before the engine
+        // is built. Gated by ScriptingConfig.AllowUrlScripts (default false) so a crafted link
+        // can't execute Lua against the user's emulator/localStorage without explicit opt-in.
+        string? urlScriptContent = null;
+        bool scriptDrivenAutomation = false;
+        if (automation.ScriptContent != null || automation.ScriptUrl != null)
+        {
+            if (!scriptingConfig.AllowUrlScripts)
+            {
+                WriteBootstrapLog(
+                    "URL-driven script requested via 'script'/'scriptUrl' but Scripting.AllowUrlScripts=false; ignoring. " +
+                    "Set Scripting.AllowUrlScripts=true in browser localStorage config to enable.",
+                    LogLevel.Error);
+            }
+            else if (automation.ScriptContent != null)
+            {
+                urlScriptContent = automation.ScriptContent;
+                WriteBootstrapLog($"Using inline 'script' query parameter ({urlScriptContent.Length} chars decoded).");
+            }
+            else if (automation.ScriptUrl != null)
+            {
+                try
+                {
+                    using var http = GetAppUrlHttpClient();
+                    urlScriptContent = await http.GetStringAsync(automation.ScriptUrl);
+                    WriteBootstrapLog($"Fetched 'scriptUrl' from {automation.ScriptUrl} ({urlScriptContent.Length} chars).");
+                }
+                catch (Exception ex)
+                {
+                    WriteBootstrapLog($"Failed to fetch 'scriptUrl' '{automation.ScriptUrl}': {ex.Message}", LogLevel.Error);
+                }
+            }
+        }
+        if (urlScriptContent != null)
+        {
+            var localStorageLoader = scriptingConfig.ScriptLoader!;
+            var injected = urlScriptContent;
+            scriptingConfig.ScriptLoader = () => localStorageLoader().Append((URL_INJECTED_SCRIPT_NAME, injected));
+            // Note: we deliberately leave EnableScriptsAtStart=false so the bundled localStorage
+            // example scripts don't auto-enable (some of them call emu.start() at top level which
+            // would race the URL script + the view tree's first paint). The URL script is enabled
+            // selectively from the runner below, after MainView has loaded.
+            scriptDrivenAutomation = true;
+            WriteBootstrapLog("Injected URL-supplied script; will be enabled after view tree is loaded.");
+        }
+
         WriteBootstrapLog("Creating scripting engine.");
         var scriptingEngine = MoonSharpScriptingConfigurator.CreateForBrowser(
             scriptingConfig, loggerFactory);
 
-        // Script persistence callbacks (localStorage-backed, browser-only)
-        string? LoadScript(string name) => JSInterop.GetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
+        // Script persistence callbacks (localStorage-backed, browser-only).
+        // LoadScript falls back to the in-memory URL-injected script when localStorage misses,
+        // so the script editor can display the URL script's content during the current session.
+        // (Saving from the editor will persist it to localStorage under the synthetic name —
+        // intentional, so users can keep an edited URL script across reloads if they choose.)
+        string? LoadScript(string name)
+        {
+            var fromLocalStorage = JSInterop.GetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
+            if (fromLocalStorage != null)
+                return fromLocalStorage;
+            if (name == URL_INJECTED_SCRIPT_NAME && urlScriptContent != null)
+                return urlScriptContent;
+            return null;
+        }
         void SaveScript(string name, string content) => JSInterop.SetLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}", content);
         void DeleteScript(string name) => JSInterop.RemoveLocalStorage($"{LOCAL_STORAGE_SCRIPT_PREFIX}{name}");
 
@@ -185,17 +310,84 @@ internal sealed partial class Program
         Task LoadExamplesAsync() => SeedExampleScriptsAsync(SaveScript);
 
         // Build an automated-startup runner that MainViewModel.InitializeAsync will invoke once
-        // the Avalonia view tree is fully loaded. The runner selects the system synchronously,
-        // then defers the actual emulator Start (and any post-Start work) to the UI dispatcher
-        // at Background priority via lifecycleInvoker — that lets the framework finish its
-        // initial Loaded/Render passes before the C64 frame loop starts hammering the UI thread.
-        // The handler itself stays UI-framework-agnostic; only this delegate knows about Avalonia.
+        // the Avalonia view tree is fully loaded. The runner is one of three things:
+        //  - URL script-driven  → no-op (script owns the lifecycle; we just suppress default selection).
+        //  - URL system-driven  → AutomatedStartupHandler with optional loadPrgUrl fetch.
+        //  - neither            → null (default system selection runs).
+        // For system-driven, the post-selection lifecycle is deferred to the UI dispatcher at
+        // Background priority via lifecycleInvoker so the framework finishes its initial
+        // Loaded/Render passes before the emulator starts hammering the UI thread.
         Func<IHostApp, Task>? automatedStartupRunner = null;
-        if (automation.SystemName != null)
+        if (scriptDrivenAutomation)
+        {
+            // Browser URL scripts run alongside the normal UI: do the regular default system
+            // selection first (so the System combobox isn't blank), then enable the URL script.
+            // The script can still override via `emu.select(...)` / `emu.start()` if it wants.
+            // This differs intentionally from desktop's `--script` which is full-automation.
+            //
+            // Enabling the URL script runs its top-level Lua code inline (via InitialResume).
+            // If the script calls emu.start() at top level, the action queue drains shortly
+            // after and the C64 frame timer starts hammering the UI thread. We defer
+            // SetScriptEnabled to Background priority so the framework completes its initial
+            // Loaded/Render passes first — same reasoning as the lifecycleInvoker pattern used
+            // for system-driven URL automation.
+            var engine = scriptingEngine;
+            var defaultSystem = emulatorConfig.DefaultEmulator;
+            automatedStartupRunner = async hostApp =>
+            {
+                if (!string.IsNullOrEmpty(defaultSystem))
+                {
+                    WriteBootstrapLog($"Selecting default system '{defaultSystem}' before enabling URL script.");
+                    await hostApp.SelectSystem(defaultSystem);
+                }
+
+                WriteBootstrapLog($"Deferring URL-injected script '{URL_INJECTED_SCRIPT_NAME}' to UI dispatcher Background priority.");
+                _ = Dispatcher.UIThread.InvokeAsync(
+                    async () =>
+                    {
+                        try
+                        {
+                            WriteBootstrapLog($"Enabling URL-injected script '{URL_INJECTED_SCRIPT_NAME}'.");
+                            engine.SetScriptEnabled(URL_INJECTED_SCRIPT_NAME, true);
+
+                            // Drain any actions the script's top-level code enqueued (e.g.
+                            // emu.start) immediately, on the same Background-priority dispatch.
+                            // Otherwise the script-tick timer would drain them at Render
+                            // priority on its next tick — racing the framework's first paint
+                            // with a tight FrameTimer-driven Render-priority loop and hanging
+                            // the UI. Same reasoning as the system-driven lifecycleInvoker.
+                            await engine.DrainPendingActionsAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            WriteBootstrapLog($"Enabling URL script threw: {ex.GetType().Name}: {ex.Message}", LogLevel.Error);
+                        }
+                    },
+                    DispatcherPriority.Background);
+            };
+        }
+        else if (automation.SystemName != null)
         {
             automatedStartupRunner = async hostApp =>
             {
                 var startupLogger = loggerFactory.CreateLogger(nameof(Program));
+
+                // If a PRG URL is set, build a bytes provider that fetches over HTTP using the
+                // same HttpClient (with current app origin) that emulatorConfig already uses.
+                Func<Task<byte[]>>? prgBytesProvider = null;
+                if (automation.LoadPrgUrl != null)
+                {
+                    var prgUrl = automation.LoadPrgUrl;
+                    prgBytesProvider = async () =>
+                    {
+                        using var http = GetAppUrlHttpClient();
+                        startupLogger.LogInformation($"Fetching PRG from '{prgUrl}'...");
+                        var bytes = await http.GetByteArrayAsync(prgUrl);
+                        startupLogger.LogInformation($"Fetched {bytes.Length} bytes from '{prgUrl}'.");
+                        return bytes;
+                    };
+                }
+
                 try
                 {
                     await AutomatedStartupHandler.ExecuteAsync(
@@ -205,7 +397,7 @@ internal sealed partial class Program
                         automation.AutoStart,
                         automation.WaitForSystemReady,
                         loadPrgPath: null,
-                        runLoadedProgram: false,
+                        runLoadedProgram: automation.RunLoadedProgram,
                         enableExternalDebug: false,
                         onStartupComplete: null,
                         loggerFactory: loggerFactory,
@@ -231,7 +423,8 @@ internal sealed partial class Program
                                 },
                                 DispatcherPriority.Background);
                             return Task.CompletedTask;
-                        });
+                        },
+                        loadPrgBytesProvider: prgBytesProvider);
                 }
                 catch (Exception ex)
                 {
@@ -279,13 +472,19 @@ internal sealed partial class Program
 
     /// <summary>
     /// Parsed automation parameters from the URL query string. <see cref="SystemName"/> is null
-    /// when no automation was requested.
+    /// when no system-driven automation was requested. <see cref="ScriptContent"/> /
+    /// <see cref="ScriptUrl"/> are mutually exclusive with the system fields and own the
+    /// emulator lifecycle when present.
     /// </summary>
     private sealed record BrowserAutomationParams(
         string? SystemName,
         string? SystemVariant,
         bool AutoStart,
-        bool WaitForSystemReady);
+        bool WaitForSystemReady,
+        string? LoadPrgUrl,
+        bool RunLoadedProgram,
+        string? ScriptContent,
+        string? ScriptUrl);
 
     /// <summary>
     /// Parses URL query parameters into an automation request. Logs (and clears) any
@@ -293,7 +492,7 @@ internal sealed partial class Program
     /// </summary>
     private static BrowserAutomationParams ParseAutomationQuery(string? url)
     {
-        var empty = new BrowserAutomationParams(null, null, false, false);
+        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null);
         if (string.IsNullOrWhiteSpace(url))
             return empty;
 
@@ -331,30 +530,93 @@ internal sealed partial class Program
         string? systemVariant = map.TryGetValue("systemVariant", out var v) && !string.IsNullOrWhiteSpace(v) ? v : null;
         bool autoStart = map.TryGetValue("start", out var st) && IsTruthy(st);
         bool waitForReady = map.TryGetValue("waitForSystemReady", out var w) && IsTruthy(w);
+        string? loadPrgUrl = map.TryGetValue("loadPrgUrl", out var lp) && !string.IsNullOrWhiteSpace(lp) ? lp : null;
+        bool runLoaded = map.TryGetValue("runLoadedProgram", out var rl) && IsTruthy(rl);
+        string? scriptB64 = map.TryGetValue("script", out var sc) && !string.IsNullOrWhiteSpace(sc) ? sc : null;
+        string? scriptUrl = map.TryGetValue("scriptUrl", out var su) && !string.IsNullOrWhiteSpace(su) ? su : null;
 
-        // systemVariant requires system
+        // Decode base64url-encoded inline script (RFC 4648 §5: '-' and '_' substitute '+' '/'; padding optional).
+        string? scriptContent = null;
+        if (scriptB64 != null)
+        {
+            WriteBootstrapLog($"Query 'script' raw value: '{scriptB64}' (length {scriptB64.Length}).");
+            try
+            {
+                var standardB64 = scriptB64.Replace('-', '+').Replace('_', '/');
+                switch (standardB64.Length % 4)
+                {
+                    case 2: standardB64 += "=="; break;
+                    case 3: standardB64 += "="; break;
+                    case 1:
+                        WriteBootstrapLog("Query parameter 'script' has invalid base64url length; ignoring 'script'.", LogLevel.Warning);
+                        standardB64 = null!;
+                        break;
+                }
+                if (standardB64 != null)
+                {
+                    var bytes = Convert.FromBase64String(standardB64);
+                    scriptContent = System.Text.Encoding.UTF8.GetString(bytes);
+                    var preview = scriptContent.Length <= 80 ? scriptContent : scriptContent[..80] + "...";
+                    WriteBootstrapLog($"Decoded 'script' to {scriptContent.Length} chars: \"{preview}\"");
+                }
+            }
+            catch (FormatException ex)
+            {
+                WriteBootstrapLog($"Query parameter 'script' is not valid base64url: {ex.Message}; ignoring 'script'.", LogLevel.Warning);
+                scriptContent = null;
+            }
+        }
+
+        // ── system-driven automation validation ──────────────────────────────────────────
         if (systemVariant != null && systemName == null)
         {
             WriteBootstrapLog("Query parameter 'systemVariant' requires 'system'; ignoring 'systemVariant'.", LogLevel.Warning);
             systemVariant = null;
         }
-
-        // start / waitForSystemReady require system
         if (systemName == null && (autoStart || waitForReady))
         {
             WriteBootstrapLog("Query parameters 'start' and 'waitForSystemReady' require 'system'; ignoring.", LogLevel.Warning);
             autoStart = false;
             waitForReady = false;
         }
-
-        // waitForSystemReady requires start
         if (waitForReady && !autoStart)
         {
             WriteBootstrapLog("Query parameter 'waitForSystemReady' requires 'start'; ignoring 'waitForSystemReady'.", LogLevel.Warning);
             waitForReady = false;
         }
+        if (loadPrgUrl != null && (systemName == null || !autoStart))
+        {
+            WriteBootstrapLog("Query parameter 'loadPrgUrl' requires 'system' and 'start'; ignoring 'loadPrgUrl'.", LogLevel.Warning);
+            loadPrgUrl = null;
+        }
+        if (runLoaded && loadPrgUrl == null)
+        {
+            WriteBootstrapLog("Query parameter 'runLoadedProgram' requires 'loadPrgUrl'; ignoring 'runLoadedProgram'.", LogLevel.Warning);
+            runLoaded = false;
+        }
 
-        return new BrowserAutomationParams(systemName, systemVariant, autoStart, waitForReady);
+        // ── script-driven automation validation ──────────────────────────────────────────
+        // 'script' and 'scriptUrl' are mutually exclusive.
+        if (scriptContent != null && scriptUrl != null)
+        {
+            WriteBootstrapLog("Query parameters 'script' and 'scriptUrl' are mutually exclusive; ignoring both.", LogLevel.Warning);
+            scriptContent = null;
+            scriptUrl = null;
+        }
+        // Scripts own the lifecycle: incompatible with system-driven automation.
+        if ((scriptContent != null || scriptUrl != null) &&
+            (systemName != null || autoStart || waitForReady || loadPrgUrl != null || runLoaded))
+        {
+            WriteBootstrapLog(
+                "Query parameters 'script'/'scriptUrl' are mutually exclusive with 'system', 'start', " +
+                "'waitForSystemReady', 'loadPrgUrl', and 'runLoadedProgram'; ignoring script parameters.",
+                LogLevel.Warning);
+            scriptContent = null;
+            scriptUrl = null;
+        }
+
+        return new BrowserAutomationParams(systemName, systemVariant, autoStart, waitForReady,
+            loadPrgUrl, runLoaded, scriptContent, scriptUrl);
     }
 
     private static Dictionary<string, string?> GetConfigDictionary(string configJson)
@@ -418,6 +680,7 @@ internal sealed partial class Program
             AllowTcpClient = section.GetValue(nameof(ScriptingConfig.AllowTcpClient), false),
             AllowStore = section.GetValue(nameof(ScriptingConfig.AllowStore), true),
             StoreSubDirectory = section.GetValue(nameof(ScriptingConfig.StoreSubDirectory), ".store") ?? ".store",
+            AllowUrlScripts = section.GetValue(nameof(ScriptingConfig.AllowUrlScripts), false),
         };
     }
 

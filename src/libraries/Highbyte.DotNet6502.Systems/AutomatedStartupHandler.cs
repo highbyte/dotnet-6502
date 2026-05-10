@@ -138,6 +138,12 @@ public static class AutomatedStartupHandler
     /// </code>
     /// </para>
     /// </param>
+    /// <param name="loadPrgBytesProvider">
+    /// Optional async provider of PRG bytes. When non-null, takes precedence over
+    /// <paramref name="loadPrgPath"/> — the bytes are obtained from this delegate instead of
+    /// the local filesystem. Used by the Browser host to fetch a PRG via HTTP. The resulting
+    /// byte array must include the 2-byte little-endian load address header (standard PRG format).
+    /// </param>
     /// <remarks>
     /// The caller is responsible for invoking this method on the thread the host app requires
     /// (e.g. Avalonia's UI thread). All host-app interactions before the lifecycle run inline
@@ -156,7 +162,8 @@ public static class AutomatedStartupHandler
         ILoggerFactory loggerFactory,
         Action? prepareForExternalDebuggerStart = null,
         Action? onFatalError = null,
-        Func<Func<Task>, Task>? lifecycleInvoker = null)
+        Func<Func<Task>, Task>? lifecycleInvoker = null,
+        Func<Task<byte[]>>? loadPrgBytesProvider = null)
     {
         var logger = loggerFactory.CreateLogger(nameof(AutomatedStartupHandler));
         Func<Func<Task>, Task> invokeLifecycle = lifecycleInvoker ?? (f => f());
@@ -232,24 +239,49 @@ public static class AutomatedStartupHandler
                         await WaitForSystemReadyAsync(hostApp, logger);
                     }
 
-                    // Load PRG if specified
-                    if (loadPrgPath != null)
+                    // Load PRG if specified — either via async provider (Browser fetches over HTTP)
+                    // or local filesystem path (Desktop / Headless). Provider wins if both are set.
+                    if (loadPrgBytesProvider != null || loadPrgPath != null)
                     {
-                        logger.LogInformation($"Loading PRG file: {loadPrgPath}");
-                        var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath);
-                        if (!File.Exists(expandedPrgPath))
+                        byte[] prgBytes;
+                        if (loadPrgBytesProvider != null)
                         {
-                            logger.LogError($"PRG file not found: {expandedPrgPath}");
-                            fatalError();
-                            return;
+                            logger.LogInformation("Loading PRG bytes via provider");
+                            try
+                            {
+                                prgBytes = await loadPrgBytesProvider();
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, "PRG bytes provider threw while fetching");
+                                fatalError();
+                                return;
+                            }
+                            if (prgBytes.Length < 2)
+                            {
+                                logger.LogError($"PRG content too small (must be at least 2 bytes): got {prgBytes.Length}");
+                                fatalError();
+                                return;
+                            }
                         }
-
-                        var prgBytes = await File.ReadAllBytesAsync(expandedPrgPath);
-                        if (prgBytes.Length < 2)
+                        else
                         {
-                            logger.LogError($"PRG file too small (must be at least 2 bytes): {expandedPrgPath}");
-                            fatalError();
-                            return;
+                            logger.LogInformation($"Loading PRG file: {loadPrgPath}");
+                            var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath!);
+                            if (!File.Exists(expandedPrgPath))
+                            {
+                                logger.LogError($"PRG file not found: {expandedPrgPath}");
+                                fatalError();
+                                return;
+                            }
+
+                            prgBytes = await File.ReadAllBytesAsync(expandedPrgPath);
+                            if (prgBytes.Length < 2)
+                            {
+                                logger.LogError($"PRG file too small (must be at least 2 bytes): {expandedPrgPath}");
+                                fatalError();
+                                return;
+                            }
                         }
 
                         // Read load address (first two bytes, little-endian)

@@ -356,6 +356,8 @@ public class InputInjectionLifecycleTests
 
         public string ScriptDirectory => string.Empty;
 
+        public bool AllowUrlScripts { get => false; set { } }
+
         public bool CanManageScripts => false;
 
         public event EventHandler? ScriptStatusChanged

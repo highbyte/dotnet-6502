@@ -48,6 +48,18 @@ public class ScriptingEngine : IScriptingEngine
 
     public bool IsEnabled => true;
     public string ScriptDirectory => _config.ResolvedScriptDirectory();
+
+    /// <summary>
+    /// Whether URL-driven script delivery (the Browser host's <c>script</c> / <c>scriptUrl</c>
+    /// query parameters) is honoured. Setter mutates the live config; the change takes effect
+    /// on the next page load (the value is only consulted at startup before script ingestion).
+    /// </summary>
+    public bool AllowUrlScripts
+    {
+        get => _config.AllowUrlScripts;
+        set => _config.AllowUrlScripts = value;
+    }
+
     public event EventHandler? ScriptStatusChanged;
 
     public ScriptingEngine(IScriptingEngineAdapter adapter, ScriptingConfig config, ILoggerFactory loggerFactory)

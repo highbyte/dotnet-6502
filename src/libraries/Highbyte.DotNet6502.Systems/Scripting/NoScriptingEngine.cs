@@ -22,6 +22,7 @@ public class NoScriptingEngine : IScriptingEngine
     public void ReloadScript(string fileName) { }
     public void ReloadAllScripts() { }
     public string ScriptDirectory => string.Empty;
+    public bool AllowUrlScripts { get => false; set { } }
     public bool CanManageScripts => false;
     public void UpsertScript(string fileName, string content) { }
     public void DeleteScript(string fileName) { }
