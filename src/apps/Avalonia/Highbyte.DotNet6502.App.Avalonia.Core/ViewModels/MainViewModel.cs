@@ -947,6 +947,10 @@ public class MainViewModel : ViewModelBase, IDisposable
                     _logMessagesBackingStore.Add(new LogDisplayEntry(logEntry));
                     _hasPendingLogUpdates = true;
                 }
+
+                // Keep the tab header/error badge in sync even while the log tab is hidden and
+                // the visible collection is intentionally not updated yet.
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(UpdateLogTabHeader);
             };
 
         // System-specific ViewModel initializations
@@ -1116,9 +1120,23 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void UpdateLogTabHeader()
     {
-        var errorCount = _logMessages.Count(m => m.LogLevel == LogLevel.Error || m.LogLevel == LogLevel.Critical);
+        int errorCount;
+        lock (_logUpdateLock)
+        {
+            errorCount = CountLogErrors(_logMessagesBackingStore);
+        }
+        UpdateLogTabHeader(errorCount);
+    }
+
+    private void UpdateLogTabHeader(int errorCount)
+    {
         LogTabHeader = errorCount > 0 ? $"Log ({errorCount})" : "Log";
         HasLogErrors = errorCount > 0;
+    }
+
+    private static int CountLogErrors(IEnumerable<LogDisplayEntry> logEntries)
+    {
+        return logEntries.Count(m => m.LogLevel == LogLevel.Error || m.LogLevel == LogLevel.Critical);
     }
 
     private void RefreshScriptStatuses()
