@@ -15,6 +15,6 @@ The two apps share the same emulator core — they differ in UI/rendering tech. 
 
 - Lua TCP client (`tcp` global) is unavailable — `System.Net.Sockets.TcpClient` is not supported in WebAssembly.
 - Lua filesystem access (`file` / `emu.load`) is sandboxed; the key/value `store` falls back to `localStorage`.
-- No CLI arguments, no VS Code debug adapter, no remote control endpoint — those are desktop-only features. See [Tools](../tools/overview.md) for the full list of integrations.
+- No CLI arguments, no VS Code debug adapter, no remote control endpoint — those are desktop-only features. The Avalonia Browser app does support URL query parameters for automated startup and script injection; see [Avalonia Browser app](avalonia-browser.md#url-query-parameters).
 
 For general project limitations, see [Limitations](../home/limitations.md).
