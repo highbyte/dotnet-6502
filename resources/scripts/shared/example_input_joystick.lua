@@ -1,7 +1,7 @@
 -- example_input_joystick.lua
 -- Demonstrates joystick input injection.
 -- The following sequence is repeated 3 times:
---   left 0.2s → pause 0.2s → right 0.2s → pause 0.2s → fire 0.5s → pause 0.5s
+--   left 0.2s -> pause 0.2s -> right 0.2s -> pause 0.2s -> fire 0.5s -> pause 0.5s
 --
 -- IMPORTANT: Input functions must not be called from top-level script code.
 -- They are only valid once the first on_before_frame() fires (i.e. after the

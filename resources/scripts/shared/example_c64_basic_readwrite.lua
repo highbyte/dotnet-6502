@@ -35,12 +35,12 @@ end
 
 log.info("BASIC ready. Typing BASIC program...")
 
--- ── Step 3: Type a 2-line BASIC program ──────────────────────────────────────
+-- == Step 3: Type a 2-line BASIC program ===============================
 --
 -- c64.print_text() queues text into the C64 keyboard buffer exactly as if the
 -- user typed it. Each line must end with "\n" (mapped to C64 Return key).
 -- BASIC tokenizes keywords (print, goto) as each line is confirmed with Return.
--- Note: input must be lowercase — the C64 keyboard uses PETSCII where lowercase
+-- Note: input must be lowercase - the C64 keyboard uses PETSCII where lowercase
 -- letters map to uppercase display characters (the C64's default text mode).
 
 local PROGRAM_LINE1 = "10 print \"hello from lua\""
@@ -48,7 +48,7 @@ local PROGRAM_LINE2 = "20 goto 10"
 
 c64.print_text(PROGRAM_LINE1 .. "\n" .. PROGRAM_LINE2 .. "\n")
 
--- ── Step 4: Wait for the C64 to process the input ────────────────────────────
+-- == Step 4: Wait for the C64 to process the input =====================
 --
 -- The keyboard buffer drains at most one character per frame. The two lines
 -- total ~35 characters; 120 frames (~2.4 s at 50 fps PAL) gives ample margin.
@@ -59,13 +59,13 @@ for _ = 1, 120 do
     emu.frameadvance()
 end
 
--- ── Step 5: Read the program back from memory ────────────────────────────────
+-- == Step 5: Read the program back from memory =========================
 
 local source = c64.get_basic_source()
 log.info("Retrieved BASIC source:")
 log.info(source)
 
--- ── Step 6: Check that both lines round-tripped correctly ────────────────────
+-- == Step 6: Check that both lines round-tripped correctly =============
 
 local ok1 = string.find(source, "10") ~= nil and string.find(source, "PRINT") ~= nil  -- tokenizer uppercases keywords
 local ok2 = string.find(source, "20") ~= nil and string.find(source, "GOTO") ~= nil   -- tokenizer uppercases keywords

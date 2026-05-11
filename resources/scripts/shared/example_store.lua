@@ -31,7 +31,7 @@ log.info(string.format("[store] This script has started %d time(s).", run_count)
 
 -- ---- First-run flag --------------------------------------------------------
 if not store.exists("first_run_done") then
-    log.info("[store] First run detected — storing initial values.")
+    log.info("[store] First run detected - storing initial values.")
     store.set("first_run_done", "1")
     store.set("greeting", "Hello from example_store.lua!")
 end
@@ -65,7 +65,7 @@ end
 -- ---- Coroutine loop: update a live counter every 60 frames ----------------
 -- Demonstrates writing to the store at runtime (not just on startup).
 local frame_key = "frame_checkpoint"
-log.info("[store] Entering frame loop — saving a checkpoint every 60 frames.")
+log.info("[store] Entering frame loop - saving a checkpoint every 60 frames.")
 
 while true do
     emu.frameadvance()

@@ -41,7 +41,7 @@ local log_file = "frame_log.csv"
 file.write(log_file, "frame,pc,a,x,y\n")
 log.info("Logging CPU state every 60 frames to " .. log_file)
 
--- ---- Binary load example (commented out — requires a PRG file in the scripts directory) ----
+-- ---- Binary load example (commented out - requires a PRG file in the scripts directory) ----
 -- emu.load("my_program.prg")           -- auto-detects load address from 2-byte PRG header
 -- emu.load("raw_data.bin", 0xC000)     -- loads raw binary at address $C000 (no header)
 
