@@ -947,6 +947,10 @@ public class MainViewModel : ViewModelBase, IDisposable
                     _logMessagesBackingStore.Add(new LogDisplayEntry(logEntry));
                     _hasPendingLogUpdates = true;
                 }
+
+                // Keep the tab header/error badge in sync even while the log tab is hidden and
+                // the visible collection is intentionally not updated yet.
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(UpdateLogTabHeader);
             };
 
         // System-specific ViewModel initializations
@@ -1006,10 +1010,17 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (HostApp == null)
             return;
 
-        // Skip default system selection if automated startup is handling it
-        if (HostApp.SkipDefaultSystemSelection)
+        // If an automated-startup runner was configured, invoke it instead of the default
+        // system selection. Browser uses this for URL-driven automation; Desktop uses it for
+        // CLI-driven automation; and the Lua-script case passes a no-op runner to express
+        // "skip default selection — the script owns the lifecycle".
+        // Running here (from MainView's Loaded event) means the view tree has been laid out
+        // and rendered at least once, which the browser frame loop's InvalidateVisual relies on.
+        var runner = App.Current?.AutomatedStartupRunner;
+        if (runner != null)
         {
-            _logger.LogInformation("Skipping default system selection - automated startup is active");
+            _logger.LogInformation("Running automated startup from MainViewModel.InitializeAsync");
+            await runner(HostApp);
             return;
         }
 
@@ -1109,9 +1120,23 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void UpdateLogTabHeader()
     {
-        var errorCount = _logMessages.Count(m => m.LogLevel == LogLevel.Error || m.LogLevel == LogLevel.Critical);
+        int errorCount;
+        lock (_logUpdateLock)
+        {
+            errorCount = CountLogErrors(_logMessagesBackingStore);
+        }
+        UpdateLogTabHeader(errorCount);
+    }
+
+    private void UpdateLogTabHeader(int errorCount)
+    {
         LogTabHeader = errorCount > 0 ? $"Log ({errorCount})" : "Log";
         HasLogErrors = errorCount > 0;
+    }
+
+    private static int CountLogErrors(IEnumerable<LogDisplayEntry> logEntries)
+    {
+        return logEntries.Count(m => m.LogLevel == LogLevel.Error || m.LogLevel == LogLevel.Critical);
     }
 
     private void RefreshScriptStatuses()

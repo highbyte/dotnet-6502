@@ -19,7 +19,7 @@ local PORT = 9000
 local CONNECT_TIMEOUT_MS = 3000
 
 -- Helper: encode a little-endian 4-byte length prefix.
--- Returns a 1-indexed Lua table of 4 numbers (0-255), e.g. encode_u32_le(5) → {5, 0, 0, 0}.
+-- Returns a 1-indexed Lua table of 4 numbers (0-255), e.g. encode_u32_le(5) -> {5, 0, 0, 0}.
 --
 -- Why a number table instead of a Lua string?
 -- In standard Lua, strings are byte arrays and can hold arbitrary binary data.
@@ -30,8 +30,8 @@ local CONNECT_TIMEOUT_MS = 3000
 --
 -- Note: MoonSharp implements Lua 5.2. Lua 5.3 bitwise operators (&, |, >>, <<) are NOT
 -- supported. Use integer arithmetic instead:
---   n & 0xFF       → n % 256
---   (n >> 8) & 0xFF → math.floor(n / 256) % 256   (etc.)
+--   n & 0xFF       -> n % 256
+--   (n >> 8) & 0xFF -> math.floor(n / 256) % 256   (etc.)
 local function encode_u32_le(n)
     return {
         n % 256,                          -- byte 0 (least significant)

@@ -7,7 +7,15 @@
         AutomationProperties.Name="Lua script editor"
         Width="640"
         MinWidth="400"
-        MinHeight="320">
+        MinHeight="320"
+        MaxHeight="720">
+
+    <UserControl.Styles>
+        <Style Selector="TextBox.content-editor /template/ ScrollViewer#PART_ScrollViewer">
+            <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        </Style>
+    </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
 
@@ -35,19 +43,20 @@
 
         <!-- Code editor -->
         <TextBox x:Name="ContentBox"
-                 AutomationProperties.AutomationId="ContentBox"
-                 AutomationProperties.Name="Script content"
-                 Grid.Row="2"
-                 Text="{Binding Content}"
+                  Classes="content-editor"
+                  AutomationProperties.AutomationId="ContentBox"
+                  AutomationProperties.Name="Script content"
+                  Grid.Row="2"
+                  Text="{Binding Content}"
                  AcceptsReturn="True"
                  AcceptsTab="True"
                  TextWrapping="NoWrap"
                  FontFamily="Consolas,Monaco,'Courier New',monospace"
-                 FontSize="12"
-                 VerticalAlignment="Stretch"
-                 HorizontalAlignment="Stretch"
-                 VerticalContentAlignment="Top"
-                 Margin="0,0,0,8"/>
+                  FontSize="12"
+                  VerticalAlignment="Stretch"
+                  HorizontalAlignment="Stretch"
+                  VerticalContentAlignment="Top"
+                  Margin="0,0,0,8"/>
 
         <!-- Footer buttons -->
         <StackPanel Grid.Row="3"

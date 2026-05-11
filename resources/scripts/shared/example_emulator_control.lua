@@ -29,7 +29,7 @@
 --   on_system_selected(name)    -- system selection changed
 --   on_variant_selected(name)   -- system variant changed
 
--- ── State-change event hooks ──────────────────────────────────────────
+-- == State-change event hooks ==========================================
 
 function on_started()
     log.info("[event] Emulator started")
@@ -51,7 +51,7 @@ function on_variant_selected(name)
     log.info(string.format("[event] Variant selected: %s", name))
 end
 
--- ── Top-level init ────────────────────────────────────────────────────
+-- == Top-level init ====================================================
 
 local function list_systems()
     local systems = emu.systems()
@@ -70,7 +70,7 @@ log.info(string.format(
     list_systems()
 ))
 
--- ── Main loop (uses emu.yield to keep ticking while paused) ───────────
+-- == Main loop (uses emu.yield to keep ticking while paused) ===========
 
 log.info(string.format("Script start"))
 
@@ -92,7 +92,7 @@ while true do
 
     -- Pause at frame 300 (~5 seconds on C64), then resume after 3 seconds
     if not pause_demo_done and frame >= 300 and emu.state() == "running" then
-        log.info("Frame 300 reached — requesting pause")
+        log.info("Frame 300 reached - requesting pause")
         emu.pause()
         paused_at_time = emu.time()
     end

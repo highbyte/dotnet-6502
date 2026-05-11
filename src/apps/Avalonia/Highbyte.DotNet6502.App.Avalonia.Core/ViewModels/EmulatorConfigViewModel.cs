@@ -4,6 +4,7 @@ using System.Reactive;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Monitor;
+using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Configuration;
 using ReactiveUI;
 
@@ -27,6 +28,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private WavePlayerSettingsProfile _selectedAudioSettingsProfile;
     private bool _stopAfterBRKInstruction;
     private bool _stopAfterUnknownInstruction;
+    private bool _allowUrlScripts;
 
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
@@ -49,6 +51,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _selectedAudioSettingsProfile = _emulatorConfig.AudioSettingsProfile;
         _stopAfterBRKInstruction = _emulatorConfig.Monitor.StopAfterBRKInstruction;
         _stopAfterUnknownInstruction = _emulatorConfig.Monitor.StopAfterUnknownInstruction;
+        _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -217,6 +220,24 @@ public class EmulatorConfigViewModel : ViewModelBase
     public string LuaScriptDirectory => _hostApp.ScriptingEngine.ScriptDirectory;
     public string LuaStorePrefix => _emulatorConfig.LuaStorePrefix;
 
+    /// <summary>
+    /// Browser-only knob: when true, the URL <c>script</c> / <c>scriptUrl</c> query parameters
+    /// are honoured. Persists to the <see cref="ScriptingConfig.ConfigSectionName"/> section in
+    /// browser localStorage. Takes effect on the next page load (the Browser host reads the
+    /// value once, before script ingestion).
+    /// </summary>
+    public bool AllowUrlScripts
+    {
+        get => _allowUrlScripts;
+        set
+        {
+            if (_allowUrlScripts == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _allowUrlScripts, value);
+        }
+    }
+
     private void UpdateValidation()
     {
         _validationErrors.Clear();
@@ -250,6 +271,16 @@ public class EmulatorConfigViewModel : ViewModelBase
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
             await _hostApp.PersistEmulatorConfigAsync();
+
+            // Browser-only: persist AllowUrlScripts under the scripting config section. Writes
+            // a single-key JSON; other ScriptingConfig values fall back to defaults on next load
+            // (which is the existing behaviour — there are no other UI knobs for this section).
+            if (IsRunningInWebAssembly && _hostApp.ScriptingEngine.AllowUrlScripts != _allowUrlScripts)
+            {
+                _hostApp.ScriptingEngine.AllowUrlScripts = _allowUrlScripts;
+                var json = $"{{\"{nameof(ScriptingConfig.AllowUrlScripts)}\":{(_allowUrlScripts ? "true" : "false")}}}";
+                await _hostApp.PersistConfigStringAsync(ScriptingConfig.ConfigSectionName, json);
+            }
 
             StatusMessage = "Configuration saved.";
             return true;

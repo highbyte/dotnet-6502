@@ -19,7 +19,7 @@
 --   4. Restore the default border color
 --   5. Type "HELLO!" at a human-like typing speed
 
--- ── Step 1: Ensure C64 is running ────────────────────────────────────────────
+-- == Step 1: Ensure C64 is running =====================================
 
 if emu.selected_system() ~= "C64" then
     log.info("[demo] Selecting C64 system...")
@@ -34,7 +34,7 @@ end
 -- Validate config before attempting to start
 local ok, errors = emu.config_valid()
 if not ok then
-    log.error("[demo] C64 system config is invalid — cannot start.")
+    log.error("[demo] C64 system config is invalid - cannot start.")
     for _, e in ipairs(errors) do
         log.error("[demo]   " .. e)
     end
@@ -53,16 +53,16 @@ end
 
 log.info("[demo] C64 is running. Waiting for BASIC READY prompt...")
 
--- ── Step 2: Wait for BASIC to initialize ─────────────────────────────────────
+-- == Step 2: Wait for BASIC to initialize ==============================
 while not c64.basic_started() do
     emu.frameadvance()
 end
 
 log.info("[demo] BASIC READY detected. Cycling border color for 2 seconds...")
 
--- ── Step 3: Cycle border color (~2 seconds at C64 PAL 50 fps ≈ 100 frames) ──
+-- == Step 3: Cycle border color (~2 seconds at C64 PAL 50 fps ~= 100 frames) ==
 --
--- C64 border color register: $D020 (bits 3–0, 16 colors 0–15)
+-- C64 border color register: $D020 (bits 3-0, 16 colors 0-15)
 
 local BORDER_REG = 0xD020
 local border_start = emu.time()
@@ -73,14 +73,14 @@ while emu.time() - border_start < 2.0 do
     emu.frameadvance()
 end
 
--- ── Step 4: Restore default border (C64 default: light blue = 14) ─────────
+-- == Step 4: Restore default border (C64 default: light blue = 14) ====
 
 mem.write(BORDER_REG, 14)
 log.info('[demo] Border cycling done. Typing "HELLO!" ...')
 
--- ── Step 5: Type "HELLO!" at human-like speed ────────────────────────────────
+-- == Step 5: Type "HELLO!" at human-like speed =========================
 --
--- C64 BASIC starts in uppercase mode, so h–o produce uppercase letters on screen.
+-- C64 BASIC starts in uppercase mode, so h-o produce uppercase letters on screen.
 -- '!' on C64 keyboard = lshift + 1.
 --
 -- Input injection pattern: input.key_press() must be called every frame to keep
@@ -88,9 +88,9 @@ log.info('[demo] Border cycling done. Typing "HELLO!" ...')
 -- hold_frames, pressing the key each iteration, then wait gap_frames with no press.
 --
 -- Timing at 50 fps (PAL C64):
---   hold_frames = 4  →  ~80 ms per key
---   gap_frames  = 6  →  ~120 ms between keys
---   Total per keystroke ≈ 200 ms  →  ~5 characters/second
+--   hold_frames = 4  -> ~80 ms per key
+--   gap_frames  = 6  -> ~120 ms between keys
+--   Total per keystroke ~= 200 ms -> ~5 characters/second
 
 local HOLD_FRAMES = 4
 local GAP_FRAMES  = 6
@@ -111,6 +111,6 @@ type_key("e")
 type_key("l")
 type_key("l")
 type_key("o")
-type_key("1", true)   -- lshift + 1  →  '!'
+type_key("1", true)   -- lshift + 1 -> '!'
 
 log.info('[demo] Done. "HELLO!" typed.')

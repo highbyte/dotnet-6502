@@ -3,7 +3,7 @@
 -- emulated DiskDrive 1541 via c64.load_d64().
 --
 -- The path supports ~ (home directory) on Mac/Linux and %USERPROFILE% on
--- Windows — expansion is handled automatically by the engine.
+-- Windows - expansion is handled automatically by the engine.
 --
 -- After a successful load the directory listing command is typed automatically.
 
@@ -32,7 +32,7 @@ end
 
 log.info("BASIC ready. Loading disk image...")
 
--- ── Load the disk image ───────────────────────────────────────────────────────
+-- == Load the disk image ===============================================
 --
 -- Adjust the path below to point at an actual .d64 file on your system.
 -- ~ is expanded to the current user's home directory on Mac/Linux;

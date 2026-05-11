@@ -234,6 +234,18 @@
                            TextWrapping="Wrap"
                            Margin="0,4,0,0"/>
               </Grid>
+
+              <!-- Browser: Allow URL-driven scripts -->
+              <StackPanel IsVisible="{Binding IsRunningInWebAssembly}" Classes="spacing-tight">
+                <CheckBox AutomationProperties.AutomationId="AllowUrlScriptsCheckBox"
+                          AutomationProperties.Name="Allow URL-driven scripts"
+                          Content="Allow URL-driven scripts (script / scriptUrl query params)"
+                          IsChecked="{Binding AllowUrlScripts}"/>
+                <TextBlock Text="When enabled, the 'script' (base64url-encoded inline Lua) and 'scriptUrl' query parameters are honoured at startup. Disabled by default — a crafted link can otherwise execute Lua against this emulator and its localStorage. Takes effect on the next page load."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="20,0,0,0"/>
+              </StackPanel>
             </StackPanel>
           </Border>
         </StackPanel>

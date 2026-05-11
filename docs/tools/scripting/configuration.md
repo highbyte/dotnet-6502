@@ -1,6 +1,6 @@
 # Configuration
 
-Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Scripting"` section:
+On desktop targets, scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Scripting"` section. On the Avalonia Browser app, the same section is persisted in browser `localStorage` by the settings UI.
 
 ```json
 "Highbyte.DotNet6502.Scripting": {
@@ -14,7 +14,8 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
     "AllowHttpRequests": true,
     "AllowStore": true,
     "StoreSubDirectory": ".store",
-    "AllowTcpClient": false
+    "AllowTcpClient": false,
+    "AllowUrlScripts": false
 }
 ```
 
@@ -32,3 +33,4 @@ Scripting is configured in `appsettings.json` under the `"Highbyte.DotNet6502.Sc
 | `AllowStore` | bool | `true` | Whether the `store` global is available to Lua scripts. Provides a cross-platform key/value store. On desktop, backed by files in `StoreSubDirectory`. In browser, backed by `localStorage`. Default is `true`. |
 | `StoreSubDirectory` | string | `".store"` | Subdirectory within `ScriptDirectory` used for the filesystem store backend (desktop only). Default is `".store"`. |
 | `AllowTcpClient` | bool | `false` | Whether the `tcp` global is available to Lua scripts. Desktop only — forced `false` in browser/WASM builds. Default is `false`. |
+| `AllowUrlScripts` | bool | `false` | Browser-only. When `true`, the Avalonia Browser app honours the `script` and `scriptUrl` URL query parameters at startup. Disabled by default because a crafted link could otherwise execute Lua against the user's emulator session and `localStorage`. Takes effect on the next page load. |

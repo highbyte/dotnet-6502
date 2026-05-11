@@ -23,7 +23,7 @@
 --   emu.screenshot(filename, quality) -> saves as JPEG (determined by .jpg/.jpeg extension),
 --                                        quality 1-100 (default 90)
 
--- ── Step 1: Ensure C64 is selected and running ───────────────────────────────
+-- == Step 1: Ensure C64 is selected and running ========================
 
 if emu.selected_system() ~= "C64" then
     log.info("[screenshot] Selecting C64 system...")
@@ -42,7 +42,7 @@ end
 
 log.info("[screenshot] C64 is running. Waiting for BASIC to start...")
 
--- ── Step 2: Wait for BASIC to initialize ─────────────────────────────────────
+-- == Step 2: Wait for BASIC to initialize ==============================
 --
 -- c64.basic_started() checks the TXTAB pointer ($002B-$002C) to detect
 -- whether the BASIC interpreter has initialized and the READY. prompt is up.
@@ -66,7 +66,7 @@ emu.frameadvance()
 
 log.info("[screenshot] BASIC ready. Taking screenshot...")
 
--- ── Step 3: Take the screenshot ───────────────────────────────────────────────
+-- == Step 3: Take the screenshot =======================================
 --
 -- The file path is relative to the scripting base directory.
 -- The screenshots/ subdirectory is created automatically if it does not exist.
@@ -75,7 +75,7 @@ local filename = "screenshots/c64_basic_ready.png"
 emu.screenshot(filename)
 log.info("[screenshot] Saved: " .. filename)
 
--- ── Step 4: Quit if running headless ─────────────────────────────────────────
+-- == Step 4: Quit if running headless ==================================
 --
 -- In headless mode the process has nothing left to do after the screenshot,
 -- so quit cleanly. In desktop/browser mode the emulator keeps running.

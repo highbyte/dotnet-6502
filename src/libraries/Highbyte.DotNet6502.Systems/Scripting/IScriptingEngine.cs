@@ -119,6 +119,13 @@ public interface IScriptingEngine
     string ScriptDirectory { get; }
 
     /// <summary>
+    /// Whether URL-driven script delivery (the Browser host's <c>script</c> / <c>scriptUrl</c>
+    /// query parameters) is honoured. Browser-only knob; ignored on desktop / headless.
+    /// Setter mutates the live config; the change takes effect on the next page load.
+    /// </summary>
+    bool AllowUrlScripts { get; set; }
+
+    /// <summary>
     /// Whether this engine supports in-memory script management (add, edit, delete at runtime).
     /// True only when scripts are loaded via a <c>ScriptLoader</c> callback (e.g. browser/localStorage mode).
     /// False for filesystem-based engines and the null-object engine.

@@ -42,6 +42,84 @@ To self-host, see [Run from command line](#run-from-command-line) below.
 
 The browser app supports the same Lua scripting API as the Avalonia Desktop app, except for filesystem and TCP access (the browser sandbox does not allow them; the key/value store falls back to `localStorage`). For the full guide, see [Tools / Scripting](../tools/scripting/overview.md).
 
+### URL query parameters
+
+The Avalonia Browser app supports URL-driven startup automation. This is the browser counterpart to the Avalonia Desktop app's [CLI arguments](../desktop-apps/avalonia-desktop.md#cli-arguments): instead of passing `--system` or `--script`, you encode the request in the page URL query string.
+
+Query parameter names are case-insensitive. Boolean flags treat an empty value, `1`, `true`, and `yes` as true.
+
+| Query parameter | Purpose | Notes |
+| --- | --- | --- |
+| `system` | Pre-select a system such as `C64` or `Generic`. | Mirrors desktop `--system`. |
+| `systemVariant` | Pre-select a system variant. | Requires `system`. Mirrors desktop `--systemVariant`. |
+| `start` | Auto-start the selected system. | Requires `system`. Mirrors desktop `--start`. |
+| `waitForSystemReady` | Wait until the system reports ready. | Requires `system` and `start`. Mirrors desktop `--waitForSystemReady`. |
+| `loadPrgUrl` | Fetch a `.prg` over HTTP and load it into memory. | Requires `system` and `start`. Browser equivalent of desktop `--loadPrg`, but uses a URL instead of a local file path. Relative URLs are resolved from the app origin. |
+| `runLoadedProgram` | Start executing the loaded PRG from its load address. | Requires `loadPrgUrl`. Mirrors desktop `--runLoadedProgram`. |
+| `basicText` | Paste inline C64 BASIC source text into the running C64. | Base64url-encoded UTF-8 text. Requires `system=C64`, `start`, and `waitForSystemReady`. Mutually exclusive with `loadPrgUrl` and `runLoadedProgram`. |
+| `basicUrl` | Fetch C64 BASIC source text over HTTP and paste it into the running C64. | Same semantics as `basicText`, but uses a text file URL instead of embedding the source in the query string. |
+| `runBasic` | Queue `RUN` after BASIC source has been pasted. | Requires `basicText` or `basicUrl`. |
+| `script` | Run an inline Lua script supplied as base64url-encoded UTF-8 text. | Browser only. Mutually exclusive with all system-driven parameters below. Disabled by default; gated by `Scripting.AllowUrlScripts`. |
+| `scriptUrl` | Fetch a Lua script from a relative or absolute URL and run it. | Same behavior as `script`, but avoids URL-length limits. Disabled by default; gated by `Scripting.AllowUrlScripts`. |
+
+Validation rules are intentionally forgiving: invalid combinations are ignored and the normal UI still loads.
+
+When a URL starts `system=C64` and the app does not yet have the required C64 ROMs, the browser startup flow prompts the user to acknowledge the ROM download terms and can download the ROMs before continuing. This lets first-run automation links work without opening the C64 config dialog first.
+
+1. `systemVariant` requires `system`.
+2. `start` and `waitForSystemReady` require `system`.
+3. `waitForSystemReady` requires `start`.
+4. `loadPrgUrl` requires `system` and `start`.
+5. `runLoadedProgram` requires `loadPrgUrl`.
+6. `basicText` and `basicUrl` are mutually exclusive.
+7. `basicText` and `basicUrl` require `system=C64`, `start`, and `waitForSystemReady`.
+8. `basicText` and `basicUrl` are mutually exclusive with `loadPrgUrl` and `runLoadedProgram`.
+9. `runBasic` requires `basicText` or `basicUrl`.
+10. `script` and `scriptUrl` are mutually exclusive.
+11. `script` and `scriptUrl` are also mutually exclusive with `system`, `start`, `waitForSystemReady`, `loadPrgUrl`, `runLoadedProgram`, `basicText`, `basicUrl`, and `runBasic`.
+
+Examples:
+
+```text
+# Start C64 PAL and wait until the machine is ready
+?system=C64&systemVariant=PAL&start=1&waitForSystemReady=1
+
+# Load and run a bundled PRG
+?system=C64&start=1&waitForSystemReady=1&loadPrgUrl=prg/c64/smooth_scroller_and_raster.prg&runLoadedProgram=1
+
+# Paste BASIC source from a browser-served text file and run it
+?system=C64&start=1&waitForSystemReady=1&basicUrl=basic/c64/hello-world.bas&runBasic=1
+
+# Paste the same BASIC source inline and run it
+?system=C64&start=1&waitForSystemReady=1&basicText=MTAgYzE9NzpjMj0xNAoyMCBjPWMxCjMwIGlmIGM9YzEgdGhlbiBjPWMyIDogZ290byA1MAo0MCBpZiBjPWMyIHRoZW4gYz1jMQo1MCBwb2tlIDUzMjgwLGMKNjAgcHJpbnQgImhlbGxvIHdvcmxkISIKNzAgZm9yIGk9MSB0byAxNTA6bmV4dAo4MCBnb3RvIDMwCg&runBasic=1
+
+# Run an inline Lua script (base64url for: log.info('hello'))
+?script=bG9nLmluZm8oJ2hlbGxvJyk
+
+# Run a Lua script fetched over HTTP
+?scriptUrl=scripts/example_emulator_control.lua
+```
+
+The browser app ships the `basicUrl` sample above as `basic/c64/hello-world.bas`, containing:
+
+```basic
+10 c1=7:c2=14
+20 c=c1
+30 if c=c1 then c=c2 : goto 50
+40 if c=c2 then c=c1
+50 poke 53280,c
+60 print "hello world!"
+70 for i=1 to 150:next
+80 goto 30
+```
+
+Important differences from desktop automation:
+
+- `loadPrgUrl`, `basicUrl`, and `scriptUrl` use browser HTTP fetch semantics, so normal browser origin and CORS rules apply.
+- `basicText` and `basicUrl` are C64-only and use the normal keyboard paste path after BASIC is ready; `runBasic=1` simply appends `RUN` and Return after the pasted source.
+- URL-driven Lua is **disabled by default**. Enable **Allow URL-driven scripts (script / scriptUrl query params)** in the browser app's general settings, save, then reload the page.
+- URL-driven scripts do not behave exactly like desktop `--script`: the browser app still selects the configured default system first, then enables the injected script. The script can still take over by calling APIs such as `emu.select(...)` and `emu.start()`.
+
 ## How to run locally for development
 
 For development system requirements, see [Development](../home/development.md).

@@ -54,6 +54,14 @@
   -->
   <ItemGroup>
     <TrimmerRootAssembly Include="ReactiveUI" />
+    <!--
+      Preserve MoonSharp and our scripting wrapper in AOT/browser publishes.
+      Published WASM builds have shown missing Lua standard library functions
+      (for example ipairs/table.insert becoming nil), which strongly suggests
+      trimming is removing reflection-driven MoonSharp runtime pieces.
+    -->
+    <TrimmerRootAssembly Include="MoonSharp.Interpreter" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Scripting.MoonSharp" />
   </ItemGroup>
 
   <ItemGroup>

@@ -84,6 +84,15 @@ public class ScriptingConfig
     public Func<IEnumerable<(string fileName, string content)>>? ScriptLoader { get; set; }
 
     /// <summary>
+    /// Whether the Browser host honours URL-driven script delivery via the <c>script</c>
+    /// (base64url-encoded inline Lua) and <c>scriptUrl</c> (fetch from URL) query parameters.
+    /// When false (default), URL-supplied scripts are rejected with a logged error so a crafted
+    /// link cannot execute Lua against the user's emulator/localStorage. Browser-only knob;
+    /// has no effect on desktop or headless hosts. Default: false.
+    /// </summary>
+    public bool AllowUrlScripts { get; set; } = false;
+
+    /// <summary>
     /// Whether the <c>store</c> global is available to Lua scripts.
     /// On desktop, the store is backed by files in <see cref="StoreSubDirectory"/> inside <see cref="ScriptDirectory"/>.
     /// In browser, set <see cref="StoreBackend"/> to a localStorage-backed implementation.
