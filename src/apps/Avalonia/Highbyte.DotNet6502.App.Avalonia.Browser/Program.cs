@@ -226,6 +226,7 @@ internal sealed partial class Program
             builder.AddDotNet6502Console(); // Logs to console (which will be visible in browser F12 DevTools console)
             builder.SetMinimumLevel(LogLevel.Information);
         });
+        var startupLogger = loggerFactory.CreateLogger(nameof(Program));
 
         // Create an ILogger for bridging Avalonia logs
         WriteBootstrapLog("Initializing logging.");
@@ -290,15 +291,14 @@ internal sealed partial class Program
         {
             if (!scriptingConfig.AllowUrlScripts)
             {
-                WriteBootstrapLog(
+                startupLogger.LogError(
                     "URL-driven script requested via 'script'/'scriptUrl' but Scripting.AllowUrlScripts=false; ignoring. " +
-                    "Set Scripting.AllowUrlScripts=true in browser localStorage config to enable.",
-                    LogLevel.Error);
+                    "Set Scripting.AllowUrlScripts=true in browser localStorage config to enable.");
             }
             else if (automation.ScriptContent != null)
             {
                 urlScriptContent = automation.ScriptContent;
-                WriteBootstrapLog($"Using inline 'script' query parameter ({urlScriptContent.Length} chars decoded).");
+                startupLogger.LogInformation("Using inline 'script' query parameter ({Length} chars decoded).", urlScriptContent.Length);
             }
             else if (automation.ScriptUrl != null)
             {
@@ -306,11 +306,13 @@ internal sealed partial class Program
                 {
                     using var http = GetAppUrlHttpClient();
                     urlScriptContent = await GetUtf8TextAsync(http, automation.ScriptUrl);
-                    WriteBootstrapLog($"Fetched 'scriptUrl' from {automation.ScriptUrl} ({urlScriptContent.Length} chars).");
+                    startupLogger.LogInformation("Fetched 'scriptUrl' from {ScriptUrl} ({Length} chars).",
+                        automation.ScriptUrl,
+                        urlScriptContent.Length);
                 }
                 catch (Exception ex)
                 {
-                    WriteBootstrapLog($"Failed to fetch 'scriptUrl' '{automation.ScriptUrl}': {ex.Message}", LogLevel.Error);
+                    startupLogger.LogError(ex, "Failed to fetch 'scriptUrl' '{ScriptUrl}'.", automation.ScriptUrl);
                 }
             }
         }
@@ -324,7 +326,7 @@ internal sealed partial class Program
             // would race the URL script + the view tree's first paint). The URL script is enabled
             // selectively from the runner below, after MainView has loaded.
             scriptDrivenAutomation = true;
-            WriteBootstrapLog("Injected URL-supplied script; will be enabled after view tree is loaded.");
+            startupLogger.LogInformation("Injected URL-supplied script; will be enabled after view tree is loaded.");
         }
 
         WriteBootstrapLog("Creating scripting engine.");
