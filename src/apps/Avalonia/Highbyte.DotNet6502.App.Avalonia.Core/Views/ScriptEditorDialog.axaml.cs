@@ -1,14 +1,20 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class ScriptEditorDialog : UserControl
 {
+    private const double OverlayVerticalMargin = 40;
+    private const double DialogVerticalPaddingAllowance = 24;
+    private TopLevel? _topLevel;
+
     /// <summary>
     /// Raised when the dialog completes. True = saved, False = cancelled.
     /// </summary>
@@ -19,6 +25,8 @@ public partial class ScriptEditorDialog : UserControl
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
         Loaded += OnLoaded;
+        AttachedToVisualTree += OnAttachedToVisualTree;
+        DetachedFromVisualTree += OnDetachedFromVisualTree;
     }
 
     private void InitializeComponent()
@@ -29,6 +37,7 @@ public partial class ScriptEditorDialog : UserControl
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         var vm = DataContext as ScriptEditorViewModel;
+        UpdateMaxHeight();
 
         // Focus the right TextBox so that single-click button interaction works
         // immediately without a focus-acquiring first click (especially in browser WASM).
@@ -48,6 +57,40 @@ public partial class ScriptEditorDialog : UserControl
                 box?.AddHandler(KeyDownEvent, TextBox_ClipboardKeyDown, RoutingStrategies.Tunnel);
             }
         }
+    }
+
+    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        _topLevel = TopLevel.GetTopLevel(this);
+        if (_topLevel != null)
+        {
+            _topLevel.SizeChanged += OnTopLevelSizeChanged;
+        }
+        UpdateMaxHeight();
+    }
+
+    private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (_topLevel != null)
+        {
+            _topLevel.SizeChanged -= OnTopLevelSizeChanged;
+            _topLevel = null;
+        }
+    }
+
+    private void OnTopLevelSizeChanged(object? sender, SizeChangedEventArgs e)
+        => UpdateMaxHeight();
+
+    private void UpdateMaxHeight()
+    {
+        var host = this.FindAncestorOfType<MainView>() as Control ?? _topLevel;
+        var hostHeight = host?.Bounds.Height ?? 0;
+        if (hostHeight <= 0)
+            return;
+
+        MaxHeight = Math.Max(
+            MinHeight,
+            hostHeight - OverlayVerticalMargin - DialogVerticalPaddingAllowance);
     }
 
     private static void TextBox_ClipboardKeyDown(object? sender, KeyEventArgs e)
