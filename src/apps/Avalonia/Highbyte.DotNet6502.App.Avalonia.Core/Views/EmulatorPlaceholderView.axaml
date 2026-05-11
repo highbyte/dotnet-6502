@@ -16,8 +16,30 @@
                HorizontalAlignment="Center" />
         
         <TextBlock Text="DotNet 6502 Emulator"
-                   HorizontalAlignment="Center"
-                   Classes="h1" />
+                    HorizontalAlignment="Center"
+                    Classes="h1" />
+
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Spacing="12"
+                    Margin="0,12,0,0">
+            <Button Content="GitHub"
+                    AutomationProperties.AutomationId="PlaceholderGitHubLink"
+                    AutomationProperties.Name="Open GitHub repository"
+                    Classes="text"
+                    Padding="0"
+                    Margin="0"
+                    BorderThickness="0"
+                    Click="OpenGitHub_Click"/>
+            <Button Content="highbyte.se"
+                    AutomationProperties.AutomationId="PlaceholderHomePageLink"
+                    AutomationProperties.Name="Open home page"
+                    Classes="text"
+                    Padding="0"
+                    Margin="0"
+                    BorderThickness="0"
+                    Click="OpenHomePage_Click"/>
+        </StackPanel>
     </StackPanel>
 
     <!--<Grid Background="Black">
