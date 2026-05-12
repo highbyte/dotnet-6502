@@ -42,7 +42,6 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
-    <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.Skia" />
     <!-- TODO: re-add Avalonia.Diagnostics (DEBUG-only DevTools) once a 12.x release is published. -->
     <!-- Avalonia.ReactiveUI was deprecated for v12; we use ReactiveUI core + our own AvaloniaDispatcherScheduler. -->

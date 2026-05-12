@@ -1,7 +1,6 @@
 using Android.App;
 using Android.Content.PM;
 using Android.Runtime;
-using Avalonia;
 using Avalonia.Android;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 
@@ -24,7 +23,4 @@ public class AndroidApp : AvaloniaAndroidApplication<App>
         : base(javaReference, transfer)
     {
     }
-
-    protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
-        => base.CustomizeAppBuilder(builder).WithInterFont();
 }

@@ -7,6 +7,7 @@
 
     <!-- Default TextBox style -->
     <Style Selector="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="8,6"/>
         <Setter Property="MinHeight" Value="32"/>
@@ -27,7 +28,7 @@
 
     <!-- Monospace TextBox -->
     <Style Selector="TextBox.monospace">
-        <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+        <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
     </Style>
 
     <!-- Small TextBox - matches NumericUpDown.small sizing so the two line up in one row -->
@@ -47,6 +48,7 @@
 
     <!-- Default ComboBox style - matches default Button (32px) -->
     <Style Selector="ComboBox">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="8,2"/>
         <Setter Property="CornerRadius" Value="2"/>
@@ -97,6 +99,7 @@
 
     <!-- Default CheckBox style -->
     <Style Selector="CheckBox">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -144,6 +147,7 @@
 
     <!-- Default NumericUpDown style -->
     <Style Selector="NumericUpDown">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="8,6"/>
         <Setter Property="MinHeight" Value="32"/>

@@ -6,6 +6,7 @@
     <!-- ========================================== -->
     
     <Style Selector="TabItem">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="4,2"/>
         <Setter Property="MinHeight" Value="24"/>

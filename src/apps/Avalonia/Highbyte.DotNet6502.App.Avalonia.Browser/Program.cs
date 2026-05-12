@@ -537,7 +537,6 @@ internal sealed partial class Program
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
             await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamplesAsync, automatedStartupRunner: automatedStartupRunner)
-                .WithInterFont()
                 .StartBrowserAppAsync("out");
 
             WriteBootstrapLog("Avalonia Browser app exiting.");

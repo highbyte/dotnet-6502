@@ -475,7 +475,6 @@ internal sealed partial class Program
                 scriptingEngine: scriptingEngine,
                 automatedStartupRunner: automatedStartupRunner))
             .UsePlatformDetect()
-            .WithInterFont()
             .LogToTrace()
             .AfterSetup(_ =>
             {

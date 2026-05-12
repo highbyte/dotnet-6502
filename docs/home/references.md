@@ -66,4 +66,6 @@ Used during development to verify behavior of the 6502 CPU and C64.
 
 ## Credits
 
-- [Kristoffer Strube](https://github.com/KristofferStrube) for the original Blazor WASM async interop code for [WebAudio](https://github.com/KristofferStrube/Blazor.WebAudio), [DOM](https://github.com/KristofferStrube/Blazor.DOM), and [IDL](https://github.com/KristofferStrube/Blazor.WebIDL) that was the basis for a synchronous implementation in this repo.
+- Bundled UI fonts: [Fira Sans](https://fonts.google.com/specimen/Fira+Sans) from [Google Fonts](https://fonts.google.com/) and [Fira Code](https://github.com/tonsky/FiraCode) from the official project. Both are distributed under the [SIL Open Font License 1.1](https://openfontlicense.org/), with license text included alongside the bundled font files in the repository.
+
+- [Kristoffer Strube](https://github.com/KristofferStrube) for the original Blazor WASM async interop code for [WebAudio](https://github.com/KristofferStrube/Blazor.WebAudio), [DOM](https://github.com/KristofferStrube/Blazor.DOM), and [IDL](https://github.com/KristofferStrube/Blazor.WebIDL) that was the basis for a synchronous implementation in this repo. Copyright notice [here](https://github.com/highbyte/dotnet-6502/blob/master/src/libraries/Highbyte.DotNet6502.Impl.AspNet/Audio/WebAudioAPISynth/JSInterop/JSInterop_OriginalLicense.MD).

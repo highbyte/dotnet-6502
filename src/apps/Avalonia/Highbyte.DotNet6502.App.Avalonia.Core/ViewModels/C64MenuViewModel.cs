@@ -419,9 +419,9 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
-    public string DiskSectionHeaderText => (IsDiskSectionExpanded ? "▼ " : "▶ ") + "Disk Drive & .D64 images";
-    public string LoadSaveSectionHeaderText => (IsLoadSaveSectionExpanded ? "▼ " : "▶ ") + "Load/Save";
-    public string ConfigSectionHeaderText => (IsConfigSectionExpanded ? "▼ " : "▶ ") + "Configuration";
+    public string DiskSectionHeaderText => "Disk Drive & .D64 images";
+    public string LoadSaveSectionHeaderText => "Load/Save";
+    public string ConfigSectionHeaderText => "Configuration";
 
     private enum C64MenuSection { Disk, LoadSave, Config }
 

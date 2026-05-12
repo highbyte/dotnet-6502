@@ -8,6 +8,7 @@
     
     <!-- Default TextBlock style - 12px body text -->
     <Style Selector="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         <Setter Property="Margin" Value="0,2,0,0"/>
@@ -70,7 +71,7 @@
     </Style>
 
     <Style Selector="TextBlock.monospace">
-        <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+        <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
     </Style>
 
@@ -80,6 +81,7 @@
     <!-- ========================================== -->
     
     <Style Selector="SelectableTextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         <Setter Property="Margin" Value="0,2,0,0"/>
@@ -110,7 +112,7 @@
     </Style>
 
     <Style Selector="SelectableTextBlock.monospace">
-        <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+        <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
         <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 

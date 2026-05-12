@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Timers;
+using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
@@ -178,13 +179,20 @@ public class MainViewModel : ViewModelBase, IDisposable
     private ScriptSortColumn _scriptSortColumn = ScriptSortColumn.FileName;
     private bool _scriptSortAscending = true;
 
-    public string FileNameSortIndicator => SortIndicator(ScriptSortColumn.FileName);
-    public string StatusSortIndicator   => SortIndicator(ScriptSortColumn.Status);
-    public string YieldSortIndicator    => SortIndicator(ScriptSortColumn.YieldType);
-    public string HooksSortIndicator    => SortIndicator(ScriptSortColumn.Hooks);
+    public SymbolIconKind FileNameSortIndicatorKind => SortIndicatorKind(ScriptSortColumn.FileName);
+    public SymbolIconKind StatusSortIndicatorKind   => SortIndicatorKind(ScriptSortColumn.Status);
+    public SymbolIconKind YieldSortIndicatorKind    => SortIndicatorKind(ScriptSortColumn.YieldType);
+    public SymbolIconKind HooksSortIndicatorKind    => SortIndicatorKind(ScriptSortColumn.Hooks);
 
-    private string SortIndicator(ScriptSortColumn col) =>
-        _scriptSortColumn == col ? (_scriptSortAscending ? " ▲" : " ▼") : "";
+    public bool HasFileNameSortIndicator => _scriptSortColumn == ScriptSortColumn.FileName;
+    public bool HasStatusSortIndicator   => _scriptSortColumn == ScriptSortColumn.Status;
+    public bool HasYieldSortIndicator    => _scriptSortColumn == ScriptSortColumn.YieldType;
+    public bool HasHooksSortIndicator    => _scriptSortColumn == ScriptSortColumn.Hooks;
+
+    private SymbolIconKind SortIndicatorKind(ScriptSortColumn col) =>
+        _scriptSortColumn == col
+            ? (_scriptSortAscending ? SymbolIconKind.TriangleUp : SymbolIconKind.TriangleDown)
+            : SymbolIconKind.None;
 
     public bool CanManageScripts { get; }
     public bool CanLoadExamples { get; }
@@ -914,10 +922,14 @@ public class MainViewModel : ViewModelBase, IDisposable
                     _scriptSortAscending = true;
                 }
                 ApplyScriptSort();
-                this.RaisePropertyChanged(nameof(FileNameSortIndicator));
-                this.RaisePropertyChanged(nameof(StatusSortIndicator));
-                this.RaisePropertyChanged(nameof(YieldSortIndicator));
-                this.RaisePropertyChanged(nameof(HooksSortIndicator));
+                this.RaisePropertyChanged(nameof(FileNameSortIndicatorKind));
+                this.RaisePropertyChanged(nameof(StatusSortIndicatorKind));
+                this.RaisePropertyChanged(nameof(YieldSortIndicatorKind));
+                this.RaisePropertyChanged(nameof(HooksSortIndicatorKind));
+                this.RaisePropertyChanged(nameof(HasFileNameSortIndicator));
+                this.RaisePropertyChanged(nameof(HasStatusSortIndicator));
+                this.RaisePropertyChanged(nameof(HasYieldSortIndicator));
+                this.RaisePropertyChanged(nameof(HasHooksSortIndicator));
             },
             null,
             RxSchedulers.MainThreadScheduler);
@@ -1489,10 +1501,9 @@ public class MainViewModel : ViewModelBase, IDisposable
 /// </summary>
 public class LogDisplayEntry
 {
-    public string Symbol { get; }
+    public SymbolIconKind SymbolKind { get; }
     public string Message { get; }
     public LogLevel LogLevel { get; }
-    public string FormattedDisplay { get; }
 
     // Boolean properties for conditional class binding
     public bool IsTrace { get; }
@@ -1506,8 +1517,7 @@ public class LogDisplayEntry
     {
         LogLevel = logEntry.LogLevel;
         Message = logEntry.Message.TrimEnd();
-        Symbol = GetSymbolForLogLevel(logEntry.LogLevel);
-        FormattedDisplay = $"{Symbol} {Message}";
+        SymbolKind = GetSymbolForLogLevel(logEntry.LogLevel);
 
         // Set boolean flags for conditional class binding
         IsTrace = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Trace;
@@ -1518,18 +1528,18 @@ public class LogDisplayEntry
         IsCritical = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Critical;
     }
 
-    private static string GetSymbolForLogLevel(LogLevel logLevel)
+    private static SymbolIconKind GetSymbolForLogLevel(LogLevel logLevel)
     {
         return logLevel switch
         {
-            LogLevel.Trace => "○",        // Hollow circle for trace (can be colored)
-            LogLevel.Debug => "●",        // Filled circle for debug (can be colored)
-            LogLevel.Information => "●",  // Filled circle for info (can be colored)
-            LogLevel.Warning => "●",      // Filled circle for warning (can be colored)
-            LogLevel.Error => "●",        // Filled circle for error (can be colored)
-            LogLevel.Critical => "❌",    // Red cross mark for critical (kept as requested)
-            LogLevel.None => "○",         // Hollow circle for general/none (can be colored)
-            _ => "?"                      // Question mark for unknown
+            LogLevel.Trace => SymbolIconKind.HollowCircle,
+            LogLevel.Debug => SymbolIconKind.FilledCircle,
+            LogLevel.Information => SymbolIconKind.FilledCircle,
+            LogLevel.Warning => SymbolIconKind.FilledCircle,
+            LogLevel.Error => SymbolIconKind.FilledCircle,
+            LogLevel.Critical => SymbolIconKind.Cross,
+            LogLevel.None => SymbolIconKind.HollowCircle,
+            _ => SymbolIconKind.HollowCircle
         };
     }
 }
