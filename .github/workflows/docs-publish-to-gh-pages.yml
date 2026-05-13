@@ -10,7 +10,9 @@ on:
       - 'docs/**'
       - 'includes/**'
       - 'mkdocs.yml'
+      - 'requirements-docs.in'
       - 'requirements-docs.txt'
+      - '.pip-tools.toml'
       - '.github/workflows/docs-publish-to-gh-pages.yml'
 
 # Prevent concurrent deployments to GitHub Pages
@@ -38,7 +40,7 @@ jobs:
           cache-dependency-path: requirements-docs.txt
 
       - name: Install MkDocs and dependencies
-        run: "pip install --only-binary :all: -r requirements-docs.txt"
+        run: "pip install --require-hashes --only-binary :all: -r requirements-docs.txt"
 
       - name: Build static site with MkDocs
         run: mkdocs build --strict --site-dir ${{ env.BUILD_OUTPUT_WORKING_DIR }}

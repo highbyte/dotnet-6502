@@ -40,11 +40,11 @@
             <Setter Property="Foreground" Value="#FEB2B2"/>
         </Style>
         <Style Selector="TextBlock.monitor-font">
-            <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+            <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
         <Style Selector="TextBox.monitor-font">
-            <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+            <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
         <Style Selector="TextBox.command-input">

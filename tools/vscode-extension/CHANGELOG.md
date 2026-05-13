@@ -4,6 +4,9 @@ All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension wi
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-05-13
+Bump Node module dependencies.
+
 ## [0.2.3] - 2026-05-02
 Update documentation.
 

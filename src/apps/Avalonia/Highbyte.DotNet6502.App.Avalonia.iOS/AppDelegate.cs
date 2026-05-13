@@ -1,10 +1,5 @@
 using Foundation;
-using UIKit;
-using Avalonia;
-using Avalonia.Controls;
 using Avalonia.iOS;
-using Avalonia.Media;
-using Highbyte.DotNet6502.App.Avalonia.Core;
 
 namespace Highbyte.DotNet6502.App.Avalonia.iOS;
 
@@ -16,9 +11,4 @@ namespace Highbyte.DotNet6502.App.Avalonia.iOS;
 public partial class AppDelegate : AvaloniaAppDelegate<Highbyte.DotNet6502.App.Avalonia.Core.App>
 #pragma warning restore CA1711 // Identifiers should not have incorrect suffix
 {
-    protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
-    {
-        return base.CustomizeAppBuilder(builder)
-            .WithInterFont();
-    }
 }

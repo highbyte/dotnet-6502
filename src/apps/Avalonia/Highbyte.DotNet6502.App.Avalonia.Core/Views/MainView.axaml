@@ -44,7 +44,8 @@
         <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Classes="panel-container">
             <StackPanel Classes="spacing-none">
                 <!-- System Selection, Variant, and Status - Unified Grid -->
-                <Grid Classes="spacing-none">
+                <Grid Classes="spacing-none"
+                      ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
                         <ColumnDefinition Width="*" />
@@ -348,35 +349,34 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.Styles>
                                             <!-- Log level color styles -->
-                                            <Style Selector="TextBlock.log-symbol">
-                                                <Setter Property="FontSize" Value="10"/>
+                                            <Style Selector="controls|SymbolIcon.log-symbol">
+                                                <Setter Property="Width" Value="10"/>
                                                 <Setter Property="Height" Value="10"/>
-                                                <Setter Property="TextWrapping" Value="NoWrap"/>
                                                 <Setter Property="Margin" Value="0"/>
                                                 <Setter Property="HorizontalAlignment" Value="Left"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                             </Style>
-                                            <Style Selector="TextBlock.log-trace">
+                                            <Style Selector="controls|SymbolIcon.log-trace">
                                                 <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
                                             </Style>
-                                            <Style Selector="TextBlock.log-debug">
+                                            <Style Selector="controls|SymbolIcon.log-debug">
                                                 <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
                                             </Style>
-                                            <Style Selector="TextBlock.log-info">
+                                            <Style Selector="controls|SymbolIcon.log-info">
                                                 <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
                                             </Style>
-                                            <Style Selector="TextBlock.log-warning">
+                                            <Style Selector="controls|SymbolIcon.log-warning">
                                                 <Setter Property="Foreground" Value="{DynamicResource WarningColor}"/>
                                             </Style>
-                                            <Style Selector="TextBlock.log-error">
+                                            <Style Selector="controls|SymbolIcon.log-error">
                                                 <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
                                             </Style>
-                                            <Style Selector="TextBlock.log-critical">
+                                            <Style Selector="controls|SymbolIcon.log-critical">
                                                 <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
                                             </Style>
                                             <!-- Log message styles -->
                                             <Style Selector="TextBlock.log-message">
-                                                <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+                                                <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
                                                 <Setter Property="FontSize" Value="10"/>
                                                 <Setter Property="Height" Value="10"/>
                                                 <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
@@ -386,7 +386,7 @@
                                             </Style>
                                             <Style Selector="SelectableTextBlock.log-message">
                                                 <Setter Property="Padding" Value="4,1"/>
-                                                <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+                                                <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
                                                 <Setter Property="FontSize" Value="10"/>
                                                 <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
                                                 <Setter Property="TextWrapping" Value="NoWrap"/>
@@ -413,15 +413,15 @@
                                                     </Grid.ContextMenu>
 
                                                     <!-- Symbol container with proper alignment -->
-                                                    <TextBlock Grid.Column="0"
-                                                        Text="{Binding Symbol}"
-                                                        Classes="log-symbol"
-                                                        Classes.log-trace="{Binding IsTrace}"
-                                                        Classes.log-debug="{Binding IsDebug}"
-                                                        Classes.log-info="{Binding IsInfo}"
-                                                        Classes.log-warning="{Binding IsWarning}"
-                                                        Classes.log-error="{Binding IsError}"
-                                                        Classes.log-critical="{Binding IsCritical}"/>
+                                                    <controls:SymbolIcon Grid.Column="0"
+                                                                         Kind="{Binding SymbolKind}"
+                                                                         Classes="log-symbol"
+                                                                         Classes.log-trace="{Binding IsTrace}"
+                                                                         Classes.log-debug="{Binding IsDebug}"
+                                                                         Classes.log-info="{Binding IsInfo}"
+                                                                         Classes.log-warning="{Binding IsWarning}"
+                                                                         Classes.log-error="{Binding IsError}"
+                                                                         Classes.log-critical="{Binding IsCritical}"/>
 
                                                     <!-- Message text (selectable for Cmd+C / Ctrl+C) -->
                                                     <SelectableTextBlock Grid.Column="1"
@@ -577,7 +577,12 @@
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.FileName}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="Script" Classes="small bold" FontSize="10"/>
-                                                        <TextBlock Text="{Binding FileNameSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                        <controls:SymbolIcon Width="8" Height="8"
+                                                                             Margin="4,0,0,0"
+                                                                             VerticalAlignment="Center"
+                                                                             Foreground="{DynamicResource PrimaryText}"
+                                                                             Kind="{Binding FileNameSortIndicatorKind}"
+                                                                             IsVisible="{Binding HasFileNameSortIndicator}"/>
                                                     </StackPanel>
                                                 </Button>
                                                 <Button Grid.Column="6" Classes="sort-header"
@@ -587,7 +592,12 @@
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.Status}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="Status" Classes="small bold" FontSize="10"/>
-                                                        <TextBlock Text="{Binding StatusSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                        <controls:SymbolIcon Width="8" Height="8"
+                                                                             Margin="4,0,0,0"
+                                                                             VerticalAlignment="Center"
+                                                                             Foreground="{DynamicResource PrimaryText}"
+                                                                             Kind="{Binding StatusSortIndicatorKind}"
+                                                                             IsVisible="{Binding HasStatusSortIndicator}"/>
                                                     </StackPanel>
                                                 </Button>
                                                 <Button Grid.Column="7" Classes="sort-header"
@@ -597,7 +607,12 @@
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.YieldType}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="Yield" Classes="small bold" FontSize="10"/>
-                                                        <TextBlock Text="{Binding YieldSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                        <controls:SymbolIcon Width="8" Height="8"
+                                                                             Margin="4,0,0,0"
+                                                                             VerticalAlignment="Center"
+                                                                             Foreground="{DynamicResource PrimaryText}"
+                                                                             Kind="{Binding YieldSortIndicatorKind}"
+                                                                             IsVisible="{Binding HasYieldSortIndicator}"/>
                                                     </StackPanel>
                                                 </Button>
                                                 <Button Grid.Column="8" Classes="sort-header"
@@ -607,7 +622,12 @@
                                                         CommandParameter="{x:Static vm:ScriptSortColumn.Hooks}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="Hooks" Classes="small bold" FontSize="10"/>
-                                                        <TextBlock Text="{Binding HooksSortIndicator}" Classes="small bold" FontSize="10"/>
+                                                        <controls:SymbolIcon Width="8" Height="8"
+                                                                             Margin="4,0,0,0"
+                                                                             VerticalAlignment="Center"
+                                                                             Foreground="{DynamicResource PrimaryText}"
+                                                                             Kind="{Binding HooksSortIndicatorKind}"
+                                                                             IsVisible="{Binding HasHooksSortIndicator}"/>
                                                     </StackPanel>
                                                 </Button>
                                             </Grid>
@@ -618,19 +638,20 @@
                                             <!-- Data rows -->
                                             <ItemsControl ItemsSource="{Binding ScriptEntries}">
                                                 <ItemsControl.Styles>
-                                                    <Style Selector="TextBlock.script-status-dot">
-                                                        <Setter Property="FontSize" Value="8"/>
+                                                    <Style Selector="controls|SymbolIcon.script-status-dot">
+                                                        <Setter Property="Width" Value="8"/>
+                                                        <Setter Property="Height" Value="8"/>
                                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                                         <Setter Property="HorizontalAlignment" Value="Center"/>
                                                         <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
                                                     </Style>
-                                                    <Style Selector="TextBlock.script-disabled">
+                                                    <Style Selector="controls|SymbolIcon.script-disabled">
                                                         <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
                                                     </Style>
-                                                    <Style Selector="TextBlock.script-completed">
+                                                    <Style Selector="controls|SymbolIcon.script-completed">
                                                         <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
                                                     </Style>
-                                                    <Style Selector="TextBlock.script-user-disabled">
+                                                    <Style Selector="controls|SymbolIcon.script-user-disabled">
                                                         <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
                                                     </Style>
                                                 </ItemsControl.Styles>
@@ -650,12 +671,12 @@
                                                             </Grid.ColumnDefinitions>
 
                                                             <!-- Status indicator dot -->
-                                                            <TextBlock Grid.Column="0"
-                                                                       Text="●"
-                                                                       Classes="script-status-dot"
-                                                                       Classes.script-disabled="{Binding IsDisabled}"
-                                                                       Classes.script-completed="{Binding IsCompleted}"
-                                                                       Classes.script-user-disabled="{Binding IsUserDisabled}"/>
+                                                            <controls:SymbolIcon Grid.Column="0"
+                                                                                 Kind="FilledCircle"
+                                                                                 Classes="script-status-dot"
+                                                                                 Classes.script-disabled="{Binding IsDisabled}"
+                                                                                 Classes.script-completed="{Binding IsCompleted}"
+                                                                                 Classes.script-user-disabled="{Binding IsUserDisabled}"/>
 
                                                             <!-- Enable/disable toggle -->
                                                             <Viewbox Grid.Column="1"
@@ -732,8 +753,7 @@
                                                             <!-- File name -->
                                                             <TextBlock Grid.Column="5"
                                                                        Text="{Binding FileName}"
-                                                                       Classes="small"
-                                                                       FontFamily="Consolas,Monaco,'Courier New',monospace"
+                                                                       Classes="small monospace"
                                                                        FontSize="10"
                                                                        VerticalAlignment="Center"
                                                                        TextTrimming="CharacterEllipsis"/>

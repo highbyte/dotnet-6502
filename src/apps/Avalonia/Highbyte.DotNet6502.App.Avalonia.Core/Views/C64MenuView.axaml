@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
              xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64MenuView"
              x:DataType="vm:C64MenuViewModel"
@@ -63,9 +64,21 @@
             <Button Name="DiskSectionHeader"
                     AutomationProperties.AutomationId="DiskSectionHeader"
                     AutomationProperties.Name="Toggle disk drive section"
-                    Content="{Binding DiskSectionHeaderText}"
                     Classes="section-toggle"
-                    Command="{Binding ToggleDiskSectionCommand}"/>
+                    Command="{Binding ToggleDiskSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsDiskSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsDiskSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Disk Drive &amp; .D64 images"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
 
             <Border Name="DiskSectionContent"
                     AutomationProperties.AutomationId="DiskSectionContent"
@@ -136,9 +149,21 @@
             <Button Name="LoadSaveSectionHeader"
                     AutomationProperties.AutomationId="LoadSaveSectionHeader"
                     AutomationProperties.Name="Toggle Load/Save section"
-                    Content="{Binding LoadSaveSectionHeaderText}"
                     Classes="section-toggle"
-                    Command="{Binding ToggleLoadSaveSectionCommand}"/>
+                    Command="{Binding ToggleLoadSaveSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsLoadSaveSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsLoadSaveSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Load/Save"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
 
             <Border Name="LoadSaveSectionContent"
                     AutomationProperties.AutomationId="LoadSaveSectionContent"
@@ -233,9 +258,21 @@
             <Button Name="ConfigSectionHeader"
                     AutomationProperties.AutomationId="ConfigSectionHeader"
                     AutomationProperties.Name="Toggle Configuration section"
-                    Content="{Binding ConfigSectionHeaderText}"
                     Classes="section-toggle"
-                    Command="{Binding ToggleConfigSectionCommand}"/>
+                    Command="{Binding ToggleConfigSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsConfigSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsConfigSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Configuration"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
 
             <Border Name="ConfigSectionContent"
                     AutomationProperties.AutomationId="ConfigSectionContent"
