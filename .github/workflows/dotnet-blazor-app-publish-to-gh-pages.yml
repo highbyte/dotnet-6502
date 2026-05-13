@@ -1,15 +1,14 @@
 name: Publish Blazor Browser app to GitHub Pages
 
 on:
-#  push:
-#    branches:
-#      - master
   workflow_dispatch:
 
-  #Trigger when tag is created
-  push:
-    tags:
-        - 'v[0-9]*.[0-9]*.[0-9]*'
+  # Run after the Avalonia gh-pages workflow finishes, so both deployments
+  # serialize against the gh-pages branch without racing for the same
+  # concurrency slot on a tag push.
+  workflow_run:
+    workflows: ["Publish Avalonia browser app to GitHub Pages"]
+    types: [completed]
 
 # Prevent concurrent deployments to GitHub Pages
 concurrency:
@@ -28,15 +27,26 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # When triggered by workflow_run, only proceed if the upstream Avalonia
+    # workflow actually succeeded. workflow_dispatch is always allowed.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
-      # Checkout the code
+      # Checkout the same commit the upstream workflow built, not the latest
+      # default-branch commit (workflow_run defaults to the latter).
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      # Get version from tag or set fallback version for manual dispatch
+      # Get version from tag (via upstream workflow_run head_branch) or set fallback for manual dispatch
       - name: Set version from tag or fallback
         run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            REF="${{ github.event.workflow_run.head_branch }}"
+            if [[ "$REF" == v[0-9]* ]]; then
+              echo "VERSION=${REF#v}" >> $GITHUB_ENV
+            else
+              echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
+            fi
           else
             echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
           fi

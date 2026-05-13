@@ -12,7 +12,10 @@ on:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.ref, 'refs/tags/vscode-') }}
+    # Skip the entire workflow for vscode-* releases (the GitHub `release`
+    # trigger has no tag filter, so we gate every job by the same condition
+    # instead of doing it per-job).
+    if: ${{ !startsWith(github.event.release.tag_name || github.ref_name, 'vscode-') }}
     permissions:
       contents: write
     
@@ -108,7 +111,7 @@ jobs:
             checksums-${{ matrix.runtime }}.sha256
 
   update-package-managers:
-    if: github.event_name == 'release'
+    if: ${{ github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'vscode-') }}
     needs: build-and-upload
     runs-on: ubuntu-latest
     steps:
