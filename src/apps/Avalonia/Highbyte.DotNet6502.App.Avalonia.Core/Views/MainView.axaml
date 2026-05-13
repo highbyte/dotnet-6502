@@ -44,7 +44,8 @@
         <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Classes="panel-container">
             <StackPanel Classes="spacing-none">
                 <!-- System Selection, Variant, and Status - Unified Grid -->
-                <Grid Classes="spacing-none">
+                <Grid Classes="spacing-none"
+                      ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
                         <ColumnDefinition Width="*" />

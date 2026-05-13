@@ -71,14 +71,16 @@
 
     <Style Selector="ComboBox.small">
         <Setter Property="FontSize" Value="10"/>
-        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="Padding" Value="6,2"/>
         <Setter Property="Margin" Value="0,3,0,0"/>
-        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="MinHeight" Value="26"/>
     </Style>
 
     <!-- ComboBox item text sizing -->
     <Style Selector="ComboBox TextBlock">
         <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <Style Selector="ComboBox.small TextBlock">
