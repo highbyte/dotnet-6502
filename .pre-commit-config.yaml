@@ -1,0 +1,10 @@
+repos:
+  - repo: https://github.com/jazzband/pip-tools
+    rev: v7.5.3
+    hooks:
+      - id: pip-compile
+        name: pip-compile requirements-docs.in
+        files: ^requirements-docs\.(in|txt)$
+        args:
+          - --output-file=requirements-docs.txt
+          - requirements-docs.in

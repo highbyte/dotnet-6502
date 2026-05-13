@@ -65,7 +65,7 @@ pip install -r requirements-docs.txt
 
 ## 3. Upgrade dependencies
 
-Dependencies are managed with [`pip-tools`](https://pip-tools.readthedocs.io/). The file you edit is `requirements-docs.in` (top-level only); the lock file `requirements-docs.txt` is auto-generated.
+Dependencies are managed with [`pip-tools`](https://pip-tools.readthedocs.io/). The file you edit is `requirements-docs.in` (top-level only); the lock file `requirements-docs.txt` is auto-generated and includes artifact hashes.
 
 **One-time setup:**
 
@@ -73,10 +73,19 @@ Dependencies are managed with [`pip-tools`](https://pip-tools.readthedocs.io/). 
 python3 -m pip install pip-tools
 ```
 
+**Optional: auto-regenerate the lock file on commit:**
+
+```bash
+python3 -m pip install pre-commit
+pre-commit install
+```
+
+With the pre-commit hook installed, editing `requirements-docs.in` will automatically refresh `requirements-docs.txt` during commit.
+
 **To upgrade mkdocs-material** (or add new deps):
 
 1. Edit `requirements-docs.in` — e.g. change `mkdocs-material==9.7.6` to a newer version.
-2. Regenerate the lock file:
+2. Regenerate the lock file (if you are not using the pre-commit hook):
 
 ```bash
 python3 -m piptools compile requirements-docs.in -o requirements-docs.txt
