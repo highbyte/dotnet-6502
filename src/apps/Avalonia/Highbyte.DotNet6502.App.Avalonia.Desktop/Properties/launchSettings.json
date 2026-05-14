@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "AvaloniaDesktop": {
+      "commandName": "Project"
+    },
+    "AvaloniaDesktopTcpDebugServer": {
+      "commandName": "Project",
+      "commandLineArgs": "--enableExternalDebug --debug-port 6502 --console-log -l Debug"
+    },
+    "AvaloniaDesktopC64AutostartTcpDebugServer": {
+      "commandName": "Project",
+      "commandLineArgs": "--system C64 --start --waitForSystemReady --loadPrg ~/source/repos/dotnet-6502/samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg --runLoadedProgram --enableExternalDebug --debug-port 6502 --console-log -l Debug"
+    }
+  }
+}

@@ -6,38 +6,27 @@
    "configurations": [
         {
             "name": "Avalonia Desktop - Launch",
-            "type": "coreclr",
+            "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build avalonia desktop app",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "integratedTerminal",
-            "stopAtEntry": false
+            "projectPath": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj",
+            "launchConfigurationId": "TargetFramework=;AvaloniaDesktop"
         },
         {
             "name": "Avalonia Desktop - Launch (TCP Debug Server)",
-            "type": "coreclr",
+            "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build avalonia desktop app",
-            "program": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.dll",
-            "args": ["--enableExternalDebug", "--debug-port", "6502", "--console-log", "-l", "Debug"],
-            "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0",
-            "console": "integratedTerminal",
-            "stopAtEntry": false
+            "projectPath": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj",
+            "launchConfigurationId": "TargetFramework=;AvaloniaDesktopTcpDebugServer"
         },
         {
             "name": "Avalonia Desktop - Launch (C64 Autostart + Sample PRG + TCP Debug Server)",
-            "type": "coreclr",
+            "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build avalonia desktop app",
-            "program": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.dll",
-            "args": ["--system", "C64", "--start", "--waitForSystemReady", "--loadPrg", "~/source/repos/dotnet-6502/samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg", "--runLoadedProgram", "--enableExternalDebug", "--debug-port", "6502", "--console-log", "-l", "Debug"],
-            "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0",
-            "console": "integratedTerminal",
-            "stopAtEntry": false
+            "projectPath": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj",
+            "launchConfigurationId": "TargetFramework=;AvaloniaDesktopC64AutostartTcpDebugServer"
         },
         {
             "name": "Avalonia Browser - Launch",
@@ -48,29 +37,19 @@
         },
         {
             "name": "SadConsole - Launch",
-            "type": "coreclr",
+            "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build sadconsole app",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net10.0/Highbyte.DotNet6502.App.SadConsole.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net10.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "integratedTerminal",
-            "stopAtEntry": false
+            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
+            "launchConfigurationId": "TargetFramework=;SadConsole"
         },
         {
             "name": "SilkNetNative - Launch",
-            "type": "coreclr",
+            "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build silk.net native app",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net10.0/Highbyte.DotNet6502.App.SilkNetNative.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net10.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "integratedTerminal",
-            "stopAtEntry": false
+            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj",
+            "launchConfigurationId": "TargetFramework=;SilkNetNative"
         },
         {
             "name": "Blazor WASM - Launch",
@@ -82,27 +61,19 @@
         },
         {
             "name": "Headless - Launch",
-            "type": "coreclr",
+            "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build headless app",
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.Headless/bin/Debug/net10.0/Highbyte.DotNet6502.App.Headless.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.Headless/bin/Debug/net10.0",
-            "console": "integratedTerminal",
-            "stopAtEntry": false
+            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.Headless/Highbyte.DotNet6502.App.Headless.csproj",
+            "launchConfigurationId": "TargetFramework=;Headless"
         },
         {
             "name": "Console Monitor - Launch",
-            "type": "coreclr",
+            "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build console monitor app",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net10.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net10.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "externalTerminal",
-            "stopAtEntry": false
+            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
+            "launchConfigurationId": "TargetFramework=;ConsoleMonitor"
         },
         {
             "name": "Avalonia Desktop - Attach",

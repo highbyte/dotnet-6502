@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 NativeConsoleMonitor Monitor;
 
+Environment.CurrentDirectory = AppContext.BaseDirectory;
+
 var mem = new Memory();
 
 var computerBuilder = new GenericComputerBuilder(new GenericComputerConfig { WaitForHostToAcknowledgeFrame = false }, new NullLoggerFactory());
