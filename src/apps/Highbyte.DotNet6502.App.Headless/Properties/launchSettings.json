@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "Headless": {
+      "commandName": "Project"
+    }
+  }
+}

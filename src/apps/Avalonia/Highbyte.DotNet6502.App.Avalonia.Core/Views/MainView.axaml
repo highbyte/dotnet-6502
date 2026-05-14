@@ -493,7 +493,7 @@
                                                     Margin="0,0,0,6">
                                                 <StackPanel Spacing="2">
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <Button Content="↻"
+                                                        <Button
                                                                 AutomationProperties.AutomationId="ScriptsBannerRefreshButton"
                                                                 AutomationProperties.Name="Reload scripts from folder"
                                                                 Command="{Binding RefreshScriptsCommand}"
@@ -502,7 +502,9 @@
                                                                 MinWidth="0" MinHeight="0"
                                                                 VerticalAlignment="Center"
                                                                 VerticalContentAlignment="Center"
-                                                                ToolTip.Tip="Reload scripts from folder"/>
+                                                                ToolTip.Tip="Reload scripts from folder">
+                                                            <views:ReloadIcon Width="12" Height="12"/>
+                                                        </Button>
                                                         <TextBlock Text="Script folder:"
                                                                    Classes="small bold"
                                                                    VerticalAlignment="Center"/>
@@ -545,7 +547,7 @@
                                                         Padding="6,2"
                                                         MinWidth="0"
                                                         MinHeight="0"/>
-                                                <Button Content="↻"
+                                                <Button
                                                         AutomationProperties.AutomationId="ScriptsRefreshButton"
                                                         AutomationProperties.Name="Reload all scripts from localStorage"
                                                         Command="{Binding RefreshScriptsCommand}"
@@ -554,7 +556,9 @@
                                                         MinWidth="0" MinHeight="0"
                                                         VerticalAlignment="Center"
                                                         VerticalContentAlignment="Center"
-                                                        ToolTip.Tip="Reload all scripts from localStorage"/>
+                                                        ToolTip.Tip="Reload all scripts from localStorage">
+                                                    <views:ReloadIcon Width="12" Height="12"/>
+                                                </Button>
                                             </StackPanel>
 
                                             <!-- Header row -->
@@ -697,8 +701,7 @@
                                                             </Viewbox>
 
                                                             <!-- Reload button -->
-                                                            <Button Grid.Column="2"
-                                                                    Content="↻"
+                                                                <Button Grid.Column="2"
                                                                     AutomationProperties.AutomationId="{Binding FileName, StringFormat='ScriptRow.Reload.{0}'}"
                                                                     AutomationProperties.Name="Reload script"
                                                                     Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).ReloadScriptCommand}"
@@ -712,7 +715,9 @@
                                                                     VerticalAlignment="Center"
                                                                     VerticalContentAlignment="Center"
                                                                     HorizontalAlignment="Center"
-                                                                    ToolTip.Tip="Reload script"/>
+                                                                    ToolTip.Tip="Reload script">
+                                                                <views:ReloadIcon Width="12" Height="12"/>
+                                                            </Button>
 
                                                             <!-- Edit button (browser/manage mode only) -->
                                                             <Button Grid.Column="3"

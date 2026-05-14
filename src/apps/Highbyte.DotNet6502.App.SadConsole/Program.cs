@@ -27,6 +27,9 @@ if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 // Note: Don't call Console.WriteLine before AllocConsole() is called (Windows). Otherwise no logs will show in console.
 WriteBootstrapLog($"SadConsole program starting.");
 
+// Keep file pickers and relative resource access anchored to the built app location.
+Environment.CurrentDirectory = AppContext.BaseDirectory;
+
 // ----------
 // Get config file
 // ----------

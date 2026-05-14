@@ -2,12 +2,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build systems library",
+            "label": "build avalonia desktop app",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj",
+                "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -16,14 +16,46 @@
                 "kind": "build",
                 "isDefault": true
             }
-        },        
+        },
         {
-            "label": "build console monitor app",
+            "label": "build avalonia browser app",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
+                "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build sadconsole app",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build silk.net native app",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -40,38 +72,6 @@
             "args": [
                 "build",
                 "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }            
-        },        
-        {
-            "label": "build silk.net native app",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },        
-        {
-            "label": "build sadconsole app",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -98,12 +98,12 @@
             }
         },
         {
-            "label": "build avalonia desktop app",
+            "label": "build console monitor app",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -130,14 +130,14 @@
             }
         },
         {
-            "label": "test",
+            "label": "functional test",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "test",
                 "${workspaceFolder}/dotnet-6502.sln",
                 "--filter",
-                "TestType!=Integration",
+                "TestType=Integration",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -148,14 +148,14 @@
             }
         },
         {
-            "label": "functional test",
+            "label": "test",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "test",
                 "${workspaceFolder}/dotnet-6502.sln",
                 "--filter",
-                "TestType=Integration",
+                "TestType!=Integration",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
