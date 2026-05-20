@@ -88,8 +88,9 @@ jobs:
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} \
+          gh release upload "$TAG_NAME" \
             DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip \
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip \
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip \
@@ -117,8 +118,10 @@ jobs:
     steps:
       - name: Extract version from tag
         id: version
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="$TAG_NAME"
           VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -126,13 +129,14 @@ jobs:
       - name: Download checksum files and macOS zip from release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
           for runtime in osx-arm64 linux-x64 linux-arm64 win-x64 win-arm64; do
-            gh release download "${{ github.event.release.tag_name }}" \
+            gh release download "$TAG_NAME" \
               --repo ${{ github.repository }} \
               --pattern "checksums-${runtime}.sha256"
           done
-          gh release download "${{ github.event.release.tag_name }}" \
+          gh release download "$TAG_NAME" \
             --repo ${{ github.repository }} \
             --pattern "DotNet6502-Avalonia-osx-arm64.zip"
 

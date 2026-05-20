@@ -29,21 +29,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract version from tag or input
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            echo "VERSION=$INPUT_VERSION" >> "$GITHUB_ENV"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/vscode-v}" >> $GITHUB_ENV
+            echo "VERSION=${GITHUB_REF#refs/tags/vscode-v}" >> "$GITHUB_ENV"
           fi
 
       - name: Determine if pre-release and strip suffix for package.json
         run: |
-          if [[ "${{ env.VERSION }}" == *"-"* ]]; then
-            echo "PRE_RELEASE=--pre-release" >> $GITHUB_ENV
-            echo "PACKAGE_VERSION=$(echo "${{ env.VERSION }}" | cut -d'-' -f1)" >> $GITHUB_ENV
+          if [[ "$VERSION" == *"-"* ]]; then
+            echo "PRE_RELEASE=--pre-release" >> "$GITHUB_ENV"
+            echo "PACKAGE_VERSION=$(echo "$VERSION" | cut -d'-' -f1)" >> "$GITHUB_ENV"
           else
-            echo "PRE_RELEASE=" >> $GITHUB_ENV
-            echo "PACKAGE_VERSION=${{ env.VERSION }}" >> $GITHUB_ENV
+            echo "PRE_RELEASE=" >> "$GITHUB_ENV"
+            echo "PACKAGE_VERSION=$VERSION" >> "$GITHUB_ENV"
           fi
 
       - name: Setup Node.js
@@ -57,10 +59,10 @@ jobs:
 
       - name: Set version in package.json
         working-directory: tools/vscode-extension
-        run: npm version ${{ env.PACKAGE_VERSION }} --no-git-tag-version
+        run: npm version "$PACKAGE_VERSION" --no-git-tag-version
 
       - name: Publish to VSCode Marketplace
         working-directory: tools/vscode-extension
-        run: npx vsce publish ${{ env.PRE_RELEASE }} --no-git-tag-version --baseContentUrl https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension
+        run: npx vsce publish $PRE_RELEASE --no-git-tag-version --baseContentUrl https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}

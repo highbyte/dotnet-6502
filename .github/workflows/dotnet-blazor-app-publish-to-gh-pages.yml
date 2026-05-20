@@ -28,8 +28,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # When triggered by workflow_run, only proceed if the upstream Avalonia
-    # workflow actually succeeded. workflow_dispatch is always allowed.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    # workflow succeeded AND originated from this repository (not a fork).
+    # The fork check prevents executing untrusted code from PRs that may have
+    # triggered the upstream workflow. workflow_dispatch is always allowed.
+    if: >-
+      ${{ github.event_name != 'workflow_run' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_repository.full_name == github.repository) }}
     steps:
       # Checkout the same commit the upstream workflow built, not the latest
       # default-branch commit (workflow_run defaults to the latter).
@@ -39,16 +44,18 @@ jobs:
 
       # Get version from tag (via upstream workflow_run head_branch) or set fallback for manual dispatch
       - name: Set version from tag or fallback
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            REF="${{ github.event.workflow_run.head_branch }}"
+            REF="$HEAD_BRANCH"
             if [[ "$REF" == v[0-9]* ]]; then
-              echo "VERSION=${REF#v}" >> $GITHUB_ENV
+              echo "VERSION=${REF#v}" >> "$GITHUB_ENV"
             else
-              echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
+              echo "VERSION=0.1.${{ github.run_number }}-test" >> "$GITHUB_ENV"
             fi
           else
-            echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
+            echo "VERSION=0.1.${{ github.run_number }}-test" >> "$GITHUB_ENV"
           fi
 
       # Install .NET Core SDK
@@ -70,7 +77,7 @@ jobs:
       # Publish the static website to a build working folder
       - name: Publish
         # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work with Blazor. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
-        run: dotnet publish ${{ env.PROJECT_FILE }} -p:Version=${{ env.VERSION }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
+        run: dotnet publish ${{ env.PROJECT_FILE }} -p:Version="$VERSION" -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
 
       # Copy the published static website from wwwroot folder in publish output dir
       - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root
