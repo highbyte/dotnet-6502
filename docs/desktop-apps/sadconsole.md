@@ -30,7 +30,7 @@ Manual download, see section in [installation.md](installation.md)
   on non-US keyboard layouts is unreliable** — MonoGame's `Keys` enum is layout-dependent and the
   C64 `KeyboardLayout` config setting has no effect here. Prefer the Avalonia, SilkNet or Blazor
   WASM hosts for non-US keyboards. See
-  [SadConsole troubleshooting — non-US keyboard layouts](sadconsole-troubleshooting.md#non-us-keyboard-layouts--punctuation-keys)
+  [SadConsole troubleshooting — non-US keyboard layouts](sadconsole-troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)
   and [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md#per-host-keyboard-support).
 
 - Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.

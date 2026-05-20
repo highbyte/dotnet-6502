@@ -7,6 +7,16 @@ repo_name: highbyte/dotnet-6502
 edit_uri: edit/master/docs/
 docs_dir: docs
 
+validation:
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
+
 theme:
   name: material
   language: en
