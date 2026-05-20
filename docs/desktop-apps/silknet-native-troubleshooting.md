@@ -63,10 +63,10 @@ Several exceptions like below. Seems related to the ImGui native library. Is ImG
 
 ```
 Exception in SilkNetHostApp.OnLoad(): Unable to load shared library 'cimgui' or one of its dependencies. In order to help diagnose loading problems, consider using a tool like strace. If you're using glibc, consider setting the LD_DEBUG environment variable: 
-/home/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/cimgui.so: cannot open shared object file: No such file or directory
-/home/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/libcimgui.so: cannot open shared object file: No such file or directory
-/home/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/cimgui: cannot open shared object file: No such file or directory
-/home/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/libcimgui: cannot open shared object file: No such file or directory
+/home/highbyte/source/repos/dotnet-6502/src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/cimgui.so: cannot open shared object file: No such file or directory
+/home/highbyte/source/repos/dotnet-6502/src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/libcimgui.so: cannot open shared object file: No such file or directory
+/home/highbyte/source/repos/dotnet-6502/src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/cimgui: cannot open shared object file: No such file or directory
+/home/highbyte/source/repos/dotnet-6502/src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish/linux-arm64/libcimgui: cannot open shared object file: No such file or directory
 
 Stack trace:    at ImGuiNET.ImGuiNative.igCreateContext(ImFontAtlas* shared_font_atlas)
    at ImGuiNET.ImGuiNative.igCreateContext(ImFontAtlas* shared_font_atlas)

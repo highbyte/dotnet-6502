@@ -65,8 +65,8 @@ Stack trace:    at Microsoft.Xna.Framework.Input.Keyboard.PlatformGetState()
    at SadConsole.Host.Keyboard..ctor()
    at SadConsole.Game..ctor()
    at SadConsole.Game.Create(Builder configuration)
-   at Highbyte.DotNet6502.App.SadConsole.SadConsoleHostApp.Run() in /home/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SadConsole/SadConsoleHostApp.cs:line 163
-   at Program.<Main>$(String[] args) in /home/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SadConsole/Program.cs:line 63
+   at Highbyte.DotNet6502.App.SadConsole.SadConsoleHostApp.Run() in /home/highbyte/source/repos/dotnet-6502/src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole.Core/SadConsoleHostApp.cs:line 163
+   at Program.<Main>$(String[] args) in /home/highbyte/source/repos/dotnet-6502/src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/Program.cs:line 63
 ```
 
 ## Known limitations

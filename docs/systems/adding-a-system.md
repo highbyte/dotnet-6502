@@ -201,7 +201,7 @@ Once the no-op system appears, add real behaviour incrementally — each layer i
 
     - `src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/...csproj` —
       `App.Avalonia.Shell.<System>`, `Impl.Avalonia.<System>`, `Systems.<System>`.
-    - `src/apps/Highbyte.DotNet6502.App.WASM/...csproj` —
+    - `src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/...csproj` —
       `App.WASM.Shell.<System>`, `Impl.AspNet.<System>`, `Systems.<System>`.
 
     For example, in the Avalonia Browser app's csproj:
