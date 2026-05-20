@@ -60,14 +60,13 @@ public class InputInjectionLifecycleTests
     [Fact]
     public async Task RunEmulatorOneFrame_BeginsFrameAndDrainsRemoteActionsBeforeScripting()
     {
-        var systemList = new SystemList<NullInputHandlerContext, NullAudioHandlerContext>();
+        var systemList = new SystemList();
         var configurer = new FrameLifecycleSystemConfigurer();
         systemList.AddSystem(configurer);
 
         var app = new FrameLifecycleHostApp(systemList);
-        app.SetContexts(() => new NullInputHandlerContext(), () => new NullAudioHandlerContext());
+        app.SetContexts(() => new NullInputHandlerContext());
         app.InitInputHandlerContext();
-        app.InitAudioHandlerContext();
 
         var observedState = new ObservedInputState();
         app.SetScriptingEngine(new RecordingScriptingEngine(() =>
@@ -109,15 +108,15 @@ public class InputInjectionLifecycleTests
         public int BeginFrameCallCount { get; set; }
     }
 
-    private sealed class FrameLifecycleHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>
+    private sealed class FrameLifecycleHostApp : HostApp
     {
-        public FrameLifecycleHostApp(SystemList<NullInputHandlerContext, NullAudioHandlerContext> systemList)
+        public FrameLifecycleHostApp(SystemList systemList)
             : base("TestHost", systemList, new NullLoggerFactory())
         {
         }
     }
 
-    private sealed class FrameLifecycleSystemConfigurer : ISystemConfigurer<NullInputHandlerContext, NullAudioHandlerContext>
+    private sealed class FrameLifecycleSystemConfigurer : ISystemConfigurer
     {
         public string SystemName => FrameLifecycleSystem.SystemName;
 
@@ -133,15 +132,10 @@ public class InputInjectionLifecycleTests
 
         public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
-            IHostSystemConfig hostSystemConfig,
-            NullInputHandlerContext inputHandlerContext,
-            NullAudioHandlerContext audioHandlerContext)
+            IHostSystemConfig hostSystemConfig)
         {
             var testSystem = (FrameLifecycleSystem)system;
-            return Task.FromResult(new SystemRunner(
-                testSystem,
-                new FrameLifecycleInputHandler(testSystem),
-                new NullAudioHandler(testSystem)));
+            return Task.FromResult(new SystemRunner(testSystem));
         }
     }
 
@@ -166,6 +160,9 @@ public class InputInjectionLifecycleTests
 
     private sealed class FrameLifecycleSystemConfig : ISystemConfig
     {
+        public bool IsDirty => false;
+        public void ClearDirty() { }
+
         public bool AudioSupported { get; set; }
         public bool AudioEnabled { get; set; }
 
@@ -226,34 +223,6 @@ public class InputInjectionLifecycleTests
             instructionExecResult = new InstructionExecResult();
             return new ExecEvaluatorTriggerResult();
         }
-    }
-
-    private sealed class FrameLifecycleInputHandler : IInputHandler
-    {
-        private readonly FrameLifecycleSystem _system;
-
-        public FrameLifecycleInputHandler(FrameLifecycleSystem system)
-        {
-            _system = system;
-        }
-
-        public ISystem System => _system;
-
-        public Instrumentations Instrumentations { get; } = new();
-
-        public void Init()
-        {
-        }
-
-        public void BeforeFrame()
-        {
-        }
-
-        public void Cleanup()
-        {
-        }
-
-        public List<string> GetDebugInfo() => new();
     }
 
     private sealed class RecordingInputInjector : IInputInjector

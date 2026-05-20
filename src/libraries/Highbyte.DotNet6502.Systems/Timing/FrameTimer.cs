@@ -138,6 +138,10 @@ public class FrameTimer : IScriptingTickTimer, IAsyncDisposable
 
                 nextDeadlineTicks += intervalTicks;
                 await FireElapsedAsync().ConfigureAwait(true);
+                // Browser hosts are single-threaded. If emulation work overruns the target interval,
+                // FireElapsedAsync can complete synchronously and the loop would otherwise spin
+                // without yielding, starving input/render processing.
+                await Task.Yield();
             }
         }
         catch (OperationCanceledException)

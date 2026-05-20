@@ -57,7 +57,7 @@ public class EmulatorConfig
         return _getAppUrlHttpClient();
     }
 
-    public void Validate(SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList)
+    public void Validate(SystemList systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");

@@ -2,8 +2,8 @@
 
 Library: `Highbyte.DotNet6502.Impl.AspNet`
 
-- InputHandlers implemented with [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor). Can be used from web applications.
-- AudioHandlers implemented with [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) JS Interop to WebAudio. Can be used from web applications.
+- Input context (`IHostInputState`) implemented with [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor). Can be used from web applications.
+- A system-agnostic audio target (`IAudioCommandTarget`) implemented with [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) JS Interop to WebAudio. Can be used from web applications.
 
 ## Input
 

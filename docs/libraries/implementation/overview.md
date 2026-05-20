@@ -1,8 +1,34 @@
 # Overview
 
-Implementation libraries provide rendering, input handling, and audio for specific UI technologies. Each app combines a *system* (e.g. C64) with one or more implementation libraries to render to screen, handle input, and produce sound on its host platform.
+Implementation libraries provide rendering, input handling, and audio for specific UI technologies, so a *system* (e.g. C64) can render to screen, handle input, and produce sound on a host platform.
+
+## Two kinds of implementation library
+
+Each host technology is split in two:
+
+- **`Impl.<Tech>`** — host-technology glue that is **system-agnostic**: render targets, audio
+  targets, and input context types that work for any system (e.g. `Impl.Avalonia`, `Impl.NAudio`,
+  `Impl.SilkNet`). Host apps reference these directly.
+- **`Impl.<Tech>.<System>`** — **per-system engine-plugin** libraries (e.g.
+  `Impl.Avalonia.Commodore64`, `Impl.SilkNet.Generic`, `Impl.Headless.Commodore64`). Each ships an
+  `ISystemEnginePlugin` that registers that system for that host, plus any system-specific render
+  code. Host apps do **not** reference these — they are discovered at runtime via
+  [`Highbyte.DotNet6502.Systems.Plugins`](../core/dotnet6502-systems-plugins.md).
+
+The per-system breakdown of which `Impl.<Tech>.<System>` libraries exist, and where the C64 and
+Generic render/input/audio code lives, is documented under
+[Systems / C64 / Libraries](../../systems/c64/libraries.md) and
+[Systems / Generic / Libraries](../../systems/generic/libraries.md).
+
+!!! note "Terminology"
+    Earlier docs spoke of "InputHandlers" and "AudioHandlers". The render, input, and audio
+    subsystems now share one shape: the system declares a *provider*, the host registers a
+    *target*, a coordinator matches them. Input uses `IInputConsumer` + `HostKey`; audio uses
+    `IAudioProvider` + `IAudioCommandTarget`. See [`Highbyte.DotNet6502.Systems`](../core/dotnet6502-systems.md).
 
 ## Render/Audio/Input technologies used
+
+The table below lists the system-agnostic `Impl.<Tech>` library each app uses per concern.
 
 | App                                        | Techniques                                  | Implementation libraries                      | C64     | Generic |
 | ------------------------------------------ | ------------------------------------------- | --------------------------------------------- | :---:   | :---:   |

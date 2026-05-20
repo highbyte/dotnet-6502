@@ -10,16 +10,13 @@ Library: `Highbyte.DotNet6502.Impl.Skia`
 !!! note
     Other alternative renderers using only OpenGL + shaders can be found in [`Highbyte.DotNet6502.Impl.SilkNet`](silknet.md), currently used by the SilkNetNative app.
 
+!!! note "System-specific code lives in a companion library"
+    The C64-specific SkiaSharp render targets (including the legacy renderer variants) live in the
+    engine-plugin library `Highbyte.DotNet6502.Impl.Skia.Commodore64`. See
+    [Systems / C64 / Libraries](../../systems/c64/libraries.md).
+
 ## Render
 
 ### Common render targets
-
-TODO
-
-### C64-specific render targets
-
-TODO
-
-### Generic-specific render targets
 
 TODO

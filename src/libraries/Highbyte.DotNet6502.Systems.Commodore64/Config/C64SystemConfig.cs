@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;

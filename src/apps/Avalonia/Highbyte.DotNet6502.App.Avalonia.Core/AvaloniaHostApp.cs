@@ -32,7 +32,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged, IDebuggableHostApp, IRemotableHostApp
+public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostApp, IRemotableHostApp
 {
     private new readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -41,13 +41,21 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
+
+    /// <summary>
+    /// Persists a (configSectionName, json, optional fileName) tuple to whatever backing
+    /// store the host uses (file on desktop, localStorage in browser). Exposed so shell
+    /// plugins can hand it to their per-system <c>ISystemConfigurer</c> when constructing
+    /// it from DI.
+    /// </summary>
+    public Func<string, string, string?, Task>? SaveCustomConfigString => _saveCustomConfigString;
     private readonly Func<string, string?>? _loadScript;
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
-    private readonly float _defaultAudioVolumePercent;
+    private float _defaultAudioVolumePercent;
 
-    private readonly SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> _systemList;
+    private readonly SystemList _systemList;
     private readonly WavePlayerFactory _wavePlayerFactory;
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
@@ -106,8 +114,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
         // Pause audio when debugger stops (breakpoint/pause), resume only on Continue (F5).
         // Audio intentionally stays paused during stepping (F10/F11).
-        debugAdapter.OnDebuggerPaused = () => CurrentSystemRunner?.AudioHandler.PausePlaying();
-        debugAdapter.OnDebuggerResumed = () => CurrentSystemRunner?.AudioHandler.StartPlaying();
+        debugAdapter.OnDebuggerPaused = PauseAudio;
+        debugAdapter.OnDebuggerResumed = ResumeAudio;
     }
     public void ClearExternalDebugAdapter()
     {
@@ -141,7 +149,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     internal DotNet6502InMemLogStore? LogStore => _logStore;
 
     // Expose SystemLst and EmulatorConfig properties internal access
-    internal SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
+    internal SystemList SystemList => _systemList;
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     // Expose InputHandlerContext for debug views
@@ -163,7 +171,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
     /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
     internal AvaloniaHostApp(
-        SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
+        SystemList systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
@@ -197,11 +205,27 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
         _inputHandlerContext = new AvaloniaInputHandlerContext(gamepad);
 
-        base.SetContexts(() => _inputHandlerContext, () => GetAudioHandlerContext());
+        base.SetContexts(() => _inputHandlerContext);
         base.InitInputHandlerContext();
-        base.InitAudioHandlerContext();
 
         ConfigureRender();
+        ConfigureAudio();
+    }
+
+    private void ConfigureAudio()
+    {
+        // Audio pipeline configuration: register the NAudio host audio target.
+        // The factory is invoked per emulator start; GetAudioHandlerContext() returns the
+        // appropriate (real or silent) audio context for the current platform / config.
+        base.SetAudioConfig(atp =>
+            atp.AddAudioTargetType<NAudioCommandTarget>(() =>
+            {
+                var audioHandlerContext = GetAudioHandlerContext();
+                if (audioHandlerContext.IsInitialized)
+                    audioHandlerContext.Cleanup();
+                audioHandlerContext.Init();
+                return new NAudioCommandTarget(audioHandlerContext, _loggerFactory);
+            }));
     }
 
     private void ConfigureRender()
@@ -256,9 +280,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public void SetVolumePercent(float volumePercent)
     {
-        // TODO: Setting volume from UI while running is not remembered to next time the emulator is started.
-        //       The slider indicates correct but is not the actual volume.
-        _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
+        _defaultAudioVolumePercent = volumePercent;
+        _audioHandlerContext?.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
@@ -662,7 +685,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
     }
 
-    internal async Task ValidateConfigAsync()
+    public async Task ValidateConfigAsync()
     {
         var (isValid, errors) = await IsValidConfigWithDetails();
         ValidationErrors = new ObservableCollection<string>(errors);
@@ -750,19 +773,20 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     }
 
     // Events for publishing key events
-    internal event EventHandler<HostKeyEventArgs>? KeyDownEvent;
-    internal event EventHandler<HostKeyEventArgs>? KeyUpEvent;
+    public event EventHandler<HostKeyEventArgs>? KeyDownEvent;
+    public event EventHandler<HostKeyEventArgs>? KeyUpEvent;
 
     /// <summary>
     /// Receive Key Down event in emulator canvas.
     /// Also check for special non-emulator functions such as monitor and stats/debug
     /// </summary>
-    /// <param name="key"></param>
+    /// <param name="key">Layout-dependent key, used for logical shortcuts (F11/F12, ...).</param>
+    /// <param name="physicalKey">Physical key position, fed to the emulator input handler.</param>
     /// <param name="modifiers"></param>
-    internal void OnKeyDown(Key key, KeyModifiers modifiers = KeyModifiers.None)
+    internal void OnKeyDown(Key key, PhysicalKey physicalKey, KeyModifiers modifiers = KeyModifiers.None)
     {
-        // Send event to emulator
-        _inputHandlerContext.AddKeyDown(key);
+        // Send event to emulator (physical key position, per the neutral HostKey contract)
+        _inputHandlerContext.AddKeyDown(physicalKey);
 
         // Publish KeyDown event for subscribers
         KeyDownEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
@@ -789,11 +813,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// Receive Key Up event in emulator canvas.
     /// Also check for special non-emulator functions such as monitor and stats/debug
     /// </summary>
-    /// <param name="e"></param>
-    internal void OnKeyUp(Key key, KeyModifiers modifiers = KeyModifiers.None)
+    internal void OnKeyUp(Key key, PhysicalKey physicalKey, KeyModifiers modifiers = KeyModifiers.None)
     {
-        // Send event to emulator
-        _inputHandlerContext.RemoveKeyDown(key);
+        // Send event to emulator (physical key position, per the neutral HostKey contract)
+        _inputHandlerContext.RemoveKeyDown(physicalKey);
 
         // Publish KeyUp event for subscribers
         KeyUpEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
@@ -817,7 +840,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         await _saveCustomConfigString(configSectionName, json, null);
     }
 
-    internal async Task PersistConfigSectionAsync(string configSectionName, IConfigurationSection configSection)
+    public async Task PersistConfigSectionAsync(string configSectionName, IConfigurationSection configSection)
     {
         if (_saveCustomConfigSection == null)
             return;

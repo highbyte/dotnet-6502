@@ -18,7 +18,7 @@ concurrency:
 env:
    CONFIGURATION: "Release"
 
-   PROJECT_FILE: "src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
+   PROJECT_FILE: "src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
    PROJECT_GH_PAGES_DIR: "app"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"

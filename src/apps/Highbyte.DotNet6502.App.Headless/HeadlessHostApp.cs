@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.App.Headless;
 /// Headless host app for running the emulator without any UI, rendering, audio, or user input.
 /// Driven entirely by CLI parameters and Lua scripts.
 /// </summary>
-public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>, IDebuggableHostApp, IRemotableHostApp
+public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
 {
     private new readonly ILogger _logger;
     private readonly CancellationTokenSource _appCts;
@@ -29,7 +29,7 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
     private IExecEvaluator? _originalBreakpointEvaluator;
 
     public HeadlessHostApp(
-        SystemList<NullInputHandlerContext, NullAudioHandlerContext> systemList,
+        SystemList systemList,
         ILoggerFactory loggerFactory,
         CancellationTokenSource appCts)
         : base("Headless", systemList, loggerFactory, useStatsNamePrefix: false)
@@ -38,13 +38,12 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
         _appCts = appCts;
 
         var inputHandlerContext = new NullInputHandlerContext();
-        var audioHandlerContext = new NullAudioHandlerContext();
 
-        base.SetContexts(() => inputHandlerContext, () => audioHandlerContext);
+        base.SetContexts(() => inputHandlerContext);
         base.InitInputHandlerContext();
-        base.InitAudioHandlerContext();
 
-        // No call to SetRenderConfig() — HostApp.InitRendererForSystem() handles null gracefully.
+        // No call to SetRenderConfig()/SetAudioConfig() — headless has no rendering or audio;
+        // HostApp.InitRendererForSystem()/InitAudioForSystem() handle the absence gracefully.
     }
 
     // --- IDebuggableHostApp ---
@@ -57,8 +56,8 @@ public class HeadlessHostApp : HostApp<NullInputHandlerContext, NullAudioHandler
         WaitForExternalDebugger = false;
         _isExternalDebuggerAttached = true;
 
-        debugAdapter.OnDebuggerPaused = () => CurrentSystemRunner?.AudioHandler.PausePlaying();
-        debugAdapter.OnDebuggerResumed = () => CurrentSystemRunner?.AudioHandler.StartPlaying();
+        debugAdapter.OnDebuggerPaused = PauseAudio;
+        debugAdapter.OnDebuggerResumed = ResumeAudio;
     }
 
     public void ClearExternalDebugAdapter()

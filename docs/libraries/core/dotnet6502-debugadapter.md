@@ -27,6 +27,11 @@ For the user-facing debugging guide, see [Tools / VSCode debugger / Debugging](.
 - Uses `StdioTransport` for VSCode extension integration.
 - Launched by the VSCode extension as a child process.
 - Maintains backward compatibility with the existing VSCode extension.
+- Debugs raw 6502 assembly (ca65), not any specific machine. It hosts a `GenericComputer` purely
+  as a bare `ISystem` — a CPU + empty 64 KB RAM, no ROM — and in `builtInExecution` mode the
+  adapter steps the CPU directly, touching only `ISystem.CPU` / `ISystem.Mem`. The `DebugAdapter`
+  library itself is fully `ISystem`-agnostic. This app is intentionally single-system and not
+  routed through plugin discovery.
 
 ### Desktop application integration
 

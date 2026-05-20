@@ -40,7 +40,7 @@
             "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build sadconsole app",
-            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
+            "projectPath": "${workspaceFolder}/src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
             "launchConfigurationId": "TargetFramework=;SadConsole"
         },
         {
@@ -48,14 +48,14 @@
             "type": "dotnet",
             "request": "launch",
             "preLaunchTask": "build silk.net native app",
-            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj",
+            "projectPath": "${workspaceFolder}/src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj",
             "launchConfigurationId": "TargetFramework=;SilkNetNative"
         },
         {
             "name": "Blazor WASM - Launch",
             "type": "blazorwasm",
             "request": "launch",
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM",
+            "cwd": "${workspaceFolder}/src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM",
             "url": "http://localhost:5000",
             //"browser": "chrome"
         },

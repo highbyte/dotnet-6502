@@ -16,8 +16,8 @@ using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
 
@@ -32,12 +32,50 @@ public class MainViewModel : ViewModelBase, IDisposable
     // Expose HostApp for EmulatorView that currently needs it (TODO: Consider removing this dependency via MainViewModel. Better that EmulatorViewModel provides it.)
     public AvaloniaHostApp HostApp => _hostApp;
 
-    // Child ViewModels exposed as properties for XAML binding
-    public C64MenuViewModel C64MenuViewModel { get; }
-    public C64InfoViewModel C64InfoViewModel { get; }
+    // Child ViewModels exposed as properties for XAML binding.
+    // Per-system ViewModels (menu / info / config-dialog) come from the active shell plug-in
+    // and are exposed via ActiveMenuContribution / ActiveInfoContribution etc.
     public StatisticsViewModel StatisticsViewModel { get; }
     public EmulatorViewModel EmulatorViewModel { get; }
     public EmulatorPlaceholderViewModel EmulatorPlaceholderViewModel { get; }
+
+    private readonly IReadOnlyDictionary<string, ISystemShellPlugin> _shellPlugins;
+    private readonly IServiceProvider _serviceProvider;
+
+    private ISystemShellPlugin? ActivePlugin
+        => SelectedSystemName != null && _shellPlugins.TryGetValue(SelectedSystemName, out var p) ? p : null;
+
+    // Per-system contribution instances are cached (keyed by system name) so the in-window
+    // panels, the macOS native menu, and the running emulator all share one ViewModel per
+    // system. Without caching, each property read would mint a fresh transient VM, leaving
+    // the native menu bound to a throwaway instance whose commands have no visible effect.
+    private readonly Dictionary<string, object?> _menuContributionCache = new();
+    private readonly Dictionary<string, object?> _infoContributionCache = new();
+    private readonly Dictionary<string, object?> _configDialogContributionCache = new();
+
+    public object? ActiveMenuContribution
+        => GetOrCreateContribution(_menuContributionCache, static (p, sp) => p.CreateMenuContribution(sp));
+    public object? ActiveInfoContribution
+        => GetOrCreateContribution(_infoContributionCache, static (p, sp) => p.CreateInfoContribution(sp));
+    public object? ActiveConfigDialogContribution
+        => GetOrCreateContribution(_configDialogContributionCache, static (p, sp) => p.CreateConfigDialogContribution(sp));
+
+    private object? GetOrCreateContribution(
+        Dictionary<string, object?> cache,
+        Func<ISystemShellPlugin, IServiceProvider, object?> factory)
+    {
+        var plugin = ActivePlugin;
+        if (plugin == null)
+            return null;
+        if (!cache.TryGetValue(plugin.SystemName, out var contribution))
+        {
+            contribution = factory(plugin, _serviceProvider);
+            cache[plugin.SystemName] = contribution;
+        }
+        return contribution;
+    }
+
+    public bool IsSystemPluginActive => ActivePlugin != null;
 
     // --- Start Binding Properties ---
 
@@ -71,8 +109,6 @@ public class MainViewModel : ViewModelBase, IDisposable
             _hostApp.Scale = (float)value;
         }
     }
-
-    public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Currently-active system menu contributor (supplies macOS native menu + keyboard shortcuts).
@@ -548,8 +584,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     public MainViewModel(
         AvaloniaHostApp hostApp,
         EmulatorConfig emulatorConfig,
-        C64MenuViewModel c64MenuViewModel,
-        C64InfoViewModel c64InfoViewModel,
+        IReadOnlyList<ISystemShellPlugin> shellPlugins,
+        IServiceProvider serviceProvider,
         StatisticsViewModel statisticsViewModel,
         EmulatorViewModel emulatorViewModel,
         EmulatorPlaceholderViewModel emulatorPlaceholderViewModel,
@@ -559,9 +595,11 @@ public class MainViewModel : ViewModelBase, IDisposable
         _emulatorConfig = emulatorConfig;
         _logger = loggerFactory?.CreateLogger(nameof(MainViewModel)) ?? throw new ArgumentNullException(nameof(loggerFactory));
 
+        _shellPlugins = (shellPlugins ?? throw new ArgumentNullException(nameof(shellPlugins)))
+            .ToDictionary(p => p.SystemName, p => p, StringComparer.OrdinalIgnoreCase);
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+
         // Store injected child ViewModels
-        C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
-        C64InfoViewModel = c64InfoViewModel ?? throw new ArgumentNullException(nameof(c64InfoViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
         EmulatorViewModel = emulatorViewModel ?? throw new ArgumentNullException(nameof(emulatorViewModel));
         EmulatorPlaceholderViewModel = emulatorPlaceholderViewModel ?? throw new ArgumentNullException(nameof(emulatorPlaceholderViewModel));
@@ -965,11 +1003,16 @@ public class MainViewModel : ViewModelBase, IDisposable
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(UpdateLogTabHeader);
             };
 
-        // System-specific ViewModel initializations
+        // System-specific ViewModel initializations.
+        // When SelectedSystemName changes, re-query plug-ins for the active per-system VMs
+        // and the menu contributor.
         this.WhenAnyValue(x => x.SelectedSystemName)
                  .Subscribe(_ =>
                  {
-                     this.RaisePropertyChanged(nameof(IsC64SystemSelected));
+                     this.RaisePropertyChanged(nameof(ActiveMenuContribution));
+                     this.RaisePropertyChanged(nameof(ActiveInfoContribution));
+                     this.RaisePropertyChanged(nameof(ActiveConfigDialogContribution));
+                     this.RaisePropertyChanged(nameof(IsSystemPluginActive));
                      ActiveMenuContributor = ResolveMenuContributor();
                  });
 
@@ -1010,11 +1053,10 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private ISystemMenuContributor? ResolveMenuContributor()
     {
-        // Each system's menu ViewModel implements ISystemMenuContributor when it contributes
-        // shortcuts. Add more `else if` branches here as new systems gain shortcuts.
-        if (IsC64SystemSelected && C64MenuViewModel is ISystemMenuContributor c64Contributor)
-            return c64Contributor;
-        return null;
+        // A plug-in that implements IAvaloniaNativeMenuPlugin projects its (cached) menu
+        // contribution onto the native-menu surface. Using the cached contribution keeps
+        // the native menu and the in-window panel bound to the same ViewModel instance.
+        return (ActivePlugin as IAvaloniaNativeMenuPlugin)?.GetNativeMenuContributor(ActiveMenuContribution);
     }
 
     private async Task SetDefaultSystemSelectionAsync()

@@ -25,7 +25,10 @@ See [Desktop apps installation](installation.md) for package manager and manual 
 
 --8<-- "avalonia-c64-renderers.md"
 
-- Input using `Avalonia` (keyboard) + `SDL` (joystick).
+- Input using `Avalonia` (keyboard) + `SDL` (joystick). Keyboard uses `Avalonia.Input.PhysicalKey`
+  (W3C `code`), so both `US` and `Swedish` C64 keyboard layouts work; layout is auto-detected from
+  the host (Win32 KLID / macOS `TIS*`) and can be overridden in the C64 config dialog. See
+  [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
 - Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
 
 ### System: Generic computer

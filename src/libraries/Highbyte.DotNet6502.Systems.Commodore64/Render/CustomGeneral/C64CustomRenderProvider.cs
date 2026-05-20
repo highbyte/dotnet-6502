@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.Custom;
 using Highbyte.DotNet6502.Systems.Utils;
 
-namespace Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
+namespace Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
 
 [DisplayName("Custom")]
 [HelpText("Provides raw access to the C64 instance after each frame.\nCan be used to build custom renderers or for debugging purposes.")]

@@ -135,6 +135,8 @@ public class Shader : IDisposable
     public void BindUBO(string uniformBlockName, uint uboHandle, uint binding_point_index = 0)
     {
         var block_index = _gl.GetUniformBlockIndex(_programHandle, uniformBlockName);
+        if (block_index == uint.MaxValue)
+            throw new DotNet6502Exception($"{uniformBlockName} uniform block not found on shader program {_programHandle}.");
         _gl.BindBufferBase(BufferTargetARB.UniformBuffer, binding_point_index, uboHandle);
         _gl.UniformBlockBinding(_programHandle, block_index, binding_point_index);
     }
@@ -166,8 +168,9 @@ public class Shader : IDisposable
         var handle = _gl.CreateShader(type);
         _gl.ShaderSource(handle, source);
         _gl.CompileShader(handle);
+        _gl.GetShader(handle, GLEnum.CompileStatus, out var status);
         var infoLog = _gl.GetShaderInfoLog(handle);
-        if (!string.IsNullOrWhiteSpace(infoLog))
+        if (status == 0)
             throw new DotNet6502Exception($"Error compiling shader of type {type}, failed with error {infoLog}");
 
         return handle;

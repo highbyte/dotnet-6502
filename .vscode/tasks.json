@@ -39,7 +39,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
+                "${workspaceFolder}/src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -55,7 +55,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj",
+                "${workspaceFolder}/src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -71,7 +71,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj",
+                "${workspaceFolder}/src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

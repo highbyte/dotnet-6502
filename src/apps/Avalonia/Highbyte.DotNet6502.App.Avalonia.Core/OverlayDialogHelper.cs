@@ -17,7 +17,7 @@ public class OverlayDialogHelper
         _applicationLifetime = applicationLifetime;
     }
 
-    internal Panel BuildOverlayDialogPanel(UserControl userControl)
+    public Panel BuildOverlayDialogPanel(UserControl userControl)
     {
         // Create a custom overlay with better modal behavior
         var overlay = new Panel
@@ -51,13 +51,13 @@ public class OverlayDialogHelper
         return overlay;
     }
 
-    internal Grid ShowOverlayDialogOnMainView(Panel overlayPanel)
+    public Grid ShowOverlayDialogOnMainView(Panel overlayPanel)
     {
         var mainView = GetMainView() ?? throw new DotNet6502Exception("A MainView was not found. Cannot show overlay dialog.");
         return ShowOverlayDialog(overlayPanel, mainView);
     }
 
-    internal Grid ShowOverlayDialog(Panel overlayPanel, UserControl currentControl)
+    public Grid ShowOverlayDialog(Panel overlayPanel, UserControl currentControl)
     {
         var displayOnGrid = GetGrid(currentControl) ?? throw new DotNet6502Exception("A Grid not found from current usercontrol. Cannot show overlay dialog.");
         ShowOverlayDialog(overlayPanel, displayOnGrid);

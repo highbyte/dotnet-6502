@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Generic.Render;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -50,6 +51,12 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     private IRenderProvider? _renderProvider;
     public IRenderProvider? RenderProvider => _renderProvider;
     public List<IRenderProvider> RenderProviders { get; } = new();
+
+    /// <summary>
+    /// The input consumer (set by the host configurer in BuildSystemRunner). Host-specific for the
+    /// Generic computer — each host's configurer assigns its own <see cref="IInputConsumer"/>.
+    /// </summary>
+    public IInputConsumer? InputConsumer { get; set; }
 
     // Instrumentations
     public bool InstrumentationEnabled { get; set; } = false;

@@ -66,9 +66,53 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+    <!-- Convention glob: every per-system shell is deployed for SystemPluginDiscovery without
+         editing this entry exe when a new system is added. -->
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Highbyte.DotNet6502.App.Avalonia.Shell.*\*.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Browser\Highbyte.DotNet6502.Impl.Browser.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Scripting.MoonSharp\Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
   </ItemGroup>
+
+  <!--
+    Keep the per-system plug-in assemblies in the trimmed/AOT bundle. They are loaded only by
+    reflection (SystemPluginDiscovery), so without rooting the trimmer would drop them entirely
+    and Assembly.Load (driven by the manifest below) would then fail.
+    NOTE: still per-system — adding a system needs new entries here. (Tracked open item.)
+  -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Impl.Avalonia.Commodore64" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Systems.Commodore64" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.App.Avalonia.Shell.Generic" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Impl.Avalonia.Generic" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Systems.Generic" />
+  </ItemGroup>
+
+  <!--
+    Plug-in discovery manifest (browser WASM).
+    SystemPluginDiscovery loads plug-in assemblies by (a) a transitive reference walk from the
+    entry assembly and (b) a scan of the output directory. Browser WASM has no enumerable
+    filesystem, so (b) finds nothing; and a system-agnostic host holds no static reference to the
+    per-system plug-in assemblies for (a) to follow — so neither works here.
+    This target emits, into the entry assembly, one
+    [assembly: AssemblyMetadata("Highbyte.DotNet6502.PluginAssembly", "<name>")] per
+    Highbyte.DotNet6502.* assembly in the resolved reference closure (direct + transitive).
+    SystemPluginDiscovery reads that manifest and Assembly.Loads each by name. Convention-based:
+    adding a new system needs no edit here. (The TrimmerRootAssembly block above is the
+    complementary half — it keeps those assemblies in the bundle so Assembly.Load can find them.)
+  -->
+  <Target Name="EmitPluginAssemblyManifest"
+          DependsOnTargets="ResolveReferences"
+          BeforeTargets="GetAssemblyAttributes">
+    <ItemGroup>
+      <AssemblyMetadata Include="Highbyte.DotNet6502.PluginAssembly"
+                        Value="%(ReferencePath.FileName)"
+                        Condition="$([System.String]::Copy('%(ReferencePath.FileName)').StartsWith('Highbyte.DotNet6502.'))" />
+      <AssemblyMetadata Include="Highbyte.DotNet6502.PluginAssembly"
+                        Value="%(ReferenceDependencyPaths.FileName)"
+                        Condition="$([System.String]::Copy('%(ReferenceDependencyPaths.FileName)').StartsWith('Highbyte.DotNet6502.'))" />
+    </ItemGroup>
+  </Target>
 
   <!-- Embedded JavaScript resources for browser interop -->
   <ItemGroup>

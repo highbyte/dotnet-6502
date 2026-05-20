@@ -10,6 +10,7 @@ using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Input;
 using System.Runtime.InteropServices;
@@ -161,6 +162,24 @@ internal sealed partial class Program
     /// <param name="args">Command line arguments.</param>
     [STAThread]
     public static int Main(string[] args)
+    {
+        try
+        {
+            return RunApp(args);
+        }
+        catch (Exception ex)
+        {
+            // A failure before the Avalonia app could start (malformed appsettings.json, a
+            // plug-in/DI failure, ...). Show it in a minimal stand-alone error window; if even
+            // that fails, RunStartupErrorApp logs it.
+            var rootEx = ex is AggregateException agg ? agg.InnerException ?? agg : ex;
+            WriteBootstrapLog($"Fatal error during startup: {rootEx}", LogLevel.Critical);
+            RunStartupErrorApp("The emulator could not start.\n\n" + rootEx.Message, args);
+            return 1;
+        }
+    }
+
+    private static int RunApp(string[] args)
     {
         // ----------
         // Parse command line arguments
@@ -399,20 +418,25 @@ internal sealed partial class Program
 
                 // hostApp is IHostApp here; cast to IDebuggableHostApp for the WaitForExternalDebugger setter.
                 var debuggableHostApp = hostApp as IDebuggableHostApp;
+
+                // Resolve the optional per-system automated-startup participant, keyed by system
+                // name (mirrors the Browser host). No system-specific code here — the participant
+                // decides per host whether it does anything. See docs/automated-startup-abstraction.md.
+                var startupParticipant = Core.App.Current?.GetServiceProvider()
+                    ?.GetKeyedService<IAutomatedStartupParticipant>(systemName);
+
+                var startupRequest = new AutomatedStartupRequest(
+                    systemName, systemVariant, autoStart, waitForSystemReady,
+                    loadPrgPath, runLoadedProgram, enableExternalDebug);
                 await AutomatedStartupHandler.ExecuteAsync(
                     hostApp,
-                    systemName,
-                    systemVariant,
-                    autoStart,
-                    waitForSystemReady,
-                    loadPrgPath,
-                    runLoadedProgram,
-                    enableExternalDebug,
+                    startupRequest,
                     onStartupComplete: () => debugController.SignalProgramReady(),
                     loggerFactory: loggerFactory,
                     prepareForExternalDebuggerStart: debuggableHostApp != null
                         ? () => debuggableHostApp.WaitForExternalDebugger = true
-                        : null);
+                        : null,
+                    startupParticipant: startupParticipant);
             };
         }
         else if (scriptFilePaths.Count > 0 || scriptDirectoryOverride != null)
@@ -446,6 +470,24 @@ internal sealed partial class Program
     private static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information)
     {
         AppLogger.WriteBootstrapLog(message, logLevel, nameof(Program));
+    }
+
+    /// <summary>
+    /// Shows a fatal startup error in a minimal stand-alone Avalonia window — used when the normal
+    /// app could not be started at all. If even this minimal UI fails, the error is only logged.
+    /// </summary>
+    private static void RunStartupErrorApp(string message, string[] args)
+    {
+        try
+        {
+            AppBuilder.Configure(() => new StartupErrorApp(message))
+                .UsePlatformDetect()
+                .StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception ex)
+        {
+            WriteBootstrapLog($"Could not display the startup error UI: {ex}", LogLevel.Critical);
+        }
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

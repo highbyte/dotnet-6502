@@ -236,8 +236,10 @@
                 <!-- Separator -->
                 <Border Height="1" Background="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,8,0,8" />
 
-                <!-- C64 Menu -->
-                <views:C64MenuView DataContext="{Binding C64MenuViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
+                <!-- Per-system menu — supplied by the active shell plug-in (e.g. C64). ViewLocator resolves
+                     the matching View for the ViewModel type across all loaded assemblies. -->
+                <ContentControl Content="{Binding ActiveMenuContribution}"
+                                IsVisible="{Binding IsSystemPluginActive}" />
 
             </StackPanel>
         </Border>
@@ -286,8 +288,9 @@
                                  AutomationProperties.Name="Information tab">
                             <Border Classes="tab-content">
                                 <ScrollViewer Classes="auto-scroll">
-                                    <!-- C64 Info panel-->
-                                    <views:C64InfoView DataContext="{Binding C64InfoViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
+                                    <!-- Per-system info panel — supplied by the active shell plug-in (e.g. C64). -->
+                                    <ContentControl Content="{Binding ActiveInfoContribution}"
+                                                    IsVisible="{Binding IsSystemPluginActive}" />
                                 </ScrollViewer>
                             </Border>
                         </TabItem>

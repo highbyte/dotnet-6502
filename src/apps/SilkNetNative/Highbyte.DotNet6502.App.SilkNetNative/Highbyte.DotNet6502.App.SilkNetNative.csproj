@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Thin entry exe (composition root): only Program.cs. The host-app library, UI and all host-tech
+    Impl references live in App.SilkNetNative.Core. The per-system shells are referenced here so
+    their engine-plugin DLL closure is deployed into this app's output for SystemPluginDiscovery.
+    The shells use a convention glob (App.SilkNetNative.Shell.*) so adding a new system needs no
+    edit to this entry exe.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.App.SilkNetNative.Core\Highbyte.DotNet6502.App.SilkNetNative.Core.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Highbyte.DotNet6502.App.SilkNetNative.Shell.*\*.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Linux native assets must be explicitly included on the deployed exe (Win32/macOS are
+         transitive dependencies of SkiaSharp). -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -2,22 +2,25 @@ using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
+using AvaloniaBrowserApp = Highbyte.DotNet6502.App.Avalonia.Core.App;
 using Avalonia;
 using Avalonia.Browser;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
-using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.Browser.Input;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+
+namespace Highbyte.DotNet6502.App.Avalonia.Browser;
 
 internal sealed partial class Program
 {
@@ -181,6 +184,24 @@ internal sealed partial class Program
     /// </remarks>
     private static async Task<int> Main(string[] args)
     {
+        try
+        {
+            return await RunAppAsync(args);
+        }
+        catch (Exception ex)
+        {
+            // A failure before the Avalonia browser app could start (bad config, a plug-in/DI
+            // failure, ...). Show it in a minimal stand-alone error app; if even that fails it is
+            // logged to the browser console.
+            var rootEx = ex is AggregateException agg ? agg.InnerException ?? agg : ex;
+            WriteBootstrapLog($"Fatal error during startup: {rootEx}", LogLevel.Critical);
+            await RunStartupErrorAppAsync("The emulator could not start.\n\n" + rootEx.Message);
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunAppAsync(string[] args)
+    {
         AppLogger.ConsoleLoggingEnabled = true;
         WriteBootstrapLog("Avalonia program starting.");
 
@@ -193,8 +214,7 @@ internal sealed partial class Program
                 $"systemVariant={automation.SystemVariant ?? "(none)"}, start={automation.AutoStart}, " +
                 $"waitForSystemReady={automation.WaitForSystemReady}, " +
                 $"loadPrgUrl={automation.LoadPrgUrl ?? "(none)"}, runLoadedProgram={automation.RunLoadedProgram}, " +
-                $"basicText={(automation.BasicText != null ? $"{automation.BasicText.Length} chars" : "(none)")}, " +
-                $"basicUrl={automation.BasicUrl ?? "(none)"}, runBasic={automation.RunBasic}");
+                $"extraParameters={automation.ExtraParameters.Count}");
         }
         else if (automation.ScriptContent != null || automation.ScriptUrl != null)
         {
@@ -259,6 +279,27 @@ internal sealed partial class Program
         // Load custom JS module for localStorage-based Lua script loading
         WriteBootstrapLog("Importing BrowserScripting JS module.");
         await JSHost.ImportAsync("BrowserScripting", BrowserScriptingResources.GetJavaScriptModuleDataUri());
+
+        // Detect the browser keyboard layout / OS so the C64 input handler can auto-select the
+        // keyboard layout and apply the macOS ISO-key fix. The Avalonia input context is created
+        // deep in shared Avalonia.Core code, so the values are stashed in statics it reads.
+        try
+        {
+            var detectedKeyboardLayoutId = await JSInterop.GetKeyboardLayoutIdAsync();
+            AvaloniaInputHandlerContext.BrowserDetectedKeyboardLayoutId =
+                string.IsNullOrEmpty(detectedKeyboardLayoutId) ? null : detectedKeyboardLayoutId;
+
+            var navigatorPlatform = JSInterop.GetNavigatorPlatform();
+            AvaloniaInputHandlerContext.BrowserIsRunningOnMacOS =
+                navigatorPlatform.Contains("Mac", StringComparison.OrdinalIgnoreCase);
+
+            WriteBootstrapLog($"Browser input environment: keyboard layout='{detectedKeyboardLayoutId}', " +
+                $"platform='{navigatorPlatform}' (macOS: {AvaloniaInputHandlerContext.BrowserIsRunningOnMacOS}).");
+        }
+        catch (Exception ex)
+        {
+            WriteBootstrapLog($"Browser input environment detection failed: {ex.Message}", LogLevel.Warning);
+        }
 
         // Create scripting engine (loads scripts from localStorage if enabled in config)
         // Binding is done here (not inside the library) so the AOT ConfigurationBindingGenerator
@@ -417,12 +458,13 @@ internal sealed partial class Program
             {
                 var startupLogger = loggerFactory.CreateLogger(nameof(Program));
 
-                if (automation.AutoStart &&
-                    automation.SystemName.Equals(C64.SystemName, StringComparison.OrdinalIgnoreCase) &&
-                    !await EnsureC64RomsAvailableForAutomatedStartupAsync(hostApp, automation.SystemName, automation.SystemVariant, startupLogger))
-                {
-                    return;
-                }
+                // Resolve the optional per-system automated-startup participant, keyed by system
+                // name (e.g. the C64 participant downloads missing ROMs interactively before the
+                // emulator starts). No system-specific code here — AutomatedStartupHandler invokes
+                // it after system/variant selection and before Start().
+                // See docs/automated-startup-abstraction.md.
+                var startupParticipant = AvaloniaBrowserApp.Current?.GetServiceProvider()
+                    ?.GetKeyedService<IAutomatedStartupParticipant>(automation.SystemName);
 
                 // If a PRG URL is set, build a bytes provider that fetches over HTTP using the
                 // same HttpClient (with current app origin) that emulatorConfig already uses.
@@ -440,64 +482,34 @@ internal sealed partial class Program
                     };
                 }
 
-                string? basicSourceText = automation.BasicText;
-                if (automation.BasicUrl != null)
+                // Host capability for the participant's post-ready automation: fetch a text
+                // resource (e.g. C64 'basicUrl') over HTTP from the current app origin.
+                var startupContext = new AutomatedStartupContext
                 {
-                    try
+                    FetchTextResource = async url =>
                     {
                         using var http = GetAppUrlHttpClient();
-                        basicSourceText = await GetUtf8TextAsync(http, automation.BasicUrl);
-                        if (string.IsNullOrWhiteSpace(basicSourceText))
-                        {
-                            startupLogger.LogError($"Fetched 'basicUrl' '{automation.BasicUrl}' but it contained no BASIC source.");
-                            basicSourceText = null;
-                        }
-                        else
-                        {
-                            startupLogger.LogInformation($"Fetched BASIC source from '{automation.BasicUrl}' ({basicSourceText.Length} chars).");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        startupLogger.LogError($"Failed to fetch 'basicUrl' '{automation.BasicUrl}': {ex.Message}");
-                    }
-                }
-
-                Action? onStartupComplete = null;
-                if (!string.IsNullOrWhiteSpace(basicSourceText))
-                {
-                    var basicSourceToPaste = BuildC64BasicPasteText(basicSourceText, automation.RunBasic);
-                    var basicSourceDescription = automation.BasicUrl != null
-                        ? $"basicUrl={automation.BasicUrl}"
-                        : $"basicText ({basicSourceText.Length} chars)";
-                    var basicLineCount = CountNonEmptyLines(basicSourceText);
-                    onStartupComplete = () =>
-                    {
-                        if (hostApp.CurrentRunningSystem is not C64 c64)
-                        {
-                            startupLogger.LogError("C64 BASIC source automation requires the running system to be C64.");
-                            return;
-                        }
-
-                        startupLogger.LogInformation(
-                            $"Queueing C64 BASIC source from {basicSourceDescription} " +
-                            $"({basicLineCount} line(s), runBasic={automation.RunBasic}).");
-                        c64.TextPaste.Paste(basicSourceToPaste);
-                    };
-                }
+                        return await GetUtf8TextAsync(http, url);
+                    },
+                };
 
                 try
                 {
+                    var startupRequest = new AutomatedStartupRequest(
+                        SystemName: automation.SystemName,
+                        SystemVariant: automation.SystemVariant,
+                        AutoStart: automation.AutoStart,
+                        WaitForSystemReady: automation.WaitForSystemReady,
+                        LoadPrgPath: null,
+                        RunLoadedProgram: automation.RunLoadedProgram,
+                        EnableExternalDebug: false)
+                    {
+                        ExtraParameters = automation.ExtraParameters,
+                    };
                     await AutomatedStartupHandler.ExecuteAsync(
                         hostApp,
-                        automation.SystemName,
-                        automation.SystemVariant,
-                        automation.AutoStart,
-                        automation.WaitForSystemReady,
-                        loadPrgPath: null,
-                        runLoadedProgram: automation.RunLoadedProgram,
-                        enableExternalDebug: false,
-                        onStartupComplete: onStartupComplete,
+                        startupRequest,
+                        onStartupComplete: null,
                         loggerFactory: loggerFactory,
                         prepareForExternalDebuggerStart: null,
                         onFatalError: () => startupLogger.LogError("Automated startup aborted; falling back to default UI."),
@@ -522,7 +534,9 @@ internal sealed partial class Program
                                 DispatcherPriority.Background);
                             return Task.CompletedTask;
                         },
-                        loadPrgBytesProvider: prgBytesProvider);
+                        loadPrgBytesProvider: prgBytesProvider,
+                        startupParticipant: startupParticipant,
+                        startupContext: startupContext);
                 }
                 catch (Exception ex)
                 {
@@ -562,103 +576,37 @@ internal sealed partial class Program
         return 0;
     }
 
-    private static async Task<bool> EnsureC64RomsAvailableForAutomatedStartupAsync(
-        IHostApp hostApp,
-        string systemName,
-        string? systemVariant,
-        ILogger startupLogger)
-    {
-        startupLogger.LogInformation("Checking whether C64 ROMs are available for automated startup.");
-
-        if (!hostApp.AvailableSystemNames.Contains(systemName))
-        {
-            startupLogger.LogError("System '{SystemName}' not found. Available systems: {AvailableSystems}",
-                systemName,
-                string.Join(", ", hostApp.AvailableSystemNames));
-            return false;
-        }
-
-        await hostApp.SelectSystem(systemName);
-
-        if (!string.IsNullOrWhiteSpace(systemVariant))
-        {
-            if (!hostApp.AllSelectedSystemConfigurationVariants.Contains(systemVariant))
-            {
-                startupLogger.LogError("System variant '{SystemVariant}' not found for system '{SystemName}'. Available variants: {AvailableVariants}",
-                    systemVariant,
-                    systemName,
-                    string.Join(", ", hostApp.AllSelectedSystemConfigurationVariants));
-                return false;
-            }
-
-            await hostApp.SelectSystemConfigurationVariant(systemVariant);
-        }
-        else if (hostApp.AllSelectedSystemConfigurationVariants.Count > 0)
-        {
-            await hostApp.SelectSystemConfigurationVariant(hostApp.AllSelectedSystemConfigurationVariants[0]);
-        }
-
-        var (isValid, errors) = await hostApp.IsCurrentSystemConfigValid();
-        if (isValid || !HasOnlyMissingC64RomErrors(errors))
-            return true;
-
-        var serviceProvider = App.Current?.GetServiceProvider();
-        if (serviceProvider == null)
-        {
-            startupLogger.LogError("Missing C64 ROMs detected, but the service provider was not available for the ROM download prompt.");
-            return false;
-        }
-
-        var romPromptService = serviceProvider.GetRequiredService<C64RomPromptService>();
-        if (!await romPromptService.ShowStartupDownloadPromptAsync())
-        {
-            startupLogger.LogInformation("User cancelled automated C64 ROM download prompt.");
-            return false;
-        }
-
-        var configViewModel = serviceProvider.GetRequiredService<C64ConfigDialogViewModel>();
-        if (!await configViewModel.DownloadRomsToByteArrayAsync(requireAcknowledgement: false))
-        {
-            startupLogger.LogError("Automatic C64 ROM download failed: {StatusMessage}",
-                configViewModel.StatusMessage ?? "Unknown error.");
-            return false;
-        }
-
-        if (!await configViewModel.TryApplyChangesAsync())
-        {
-            startupLogger.LogError("Automatic C64 ROM download could not be saved: {StatusMessage} {ValidationMessage}",
-                configViewModel.StatusMessage ?? string.Empty,
-                configViewModel.ValidationMessage ?? string.Empty);
-            return false;
-        }
-
-        var (isValidAfterDownload, errorsAfterDownload) = await hostApp.IsCurrentSystemConfigValid();
-        if (!isValidAfterDownload)
-        {
-            startupLogger.LogError("C64 configuration is still invalid after automatic ROM download: {Errors}",
-                string.Join(" | ", errorsAfterDownload));
-            return false;
-        }
-
-        startupLogger.LogInformation("C64 ROMs were downloaded automatically for browser startup.");
-        return true;
-    }
-
-    private static bool HasOnlyMissingC64RomErrors(IReadOnlyCollection<string> errors)
-        => errors.Count > 0 && errors.All(error => error.StartsWith("Missing ROMs:", StringComparison.Ordinal));
-
     private static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information)
     {
         AppLogger.WriteBootstrapLog(message, logLevel, nameof(Program));
     }
 
     /// <summary>
+    /// Shows a fatal startup error in a minimal stand-alone Avalonia browser app — used when the
+    /// normal app could not be started at all. The error screen has no Quit action (a browser tab
+    /// cannot quit itself). If even this minimal UI fails, the error is only logged.
+    /// </summary>
+    private static async Task RunStartupErrorAppAsync(string message)
+    {
+        try
+        {
+            await AppBuilder.Configure(() => new StartupErrorApp(message))
+                .StartBrowserAppAsync("out");
+        }
+        catch (Exception ex)
+        {
+            WriteBootstrapLog($"Could not display the startup error UI: {ex}", LogLevel.Critical);
+        }
+    }
+
+    /// <summary>
     /// Parsed automation parameters from the URL query string. <see cref="SystemName"/> is null
     /// when no system-driven automation was requested. <see cref="ScriptContent"/> /
     /// <see cref="ScriptUrl"/> are mutually exclusive with the system fields and own the
-    /// emulator lifecycle when present. <see cref="BasicText"/> / <see cref="BasicUrl"/> are
-    /// C64-only system-driven automation helpers that queue BASIC source via the normal keyboard
-    /// paste path once BASIC is ready.
+    /// emulator lifecycle when present. <see cref="ExtraParameters"/> carries every query
+    /// parameter the typed fields above do not consume — system-specific automation parameters
+    /// (e.g. C64 <c>basicText</c>/<c>basicUrl</c>/<c>runBasic</c>) interpreted by an
+    /// <c>IAutomatedStartupParticipant</c>.
     /// </summary>
     private sealed record BrowserAutomationParams(
         string? SystemName,
@@ -667,11 +615,9 @@ internal sealed partial class Program
         bool WaitForSystemReady,
         string? LoadPrgUrl,
         bool RunLoadedProgram,
-        string? BasicText,
-        string? BasicUrl,
-        bool RunBasic,
         string? ScriptContent,
-        string? ScriptUrl);
+        string? ScriptUrl,
+        IReadOnlyDictionary<string, string> ExtraParameters);
 
     /// <summary>
     /// Parses URL query parameters into an automation request. Logs (and clears) any
@@ -679,7 +625,7 @@ internal sealed partial class Program
     /// </summary>
     private static BrowserAutomationParams ParseAutomationQuery(string? url)
     {
-        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null, false, null, null);
+        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null, new Dictionary<string, string>());
         if (string.IsNullOrWhiteSpace(url))
             return empty;
 
@@ -719,14 +665,10 @@ internal sealed partial class Program
         bool waitForReady = map.TryGetValue("waitForSystemReady", out var w) && IsTruthy(w);
         string? loadPrgUrl = map.TryGetValue("loadPrgUrl", out var lp) && !string.IsNullOrWhiteSpace(lp) ? lp : null;
         bool runLoaded = map.TryGetValue("runLoadedProgram", out var rl) && IsTruthy(rl);
-        string? basicB64 = map.TryGetValue("basicText", out var bt) && !string.IsNullOrWhiteSpace(bt) ? bt : null;
-        string? basicUrl = map.TryGetValue("basicUrl", out var bu) && !string.IsNullOrWhiteSpace(bu) ? bu : null;
-        bool runBasic = map.TryGetValue("runBasic", out var rb) && IsTruthy(rb);
         string? scriptB64 = map.TryGetValue("script", out var sc) && !string.IsNullOrWhiteSpace(sc) ? sc : null;
         string? scriptUrl = map.TryGetValue("scriptUrl", out var su) && !string.IsNullOrWhiteSpace(su) ? su : null;
 
         // Decode base64url-encoded inline script (RFC 4648 §5: '-' and '_' substitute '+' '/'; padding optional).
-        string? basicText = DecodeBase64UrlUtf8QueryValue("basicText", basicB64);
         string? scriptContent = DecodeBase64UrlUtf8QueryValue("script", scriptB64, logRawValue: true);
 
         // ── system-driven automation validation ──────────────────────────────────────────
@@ -756,38 +698,6 @@ internal sealed partial class Program
             WriteBootstrapLog("Query parameter 'runLoadedProgram' requires 'loadPrgUrl'; ignoring 'runLoadedProgram'.", LogLevel.Warning);
             runLoaded = false;
         }
-        if (basicText != null && basicUrl != null)
-        {
-            WriteBootstrapLog("Query parameters 'basicText' and 'basicUrl' are mutually exclusive; ignoring both.", LogLevel.Warning);
-            basicText = null;
-            basicUrl = null;
-            runBasic = false;
-        }
-        if ((basicText != null || basicUrl != null) &&
-            (!string.Equals(systemName, C64.SystemName, StringComparison.OrdinalIgnoreCase) || !autoStart || !waitForReady))
-        {
-            WriteBootstrapLog(
-                "Query parameters 'basicText'/'basicUrl' require 'system=C64', 'start', and 'waitForSystemReady'; ignoring BASIC source parameters.",
-                LogLevel.Warning);
-            basicText = null;
-            basicUrl = null;
-            runBasic = false;
-        }
-        if ((basicText != null || basicUrl != null) && (loadPrgUrl != null || runLoaded))
-        {
-            WriteBootstrapLog(
-                "Query parameters 'basicText'/'basicUrl' are mutually exclusive with 'loadPrgUrl' and 'runLoadedProgram'; ignoring BASIC source parameters.",
-                LogLevel.Warning);
-            basicText = null;
-            basicUrl = null;
-            runBasic = false;
-        }
-        if (runBasic && basicText == null && basicUrl == null)
-        {
-            WriteBootstrapLog("Query parameter 'runBasic' requires 'basicText' or 'basicUrl'; ignoring 'runBasic'.", LogLevel.Warning);
-            runBasic = false;
-        }
-
         // ── script-driven automation validation ──────────────────────────────────────────
         // 'script' and 'scriptUrl' are mutually exclusive.
         if (scriptContent != null && scriptUrl != null)
@@ -798,19 +708,33 @@ internal sealed partial class Program
         }
         // Scripts own the lifecycle: incompatible with system-driven automation.
         if ((scriptContent != null || scriptUrl != null) &&
-            (systemName != null || autoStart || waitForReady || loadPrgUrl != null || runLoaded ||
-             basicText != null || basicUrl != null || runBasic))
+            (systemName != null || autoStart || waitForReady || loadPrgUrl != null || runLoaded))
         {
             WriteBootstrapLog(
                 "Query parameters 'script'/'scriptUrl' are mutually exclusive with 'system', 'start', " +
-                "'waitForSystemReady', 'loadPrgUrl', 'runLoadedProgram', 'basicText', 'basicUrl', and 'runBasic'; ignoring script parameters.",
+                "'waitForSystemReady', 'loadPrgUrl', and 'runLoadedProgram'; ignoring script parameters.",
                 LogLevel.Warning);
             scriptContent = null;
             scriptUrl = null;
         }
 
+        // Every query parameter the typed fields above did not consume — system-specific
+        // automation parameters (e.g. C64 'basicText'/'basicUrl'/'runBasic') interpreted by an
+        // IAutomatedStartupParticipant. See docs/automated-startup-seam2.md.
+        var consumedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "system", "systemVariant", "start", "waitForSystemReady",
+            "loadPrgUrl", "runLoadedProgram", "script", "scriptUrl",
+        };
+        var extraParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in map)
+        {
+            if (!consumedKeys.Contains(kvp.Key))
+                extraParameters[kvp.Key] = kvp.Value;
+        }
+
         return new BrowserAutomationParams(systemName, systemVariant, autoStart, waitForReady,
-            loadPrgUrl, runLoaded, basicText, basicUrl, runBasic, scriptContent, scriptUrl);
+            loadPrgUrl, runLoaded, scriptContent, scriptUrl, extraParameters);
     }
 
     private static string? DecodeBase64UrlUtf8QueryValue(string parameterName, string? base64UrlValue, bool logRawValue = false)
@@ -852,25 +776,6 @@ internal sealed partial class Program
             WriteBootstrapLog($"Query parameter '{parameterName}' is not valid base64url: {ex.Message}; ignoring '{parameterName}'.", LogLevel.Warning);
             return null;
         }
-    }
-
-    private static string BuildC64BasicPasteText(string basicSource, bool runBasic)
-    {
-        var normalized = basicSource.Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Replace("\r", "\n", StringComparison.Ordinal);
-        if (!normalized.EndsWith("\n", StringComparison.Ordinal))
-            normalized += "\n";
-        if (runBasic)
-            normalized += "run\n";
-        return normalized;
-    }
-
-    private static int CountNonEmptyLines(string text)
-    {
-        return text.Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Replace("\r", "\n", StringComparison.Ordinal)
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Length;
     }
 
     private static Dictionary<string, string?> GetConfigDictionary(string configJson)
@@ -964,6 +869,12 @@ internal sealed partial class Program
 
         [JSImport("getLocalStorageKeys", "BrowserScripting")]
         public static partial string GetLocalStorageKeys(string prefix);
+
+        [JSImport("getKeyboardLayoutId", "BrowserScripting")]
+        public static partial Task<string> GetKeyboardLayoutIdAsync();
+
+        [JSImport("getNavigatorPlatform", "BrowserScripting")]
+        public static partial string GetNavigatorPlatform();
     }
 
     private static async Task SeedExampleScriptsAsync(Action<string, string> saveScript)
@@ -1133,7 +1044,7 @@ internal sealed partial class Program
     {
         return AppBuilder.Configure(() =>
         {
-            return new App(
+            return new AvaloniaBrowserApp(
                                 configuration,
                                 emulatorConfig,
                                 logStore,

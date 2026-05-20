@@ -100,16 +100,17 @@ public static class AutomatedStartupHandler
     /// Handles automated system startup, load, and run operations.
     /// </summary>
     /// <param name="hostApp">The already-initialized host app.</param>
-    /// <param name="enableExternalDebug">
-    /// When true, the caller has an external debugger active. Affects two branches:
-    /// (1) before <c>Start()</c> with no PRG to load, <paramref name="prepareForExternalDebuggerStart"/>
-    /// is invoked so the host can block CPU execution until the debugger attaches; and
-    /// (2) after a PRG is loaded but not run, the PC is left untouched so the debugger
-    /// can position it.
+    /// <param name="request">
+    /// The system-agnostic automated-startup parameters (system, variant, start / wait flags, PRG
+    /// path, run-loaded, external-debug). When <see cref="AutomatedStartupRequest.EnableExternalDebug"/>
+    /// is true the caller has an external debugger active, which affects two branches: (1) before
+    /// <c>Start()</c> with no PRG to load, <paramref name="prepareForExternalDebuggerStart"/> is
+    /// invoked so the host can block CPU execution until the debugger attaches; and (2) after a PRG
+    /// is loaded but not run, the PC is left untouched so the debugger can position it.
     /// </param>
     /// <param name="prepareForExternalDebuggerStart">
     /// Optional callback invoked before <c>hostApp.Start()</c> when
-    /// <paramref name="enableExternalDebug"/> is true and no PRG is to be loaded.
+    /// <c>request.EnableExternalDebug</c> is true and no PRG is to be loaded.
     /// Typical implementation: <c>() =&gt; debuggableHostApp.WaitForExternalDebugger = true</c>.
     /// </param>
     /// <param name="onFatalError">
@@ -144,6 +145,18 @@ public static class AutomatedStartupHandler
     /// the local filesystem. Used by the Browser host to fetch a PRG via HTTP. The resulting
     /// byte array must include the 2-byte little-endian load address header (standard PRG format).
     /// </param>
+    /// <param name="startupParticipant">
+    /// Optional per-system participant resolved by the host (keyed by system name). When non-null,
+    /// its <see cref="IAutomatedStartupParticipant.EnsureReadyForStartAsync"/> is invoked after the
+    /// system + variant are selected and before <c>Start()</c> (returning <see langword="false"/>
+    /// aborts automated startup), and its <see cref="IAutomatedStartupParticipant.OnSystemReadyAsync"/>
+    /// is invoked after the system has started. See <c>docs/automated-startup-abstraction.md</c>.
+    /// </param>
+    /// <param name="startupContext">
+    /// Optional host-supplied capabilities forwarded to
+    /// <see cref="IAutomatedStartupParticipant.OnSystemReadyAsync"/>. When <see langword="null"/>
+    /// an empty context is passed. See <c>docs/automated-startup-seam2.md</c>.
+    /// </param>
     /// <remarks>
     /// The caller is responsible for invoking this method on the thread the host app requires
     /// (e.g. Avalonia's UI thread). All host-app interactions before the lifecycle run inline
@@ -151,23 +164,22 @@ public static class AutomatedStartupHandler
     /// </remarks>
     public static async Task ExecuteAsync(
         IHostApp hostApp,
-        string systemName,
-        string? systemVariant,
-        bool autoStart,
-        bool waitForSystemReady,
-        string? loadPrgPath,
-        bool runLoadedProgram,
-        bool enableExternalDebug,
+        AutomatedStartupRequest request,
         Action? onStartupComplete,
         ILoggerFactory loggerFactory,
         Action? prepareForExternalDebuggerStart = null,
         Action? onFatalError = null,
         Func<Func<Task>, Task>? lifecycleInvoker = null,
-        Func<Task<byte[]>>? loadPrgBytesProvider = null)
+        Func<Task<byte[]>>? loadPrgBytesProvider = null,
+        IAutomatedStartupParticipant? startupParticipant = null,
+        AutomatedStartupContext? startupContext = null)
     {
         var logger = loggerFactory.CreateLogger(nameof(AutomatedStartupHandler));
         Func<Func<Task>, Task> invokeLifecycle = lifecycleInvoker ?? (f => f());
         Action fatalError = onFatalError ?? (() => Environment.Exit(1));
+
+        var (systemName, systemVariant, autoStart, waitForSystemReady,
+             loadPrgPath, runLoadedProgram, enableExternalDebug) = request;
 
         try
         {
@@ -202,6 +214,21 @@ public static class AutomatedStartupHandler
                     var firstVariant = hostApp.AllSelectedSystemConfigurationVariants[0];
                     logger.LogInformation($"Using first available system variant: {firstVariant}");
                     await hostApp.SelectSystemConfigurationVariant(firstVariant);
+                }
+            }
+
+            // Pre-start gate: when the system will actually be started, give its optional
+            // participant a chance to make the configuration valid (e.g. download missing ROMs
+            // interactively) before Start(). A false result is a deliberate, graceful abort — not
+            // a fatal error — so it calls onFatalError directly (host falls back to its normal UI)
+            // rather than fatalError(), whose default terminates the process.
+            if (autoStart && startupParticipant is not null)
+            {
+                if (!await startupParticipant.EnsureReadyForStartAsync(hostApp, request))
+                {
+                    logger.LogInformation($"Automated startup aborted by participant for system '{systemName}'.");
+                    onFatalError?.Invoke();
+                    return;
                 }
             }
 
@@ -325,6 +352,13 @@ public static class AutomatedStartupHandler
                         logger.LogInformation("Automated startup complete.");
                         onStartupComplete?.Invoke();
                     }
+
+                    // Post-ready hook: after the system is started (and, if requested, reported
+                    // ready) let the participant run a system-specific action — e.g. the C64
+                    // participant pastes BASIC source. See docs/automated-startup-seam2.md.
+                    if (startupParticipant is not null)
+                        await startupParticipant.OnSystemReadyAsync(
+                            hostApp, request, startupContext ?? new AutomatedStartupContext());
                 });
             }
             else

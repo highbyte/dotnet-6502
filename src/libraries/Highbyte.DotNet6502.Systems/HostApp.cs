@@ -12,19 +12,16 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 
 /// <summary>
 /// A base class to be used as a common host application model for managing and running different emulators on a specific host platform.
-/// The generic type parameters TInputHandlerContext, and TAudioHandlerContext dictates the types of input handling, and audio handling available on a specific platform.
-/// 
-/// The constructor must also provide a generic SystemList parameter (with the same generic context types) that provides the different emulators and their InputHandlers, and AudioHandlers base on the context types.
+///
+/// Input and audio are no longer generic over host context types: the host input context is read
+/// through the neutral <see cref="Input.IHostInputState"/>, and audio is driven by an
+/// <see cref="Audio.IAudioCoordinator"/> wired up the same way the render pipeline is.
 /// </summary>
-/// <typeparam name="TInputHandlerContext"></typeparam>
-/// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IManualRenderingProvider
-    where TInputHandlerContext : IInputHandlerContext
-    where TAudioHandlerContext : IAudioHandlerContext
+public class HostApp : IHostApp, IManualRenderingProvider
 {
     // Injected via constructor
     protected readonly ILogger _logger;
-    private readonly SystemList<TInputHandlerContext, TAudioHandlerContext> _systemList;
+    private readonly SystemList _systemList;
     private readonly bool _useStatsNamePrefix;
 
     // Other variables
@@ -79,6 +76,15 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private RenderCoordinatorProvider? _renderCoordinatorProvider;
     private IRenderCoordinator? _renderCoordinator;
     private IRenderTarget? _currentRenderTarget;
+
+    private AudioTargetProvider? _audioTargetProvider;
+    private AudioCoordinatorProvider? _audioCoordinatorProvider;
+    private IAudioCoordinator? _audioCoordinator;
+    private IAudioTarget? _currentAudioTarget;
+
+    // The host input context, which is also the neutral input source (IHostInputState) bound to
+    // the running system's IInputConsumer. Mirrors how render/audio targets are registered host-side.
+    private Func<IInputHandlerContext>? _getInputHandlerContext;
 
     // Events
     public event EventHandler? SelectedSystemChanged;
@@ -150,7 +156,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
 
     public HostApp(
         string hostName,
-        SystemList<TInputHandlerContext, TAudioHandlerContext> systemList,
+        SystemList systemList,
         ILoggerFactory loggerFactory,
         bool useStatsNamePrefix = true
         )
@@ -160,8 +166,12 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
+        // An empty system list is a valid (degraded) state: the host app is still created so its
+        // UI can be reached and a "no systems available" error can be shown to the user. Selecting
+        // or running a system is what fails later — host apps handle that by not attempting it.
         if (systemList.Systems.Count == 0)
-            throw new DotNet6502Exception("No systems added to system list.");
+            _logger.LogWarning(
+                "HostApp created with no systems in the system list. No system can be selected or run.");
         _systemList = systemList;
         _useStatsNamePrefix = useStatsNamePrefix;
 
@@ -266,32 +276,20 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     // --- End Scripting ---
 
     public void SetContexts(
-        Func<TInputHandlerContext>? getInputHandlerContext = null,
-        Func<TAudioHandlerContext>? getAudioHandlerContext = null
+        Func<IInputHandlerContext>? getInputHandlerContext = null
     )
     {
-        if (_renderTargetProvider != null)
-        {
-            _systemList.SetContext(
-                _renderTargetProvider, // New rendering pipeline
-                getInputHandlerContext,
-                getAudioHandlerContext);
-        }
-        else
-        {
-            // If no render config is set, still need to set the input/audio contexts
-            _systemList.SetContext(
-                new RenderTargetProvider(), // Empty render target provider for tests
-                getInputHandlerContext,
-                getAudioHandlerContext);
-        }
+        _getInputHandlerContext = getInputHandlerContext;
+
+        // Use the configured render target provider, or an empty one for tests where no render config is set.
+        _systemList.SetContext(
+            _renderTargetProvider ?? new RenderTargetProvider(),
+            getInputHandlerContext);
     }
 
     public void InitInputHandlerContext() => _systemList.InitInputHandlerContext();
-    public void InitAudioHandlerContext() => _systemList.InitAudioHandlerContext();
 
     public bool IsInputHandlerContextInitialized => _systemList.IsInputHandlerContextInitialized;
-    public bool IsAudioHandlerContextInitialized => _systemList.IsAudioHandlerContextInitialized;
 
     /// <summary>
     /// Derived class must call this method once to configure rendering capabilities.
@@ -309,6 +307,29 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         var renderLoop = createRenderLoop();
         _renderCoordinatorProvider = new RenderCoordinatorProvider(renderLoop);
     }
+
+    /// <summary>
+    /// Derived class may call this once to configure audio capabilities (mirrors <see cref="SetRenderConfig"/>).
+    /// Hosts that support no audio simply do not call it.
+    /// </summary>
+    /// <param name="configureAudioTargetProvider">
+    /// Callback to register the host's <see cref="IAudioTarget"/> factories (which close over the
+    /// host's audio context).
+    /// </param>
+    public void SetAudioConfig(
+        Action<AudioTargetProvider> configureAudioTargetProvider)
+    {
+        _audioTargetProvider = new AudioTargetProvider();
+        configureAudioTargetProvider(_audioTargetProvider);
+
+        _audioCoordinatorProvider = new AudioCoordinatorProvider();
+    }
+
+    /// <summary>Pauses just the audio output (e.g. when an external debugger halts the system).</summary>
+    protected void PauseAudio() => _audioCoordinator?.PausePlaying();
+
+    /// <summary>Resumes just the audio output (e.g. when an external debugger continues the system).</summary>
+    protected void ResumeAudio() => _audioCoordinator?.StartPlaying();
 
     public List<Type> GetAvailableSystemRenderProviderTypes()
     {
@@ -362,8 +383,25 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (systemChanged)
         {
             AllSelectedSystemConfigurationVariants = await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig);
-            var selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
-            await SelectSystemConfigurationVariant(selectedSystemConfigurationVariant);
+            if (_allSelectedSystemConfigurationVariants.Count > 0)
+            {
+                var selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
+                await SelectSystemConfigurationVariant(selectedSystemConfigurationVariant);
+            }
+            else
+            {
+                // A system with no configuration variants cannot be built or run. Keep it
+                // selected so the UI can still show it, but leave it in a non-runnable state
+                // (Start() rejects it) instead of crashing here on First(). This is a system-
+                // plugin defect: ISystemConfigurer.GetConfigurationVariants must return at least
+                // one variant (use a single "DEFAULT" if the system has no real variants).
+                _logger.LogError(
+                    "System '{System}' has no configuration variants — it cannot be started. " +
+                    "ISystemConfigurer.GetConfigurationVariants must return at least one variant.",
+                    systemName);
+                _selectedSystemConfigurationVariant = string.Empty;
+                _selectedSystemTemporary = null;
+            }
         }
     }
 
@@ -412,6 +450,14 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 
+        // A system with no configuration variants cannot be built (see SelectSystem). Fail with a
+        // clear message rather than passing an empty variant name down to BuildSystem.
+        if (_allSelectedSystemConfigurationVariants.Count == 0)
+            throw new DotNet6502Exception(
+                $"Cannot start system '{_selectedSystemName}': it has no configuration variants. " +
+                "This is a system-plugin defect — ISystemConfigurer.GetConfigurationVariants must " +
+                "return at least one variant.");
+
         var (isValid, validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
         if (!isValid)
         {
@@ -452,9 +498,11 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (EmulatorState == EmulatorState.Uninitialized)
         {
             InitRendererForSystem();
+            InitAudioForSystem();
+            InitInputForSystem();
         }
 
-        _systemRunner.AudioHandler.StartPlaying();
+        _audioCoordinator?.StartPlaying();
 
         OnAfterStart(emulatorStateBeforeStart);
         _scriptingEngine.OnSystemStarted(CurrentRunningSystem!);
@@ -471,7 +519,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
             return;
 
-        _systemRunner!.AudioHandler.PausePlaying();
+        _audioCoordinator?.PausePlaying();
 
         OnAfterPause();
         _scriptingEngine.InvokeEvent("on_paused");
@@ -491,13 +539,17 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
 
         OnBeforeStop();
 
-        _systemRunner?.AudioHandler.StopPlaying();
+        _audioCoordinator?.StopPlaying();
 
         _renderCoordinator?.DisposeAsync();
         _renderCoordinator = null;
         _currentRenderTarget = null;
 
-        // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
+        _audioCoordinator?.DisposeAsync();
+        _audioCoordinator = null;
+        _currentAudioTarget = null;
+
+        // Cleanup systemrunner (which also cleans up the input handler)
         _systemRunner?.Cleanup();
         _systemRunner = default!;
 
@@ -530,6 +582,11 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _renderCoordinator = null;
         _currentRenderTarget = null;
         _renderCoordinatorProvider = null;
+
+        _audioCoordinator?.DisposeAsync();
+        _audioCoordinator = null;
+        _currentAudioTarget = null;
+        _audioCoordinatorProvider = null;
 
         _logger.LogInformation($"Emulator closed");
 
@@ -616,6 +673,52 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(renderProvider, renderTarget, _instrumentations);
     }
 
+    private void InitAudioForSystem()
+    {
+        // Skip if no audio config has been provided (host has no audio support, or unit tests).
+        if (_audioTargetProvider == null || _audioCoordinatorProvider == null)
+        {
+            _audioCoordinator = null;
+            _currentAudioTarget = null;
+            return;
+        }
+
+        // The system exposes its audio provider (null if the system produces no audio,
+        // e.g. the C64 with audio disabled).
+        var audioProvider = CurrentSystemRunner?.System.AudioProvider;
+        if (audioProvider == null)
+        {
+            _audioCoordinator = null;
+            _currentAudioTarget = null;
+            return;
+        }
+
+        var audioTarget = _audioTargetProvider.CreateAudioTargetByAudioProviderType(audioProvider.GetType());
+        _currentAudioTarget = audioTarget;
+        _audioCoordinator = _audioCoordinatorProvider.CreateAudioCoordinator(audioProvider, audioTarget);
+        _audioCoordinator.Init();
+    }
+
+    /// <summary>
+    /// Binds the host input state to the running system's input consumer (input counterpart of
+    /// <see cref="InitRendererForSystem"/> / <see cref="InitAudioForSystem"/>). The system exposes
+    /// its <see cref="ISystem.InputConsumer"/>; the host supplies the neutral
+    /// <see cref="IHostInputState"/> via the input context registered in <see cref="SetContexts"/>.
+    /// </summary>
+    private void InitInputForSystem()
+    {
+        // Null if the system consumes no input (e.g. the Headless host wires no input consumer).
+        var inputConsumer = CurrentSystemRunner?.System.InputConsumer;
+        if (inputConsumer == null)
+            return;
+
+        // The host input context implements IHostInputState. Skip if no context was provided.
+        if (_getInputHandlerContext?.Invoke() is not IHostInputState hostInputState)
+            return;
+
+        inputConsumer.Init(hostInputState);
+    }
+
     public async Task<bool> IsSystemConfigValid()
     {
         return await _systemList.IsValidConfig(_selectedSystemName);
@@ -658,8 +761,13 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         CurrentHostSystemConfig = (IHostSystemConfig)newConfig.Clone();
         _systemList.ChangeCurrentHostSystemConfig(_selectedSystemName, CurrentHostSystemConfig);
 
-        //Re-select the system to ensure the new config is applied.
-        SelectSystem(_selectedSystemName).Wait();
+        // Rebuild the pre-created system instance to reflect the updated config (e.g. after ROMs have
+        // been uploaded for the first time), so that GetSelectedSystem() returns a valid system and
+        // UpdateCanvasSize() can correctly size the emulator canvas.
+        // Skip this when the emulator is already running -- the config change will be picked up at
+        // the next start via HasConfigChanged in Start().
+        if (EmulatorState == EmulatorState.Uninitialized)
+            SelectSystemConfigurationVariant(_selectedSystemConfigurationVariant).Wait();
     }
 
     /// <summary>
@@ -698,15 +806,19 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
             .Union(_systemInstrumentations.Stats)
             // Sub-system stat: system
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{SystemTimeStatName}-{x.Name}", x.Stat)))
-            // Sub-system stat: audio
-            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-{x.Name}", x.Stat)))
-            // Sub-system stat: input
-            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
+
+        // Sub-system stat: input
+        if (_systemRunner.System.InputConsumer != null)
+            stats.AddRange(_systemRunner.System.InputConsumer.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{InputTimeStatName}-{x.Name}", x.Stat)));
 
         // Sub-system stat: render
         if (_renderCoordinator != null)
             stats.AddRange(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{RenderStatName}-{x.Name}", x.Stat)));
+
+        // Sub-system stat: audio
+        if (_audioCoordinator != null)
+            stats.AddRange(_audioCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-{x.Name}", x.Stat)));
 
         return stats;
     }

@@ -35,8 +35,8 @@ jobs:
 
       - name: Publish SilkNetNative App
         run: |
-          chmod u+x src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh
-          src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh ${{ matrix.runtime }}
+          chmod u+x src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish.sh
+          src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish.sh ${{ matrix.runtime }}
 
       - name: Publish Avalonia Desktop App
         run: |
@@ -45,8 +45,8 @@ jobs:
 
       - name: Publish SadConsole App
         run: |
-          chmod u+x src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh
-          src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh ${{ matrix.runtime }}
+          chmod u+x src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/publish.sh
+          src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/publish.sh ${{ matrix.runtime }}
 
       - name: Publish Headless App
         run: |
@@ -60,13 +60,13 @@ jobs:
 
       - name: Zip Apps
         run: |
-          cd src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/${{ matrix.runtime }}
+          cd src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip .
 
           cd $GITHUB_WORKSPACE/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-Avalonia-${{ matrix.runtime }}.zip .
 
-          cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.SadConsole/publish/${{ matrix.runtime }}
+          cd $GITHUB_WORKSPACE/src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-SadConsole-${{ matrix.runtime }}.zip .
 
           cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.Headless/publish/${{ matrix.runtime }}

@@ -1,0 +1,338 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.Views.C64MenuView"
+             x:DataType="vm:C64MenuViewModel"
+             Focusable="False">
+
+    <!-- DataContext will be set from constructor via DI -->
+
+    <UserControl.Styles>
+        <!-- Include non-focusable styles -->
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+    </UserControl.Styles>
+
+    <!-- C64 Specific actions and settings -->
+    <StackPanel Classes="spacing-tight">
+        <TextBlock Text="Commodore 64"
+                   Classes="" />
+
+        <!-- Copy/Paste buttons -->
+        <Grid Classes="spacing-tight">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0"
+                    Content="Copy"
+                    AutomationProperties.AutomationId="CopyBasicButton"
+                    AutomationProperties.Name="Copy BASIC source to clipboard"
+                    Command="{Binding CopyBasicSourceCommand}"
+                    Classes="small"/>
+            <Button Grid.Column="1"
+                    Content="Paste"
+                    AutomationProperties.AutomationId="PasteTextButton"
+                    AutomationProperties.Name="Paste text from clipboard"
+                    Command="{Binding PasteTextCommand}"
+                    Classes="small"/>
+        </Grid>
+
+        <!-- AI Basic coding assistant -->
+        <Grid Classes="spacing-tight">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <CheckBox Grid.Column="0"
+                      Content="AI Basic (F9)"
+                      AutomationProperties.AutomationId="AiBasicCheckBox"
+                      Classes=""
+                      IsChecked="{Binding BasicCodingAssistantEnabled}"
+                      IsEnabled="{Binding BasicCodingAssistantAvailable}"/>
+            <Button Grid.Column="2"
+                    Content="i"
+                    AutomationProperties.AutomationId="AiBasicInfoButton"
+                    AutomationProperties.Name="About AI BASIC coding assistant"
+                    Classes="info"
+                    Click="OpenBasicAssistantInfo_Click"/>
+        </Grid>
+
+        <!-- Disk Drive & D64 images -->
+        <StackPanel>
+            <Button Name="DiskSectionHeader"
+                    AutomationProperties.AutomationId="DiskSectionHeader"
+                    AutomationProperties.Name="Toggle disk drive section"
+                    Classes="section-toggle"
+                    Command="{Binding ToggleDiskSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsDiskSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsDiskSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Disk Drive &amp; .D64 images"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Border Name="DiskSectionContent"
+                    AutomationProperties.AutomationId="DiskSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsDiskSectionExpanded}">
+                <StackPanel Classes="spacing-tight">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="{Binding DiskToggleButtonText}"
+                                Name="DiskToggleButton"
+                                AutomationProperties.AutomationId="DiskToggleButton"
+                                AutomationProperties.Name="Attach or detach disk image"
+                                Command="{Binding ToggleDiskImageCommand}"
+                                Classes="small"/>
+                        <Button Grid.Column="1"
+                                Content="i"
+                                AutomationProperties.AutomationId="DiskInfoButton"
+                                AutomationProperties.Name="About disk drive and .D64 images"
+                                Classes="info"
+                                Click="OpenDiskInfo_Click"/>
+                    </Grid>
+
+                    <TextBlock Text="Download &amp; Run .D64 programs"
+                               Classes="small secondary-text"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="PreloadedDiskComboBox"
+                                  AutomationProperties.Name="Preloaded D64 program"
+                                  ItemsSource="{Binding PreloadedD64Programs}"
+                                  SelectedValue="{Binding SelectedPreloadedDisk}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="true"
+                                  Classes="small"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="i"
+                                AutomationProperties.AutomationId="PreloadedDiskInfoButton"
+                                AutomationProperties.Name="About preloaded D64 programs"
+                                Classes="info"
+                                Click="OpenDiskInfo_Click"/>
+                    </Grid>
+
+                    <Button Content="Download &amp; Run"
+                            AutomationProperties.AutomationId="DownloadAndRunDiskButton"
+                            Classes="primary small"
+                            Command="{Binding LoadPreloadedDiskCommand}"
+                            IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <TextBlock Text="Download D64 disk image and auto-run the program on it."
+                               Classes="small secondary-text"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Load/Save -->
+        <StackPanel>
+            <Button Name="LoadSaveSectionHeader"
+                    AutomationProperties.AutomationId="LoadSaveSectionHeader"
+                    AutomationProperties.Name="Toggle Load/Save section"
+                    Classes="section-toggle"
+                    Command="{Binding ToggleLoadSaveSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsLoadSaveSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsLoadSaveSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Load/Save"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Border Name="LoadSaveSectionContent"
+                    AutomationProperties.AutomationId="LoadSaveSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsLoadSaveSectionExpanded}">
+                <StackPanel Classes="spacing-tight">
+                    <TextBlock Text="Load/save .prg files"
+                               Classes="small secondary-text"/>
+
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="Load Basic"
+                                AutomationProperties.AutomationId="LoadBasicButton"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="LoadBasicFile_Click"
+                                Classes="small"/>
+                        <Button Grid.Column="1"
+                                Content="Save Basic"
+                                AutomationProperties.AutomationId="SaveBasicButton"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="SaveBasicFile_Click"
+                                Classes="small"/>
+                    </Grid>
+
+                    <Button Content="Load &amp; start binary"
+                            AutomationProperties.AutomationId="LoadBinaryButton"
+                            Classes="primary small"
+                            IsEnabled="{Binding IsFileOperationEnabled}"
+                            Click="LoadBinaryFile_Click"/>
+
+                    <TextBlock Text="Assembly example files"
+                               Classes="small secondary-text"/>
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="AssemblyExampleComboBox"
+                                  AutomationProperties.Name="Assembly example file"
+                                  ItemsSource="{Binding AssemblyExamples}"
+                                  SelectedValue="{Binding SelectedAssemblyExample}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="{Binding IsFileOperationEnabled}"
+                                  Classes="small"
+                                  VerticalAlignment="Stretch"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="Load &amp; start"
+                                AutomationProperties.AutomationId="LoadAssemblyExampleButton"
+                                VerticalAlignment="Stretch"
+                                Classes="primary small"
+                                Command="{Binding LoadAssemblyExampleCommand}"/>
+                    </Grid>
+
+                    <TextBlock Text="Basic example files"
+                               Classes="small secondary-text"/>
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="BasicExampleComboBox"
+                                  AutomationProperties.Name="Basic example file"
+                                  ItemsSource="{Binding BasicExamples}"
+                                  SelectedValue="{Binding SelectedBasicExample}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="{Binding IsFileOperationEnabled}"
+                                  Classes="small"
+                                  VerticalAlignment="Stretch"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="Load"
+                                AutomationProperties.AutomationId="LoadBasicExampleButton"
+                                VerticalAlignment="Stretch"
+                                Classes="primary small"
+                                Command="{Binding LoadBasicExampleCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Configuration -->
+        <StackPanel>
+            <Button Name="ConfigSectionHeader"
+                    AutomationProperties.AutomationId="ConfigSectionHeader"
+                    AutomationProperties.Name="Toggle Configuration section"
+                    Classes="section-toggle"
+                    Command="{Binding ToggleConfigSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsConfigSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsConfigSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Configuration"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Border Name="ConfigSectionContent"
+                    AutomationProperties.AutomationId="ConfigSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsConfigSectionExpanded}">
+                <StackPanel Classes="spacing-tight">
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Active joystick:"
+                                   Classes="small secondary-text"/>
+                        <ComboBox Grid.Column="1"
+                                  AutomationProperties.AutomationId="ActiveJoystickComboBox"
+                                  AutomationProperties.Name="Active joystick"
+                                  ItemsSource="{Binding AvailableJoysticks}"
+                                  SelectedItem="{Binding CurrentJoystick}"
+                                  Classes="small"
+                                  MinWidth="30"/>
+                    </Grid>
+
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0"
+                                  Content="Joystick KB:"
+                                  AutomationProperties.AutomationId="JoystickKeyboardCheckBox"
+                                  Classes="small"
+                                  IsChecked="{Binding JoystickKeyboardEnabled}"/>
+                        <ComboBox Grid.Column="1"
+                                  AutomationProperties.AutomationId="KeyboardJoystickComboBox"
+                                  AutomationProperties.Name="Keyboard joystick port"
+                                  ItemsSource="{Binding AvailableJoysticks}"
+                                  SelectedItem="{Binding KeyboardJoystick}"
+                                  IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
+                                  Classes="small"
+                                  MinWidth="30"/>
+                    </Grid>
+
+                    <Button Name ="C64Config"
+                            AutomationProperties.AutomationId="C64ConfigButton"
+                            AutomationProperties.Name="Open C64 configuration dialog"
+                            Content="C64 Config"
+                            Click="OpenC64Config_Click"
+                            IsEnabled="{Binding IsC64ConfigEnabled}"
+                            Classes="small">
+                        <Button.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.7"/>
+                            </Transitions>
+                        </Button.Transitions>
+                    </Button>
+
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+    </StackPanel>
+</UserControl>

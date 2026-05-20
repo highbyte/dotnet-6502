@@ -19,6 +19,12 @@ namespace Highbyte.DotNet6502.Systems;
 /// </summary>
 public interface ISystemConfig : ICloneable
 {
+    /// <summary>Whether the config has unsaved changes since the last <see cref="ClearDirty"/>.</summary>
+    bool IsDirty { get; }
+
+    /// <summary>Clears the dirty flag.</summary>
+    void ClearDirty();
+
     void Validate();
 
     bool IsValid(out List<string> validationErrors);

@@ -5,7 +5,7 @@
     <LangVersion>latest</LangVersion>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <!-- Fonts and other assets used by Avalonia UI (not emulated systems) -->
     <AvaloniaResource Include="Assets\**" />
@@ -32,13 +32,6 @@
     <EmbeddedResource Include="Resources\Sample6502Programs\Basic\C64\PlaySoundVoice1TriangleScale.prg" />
   </ItemGroup>
 
-  <!-- Generic 6502 sample programs -->
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hostinteraction_scroll_text_and_cycle_colors.prg" />
-    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\snake6502.prg" />
-    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hello_world.prg" />
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
@@ -58,7 +51,7 @@
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Remoting\Highbyte.DotNet6502.Remoting.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
-    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.NAudio\Highbyte.DotNet6502.Impl.NAudio.csproj" />
   </ItemGroup>
 
