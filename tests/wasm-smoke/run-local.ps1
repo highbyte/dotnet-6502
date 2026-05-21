@@ -21,7 +21,7 @@ $Version = '0.0.0-local'
 function Invoke-Publish {
     param([string]$Name, [string]$Project)
     $out = Join-Path $BuildDir $Name
-    Write-Host "==> Publishing $Name (Release, AOT) -> $out"
+    Write-Output "==> Publishing $Name (Release, AOT) -> $out"
     if (Test-Path $out) { Remove-Item $out -Recurse -Force }
     & dotnet publish (Join-Path $RepoRoot $Project) `
         -c Release `
@@ -35,7 +35,7 @@ function Invoke-Publish {
 
 function Invoke-VersionPlaceholder {
     param([string]$Root)
-    Write-Host "==> Replacing {{APP_VERSION}} placeholders in $Root"
+    Write-Output "==> Replacing {{APP_VERSION}} placeholders in $Root"
     $files = Get-ChildItem -Path $Root -Recurse -File -Include '*.html', '*.js' `
         | Where-Object { $_.Name -notmatch '\.(br|gz)$' }
     foreach ($f in $files) {
@@ -52,7 +52,7 @@ function Get-PlaywrightBin {
 }
 
 function Initialize-Playwright {
-    Write-Host "==> Ensuring Playwright + Chromium installed"
+    Write-Output "==> Ensuring Playwright + Chromium installed"
     Push-Location $ScriptDir
     try {
         if (-not (Test-Path 'node_modules')) {
@@ -67,7 +67,7 @@ function Initialize-Playwright {
 function Invoke-Spec {
     param([string]$Name, [string]$Spec)
     $root = Join-Path $BuildDir "$Name\wwwroot"
-    Write-Host "==> Running Playwright spec for $Name"
+    Write-Output "==> Running Playwright spec for $Name"
     Push-Location $ScriptDir
     try {
         $env:WASM_SITE_ROOT = $root
@@ -97,4 +97,4 @@ switch ($App) {
     'all'               { Invoke-Blazor; Invoke-AvaloniaBrowser }
 }
 
-Write-Host "==> Smoke test passed"
+Write-Output "==> Smoke test passed"

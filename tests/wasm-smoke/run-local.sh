@@ -17,7 +17,7 @@ usage() {
   exit 2
 }
 
-[ $# -eq 1 ] || usage
+[[ $# -eq 1 ]] || usage
 
 publish() {
   local name="$1" project="$2"
@@ -50,7 +50,7 @@ prepare_playwright() {
   echo "==> Ensuring Playwright + Chromium installed"
   cd "$SCRIPT_DIR"
   # npm ci + --ignore-scripts: see Install Playwright deps step in wasm-aot-verify.yml.
-  [ -d node_modules ] || npm ci --ignore-scripts
+  [[ -d node_modules ]] || npm ci --ignore-scripts
   ./node_modules/.bin/playwright install chromium >/dev/null
 }
 
