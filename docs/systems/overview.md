@@ -8,3 +8,7 @@ A system implementation does not have any dependencies on specific rendering, in
 
 - [Commodore 64](c64/overview.md)
 - [Generic computer](generic/overview.md)
+
+## Adding a new system
+
+See [Adding a new emulated system](adding-a-system.md) for a step-by-step guide to plugging a new computer (VIC-20, NES, …) into the emulator.

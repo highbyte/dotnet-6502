@@ -56,7 +56,10 @@ Manual download, see section in [installation.md](installation.md)
     - Sprites (normal and multi-color) with all renderers.
     - Rendering of raster lines for border and background colors with all renderers.
 
-- Input using `SilkNet`.
+- Input using `SilkNet`. Keyboard uses GLFW's positional keys, so both `US` and `Swedish` C64
+  keyboard layouts work; layout is auto-detected from the host (Win32 KLID / macOS `TIS*`) and can
+  be overridden from the in-app C64 config UI. See
+  [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
 
 - Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
 

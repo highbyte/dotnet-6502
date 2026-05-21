@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -8,142 +7,61 @@ namespace Highbyte.DotNet6502.Systems.Tests;
 public class SystemRunnerTests
 {
     [Fact]
-    public void CreatingWithRendererAndInputHandlerAndAudioHandlerWorks()
+    public void CreatingWithSystemWorks()
     {
         // Arrange
         var system = new TestSystem();
-        var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
-        var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-        var systemRunner = new SystemRunner(system, inputHandler, audioHandler);
 
         // Act
-        systemRunner.Init();
+        var systemRunner = new SystemRunner(system);
 
         // Assert
         Assert.Equal(system, systemRunner.System);
-        //Assert.Equal(renderer, systemRunner.Renderer);
-        Assert.Equal(inputHandler, systemRunner.InputHandler);
-        Assert.Equal(audioHandler, systemRunner.AudioHandler);
     }
 
     [Fact]
-    public void CreatingWithOnlyRendererWorksAndSetsOthersToNullImplementations()
+    public void ProcessInputBeforeFrameInvokesTheSystemsInputConsumer()
     {
         // Arrange
         var system = new TestSystem();
+        var inputConsumer = new TestInputConsumer(system);
+        system.InputConsumer = inputConsumer;
         var systemRunner = new SystemRunner(system);
 
         // Act
-        systemRunner.Init();
+        systemRunner.ProcessInputBeforeFrame();
 
         // Assert
-        Assert.Equal(system, systemRunner.System);
-        //Assert.Equal(renderer, systemRunner.Renderer);
-        Assert.Equal(typeof(NullInputHandler), systemRunner.InputHandler.GetType());
-        Assert.Equal(typeof(NullAudioHandler), systemRunner.AudioHandler.GetType());
+        Assert.True(inputConsumer.BeforeFrameWasCalled);
     }
 
     [Fact]
-    public void CreatingWithOnlyInputHandlerWorksAndSetsOthersToNullImplementations()
+    public void CallingCleanUpWillCleanUpTheSystemsInputConsumer()
     {
         // Arrange
         var system = new TestSystem();
-        var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
-        var systemRunner = new SystemRunner(system, inputHandler);
-
-        // Act
-        systemRunner.Init();
-
-        // Assert
-        Assert.Equal(system, systemRunner.System);
-        //Assert.Equal(typeof(NullRenderer), systemRunner.Renderer.GetType());
-        Assert.Equal(inputHandler, systemRunner.InputHandler);
-        Assert.Equal(typeof(NullAudioHandler), systemRunner.AudioHandler.GetType());
-    }
-
-    [Fact]
-    public void CreatingWithOnlyAudioHandlerWorksAndSetsOthersToNullImplementations()
-    {
-        // Arrange
-        var system = new TestSystem();
-        var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-        var systemRunner = new SystemRunner(system, audioHandler);
-
-        // Act
-        systemRunner.Init();
-
-        // Assert
-        Assert.Equal(system, systemRunner.System);
-        //Assert.Equal(typeof(NullRenderer), systemRunner.Renderer.GetType());
-        Assert.Equal(typeof(NullInputHandler), systemRunner.InputHandler.GetType());
-        Assert.Equal(audioHandler, systemRunner.AudioHandler);
-    }
-
-    [Fact]
-    public void CreatingWithOnlyRendererAndInputHandlersWorksAndSetsOthersToNullImplementations()
-    {
-        // Arrange
-        var system = new TestSystem();
-        var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
-        var systemRunner = new SystemRunner(system, inputHandler);
-
-        // Act
-        systemRunner.Init();
-
-        // Assert
-        Assert.Equal(system, systemRunner.System);
-        //Assert.Equal(renderer, systemRunner.Renderer);
-        Assert.Equal(inputHandler, systemRunner.InputHandler);
-        Assert.Equal(typeof(NullAudioHandler), systemRunner.AudioHandler.GetType());
-    }
-
-    [Fact]
-    public void CreatingWithDifferentSystemInInputHandlerFails()
-    {
-        // Arrange
-        var system = new TestSystem();
-        var system2 = new TestSystem();
-        var inputHandler = new TestInputHandler(system2, new NullInputHandlerContext());
-        var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-
-        // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => new SystemRunner(system, inputHandler, audioHandler));
-        Assert.Contains("InputHandler must be for the same system as the SystemRunner", ex.Message);
-    }
-
-    [Fact]
-    public void CreatingWithDifferentSystemInAudioHandlerFails()
-    {
-        // Arrange
-        var system = new TestSystem();
-        var system2 = new TestSystem();
-        var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
-        var audioHandler = new TestAudioHandler(system2, new NullAudioHandlerContext());
-
-        // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => new SystemRunner(system, inputHandler, audioHandler));
-        Assert.Contains("AudioHandler must be for the same system as the SystemRunner", ex.Message);
-    }
-
-    [Fact]
-    public void CallingCleanUpWillCleanUpRendererAndInputHandlerAndAudioHandler()
-    {
-        // Arrange
-        var system = new TestSystem();
-        var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
-        var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-        var systemRunner = new SystemRunner(system, inputHandler, audioHandler);
-        systemRunner.Init();
+        var inputConsumer = new TestInputConsumer(system);
+        system.InputConsumer = inputConsumer;
+        var systemRunner = new SystemRunner(system);
 
         // Act
         systemRunner.Cleanup();
 
         // Assert
-        Assert.True(inputHandler.CleanUpWasCalled);
-        Assert.True(audioHandler.CleanUpWasCalled);
+        Assert.True(inputConsumer.CleanUpWasCalled);
     }
 
+    [Fact]
+    public void ProcessInputAndCleanupAreNoOpsWhenSystemHasNoInputConsumer()
+    {
+        // Arrange
+        var system = new TestSystem();
+        var systemRunner = new SystemRunner(system);
 
+        // Act / Assert (no exception)
+        systemRunner.ProcessInputBeforeFrame();
+        systemRunner.Cleanup();
+    }
 }
 
 public class TestSystem : ISystem
@@ -178,6 +96,8 @@ public class TestSystem : ISystem
 
     public IRenderProvider? RenderProvider => null;
     public List<IRenderProvider> RenderProviders { get; } = new();
+
+    public IInputConsumer? InputConsumer { get; set; }
 }
 
 public class TestSystem2 : ISystem
@@ -211,71 +131,35 @@ public class TestSystem2 : ISystem
 
     public IRenderProvider? RenderProvider => null;
     public List<IRenderProvider> RenderProviders { get; } = new();
+
+    public IInputConsumer? InputConsumer { get; set; }
 }
 
 
-public class TestInputHandler : IInputHandler
+public class TestInputConsumer : IInputConsumer
 {
     private readonly TestSystem _system;
     public ISystem System => _system;
 
-    private readonly IInputHandlerContext _inputContext;
+    public bool InitWasCalled = false;
+    public bool BeforeFrameWasCalled = false;
     public bool CleanUpWasCalled = false;
 
-
-    public TestInputHandler(TestSystem system, IInputHandlerContext inputContext)
+    public TestInputConsumer(TestSystem system)
     {
         _system = system;
-        _inputContext = inputContext;
     }
-    public void Init()
+    public void Init(IHostInputState hostInputState)
     {
+        InitWasCalled = true;
     }
     public void BeforeFrame()
     {
+        BeforeFrameWasCalled = true;
     }
     public void Cleanup()
     {
         CleanUpWasCalled = true;
-    }
-    public List<string> GetDebugInfo() => new();
-
-    public Instrumentations Instrumentations { get; } = new();
-}
-
-public class TestAudioHandler : IAudioHandler
-{
-    private readonly TestSystem _system;
-    public ISystem System => _system;
-
-    private readonly IAudioHandlerContext _audioHandlerContext;
-    public bool CleanUpWasCalled = false;
-
-    public TestAudioHandler(TestSystem system, IAudioHandlerContext audioHandlerContext)
-    {
-        _system = system;
-        _audioHandlerContext = audioHandlerContext;
-    }
-
-    public void Init()
-    {
-    }
-    public void AfterFrame()
-    {
-    }
-    public void PausePlaying()
-    {
-    }
-    public void StartPlaying()
-    {
-    }
-    public void StopPlaying()
-    {
-    }
-    public void Cleanup()
-    {
-        CleanUpWasCalled = true;
-        StopPlaying();
     }
     public List<string> GetDebugInfo() => new();
 

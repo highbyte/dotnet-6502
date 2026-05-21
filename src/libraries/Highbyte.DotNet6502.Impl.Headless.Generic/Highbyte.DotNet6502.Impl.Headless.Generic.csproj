@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    Per-system Headless integration for the Generic computer. Holds the Generic ISystemEnginePlugin
+    + configurer + host config; discovered by SystemPluginDiscovery via the [assembly: SystemPlugin]
+    attribute. Picked up by the Highbyte.DotNet6502.Impl.Headless aggregator's convention glob.
+    See docs/system-configurer-consolidation.md.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Generic\Highbyte.DotNet6502.Systems.Generic.csproj" />
+  </ItemGroup>
+
+  <!-- Generic 6502 sample programs. GenericComputerHeadlessSetup loads these via
+       Assembly.GetExecutingAssembly() — the resource manifest prefix follows this assembly name. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hostinteraction_scroll_text_and_cycle_colors.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\snake6502.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hello_world.prg" />
+  </ItemGroup>
+
+</Project>

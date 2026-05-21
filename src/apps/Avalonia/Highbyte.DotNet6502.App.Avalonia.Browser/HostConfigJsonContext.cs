@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+namespace Highbyte.DotNet6502.App.Avalonia.Browser;
+
 /// <summary>
 /// Source generation context for host config JSON serialization.
 /// Makes it AOT friendly and faster.

@@ -1,19 +1,16 @@
-using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems;
 
-public class SystemList<TInputHandlerContext, TAudioHandlerContext>
-    where TInputHandlerContext : IInputHandlerContext
-    where TAudioHandlerContext : IAudioHandlerContext
+public class SystemList
 {
-    private Func<TInputHandlerContext>? _getInputHandlerContext;
-    private Func<TAudioHandlerContext>? _getAudioHandlerContext;
+    private Func<IInputHandlerContext>? _getInputHandlerContext;
 
     public HashSet<string> Systems = new();
     private RenderTargetProvider? _renderTargetProvider;
-    private readonly Dictionary<string, ISystemConfigurer<TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
+    private readonly Dictionary<string, ISystemConfigurer> _systemConfigurers = new();
 
     private const string DEFAULT_CONFIGURATION_VARIANT = "DEFAULT";
 
@@ -26,8 +23,7 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
 
     public void SetContext(
         RenderTargetProvider renderTargetProvider, // New rendering pipeline
-        Func<TInputHandlerContext>? getInputHandlerContext = null,
-        Func<TAudioHandlerContext>? getAudioHandlerContext = null
+        Func<IInputHandlerContext>? getInputHandlerContext = null
         )
     {
         _renderTargetProvider = renderTargetProvider;
@@ -37,12 +33,6 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
             if (_getInputHandlerContext != null)
                 throw new DotNet6502Exception("InputHandlerContext has already been set. Call SetContext only once.");
             _getInputHandlerContext = getInputHandlerContext;
-        }
-        if (getAudioHandlerContext != null)
-        {
-            if (_getAudioHandlerContext != null)
-                throw new DotNet6502Exception("AudioHandlerContext has already been set. Call SetContext only once.");
-            _getAudioHandlerContext = getAudioHandlerContext;
         }
     }
 
@@ -54,31 +44,15 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
             _getInputHandlerContext().Cleanup();
         _getInputHandlerContext().Init();
     }
-    public void InitAudioHandlerContext()
-    {
-        if (_getAudioHandlerContext == null)
-            throw new DotNet6502Exception("AudioHandlerContext has not been set. Call SetContext first.");
-        if (_getAudioHandlerContext().IsInitialized)
-            _getAudioHandlerContext().Cleanup();
-        _getAudioHandlerContext().Init();
-    }
 
     public bool IsInputHandlerContextInitialized => _getInputHandlerContext != null ? _getInputHandlerContext().IsInitialized : false;
-    public bool IsAudioHandlerContextInitialized => _getAudioHandlerContext != null ? _getAudioHandlerContext().IsInitialized : false;
 
     /// <summary>
     /// Add a system to the list of available systems.
     /// Should typically be done once during startup.
     /// </summary>
-    /// <param name="systemName">Name of the system</param>
-    /// <param name="buildSystem">A callback method to build a new instance of a system with specified configuration object</param>
-    /// <param name="buildSystemRunner">A callback method to build a new instance of a system runner for a system and specified renderer and input handler/param>
-    /// <param name="getNewSystemConfig">A callback method to get new default configuration of the system with specified configuration variant</param>
-    /// <param name="persistSystemConfig">A callback method to persist a configuration object for the system</param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
     public void AddSystem(
-        ISystemConfigurer<TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
+        ISystemConfigurer systemConfigurer)
     {
         var systemName = systemConfigurer.SystemName;
         if (Systems.Contains(systemName))
@@ -92,9 +66,6 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
     /// Returns an instance of the specified system based on the current configuration.
     /// An exception is thrown if the system does not exist or the configuration is invalid.
     /// </summary>
-    /// <param name="systemName"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
     public async Task<ISystem> BuildSystem(string systemName, string configurationVariant)
     {
         if (!Systems.Contains(systemName))
@@ -116,14 +87,11 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
         string configurationVariant)
     {
         if (_getInputHandlerContext == null)
-            throw new DotNet6502Exception("InputHandlerContext has not been initialized. Call InitContext to initialize.");
-        if (_getAudioHandlerContext == null)
-            throw new DotNet6502Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
+            throw new DotNet6502Exception("InputHandlerContext has not been initialized. Call SetContext to initialize.");
 
         var system = await BuildSystem(systemName, configurationVariant);
         var hostSystemConfig = await GetHostSystemConfig(systemName);
-        var systemRunner = await _systemConfigurers[systemName].BuildSystemRunner(system, hostSystemConfig, _getInputHandlerContext(), _getAudioHandlerContext());
-        systemRunner.Init();
+        var systemRunner = await _systemConfigurers[systemName].BuildSystemRunner(system, hostSystemConfig);
         return systemRunner;
     }
 
@@ -131,13 +99,10 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
         ISystem system)
     {
         if (_getInputHandlerContext == null)
-            throw new DotNet6502Exception("InputHandlerContext has not been initialized. Call InitContext to initialize.");
-        if (_getAudioHandlerContext == null)
-            throw new DotNet6502Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
+            throw new DotNet6502Exception("InputHandlerContext has not been initialized. Call SetContext to initialize.");
 
         var hostSystemConfig = await GetHostSystemConfig(system.Name);
-        var systemRunner = await _systemConfigurers[system.Name].BuildSystemRunner(system, hostSystemConfig, _getInputHandlerContext(), _getAudioHandlerContext());
-        systemRunner.Init();
+        var systemRunner = await _systemConfigurers[system.Name].BuildSystemRunner(system, hostSystemConfig);
         return systemRunner;
     }
 
@@ -146,6 +111,50 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
         return await _systemConfigurers[systemName].GetConfigurationVariants(hostSystemConfig.SystemConfig);
+    }
+
+    /// <summary>
+    /// Removes any system that declares no configuration variants. Such a system cannot be built
+    /// or run, and would crash host UIs that present a variant picker — so it is treated as
+    /// unavailable, exactly like a system with no plug-in. Call once at startup, after all systems
+    /// have been added. Returns the names of the systems that were removed.
+    /// </summary>
+    /// <remarks>
+    /// A correctly written <see cref="ISystemConfigurer"/> always returns at least one variant
+    /// (a single "DEFAULT" when the system has no real variants); a system reaching this method
+    /// with none is a plug-in defect.
+    /// </remarks>
+    public async Task<List<string>> RemoveSystemsWithNoConfigurationVariants(ILogger? logger = null)
+    {
+        var removed = new List<string>();
+        foreach (var systemName in Systems.ToList())
+        {
+            List<string> variants;
+            try
+            {
+                var hostSystemConfig = await GetHostSystemConfig(systemName);
+                variants = await GetSystemConfigurationVariants(systemName, hostSystemConfig);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex,
+                    "System '{System}' could not be queried for configuration variants — " +
+                    "treating it as unavailable and removing it from the system list.", systemName);
+                variants = new List<string>();
+            }
+
+            if (variants.Count == 0)
+            {
+                logger?.LogError(
+                    "System '{System}' has no configuration variants — it cannot be started and is " +
+                    "removed from the system list. ISystemConfigurer.GetConfigurationVariants must " +
+                    "return at least one variant.", systemName);
+                Systems.Remove(systemName);
+                _systemConfigurers.Remove(systemName);
+                removed.Add(systemName);
+            }
+        }
+        return removed;
     }
 
     public async Task<bool> IsValidConfig(string systemName)
@@ -214,7 +223,7 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
         var renderTargetProvider = _renderTargetProvider
             ?? throw new DotNet6502Exception("RenderTargetProvider has not been set. Call SetContext first.");
 
-        // Make sure the current selected render provider is one that is supported by the host app.             
+        // Make sure the current selected render provider is one that is supported by the host app.
         var systemConfig = hostSystemConfig.SystemConfig;
         var systemRenderProviderTypes = systemConfig.GetSupportedRenderProviderTypes();
         var availableSystemRenderProviders = renderTargetProvider.GetCompatibleConcreteRenderProviderTypes(systemRenderProviderTypes ?? new List<Type>());

@@ -35,8 +35,8 @@ jobs:
 
       - name: Publish SilkNetNative App
         run: |
-          chmod u+x src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh
-          src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh ${{ matrix.runtime }}
+          chmod u+x src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish.sh
+          src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish.sh ${{ matrix.runtime }}
 
       - name: Publish Avalonia Desktop App
         run: |
@@ -45,8 +45,8 @@ jobs:
 
       - name: Publish SadConsole App
         run: |
-          chmod u+x src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh
-          src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh ${{ matrix.runtime }}
+          chmod u+x src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/publish.sh
+          src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/publish.sh ${{ matrix.runtime }}
 
       - name: Publish Headless App
         run: |
@@ -60,13 +60,13 @@ jobs:
 
       - name: Zip Apps
         run: |
-          cd src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/${{ matrix.runtime }}
+          cd src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip .
 
           cd $GITHUB_WORKSPACE/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-Avalonia-${{ matrix.runtime }}.zip .
 
-          cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.SadConsole/publish/${{ matrix.runtime }}
+          cd $GITHUB_WORKSPACE/src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-SadConsole-${{ matrix.runtime }}.zip .
 
           cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.Headless/publish/${{ matrix.runtime }}
@@ -88,8 +88,9 @@ jobs:
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} \
+          gh release upload "$TAG_NAME" \
             DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip \
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip \
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip \
@@ -117,8 +118,10 @@ jobs:
     steps:
       - name: Extract version from tag
         id: version
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="$TAG_NAME"
           VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -126,13 +129,14 @@ jobs:
       - name: Download checksum files and macOS zip from release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
           for runtime in osx-arm64 linux-x64 linux-arm64 win-x64 win-arm64; do
-            gh release download "${{ github.event.release.tag_name }}" \
+            gh release download "$TAG_NAME" \
               --repo ${{ github.repository }} \
               --pattern "checksums-${runtime}.sha256"
           done
-          gh release download "${{ github.event.release.tag_name }}" \
+          gh release download "$TAG_NAME" \
             --repo ${{ github.repository }} \
             --pattern "DotNet6502-Avalonia-osx-arm64.zip"
 

@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
@@ -12,6 +13,8 @@ using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -52,18 +55,26 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     private readonly ILogger _logger;
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
-    private Action<InstructionExecResult>? _postInstructionAudioCallback = null;
-
     private IRenderProvider? _renderProvider;
     public IRenderProvider? RenderProvider => _renderProvider;
     public List<IRenderProvider> RenderProviders { get; } = new();
+
+    private IAudioProvider? _audioProvider;
+    public IAudioProvider? AudioProvider => _audioProvider;
+    public List<IAudioProvider> AudioProviders { get; } = new();
+
+    /// <summary>
+    /// The C64 input consumer (set by the host configurer in BuildSystemRunner). Reads host input
+    /// through the neutral <see cref="IHostInputState"/> and applies it to CIA1.
+    /// </summary>
+    public IInputConsumer? InputConsumer { get; set; }
 
     // Instrumentations
     public bool InstrumentationEnabled { get; set; }
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "Custom";
     private readonly ElapsedMillisecondsTimedStatSystem _spriteCollisionStat;
-    private readonly ElapsedMillisecondsTimedStatSystem _postInstructionAudioCallbackStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _audioProviderPerInstructionStat;
 
     private const string StatsCategoryRenderProvider = "RenderProvider";
     private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerInstructionStat;
@@ -95,7 +106,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null)
     {
-        _postInstructionAudioCallbackStat.Reset(); // Reset stat, will be continuously updated after each instruction
+        _audioProviderPerInstructionStat.Reset(); // Reset stat, will be continuously updated after each instruction
         _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continuously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
@@ -113,7 +124,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
             }
         }
 
-        _postInstructionAudioCallbackStat.Stop(); // Stop stat (was continuously updated after each instruction)
+        _audioProviderPerInstructionStat.Stop(); // Stop stat (was continuously updated after each instruction)
         _renderProviderPerInstructionStat.Stop(); // Stop stat (was continuously updated after each instruction)
 
         // Check if any text should be pasted to the keyboard buffer (pasted text set by host system, and each character insterted to the C64 keyboard buffer one character per frame)
@@ -181,12 +192,13 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
         Vic2.AdvanceRaster(instructionExecResult.CyclesConsumed);
 
-        // Handle audio processing after each instruction.
-        if (AudioEnabled && _postInstructionAudioCallback != null)
+        // Audio generation after each instruction (SID register writes happen between instructions).
+        // _audioProvider is only set when audio is enabled (see ConfigureAudio).
+        if (_audioProvider != null)
         {
-            _postInstructionAudioCallbackStat.Start(cont: true);
-            _postInstructionAudioCallback.Invoke(instructionExecResult);
-            _postInstructionAudioCallbackStat.Stop(cont: true);
+            _audioProviderPerInstructionStat.Start(cont: true);
+            _audioProvider.OnAfterInstruction();
+            _audioProviderPerInstructionStat.Stop(cont: true);
         }
 
         // New render pipeline
@@ -201,7 +213,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     {
         _logger = logger;
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
-        _postInstructionAudioCallbackStat = Instrumentations.Add($"{StatsCategory}-AudioPostInstrCallback", new ElapsedMillisecondsTimedStatSystem(this));
+        _audioProviderPerInstructionStat = Instrumentations.Add($"{StatsCategory}-AudioInstruction", new ElapsedMillisecondsTimedStatSystem(this));
 
         _renderProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
         _renderProviderPerFrameStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));
@@ -280,6 +292,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         SetStartupBank(c64);
 
         ConfigureRenderer(c64, c64Config);
+        ConfigureAudio(c64, c64Config);
 
         // Set program counter on startup to the address specified at the 6502 reset vector.
         c64.CPU.Reset(c64.Mem);
@@ -308,6 +321,18 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         c64.RenderProviders.Add(new C64VideoCommandStream(c64));
 
         c64.SetCurrentRenderProvider(config.RenderProviderType);
+    }
+
+    private static void ConfigureAudio(C64 c64, C64Config config)
+    {
+        // Audio has a single provider style (command stream). When audio is disabled, no provider
+        // is created — the host then builds no audio coordinator and the system stays silent.
+        if (!config.AudioEnabled)
+            return;
+
+        var commandStream = new C64SidCommandStream(c64);
+        c64.AudioProviders.Add(commandStream);
+        c64._audioProvider = commandStream;
     }
 
     private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)
@@ -629,11 +654,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     public ushort GetBasicProgramEndAddress()
     {
         return (ushort)(Mem.FetchWord(0x2d) - 1);
-    }
-
-    public void SetPostInstructionAudioCallback(Action<InstructionExecResult> callback)
-    {
-        _postInstructionAudioCallback = callback;
     }
 
     /// <summary>

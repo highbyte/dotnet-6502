@@ -25,7 +25,6 @@ computerBuilder
 var computer = computerBuilder.Build();
 
 var systemRunner = new SystemRunner(computer);
-systemRunner.Init();
 
 var monitorConfig = new MonitorConfig
 {

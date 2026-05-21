@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    Headless host integration aggregator. Headless has no host-technology glue, so this project
+    holds no code itself — it is completely free of system-specific code and references. The
+    per-system engine plugins live in Highbyte.DotNet6502.Impl.Headless.<System> projects,
+    referenced here via a convention glob so adding a new system needs no edit to this project or
+    to the App.Headless entry exe. See docs/system-configurer-consolidation.md.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Highbyte.DotNet6502.Impl.Headless.*\*.csproj" />
+  </ItemGroup>
+
+</Project>

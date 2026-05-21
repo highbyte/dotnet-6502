@@ -95,6 +95,7 @@
                         Height="35"
                         Classes="primary"
                         IsDefault="True"
+                        IsVisible="{Binding ShowContinueButton}"
                         Command="{Binding ContinueCommand}"/>
                 <!--<Button x:Name="ContinueButton"
                         Content="Continue"

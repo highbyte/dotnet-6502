@@ -18,3 +18,8 @@ Technologies:
 Stand-alone console monitor app, no other UI.
 
 Can be used for running general 6502 code with no system-specific requirements.
+
+!!! note
+    This app is single-system *by design*. It uses a `GenericComputer` purely as the lightest
+    bare-metal `ISystem` (a 6502 CPU + 64 KB RAM, no ROM, no I/O) — not as the "Generic" peer
+    system. It is intentionally not routed through plugin discovery / `Impl.Headless`.

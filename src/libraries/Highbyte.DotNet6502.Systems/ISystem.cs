@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Rendering;
 
@@ -25,6 +27,26 @@ public interface ISystem
 
     IRenderProvider? RenderProvider { get; }
     List<IRenderProvider> RenderProviders { get; }
+
+    /// <summary>
+    /// The currently selected audio provider (audio counterpart of <see cref="RenderProvider"/>).
+    /// Null if the system produces no audio.
+    /// </summary>
+    IAudioProvider? AudioProvider => null;
+
+    /// <summary>
+    /// Audio providers exposed by the system (audio counterpart of <see cref="RenderProviders"/>).
+    /// Default is none; systems that produce audio override this.
+    /// </summary>
+    List<IAudioProvider> AudioProviders => new();
+
+    /// <summary>
+    /// The system's per-frame input consumer (input counterpart of <see cref="RenderProvider"/> /
+    /// <see cref="AudioProvider"/>). Reads host input through the neutral
+    /// <see cref="Input.IHostInputState"/> and applies it to the emulated machine.
+    /// Null if the system consumes no input; systems that do override this.
+    /// </summary>
+    IInputConsumer? InputConsumer => null;
 
     IInputInjector? InputInjector => null;
 }

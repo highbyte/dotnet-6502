@@ -7,7 +7,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
-using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -17,6 +16,8 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Highbyte.DotNet6502.Systems.Plugins;
+using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -229,51 +230,54 @@ public partial class App : Application
         // TODO: when Avalonia.Diagnostics 12.x ships, re-add the AttachDevTools call
         // (DEBUG-only, rebound to Ctrl+F12 because F12 is used by the emulator Monitor).
 
-        // Initialize the emulator host app
-        WriteBootstrapLog("Calling InitializeHostApp");
-        InitializeHostApp();
-
-        // Setup DI container
-        WriteBootstrapLog("Calling SetupDependencyInjection");
-        SetupDependencyInjection();
-
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        // All startup-critical work runs inside one try/catch: any failure here (no emulator
+        // systems, an invalid DefaultEmulator, a plug-in that throws while registering, a
+        // ViewModel constructor failing, ...) shows the fatal error screen instead of crashing
+        // before any UI appears.
+        try
         {
-            WriteBootstrapLog("ApplicationLifetime is IClassicDesktopStyleApplicationLifetime");
+            // Setup DI container first: plug-in shell services (per-system VMs and ISystemConfigurer
+            // factories) need to be registered before we build the SystemList from DI.
+            WriteBootstrapLog("Calling SetupDependencyInjection");
+            SetupDependencyInjection();
 
-            // Get MainViewModel from DI and set as DataContext
-            // MainWindow.Content (MainView) is created by XAML and inherits DataContext
-            WriteBootstrapLog("Initializing MainWindow");
-            var mainWindow = new MainWindow();
-            var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-            mainWindow.DataContext = mainViewModel;
-            desktop.MainWindow = mainWindow;
-        }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
-        {
-            WriteBootstrapLog("ApplicationLifetime is ISingleViewApplicationLifetime");
+            // Initialize the emulator host app (resolves plug-in-provided configurers from DI).
+            WriteBootstrapLog("Calling InitializeHostApp");
+            InitializeHostApp();
 
-            // Get MainViewModel from DI and set as DataContext
-            var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-
-            WriteBootstrapLog("Initializing MainView");
-            // MainView is created by XAML
-            var mainView = new MainView();
-            try
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
+                WriteBootstrapLog("ApplicationLifetime is IClassicDesktopStyleApplicationLifetime");
+
+                // Get MainViewModel from DI and set as DataContext
+                // MainWindow.Content (MainView) is created by XAML and inherits DataContext
+                WriteBootstrapLog("Initializing MainWindow");
+                var mainWindow = new MainWindow();
+                var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+                mainWindow.DataContext = mainViewModel;
+                desktop.MainWindow = mainWindow;
+            }
+            else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
+            {
+                WriteBootstrapLog("ApplicationLifetime is ISingleViewApplicationLifetime");
+
+                // Get MainViewModel from DI and set as DataContext
+                var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+
+                WriteBootstrapLog("Initializing MainView");
+                // MainView is created by XAML
+                var mainView = new MainView();
                 mainView.DataContext = mainViewModel;
+                singleViewPlatform.MainView = mainView;
             }
-            catch (Exception ex)
-            {
-                WriteBootstrapLog($"Fatal error setting DataContext on MainView: {ex.GetType().Name}: {ex.Message}", LogLevel.Error);
-                WriteBootstrapLog($"Stack trace: {ex.StackTrace}", LogLevel.Error);
-                if (ex.InnerException != null)
-                {
-                    WriteBootstrapLog($"Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}", LogLevel.Error);
-                }
-                throw;
-            }
-            singleViewPlatform.MainView = mainView;
+        }
+        catch (Exception ex)
+        {
+            WriteBootstrapLog($"Fatal error during startup: {ex}", LogLevel.Error);
+            // Unblock anything awaiting the host app (e.g. automated startup) so it doesn't hang.
+            s_hostAppReady.TrySetException(ex);
+            ShowFatalStartupError(
+                "The emulator could not start.\n\n" + ex.Message, ex);
         }
 
         // Note: RenderControl registration is now handled by EmulatorView.OnDataContextChanged()
@@ -294,11 +298,17 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        // Register singletons
-        services.AddSingleton(_hostApp);
+        // Register singletons.
+        // AvaloniaHostApp is constructed in InitializeHostApp (which runs *after* this method).
+        // Register as a deferred factory so plug-in shell services that consume DI can be
+        // registered now; the host is only resolved later, when ViewModels are constructed.
+        services.AddSingleton<AvaloniaHostApp>(_ =>
+            _hostApp ?? throw new InvalidOperationException(
+                "AvaloniaHostApp resolved before InitializeHostApp finished. Reorder boot."));
         services.AddSingleton(_emulatorConfig);
         services.AddSingleton(_configuration);
         services.AddSingleton(_loggerFactory);
+        services.AddSingleton(new CustomConfigPersistence(_saveCustomConfigString));
         if (_logStore != null)
             services.AddSingleton(_logStore);
         if (_logConfig != null)
@@ -306,16 +316,42 @@ public partial class App : Application
 
         // Register helpers
         services.AddTransient<OverlayDialogHelper>((sp) => new OverlayDialogHelper(this.ApplicationLifetime));
-        services.AddTransient<C64RomPromptService>();
 
-        // Register ViewModels as transient (new instance each time)
+        // Register system-agnostic ViewModels as transient (new instance each time).
+        // Per-system ViewModels (C64MenuViewModel, C64InfoViewModel, C64ConfigDialogViewModel)
+        // are registered by their plug-in below.
         services.AddTransient<MainViewModel>();
         services.AddTransient<EmulatorViewModel>();
         services.AddTransient<EmulatorPlaceholderViewModel>();
         services.AddTransient<StatisticsViewModel>();
-        services.AddTransient<C64MenuViewModel>();
-        services.AddTransient<C64ConfigDialogViewModel>();
-        services.AddTransient<C64InfoViewModel>();
+
+        // Discover and register shell plug-ins. Each plug-in adds its own VMs / configurer.
+        // EnabledSystems gates which plug-ins activate; absent config = all discovered plug-ins.
+        var enabledSystems = _configuration.GetSection("EnabledSystems").Get<string[]>();
+        var pluginLogger = _loggerFactory.CreateLogger<App>();
+        var shellPlugins = SystemPluginDiscovery
+            .Discover<ISystemShellPlugin>(enabledSystems, pluginLogger)
+            .ToList();
+        pluginLogger.LogInformation("Discovered {Count} shell plug-in(s): {Names}",
+            shellPlugins.Count,
+            string.Join(",", shellPlugins.Select(p => p.SystemName)));
+        foreach (var plugin in shellPlugins)
+            plugin.RegisterShellServices(services);
+        services.AddSingleton<IReadOnlyList<ISystemShellPlugin>>(shellPlugins);
+
+        // Discover and register engine plug-ins (Impl.Avalonia.<System>). Each registers the
+        // per-system ISystemConfigurer; InitializeHostApp builds the SystemList from those.
+        var enginePlugins = SystemPluginDiscovery
+            .Discover<ISystemEnginePlugin>(enabledSystems, pluginLogger)
+            .ToList();
+        pluginLogger.LogInformation("Discovered {Count} engine plug-in(s): {Names}",
+            enginePlugins.Count,
+            string.Join(",", enginePlugins.Select(p => p.SystemName)));
+        foreach (var plugin in enginePlugins)
+            plugin.Register(services, _configuration);
+
+        // Diagnose enabled-but-missing systems and engine/shell plug-in mismatches.
+        SystemPluginDiscovery.LogPluginDiagnostics(enabledSystems, enginePlugins, shellPlugins, pluginLogger);
 
         // Views are NOT registered - XAML creates them!
         // They get their ViewModels through DataContext binding
@@ -335,13 +371,30 @@ public partial class App : Application
             // ----------
             // Get systems
             // ----------
-            var systemList = new SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>();
+            var systemList = new SystemList();
 
-            var c64Setup = new C64Setup(_loggerFactory, _configuration, _saveCustomConfigString);
-            systemList.AddSystem(c64Setup);
+            // Plug-in-provided systems (C64 + Generic, via Highbyte.DotNet6502.App.Avalonia.Shell.*).
+            // Each shell plug-in registers its ISystemConfigurer in DI under RegisterShellServices.
+            foreach (var configurer in _serviceProvider!
+                .GetServices<ISystemConfigurer>())
+            {
+                systemList.AddSystem(configurer);
+            }
 
-            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, _saveCustomConfigString);
-            systemList.AddSystem(genericComputerSetup);
+            // Drop any system that declares no configuration variants — it cannot be built or run,
+            // and would crash a variant picker. Treated as unavailable, like a missing plug-in.
+            // Sync-wait is intentional: this is single-threaded UI bootstrap, before any window.
+#pragma warning disable VSTHRD002
+            systemList.RemoveSystemsWithNoConfigurationVariants(_logger).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+
+            // No usable system: a fatal startup error. The caller (OnFrameworkInitializationCompleted)
+            // catches this and shows the fatal error screen instead of the main UI.
+            if (systemList.Systems.Count == 0)
+                throw new InvalidOperationException(
+                    "No emulator systems are available.\n\n" +
+                    "Check the 'EnabledSystems' setting in appsettings.json, and that the system " +
+                    "plug-in assemblies are deployed with the application.");
 
             // ----------
             // Create AvaloniaHostApp
@@ -536,6 +589,44 @@ public partial class App : Application
 
             // Reset the current overlay reference
             _currentErrorOverlay = null;
+        }
+    }
+
+    /// <summary>
+    /// Shows a fatal startup error as the application's root UI, offering only a "Quit" action.
+    /// On browser hosts (which cannot quit a tab) the screen has no actionable button and stays
+    /// open. The normal main UI is never created when this is shown.
+    /// </summary>
+    private void ShowFatalStartupError(string message, Exception? exception = null)
+    {
+        var errorViewModel = new ErrorViewModel(_loggerFactory, message, exception, fatalStartupError: true);
+        var errorUserControl = new ErrorUserControl(errorViewModel, _loggerFactory);
+
+        errorUserControl.CloseRequested += (s, exit) =>
+        {
+            if (!exit)
+                return;
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
+                desktopLifetime.Shutdown();
+            else
+                Environment.Exit(0);
+        };
+
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.MainWindow = new Window
+            {
+                Title = "DotNet 6502 Emulator — startup error",
+                Content = errorUserControl,
+                Width = 560,
+                Height = 360,
+                CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            };
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        {
+            singleView.MainView = errorUserControl;
         }
     }
 }

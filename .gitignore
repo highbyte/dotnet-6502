@@ -280,6 +280,9 @@ __pycache__/
 .DS_Store
 .vscode/settings.json
 
+# VSCode C# DevKit cache files
+*.lscache
+
 BenchmarkDotNet.Artifacts/
 
 src/apps/Highbyte.DotNet6502.App.SadConsole/appsettings.Development.json

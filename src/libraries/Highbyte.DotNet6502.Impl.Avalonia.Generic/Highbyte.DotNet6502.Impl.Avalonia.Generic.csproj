@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <PackageId>Highbyte.DotNet6502.Impl.Avalonia.Generic</PackageId>
+    <Authors>Highbyte</Authors>
+    <PackageDescription>An Avalonia Generic computer support library for running 6502 code in Highbyte.DotNet6502 CPU emulator.</PackageDescription>
+    <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
+    <Version>0.1.0-alpha</Version>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Impl.NAudio\Highbyte.DotNet6502.Impl.NAudio.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Generic\Highbyte.DotNet6502.Systems.Generic.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <!-- Configuration.Binder: GenericComputerSetup binds the host config section from appsettings.json. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+  </ItemGroup>
+
+  <!-- Generic 6502 sample programs (embedded; loaded by GenericComputerSetup via reflection) -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hostinteraction_scroll_text_and_cycle_colors.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\snake6502.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hello_world.prg" />
+  </ItemGroup>
+
+</Project>

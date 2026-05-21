@@ -198,7 +198,7 @@ public partial class EmulatorView : UserControl
     {
         // Prevent keys from being processed by Avalonia's focus system
         e.Handled = true;
-        HostApp?.OnKeyDown(e.Key, e.KeyModifiers);
+        HostApp?.OnKeyDown(e.Key, e.PhysicalKey, e.KeyModifiers);
     }
 
     /// <summary>
@@ -208,7 +208,7 @@ public partial class EmulatorView : UserControl
     {
         // Prevent keys from being processed by Avalonia's focus system
         e.Handled = true;
-        HostApp?.OnKeyUp(e.Key, e.KeyModifiers);
+        HostApp?.OnKeyUp(e.Key, e.PhysicalKey, e.KeyModifiers);
     }
 
     /// <summary>

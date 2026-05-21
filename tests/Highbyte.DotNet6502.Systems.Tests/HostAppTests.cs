@@ -16,9 +16,6 @@ public class HostAppTests
         // Act / Assert
         var ex = Assert.Throws<DotNet6502Exception>(() => testApp.InitInputHandlerContext());
         Assert.Contains($"InputHandlerContext has not been set", ex.Message);
-
-        ex = Assert.Throws<DotNet6502Exception>(() => testApp.InitAudioHandlerContext());
-        Assert.Contains($"AudioHandlerContext has not been set", ex.Message);
     }
 
     [Fact]
@@ -29,7 +26,6 @@ public class HostAppTests
 
         // Act / Assert
         testApp.InitInputHandlerContext();
-        testApp.InitAudioHandlerContext();
     }
 
     [Fact]
@@ -96,10 +92,55 @@ public class HostAppTests
         // Assert
     }
 
-    public class TestHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>
+    [Fact]
+    public async Task UpdateHostSystemConfig_WhenEmulatorIsUninitialized_RebuildsTemporarySystem()
+    {
+        // Arrange: start then stop the emulator so _selectedSystemTemporary is cleared
+        var testApp = BuildTestHostApp();
+        await testApp.SelectSystem(TestSystem.SystemName);
+        await testApp.Start();
+        testApp.Stop(); // Stop() sets _selectedSystemTemporary = null
+
+        // Pre-condition: GetSelectedSystem() should be null after Stop()
+        var systemBeforeUpdate = await testApp.GetSelectedSystem();
+        Assert.Null(systemBeforeUpdate);
+
+        // Act: update config (simulates uploading ROMs after first load)
+        var newValidConfig = new TestHostSystemConfig(); // TestIsValid defaults to true
+        testApp.UpdateHostSystemConfig(newValidConfig);
+
+        // Assert: GetSelectedSystem() should now return the rebuilt system
+        var systemAfterUpdate = await testApp.GetSelectedSystem();
+        Assert.NotNull(systemAfterUpdate);
+    }
+
+    [Fact]
+    public async Task UpdateHostSystemConfig_WhenConfigBecomesValid_RebuildsTemporarySystem()
+    {
+        // Arrange: select system then force the config to become invalid (simulates first run without ROMs)
+        var testApp = BuildTestHostApp();
+        await testApp.SelectSystem(TestSystem.SystemName);
+
+        var invalidConfig = new TestHostSystemConfig { TestIsValid = false };
+        testApp.UpdateHostSystemConfig(invalidConfig); // config is now invalid -> _selectedSystemTemporary = null
+
+        // Pre-condition: GetSelectedSystem() returns null when config is invalid
+        var systemBeforeFixup = await testApp.GetSelectedSystem();
+        Assert.Null(systemBeforeFixup);
+
+        // Act: update with valid config (simulates ROMs being uploaded via config dialog)
+        var validConfig = new TestHostSystemConfig { TestIsValid = true };
+        testApp.UpdateHostSystemConfig(validConfig);
+
+        // Assert: GetSelectedSystem() should return the rebuilt system
+        var systemAfterFixup = await testApp.GetSelectedSystem();
+        Assert.NotNull(systemAfterFixup);
+    }
+
+    public class TestHostApp : HostApp
     {
         public TestHostApp(
-            SystemList<NullInputHandlerContext, NullAudioHandlerContext> systemList
+            SystemList systemList
             ) : base("TestHost", systemList, new NullLoggerFactory())
         {
         }
@@ -107,7 +148,7 @@ public class HostAppTests
 
     private TestHostApp BuildTestHostApp(bool setContexts = true, bool initContexts = true)
     {
-        var systemList = new SystemList<NullInputHandlerContext, NullAudioHandlerContext>();
+        var systemList = new SystemList();
 
         var systemConfigurer = new TestSystemConfigurer();
         systemList.AddSystem(systemConfigurer);
@@ -120,14 +161,11 @@ public class HostAppTests
         if (setContexts)
         {
             var testInputHandlerContext = new NullInputHandlerContext();
-            var testAudioHandlerContext = new NullAudioHandlerContext();
-
-            testApp.SetContexts(() => testInputHandlerContext, () => testAudioHandlerContext);
+            testApp.SetContexts(() => testInputHandlerContext);
         }
         if (initContexts)
         {
             testApp.InitInputHandlerContext();
-            testApp.InitAudioHandlerContext();
         }
         return testApp;
     }

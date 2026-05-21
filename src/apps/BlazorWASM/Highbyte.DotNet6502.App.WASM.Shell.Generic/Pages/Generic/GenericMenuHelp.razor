@@ -1,0 +1,38 @@
+﻿@using Highbyte.DotNet6502.Systems.Generic;
+
+<div class="system-help systemHelpStyle@(SYSTEM_NAME)">
+    <div class="row">
+        <div class="column" style="max-width:800px;word-wrap:break-word">
+            <p>
+                A generic 6502-based computer, with custom defined memory layout and IO functionallity.
+            </p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="column">
+            <button @onclick="ShowHelpUI">Generic computer help</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .systemHelpStyle@(SYSTEM_NAME) {
+        display: @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME);
+    }
+</style>
+
+@* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
+@{
+#pragma warning disable CS8669
+}
+@code {
+    @inject IJSRuntime Js
+    @inject HttpClient HttpClient
+
+    private string SYSTEM_NAME = GenericComputer.SystemName;
+
+    [Parameter]
+    public IWasmHostView Parent { get; set; } = default!;
+
+    private async Task ShowHelpUI() => await Parent.ShowHelpUI(typeof(GenericHelpUI));
+}

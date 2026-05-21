@@ -11,14 +11,14 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// On desktop platforms, exceptions propagate normally to global handlers.
 /// On WebAssembly, exceptions are manually forwarded to prevent runtime termination.
 /// </summary>
-internal static class SafeAsyncHelper
+public static class SafeAsyncHelper
 {
     /// <summary>
     /// Safely executes an async operation.
     /// In WASM, exceptions are forwarded to the global handler to prevent runtime termination.
     /// On desktop, exceptions propagate normally.
     /// </summary>
-    internal static void Execute(Func<Task> asyncAction)
+    public static void Execute(Func<Task> asyncAction)
     {
         try
         {

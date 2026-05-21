@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>../../../../resources/images/favicon.ico</ApplicationIcon>
+    <UserSecretsId>724ae82b-3b1b-409e-820d-1e819aaa923a</UserSecretsId>
+  </PropertyGroup>
+
+  <!--
+    Thin entry exe (composition root): only Program.cs. The host-app library, UI and all host-tech
+    Impl references live in App.SadConsole.Core. The per-system shells are referenced here so their
+    engine-plugin DLL closure is deployed into this app's output for SystemPluginDiscovery.
+    The shells use a convention glob (App.SadConsole.Shell.*) so adding a new system needs no edit
+    to this entry exe.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.App.SadConsole.Core\Highbyte.DotNet6502.App.SadConsole.Core.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Highbyte.DotNet6502.App.SadConsole.Shell.*\*.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings_scroll.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

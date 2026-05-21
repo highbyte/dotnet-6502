@@ -1,6 +1,8 @@
 using System.Runtime.Versioning;
 using System.Text;
 
+namespace Highbyte.DotNet6502.App.Avalonia.Browser;
+
 [SupportedOSPlatform("browser")]
 internal static class BrowserScriptingResources
 {

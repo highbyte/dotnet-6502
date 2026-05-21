@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -13,7 +14,14 @@ public class ViewLocator : IDataTemplate
             return null;
 
         var name = param.GetType().FullName!.Replace("ViewModel", "View", StringComparison.Ordinal);
-        var type = Type.GetType(name);
+
+        // Type.GetType only searches the executing assembly and mscorlib. ViewModels and Views
+        // can live in plug-in assemblies (e.g. App.Avalonia.Shell.Commodore64) — scan all loaded
+        // assemblies for the resolved View type.
+        var type = Type.GetType(name)
+            ?? AppDomain.CurrentDomain.GetAssemblies()
+                .Select(a => a.GetType(name, throwOnError: false))
+                .FirstOrDefault(t => t is not null);
 
         if (type != null)
         {

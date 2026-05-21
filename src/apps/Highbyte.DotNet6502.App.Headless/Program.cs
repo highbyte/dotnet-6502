@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.App.Headless;
-using Highbyte.DotNet6502.App.Headless.SystemSetup;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Scripting;
@@ -7,7 +6,9 @@ using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
+using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 // ----------
@@ -168,13 +169,47 @@ var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, logge
 // Create system list and host app
 // ----------
 logger.LogInformation("Creating headless host app.");
-var systemList = new SystemList<NullInputHandlerContext, NullAudioHandlerContext>();
 
-var c64Setup = new C64Setup(loggerFactory, configuration);
-systemList.AddSystem(c64Setup);
+// Engine plug-ins (C64HeadlessEnginePlugin / GenericHeadlessEnginePlugin, in the
+// App.Headless.Shell.* projects) register the per-system ISystemConfigurer. The SystemList is
+// built from those.
+var enabledSystems = configuration.GetSection("EnabledSystems").Get<string[]>();
+var pluginLogger = loggerFactory.CreateLogger("PluginDiscovery");
+var enginePlugins = SystemPluginDiscovery
+    .Discover<ISystemEnginePlugin>(enabledSystems, pluginLogger)
+    .ToList();
+pluginLogger.LogInformation("Discovered {Count} engine plug-in(s): {Names}",
+    enginePlugins.Count, string.Join(",", enginePlugins.Select(p => p.SystemName)));
 
-var genericComputerSetup = new GenericComputerSetup(loggerFactory, configuration);
-systemList.AddSystem(genericComputerSetup);
+// Headless has no shell layer — pass null for shellPlugins.
+SystemPluginDiscovery.LogPluginDiagnostics(enabledSystems, enginePlugins, shellPlugins: null, pluginLogger);
+
+var services = new ServiceCollection();
+services.AddSingleton(loggerFactory);
+services.AddSingleton<IConfiguration>(configuration);
+foreach (var plugin in enginePlugins)
+    plugin.Register(services, configuration);
+var serviceProvider = services.BuildServiceProvider();
+
+var systemList = new SystemList();
+foreach (var configurer in serviceProvider
+    .GetServices<ISystemConfigurer>())
+{
+    systemList.AddSystem(configurer);
+}
+
+// Drop any system that declares no configuration variants — it cannot be built or run.
+await systemList.RemoveSystemsWithNoConfigurationVariants(pluginLogger);
+
+// No usable system: a headless run cannot do anything without one. There is no UI to show an
+// error dialog in, so log a clear message and exit with a non-zero code.
+if (systemList.Systems.Count == 0)
+{
+    logger.LogCritical(
+        "No emulator systems are available. Check the 'EnabledSystems' setting in appsettings.json " +
+        "and that the system plug-in assemblies are deployed. Exiting.");
+    return 1;
+}
 
 var hostApp = new HeadlessHostApp(systemList, loggerFactory, appCts);
 
@@ -195,15 +230,12 @@ logger.LogInformation("Headless host app initialized.");
 // ----------
 if (systemName != null)
 {
+    var startupRequest = new AutomatedStartupRequest(
+        systemName, systemVariant, autoStart, waitForSystemReady,
+        loadPrgPath, runLoadedProgram, enableExternalDebug);
     await AutomatedStartupHandler.ExecuteAsync(
         hostApp,
-        systemName,
-        systemVariant,
-        autoStart,
-        waitForSystemReady,
-        loadPrgPath,
-        runLoadedProgram,
-        enableExternalDebug,
+        startupRequest,
         onStartupComplete: () => debugController.SignalProgramReady(),
         loggerFactory: loggerFactory,
         prepareForExternalDebuggerStart: () => hostApp.WaitForExternalDebugger = true);

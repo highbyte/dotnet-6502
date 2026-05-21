@@ -31,7 +31,11 @@ To self-host, see [Run from command line](#run-from-command-line) below.
 
 --8<-- "avalonia-c64-renderers.md"
 
-- Input using `Avalonia`.
+- Input using `Avalonia`. Keyboard uses `Avalonia.Input.PhysicalKey` (W3C `code`), so both `US`
+  and `Swedish` C64 keyboard layouts work; in Chromium browsers the layout is auto-detected via
+  `navigator.keyboard.getLayoutMap()` (other browsers fall through to OS culture, then US).
+  Layout can be overridden in the C64 config dialog. See
+  [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
 - Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
 
 ### System: Generic computer

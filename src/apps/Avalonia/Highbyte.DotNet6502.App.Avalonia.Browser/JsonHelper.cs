@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+namespace Highbyte.DotNet6502.App.Avalonia.Browser;
+
 internal static class JsonHelper
 {
     /// <summary>

@@ -15,7 +15,7 @@ public class WASMAudioHandlerContext : IAudioHandlerContext
     public IJSRuntime JSRuntime => _jsRuntime;
 
     private GainNodeSync _masterVolumeGainNode = default!;
-    internal GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
+    public GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
 
     public bool IsInitialized { get; private set; }
 

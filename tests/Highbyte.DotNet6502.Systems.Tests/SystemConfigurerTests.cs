@@ -18,7 +18,7 @@ public class SystemConfigurerTests
     }
 
 
-    public class TestSystemConfigurer : ISystemConfigurer<NullInputHandlerContext, NullAudioHandlerContext>
+    public class TestSystemConfigurer : ISystemConfigurer
     {
         public string SystemName => TestSystem.SystemName;
         public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
@@ -40,22 +40,15 @@ public class SystemConfigurerTests
 
         public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
-            IHostSystemConfig hostSystemConfig,
-            NullInputHandlerContext inputHandlerContext,
-            NullAudioHandlerContext audioHandlerContext
+            IHostSystemConfig hostSystemConfig
             )
         {
             var testSystem = (TestSystem)system;
-
-            var inputHandler = new NullInputHandler(testSystem);
-            var audioHandler = new NullAudioHandler(testSystem);
-
-            return Task.FromResult(new SystemRunner(testSystem, inputHandler, audioHandler));
-
+            return Task.FromResult(new SystemRunner(testSystem));
         }
     }
 
-    public class TestSystem2Configurer : ISystemConfigurer<NullInputHandlerContext, NullAudioHandlerContext>
+    public class TestSystem2Configurer : ISystemConfigurer
     {
         public string SystemName => TestSystem2.SystemName;
         public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
@@ -77,22 +70,19 @@ public class SystemConfigurerTests
 
         public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
-            IHostSystemConfig hostSystemConfig,
-            NullInputHandlerContext inputHandlerContext,
-            NullAudioHandlerContext audioHandlerContext
+            IHostSystemConfig hostSystemConfig
             )
         {
             var testSystem2 = (TestSystem2)system;
-
-            var inputHandler = new NullInputHandler(testSystem2);
-            var audioHandler = new NullAudioHandler(testSystem2);
-
-            return Task.FromResult(new SystemRunner(testSystem2, inputHandler, audioHandler));
+            return Task.FromResult(new SystemRunner(testSystem2));
         }
     }
 
     public class TestSystemConfig : ISystemConfig
     {
+        public bool IsDirty => false;
+        public void ClearDirty() { }
+
         public bool TestIsValid = true;
         public List<string> TestValidationErrors = new List<string>();
 
@@ -134,6 +124,9 @@ public class SystemConfigurerTests
 
     public class TestSystem2Config : ISystemConfig
     {
+        public bool IsDirty => false;
+        public void ClearDirty() { }
+
         public bool TestIsValid = true;
         public List<string> TestValidationErrors = new List<string>();
 

@@ -7,6 +7,16 @@ repo_name: highbyte/dotnet-6502
 edit_uri: edit/master/docs/
 docs_dir: docs
 
+validation:
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
+
 theme:
   name: material
   language: en
@@ -115,6 +125,7 @@ nav:
           - Overview: libraries/core/overview.md
           - CPU: libraries/core/dotnet6502.md
           - Systems: libraries/core/dotnet6502-systems.md
+          - Systems.Plugins: libraries/core/dotnet6502-systems-plugins.md
           - DebugAdapter: libraries/core/dotnet6502-debugadapter.md
           - Monitor: libraries/core/dotnet6502-monitor.md
           - Remoting: libraries/core/dotnet6502-remoting.md
@@ -150,9 +161,11 @@ nav:
           - Examples: tools/scripting/examples.md
   - Systems:
       - Overview: systems/overview.md
+      - Adding a new system: systems/adding-a-system.md
       - C64:
           - Overview: systems/c64/overview.md
           - Libraries: systems/c64/libraries.md
+          - Keyboard mapping: systems/c64/keyboard.md
           - ROMs: systems/c64/roms.md
           - Basic code completion: systems/c64/code-completion.md
           - Compatible programs: systems/c64/compatible-programs.md

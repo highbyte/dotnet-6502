@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet;
 
-public class SilkNetInputHandlerContext : IInputHandlerContext
+public class SilkNetInputHandlerContext : IInputHandlerContext, IHostInputState
 {
     private readonly IWindow _silkNetWindow;
     private readonly ILogger _logger;
@@ -207,4 +207,101 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     {
         s_inputcontext?.Dispose();
     }
+
+    // ----------------------------------------------------------------------
+    // IHostInputState: neutral input surface consumed by system input handlers.
+    // ----------------------------------------------------------------------
+
+    IReadOnlySet<HostKey> IHostInputState.KeysDown
+    {
+        get
+        {
+            var result = new HashSet<HostKey>();
+            foreach (var key in KeysDown)
+            {
+                var hostKey = MapToHostKey(key);
+                if (hostKey != HostKey.None)
+                    result.Add(hostKey);
+            }
+            return result;
+        }
+    }
+
+    IReadOnlySet<GamepadButton> IHostInputState.GamepadButtonsDown
+    {
+        get
+        {
+            var result = new HashSet<GamepadButton>();
+            foreach (var button in GamepadButtonsDown)
+            {
+                var gamepadButton = MapToGamepadButton(button);
+                if (gamepadButton.HasValue)
+                    result.Add(gamepadButton.Value);
+            }
+            return result;
+        }
+    }
+
+    bool IHostInputState.CapsLockOn => GetCapsLockState();
+
+    void IHostInputState.UpdatePerFrame()
+    {
+        // Silk.NET delivers keyboard/gamepad state via events; nothing to poll per frame.
+    }
+
+    private static HostKey MapToHostKey(Key key) => key switch
+    {
+        Key.A => HostKey.KeyA, Key.B => HostKey.KeyB, Key.C => HostKey.KeyC,
+        Key.D => HostKey.KeyD, Key.E => HostKey.KeyE, Key.F => HostKey.KeyF,
+        Key.G => HostKey.KeyG, Key.H => HostKey.KeyH, Key.I => HostKey.KeyI,
+        Key.J => HostKey.KeyJ, Key.K => HostKey.KeyK, Key.L => HostKey.KeyL,
+        Key.M => HostKey.KeyM, Key.N => HostKey.KeyN, Key.O => HostKey.KeyO,
+        Key.P => HostKey.KeyP, Key.Q => HostKey.KeyQ, Key.R => HostKey.KeyR,
+        Key.S => HostKey.KeyS, Key.T => HostKey.KeyT, Key.U => HostKey.KeyU,
+        Key.V => HostKey.KeyV, Key.W => HostKey.KeyW, Key.X => HostKey.KeyX,
+        Key.Y => HostKey.KeyY, Key.Z => HostKey.KeyZ,
+        Key.Number0 => HostKey.Digit0, Key.Number1 => HostKey.Digit1,
+        Key.Number2 => HostKey.Digit2, Key.Number3 => HostKey.Digit3,
+        Key.Number4 => HostKey.Digit4, Key.Number5 => HostKey.Digit5,
+        Key.Number6 => HostKey.Digit6, Key.Number7 => HostKey.Digit7,
+        Key.Number8 => HostKey.Digit8, Key.Number9 => HostKey.Digit9,
+        Key.Space => HostKey.Space, Key.Enter => HostKey.Enter, Key.Tab => HostKey.Tab,
+        Key.Backspace => HostKey.Backspace, Key.Escape => HostKey.Escape,
+        Key.F1 => HostKey.F1, Key.F2 => HostKey.F2, Key.F3 => HostKey.F3,
+        Key.F4 => HostKey.F4, Key.F5 => HostKey.F5, Key.F6 => HostKey.F6,
+        Key.F7 => HostKey.F7, Key.F8 => HostKey.F8, Key.F9 => HostKey.F9,
+        Key.F10 => HostKey.F10, Key.F11 => HostKey.F11, Key.F12 => HostKey.F12,
+        Key.Insert => HostKey.Insert, Key.Delete => HostKey.Delete,
+        Key.Home => HostKey.Home, Key.End => HostKey.End,
+        Key.PageUp => HostKey.PageUp, Key.PageDown => HostKey.PageDown,
+        Key.Up => HostKey.ArrowUp, Key.Down => HostKey.ArrowDown,
+        Key.Left => HostKey.ArrowLeft, Key.Right => HostKey.ArrowRight,
+        Key.ShiftLeft => HostKey.ShiftLeft, Key.ShiftRight => HostKey.ShiftRight,
+        Key.ControlLeft => HostKey.ControlLeft, Key.ControlRight => HostKey.ControlRight,
+        Key.AltLeft => HostKey.AltLeft, Key.AltRight => HostKey.AltRight,
+        Key.SuperLeft => HostKey.MetaLeft, Key.SuperRight => HostKey.MetaRight,
+        Key.CapsLock => HostKey.CapsLock,
+        Key.GraveAccent => HostKey.Backquote, Key.Minus => HostKey.Minus,
+        Key.Equal => HostKey.Equal, Key.LeftBracket => HostKey.BracketLeft,
+        Key.RightBracket => HostKey.BracketRight, Key.BackSlash => HostKey.Backslash,
+        Key.Semicolon => HostKey.Semicolon, Key.Apostrophe => HostKey.Quote,
+        Key.Comma => HostKey.Comma, Key.Period => HostKey.Period, Key.Slash => HostKey.Slash,
+        Key.World2 => HostKey.IntlBackslash,
+        _ => HostKey.None,
+    };
+
+    private static GamepadButton? MapToGamepadButton(ButtonName button) => button switch
+    {
+        ButtonName.A => GamepadButton.A, ButtonName.B => GamepadButton.B,
+        ButtonName.X => GamepadButton.X, ButtonName.Y => GamepadButton.Y,
+        ButtonName.LeftBumper => GamepadButton.LeftBumper,
+        ButtonName.RightBumper => GamepadButton.RightBumper,
+        ButtonName.Back => GamepadButton.Back, ButtonName.Start => GamepadButton.Start,
+        ButtonName.Home => GamepadButton.Guide,
+        ButtonName.LeftStick => GamepadButton.LeftStick,
+        ButtonName.RightStick => GamepadButton.RightStick,
+        ButtonName.DPadUp => GamepadButton.DPadUp, ButtonName.DPadDown => GamepadButton.DPadDown,
+        ButtonName.DPadLeft => GamepadButton.DPadLeft, ButtonName.DPadRight => GamepadButton.DPadRight,
+        _ => null,
+    };
 }

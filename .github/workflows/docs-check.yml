@@ -1,0 +1,45 @@
+name: Docs check
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'includes/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.in'
+      - 'requirements-docs.txt'
+      - '.pip-tools.toml'
+      - '.github/workflows/docs-check.yml'
+
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/**'
+      - 'includes/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.in'
+      - 'requirements-docs.txt'
+      - '.pip-tools.toml'
+      - '.github/workflows/docs-check.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install MkDocs and dependencies
+        run: "pip install --require-hashes --only-binary :all: -r requirements-docs.txt"
+
+      - name: Build static site with MkDocs (strict)
+        run: mkdocs build --strict --site-dir site

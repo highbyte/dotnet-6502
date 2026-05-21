@@ -44,7 +44,11 @@ Live version: <https://highbyte.se/dotnet-6502/app>
 - Renderer provider `Video commands` -> target `Skia commands`
     - Character mode (normal).
 
-- Input using `AspNet`.
+- Input using `AspNet`. Keyboard uses the browser's W3C `code` directly, so both `US` and
+  `Swedish` C64 keyboard layouts work; in Chromium browsers the layout is auto-detected via
+  `navigator.keyboard.getLayoutMap()` (other browsers fall through to OS culture, then US).
+  Layout can be overridden in the C64 config UI. See
+  [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
 
 - Audio via `WebAudio` synthesizer using .NET → JavaScript interop.
 

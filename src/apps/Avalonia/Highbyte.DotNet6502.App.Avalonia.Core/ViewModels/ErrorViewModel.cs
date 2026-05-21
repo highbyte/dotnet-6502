@@ -21,6 +21,15 @@ public class ErrorViewModel : ViewModelBase
     public string? ExceptionDetails { get; }
     public bool HasException { get; }
 
+    /// <summary>
+    /// True for a fatal startup error (e.g. no emulator systems available). In this mode the
+    /// "Continue" option is hidden — the only action is to quit the application.
+    /// </summary>
+    public bool IsFatalStartupError { get; }
+
+    /// <summary>The "Continue" button is hidden for a fatal startup error.</summary>
+    public bool ShowContinueButton => !IsFatalStartupError;
+
     private bool _showDetails = false;
     public bool ShowDetails
     {
@@ -58,10 +67,12 @@ public class ErrorViewModel : ViewModelBase
     public ErrorViewModel(
         ILoggerFactory loggerFactory,
         string errorMessage,
-        Exception? exception)
+        Exception? exception,
+        bool fatalStartupError = false)
     {
         _logger = loggerFactory.CreateLogger(nameof(ErrorViewModel));
         ErrorMessage = errorMessage;
+        IsFatalStartupError = fatalStartupError;
 
         if (exception != null)
         {
