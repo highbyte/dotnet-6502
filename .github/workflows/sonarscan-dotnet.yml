@@ -2,11 +2,12 @@
 
 name: Sonarscan DotNet
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Triggers the workflow on push to master and on pushes to feature branches.
+  # Feature-branch coverage enables local Sonar branch analysis without first having to open a PR.
   push:
-    branches: [ master ]
+    branches: [ master, 'feature/**' ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'

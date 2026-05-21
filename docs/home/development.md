@@ -107,6 +107,48 @@ chmod +x ./codecov-console.sh
 ./codecov-console.sh
 ```
 
+## SonarCloud quality gate (locally)
+
+A helper script wraps the existing SonarCloud CI scan with a local gate, useful both for manual verification before opening a PR and as a quality gate for automations.
+
+The `sonarscan-dotnet.yml` workflow runs on push to `feature/**`. After pushing, the gate script waits for that workflow run to complete on the current commit and queries SonarCloud for issues introduced on this branch (using the "new code period" filter, so pre-existing issues on master are not flagged).
+
+Requirements: [`gh`](https://cli.github.com/) (authenticated), `curl`, `jq`. For private projects, set `SONAR_TOKEN`; anonymous read works for public projects.
+
+Run the gate (Linux / macOS):
+
+```sh
+./tools/sonar-check.sh           # default: blocks gate on MAJOR severity and above
+./tools/sonar-check.sh CRITICAL  # only Critical and Blocker fail the gate
+```
+
+Run the gate (Windows):
+
+```powershell
+.\tools\sonar-check.ps1
+.\tools\sonar-check.ps1 CRITICAL
+```
+
+Valid severity threshold values (the gate fails on issues at that level **or any higher level**):
+
+| Value | Gate fails on |
+|---|---|
+| `INFO` | Info, Minor, Major, Critical, Blocker (strictest — anything fails) |
+| `MINOR` | Minor, Major, Critical, Blocker |
+| `MAJOR` *(default)* | Major, Critical, Blocker |
+| `CRITICAL` | Critical, Blocker |
+| `BLOCKER` | Blocker only (most lenient) |
+
+Any other value (or omission of the argument when calling explicitly) is treated as a validation error.
+
+Exit codes:
+
+- `0` — no blocking issues at the threshold; gate passes.
+- `1` — blocking issues found; the script prints each one.
+- `2` — preflight error (branch not pushed, workflow run not found, missing tool, etc.).
+
+Set `SONAR_INCLUDE_PREEXISTING=1` to disable the "new code period" filter for a full branch audit. The script header has additional details.
+
 ## Workaround / compatibility
 
 - [Avalonia Desktop app troubleshooting](../desktop-apps/avalonia-desktop-troubleshooting.md)
