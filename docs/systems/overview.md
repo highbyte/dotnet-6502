@@ -4,6 +4,9 @@
 
 A system implementation does not have any dependencies on specific rendering, input handling, or audio technologies. For these purposes, see the [Implementation libraries](../libraries/implementation/overview.md).
 
+For the four-tier model and how host apps stay system-agnostic via plugin discovery, see
+[Architecture](../architecture.md).
+
 ## Systems
 
 - [Commodore 64](c64/overview.md)
