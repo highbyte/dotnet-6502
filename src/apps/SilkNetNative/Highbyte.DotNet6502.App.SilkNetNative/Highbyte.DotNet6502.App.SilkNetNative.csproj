@@ -25,6 +25,33 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
   </ItemGroup>
 
+  <!--
+    Plug-in discovery manifest (single-file publish).
+    SystemPluginDiscovery loads plug-in assemblies by (a) a transitive reference walk from the
+    entry assembly, (b) a scan of the output directory, and (c) an assembly-metadata manifest.
+    With PublishSingleFile=true (the publish path for this exe) the plug-in DLLs are bundled
+    inside the single-file exe, so (b) finds nothing; and the entry exe holds no static
+    reference to any per-system plug-in type, so the C# compiler prunes the ProjectReferences
+    and (a) finds nothing either.
+    This target emits, into the entry assembly, one
+    [assembly: AssemblyMetadata("Highbyte.DotNet6502.PluginAssembly", "<name>")] per
+    Highbyte.DotNet6502.* assembly in the resolved reference closure (direct + transitive).
+    SystemPluginDiscovery reads that manifest and Assembly.Loads each by name. Convention-based:
+    adding a new system needs no edit here.
+  -->
+  <Target Name="EmitPluginAssemblyManifest"
+          DependsOnTargets="ResolveReferences"
+          BeforeTargets="GetAssemblyAttributes">
+    <ItemGroup>
+      <AssemblyMetadata Include="Highbyte.DotNet6502.PluginAssembly"
+                        Value="%(ReferencePath.FileName)"
+                        Condition="$([System.String]::Copy('%(ReferencePath.FileName)').StartsWith('Highbyte.DotNet6502.'))" />
+      <AssemblyMetadata Include="Highbyte.DotNet6502.PluginAssembly"
+                        Value="%(ReferenceDependencyPaths.FileName)"
+                        Condition="$([System.String]::Copy('%(ReferenceDependencyPaths.FileName)').StartsWith('Highbyte.DotNet6502.'))" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <None Update="appsettings.Development.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
