@@ -15,31 +15,10 @@ configurer, the `--system` CLI argument).
 
 ## What you will create
 
-A new system touches three tiers (see the [libraries overview](../libraries/overview.md)):
-
-| Tier | Project | Purpose |
-|---|---|---|
-| T2 — system core | `Highbyte.DotNet6502.Systems.<System>` | The emulated computer: `ISystem`, `ISystemConfig`, `ISystemConfigurer`. UI-agnostic. |
-| T3 — engine plugin | `Highbyte.DotNet6502.Impl.<Tech>.<System>` | `ISystemEnginePlugin` — registers the system for one host technology. One per host. |
-| T4 — shell plugin | `App.<Tech>.Shell.<System>` | `ISystemShellPlugin` — per-host UI (menu, config dialog). Can start as a stub. |
-
-System cores and engine plugins live under `src/libraries/`; shell projects live under
-`src/apps/`. Add every new project to the solution (`dotnet-6502.sln`).
-
-## How discovery wires it together
-
-A host app holds **no** reference to system-specific projects. Instead:
-
-- The **entry exe** has a convention-glob `ProjectReference` — e.g. Avalonia Desktop globs
-  `App.Avalonia.Shell.*\*.csproj`. Your new shell project is picked up automatically.
-- The **shell project** references the **engine plugin** (`Impl.<Tech>.<System>`), so the engine
-  plugin's DLL flows into the app output.
-- At startup `SystemPluginDiscovery` scans for `[assembly: SystemPlugin(...)]` attributes and
-  loads the engine plugin (and shell plugin). See
-  [`Systems.Plugins`](../libraries/core/dotnet6502-systems-plugins.md).
-
-So the only thing that makes a system *appear* is shipping an engine plugin assembly that a shell
-project (matched by the glob) references.
+A new system touches three tiers — a **system core**, an **engine plugin**, and a **shell
+plugin** — per the model described in [Architecture](../architecture.md). System cores and
+engine plugins live under `src/libraries/`; shell projects live under `src/apps/`. Add every
+new project to the solution (`dotnet-6502.sln`).
 
 ## Step 1 — The system core
 

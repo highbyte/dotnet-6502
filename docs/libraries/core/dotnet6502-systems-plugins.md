@@ -3,16 +3,11 @@
 Library: `Highbyte.DotNet6502.Systems.Plugins`
 
 A small Tier-1 core library holding the **plugin contracts** and the **discovery** mechanism that
-let a host app run an emulated system without holding any compile-time reference to it. It is the
-foundation of the project's rule that **a host app is system-agnostic** — no `using` of, and no
-`ProjectReference` to, any system-specific (`*.Commodore64` / `*.Generic`) project.
+let a host app run an emulated system without holding any compile-time reference to it.
 
-## Why
-
-Before plugins, every app carried system-specific code and `if (system == "C64")`-style
-conditionals. Now each system's wiring lives in its own plugin assembly, and apps discover those
-assemblies at runtime. Adding a new emulated system, or a new host technology, requires no edit to
-any existing app.
+For the higher-level four-tier model, the dependency rule, and a summary of these contracts in
+context, see [Architecture](../../architecture.md). This page covers the contracts and discovery
+flow in full detail.
 
 ## Plugin contracts
 

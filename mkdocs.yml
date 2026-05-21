@@ -98,6 +98,7 @@ nav:
       - Limitations: home/limitations.md
       - Development: home/development.md
       - References: home/references.md
+  - Architecture: architecture.md
   - Web apps:
       - Overview: web-apps/overview.md
       - Avalonia Browser app: web-apps/avalonia-browser.md
