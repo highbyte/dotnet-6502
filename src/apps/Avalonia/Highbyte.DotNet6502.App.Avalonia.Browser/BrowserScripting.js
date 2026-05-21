@@ -26,7 +26,7 @@ export function getScriptsFromLocalStorage(prefix) {
 // is async, so this is an async function -> a Task<string> on the .NET side.
 export async function getKeyboardLayoutId() {
     try {
-        if (navigator.keyboard && navigator.keyboard.getLayoutMap) {
+        if (navigator.keyboard?.getLayoutMap) {
             const map = await navigator.keyboard.getLayoutMap();
             // Fingerprint keys whose character differs between supported layouts.
             const semicolon = map.get("Semicolon");
@@ -36,13 +36,13 @@ export async function getKeyboardLayoutId() {
             if (semicolon === ";")
                 return "US";
         }
-    } catch (e) { }
+    } catch {
+        // Keyboard Map API unavailable or denied — fall through to "" (caller treats as auto-detect).
+    }
     return "";
 }
 
 // Returns the OS platform string, used to detect macOS (for the ISO-keyboard key fix).
 export function getNavigatorPlatform() {
-    return (navigator.userAgentData && navigator.userAgentData.platform)
-        ? navigator.userAgentData.platform
-        : (navigator.platform || "");
+    return navigator.userAgentData?.platform ?? navigator.platform ?? "";
 }

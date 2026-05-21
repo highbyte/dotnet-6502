@@ -92,9 +92,13 @@
                             window.__detectedKeyboardLayoutId = "Swedish";
                         else if (semicolon === ";")
                             window.__detectedKeyboardLayoutId = "US";
-                    }).catch(function () { });
+                    }).catch(function () {
+                        // Keyboard Map lookup rejected — leave layout as "" (auto-detect downstream).
+                    });
                 }
-            } catch (e) { }
+            } catch {
+                // Keyboard Map API unavailable — leave layout as "" (auto-detect downstream).
+            }
         })();
         window.getKeyboardLayoutId = () => window.__detectedKeyboardLayoutId || "";
 
