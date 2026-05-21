@@ -90,7 +90,9 @@ API="${SONAR_HOST}/api/issues/search?componentKeys=${PROJECT_KEY}&branch=${BRANC
 
 issues_json=""
 for _ in $(seq 1 12); do
-  issues_json=$(curl -fsS "${auth[@]}" "$API" 2>/dev/null || true)
+  # ${auth[@]+"${auth[@]}"} expands to the array elements only if non-empty;
+  # plain "${auth[@]}" trips set -u "unbound variable" on empty arrays.
+  issues_json=$(curl -fsS ${auth[@]+"${auth[@]}"} "$API" 2>/dev/null || true)
   if [[ -n "$issues_json" ]] && echo "$issues_json" | jq -e '.issues' >/dev/null 2>&1; then
     break
   fi
