@@ -45,15 +45,22 @@ function Invoke-VersionPlaceholder {
     }
 }
 
+function Get-PlaywrightBin {
+    $bin = Join-Path $ScriptDir 'node_modules\.bin\playwright'
+    if (Test-Path "$bin.cmd") { return "$bin.cmd" }
+    return $bin
+}
+
 function Initialize-Playwright {
     Write-Host "==> Ensuring Playwright + Chromium installed"
     Push-Location $ScriptDir
     try {
         if (-not (Test-Path 'node_modules')) {
-            npm install
-            if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
+            # npm ci + --ignore-scripts: see Install Playwright deps step in wasm-aot-verify.yml.
+            npm ci --ignore-scripts
+            if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }
         }
-        npx playwright install chromium | Out-Null
+        & (Get-PlaywrightBin) install chromium | Out-Null
     } finally { Pop-Location }
 }
 
@@ -64,7 +71,7 @@ function Invoke-Spec {
     Push-Location $ScriptDir
     try {
         $env:WASM_SITE_ROOT = $root
-        npx playwright test $Spec
+        & (Get-PlaywrightBin) test $Spec
         if ($LASTEXITCODE -ne 0) { throw "Playwright failed (exit $LASTEXITCODE)" }
     } finally { Pop-Location }
 }

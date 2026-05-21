@@ -80,15 +80,19 @@ jobs:
 
       - name: Install Playwright deps
         working-directory: tests/wasm-smoke
+        # npm ci enforces install from the committed package-lock.json (exact versions).
+        # --ignore-scripts skips arbitrary preinstall/postinstall scripts in transitive
+        # deps; @playwright/test and http-server don't need them — the browser download
+        # is the explicit `playwright install` call below.
         run: |
-          npm install
-          npx playwright install --with-deps chromium
+          npm ci --ignore-scripts
+          ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Run smoke test
         working-directory: tests/wasm-smoke
         env:
           WASM_SITE_ROOT: ${{ github.workspace }}/build/${{ matrix.app.name }}/wwwroot
-        run: npx playwright test "${{ matrix.app.spec }}"
+        run: ./node_modules/.bin/playwright test "${{ matrix.app.spec }}"
 
       - name: Upload Playwright report on failure
         if: failure()

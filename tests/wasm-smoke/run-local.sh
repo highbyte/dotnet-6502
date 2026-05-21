@@ -49,8 +49,9 @@ apply_version_placeholder() {
 prepare_playwright() {
   echo "==> Ensuring Playwright + Chromium installed"
   cd "$SCRIPT_DIR"
-  [ -d node_modules ] || npm install
-  npx playwright install chromium >/dev/null
+  # npm ci + --ignore-scripts: see Install Playwright deps step in wasm-aot-verify.yml.
+  [ -d node_modules ] || npm ci --ignore-scripts
+  ./node_modules/.bin/playwright install chromium >/dev/null
 }
 
 run_spec() {
@@ -58,7 +59,7 @@ run_spec() {
   local root="$BUILD_DIR/$name/wwwroot"
   echo "==> Running Playwright spec for $name"
   cd "$SCRIPT_DIR"
-  WASM_SITE_ROOT="$root" npx playwright test "$spec"
+  WASM_SITE_ROOT="$root" ./node_modules/.bin/playwright test "$spec"
 }
 
 run_blazor() {
