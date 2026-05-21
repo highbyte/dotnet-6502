@@ -33,7 +33,7 @@ public class AvaloniaLoggerBridge : ILogSink
         object? source,
         string messageTemplate)
     {
-        var logLevel = ConvertLogLevel(level);
+        var logLevel = DowngradeKnownNoisyMessage(level, area, messageTemplate);
         if (logLevel < _minimumLevel || !_logger.IsEnabled(logLevel))
             return;
 
@@ -48,7 +48,7 @@ public class AvaloniaLoggerBridge : ILogSink
         string messageTemplate,
         params object?[] propertyValues)
     {
-        var logLevel = ConvertLogLevel(level);
+        var logLevel = DowngradeKnownNoisyMessage(level, area, messageTemplate);
         if (logLevel < _minimumLevel || !_logger.IsEnabled(logLevel))
             return;
 
@@ -63,6 +63,22 @@ public class AvaloniaLoggerBridge : ILogSink
             var fallbackMessage = FormatMessage(area, source, messageTemplate);
             _logger.Log(logLevel, fallbackMessage);
         }
+    }
+
+    /// <summary>
+    /// Downgrades known benign Avalonia internal messages that are logged at Error level
+    /// but represent handled fallback paths, not real errors.
+    /// </summary>
+    private static LogLevel DowngradeKnownNoisyMessage(LogEventLevel level, string area, string messageTemplate)
+    {
+        // Windows-only: Avalonia's composition render loop times out waiting for
+        // ICompositor5.RequestCommitAsync when the app is idle (nothing to render).
+        // Avalonia handles this gracefully by force-triggering the next tick.
+        // It is not a real error — downgrade to Debug to suppress it from normal log output.
+        if (area == "Visual" && messageTemplate.Contains("RequestCommitAsync timed out"))
+            return LogLevel.Debug;
+
+        return ConvertLogLevel(level);
     }
 
     private static LogLevel ConvertLogLevel(LogEventLevel level) =>
