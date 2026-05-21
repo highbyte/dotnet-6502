@@ -26,6 +26,8 @@ Tests are currently focused on the core `Highbyte.DotNet6502` library. Most of i
 
 Tests may expand to parts of system-specific logic code such as `Highbyte.DotNet6502.Systems.Commodore64`.
 
+The browser apps (Blazor WASM and Avalonia Browser) additionally have a [Playwright](https://playwright.dev/) smoke test under `tests/wasm-smoke/` that publishes the apps with the release Release/AOT flags and verifies the result boots in headless Chromium. See [WASM AOT publish smoke tests](#wasm-aot-publish-smoke-tests) below.
+
 ## Debugging
 
 ### Debugging the emulator via VS Code extension
@@ -62,6 +64,26 @@ To run only the special functional/integration XUnit test:
 cd tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType=Integration
 ```
+
+### WASM AOT publish smoke tests
+
+A [Playwright](https://playwright.dev/) suite under `tests/wasm-smoke/` publishes the Blazor WASM and Avalonia Browser apps with the same Release/AOT flags as the GitHub Pages release workflow, then verifies the published `wwwroot` boots in headless Chromium and that the system plug-ins are discovered. Catches trim/AOT-only regressions (missing trim roots, plug-in assemblies dropped from the bundle, ...) that `dotnet build` / `dotnet test` do not exercise.
+
+Requires a .NET 10 SDK with the `wasm-tools` workload installed (see [Requirements](#requirements)) and [Node.js](https://nodejs.org/) (used to drive Playwright).
+
+A wrapper script publishes and runs the matching spec end-to-end:
+
+```powershell
+cd tests/wasm-smoke
+./run-local.ps1 blazor             # or: avalonia-browser, all
+```
+
+```sh
+cd tests/wasm-smoke
+./run-local.sh blazor              # or: avalonia-browser, all
+```
+
+The same flow runs automatically on pull requests (paths-filtered to WASM-relevant source) via the `.github/workflows/wasm-aot-verify.yml` workflow.
 
 ## Code coverage report locally (`Highbyte.DotNet6502` library)
 
