@@ -1,0 +1,5284 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="6502 CPU emulator and Commodore 64 and other system implementations in .NET">
+      
+      
+        <meta name="author" content="Highbyte">
+      
+      
+        <link rel="canonical" href="https://highbyte.github.io/dotnet-6502/docs/tools/scripting/lua-api/">
+      
+      
+        <link rel="prev" href="../configuration/">
+      
+      
+        <link rel="next" href="../examples/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/logo-simple-128.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Lua API - dotnet-6502</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira+Code:300,300i,400,400i,700,700i%7CFira+Code:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Fira Code";--md-code-font:"Fira Code"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#lua-api" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="dotnet-6502" class="md-header__button md-logo" aria-label="dotnet-6502" data-md-component="logo">
+      
+  <img src="../../../assets/logo-simple-128.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            dotnet-6502
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Lua API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/highbyte/dotnet-6502" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    highbyte/dotnet-6502
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../web-apps/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Web apps
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../desktop-apps/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Desktop apps
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../libraries/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Libraries
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tools
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../systems/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Systems
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="dotnet-6502" class="md-nav__button md-logo" aria-label="dotnet-6502" data-md-component="logo">
+      
+  <img src="../../../assets/logo-simple-128.png" alt="logo">
+
+    </a>
+    dotnet-6502
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/highbyte/dotnet-6502" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    highbyte/dotnet-6502
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../home/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../home/development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../home/references/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web apps
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Web apps
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../web-apps/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../web-apps/avalonia-browser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avalonia Browser app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../web-apps/blazor-wasm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blazor Web Assembly app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Desktop apps
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Desktop apps
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avalonia Desktop
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Avalonia Desktop
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/avalonia-desktop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/avalonia-desktop-automation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/avalonia-desktop-troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SadConsole
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SadConsole
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/sadconsole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/sadconsole-troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SilkNetNative
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SilkNetNative
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/silknet-native/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/silknet-native-troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Console Monitor
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Console Monitor
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/console-monitor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Headless
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Headless
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../desktop-apps/headless/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Libraries
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Libraries
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core libraries
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core libraries
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502-systems/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502-systems-plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systems.Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502-debugadapter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DebugAdapter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502-monitor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502-remoting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remoting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502-scripting-moonsharp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scripting.MoonSharp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/core/dotnet6502-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System-specific core libraries
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    System-specific core libraries
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/system-specific/c64/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C64
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/system-specific/generic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generic
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation libraries
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Implementation libraries
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/aspnet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AspNet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/avalonia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avalonia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/browser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/naudio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NAudio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/sadconsole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SadConsole
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/silknet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SilkNet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/silknet-sdl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SilkNet.SDL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../libraries/implementation/skia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VSCode debugger extension
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    VSCode debugger extension
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vscode-debugger/debugging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vscode-debugger/development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remote control
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Remote control
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../remote-control/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../remote-control/tcp-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TCP protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../remote-control/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../remote-control/remote-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remote Client console app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scripting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Scripting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lua API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lua API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#yield-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Yield primitives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emulator-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emulator queries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emulator-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emulator control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cpu-registers-cpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CPU registers (cpu)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-access-mem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory access (mem)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input (input)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input (input)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keyboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#joystick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Joystick
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-notes-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input notes &amp; examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging (log)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event hooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-io-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File I/O (file)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File I/O (file)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-operations-always-allowed-when-allowfileio-true" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read operations (always allowed when AllowFileIO: true)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-operations-require-allowfilewrite-true" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write operations (require AllowFileWrite: true)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-loading-emuload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary loading (emu.load)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#http-http" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP (http)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HTTP (http)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#async-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async behaviour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keyvalue-store-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key/value store (store)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key/value store (store)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#store-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Store examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tcp-client-tcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TCP client (tcp)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TCP client (tcp)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#binary-data-representation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary data representation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lua-52-bitwise-arithmetic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lua 5.2 bitwise arithmetic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connecting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connection-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connection methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connsenddata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:send(data)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connreceiven" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:receive(n)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connreceivel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:receive("*l")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connclose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:close()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tcp-async-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TCP async behaviour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tcp-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TCP examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#standard-lua-libraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard Lua libraries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Systems
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Systems
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/adding-a-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a new system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C64
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C64
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/c64/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/c64/libraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Libraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/c64/keyboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Keyboard mapping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/c64/roms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ROMs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/c64/code-completion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic code completion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/c64/compatible-programs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatible programs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/c64/useful-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Useful tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generic
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Generic
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/generic/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../systems/generic/libraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Libraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#yield-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Yield primitives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emulator-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emulator queries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emulator-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emulator control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cpu-registers-cpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CPU registers (cpu)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-access-mem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory access (mem)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input (input)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input (input)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keyboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#joystick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Joystick
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-notes-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input notes &amp; examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging (log)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event hooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-io-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File I/O (file)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File I/O (file)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-operations-always-allowed-when-allowfileio-true" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read operations (always allowed when AllowFileIO: true)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-operations-require-allowfilewrite-true" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write operations (require AllowFileWrite: true)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-loading-emuload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary loading (emu.load)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#http-http" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP (http)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HTTP (http)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#async-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async behaviour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keyvalue-store-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key/value store (store)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key/value store (store)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#store-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Store examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tcp-client-tcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TCP client (tcp)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TCP client (tcp)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#binary-data-representation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary data representation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lua-52-bitwise-arithmetic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lua 5.2 bitwise arithmetic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connecting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connection-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connection methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connsenddata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:send(data)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connreceiven" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:receive(n)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connreceivel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:receive("*l")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connclose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conn:close()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tcp-async-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TCP async behaviour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tcp-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TCP examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#standard-lua-libraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard Lua libraries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../overview/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Tools
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../overview/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Scripting
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="lua-api">Lua API<a class="headerlink" href="#lua-api" title="Permanent link">&para;</a></h1>
+<h2 id="yield-primitives">Yield primitives<a class="headerlink" href="#yield-primitives" title="Permanent link">&para;</a></h2>
+<p>Scripts run as coroutines. Use one of these to suspend execution and let the emulator continue:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>emu.frameadvance()</code></td>
+<td>Yield until the next emulator frame. The script is frozen while the emulator is paused. Use this for per-frame logic tied to emulation.</td>
+</tr>
+<tr>
+<td><code>emu.yield()</code></td>
+<td>Yield until the next timer tick (~60 Hz). Keeps ticking even while the emulator is paused or stopped. Use this when the script needs to observe or control emulator state changes.</td>
+</tr>
+</tbody>
+</table>
+<p>A script must call one of these in its main loop. Scripts that return without yielding are marked as <strong>Completed</strong> (or <strong>HookOnly</strong> if they registered event hooks).</p>
+<h2 id="emulator-queries">Emulator queries<a class="headerlink" href="#emulator-queries" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>emu.framecount()</code></td>
+<td>number</td>
+<td>Number of emulator frames executed since scripts were loaded (1-based).</td>
+</tr>
+<tr>
+<td><code>emu.time()</code></td>
+<td>number</td>
+<td>Wall-clock seconds elapsed since scripts were loaded.</td>
+</tr>
+<tr>
+<td><code>emu.state()</code></td>
+<td>string</td>
+<td>Current emulator state: <code>"running"</code>, <code>"paused"</code>, <code>"stopped"</code>, or <code>"unknown"</code>.</td>
+</tr>
+<tr>
+<td><code>emu.host()</code></td>
+<td>string</td>
+<td>Host application type: <code>"headless"</code>, <code>"desktop"</code>, or <code>"browser"</code>. Use this to write scripts that behave differently per host — e.g. call <code>emu.quit()</code> only when headless.</td>
+</tr>
+<tr>
+<td><code>emu.systems()</code></td>
+<td>table</td>
+<td>List of available system names (e.g. <code>{"C64", "Generic"}</code>).</td>
+</tr>
+<tr>
+<td><code>emu.selected_system()</code></td>
+<td>string</td>
+<td>Currently selected system name.</td>
+</tr>
+<tr>
+<td><code>emu.selected_variant()</code></td>
+<td>string</td>
+<td>Currently selected system variant name.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="emulator-control">Emulator control<a class="headerlink" href="#emulator-control" title="Permanent link">&para;</a></h2>
+<p>Control operations are deferred — they take effect after the current frame completes.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>emu.start()</code></td>
+<td>Request emulator start or resume.</td>
+</tr>
+<tr>
+<td><code>emu.pause()</code></td>
+<td>Request emulator pause.</td>
+</tr>
+<tr>
+<td><code>emu.stop()</code></td>
+<td>Request emulator stop.</td>
+</tr>
+<tr>
+<td><code>emu.reset()</code></td>
+<td>Request emulator stop + restart.</td>
+</tr>
+<tr>
+<td><code>emu.select(name [, variant])</code></td>
+<td>Request system selection. The emulator must be stopped.</td>
+</tr>
+<tr>
+<td><code>emu.quit()</code></td>
+<td>Stop the emulator and terminate the host application. Useful for automation pipelines (CI/CD, batch runs) where the app should exit automatically when the script is done.</td>
+</tr>
+<tr>
+<td><code>emu.config_valid()</code></td>
+<td>Check whether the currently selected system's configuration is valid. Returns <code>true</code> if valid, or <code>false</code> plus a table of error strings if not. Use this before <code>emu.start()</code> to detect misconfiguration early (e.g. missing ROM files).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cpu-registers-cpu">CPU registers (<code>cpu</code>)<a class="headerlink" href="#cpu-registers-cpu" title="Permanent link">&para;</a></h2>
+<p>All properties are read-only and return safe defaults (<code>0</code> or <code>false</code>) before a system is started.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cpu.pc</code></td>
+<td>int</td>
+<td>Program Counter (0–65535)</td>
+</tr>
+<tr>
+<td><code>cpu.a</code></td>
+<td>int</td>
+<td>Accumulator (0–255)</td>
+</tr>
+<tr>
+<td><code>cpu.x</code></td>
+<td>int</td>
+<td>Index register X (0–255)</td>
+</tr>
+<tr>
+<td><code>cpu.y</code></td>
+<td>int</td>
+<td>Index register Y (0–255)</td>
+</tr>
+<tr>
+<td><code>cpu.sp</code></td>
+<td>int</td>
+<td>Stack Pointer (0–255)</td>
+</tr>
+<tr>
+<td><code>cpu.carry</code></td>
+<td>bool</td>
+<td>Carry flag</td>
+</tr>
+<tr>
+<td><code>cpu.zero</code></td>
+<td>bool</td>
+<td>Zero flag</td>
+</tr>
+<tr>
+<td><code>cpu.negative</code></td>
+<td>bool</td>
+<td>Negative flag</td>
+</tr>
+<tr>
+<td><code>cpu.overflow</code></td>
+<td>bool</td>
+<td>Overflow flag</td>
+</tr>
+<tr>
+<td><code>cpu.interrupt_disable</code></td>
+<td>bool</td>
+<td>Interrupt disable flag</td>
+</tr>
+<tr>
+<td><code>cpu.decimal_mode</code></td>
+<td>bool</td>
+<td>Decimal mode flag</td>
+</tr>
+</tbody>
+</table>
+<h2 id="memory-access-mem">Memory access (<code>mem</code>)<a class="headerlink" href="#memory-access-mem" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mem.read(address)</code></td>
+<td>Read a byte from emulator memory. Returns 0–255. Address is masked to 16-bit range.</td>
+</tr>
+<tr>
+<td><code>mem.write(address, value)</code></td>
+<td>Write a byte to emulator memory. Address is masked to 16-bit, value to 8-bit.</td>
+</tr>
+</tbody>
+</table>
+<p>Memory reads and writes go through the same address decoding as the emulated CPU, including I/O registers. For example, on the C64, <code>mem.read(0xD012)</code> reads the VIC-II raster line register and <code>mem.write(0xD020, 1)</code> sets the border color to white.</p>
+<h2 id="input-input">Input (<code>input</code>)<a class="headerlink" href="#input-input" title="Permanent link">&para;</a></h2>
+<p>The <code>input</code> table provides access to keyboard and joystick state. Scripts can both read the current input state and inject synthetic input for automation.</p>
+<p>Script-injected inputs are <strong>merged</strong> with real user input: a script can add key presses or joystick actions the user isn't pressing, but cannot suppress or override user input.</p>
+<p>Script-injected inputs are <strong>ephemeral</strong> — they must be re-injected every frame in your script loop. The scripting engine clears all injected state at the start of each frame before your scripts run.</p>
+<p>The <code>input</code> table is always registered, even when no input provider is active (e.g. on systems without input support). Functions that query state return <code>false</code> or <code>nil</code> gracefully in that case.</p>
+<h3 id="keyboard">Keyboard<a class="headerlink" href="#keyboard" title="Permanent link">&para;</a></h3>
+<p>Key names are <strong>system-dependent</strong> — each system defines its own valid key names. Call <code>input.available_keys()</code> to discover the valid names for the current system. On the C64, key names include <code>"a"</code>, <code>"space"</code>, <code>"return"</code>, <code>"f1"</code>, <code>"crsrright"</code>, <code>"stop"</code>, <code>"lira"</code>, etc.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>input.key_press(name)</code></td>
+<td>—</td>
+<td>Inject a key press for the current frame. The key will be considered "down" for this frame only; scripts must re-inject each frame if the key should remain held.</td>
+</tr>
+<tr>
+<td><code>input.key_release(name)</code></td>
+<td>—</td>
+<td>Release a previously injected key. This only affects keys injected by the script, not user input.</td>
+</tr>
+<tr>
+<td><code>input.key_release_all()</code></td>
+<td>—</td>
+<td>Release all keys injected by the script for this frame.</td>
+</tr>
+<tr>
+<td><code>input.is_key_down(name)</code></td>
+<td>boolean</td>
+<td>Returns <code>true</code> if the key is currently pressed, whether by the user or by the script. Returns <code>false</code> if no input provider is active.</td>
+</tr>
+<tr>
+<td><code>input.available_keys()</code></td>
+<td>table</td>
+<td>Returns a 1-indexed table of valid key name strings for the current system. Returns an empty table if no input provider is active.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="joystick">Joystick<a class="headerlink" href="#joystick" title="Permanent link">&para;</a></h3>
+<p>Joystick action names are <strong>standardized</strong> across all systems: <code>"up"</code>, <code>"down"</code>, <code>"left"</code>, <code>"right"</code>, <code>"fire"</code>. Scripts use the same strings regardless of which system is running.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>input.joystick_set(port, action, pressed)</code></td>
+<td>—</td>
+<td>Inject a joystick action on the given port (1-based) for the current frame. <code>action</code> is one of <code>"up"</code>, <code>"down"</code>, <code>"left"</code>, <code>"right"</code>, <code>"fire"</code>.</td>
+</tr>
+<tr>
+<td><code>input.joystick_action(port, action)</code></td>
+<td>boolean</td>
+<td>Returns <code>true</code> if the joystick action is active on the given port, whether by the user or by the script. Returns <code>false</code> if no input provider is active.</td>
+</tr>
+<tr>
+<td><code>input.joystick_count()</code></td>
+<td>number</td>
+<td>Returns the number of joystick ports on the current system (e.g. <code>2</code> on C64). Returns <code>0</code> if no input provider is active.</td>
+</tr>
+<tr>
+<td><code>input.available_joystick_actions()</code></td>
+<td>table</td>
+<td>Returns a 1-indexed table of valid joystick action strings. Always <code>{"up", "down", "left", "right", "fire"}</code>. Returns an empty table if no input provider is active.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="input-notes-examples">Input notes &amp; examples<a class="headerlink" href="#input-notes-examples" title="Permanent link">&para;</a></h3>
+<p>The script's <strong>top-level code</strong> runs immediately when the script is enabled, before the first frame executes. The input provider is only wired once the first <code>on_before_frame()</code> fires. Therefore, input functions should only be called from hooks (<code>on_started</code>, <code>on_before_frame</code>) or after at least one <code>emu.frameadvance()</code>.</p>
+<p>Use <code>emu.time()</code> to measure durations in real seconds rather than counting frames — this keeps timing correct regardless of the system's frame rate (PAL vs NTSC).</p>
+<p><strong>Keyboard — press A, B, C in sequence:</strong></p>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1">-- Press A for 0.5s, pause 0.3s, press B for 0.5s, pause 0.3s, press C for 0.5s</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">sequence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;a&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.3</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;b&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.3</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;c&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="kd">local</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="kd">local</span><span class="w"> </span><span class="nv">step_start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="kr">function</span><span class="w"> </span><span class="nf">on_before_frame</span><span class="p">()</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="kd">local</span><span class="w"> </span><span class="nv">now</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">emu</span><span class="p">.</span><span class="nf">time</span><span class="p">()</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="nv">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="nv">step_start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">now</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="o">#</span><span class="nv">sequence</span><span class="w"> </span><span class="kr">then</span><span class="w"> </span><span class="kr">return</span><span class="w"> </span><span class="kr">end</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="kd">local</span><span class="w"> </span><span class="nv">entry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">sequence</span><span class="p">[</span><span class="nv">step</span><span class="p">]</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">entry</span><span class="p">.</span><span class="py">key</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">        </span><span class="nv">input</span><span class="p">.</span><span class="nf">key_press</span><span class="p">(</span><span class="nv">entry</span><span class="p">.</span><span class="py">key</span><span class="p">)</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">now</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">step_start</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nv">entry</span><span class="p">.</span><span class="py">hold</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">        </span><span class="nv">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">        </span><span class="kr">if</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="o">#</span><span class="nv">sequence</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">            </span><span class="nv">step_start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">now</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">        </span><span class="kr">end</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="kr">end</span>
+</span></code></pre></div>
+<p><strong>Joystick — timed action sequence with repeats:</strong></p>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">-- Repeat 3 times: left 0.2s → pause 0.2s → right 0.2s → pause 0.2s → fire 0.5s → pause 0.5s</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">PORT</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">REPEATS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="kd">local</span><span class="w"> </span><span class="nv">sequence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;left&quot;</span><span class="p">,</span><span class="w">  </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w">     </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;right&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w">     </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fire&quot;</span><span class="p">,</span><span class="w">  </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nv">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w">     </span><span class="nv">hold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">}</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="kd">local</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="kd">local</span><span class="w"> </span><span class="nv">step_start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="kd">local</span><span class="w"> </span><span class="nv">rep</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="kr">function</span><span class="w"> </span><span class="nf">on_before_frame</span><span class="p">()</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="kd">local</span><span class="w"> </span><span class="nv">now</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">emu</span><span class="p">.</span><span class="nf">time</span><span class="p">()</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">        </span><span class="nv">rep</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="nv">step_start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">now</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">rep</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">REPEATS</span><span class="w"> </span><span class="kr">then</span><span class="w"> </span><span class="kr">return</span><span class="w"> </span><span class="kr">end</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">    </span><span class="kd">local</span><span class="w"> </span><span class="nv">entry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">sequence</span><span class="p">[</span><span class="nv">step</span><span class="p">]</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">entry</span><span class="p">.</span><span class="py">action</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">        </span><span class="nv">input</span><span class="p">.</span><span class="nf">joystick_set</span><span class="p">(</span><span class="nv">PORT</span><span class="p">,</span><span class="w"> </span><span class="nv">entry</span><span class="p">.</span><span class="py">action</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">now</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">step_start</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nv">entry</span><span class="p">.</span><span class="py">hold</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">        </span><span class="nv">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="w">        </span><span class="kr">if</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="o">#</span><span class="nv">sequence</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-1-35"><a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="w">            </span><span class="nv">rep</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">rep</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="nv">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">        </span><span class="kr">end</span>
+</span><span id="__span-1-37"><a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">        </span><span class="nv">step_start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">now</span>
+</span><span id="__span-1-38"><a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-1-39"><a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="kr">end</span>
+</span></code></pre></div>
+<p>For complete demonstrations, see <code>example_input_kb.lua</code> (keyboard) and <code>example_input_joystick.lua</code> (joystick).</p>
+<h2 id="logging-log">Logging (<code>log</code>)<a class="headerlink" href="#logging-log" title="Permanent link">&para;</a></h2>
+<p>Log messages are prefixed with <code>[Lua:filename.lua]</code> in the application log output.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Log level</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>log.info(msg)</code></td>
+<td>Information</td>
+</tr>
+<tr>
+<td><code>log.debug(msg)</code></td>
+<td>Debug</td>
+</tr>
+<tr>
+<td><code>log.warn(msg)</code></td>
+<td>Warning</td>
+</tr>
+<tr>
+<td><code>log.error(msg)</code></td>
+<td>Error</td>
+</tr>
+</tbody>
+</table>
+<h2 id="event-hooks">Event hooks<a class="headerlink" href="#event-hooks" title="Permanent link">&para;</a></h2>
+<p>Define any of these as global functions in your script. The emulator calls them at the corresponding points. A single script can register multiple hooks.</p>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>Arguments</th>
+<th>When called</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>on_before_frame()</code></td>
+<td>none</td>
+<td>Before each emulator frame executes.</td>
+</tr>
+<tr>
+<td><code>on_after_frame()</code></td>
+<td>none</td>
+<td>After each emulator frame completes.</td>
+</tr>
+<tr>
+<td><code>on_started()</code></td>
+<td>none</td>
+<td>Emulator started or resumed.</td>
+</tr>
+<tr>
+<td><code>on_paused()</code></td>
+<td>none</td>
+<td>Emulator paused.</td>
+</tr>
+<tr>
+<td><code>on_stopped()</code></td>
+<td>none</td>
+<td>Emulator stopped.</td>
+</tr>
+<tr>
+<td><code>on_system_selected(name)</code></td>
+<td>system name</td>
+<td>System selection changed.</td>
+</tr>
+<tr>
+<td><code>on_variant_selected(name)</code></td>
+<td>variant name</td>
+<td>System variant changed.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="file-io-file">File I/O (<code>file</code>)<a class="headerlink" href="#file-io-file" title="Permanent link">&para;</a></h2>
+<p>Available when <code>AllowFileIO: true</code>. The <code>file</code> global is not registered when <code>AllowFileIO</code> is <code>false</code>, so scripts that use it will fail with a runtime error on platforms without filesystem access (e.g. WASM/browser).</p>
+<p>All paths are relative to <code>FileBaseDirectory</code> (which defaults to <code>ScriptDirectory</code>). Paths that attempt to escape the base directory (e.g. <code>../</code>) are blocked and treated as non-existent files or raise a runtime error on write attempts.</p>
+<h3 id="read-operations-always-allowed-when-allowfileio-true">Read operations (always allowed when <code>AllowFileIO: true</code>)<a class="headerlink" href="#read-operations-always-allowed-when-allowfileio-true" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>file.read(name)</code></td>
+<td>string or nil</td>
+<td>Reads the entire contents of a text file. Returns <code>nil</code> if the file does not exist or the path is unsafe.</td>
+</tr>
+<tr>
+<td><code>file.read_bytes(name)</code></td>
+<td>table or nil</td>
+<td>Reads a file as raw bytes. Returns a 1-indexed Lua table of integers (0–255), or <code>nil</code> if the file does not exist. Useful for inspecting binary data; for loading a binary directly into emulator memory, prefer <code>emu.load()</code>.</td>
+</tr>
+<tr>
+<td><code>file.exists(name)</code></td>
+<td>boolean</td>
+<td>Returns <code>true</code> if the file exists within the base directory.</td>
+</tr>
+<tr>
+<td><code>file.list([pattern])</code></td>
+<td>table</td>
+<td>Returns a 1-indexed table of filenames in the base directory matching an optional glob pattern (default: <code>"*"</code>). Only filenames are returned, not full paths.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="write-operations-require-allowfilewrite-true">Write operations (require <code>AllowFileWrite: true</code>)<a class="headerlink" href="#write-operations-require-allowfilewrite-true" title="Permanent link">&para;</a></h3>
+<p>If <code>AllowFileWrite</code> is <code>false</code>, calling any write operation raises a Lua runtime error and the script is auto-disabled.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>file.write(name, text)</code></td>
+<td>Writes (overwrites) a text file. Creates the file if it does not exist.</td>
+</tr>
+<tr>
+<td><code>file.append(name, text)</code></td>
+<td>Appends text to a file. Creates the file if it does not exist.</td>
+</tr>
+<tr>
+<td><code>file.delete(name)</code></td>
+<td>Deletes a file. No-op if the file does not exist.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="binary-loading-emuload">Binary loading (<code>emu.load</code>)<a class="headerlink" href="#binary-loading-emuload" title="Permanent link">&para;</a></h2>
+<p>Available when <code>AllowFileIO: true</code>. Loads a binary file from <code>FileBaseDirectory</code> directly into emulator memory, entirely on the C# side — no Lua byte array handling required, making it efficient even for large files.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>emu.load(name)</code></td>
+<td>Reads the 2-byte little-endian load address from the file header (C64 <code>.prg</code> format) and loads the remaining bytes at that address.</td>
+</tr>
+<tr>
+<td><code>emu.load(name, true)</code></td>
+<td>Same as above, and also sets CPU PC to the load address after loading.</td>
+</tr>
+<tr>
+<td><code>emu.load(name, address)</code></td>
+<td>Loads the entire file as raw binary at the given address, without header parsing.</td>
+</tr>
+<tr>
+<td><code>emu.load(name, address, true)</code></td>
+<td>Same as above, and also sets CPU PC to the load address after loading.</td>
+</tr>
+</tbody>
+</table>
+<p>The operation is deferred (like <code>emu.start()</code> etc.) and takes effect after the current frame. Path confinement rules are the same as for <code>file.*</code>.</p>
+<h2 id="http-http">HTTP (<code>http</code>)<a class="headerlink" href="#http-http" title="Permanent link">&para;</a></h2>
+<p>Available when <code>AllowHttpRequests: true</code>. The <code>http</code> global is not registered when <code>AllowHttpRequests</code> is <code>false</code>.</p>
+<p>All methods return a <strong>response table</strong> with the following fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ok</code></td>
+<td>boolean</td>
+<td><code>true</code> if the request succeeded (HTTP 2xx) and no network error occurred.</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>number</td>
+<td>HTTP status code (e.g. <code>200</code>, <code>404</code>). <code>0</code> on network or timeout failure.</td>
+</tr>
+<tr>
+<td><code>body</code></td>
+<td>string, table, or nil</td>
+<td>Response body. String for <code>get</code> / <code>post</code> / <code>post_json</code>. 1-indexed byte table for <code>get_bytes</code>. <code>nil</code> on failure or for <code>download</code>.</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>string or nil</td>
+<td>Error description on failure. <code>nil</code> on success.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>http.get(url [, headers])</code></td>
+<td>GET request. Returns the response body as a string in <code>body</code>.</td>
+</tr>
+<tr>
+<td><code>http.get_bytes(url [, headers])</code></td>
+<td>GET request. Returns the response body as a 1-indexed Lua table of byte values (0–255) in <code>body</code>. Useful for binary data; for loading it directly into emulator memory see <code>mem.write</code>.</td>
+</tr>
+<tr>
+<td><code>http.post(url, body, content_type [, headers])</code></td>
+<td>POST request with an explicit content type (e.g. <code>"application/x-www-form-urlencoded"</code>). Returns the response body as a string in <code>body</code>.</td>
+</tr>
+<tr>
+<td><code>http.post_json(url, json_body [, headers])</code></td>
+<td>POST request with <code>Content-Type: application/json</code>. Shorthand for <code>http.post(url, body, "application/json")</code>.</td>
+</tr>
+<tr>
+<td><code>http.download(url, filename [, headers])</code></td>
+<td>GET request that streams the response body directly to a file in the <code>file</code> sandbox. Requires <code>AllowFileIO: true</code> and <code>AllowFileWrite: true</code>. The <code>body</code> field is <code>nil</code> in the response; use <code>file.read</code> / <code>file.read_bytes</code> to access the saved file afterwards.</td>
+</tr>
+</tbody>
+</table>
+<p>The optional <code>headers</code> argument is a Lua table of key-value string pairs, e.g. <code>{["Authorization"] = "Bearer token", ["Accept"] = "application/json"}</code>.</p>
+<h3 id="async-behaviour">Async behaviour<a class="headerlink" href="#async-behaviour" title="Permanent link">&para;</a></h3>
+<p>All HTTP calls are <strong>non-blocking and async</strong>. When a script calls <code>http.get(url)</code>, the coroutine is suspended immediately and the emulator continues running. The script resumes automatically on the next frame once the response arrives, with the response table returned as the value of the <code>http.*</code> call. From the Lua script's point of view the call is still a simple synchronous expression:</p>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">http</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="nv">url</span><span class="p">)</span><span class="w">   </span><span class="c1">-- suspends until response arrives; script sees a normal return value</span>
+</span></code></pre></div>
+<p>This works the same on both desktop and browser/WASM hosts. Because the emulator keeps running during the HTTP wait, <code>on_started()</code> hooks that make HTTP calls will complete <em>after</em> the emulator has already started. If your script depends on data fetched in <code>on_started</code> being available before the first emulated frame runs, use <code>emu.pause()</code> at the start of the hook and <code>emu.start()</code> after the last HTTP call.</p>
+<h3 id="http-examples">HTTP examples<a class="headerlink" href="#http-examples" title="Permanent link">&para;</a></h3>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">-- GET: call a REST API</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">http</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="s2">&quot;https://api.example.com/status&quot;</span><span class="p">)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kr">if</span><span class="w"> </span><span class="nv">resp</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nv">log</span><span class="p">.</span><span class="nf">info</span><span class="p">(</span><span class="s2">&quot;Response: &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="nv">resp</span><span class="p">.</span><span class="py">body</span><span class="p">)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="kr">else</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nv">log</span><span class="p">.</span><span class="nf">error</span><span class="p">(</span><span class="s2">&quot;HTTP &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="nv">resp</span><span class="p">.</span><span class="py">status</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="s2">&quot;: &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">(</span><span class="nv">resp</span><span class="p">.</span><span class="py">error</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s2">&quot;?&quot;</span><span class="p">))</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="kr">end</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1">-- GET bytes: download binary data and copy into emulator memory</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="kd">local</span><span class="w"> </span><span class="nv">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">http</span><span class="p">.</span><span class="nf">get_bytes</span><span class="p">(</span><span class="s2">&quot;https://example.com/data.bin&quot;</span><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="kr">if</span><span class="w"> </span><span class="nv">resp</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="kr">for</span><span class="w"> </span><span class="nv">i</span><span class="p">,</span><span class="w"> </span><span class="nv">b</span><span class="w"> </span><span class="kr">in</span><span class="w"> </span><span class="nb">ipairs</span><span class="p">(</span><span class="nv">resp</span><span class="p">.</span><span class="py">body</span><span class="p">)</span><span class="w"> </span><span class="kr">do</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">        </span><span class="nv">mem</span><span class="p">.</span><span class="nf">write</span><span class="p">(</span><span class="mh">0xC000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nv">b</span><span class="p">)</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="kr">end</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="c1">-- POST JSON</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="kd">local</span><span class="w"> </span><span class="nv">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">http</span><span class="p">.</span><span class="nf">post_json</span><span class="p">(</span><span class="s2">&quot;https://api.example.com/save&quot;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;score&quot;:42}&#39;</span><span class="p">)</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="nv">log</span><span class="p">.</span><span class="nf">info</span><span class="p">(</span><span class="s2">&quot;Saved: &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="nb">tostring</span><span class="p">(</span><span class="nv">resp</span><span class="p">.</span><span class="py">ok</span><span class="p">))</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="c1">-- Download directly to the file sandbox, then load into memory via emu.load</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="kd">local</span><span class="w"> </span><span class="nv">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">http</span><span class="p">.</span><span class="nf">download</span><span class="p">(</span><span class="s2">&quot;https://example.com/game.prg&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;game.prg&quot;</span><span class="p">)</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="kr">if</span><span class="w"> </span><span class="nv">resp</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="nv">emu</span><span class="p">.</span><span class="nf">load</span><span class="p">(</span><span class="s2">&quot;game.prg&quot;</span><span class="p">)</span><span class="w">  </span><span class="c1">-- reads PRG header and loads at the embedded address</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="kr">end</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="c1">-- Custom headers</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="kd">local</span><span class="w"> </span><span class="nv">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">http</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="s2">&quot;https://api.example.com/private&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">    </span><span class="p">[</span><span class="s2">&quot;Authorization&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Bearer my-token&quot;</span>
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="p">})</span>
+</span></code></pre></div>
+<h2 id="keyvalue-store-store">Key/value store (<code>store</code>)<a class="headerlink" href="#keyvalue-store-store" title="Permanent link">&para;</a></h2>
+<p>Available when <code>AllowStore: true</code>. The <code>store</code> global is not registered when <code>AllowStore</code> is <code>false</code>.</p>
+<p>The store provides simple persistent key/value storage. Values are always strings. The storage backend depends on the environment:</p>
+<ul>
+<li><strong>Desktop:</strong> each key is stored as a file named <code>&lt;key&gt;</code> inside <code>{ScriptDirectory}/{StoreSubDirectory}</code> (default: <code>scripts/.store/</code>). The directory is created automatically on the first write.</li>
+<li><strong>Browser/WASM:</strong> each key is stored in <code>localStorage</code> under the prefix <code>dotnet6502.store.</code>.</li>
+</ul>
+<p>Keys must be valid filenames (no path separators, no <code>..</code>). Attempting to use an invalid key raises a Lua runtime error.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>store.get(key)</code></td>
+<td>string or nil</td>
+<td>Returns the stored value for <code>key</code>, or <code>nil</code> if the key does not exist.</td>
+</tr>
+<tr>
+<td><code>store.set(key, value)</code></td>
+<td>—</td>
+<td>Stores <code>value</code> under <code>key</code>, overwriting any existing entry.</td>
+</tr>
+<tr>
+<td><code>store.delete(key)</code></td>
+<td>—</td>
+<td>Removes the entry for <code>key</code>. No-op if the key does not exist.</td>
+</tr>
+<tr>
+<td><code>store.exists(key)</code></td>
+<td>boolean</td>
+<td>Returns <code>true</code> if an entry exists for <code>key</code>.</td>
+</tr>
+<tr>
+<td><code>store.list()</code></td>
+<td>table</td>
+<td>Returns a 1-indexed Lua table of all stored keys.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="store-examples">Store examples<a class="headerlink" href="#store-examples" title="Permanent link">&para;</a></h3>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">-- Save and retrieve a string value</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nv">store</span><span class="p">.</span><span class="nf">set</span><span class="p">(</span><span class="s2">&quot;high_score&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;12345&quot;</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">store</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="s2">&quot;high_score&quot;</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nv">log</span><span class="p">.</span><span class="nf">info</span><span class="p">(</span><span class="s2">&quot;High score: &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">(</span><span class="nv">score</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="p">))</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1">-- Persist a flag across sessions</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="kr">if</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nv">store</span><span class="p">.</span><span class="nf">exists</span><span class="p">(</span><span class="s2">&quot;intro_shown&quot;</span><span class="p">)</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nv">log</span><span class="p">.</span><span class="nf">info</span><span class="p">(</span><span class="s2">&quot;Showing intro for the first time&quot;</span><span class="p">)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nv">store</span><span class="p">.</span><span class="nf">set</span><span class="p">(</span><span class="s2">&quot;intro_shown&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">)</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="kr">end</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="c1">-- Save downloaded content for later use</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="kd">local</span><span class="w"> </span><span class="nv">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">http</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="s2">&quot;https://example.com/data.txt&quot;</span><span class="p">)</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="kr">if</span><span class="w"> </span><span class="nv">resp</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="nv">store</span><span class="p">.</span><span class="nf">set</span><span class="p">(</span><span class="s2">&quot;cached_data&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">resp</span><span class="p">.</span><span class="py">body</span><span class="p">)</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="kr">end</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="c1">-- List all stored keys</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="kd">local</span><span class="w"> </span><span class="nv">keys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">store</span><span class="p">.</span><span class="nf">list</span><span class="p">()</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="kr">for</span><span class="w"> </span><span class="nv">_</span><span class="p">,</span><span class="w"> </span><span class="nv">k</span><span class="w"> </span><span class="kr">in</span><span class="w"> </span><span class="nb">ipairs</span><span class="p">(</span><span class="nv">keys</span><span class="p">)</span><span class="w"> </span><span class="kr">do</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">    </span><span class="nv">log</span><span class="p">.</span><span class="nf">info</span><span class="p">(</span><span class="s2">&quot;Store key: &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="nv">k</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="s2">&quot; = &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">(</span><span class="nv">store</span><span class="p">.</span><span class="nf">get</span><span class="p">(</span><span class="nv">k</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">))</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="kr">end</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="c1">-- Clean up</span>
+</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="nv">store</span><span class="p">.</span><span class="nf">delete</span><span class="p">(</span><span class="s2">&quot;high_score&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="tcp-client-tcp">TCP client (<code>tcp</code>)<a class="headerlink" href="#tcp-client-tcp" title="Permanent link">&para;</a></h2>
+<p>Available when <code>AllowTcpClient: true</code>. The <code>tcp</code> global is not registered when <code>AllowTcpClient</code> is <code>false</code>. TCP client support is <strong>desktop only</strong> — it is not available in browser/WASM builds because <code>System.Net.Sockets.TcpClient</code> is not supported in WebAssembly.</p>
+<p>The TCP API is designed for low-latency per-frame communication. The connection persists across frames.</p>
+<h3 id="binary-data-representation">Binary data representation<a class="headerlink" href="#binary-data-representation" title="Permanent link">&para;</a></h3>
+<p>MoonSharp strings are .NET <code>System.String</code> (UTF-16 code units), <strong>not</strong> raw byte arrays. Any byte value &gt; 127 would be silently reinterpreted as a Unicode code point, corrupting binary payloads. All binary I/O in the TCP API therefore uses <strong>1-indexed Lua tables of numbers (0–255)</strong> — the same convention as <code>file.read_bytes()</code> and <code>http.get_bytes()</code>.</p>
+<p><code>conn:send()</code> accepts either format:</p>
+<ul>
+<li>A <strong>string</strong> — encoded to UTF-8 bytes before sending. Safe for text-only protocols.</li>
+<li>A <strong>1-indexed byte table</strong> — sent verbatim as raw bytes. Use for binary protocols.</li>
+</ul>
+<p><code>conn:receive(n)</code> always returns a 1-indexed byte table regardless of the data content.</p>
+<h3 id="lua-52-bitwise-arithmetic">Lua 5.2 bitwise arithmetic<a class="headerlink" href="#lua-52-bitwise-arithmetic" title="Permanent link">&para;</a></h3>
+<p>MoonSharp implements Lua 5.2. The Lua 5.3 bitwise operators (<code>&amp;</code>, <code>|</code>, <code>&gt;&gt;</code>, <code>&lt;&lt;</code>) are <strong>not</strong> available. Use integer arithmetic instead:</p>
+<table>
+<thead>
+<tr>
+<th>Lua 5.3</th>
+<th>Lua 5.2 equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>n &amp; 0xFF</code></td>
+<td><code>n % 256</code></td>
+</tr>
+<tr>
+<td><code>(n &gt;&gt; 8) &amp; 0xFF</code></td>
+<td><code>math.floor(n / 256) % 256</code></td>
+</tr>
+<tr>
+<td><code>(n &gt;&gt; 16) &amp; 0xFF</code></td>
+<td><code>math.floor(n / 65536) % 256</code></td>
+</tr>
+<tr>
+<td><code>(n &gt;&gt; 24) &amp; 0xFF</code></td>
+<td><code>math.floor(n / 16777216) % 256</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="connecting">Connecting<a class="headerlink" href="#connecting" title="Permanent link">&para;</a></h3>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">tcp</span><span class="p">.</span><span class="nf">connect</span><span class="p">(</span><span class="nv">host</span><span class="p">,</span><span class="w"> </span><span class="nv">port</span><span class="w"> </span><span class="p">[,</span><span class="w"> </span><span class="nv">timeout_ms</span><span class="p">])</span>
+</span></code></pre></div>
+<ul>
+<li><code>host</code> — hostname or IP address string.</li>
+<li><code>port</code> — TCP port number (1–65535).</li>
+<li><code>timeout_ms</code> — connection timeout in milliseconds. Default: 5000.</li>
+</ul>
+<p>Returns a <strong>result table</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ok</code></td>
+<td>boolean</td>
+<td><code>true</code> if the connection was established.</td>
+</tr>
+<tr>
+<td><code>data</code></td>
+<td>connection</td>
+<td>Connection object (only present when <code>ok = true</code>).</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>string or nil</td>
+<td>Error description on failure. <code>nil</code> on success.</td>
+</tr>
+</tbody>
+</table>
+<p>The call is <strong>non-blocking and async</strong> — the coroutine suspends until the connection is established or times out.</p>
+<h3 id="connection-methods">Connection methods<a class="headerlink" href="#connection-methods" title="Permanent link">&para;</a></h3>
+<p>Once connected, the <code>conn</code> object exposes three methods:</p>
+<h4 id="connsenddata"><code>conn:send(data)</code><a class="headerlink" href="#connsenddata" title="Permanent link">&para;</a></h4>
+<p>Send data over the connection. <code>data</code> may be a string or a 1-indexed byte table.</p>
+<p>Returns <code>{ ok=boolean, error=string|nil }</code>.</p>
+<h4 id="connreceiven"><code>conn:receive(n)</code><a class="headerlink" href="#connreceiven" title="Permanent link">&para;</a></h4>
+<p>Receive exactly <code>n</code> bytes. Suspends asynchronously until all bytes arrive or an error occurs.</p>
+<p>Returns <code>{ ok=boolean, data=table, error=string|nil }</code> where <code>data</code> is a 1-indexed byte table of <code>n</code> numbers (0–255).</p>
+<h4 id="connreceivel"><code>conn:receive("*l")</code><a class="headerlink" href="#connreceivel" title="Permanent link">&para;</a></h4>
+<p>Receive one line of text (reads until <code>\n</code>; the newline is stripped).</p>
+<p>Returns <code>{ ok=boolean, data=string, error=string|nil }</code> where <code>data</code> is the line as a string.</p>
+<h4 id="connclose"><code>conn:close()</code><a class="headerlink" href="#connclose" title="Permanent link">&para;</a></h4>
+<p>Close the connection. Safe to call multiple times.</p>
+<h3 id="tcp-async-behaviour">TCP async behaviour<a class="headerlink" href="#tcp-async-behaviour" title="Permanent link">&para;</a></h3>
+<p><code>tcp.connect()</code>, <code>conn:send()</code>, and <code>conn:receive()</code> are all <strong>non-blocking and async</strong>: the coroutine suspends immediately and the emulator continues running frames. The script resumes automatically once the operation completes. From the Lua script's perspective each call looks like a normal synchronous expression:</p>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">tcp</span><span class="p">.</span><span class="nf">connect</span><span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">9000</span><span class="p">,</span><span class="w"> </span><span class="mi">3000</span><span class="p">)</span><span class="w">  </span><span class="c1">-- suspends until connected or timed out</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">sr</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nv">conn</span><span class="p">:</span><span class="nf">send</span><span class="p">({</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">})</span><span class="w">                  </span><span class="c1">-- suspends until sent</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">lr</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nv">conn</span><span class="p">:</span><span class="nf">receive</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="w">                       </span><span class="c1">-- suspends until 4 bytes arrive</span>
+</span></code></pre></div>
+<h3 id="tcp-examples">TCP examples<a class="headerlink" href="#tcp-examples" title="Permanent link">&para;</a></h3>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">-- Connect to a TCP server</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">tcp</span><span class="p">.</span><span class="nf">connect</span><span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">9000</span><span class="p">,</span><span class="w"> </span><span class="mi">3000</span><span class="p">)</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kr">if</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nv">res</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="nv">log</span><span class="p">.</span><span class="nf">error</span><span class="p">(</span><span class="s2">&quot;Connection failed: &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">(</span><span class="nv">res</span><span class="p">.</span><span class="py">error</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s2">&quot;?&quot;</span><span class="p">))</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="kr">return</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="kr">end</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="kd">local</span><span class="w"> </span><span class="nv">conn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">res</span><span class="p">.</span><span class="py">data</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1">-- Send a length-prefixed binary payload (byte table)</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="kd">local</span><span class="w"> </span><span class="nv">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nv">cpu</span><span class="p">.</span><span class="py">a</span><span class="p">,</span><span class="w"> </span><span class="nv">cpu</span><span class="p">.</span><span class="py">x</span><span class="p">,</span><span class="w"> </span><span class="nv">cpu</span><span class="p">.</span><span class="py">y</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="kd">local</span><span class="w"> </span><span class="nv">prefix</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="o">#</span><span class="nv">payload</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">256</span><span class="p">,</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="nb">math.floor</span><span class="p">(</span><span class="o">#</span><span class="nv">payload</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">256</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">256</span><span class="p">,</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span><span class="nb">math.floor</span><span class="p">(</span><span class="o">#</span><span class="nv">payload</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">65536</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">256</span><span class="p">,</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="nb">math.floor</span><span class="p">(</span><span class="o">#</span><span class="nv">payload</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">16777216</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">256</span><span class="p">,</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="p">}</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="nv">conn</span><span class="p">:</span><span class="nf">send</span><span class="p">(</span><span class="nv">prefix</span><span class="p">)</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="nv">conn</span><span class="p">:</span><span class="nf">send</span><span class="p">(</span><span class="nv">payload</span><span class="p">)</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="c1">-- Receive a length-prefixed response</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="kd">local</span><span class="w"> </span><span class="nv">lr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">conn</span><span class="p">:</span><span class="nf">receive</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="kr">if</span><span class="w"> </span><span class="nv">lr</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="w">    </span><span class="kd">local</span><span class="w"> </span><span class="nv">resp_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">lr</span><span class="p">.</span><span class="py">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">lr</span><span class="p">.</span><span class="py">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="mi">256</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">lr</span><span class="p">.</span><span class="py">data</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">*</span><span class="mi">65536</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">lr</span><span class="p">.</span><span class="py">data</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">*</span><span class="mi">16777216</span>
+</span><span id="__span-7-24"><a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a><span class="w">    </span><span class="kr">if</span><span class="w"> </span><span class="nv">resp_len</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-7-25"><a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a><span class="w">        </span><span class="kd">local</span><span class="w"> </span><span class="nv">ar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">conn</span><span class="p">:</span><span class="nf">receive</span><span class="p">(</span><span class="nv">resp_len</span><span class="p">)</span>
+</span><span id="__span-7-26"><a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a><span class="w">        </span><span class="kr">if</span><span class="w"> </span><span class="nv">ar</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-7-27"><a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a><span class="w">            </span><span class="nv">mem</span><span class="p">.</span><span class="nf">write</span><span class="p">(</span><span class="mh">0xD020</span><span class="p">,</span><span class="w"> </span><span class="nv">ar</span><span class="p">.</span><span class="py">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w">  </span><span class="c1">-- apply first byte as C64 border color</span>
+</span><span id="__span-7-28"><a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a><span class="w">        </span><span class="kr">end</span>
+</span><span id="__span-7-29"><a id="__codelineno-7-29" name="__codelineno-7-29" href="#__codelineno-7-29"></a><span class="w">    </span><span class="kr">end</span>
+</span><span id="__span-7-30"><a id="__codelineno-7-30" name="__codelineno-7-30" href="#__codelineno-7-30"></a><span class="kr">end</span>
+</span><span id="__span-7-31"><a id="__codelineno-7-31" name="__codelineno-7-31" href="#__codelineno-7-31"></a>
+</span><span id="__span-7-32"><a id="__codelineno-7-32" name="__codelineno-7-32" href="#__codelineno-7-32"></a><span class="c1">-- Receive a text line (e.g. JSON or NDJSON)</span>
+</span><span id="__span-7-33"><a id="__codelineno-7-33" name="__codelineno-7-33" href="#__codelineno-7-33"></a><span class="kd">local</span><span class="w"> </span><span class="nv">lr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">conn</span><span class="p">:</span><span class="nf">receive</span><span class="p">(</span><span class="s2">&quot;*l&quot;</span><span class="p">)</span>
+</span><span id="__span-7-34"><a id="__codelineno-7-34" name="__codelineno-7-34" href="#__codelineno-7-34"></a><span class="kr">if</span><span class="w"> </span><span class="nv">lr</span><span class="p">.</span><span class="py">ok</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-7-35"><a id="__codelineno-7-35" name="__codelineno-7-35" href="#__codelineno-7-35"></a><span class="w">    </span><span class="nv">log</span><span class="p">.</span><span class="nf">info</span><span class="p">(</span><span class="s2">&quot;Server says: &quot;</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="nv">lr</span><span class="p">.</span><span class="py">data</span><span class="p">)</span>
+</span><span id="__span-7-36"><a id="__codelineno-7-36" name="__codelineno-7-36" href="#__codelineno-7-36"></a><span class="kr">end</span>
+</span><span id="__span-7-37"><a id="__codelineno-7-37" name="__codelineno-7-37" href="#__codelineno-7-37"></a>
+</span><span id="__span-7-38"><a id="__codelineno-7-38" name="__codelineno-7-38" href="#__codelineno-7-38"></a><span class="c1">-- Close when done</span>
+</span><span id="__span-7-39"><a id="__codelineno-7-39" name="__codelineno-7-39" href="#__codelineno-7-39"></a><span class="nv">conn</span><span class="p">:</span><span class="nf">close</span><span class="p">()</span>
+</span></code></pre></div>
+<p>For a complete per-frame observation/action loop, see <code>example_tcp_client.lua</code>.</p>
+<h2 id="standard-lua-libraries">Standard Lua libraries<a class="headerlink" href="#standard-lua-libraries" title="Permanent link">&para;</a></h2>
+<p>The following standard Lua modules are available: <code>string</code>, <code>math</code>, <code>table</code>, and the soft-sandbox base functions (<code>print</code>, <code>type</code>, <code>tostring</code>, <code>tonumber</code>, <code>pairs</code>, <code>ipairs</code>, etc.). The standard Lua <code>io</code> and <code>os</code> modules are not available; use the <code>file</code> global and <code>emu.load()</code> instead.</p>
+<h2 id="error-handling">Error handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
+<p>Scripts that encounter errors are automatically disabled:</p>
+<ul>
+<li><strong>Syntax errors</strong> — detected at load time. The script appears in the Scripts tab as system-disabled and cannot be toggled on.</li>
+<li><strong>Runtime errors</strong> — the script is stopped and marked as system-disabled. This applies to both coroutine execution and event hook invocations.</li>
+<li><strong>Instruction limit exceeded</strong> — if a coroutine resume exceeds <code>MaxInstructionsPerResume</code>, the script is force-suspended and system-disabled.</li>
+</ul>
+<p>Disabled scripts can be fixed on disk and reloaded via the reload button in the Scripts tab without restarting the emulator.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/highbyte/dotnet-6502" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "navigation.path", "toc.follow", "content.code.copy", "content.code.annotate", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../../javascripts/github-prerelease.js"></script>
+      
+    
+  </body>
+</html>
