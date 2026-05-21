@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Impl.Sk
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Impl.Avalonia", "src\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.SilkNetNative", "src\apps\Highbyte.DotNet6502.App.SilkNetNative\Highbyte.DotNet6502.App.SilkNetNative.csproj", "{B1320CAC-9AFC-4293-BF7F-8ACD14F5B4F1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.SilkNetNative", "src\apps\SilkNetNative\Highbyte.DotNet6502.App.SilkNetNative\Highbyte.DotNet6502.App.SilkNetNative.csproj", "{B1320CAC-9AFC-4293-BF7F-8ACD14F5B4F1}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Monitor", "src\libraries\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj", "{CC928CD4-726D-443F-B6C6-1149511AA4BE}"
 EndProject
