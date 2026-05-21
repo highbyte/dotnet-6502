@@ -1,0 +1,104 @@
+name: WASM AOT publish smoke
+
+# Run the Release/AOT publish path of the two WASM apps on PR and smoke-test
+# the resulting wwwroot in a headless Chromium via Playwright. Catches the
+# class of bug that only surfaces under trimming/AOT (missing trim roots,
+# plug-in assemblies dropped from the bundle, etc.) — not exercised by the
+# regular `dotnet build` / `dotnet test` CI job.
+
+on:
+  pull_request:
+    paths:
+      - 'src/apps/BlazorWASM/**'
+      - 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/**'
+      - 'src/libraries/**'
+      - 'src/systems/**'
+      - 'tests/wasm-smoke/**'
+      - '.github/workflows/wasm-aot-verify.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: wasm-aot-verify-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: ${{ matrix.app.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - name: blazor
+            project: src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj
+            spec: blazor.spec.ts
+            needs_version_placeholder_replace: false
+          - name: avalonia-browser
+            project: src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj
+            spec: avalonia-browser.spec.ts
+            needs_version_placeholder_replace: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Publish ${{ matrix.app.name }} (Release, AOT)
+        env:
+          VERSION: 0.0.0-pr${{ github.event.pull_request.number || github.run_number }}
+        # Same flags as .github/workflows/dotnet-*-publish-to-gh-pages.yml so we
+        # exercise the real release publish path. GHPagesBase=/ because we serve
+        # locally from the wwwroot at the server root.
+        run: |
+          dotnet publish "${{ matrix.app.project }}" \
+            -c Release \
+            -p:Version="$VERSION" \
+            -p:GHPages=true \
+            -p:GHPagesBase="/" \
+            -p:GHPagesInjectBrotliLoader=false \
+            -o "build/${{ matrix.app.name }}"
+
+      - name: Replace version placeholders
+        if: matrix.app.needs_version_placeholder_replace
+        env:
+          VERSION: 0.0.0-pr${{ github.event.pull_request.number || github.run_number }}
+        run: |
+          find "build/${{ matrix.app.name }}/wwwroot" -name "*.html" -exec sed -i "s/{{APP_VERSION}}/$VERSION/g" {} \;
+          find "build/${{ matrix.app.name }}/wwwroot" -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$VERSION/g" {} \;
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright deps
+        working-directory: tests/wasm-smoke
+        # npm ci enforces install from the committed package-lock.json (exact versions).
+        # --ignore-scripts skips arbitrary preinstall/postinstall scripts in transitive
+        # deps; @playwright/test and http-server don't need them — the browser download
+        # is the explicit `playwright install` call below.
+        run: |
+          npm ci --ignore-scripts
+          ./node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Run smoke test
+        working-directory: tests/wasm-smoke
+        env:
+          WASM_SITE_ROOT: ${{ github.workspace }}/build/${{ matrix.app.name }}/wwwroot
+        run: ./node_modules/.bin/playwright test "${{ matrix.app.spec }}"
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.app.name }}
+          path: tests/wasm-smoke/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
