@@ -40,14 +40,14 @@ public interface IInstructionUsesByte
 public interface IInstructionUsesAddress
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="cpu"></param>
     /// <param name="mem"></param>
-    /// <param name="value"></param>
+    /// <param name="address"></param>
     /// <param name="addrModeCalcResult"></param>
     /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
-    ulong ExecuteWithWord(CPU cpu, Memory mem, ushort value, AddrModeCalcResult addrModeCalcResult);
+    ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult);
 }
 
 /// <summary>
