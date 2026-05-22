@@ -4,8 +4,6 @@ export class MemoryContentProvider implements vscode.TextDocumentContentProvider
     private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri>();
     readonly onDidChange = this._onDidChange.event;
 
-    constructor() {}
-
     async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
         // Parse URI: memory:///0xC000-0xC0FF (range format in path for title display)
         const rangeMatch = uri.path.match(/^\/?0x([0-9A-Fa-f]+)-0x([0-9A-Fa-f]+)$/);

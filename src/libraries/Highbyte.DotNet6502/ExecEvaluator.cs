@@ -51,6 +51,12 @@ public class LegacyExecEvaluator : IExecEvaluator
             : ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, triggerDescription);
     }
 
+    public ExecEvaluatorTriggerResult Check(InstructionExecResult lastInstructionExecResult, CPU cpu, Memory mem)
+    {
+        // Note: Method is not used, but is required by the interface.
+        return ExecEvaluatorTriggerResult.NotTriggered;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private string? CheckInstructionStopConditions(in InstructionExecResult result)
     {
@@ -86,11 +92,6 @@ public class LegacyExecEvaluator : IExecEvaluator
         return description;
     }
 
-    public ExecEvaluatorTriggerResult Check(InstructionExecResult lastInstructionExecResult, CPU cpu, Memory mem)
-    {
-        // Note: Method is not used, but is required by the interface.
-        return ExecEvaluatorTriggerResult.NotTriggered;
-    }
 }
 
 public class AlwaysExecEvaluator : IExecEvaluator

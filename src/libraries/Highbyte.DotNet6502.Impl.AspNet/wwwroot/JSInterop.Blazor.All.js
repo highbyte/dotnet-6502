@@ -87,7 +87,7 @@ export function forEachWithTwoArguments(jSReference, callbackObjRef) {
 
 // https://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/
 export function valuePropertiesType(obj) {
-    return Object.prototype.toString.call(obj.value).match(/\s([a-z|A-Z]+)/)[1].toLowerCase();
+    return /\s([a-z|A-Z]+)/.exec(Object.prototype.toString.call(obj.value))[1].toLowerCase();
 }
 
 export function valuePropertiesValue(obj) {
