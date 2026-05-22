@@ -69,7 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
             console.log(`[6502 Debug] jumpToLine invoked with ${args.length} args:`, JSON.stringify(args.map(a => a?.toString?.() ?? a)));
 
             const session = vscode.debug.activeDebugSession;
-            if (!session || session.type !== 'dotnet6502') {
+            if (session?.type !== 'dotnet6502') {
                 console.log('[6502 Debug] jumpToLine: no active dotnet6502 session');
                 return;
             }
@@ -491,7 +491,7 @@ function extractProgramPathFromArgs(args: any[], taskCwd: string): string | unde
 function extractDbgFileFromArgs(args: any[], taskCwd: string): string | undefined {
     // Auto-detect dbgFile from -Wl --dbgfile,<file> arg.
     for (const arg of args) {
-        const argStr = typeof arg === 'string' ? arg : (arg as any)?.value;
+        const argStr = typeof arg === 'string' ? arg : arg?.value;
         if (typeof argStr === 'string' && argStr.startsWith('--dbgfile,')) {
             return path.join(taskCwd, argStr.slice('--dbgfile,'.length));
         }
@@ -905,7 +905,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
  * Generate a build task for a .asm file in tasks.json
  */
 async function generateBuildTask(uri: vscode.Uri): Promise<void> {
-    if (!uri || !uri.fsPath.endsWith('.asm')) {
+    if (!uri?.fsPath.endsWith('.asm')) {
         vscode.window.showErrorMessage('Please select a .asm file');
         return;
     }
@@ -1116,7 +1116,7 @@ function pickSuggestedTask(tasks: any[], fileName: string, fileBasename: string)
         ?? tasks.find((t: any) => t.label.toLowerCase().includes(fileBasename.toLowerCase()))?.label
         ?? tasks.find((t: any) =>
             (t.command && typeof t.command === 'string' && t.command.includes(fileName)) ||
-            (t.args && t.args.some((arg: string) => arg.includes(fileName)))
+            t.args?.some((arg: string) => arg.includes(fileName))
         )?.label;
 }
 
@@ -1197,7 +1197,7 @@ async function generateLaunchConfig(
  * Command to generate launch config - prompts user to select an existing task
  */
 async function generateLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
-    if (!uri || !uri.fsPath.endsWith('.asm')) {
+    if (!uri?.fsPath.endsWith('.asm')) {
         vscode.window.showErrorMessage('Please select a .asm file');
         return;
     }
@@ -1221,7 +1221,7 @@ async function generateLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
  * Command to generate emulator launch config - prompts user to select an existing task
  */
 async function generateEmulatorLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
-    if (!uri || !uri.fsPath.endsWith('.asm')) {
+    if (!uri?.fsPath.endsWith('.asm')) {
         vscode.window.showErrorMessage('Please select a .asm file');
         return;
     }
@@ -1268,7 +1268,7 @@ async function generateEmulatorLaunchConfig(
  * Command to generate emulator launch config for .prg files
  */
 async function generatePrgLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
-    if (!uri || !uri.fsPath.endsWith('.prg')) {
+    if (!uri?.fsPath.endsWith('.prg')) {
         vscode.window.showErrorMessage('Please select a .prg file');
         return;
     }
@@ -1349,7 +1349,7 @@ class AddressDecorationManager implements vscode.Disposable {
             for (const [fileName, lineObj] of Object.entries(response.files as Record<string, Record<string, number>>)) {
                 const lineMap = new Map<number, string>();
                 for (const [lineStr, addr] of Object.entries(lineObj)) {
-                    const hex = (addr as number).toString(16).toUpperCase().padStart(4, '0');
+                    const hex = addr.toString(16).toUpperCase().padStart(4, '0');
                     lineMap.set(Number.parseInt(lineStr), `$${hex}`);
                 }
                 fileMap.set(fileName, lineMap);
@@ -1591,7 +1591,7 @@ class DotNet6502DebugTrackerFactory implements vscode.DebugAdapterTrackerFactory
         return {
             // VS Code → adapter: translate local paths to remote paths in requests
             onWillReceiveMessage: hasMapper ? (message: any) => {
-                if (!message || message.type !== 'request') { return; }
+                if (message?.type !== 'request') { return; }
                 const args = message.arguments;
                 if (!args) { return; }
                 const cmd: string = message.command;
