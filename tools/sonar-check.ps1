@@ -59,12 +59,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-$Headers = @{}
-if ($env:SONAR_TOKEN) {
-    $authBytes = [System.Text.Encoding]::UTF8.GetBytes("$($env:SONAR_TOKEN):")
-    $Headers['Authorization'] = 'Basic ' + [Convert]::ToBase64String($authBytes)
-}
-
 # inNewCodePeriod=true: see comment in tools/sonar-check.sh — restrict to issues
 # introduced on this branch only. Set $env:SONAR_INCLUDE_PREEXISTING=1 to disable.
 $NewCodeFilter = if ($env:SONAR_INCLUDE_PREEXISTING -eq '1') { '' } else { '&inNewCodePeriod=true' }
@@ -73,7 +67,7 @@ $Api = "$SonarHost/api/issues/search?componentKeys=$ProjectKey&branch=$Branch&st
 $IssuesJson = $null
 for ($i = 0; $i -lt 12; $i++) {
     try {
-        $IssuesJson = Invoke-RestMethod -Uri $Api -Headers $Headers -ErrorAction Stop
+        $IssuesJson = Invoke-RestMethod -Uri $Api -ErrorAction Stop
         if ($null -ne $IssuesJson.issues) { break }
     } catch {
         Start-Sleep -Seconds 5
@@ -81,7 +75,7 @@ for ($i = 0; $i -lt 12; $i++) {
 }
 
 if (-not $IssuesJson -or $null -eq $IssuesJson.issues) {
-    Write-Error "Failed to fetch Sonar issues from $SonarHost. Set SONAR_TOKEN for private projects."
+    Write-Error "Failed to fetch Sonar issues from $SonarHost."
     exit 2
 }
 
