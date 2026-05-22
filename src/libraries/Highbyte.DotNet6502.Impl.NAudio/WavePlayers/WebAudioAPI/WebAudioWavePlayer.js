@@ -6,29 +6,27 @@ export const WebAudioWavePlayer = (() => {
     let audioWorkletNode = null;
     let sampleRate = 44100;
     let channels = 1;
-    let bufferSize = 4096;
-    
+
     // Ring buffer for continuous audio samples instead of array of buffers
     let sampleBuffer = null;
     let writePosition = 0;
     let readPosition = 0;
     let bufferedSamples = 0;
     let bufferCapacity = 0;
-    
+
     // Minimum samples needed before starting playback (to avoid immediate underrun)
     let minBufferBeforePlay = 0;
     let hasEnoughToStart = false;
-    
+
     // Configurable settings (set from C#)
     let scriptProcessorBufferSize = 2048;
     let statsIntervalMs = 10000;
-    
+
     // Adaptive buffering: track underruns and increase buffer if needed
     let underrunCount = 0;
     let overflowCount = 0;
     let lastStatsTime = 0;
-    const DEFAULT_STATS_INTERVAL_MS = 10000; // Log stats every 10 seconds
-    
+
     let isPlaying = false;
 
     // Log callback to .NET
@@ -55,13 +53,11 @@ export const WebAudioWavePlayer = (() => {
                 // Fallback to console if callback fails
                 console.log(`[WebAudioWavePlayer] ${message}`);
             }
-        } else {
+        } else if (level === LogLevel.Error) {
             // Fallback to console if no callback registered
-            if (level === LogLevel.Error) {
-                console.error(`[WebAudioWavePlayer] ${message}`);
-            } else {
-                console.log(`[WebAudioWavePlayer] ${message}`);
-            }
+            console.error(`[WebAudioWavePlayer] ${message}`);
+        } else {
+            console.log(`[WebAudioWavePlayer] ${message}`);
         }
     }
 
@@ -95,7 +91,6 @@ export const WebAudioWavePlayer = (() => {
     function initialize(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
         sampleRate = sRate;
         channels = numChannels;
-        bufferSize = bufSize;
         scriptProcessorBufferSize = scriptProcBufferSize;
         statsIntervalMs = statsIntMs;
         isPlaying = false;
@@ -155,6 +150,25 @@ export const WebAudioWavePlayer = (() => {
         logDebug(`Initialize exit`);
     }
 
+    function fillOutputWithSilence(outputBuffer) {
+        for (let channel = 0; channel < channels; channel++) {
+            outputBuffer.getChannelData(channel).fill(0);
+        }
+    }
+
+    function copyFromRingBufferToOutput(outputBuffer, bufferLength, samplesNeeded) {
+        for (let channel = 0; channel < channels; channel++) {
+            const outputData = outputBuffer.getChannelData(channel);
+            for (let i = 0; i < bufferLength; i++) {
+                // Interleaved audio: sample index = frame * channels + channel
+                const ringBufferIndex = (readPosition + i * channels + channel) % bufferCapacity;
+                outputData[i] = sampleBuffer[ringBufferIndex];
+            }
+        }
+        readPosition = (readPosition + samplesNeeded) % bufferCapacity;
+        bufferedSamples -= samplesNeeded;
+    }
+
     /**
      * Set up ScriptProcessorNode for audio processing
      */
@@ -190,42 +204,21 @@ export const WebAudioWavePlayer = (() => {
 
             // Wait until we have enough initial buffer before starting playback
             if (!hasEnoughToStart) {
-                // Output silence while waiting for buffer to fill
-                for (let channel = 0; channel < channels; channel++) {
-                    const outputData = outputBuffer.getChannelData(channel);
-                    outputData.fill(0);
-                }
+                fillOutputWithSilence(outputBuffer);
                 return;
             }
 
             if (isPlaying && bufferedSamples >= samplesNeeded) {
-                // We have enough samples - read from ring buffer
-                for (let channel = 0; channel < channels; channel++) {
-                    const outputData = outputBuffer.getChannelData(channel);
-                    
-                    for (let i = 0; i < bufferLength; i++) {
-                        // For interleaved audio: sample index = frame * channels + channel
-                        const ringBufferIndex = (readPosition + i * channels + channel) % bufferCapacity;
-                        outputData[i] = sampleBuffer[ringBufferIndex];
-                    }
-                }
-                
-                // Advance read position
-                readPosition = (readPosition + samplesNeeded) % bufferCapacity;
-                bufferedSamples -= samplesNeeded;
+                copyFromRingBufferToOutput(outputBuffer, bufferLength, samplesNeeded);
             } else {
-                // Not enough data or not playing - output silence
-                for (let channel = 0; channel < channels; channel++) {
-                    const outputData = outputBuffer.getChannelData(channel);
-                    outputData.fill(0);
-                }
-                
-                // Track underruns (but not during initial buffering or when paused)
-                if (isPlaying && hasEnoughToStart) {
+                fillOutputWithSilence(outputBuffer);
+                // Track underruns (but not when paused). hasEnoughToStart is already true here
+                // because we returned early above when it wasn't.
+                if (isPlaying) {
                     underrunCount++;
                 }
             }
-            
+
             // Periodic stats logging
             logStatsIfNeeded();
         };
@@ -312,10 +305,10 @@ export const WebAudioWavePlayer = (() => {
      * Resume audio playback
      */
     function resume() {
-        if (audioContext && audioContext.state === 'suspended') {
+        if (audioContext?.state === 'suspended') {
             audioContext.resume();
         }
-        
+
         // Reconnect the processor node if it was disconnected during stop
         if (audioWorkletNode && audioContext) {
             audioWorkletNode.connect(audioContext.destination);

@@ -789,7 +789,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
             }
 
             const executableDir = path.dirname(executablePath);
-            const env = { ...process.env, ...(config.env || {}) };
+            const env = { ...process.env, ...config.env };
             const spawnOptions: child_process.SpawnOptions = {
                 detached: false,
                 stdio: ['ignore', 'pipe', 'pipe'],  // stdin=ignore, stdout=pipe, stderr=pipe

@@ -38,15 +38,13 @@ export function constructAudioBufferSourceNode(context, options = null) {
 // ----------
 //export function getAttribute(object, attribute) { return object[attribute]; }
 
-// export function setAttribute(object, attribute, value) { object[attribute] = value; }
-
 export function getJSReference(element) { return element.valueOf(); }
 
 export function addEventListener(target, type, eventListener = null, options = null) {
     target.addEventListener(type, eventListener, options)
 }
 
-export function removeEventListener(target, type, eventListener = null, options) {
+export function removeEventListener(target, type, eventListener = null, options = null) {
     target.removeEventListener(type, eventListener, options)
 }
 
@@ -89,7 +87,7 @@ export function forEachWithTwoArguments(jSReference, callbackObjRef) {
 
 // https://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/
 export function valuePropertiesType(obj) {
-    return ({}).toString.call(obj.value).match(/\s([a-z|A-Z]+)/)[1].toLowerCase();
+    return Object.prototype.toString.call(obj.value).match(/\s([a-z|A-Z]+)/)[1].toLowerCase();
 }
 
 export function valuePropertiesValue(obj) {
@@ -110,23 +108,6 @@ export function constructFloat32Array(values = null) {
     return new Float32Array(values);
 }
 
-// Old methods for transfering float arrays between .NET and JS. Replaced by actually using JS type "Float32Array" instead.
-//export function getAttributeFloat32Array(object, attribute) {
-//    var float32Array = object[attribute];
-//    return Array.from(float32Array);
-//}
-
-//export function setAttributeFloat32Array(object, attribute, value) {
-//    var float32array = new Float32Array(value);
-//    object[attribute] = float32array;
-//}
-
-//export function callMethodReturnFloat32Array(object, method, args) {
-//    var float32Array = object[method](args);
-//    return Array.from(float32Array);
-//}
-
-//export function callMethodVoidFloat32Array(object, method, floatArray, args) {
-//    var float32Array = new Float32Array(floatArray);
-//    object[method](float32Array, args);
-//}
+// (Removed: getAttributeFloat32Array / setAttributeFloat32Array / callMethodReturnFloat32Array /
+//  callMethodVoidFloat32Array — these transferred float arrays as plain arrays between .NET and JS.
+//  Superseded by using the JS "Float32Array" type directly across the interop boundary.)
