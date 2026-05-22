@@ -33,7 +33,8 @@ public class InstructionExecutor
 
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
         {
-            _logger.LogWarning("Unknown instruction {OpCode} at {AtPC}", opCode.ToHex(), atPC.ToHex());
+            if (_logger.IsEnabled(LogLevel.Warning))
+                _logger.LogWarning("Unknown instruction {OpCode} at {AtPC}", opCode.ToHex(), atPC.ToHex());
             return InstructionExecResult.UnknownInstructionResult(opCode, atPC);
         }
 
