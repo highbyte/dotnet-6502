@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 
 export class MemoryContentProvider implements vscode.TextDocumentContentProvider {
-    private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
+    private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri>();
     readonly onDidChange = this._onDidChange.event;
 
-    constructor(private context: vscode.ExtensionContext) {}
+    constructor() {}
 
     async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
         // Parse URI: memory:///0xC000-0xC0FF (range format in path for title display)
@@ -20,7 +20,7 @@ export class MemoryContentProvider implements vscode.TextDocumentContentProvider
             length = endAddr - address + 1;
         } else {
             // Legacy format: 0xc000/256
-            const legacyMatch = uri.path.match(/^\/?([^\/]+)(?:\/([0-9]+))?$/);
+            const legacyMatch = uri.path.match(/^\/?([^/]+)(?:\/([0-9]+))?$/);
             
             if (!legacyMatch) {
                 return `Invalid memory URI format. Expected: memory:///0xC000-0xC0FF\nReceived path: ${uri.path}`;
@@ -43,7 +43,7 @@ export class MemoryContentProvider implements vscode.TextDocumentContentProvider
 
         // Get active debug session
         const session = vscode.debug.activeDebugSession;
-        if (!session || session.type !== 'dotnet6502') {
+        if (session?.type !== 'dotnet6502') {
             return 'No active 6502 debug session';
         }
 
@@ -69,10 +69,10 @@ export class MemoryContentProvider implements vscode.TextDocumentContentProvider
     }
 }
 
-export async function openMemoryViewer(context: vscode.ExtensionContext, provider: MemoryContentProvider, address?: string) {
+export async function openMemoryViewer(provider: MemoryContentProvider, address?: string) {
     // Get active debug session
     const session = vscode.debug.activeDebugSession;
-    if (!session || session.type !== 'dotnet6502') {
+    if (session?.type !== 'dotnet6502') {
         vscode.window.showWarningMessage('No active 6502 debug session');
         return;
     }
@@ -131,7 +131,6 @@ export async function openMemoryViewer(context: vscode.ExtensionContext, provide
         return;
     }
     
-    const length = endAddr - startAddr + 1;
     const rangeTitle = `0x${startAddr.toString(16).toUpperCase().padStart(4, '0')}-0x${endAddr.toString(16).toUpperCase().padStart(4, '0')}`;
     
     // Open memory document with range as path for proper title display

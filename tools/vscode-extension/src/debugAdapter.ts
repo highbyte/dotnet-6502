@@ -1,4 +1,3 @@
-import { spawn, ChildProcess } from 'child_process';
 import { 
     DebugSession, 
     InitializedEvent, 
@@ -19,8 +18,6 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 }
 
 export class DebugAdapter6502Session extends DebugSession {
-    private adapterProcess?: ChildProcess;
-
     public constructor() {
         super();
         this.setDebuggerLinesStartAt1(true);

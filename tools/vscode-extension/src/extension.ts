@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(outputChannel);
 
     // Register memory content provider
-    const memoryProvider = new MemoryContentProvider(context);
+    const memoryProvider = new MemoryContentProvider();
     context.subscriptions.push(
         vscode.workspace.registerTextDocumentContentProvider('memory', memoryProvider)
     );
@@ -103,7 +103,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register command to view memory
     context.subscriptions.push(
         vscode.commands.registerCommand('dotnet6502.viewMemory', async () => {
-            await openMemoryViewer(context, memoryProvider);
+            await openMemoryViewer(memoryProvider);
         })
     );
 
