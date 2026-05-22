@@ -114,15 +114,6 @@ public class Memory
 
         }
 
-        // Func<ushort, byte> reader = (ushort address) =>
-        // {
-        //     return data[baseAddress - address];
-        // };
-        // Action<ushort, byte> writer = (ushort address, byte value) =>
-        // {
-        //     data[baseAddress - address] = value;
-        // };
-
         int dataLength = length ?? data.Length;
         for (int i = 0; i < dataLength; i++)
         {
@@ -138,10 +129,6 @@ public class Memory
         {
             return data[address - baseAddress];
         };
-        // Func<ushort, byte> reader = (ushort address) =>
-        // {
-        //     return data[address - baseAddress];
-        // };
         for (int i = 0; i < data.Length; i++)
         {
             _readers[baseAddress + i] = reader;
@@ -229,19 +216,9 @@ public class Memory
         _originalWriters[address](address, value);
     }
 
-    // TODO: Implement Clone() method correctly if this method is needed. Currently it won't clone the delegates correctly.
-    //public Memory Clone()
-    //{
-    //    var memoryClone = new Memory
-    //    {
-    //        _readers = (LoadByte[])this._readers.Clone(),
-    //        _writers = (StoreByte[])this._writers.Clone(),
-    //        _readersPerConfiguration = (LoadByte[][])this._readersPerConfiguration.Clone(),
-    //        _writersPerConfiguration = (StoreByte[][])this._writersPerConfiguration.Clone(),
-    //        _originalWritersPerConfiguration = (StoreByte[][])this._originalWritersPerConfiguration.Clone(),
-    //        CurrentConfiguration = this.CurrentConfiguration,
-    //        NumberOfConfigurations = this.NumberOfConfigurations,
-    //    };
-    //    return memoryClone;
-    //}
+    // TODO: A Clone() method is intentionally not provided yet — a naive shallow
+    // array copy would alias the LoadByte/StoreByte delegates so mapped I/O
+    // writes through the clone would still mutate the original's mapped
+    // hardware. Implement properly (deep-copy the per-address delegate arrays
+    // and any captured state) before exposing.
 }

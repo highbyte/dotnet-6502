@@ -151,7 +151,7 @@ public class InstructionList
             }
             else
             {
-                throw new Exception($"Failed to create instance of Instruction type '{instructionType.FullName}'.");
+                throw new DotNet6502Exception($"Failed to create instance of Instruction type '{instructionType.FullName}'.");
             }
         }
         return new InstructionList(instructions);
