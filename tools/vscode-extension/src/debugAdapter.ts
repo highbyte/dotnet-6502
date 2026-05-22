@@ -1,14 +1,4 @@
-import { 
-    DebugSession, 
-    InitializedEvent, 
-    StoppedEvent, 
-    TerminatedEvent,
-    OutputEvent,
-    Thread,
-    StackFrame,
-    Scope,
-    Source
-} from '@vscode/debugadapter';
+import { DebugSession, InitializedEvent } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
 interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {

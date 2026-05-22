@@ -49,7 +49,7 @@ export const WebAudioWavePlayer = (() => {
         if (logCallback) {
             try {
                 logCallback(level, message);
-            } catch (e) {
+            } catch {
                 // Fallback to console if callback fails
                 console.log(`[WebAudioWavePlayer] ${message}`);
             }
@@ -121,7 +121,7 @@ export const WebAudioWavePlayer = (() => {
         }
 
         // Create new AudioContext with the specified sample rate
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        audioContext = new (globalThis.AudioContext || globalThis.webkitAudioContext)({
             sampleRate: sampleRate,
             latencyHint: 'interactive' // Low latency for real-time audio
         });

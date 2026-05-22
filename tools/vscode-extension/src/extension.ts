@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
-import * as net from 'net';
-import * as child_process from 'child_process';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import * as net from 'node:net';
+import * as child_process from 'node:child_process';
 import { DebugAdapterExecutable, DebugAdapterServer } from 'vscode';
 import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
 import * as jsonc from 'jsonc-parser';
@@ -12,102 +12,59 @@ const DEFAULT_DEBUG_HOST = '127.0.0.1';
 
 export function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('[6502 Debug] Extension activating...');
-    context.subscriptions.push(outputChannel);
 
-    // Register memory content provider
     const memoryProvider = new MemoryContentProvider();
-    context.subscriptions.push(
-        vscode.workspace.registerTextDocumentContentProvider('memory', memoryProvider)
-    );
-
-    // Register debug configuration provider
     const configProvider = new DebugConfigurationProvider();
-    context.subscriptions.push(
-        vscode.debug.registerDebugConfigurationProvider('dotnet6502', configProvider)
-    );
+    const addressDecorManager = new AddressDecorationManager();
 
-    // Register debug adapter
     context.subscriptions.push(
-        vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory())
-    );
-
-    // Kill the emulator process when a launch+emulator debug session ends (safety net
-    // in case the .NET app doesn't exit on its own via terminateDebuggee).
-    context.subscriptions.push(
+        outputChannel,
+        // Memory + debug infrastructure
+        vscode.workspace.registerTextDocumentContentProvider('memory', memoryProvider),
+        vscode.debug.registerDebugConfigurationProvider('dotnet6502', configProvider),
+        vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory()),
+        // Kill the emulator process when a launch+emulator debug session ends (safety net
+        // in case the .NET app doesn't exit on its own via terminateDebuggee).
         vscode.debug.onDidTerminateDebugSession((session) => {
             if (session.type === 'dotnet6502' &&
                 session.configuration.request === 'launch' &&
                 session.configuration.debugAdapter === 'emulator') {
                 configProvider.killEmulatorProcess();
             }
-        })
-    );
-
-    // Inline address decorations: show $XXXX after each mapped source line
-    const addressDecorManager = new AddressDecorationManager();
-    context.subscriptions.push(addressDecorManager);
-    context.subscriptions.push(
+        }),
+        // Inline address decorations: show $XXXX after each mapped source line
+        addressDecorManager,
         vscode.debug.registerDebugAdapterTrackerFactory(
             'dotnet6502',
             new DotNet6502DebugTrackerFactory(addressDecorManager)
-        )
-    );
-    context.subscriptions.push(
+        ),
         vscode.debug.onDidTerminateDebugSession((session) => {
             if (session.type === 'dotnet6502') {
                 addressDecorManager.onSessionEnded(session);
             }
-        })
-    );
-    context.subscriptions.push(
+        }),
         vscode.window.onDidChangeActiveTextEditor((editor) => {
             if (editor) { addressDecorManager.applyToEditor(editor); }
-        })
-    );
-    
-    // Register command to generate build task
-    context.subscriptions.push(
+        }),
+        // Commands
         vscode.commands.registerCommand('dotnet6502.generateBuildTask', async (uri: vscode.Uri) => {
             await generateBuildTask(uri);
-        })
-    );
-    
-    // Register command to generate launch config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generateLaunchConfig', async (uri: vscode.Uri) => {
             await generateLaunchConfigCommand(uri);
-        })
-    );
-
-    // Register command to generate emulator launch config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generateEmulatorLaunchConfig', async (uri: vscode.Uri) => {
             await generateEmulatorLaunchConfigCommand(uri);
-        })
-    );
-
-    // Register command to generate .prg launch config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generatePrgLaunchConfig', async (uri: vscode.Uri) => {
             await generatePrgLaunchConfigCommand(uri);
-        })
-    );
-
-    // Register command to generate remote attach config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generateRemoteAttachConfig', async (uri: vscode.Uri) => {
             await generateRemoteAttachConfigCommand(uri);
-        })
-    );
-
-    // Register command to view memory
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.viewMemory', async () => {
             await openMemoryViewer(memoryProvider);
-        })
-    );
-
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.jumpToLine', async (...args: any[]) => {
             console.log(`[6502 Debug] jumpToLine invoked with ${args.length} args:`, JSON.stringify(args.map(a => a?.toString?.() ?? a)));
 
@@ -207,7 +164,7 @@ async function generateRemoteAttachConfigCommand(uri: vscode.Uri | undefined): P
         validateInput: v => /^\d+$/.test(v.trim()) ? undefined : 'Enter a valid port number'
     });
     if (!remotePortStr) { return; }
-    const remotePort = parseInt(remotePortStr.trim(), 10);
+    const remotePort = Number.parseInt(remotePortStr.trim(), 10);
 
     const remoteRoot = await vscode.window.showInputBox({
         prompt: 'Project root directory on the remote machine (remoteRoot)',
@@ -879,8 +836,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         // Note: This will create one connection that the server accepts but we immediately close
         // The server will handle this gracefully (it expects a DAP initialize message)
         const startTime = Date.now();
-        const net = require('net');
-        
+
         while (Date.now() - startTime < timeoutMs) {
             try {
                 await new Promise<void>((resolve, reject) => {
@@ -908,7 +864,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
                 // Port is listening - wait a moment for the server to reject the empty connection
                 await new Promise(resolve => setTimeout(resolve, 200));
                 return true;
-            } catch (error) {
+            } catch {
                 // Port not ready yet, wait and retry
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
@@ -969,7 +925,7 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
         value: '0xc000',
         placeHolder: '0xc000',
         validateInput: (value) => {
-            if (!value.match(/^(0x[0-9a-fA-F]+|\$[0-9a-fA-F]+|[0-9]+)$/)) {
+            if (!value.match(/^(0x[0-9a-fA-F]+|\$[0-9a-fA-F]+|\d+)$/)) {
                 return 'Enter a valid address (e.g., 0xc000, $c000, or 49152)';
             }
             return undefined;
@@ -1394,7 +1350,7 @@ class AddressDecorationManager implements vscode.Disposable {
                 const lineMap = new Map<number, string>();
                 for (const [lineStr, addr] of Object.entries(lineObj)) {
                     const hex = (addr as number).toString(16).toUpperCase().padStart(4, '0');
-                    lineMap.set(parseInt(lineStr), `$${hex}`);
+                    lineMap.set(Number.parseInt(lineStr), `$${hex}`);
                 }
                 fileMap.set(fileName, lineMap);
             }
@@ -1427,7 +1383,7 @@ class AddressDecorationManager implements vscode.Disposable {
             return;
         }
 
-        const addrNum = parseInt(addrRef.replace(/^0x/i, ''), 16);
+        const addrNum = Number.parseInt(addrRef.replace(/^0x/i, ''), 16);
         const hex = addrNum.toString(16).toUpperCase().padStart(4, '0');
 
         this.currentStopInfo = { sessionId: session.id, file: sourcePath, line, addr: `$${hex}` };

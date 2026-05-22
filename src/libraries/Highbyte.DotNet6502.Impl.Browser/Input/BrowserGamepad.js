@@ -22,8 +22,8 @@ export function registerLogCallback(callback) {
 export function getGamepadCount() {
     const gamepads = navigator.getGamepads();
     let count = 0;
-    for (let i = 0; i < gamepads.length; i++) {
-        if (gamepads[i]?.connected) {
+    for (const gamepad of gamepads) {
+        if (gamepad?.connected) {
             count++;
         }
     }
