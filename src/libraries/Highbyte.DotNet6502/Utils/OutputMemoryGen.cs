@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Highbyte.DotNet6502.Utils;
 
 /// <summary>
@@ -17,23 +19,23 @@ public static class OutputMemoryGen
         var colIndex = 0;
         var colGroupIndex = 0;
         var rowIndex = 0;
-        var row = "";
+        var row = new StringBuilder(charactersPerRow);
         List<string> list = new();
         var cont = true;
         while (cont)
         {
             if (colIndex == 0)
-                row += $"{currentAddress.ToHex(HexPrefix, lowerCase: true)}  ";
+                row.Append($"{currentAddress.ToHex(HexPrefix, lowerCase: true)}  ");
             if (colIndex != 0)
-                row += " ";
-            // Extra space every X bytes 
+                row.Append(' ');
+            // Extra space every X bytes
             if (colGroupIndex >= maxBytesGroupPerRow)
             {
-                row += " ";
+                row.Append(' ');
                 colGroupIndex = 0;
             }
 
-            row += mem[currentAddress].ToHex(HexPrefix, lowerCase: true);
+            row.Append(mem[currentAddress].ToHex(HexPrefix, lowerCase: true));
 
             colIndex++;
             colGroupIndex++;
@@ -44,7 +46,7 @@ public static class OutputMemoryGen
                 colGroupIndex = 0;
                 rowIndex++;
                 list.Add($"{row,-charactersPerRow}");
-                row = "";
+                row.Clear();
             }
 
             if (currentAddress < endAddress && currentAddress != 0xffff)
