@@ -45,7 +45,7 @@ Write-Host "Running: $cl65Exe -g $asmFile -o $prgFile -C c64-asm.cfg --start-add
 & $cl65Exe -g $asmFile -o $prgFile -C c64-asm.cfg --start-addr $startAddress -Wl "-Ln,$labelFile" -Wl "--dbgfile,$debugFile" -Wl "-m,$mapFile"
 
 # Assemble ca65
-#Write-Host "Running: $ca65Exe -g ""$asmFile"" -o ""$outputFile""" 
+#Write-Host "Running: $ca65Exe -g ""$asmFile"" -o ""$outputFile"""
 #& $ca65Exe -g "$asmFile" -o "$outputFile"
 
 # Link ld65 (requires external __LOADADDR__ symbol in the source)

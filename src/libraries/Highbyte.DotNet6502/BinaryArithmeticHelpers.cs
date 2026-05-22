@@ -134,7 +134,7 @@ public static class BinaryArithmeticHelpers
         processorStatus.Carry = register >= value;
         processorStatus.Zero = register == value;
         byte regMinusValue = (byte)(register - value);
-        processorStatus.Negative = ((byte)regMinusValue).IsBitSet(7);
+        processorStatus.Negative = regMinusValue.IsBitSet(7);
     }
 
     public static byte PerformASLAndSetStatusRegisters(byte register, ref ProcessorStatus processorStatus)

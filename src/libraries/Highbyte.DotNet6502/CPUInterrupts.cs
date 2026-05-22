@@ -2,9 +2,9 @@ namespace Highbyte.DotNet6502;
 
 public class CPUInterrupts
 {
-    public bool IRQLineEnabled => ActiveIRQSources.Count() > 0;
+    public bool IRQLineEnabled => ActiveIRQSources.Count > 0;
 
-    public bool NMILineEnabled => ActiveNMISources.Count() > 0;
+    public bool NMILineEnabled => ActiveNMISources.Count > 0;
 
     public Dictionary<string, bool> ActiveIRQSources { get; private set; } = new();
     public HashSet<string> ActiveNMISources { get; private set; } = new();

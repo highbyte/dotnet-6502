@@ -51,8 +51,12 @@
       "stopOnBRK": true,
 
       // Emulator host configuration:
-      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
-      // Override with a full path if not in PATH, e.g.:
+      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]".
+      // The extension resolves it in this order:
+      //   1. "dotnet-6502" in system PATH (Homebrew/Scoop canonical name).
+      //   2. "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" in system PATH.
+      //   3. Repo-relative build output: src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/{Debug|Release}/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]
+      // Override with a full path to bypass all of the above, e.g.:
       //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
       //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop",
     },
@@ -111,8 +115,12 @@
       "program": "${workspaceFolder}/../../samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg",
 
       // Emulator host configuration:
-      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
-      // Override with a full path if not in PATH, e.g.:
+      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]".
+      // The extension resolves it in this order:
+      //   1. "dotnet-6502" in system PATH (Homebrew/Scoop canonical name).
+      //   2. "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" in system PATH.
+      //   3. Repo-relative build output: src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/{Debug|Release}/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]
+      // Override with a full path to bypass all of the above, e.g.:
       //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
       "system": "C64",
       "waitForSystemReady": true,

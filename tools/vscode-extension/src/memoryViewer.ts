@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
 
 export class MemoryContentProvider implements vscode.TextDocumentContentProvider {
-    private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
+    private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri>();
     readonly onDidChange = this._onDidChange.event;
-
-    constructor(private context: vscode.ExtensionContext) {}
 
     async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
         // Parse URI: memory:///0xC000-0xC0FF (range format in path for title display)
@@ -15,12 +13,12 @@ export class MemoryContentProvider implements vscode.TextDocumentContentProvider
         
         if (rangeMatch) {
             // Range format: 0xC000-0xC0FF
-            address = parseInt(rangeMatch[1], 16);
-            const endAddr = parseInt(rangeMatch[2], 16);
+            address = Number.parseInt(rangeMatch[1], 16);
+            const endAddr = Number.parseInt(rangeMatch[2], 16);
             length = endAddr - address + 1;
         } else {
             // Legacy format: 0xc000/256
-            const legacyMatch = uri.path.match(/^\/?([^\/]+)(?:\/([0-9]+))?$/);
+            const legacyMatch = uri.path.match(/^\/?([^/]+)(?:\/(\d+))?$/);
             
             if (!legacyMatch) {
                 return `Invalid memory URI format. Expected: memory:///0xC000-0xC0FF\nReceived path: ${uri.path}`;
@@ -31,19 +29,19 @@ export class MemoryContentProvider implements vscode.TextDocumentContentProvider
             
             // Parse address
             if (addressStr.startsWith('0x')) {
-                address = parseInt(addressStr.substring(2), 16);
+                address = Number.parseInt(addressStr.substring(2), 16);
             } else if (addressStr.startsWith('$')) {
-                address = parseInt(addressStr.substring(1), 16);
+                address = Number.parseInt(addressStr.substring(1), 16);
             } else {
-                address = parseInt(addressStr);
+                address = Number.parseInt(addressStr);
             }
 
-            length = parseInt(lengthStr);
+            length = Number.parseInt(lengthStr);
         }
 
         // Get active debug session
         const session = vscode.debug.activeDebugSession;
-        if (!session || session.type !== 'dotnet6502') {
+        if (session?.type !== 'dotnet6502') {
             return 'No active 6502 debug session';
         }
 
@@ -69,10 +67,10 @@ export class MemoryContentProvider implements vscode.TextDocumentContentProvider
     }
 }
 
-export async function openMemoryViewer(context: vscode.ExtensionContext, provider: MemoryContentProvider, address?: string) {
+export async function openMemoryViewer(provider: MemoryContentProvider, address?: string) {
     // Get active debug session
     const session = vscode.debug.activeDebugSession;
-    if (!session || session.type !== 'dotnet6502') {
+    if (session?.type !== 'dotnet6502') {
         vscode.window.showWarningMessage('No active 6502 debug session');
         return;
     }
@@ -93,11 +91,11 @@ export async function openMemoryViewer(context: vscode.ExtensionContext, provide
     // Parse start address
     let startAddr: number;
     if (address.startsWith('0x')) {
-        startAddr = parseInt(address.substring(2), 16);
+        startAddr = Number.parseInt(address.substring(2), 16);
     } else if (address.startsWith('$')) {
-        startAddr = parseInt(address.substring(1), 16);
+        startAddr = Number.parseInt(address.substring(1), 16);
     } else {
-        startAddr = parseInt(address);
+        startAddr = Number.parseInt(address);
     }
     
     // Calculate default end address (256 bytes from start)
@@ -118,11 +116,11 @@ export async function openMemoryViewer(context: vscode.ExtensionContext, provide
     // Parse end address
     let endAddr: number;
     if (endAddressStr.startsWith('0x')) {
-        endAddr = parseInt(endAddressStr.substring(2), 16);
+        endAddr = Number.parseInt(endAddressStr.substring(2), 16);
     } else if (endAddressStr.startsWith('$')) {
-        endAddr = parseInt(endAddressStr.substring(1), 16);
+        endAddr = Number.parseInt(endAddressStr.substring(1), 16);
     } else {
-        endAddr = parseInt(endAddressStr);
+        endAddr = Number.parseInt(endAddressStr);
     }
     
     // Validate range
@@ -131,7 +129,6 @@ export async function openMemoryViewer(context: vscode.ExtensionContext, provide
         return;
     }
     
-    const length = endAddr - startAddr + 1;
     const rangeTitle = `0x${startAddr.toString(16).toUpperCase().padStart(4, '0')}-0x${endAddr.toString(16).toUpperCase().padStart(4, '0')}`;
     
     // Open memory document with range as path for proper title display

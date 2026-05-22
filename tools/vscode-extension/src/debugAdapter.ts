@@ -1,15 +1,4 @@
-import { spawn, ChildProcess } from 'child_process';
-import { 
-    DebugSession, 
-    InitializedEvent, 
-    StoppedEvent, 
-    TerminatedEvent,
-    OutputEvent,
-    Thread,
-    StackFrame,
-    Scope,
-    Source
-} from '@vscode/debugadapter';
+import { DebugSession, InitializedEvent } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
 interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
@@ -19,8 +8,6 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 }
 
 export class DebugAdapter6502Session extends DebugSession {
-    private adapterProcess?: ChildProcess;
-
     public constructor() {
         super();
         this.setDebuggerLinesStartAt1(true);

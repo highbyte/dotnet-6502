@@ -10,7 +10,6 @@
 #   - The current branch must have been pushed (the workflow runs on push).
 #   - gh CLI authenticated (`gh auth status`).
 #   - curl, jq.
-#   - SONAR_TOKEN env for private projects; anonymous works for public ones.
 #
 # Usage:
 #   tools/sonar-check.sh [MIN_SEVERITY]
@@ -76,8 +75,6 @@ if ! gh run watch "$RUN_ID" --exit-status >/dev/null; then
 fi
 
 # Server-side processing finishes a moment after the workflow. Poll briefly.
-auth=()
-[[ -n "${SONAR_TOKEN:-}" ]] && auth=(-u "${SONAR_TOKEN}:")
 
 # inNewCodePeriod=true restricts the query to issues introduced on this branch
 # since it diverged from master — i.e., what *this branch* added. Pre-existing
@@ -90,9 +87,7 @@ API="${SONAR_HOST}/api/issues/search?componentKeys=${PROJECT_KEY}&branch=${BRANC
 
 issues_json=""
 for _ in $(seq 1 12); do
-  # ${auth[@]+"${auth[@]}"} expands to the array elements only if non-empty;
-  # plain "${auth[@]}" trips set -u "unbound variable" on empty arrays.
-  issues_json=$(curl -fsS ${auth[@]+"${auth[@]}"} "$API" 2>/dev/null || true)
+  issues_json=$(curl -fsS "$API" 2>/dev/null || true)
   if [[ -n "$issues_json" ]] && echo "$issues_json" | jq -e '.issues' >/dev/null 2>&1; then
     break
   fi
@@ -100,7 +95,7 @@ for _ in $(seq 1 12); do
 done
 
 if [[ -z "$issues_json" ]] || ! echo "$issues_json" | jq -e '.issues' >/dev/null 2>&1; then
-  echo "Failed to fetch Sonar issues from $SONAR_HOST. Set SONAR_TOKEN for private projects." >&2
+  echo "Failed to fetch Sonar issues from $SONAR_HOST." >&2
   exit 2
 fi
 

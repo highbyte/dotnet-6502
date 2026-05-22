@@ -94,7 +94,7 @@ public static class ByteHelpers
             var carryFlag = (shiftedBytes[index] & 0x01) > 0;
             if (index < rightEnd)
             {
-                if (carryFlag == true)
+                if (carryFlag)
                     // Apply the carry to the leftmost bit of the current bytes neighbor to the right.
                     shiftedBytes[index + 1] = (byte)(shiftedBytes[index + 1] | 0x80);
             }

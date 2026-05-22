@@ -27,16 +27,13 @@ public class InstructionExecutor
     /// <returns></returns>
     public InstructionExecResult Execute(CPU cpu, Memory mem)
     {
-        //if (cpu.PC == 0xff63 || cpu.PC == 0xE5AD)
-        //    Debugger.Break();
-
         var atPC = cpu.PC;  // Remember the PC where the instruction is located, so we can return it in the result.
 
         byte opCode = cpu.FetchInstruction(mem);
 
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
         {
-            _logger.LogWarning($"Unknown instruction {opCode.ToHex()} at {atPC.ToHex()}");
+            _logger.LogWarning("Unknown instruction {OpCode} at {AtPC}", opCode.ToHex(), atPC.ToHex());
             return InstructionExecResult.UnknownInstructionResult(opCode, atPC);
         }
 

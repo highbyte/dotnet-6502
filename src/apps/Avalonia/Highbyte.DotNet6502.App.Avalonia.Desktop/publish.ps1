@@ -10,7 +10,7 @@
 param(
     [Parameter(Mandatory=$false)]
     [string]$Runtime,
-    
+
     [Parameter(Mandatory=$false)]
     [switch]$IncludePdb
 )

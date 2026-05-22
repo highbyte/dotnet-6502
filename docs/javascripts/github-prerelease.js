@@ -2,13 +2,13 @@
 // If that returns 404, this script falls back to /releases?per_page=1 so
 // the source widget still shows the most recent pre-release version.
 document.addEventListener("DOMContentLoaded", function () {
-  var source = document.querySelector("[data-md-component=\"source\"]");
+  const source = document.querySelector("[data-md-component=\"source\"]");
   if (!source) return;
 
-  var match = source.href.match(/github\.com\/([^/]+\/[^/]+)/);
+  const match = source.href.match(/github\.com\/([^/]+\/[^/]+)/);
   if (!match) return;
 
-  var repo = match[1];
+  const repo = match[1];
 
   fetch("https://api.github.com/repos/" + repo + "/releases/latest")
     .then(function (r) {
@@ -18,13 +18,13 @@ document.addEventListener("DOMContentLoaded", function () {
       return fetch("https://api.github.com/repos/" + repo + "/releases?per_page=1")
         .then(function (r2) { return r2.json(); })
         .then(function (releases) {
-          if (!releases || !releases.length || !releases[0].tag_name) return;
-          var version = releases[0].tag_name;
+          if (!releases?.length || !releases[0].tag_name) return;
+          const version = releases[0].tag_name;
 
           function updateVersion() {
-            var facts = source.querySelector(".md-source__facts");
+            const facts = source.querySelector(".md-source__facts");
             if (!facts) return false;
-            var el = facts.querySelector(".md-source__fact--version");
+            let el = facts.querySelector(".md-source__fact--version");
             if (!el) {
               el = document.createElement("li");
               el.className = "md-source__fact md-source__fact--version";
@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }
 
           if (!updateVersion()) {
-            var observer = new MutationObserver(function () {
+            const observer = new MutationObserver(function () {
               if (updateVersion()) observer.disconnect();
             });
             observer.observe(source, { childList: true, subtree: true });

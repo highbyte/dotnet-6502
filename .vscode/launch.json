@@ -30,10 +30,12 @@
         },
         {
             "name": "Avalonia Browser - Launch",
-            "type": "dotnet",
+            "type": "blazorwasm",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj",
-            "launchConfigurationId": "TargetFramework=;Avalonia.Browser"
+            "preLaunchTask": "build avalonia browser app",
+            "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser",
+            "url": "http://localhost:5000",
+            "browser": "chrome"
         },
         {
             "name": "SadConsole - Launch",

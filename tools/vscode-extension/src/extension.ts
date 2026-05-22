@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
-import * as net from 'net';
-import * as child_process from 'child_process';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import * as net from 'node:net';
+import * as child_process from 'node:child_process';
 import { DebugAdapterExecutable, DebugAdapterServer } from 'vscode';
 import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
 import * as jsonc from 'jsonc-parser';
@@ -12,102 +12,59 @@ const DEFAULT_DEBUG_HOST = '127.0.0.1';
 
 export function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('[6502 Debug] Extension activating...');
-    context.subscriptions.push(outputChannel);
 
-    // Register memory content provider
-    const memoryProvider = new MemoryContentProvider(context);
-    context.subscriptions.push(
-        vscode.workspace.registerTextDocumentContentProvider('memory', memoryProvider)
-    );
-
-    // Register debug configuration provider
+    const memoryProvider = new MemoryContentProvider();
     const configProvider = new DebugConfigurationProvider();
-    context.subscriptions.push(
-        vscode.debug.registerDebugConfigurationProvider('dotnet6502', configProvider)
-    );
+    const addressDecorManager = new AddressDecorationManager();
 
-    // Register debug adapter
     context.subscriptions.push(
-        vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory())
-    );
-
-    // Kill the emulator process when a launch+emulator debug session ends (safety net
-    // in case the .NET app doesn't exit on its own via terminateDebuggee).
-    context.subscriptions.push(
+        outputChannel,
+        // Memory + debug infrastructure
+        vscode.workspace.registerTextDocumentContentProvider('memory', memoryProvider),
+        vscode.debug.registerDebugConfigurationProvider('dotnet6502', configProvider),
+        vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory()),
+        // Kill the emulator process when a launch+emulator debug session ends (safety net
+        // in case the .NET app doesn't exit on its own via terminateDebuggee).
         vscode.debug.onDidTerminateDebugSession((session) => {
             if (session.type === 'dotnet6502' &&
                 session.configuration.request === 'launch' &&
                 session.configuration.debugAdapter === 'emulator') {
                 configProvider.killEmulatorProcess();
             }
-        })
-    );
-
-    // Inline address decorations: show $XXXX after each mapped source line
-    const addressDecorManager = new AddressDecorationManager();
-    context.subscriptions.push(addressDecorManager);
-    context.subscriptions.push(
+        }),
+        // Inline address decorations: show $XXXX after each mapped source line
+        addressDecorManager,
         vscode.debug.registerDebugAdapterTrackerFactory(
             'dotnet6502',
             new DotNet6502DebugTrackerFactory(addressDecorManager)
-        )
-    );
-    context.subscriptions.push(
+        ),
         vscode.debug.onDidTerminateDebugSession((session) => {
             if (session.type === 'dotnet6502') {
                 addressDecorManager.onSessionEnded(session);
             }
-        })
-    );
-    context.subscriptions.push(
+        }),
         vscode.window.onDidChangeActiveTextEditor((editor) => {
             if (editor) { addressDecorManager.applyToEditor(editor); }
-        })
-    );
-    
-    // Register command to generate build task
-    context.subscriptions.push(
+        }),
+        // Commands
         vscode.commands.registerCommand('dotnet6502.generateBuildTask', async (uri: vscode.Uri) => {
             await generateBuildTask(uri);
-        })
-    );
-    
-    // Register command to generate launch config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generateLaunchConfig', async (uri: vscode.Uri) => {
             await generateLaunchConfigCommand(uri);
-        })
-    );
-
-    // Register command to generate emulator launch config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generateEmulatorLaunchConfig', async (uri: vscode.Uri) => {
             await generateEmulatorLaunchConfigCommand(uri);
-        })
-    );
-
-    // Register command to generate .prg launch config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generatePrgLaunchConfig', async (uri: vscode.Uri) => {
             await generatePrgLaunchConfigCommand(uri);
-        })
-    );
-
-    // Register command to generate remote attach config
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.generateRemoteAttachConfig', async (uri: vscode.Uri) => {
             await generateRemoteAttachConfigCommand(uri);
-        })
-    );
-
-    // Register command to view memory
-    context.subscriptions.push(
+        }),
         vscode.commands.registerCommand('dotnet6502.viewMemory', async () => {
-            await openMemoryViewer(context, memoryProvider);
-        })
-    );
-
-    context.subscriptions.push(
+            await openMemoryViewer(memoryProvider);
+        }),
         vscode.commands.registerCommand('dotnet6502.jumpToLine', async (...args: any[]) => {
             console.log(`[6502 Debug] jumpToLine invoked with ${args.length} args:`, JSON.stringify(args.map(a => a?.toString?.() ?? a)));
 
@@ -123,28 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            // Determine the line number from arguments.
-            // VSCode passes different argument formats depending on where the menu was triggered.
-            let line: number | undefined;
-            let sourcePath = editor.document.uri.fsPath;
-
-            for (const arg of args) {
-                if (arg instanceof vscode.Uri) {
-                    sourcePath = arg.fsPath;
-                } else if (typeof arg === 'number') {
-                    line = arg;
-                } else if (arg && typeof arg === 'object') {
-                    if ('lineNumber' in arg && typeof arg.lineNumber === 'number') {
-                        line = arg.lineNumber;
-                    }
-                }
-            }
-
-            // Fall back to cursor position
-            if (line === undefined) {
-                line = editor.selection.active.line + 1; // Convert 0-based to 1-based
-            }
-
+            const { line, sourcePath } = parseJumpToLineArgs(args, editor);
             console.log(`[6502 Debug] jumpToLine: resolved line=${line}, source=${sourcePath}`);
             const source = { path: sourcePath };
 
@@ -175,6 +111,33 @@ export function deactivate() {
 }
 
 /**
+ * Resolves the target line and source path from VSCode's jump-to-line command arguments.
+ * VSCode passes different argument shapes depending on the trigger point (editor gutter,
+ * command palette, line decorator), so we accept all known forms and fall back to the
+ * editor's cursor position when no explicit line is supplied.
+ */
+function parseJumpToLineArgs(
+    args: any[],
+    editor: vscode.TextEditor
+): { line: number; sourcePath: string } {
+    let line: number | undefined;
+    let sourcePath = editor.document.uri.fsPath;
+
+    for (const arg of args) {
+        if (arg instanceof vscode.Uri) {
+            sourcePath = arg.fsPath;
+        } else if (typeof arg === 'number') {
+            line = arg;
+        } else if (arg && typeof arg === 'object' && 'lineNumber' in arg && typeof arg.lineNumber === 'number') {
+            line = arg.lineNumber;
+        }
+    }
+
+    // Convert 0-based cursor position to 1-based line number for the fallback.
+    return { line: line ?? editor.selection.active.line + 1, sourcePath };
+}
+
+/**
  * Command to generate a remote attach launch configuration with pathMappings pre-filled.
  * Prompts the user for: remote host, port, remote workspace root, remote dbgFile path.
  */
@@ -201,7 +164,7 @@ async function generateRemoteAttachConfigCommand(uri: vscode.Uri | undefined): P
         validateInput: v => /^\d+$/.test(v.trim()) ? undefined : 'Enter a valid port number'
     });
     if (!remotePortStr) { return; }
-    const remotePort = parseInt(remotePortStr.trim(), 10);
+    const remotePort = Number.parseInt(remotePortStr.trim(), 10);
 
     const remoteRoot = await vscode.window.showInputBox({
         prompt: 'Project root directory on the remote machine (remoteRoot)',
@@ -403,20 +366,41 @@ function resolveExecutable(executablePath: string): string | undefined {
     const isBareExecutableName = !executablePath.includes('/') && !executablePath.includes('\\');
 
     if (!isBareExecutableName) {
-        // Full path specified - just verify it exists
-        if (fs.existsSync(executablePath)) {
-            return executablePath;
-        }
-        vscode.window.showErrorMessage(
-            `Executable not found: ${executablePath}. Please verify the path in 'emulatorExecutable' in your launch configuration.`
-        );
-        return undefined;
+        return verifyFullPathExecutable(executablePath);
     }
 
-    // Bare executable name - try PATH, preferring the package manager name (e.g. installed
-    // via Homebrew/Scoop) before falling back to the original executable name.
-    const findCmd = process.platform === 'win32' ? 'where' : 'which';
     const baseName = executablePath.replace(/\.exe$/, '');
+
+    const fromPath = findExecutableInSystemPath(executablePath, baseName);
+    if (fromPath) { return fromPath; }
+
+    const fromRepo = findExecutableInRepoBuildOutput(executablePath, baseName);
+    if (fromRepo) { return fromRepo; }
+
+    outputChannel.show(true);
+    vscode.window.showErrorMessage(
+        `Executable '${executablePath}' not found in system PATH or in repo build output. Either add it to PATH, build the project, or set 'emulatorExecutable' to a full path in your launch configuration.`
+    );
+    return undefined;
+}
+
+function verifyFullPathExecutable(executablePath: string): string | undefined {
+    if (fs.existsSync(executablePath)) {
+        return executablePath;
+    }
+    vscode.window.showErrorMessage(
+        `Executable not found: ${executablePath}. Please verify the path in 'emulatorExecutable' in your launch configuration.`
+    );
+    return undefined;
+}
+
+/**
+ * Searches the system PATH for the executable, preferring the package-manager
+ * canonical name (e.g. installed via Homebrew/Scoop) before falling back to the
+ * original executable name.
+ */
+function findExecutableInSystemPath(executablePath: string, baseName: string): string | undefined {
+    const findCmd = process.platform === 'win32' ? 'where' : 'which';
     const packageManagerName = PACKAGE_MANAGER_NAMES[baseName];
     const pathCandidates = packageManagerName
         ? [packageManagerName, executablePath]
@@ -431,13 +415,38 @@ function resolveExecutable(executablePath: string): string | undefined {
         outputChannel.appendLine(`[resolveExecutable] '${candidate}' not found in system PATH`);
     }
     outputChannel.appendLine(`[resolveExecutable] Not found in PATH, trying repo-relative paths...`);
+    return undefined;
+}
 
-    // Not in PATH - try repo-relative build output locations.
-    // Collect repo root candidates by walking up from each workspace folder until a .git
-    // directory is found (or up to 5 levels). This handles cases where the user has a
-    // subfolder of the repo open rather than the repo root itself.
-    // Also try __dirname three levels up, which works when running from source in the
-    // Extension Development Host (where __dirname is tools/vscode-extension/out/).
+/**
+ * Tries known repo-relative build-output locations for the executable.
+ * Repo roots are discovered by walking up from each workspace folder until a
+ * .git directory is found (or up to 5 levels), plus __dirname three levels up
+ * to support the Extension Development Host running from source.
+ */
+function findExecutableInRepoBuildOutput(executablePath: string, baseName: string): string | undefined {
+    const repoRootCandidates = collectRepoRootCandidates();
+
+    outputChannel.appendLine(`[resolveExecutable] workspace folders: ${(vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath).join(', ') || '(none)'}`);
+    outputChannel.appendLine(`[resolveExecutable] repo root candidates: ${repoRootCandidates.join(', ')}`);
+
+    const projectDir = REPO_EXECUTABLE_LOCATIONS[baseName];
+    if (!projectDir) { return undefined; }
+
+    for (const repoRoot of repoRootCandidates) {
+        for (const buildConfig of ['Debug', 'Release']) {
+            const candidatePath = path.join(repoRoot, projectDir, 'bin', buildConfig, 'net10.0', executablePath);
+            if (fs.existsSync(candidatePath)) {
+                outputChannel.appendLine(`[resolveExecutable] Found: ${candidatePath}`);
+                return candidatePath;
+            }
+            outputChannel.appendLine(`[resolveExecutable] Not found: ${candidatePath}`);
+        }
+    }
+    return undefined;
+}
+
+function collectRepoRootCandidates(): string[] {
     const repoRootCandidates: string[] = [];
     for (const folder of vscode.workspace.workspaceFolders ?? []) {
         let dir = folder.uri.fsPath;
@@ -455,31 +464,65 @@ function resolveExecutable(executablePath: string): string | undefined {
         }
     }
     repoRootCandidates.push(path.join(__dirname, '..', '..', '..'));
+    return repoRootCandidates;
+}
 
-    outputChannel.appendLine(`[resolveExecutable] workspace folders: ${(vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath).join(', ') || '(none)'}`);
-    outputChannel.appendLine(`[resolveExecutable] repo root candidates: ${repoRootCandidates.join(', ')}`);
+function resolveTaskCwd(task: vscode.Task, folder: vscode.WorkspaceFolder): string {
+    // Output files (e.g. cwd="${workspaceFolder}/samples") are resolved relative to this.
+    const executionCwd: string | undefined =
+        (task.execution as any)?.options?.cwd ?? task.definition.options?.cwd;
+    return executionCwd
+        ? executionCwd.replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath)
+        : folder.uri.fsPath;
+}
 
-    const projectDir = REPO_EXECUTABLE_LOCATIONS[baseName];
+function extractProgramPathFromArgs(args: any[], taskCwd: string): string | undefined {
+    // Look for -o argument in cl65 task
+    const oIndex = args.indexOf('-o');
+    if (oIndex >= 0 && oIndex + 1 < args.length) {
+        const programPath = path.join(taskCwd, args[oIndex + 1]);
+        outputChannel.appendLine(`[6502 Debug] Extracted program path from task: ${programPath}`);
+        return programPath;
+    }
+    outputChannel.appendLine(`[6502 Debug] Could not find -o argument in task args`);
+    return undefined;
+}
 
-    if (projectDir) {
-        const buildConfigs = ['Debug', 'Release'];
-        for (const repoRoot of repoRootCandidates) {
-            for (const buildConfig of buildConfigs) {
-                const candidatePath = path.join(repoRoot, projectDir, 'bin', buildConfig, 'net10.0', executablePath);
-                if (fs.existsSync(candidatePath)) {
-                    outputChannel.appendLine(`[resolveExecutable] Found: ${candidatePath}`);
-                    return candidatePath;
-                }
-                outputChannel.appendLine(`[resolveExecutable] Not found: ${candidatePath}`);
-            }
+function extractDbgFileFromArgs(args: any[], taskCwd: string): string | undefined {
+    // Auto-detect dbgFile from -Wl --dbgfile,<file> arg.
+    for (const arg of args) {
+        const argStr = typeof arg === 'string' ? arg : (arg as any)?.value;
+        if (typeof argStr === 'string' && argStr.startsWith('--dbgfile,')) {
+            return path.join(taskCwd, argStr.slice('--dbgfile,'.length));
         }
     }
-
-    outputChannel.show(true);
-    vscode.window.showErrorMessage(
-        `Executable '${executablePath}' not found in system PATH or in repo build output. Either add it to PATH, build the project, or set 'emulatorExecutable' to a full path in your launch configuration.`
-    );
     return undefined;
+}
+
+interface EmulatorArgsOptions {
+    debugPort: number;
+    system: string;
+    systemVariant?: string;
+    waitForReady: boolean;
+    loadPrg: boolean;
+    programPath?: string;
+    runProgram: boolean;
+}
+
+function buildEmulatorArgs(opts: EmulatorArgsOptions): string[] {
+    const args = [
+        '--enableExternalDebug',
+        '--debug-port', opts.debugPort.toString(),
+        '--console-log',        // Enable console logging (stdout is piped to VSCode)
+        '--no-console-window',  // Suppress the separate log window; logs flow via the pipe
+        '--system', opts.system,
+        '--start'
+    ];
+    if (opts.systemVariant) { args.push('--systemVariant', opts.systemVariant); }
+    if (opts.waitForReady) { args.push('--waitForSystemReady'); }
+    if (opts.loadPrg && opts.programPath) { args.push('--loadPrg', opts.programPath); }
+    if (opts.runProgram) { args.push('--runLoadedProgram'); }
+    return args;
 }
 
 /**
@@ -524,237 +567,217 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
         config: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | undefined> {
-        // Attach mode: connect to an already-running emulator via TCP
         if (config.request === 'attach') {
-            const debugPort = config.debugPort || 6502;
-            const debugHost = this.getDebugHost(config);
-            outputChannel.appendLine(`[6502 Debug] Attach mode: connecting to emulator on ${debugHost}:${debugPort}`);
-
-            const launchOnlyProps = ['system', 'systemVariant', 'waitForSystemReady', 'loadProgram', 'runProgram']
-                .filter(p => config[p] !== undefined);
-            if (launchOnlyProps.length > 0) {
-                vscode.window.showWarningMessage(
-                    `6502 Debugger: The following properties are ignored in attach mode: ${launchOnlyProps.join(', ')}. ` +
-                    `They only apply to launch configurations.`
-                );
-            }
-
-            config.__programAlreadyLoaded = true;
-            config.__emulatorDebugPort = debugPort;
-            config.__emulatorDebugHost = debugHost;
-            config.__waitingForEmulator = true;
-            return config;
+            return this.applyAttachConfig(config);
         }
 
-        // Set default debug adapter if not specified
-        if (!config.debugAdapter) {
-            config.debugAdapter = 'minimal';
-        }
-
-        // Validate debugAdapter parameter
-        if (config.debugAdapter !== 'minimal' && config.debugAdapter !== 'emulator') {
-            vscode.window.showErrorMessage(
-                `Invalid debugAdapter value: ${config.debugAdapter}. Must be 'minimal' or 'emulator'.`
-            );
+        if (!this.applyDebugAdapterDefaults(config)) {
             return undefined;
         }
 
-        // Set default emulatorExecutable based on mode (platform-aware)
-        if (!config.emulatorExecutable) {
-            if (config.debugAdapter === 'minimal') {
-                config.emulatorExecutable = platformExecutableName('Highbyte.DotNet6502.DebugAdapter.ConsoleApp');
-            } else {
-                // Currently only Highbyte.DotNet6502.App.Avalonia.Desktop is supported as emulator host.
-                config.emulatorExecutable = platformExecutableName('Highbyte.DotNet6502.App.Avalonia.Desktop');
-            }
-            outputChannel.appendLine(`[6502 Debug] Using default emulatorExecutable for '${config.debugAdapter}' mode: ${config.emulatorExecutable}`);
-        }
-
-        // Resolve the executable: try PATH, then repo-relative build output
         const resolvedExecutable = resolveExecutable(config.emulatorExecutable);
         if (!resolvedExecutable) {
             return undefined;
         }
         config.emulatorExecutable = resolvedExecutable;
 
-        // If debugAdapter is 'emulator', start the emulator host app
         if (config.debugAdapter === 'emulator') {
-            outputChannel.appendLine('[6502 Debug] debugAdapter is emulator, starting emulator host app');
-
-            const executablePath = config.emulatorExecutable;
-            const debugPort = config.debugPort || 6502;
-            const debugHost = this.getDebugHost(config);
-            const system = config.system || 'C64';
-            const systemVariant = config.systemVariant;
-            const waitForReady = config.waitForSystemReady !== false; // Default true
-            const loadPrg = config.loadProgram !== false; // Default true
-            const runProgram = config.runProgram === true; // Default false
-            let programPath = config.program;
-
-            outputChannel.appendLine(`[6502 Debug] Initial programPath: ${programPath}`);
-            outputChannel.appendLine(`[6502 Debug] preLaunchTask: ${config.preLaunchTask}`);
-
-            // If program path not specified, try to extract from preLaunchTask
-            if (!programPath && config.preLaunchTask && folder) {
-                const tasks = await vscode.tasks.fetchTasks();
-                const task = tasks.find(t => t.name === config.preLaunchTask);
-                outputChannel.appendLine(`[6502 Debug] Found task: ${task?.name}, definition: ${JSON.stringify(task?.definition)}`);
-                if (task) {
-                    // For shell tasks, args might be in definition.args or in task execution
-                    let args = task.definition.args;
-
-                    // If not in definition, might be a ShellExecution
-                    if (!args && task.execution && 'args' in task.execution) {
-                        args = (task.execution as any).args;
-                    }
-
-                    outputChannel.appendLine(`[6502 Debug] Task args: ${JSON.stringify(args)}`);
-
-                    // Determine the task's working directory so output files can be
-                    // resolved relative to it (e.g. cwd="${workspaceFolder}/samples").
-                    const executionCwd: string | undefined =
-                        (task.execution as any)?.options?.cwd ?? task.definition.options?.cwd;
-                    const taskCwd = executionCwd
-                        ? executionCwd.replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath)
-                        : folder.uri.fsPath;
-                    outputChannel.appendLine(`[6502 Debug] Task cwd (resolved): ${taskCwd}`);
-
-                    if (args && Array.isArray(args)) {
-                        // Look for -o argument in cl65 task
-                        const oIndex = args.indexOf('-o');
-                        if (oIndex >= 0 && oIndex + 1 < args.length) {
-                            const outputFile = args[oIndex + 1];
-                            programPath = path.join(taskCwd, outputFile);
-                            outputChannel.appendLine(`[6502 Debug] Extracted program path from task: ${programPath}`);
-                        } else {
-                            outputChannel.appendLine(`[6502 Debug] Could not find -o argument in task args`);
-                        }
-
-                        // Auto-detect dbgFile from -Wl --dbgfile,<file> arg if not set in launch config
-                        if (!config.dbgFile) {
-                            for (const arg of args) {
-                                const argStr = typeof arg === 'string' ? arg : (arg as any)?.value;
-                                if (typeof argStr === 'string' && argStr.startsWith('--dbgfile,')) {
-                                    const dbgFileName = argStr.slice('--dbgfile,'.length);
-                                    config.dbgFile = path.join(taskCwd, dbgFileName);
-                                    outputChannel.appendLine(`[6502 Debug] Extracted dbgFile from task: ${config.dbgFile}`);
-                                    break;
-                                }
-                            }
-                        }
-                    } else {
-                        outputChannel.appendLine(`[6502 Debug] Task has no args array`);
-                    }
-                } else {
-                    outputChannel.appendLine(`[6502 Debug] Task not found`);
-                }
-            }
-
-            outputChannel.appendLine(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
-
-            // Propagate the auto-detected (or config-supplied) program path back onto
-            // config so the debug adapter receives it for .dbg file resolution.
-            if (programPath && !config.program) {
-                config.program = programPath;
-            }
-
-            // The emulator host handles loading the program into memory, so tell the
-            // debug adapter not to load it again (but still use the path for debug symbols
-            // and program bounds).
-            config.__programAlreadyLoaded = true;
-
-            // Build command line arguments
-            const args = [
-                '--enableExternalDebug',
-                '--debug-port', debugPort.toString(),
-                '--console-log',        // Enable console logging (stdout is piped to VSCode)
-                '--no-console-window',  // Suppress the separate log window; logs flow via the pipe
-                '--system', system,
-                '--start'
-            ];
-
-            if (systemVariant) {
-                args.push('--systemVariant', systemVariant);
-            }
-
-            if (waitForReady) {
-                args.push('--waitForSystemReady');
-            }
-
-            if (loadPrg && programPath) {
-                args.push('--loadPrg', programPath);
-            }
-
-            if (runProgram) {
-                args.push('--runLoadedProgram');
-            }
-
-            outputChannel.appendLine(`[6502 Debug] Launching emulator host: ${executablePath} ${args.join(' ')}`);
-
-            try {
-                // Kill any existing emulator process
-                if (this.emulatorProcess) {
-                    outputChannel.appendLine('[6502 Debug] Killing existing emulator process');
-                    this.emulatorProcess.kill();
-                    this.emulatorProcess = undefined;
-                }
-
-                // Launch the emulator host app
-                const path = require('path');
-                const executableDir = path.dirname(executablePath);
-                
-                // Merge current environment with any custom environment variables from config
-                const env = {
-                    ...process.env,
-                    ...(config.env || {})
-                };
-                
-                const spawnOptions: any = {
-                    detached: false,
-                    stdio: ['ignore', 'pipe', 'pipe'],  // stdin=ignore, stdout=pipe, stderr=pipe
-                    cwd: executableDir,
-                    env: env
-                };
-                
-                outputChannel.appendLine(`[6502 Debug] Spawning: ${executablePath} ${args.join(' ')}`);
-                outputChannel.appendLine(`[6502 Debug] Environment variables: ${JSON.stringify(config.env)}`);
-                this.emulatorProcess = child_process.spawn(executablePath, args, spawnOptions);
-
-                this.emulatorProcess.stdout?.on('data', (data) => {
-                    outputChannel.appendLine(`[Emulator Host] ${data.toString().trimEnd()}`);
-                });
-
-                this.emulatorProcess.stderr?.on('data', (data) => {
-                    outputChannel.appendLine(`[Emulator Host Error] ${data.toString().trimEnd()}`);
-                });
-
-                this.emulatorProcess.on('exit', (code) => {
-                    outputChannel.appendLine(`[6502 Debug] Emulator host process exited with code ${code}`);
-                    if (code !== 0 && code !== null) {
-                        vscode.window.showErrorMessage(`Emulator host app exited with error code ${code}. Check console output for details.`);
-                    }
-                    this.emulatorProcess = undefined;
-                });
-
-                // Emulator host will start the system, load PRG, and then start TCP server
-                // We need to wait for the TCP server to be ready before connecting
-                outputChannel.appendLine(`[6502 Debug] Emulator host launched, will wait for TCP server on ${debugHost}:${debugPort}`);
-
-                // Don't set debugServer yet - we'll set it after verifying the server is ready
-                // Store the host/port for later use
-                config.__emulatorDebugPort = debugPort;
-                config.__emulatorDebugHost = debugHost;
-                config.__waitingForEmulator = true;
-
-            } catch (error) {
-                const errorMsg = `Failed to launch emulator host app: ${error}`;
-                outputChannel.appendLine(`[6502 Debug] ${errorMsg}`);
-                vscode.window.showErrorMessage(errorMsg);
-                return undefined;
-            }
+            const launched = await this.launchEmulatorMode(config, folder);
+            if (!launched) { return undefined; }
         }
 
         return config;
+    }
+
+    private applyAttachConfig(config: vscode.DebugConfiguration): vscode.DebugConfiguration {
+        const debugPort = config.debugPort || 6502;
+        const debugHost = this.getDebugHost(config);
+        outputChannel.appendLine(`[6502 Debug] Attach mode: connecting to emulator on ${debugHost}:${debugPort}`);
+
+        const launchOnlyProps = ['system', 'systemVariant', 'waitForSystemReady', 'loadProgram', 'runProgram']
+            .filter(p => config[p] !== undefined);
+        if (launchOnlyProps.length > 0) {
+            vscode.window.showWarningMessage(
+                `6502 Debugger: The following properties are ignored in attach mode: ${launchOnlyProps.join(', ')}. ` +
+                `They only apply to launch configurations.`
+            );
+        }
+
+        config.__programAlreadyLoaded = true;
+        config.__emulatorDebugPort = debugPort;
+        config.__emulatorDebugHost = debugHost;
+        config.__waitingForEmulator = true;
+        return config;
+    }
+
+    private applyDebugAdapterDefaults(config: vscode.DebugConfiguration): boolean {
+        if (!config.debugAdapter) {
+            config.debugAdapter = 'minimal';
+        }
+
+        if (config.debugAdapter !== 'minimal' && config.debugAdapter !== 'emulator') {
+            vscode.window.showErrorMessage(
+                `Invalid debugAdapter value: ${config.debugAdapter}. Must be 'minimal' or 'emulator'.`
+            );
+            return false;
+        }
+
+        if (!config.emulatorExecutable) {
+            // Currently only Highbyte.DotNet6502.App.Avalonia.Desktop is supported as emulator host.
+            const defaultExecutable = config.debugAdapter === 'minimal'
+                ? 'Highbyte.DotNet6502.DebugAdapter.ConsoleApp'
+                : 'Highbyte.DotNet6502.App.Avalonia.Desktop';
+            config.emulatorExecutable = platformExecutableName(defaultExecutable);
+            outputChannel.appendLine(`[6502 Debug] Using default emulatorExecutable for '${config.debugAdapter}' mode: ${config.emulatorExecutable}`);
+        }
+        return true;
+    }
+
+    private async launchEmulatorMode(
+        config: vscode.DebugConfiguration,
+        folder: vscode.WorkspaceFolder | undefined
+    ): Promise<boolean> {
+        outputChannel.appendLine('[6502 Debug] debugAdapter is emulator, starting emulator host app');
+
+        const executablePath: string = config.emulatorExecutable;
+        const debugPort: number = config.debugPort || 6502;
+        const debugHost = this.getDebugHost(config);
+        let programPath: string | undefined = config.program;
+
+        outputChannel.appendLine(`[6502 Debug] Initial programPath: ${programPath}`);
+        outputChannel.appendLine(`[6502 Debug] preLaunchTask: ${config.preLaunchTask}`);
+
+        if (!programPath && config.preLaunchTask && folder) {
+            programPath = await this.extractProgramAndDbgFileFromTask(config, folder);
+        }
+
+        const loadPrg = config.loadProgram !== false; // Default true
+        const runProgram = config.runProgram === true; // Default false
+        outputChannel.appendLine(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
+
+        // Propagate the auto-detected (or config-supplied) program path back onto
+        // config so the debug adapter receives it for .dbg file resolution.
+        if (programPath && !config.program) {
+            config.program = programPath;
+        }
+        // The emulator host handles loading the program into memory, so tell the
+        // debug adapter not to load it again (but still use the path for debug symbols
+        // and program bounds).
+        config.__programAlreadyLoaded = true;
+
+        const args = buildEmulatorArgs({
+            debugPort,
+            system: config.system || 'C64',
+            systemVariant: config.systemVariant,
+            waitForReady: config.waitForSystemReady !== false, // Default true
+            loadPrg,
+            programPath,
+            runProgram
+        });
+        outputChannel.appendLine(`[6502 Debug] Launching emulator host: ${executablePath} ${args.join(' ')}`);
+
+        if (!this.spawnEmulatorHost(executablePath, args, config)) {
+            return false;
+        }
+
+        // Emulator host will start the system, load PRG, and then start TCP server.
+        // The descriptor factory waits for that server before connecting.
+        outputChannel.appendLine(`[6502 Debug] Emulator host launched, will wait for TCP server on ${debugHost}:${debugPort}`);
+        config.__emulatorDebugPort = debugPort;
+        config.__emulatorDebugHost = debugHost;
+        config.__waitingForEmulator = true;
+        return true;
+    }
+
+    /**
+     * Mines the cl65 (or compatible) preLaunchTask to auto-detect the produced
+     * program path (-o) and the debug-symbols file (--dbgfile,). Mutates
+     * config.dbgFile when found and not already set; returns the program path.
+     */
+    private async extractProgramAndDbgFileFromTask(
+        config: vscode.DebugConfiguration,
+        folder: vscode.WorkspaceFolder
+    ): Promise<string | undefined> {
+        const tasks = await vscode.tasks.fetchTasks();
+        const task = tasks.find(t => t.name === config.preLaunchTask);
+        outputChannel.appendLine(`[6502 Debug] Found task: ${task?.name}, definition: ${JSON.stringify(task?.definition)}`);
+        if (!task) {
+            outputChannel.appendLine(`[6502 Debug] Task not found`);
+            return undefined;
+        }
+
+        // For shell tasks, args might be in definition.args or in task execution.
+        let args = task.definition.args;
+        if (!args && task.execution && 'args' in task.execution) {
+            args = (task.execution as any).args;
+        }
+        outputChannel.appendLine(`[6502 Debug] Task args: ${JSON.stringify(args)}`);
+
+        const taskCwd = resolveTaskCwd(task, folder);
+        outputChannel.appendLine(`[6502 Debug] Task cwd (resolved): ${taskCwd}`);
+
+        if (!args || !Array.isArray(args)) {
+            outputChannel.appendLine(`[6502 Debug] Task has no args array`);
+            return undefined;
+        }
+
+        const programPath = extractProgramPathFromArgs(args, taskCwd);
+
+        if (!config.dbgFile) {
+            const dbgFile = extractDbgFileFromArgs(args, taskCwd);
+            if (dbgFile) {
+                config.dbgFile = dbgFile;
+                outputChannel.appendLine(`[6502 Debug] Extracted dbgFile from task: ${dbgFile}`);
+            }
+        }
+        return programPath;
+    }
+
+    private spawnEmulatorHost(
+        executablePath: string,
+        args: string[],
+        config: vscode.DebugConfiguration
+    ): boolean {
+        try {
+            if (this.emulatorProcess) {
+                outputChannel.appendLine('[6502 Debug] Killing existing emulator process');
+                this.emulatorProcess.kill();
+                this.emulatorProcess = undefined;
+            }
+
+            const executableDir = path.dirname(executablePath);
+            const env = { ...process.env, ...config.env };
+            const spawnOptions: child_process.SpawnOptions = {
+                detached: false,
+                stdio: ['ignore', 'pipe', 'pipe'],  // stdin=ignore, stdout=pipe, stderr=pipe
+                cwd: executableDir,
+                env
+            };
+
+            outputChannel.appendLine(`[6502 Debug] Spawning: ${executablePath} ${args.join(' ')}`);
+            outputChannel.appendLine(`[6502 Debug] Environment variables: ${JSON.stringify(config.env)}`);
+            this.emulatorProcess = child_process.spawn(executablePath, args, spawnOptions);
+
+            this.emulatorProcess.stdout?.on('data', (data) => {
+                outputChannel.appendLine(`[Emulator Host] ${data.toString().trimEnd()}`);
+            });
+            this.emulatorProcess.stderr?.on('data', (data) => {
+                outputChannel.appendLine(`[Emulator Host Error] ${data.toString().trimEnd()}`);
+            });
+            this.emulatorProcess.on('exit', (code) => {
+                outputChannel.appendLine(`[6502 Debug] Emulator host process exited with code ${code}`);
+                if (code !== 0 && code !== null) {
+                    vscode.window.showErrorMessage(`Emulator host app exited with error code ${code}. Check console output for details.`);
+                }
+                this.emulatorProcess = undefined;
+            });
+            return true;
+        } catch (error) {
+            const errorMsg = `Failed to launch emulator host app: ${error}`;
+            outputChannel.appendLine(`[6502 Debug] ${errorMsg}`);
+            vscode.window.showErrorMessage(errorMsg);
+            return false;
+        }
     }
 
     killEmulatorProcess() {
@@ -813,8 +836,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         // Note: This will create one connection that the server accepts but we immediately close
         // The server will handle this gracefully (it expects a DAP initialize message)
         const startTime = Date.now();
-        const net = require('net');
-        
+
         while (Date.now() - startTime < timeoutMs) {
             try {
                 await new Promise<void>((resolve, reject) => {
@@ -842,7 +864,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
                 // Port is listening - wait a moment for the server to reject the empty connection
                 await new Promise(resolve => setTimeout(resolve, 200));
                 return true;
-            } catch (error) {
+            } catch {
                 // Port not ready yet, wait and retry
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
@@ -903,7 +925,7 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
         value: '0xc000',
         placeHolder: '0xc000',
         validateInput: (value) => {
-            if (!value.match(/^(0x[0-9a-fA-F]+|\$[0-9a-fA-F]+|[0-9]+)$/)) {
+            if (!value.match(/^(0x[0-9a-fA-F]+|\$[0-9a-fA-F]+|\d+)$/)) {
                 return 'Enter a valid address (e.g., 0xc000, $c000, or 49152)';
             }
             return undefined;
@@ -956,81 +978,79 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
         }
     };
 
-    // Get or create tasks.json
     const tasksJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'tasks.json');
+    const written = await upsertBuildTaskInTasksJson(tasksJsonPath, workspaceFolder, taskLabel, newTask);
+    if (!written) { return; }
+
+    const result = await vscode.window.showInformationMessage(
+        `Build task "${taskLabel}" created successfully!`,
+        'Open tasks.json',
+        'Create Launch Config'
+    );
+
+    if (result === 'Open tasks.json') {
+        const doc = await vscode.workspace.openTextDocument(tasksJsonPath);
+        await vscode.window.showTextDocument(doc);
+    } else if (result === 'Create Launch Config') {
+        await generateLaunchConfig(workspaceFolder, taskLabel, fileBasename);
+    }
+}
+
+/**
+ * Reads (or creates) tasks.json, upserts a task by label using jsonc.modify to
+ * preserve comments, and writes the file. Prompts before overwriting an
+ * existing task with the same label. Returns true if the file was written.
+ */
+async function upsertBuildTaskInTasksJson(
+    tasksJsonPath: string,
+    workspaceFolder: vscode.WorkspaceFolder,
+    taskLabel: string,
+    newTask: Record<string, unknown>
+): Promise<boolean> {
     let tasksConfig: any;
     let content: string;
-    let fileExists = fs.existsSync(tasksJsonPath);
+    const fileExists = fs.existsSync(tasksJsonPath);
 
     try {
         if (fileExists) {
-            // Read existing tasks.json
             content = fs.readFileSync(tasksJsonPath, 'utf8');
-            // Parse JSONC (JSON with Comments and trailing commas)
             tasksConfig = jsonc.parse(content);
         } else {
-            // Create new tasks.json structure
-            tasksConfig = {
-                version: '2.0.0',
-                tasks: []
-            };
+            tasksConfig = { version: '2.0.0', tasks: [] };
             content = JSON.stringify(tasksConfig, null, 2);
-            // Ensure .vscode directory exists
             const vscodeDir = path.join(workspaceFolder.uri.fsPath, '.vscode');
             if (!fs.existsSync(vscodeDir)) {
                 fs.mkdirSync(vscodeDir, { recursive: true });
             }
         }
 
-        // Check if task with same label already exists
         if (!tasksConfig.tasks) {
             tasksConfig.tasks = [];
         }
 
         const existingIndex = tasksConfig.tasks.findIndex((t: any) => t.label === taskLabel);
         if (existingIndex >= 0) {
-            // Update existing task
             const overwrite = await vscode.window.showWarningMessage(
                 `Task "${taskLabel}" already exists. Overwrite?`,
                 'Yes', 'No'
             );
-            if (overwrite === 'Yes') {
-                // Use jsonc.modify to update existing task while preserving comments
-                const edits = jsonc.modify(content, ['tasks', existingIndex], newTask, {
-                    formattingOptions: { tabSize: 2, insertSpaces: true }
-                });
-                content = jsonc.applyEdits(content, edits);
-            } else {
-                return;
-            }
-        } else {
-            // Add new task using jsonc.modify to preserve comments
-            const edits = jsonc.modify(content, ['tasks', -1], newTask, {
-                formattingOptions: { tabSize: 2, insertSpaces: true }
-            });
-            content = jsonc.applyEdits(content, edits);
+            if (overwrite !== 'Yes') { return false; }
         }
 
-        // Write tasks.json with preserved comments
+        const jsonPath = existingIndex >= 0
+            ? ['tasks', existingIndex]
+            : ['tasks', -1];
+        const edits = jsonc.modify(content, jsonPath, newTask, {
+            formattingOptions: { tabSize: 2, insertSpaces: true }
+        });
+        content = jsonc.applyEdits(content, edits);
+
         fs.writeFileSync(tasksJsonPath, content, 'utf8');
-
-        // Show success message with action
-        const result = await vscode.window.showInformationMessage(
-            `Build task "${taskLabel}" created successfully!`,
-            'Open tasks.json',
-            'Create Launch Config'
-        );
-
-        if (result === 'Open tasks.json') {
-            const doc = await vscode.workspace.openTextDocument(tasksJsonPath);
-            await vscode.window.showTextDocument(doc);
-        } else if (result === 'Create Launch Config') {
-            await generateLaunchConfig(workspaceFolder, taskLabel, fileBasename);
-        }
-
+        return true;
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to create task: ${error}`);
         outputChannel.appendLine(`[6502 Debug] Error generating task: ${error}`);
+        return false;
     }
 }
 
@@ -1086,6 +1106,21 @@ async function upsertLaunchConfiguration(
 }
 
 /**
+ * Picks the best-matching build task label by priority:
+ *   1. Exact extension-generated pattern: `Build <fileName> (C64)`
+ *   2. Label contains the basename (case-insensitive)
+ *   3. Task's command or args reference the filename
+ */
+function pickSuggestedTask(tasks: any[], fileName: string, fileBasename: string): string | undefined {
+    return tasks.find((t: any) => t.label === `Build ${fileName} (C64)`)?.label
+        ?? tasks.find((t: any) => t.label.toLowerCase().includes(fileBasename.toLowerCase()))?.label
+        ?? tasks.find((t: any) =>
+            (t.command && typeof t.command === 'string' && t.command.includes(fileName)) ||
+            (t.args && t.args.some((arg: string) => arg.includes(fileName)))
+        )?.label;
+}
+
+/**
  * Reads tasks.json and returns the best-matching build task label for the
  * given .asm file, optionally prompting the user. Returns undefined if no
  * task is selected (user cancelled or no tasks exist).
@@ -1104,29 +1139,9 @@ async function findBuildTaskForFile(
         try {
             const content = fs.readFileSync(tasksJsonPath, 'utf8');
             const tasksConfig = jsonc.parse(content);
-
             if (tasksConfig.tasks) {
                 availableTasks = tasksConfig.tasks.map((t: any) => t.label);
-
-                // Priority 1: Extension-generated task pattern
-                suggestedTask = tasksConfig.tasks.find((t: any) =>
-                    t.label === `Build ${fileName} (C64)`
-                )?.label;
-
-                // Priority 2: Label contains base filename
-                if (!suggestedTask) {
-                    suggestedTask = tasksConfig.tasks.find((t: any) =>
-                        t.label.toLowerCase().includes(fileBasename.toLowerCase())
-                    )?.label;
-                }
-
-                // Priority 3: Command or args contain filename
-                if (!suggestedTask) {
-                    suggestedTask = tasksConfig.tasks.find((t: any) =>
-                        (t.command && typeof t.command === 'string' && t.command.includes(fileName)) ||
-                        (t.args && t.args.some((arg: string) => arg.includes(fileName)))
-                    )?.label;
-                }
+                suggestedTask = pickSuggestedTask(tasksConfig.tasks, fileName, fileBasename);
             }
         } catch {
             // Ignore parse errors
@@ -1335,7 +1350,7 @@ class AddressDecorationManager implements vscode.Disposable {
                 const lineMap = new Map<number, string>();
                 for (const [lineStr, addr] of Object.entries(lineObj)) {
                     const hex = (addr as number).toString(16).toUpperCase().padStart(4, '0');
-                    lineMap.set(parseInt(lineStr), `$${hex}`);
+                    lineMap.set(Number.parseInt(lineStr), `$${hex}`);
                 }
                 fileMap.set(fileName, lineMap);
             }
@@ -1368,7 +1383,7 @@ class AddressDecorationManager implements vscode.Disposable {
             return;
         }
 
-        const addrNum = parseInt(addrRef.replace(/^0x/i, ''), 16);
+        const addrNum = Number.parseInt(addrRef.replace(/^0x/i, ''), 16);
         const hex = addrNum.toString(16).toUpperCase().padStart(4, '0');
 
         this.currentStopInfo = { sessionId: session.id, file: sourcePath, line, addr: `$${hex}` };
@@ -1594,17 +1609,7 @@ class DotNet6502DebugTrackerFactory implements vscode.DebugAdapterTrackerFactory
                 }
 
                 if (hasMapper) {
-                    if (message.type === 'response' && message.command === 'stackTrace' && message.body?.stackFrames) {
-                        for (const frame of message.body.stackFrames) {
-                            translateSourcePath(frame, p => mapper.toLocal(p));
-                        }
-                    } else if (message.type === 'response' && message.command === 'setBreakpoints' && message.body?.breakpoints) {
-                        for (const bp of message.body.breakpoints) {
-                            translateSourcePath(bp, p => mapper.toLocal(p));
-                        }
-                    } else if (message.type === 'event' && (message.event === 'loadedSource' || message.event === 'output')) {
-                        translateSourcePath(message.body, p => mapper.toLocal(p));
-                    }
+                    applyResponsePathMappings(message, mapper);
                 }
 
                 // VSCode automatically sends stackTrace after every stopped event.
@@ -1618,5 +1623,23 @@ class DotNet6502DebugTrackerFactory implements vscode.DebugAdapterTrackerFactory
                 }
             }
         };
+    }
+}
+
+/**
+ * Translates remote→local paths inside DAP responses/events that carry source
+ * references the user-facing VSCode side needs to be able to open.
+ */
+function applyResponsePathMappings(message: any, mapper: RemotePathMapper): void {
+    if (message.type === 'response' && message.command === 'stackTrace' && message.body?.stackFrames) {
+        for (const frame of message.body.stackFrames) {
+            translateSourcePath(frame, p => mapper.toLocal(p));
+        }
+    } else if (message.type === 'response' && message.command === 'setBreakpoints' && message.body?.breakpoints) {
+        for (const bp of message.body.breakpoints) {
+            translateSourcePath(bp, p => mapper.toLocal(p));
+        }
+    } else if (message.type === 'event' && (message.event === 'loadedSource' || message.event === 'output')) {
+        translateSourcePath(message.body, p => mapper.toLocal(p));
     }
 }

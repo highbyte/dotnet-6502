@@ -22,8 +22,8 @@ export function registerLogCallback(callback) {
 export function getGamepadCount() {
     const gamepads = navigator.getGamepads();
     let count = 0;
-    for (let i = 0; i < gamepads.length; i++) {
-        if (gamepads[i] !== null && gamepads[i].connected) {
+    for (const gamepad of gamepads) {
+        if (gamepad?.connected) {
             count++;
         }
     }
@@ -37,7 +37,7 @@ export function getGamepadCount() {
 export function getFirstGamepadIndex() {
     const gamepads = navigator.getGamepads();
     for (let i = 0; i < gamepads.length; i++) {
-        if (gamepads[i] !== null && gamepads[i].connected) {
+        if (gamepads[i]?.connected) {
             return i;
         }
     }
@@ -69,7 +69,7 @@ export function getGamepadName(index) {
         return "";
     }
     const gamepad = gamepads[index];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return "";
     }
     return gamepad.id || "";
@@ -86,7 +86,7 @@ export function getPressedButtons(index) {
         return "";
     }
     const gamepad = gamepads[index];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return "";
     }
 
@@ -110,7 +110,7 @@ export function getAxes(index) {
         return "";
     }
     const gamepad = gamepads[index];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return "";
     }
 
@@ -129,7 +129,7 @@ export function getAxisValue(gamepadIndex, axisIndex) {
         return 0;
     }
     const gamepad = gamepads[gamepadIndex];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return 0;
     }
     if (axisIndex < 0 || axisIndex >= gamepad.axes.length) {
@@ -150,7 +150,7 @@ export function isButtonPressed(gamepadIndex, buttonIndex) {
         return false;
     }
     const gamepad = gamepads[gamepadIndex];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return false;
     }
     if (buttonIndex < 0 || buttonIndex >= gamepad.buttons.length) {
@@ -170,7 +170,7 @@ export function getButtonCount(index) {
         return 0;
     }
     const gamepad = gamepads[index];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return 0;
     }
     return gamepad.buttons.length;
@@ -187,7 +187,7 @@ export function getAxesCount(index) {
         return 0;
     }
     const gamepad = gamepads[index];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return 0;
     }
     return gamepad.axes.length;
@@ -206,7 +206,7 @@ export function hasStandardMapping(index) {
         return false;
     }
     const gamepad = gamepads[index];
-    if (gamepad === null || !gamepad.connected) {
+    if (!gamepad?.connected) {
         return false;
     }
     // The mapping property is "standard" for recognized gamepads

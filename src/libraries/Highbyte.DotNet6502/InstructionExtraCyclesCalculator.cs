@@ -3,12 +3,8 @@ namespace Highbyte.DotNet6502;
 /// <summary>
 /// Calculates extra clock cycles for instructions in certain addressing modes and circumstances.
 /// </summary>
-public class InstructionExtraCyclesCalculator
+public static class InstructionExtraCyclesCalculator
 {
-    public InstructionExtraCyclesCalculator()
-    {
-    }
-
     //  TODO: Don't use static method, create en interface and inject in consumer.
     public static ulong CalculateExtraCycles(AddrMode addrMode, bool addressCalculationCrossedPageBoundary)
     {

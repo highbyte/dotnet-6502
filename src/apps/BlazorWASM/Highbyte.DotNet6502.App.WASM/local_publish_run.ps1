@@ -1,4 +1,4 @@
-if(Test-Path "./bin/Publish/") { Remove-Item "./bin/Publish/" -r -force }
+if(Test-Path "./bin/Publish/") { Remove-Item "./bin/Publish/" -r -Force }
 
 dotnet publish -c Release -o "./bin/Publish/"
 # Workaround for publishing errors on .NET 10 on Windows: disable AOT compilation and trimming

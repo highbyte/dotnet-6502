@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -216,23 +217,22 @@ public class CPU
         // Whereas the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
         var thisExecState = new ExecState();
 
-        bool doNextInstruction = true;
-        while (doNextInstruction)
+        while (true)
         {
             // Evaluate BEFORE executing the next instruction.
             // Checking pre-execution means breakpoints trigger at the correct address
             // (before the instruction at that address runs), and evaluators that count
             // cycles/instructions use the cumulative totals from prior iterations.
+            bool triggered = false;
             foreach (var execEvaluator in execEvaluators)
             {
-                var execEvaluatorTriggerResult = execEvaluator.Check(thisExecState, this, mem);
-                if (execEvaluatorTriggerResult.Triggered)
+                if (execEvaluator.Check(thisExecState, this, mem).Triggered)
                 {
-                    doNextInstruction = false;
+                    triggered = true;
                     break;
                 }
             }
-            if (!doNextInstruction)
+            if (triggered)
                 break;
 
             // Fire event before instruction executes
@@ -267,7 +267,7 @@ public class CPU
             ProcessInterrupts(mem);
         }
 
-        // Return stats for this invocation of Execute();
+        // Return the per-invocation stats accumulated above.
         return thisExecState;
     }
 
@@ -392,6 +392,7 @@ public class CPU
     /// </summary>
     /// <param name="mem"></param>
     /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte FetchInstruction(Memory mem)
     {
         var data = FetchByte(mem, PC);
@@ -401,16 +402,15 @@ public class CPU
 
     /// <summary>
     /// Get instruction operand from the byte on current PC (Program Counter).
-    /// Increase PC by 1.
+    /// Increase PC by 1. Semantically identical to <see cref="FetchInstruction"/>;
+    /// kept as a separate named entry point so caller intent is readable. The
+    /// AggressiveInlining hint ensures the JIT folds both into their callers,
+    /// so there is no extra call cost on the per-instruction hot path.
     /// </summary>
     /// <param name="mem"></param>
     /// <returns></returns>
-    public byte FetchOperand(Memory mem)
-    {
-        var data = FetchByte(mem, PC);
-        PC++;
-        return data;
-    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public byte FetchOperand(Memory mem) => FetchInstruction(mem);
 
     /// <summary>
     /// Gets the 16-bit word at current PC (Program Counter), adjusted for little endian.
@@ -484,11 +484,6 @@ public class CPU
     /// <returns></returns>
     public ushort PopWordFromStack(Memory mem)
     {
-        //var addrFromStack = new byte[2];
-        //addrFromStack[0] = PopByteFromStack(mem);   // lowbyte is read first
-        //addrFromStack[1] = PopByteFromStack(mem);   // highbyte is read second
-        //return ByteHelpers.ToLittleEndianWord(addrFromStack);
-
         byte lowByte = PopByteFromStack(mem);   // lowbyte is read first
         byte highByte = PopByteFromStack(mem);   // highbyte is read second
         return ByteHelpers.ToLittleEndianWord(lowByte, highByte);
