@@ -1194,51 +1194,53 @@ async function generateLaunchConfig(
 }
 
 /**
- * Command to generate launch config - prompts user to select an existing task
+ * Validates that `uri` points to a .asm file in a workspace, resolves the matching
+ * build task, and returns the inputs needed to generate a launch configuration.
+ * Returns undefined (after showing the appropriate error message) if any step fails
+ * or the user cancels task selection. Centralises the validation prelude shared by
+ * `generateLaunchConfigCommand` and `generateEmulatorLaunchConfigCommand`.
  */
-async function generateLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
+async function resolveAsmLaunchInputs(uri: vscode.Uri): Promise<{
+    workspaceFolder: vscode.WorkspaceFolder;
+    taskLabel: string;
+    fileBasename: string;
+} | undefined> {
     if (!uri?.fsPath.endsWith('.asm')) {
         vscode.window.showErrorMessage('Please select a .asm file');
-        return;
+        return undefined;
     }
 
     const fileName = path.basename(uri.fsPath);
     const fileBasename = path.basename(uri.fsPath, '.asm');
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-    
+
     if (!workspaceFolder) {
         vscode.window.showErrorMessage('File must be in a workspace folder');
-        return;
+        return undefined;
     }
 
     const taskLabel = await findBuildTaskForFile(workspaceFolder, uri, fileName, fileBasename);
-    if (!taskLabel) { return; }
+    if (!taskLabel) { return undefined; }
 
-    await generateLaunchConfig(workspaceFolder, taskLabel, fileBasename);
+    return { workspaceFolder, taskLabel, fileBasename };
+}
+
+/**
+ * Command to generate launch config - prompts user to select an existing task
+ */
+async function generateLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
+    const inputs = await resolveAsmLaunchInputs(uri);
+    if (!inputs) { return; }
+    await generateLaunchConfig(inputs.workspaceFolder, inputs.taskLabel, inputs.fileBasename);
 }
 
 /**
  * Command to generate emulator launch config - prompts user to select an existing task
  */
 async function generateEmulatorLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
-    if (!uri?.fsPath.endsWith('.asm')) {
-        vscode.window.showErrorMessage('Please select a .asm file');
-        return;
-    }
-
-    const fileName = path.basename(uri.fsPath);
-    const fileBasename = path.basename(uri.fsPath, '.asm');
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-
-    if (!workspaceFolder) {
-        vscode.window.showErrorMessage('File must be in a workspace folder');
-        return;
-    }
-
-    const taskLabel = await findBuildTaskForFile(workspaceFolder, uri, fileName, fileBasename);
-    if (!taskLabel) { return; }
-
-    await generateEmulatorLaunchConfig(workspaceFolder, taskLabel, fileBasename);
+    const inputs = await resolveAsmLaunchInputs(uri);
+    if (!inputs) { return; }
+    await generateEmulatorLaunchConfig(inputs.workspaceFolder, inputs.taskLabel, inputs.fileBasename);
 }
 
 /**
