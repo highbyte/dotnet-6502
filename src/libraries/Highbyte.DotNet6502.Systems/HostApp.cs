@@ -360,6 +360,30 @@ public class HostApp : IHostApp, IManualRenderingProvider
         return available;
     }
 
+    /// <summary>
+    /// Returns every concrete (audioProviderType, audioTargetType) combination the host can build
+    /// for the current system. Audio counterpart of
+    /// <see cref="GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations"/>.
+    /// </summary>
+    public List<(Type audioProviderType, Type audioTargetType)> GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations()
+    {
+        List<(Type apt, Type att)> available = new();
+
+        if (_audioTargetProvider == null)
+            return available;
+
+        var systemAudioProviderTypes = CurrentHostSystemConfig.SystemConfig.GetSupportedAudioProviderTypes();
+        foreach (var apt in systemAudioProviderTypes ?? new List<Type>())
+        {
+            var compatibleAtts = _audioTargetProvider.GetConcreteAudioTargetTypesForConcreteAudioProviderType(apt);
+            foreach (var att in compatibleAtts)
+            {
+                available.Add((apt, att));
+            }
+        }
+        return available;
+    }
+
     public virtual void OnAfterEmulatorStateChange() { }
 
     public async Task SelectSystem(string systemName)

@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Utils;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 
@@ -13,6 +14,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 /// coexist as compiled types but only one is wired up per emulator session (the C64 audio config
 /// selects which provider to register).
 /// </summary>
+[DisplayName("SID sample emulation")]
+[HelpText("Pure-managed sample-accurate SID emulation. Ticks the chip per CPU cycle and emits PCM.\nHigher CPU than Synth commands, but reproduces real SID waveform shapes and ADSR behaviour.")]
 public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider
 {
     private readonly C64 _c64;

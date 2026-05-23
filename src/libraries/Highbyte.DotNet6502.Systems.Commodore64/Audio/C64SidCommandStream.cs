@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Utils;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 
@@ -12,6 +13,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 /// them via <see cref="CommandEmitted"/>; a host <see cref="IAudioCommandTarget"/> turns them into
 /// sound. The genuinely host-specific synthesis (NAudio / WebAudio) stays in the targets.
 /// </summary>
+[DisplayName("Synth commands")]
+[HelpText("Decodes SID register changes into host-agnostic synth commands (volume, voice ADSR + oscillator).\nThe host audio target (NAudio / WebAudio) drives an oscillator graph from those commands.\nLow CPU, but cannot reproduce SID filter, combined waveforms, ring mod, or sample playback.")]
 public sealed class C64SidCommandStream : IAudioProvider, IAudioCommandStream
 {
     private readonly C64 _c64;

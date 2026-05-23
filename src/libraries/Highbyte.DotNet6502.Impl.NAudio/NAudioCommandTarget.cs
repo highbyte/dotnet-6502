@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Utils;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -13,6 +14,8 @@ namespace Highbyte.DotNet6502.Impl.NAudio;
 /// <c>WebAudioCommandTarget</c>; system-agnostic — it knows synth voices, not the emulated system.
 /// The per-system sound-chip decode lives in the system's command stream (e.g. <c>C64SidCommandStream</c>).
 /// </summary>
+[DisplayName("NAudio synth target")]
+[HelpText("Plays Synth-commands audio via an NAudio mixing/oscillator graph (desktop).")]
 public class NAudioCommandTarget : IAudioCommandTarget
 {
     public string Name => "NAudioCommandTarget";

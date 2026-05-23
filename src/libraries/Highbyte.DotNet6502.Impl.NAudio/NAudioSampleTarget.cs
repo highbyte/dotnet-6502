@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Utils;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 
@@ -12,6 +13,8 @@ namespace Highbyte.DotNet6502.Impl.NAudio;
 /// pull contract. Desktop counterpart of a future WebAudio AudioWorklet sample target.
 /// System-agnostic — knows only about float PCM samples and the host wave player.
 /// </summary>
+[DisplayName("NAudio PCM sample target")]
+[HelpText("Plays raw PCM samples through NAudio (desktop). Pairs with the SID sample emulation provider.")]
 public sealed class NAudioSampleTarget : IAudioSampleTarget
 {
     public string Name => "NAudioSampleTarget";

@@ -312,9 +312,11 @@ public class C64SystemConfig : ISystemConfig
         SetRenderProviderType(GetSupportedRenderProviderTypes().First());
         //SetRenderProviderType(GetSupportedRenderProviderTypes().Single(x => x == typeof(C64VideoCommandStream)));
 
-        // Default audio provider — keep the existing command-stream behaviour for back-compat.
-        // Users (or appsettings) can switch to C64SidSampleProvider for sample-accurate audio.
-        SetAudioProviderType(typeof(C64SidCommandStream));
+        // Default audio provider is the sample-accurate SID emulation. Hosts that have no
+        // compatible IAudioSampleTarget registered (e.g. the Blazor WASM/Skia host today, which
+        // only registers WebAudioCommandTarget) must override this by setting
+        // AudioProviderType to typeof(C64SidCommandStream) in their persisted/host config.
+        SetAudioProviderType(typeof(C64SidSampleProvider));
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);

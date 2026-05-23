@@ -36,6 +36,7 @@ public interface ISystemConfig : ICloneable
     public List<Type> GetSupportedRenderProviderTypes();
 
     public void SetRenderProviderType(Type? renderProviderType);
+    public void SetRenderTargetType(Type? renderTargetType);
 
     public Type? RenderProviderType { get; }
     public Type? RenderTargetType { get; }

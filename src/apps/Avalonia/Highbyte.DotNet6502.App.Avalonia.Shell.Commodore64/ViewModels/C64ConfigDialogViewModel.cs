@@ -39,6 +39,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private readonly C64HostConfig _originalConfig;
     private readonly C64HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
+    private readonly List<(Type audioProviderType, Type audioTargetType)> _audioCombinations;
     private readonly HttpClient _httpClient;
 
     private bool _isBusy;
@@ -54,6 +55,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private RenderProviderOption? _selectedRenderProvider;
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
+    private AudioProviderOption? _selectedAudioProvider;
+    private AudioTargetOption? _selectedAudioTarget;
+    private bool _suppressAudioTargetUpdate;
 
     private string _corsProxyOverrideURL = string.Empty;
 
@@ -85,6 +89,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _logger = loggerFactory.CreateLogger(nameof(C64ConfigDialogViewModel));
         _originalConfig = hostApp.CurrentHostSystemConfig as C64HostConfig ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type C64HostConfig");
         _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
+        _audioCombinations = hostApp.GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations() ?? new List<(Type, Type)>();
         _workingConfig = (C64HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
@@ -104,6 +109,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         LoadAIConfiguration();
 
         InitializeRenderOptions();
+        InitializeAudioOptions();
         UpdateRomStatuses();
         UpdateKeyboardMappings();
         UpdateValidationMessageFromConfig();
@@ -161,6 +167,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<RomStatusViewModel> RomStatuses { get; } = new();
     public ObservableCollection<RenderProviderOption> RenderProviders { get; } = new();
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
+    public ObservableCollection<AudioProviderOption> AudioProviders { get; } = new();
+    public ObservableCollection<AudioTargetOption> AudioTargets { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; }
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
     // "Auto" (auto-detect) plus each explicit C64KeyboardLayout, as strings for the dropdown.
@@ -366,6 +374,49 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public string SelectedRenderProviderHelpText => SelectedRenderProvider?.HelpText ?? string.Empty;
 
     public string SelectedRenderTargetHelpText => SelectedRenderTarget?.HelpText ?? string.Empty;
+
+    public AudioProviderOption? SelectedAudioProvider
+    {
+        get => _selectedAudioProvider;
+        set
+        {
+            if (ReferenceEquals(_selectedAudioProvider, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAudioProvider, value);
+
+            if (value != null)
+            {
+                _workingConfig.SystemConfig.SetAudioProviderType(value.Type);
+                UpdateAudioTargetsForProvider(value.Type);
+            }
+
+            this.RaisePropertyChanged(nameof(SelectedAudioProviderHelpText));
+        }
+    }
+
+    public AudioTargetOption? SelectedAudioTarget
+    {
+        get => _selectedAudioTarget;
+        set
+        {
+            if (ReferenceEquals(_selectedAudioTarget, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAudioTarget, value);
+
+            if (value != null && !_suppressAudioTargetUpdate)
+            {
+                _workingConfig.SystemConfig.SetAudioTargetType(value.Type);
+            }
+
+            this.RaisePropertyChanged(nameof(SelectedAudioTargetHelpText));
+        }
+    }
+
+    public string SelectedAudioProviderHelpText => SelectedAudioProvider?.HelpText ?? string.Empty;
+
+    public string SelectedAudioTargetHelpText => SelectedAudioTarget?.HelpText ?? string.Empty;
 
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
@@ -893,6 +944,68 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    private void InitializeAudioOptions()
+    {
+        AudioProviders.Clear();
+
+        var providerTypes = _audioCombinations.Select(c => c.audioProviderType).Distinct().ToList();
+        if (_workingConfig.SystemConfig.AudioProviderType != null && !providerTypes.Contains(_workingConfig.SystemConfig.AudioProviderType))
+        {
+            providerTypes.Add(_workingConfig.SystemConfig.AudioProviderType);
+        }
+
+        foreach (var providerType in providerTypes)
+        {
+            AudioProviders.Add(new AudioProviderOption(
+                providerType,
+                TypeDisplayHelper.GetDisplayName(providerType),
+                TypeDisplayHelper.GetHelpText(providerType)));
+        }
+
+        SelectedAudioProvider = AudioProviders.FirstOrDefault(ap => ap.Type == _workingConfig.SystemConfig.AudioProviderType)
+            ?? AudioProviders.FirstOrDefault();
+
+        if (SelectedAudioProvider != null)
+        {
+            _workingConfig.SystemConfig.SetAudioProviderType(SelectedAudioProvider.Type);
+        }
+    }
+
+    private void UpdateAudioTargetsForProvider(Type providerType)
+    {
+        try
+        {
+            _suppressAudioTargetUpdate = true;
+            AudioTargets.Clear();
+
+            var targetTypes = _audioCombinations
+                .Where(c => c.audioProviderType == providerType)
+                .Select(c => c.audioTargetType)
+                .Distinct()
+                .ToList();
+
+            foreach (var targetType in targetTypes)
+            {
+                AudioTargets.Add(new AudioTargetOption(
+                    targetType,
+                    TypeDisplayHelper.GetDisplayName(targetType),
+                    TypeDisplayHelper.GetHelpText(targetType)));
+            }
+
+            SelectedAudioTarget = AudioTargets.FirstOrDefault(at => at.Type == _workingConfig.SystemConfig.AudioTargetType)
+                ?? AudioTargets.FirstOrDefault();
+
+            if (SelectedAudioTarget != null)
+            {
+                _workingConfig.SystemConfig.SetAudioTargetType(SelectedAudioTarget.Type);
+            }
+        }
+        finally
+        {
+            _suppressAudioTargetUpdate = false;
+        }
+    }
+
     private void UpdateRenderTargetsForProvider(Type providerType)
     {
         try
@@ -1106,6 +1219,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
         if (_workingConfig.SystemConfig.RenderTargetType != null)
             _originalConfig.SystemConfig.SetRenderTargetType(_workingConfig.SystemConfig.RenderTargetType);
 
+        if (_workingConfig.SystemConfig.AudioProviderType != null)
+            _originalConfig.SystemConfig.SetAudioProviderType(_workingConfig.SystemConfig.AudioProviderType);
+
+        if (_workingConfig.SystemConfig.AudioTargetType != null)
+            _originalConfig.SystemConfig.SetAudioTargetType(_workingConfig.SystemConfig.AudioTargetType);
+
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.InputConfig = (C64InputConfig)_workingConfig.InputConfig.Clone();
 
@@ -1250,6 +1369,10 @@ public class RomStatusViewModel : ReactiveObject
 public record RenderProviderOption(Type Type, string DisplayName, string HelpText);
 
 public record RenderTargetOption(Type Type, string DisplayName, string HelpText);
+
+public record AudioProviderOption(Type Type, string DisplayName, string HelpText);
+
+public record AudioTargetOption(Type Type, string DisplayName, string HelpText);
 
 public record KeyMappingEntry(string Key, string Action);
 

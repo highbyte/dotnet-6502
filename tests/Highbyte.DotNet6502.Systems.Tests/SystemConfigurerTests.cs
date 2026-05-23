@@ -116,7 +116,7 @@ public class SystemConfigurerTests
         {
             RenderProviderType = renderProviderType;
         }
-        public void SetRenderTargetType(Type renderTargetType)
+        public void SetRenderTargetType(Type? renderTargetType)
         {
             RenderTargetType = renderTargetType;
         }
@@ -165,7 +165,7 @@ public class SystemConfigurerTests
         {
             RenderProviderType = renderProviderType;
         }
-        public void SetRenderTargetType(Type renderTargetType)
+        public void SetRenderTargetType(Type? renderTargetType)
         {
             RenderTargetType = renderTargetType;
         }

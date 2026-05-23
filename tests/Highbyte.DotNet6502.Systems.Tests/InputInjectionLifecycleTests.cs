@@ -185,7 +185,7 @@ public class InputInjectionLifecycleTests
 
         public void SetRenderProviderType(Type? renderProviderType) => RenderProviderType = renderProviderType;
 
-        public void SetRenderTargetType(Type renderTargetType) => RenderTargetType = renderTargetType;
+        public void SetRenderTargetType(Type? renderTargetType) => RenderTargetType = renderTargetType;
 
         public Type? AudioProviderType => null;
         public Type? AudioTargetType => null;

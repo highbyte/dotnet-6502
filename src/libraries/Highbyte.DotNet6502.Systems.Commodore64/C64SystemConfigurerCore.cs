@@ -81,21 +81,20 @@ public class C64SystemConfigurerCore : ISystemConfigurer
 
     private static void ApplyTypeOverridesFromConfig(IConfiguration systemConfigSection, ISystemConfig systemConfig)
     {
-        var audioProviderTypeName = systemConfigSection["AudioProviderType"];
-        if (!string.IsNullOrWhiteSpace(audioProviderTypeName))
-        {
-            var t = Type.GetType(audioProviderTypeName)
-                ?? throw new DotNet6502Exception($"AudioProviderType '{audioProviderTypeName}' could not be resolved.");
-            systemConfig.SetAudioProviderType(t);
-        }
+        ApplyTypeKey(systemConfigSection, "RenderProviderType", systemConfig.SetRenderProviderType);
+        ApplyTypeKey(systemConfigSection, "RenderTargetType", systemConfig.SetRenderTargetType);
+        ApplyTypeKey(systemConfigSection, "AudioProviderType", systemConfig.SetAudioProviderType);
+        ApplyTypeKey(systemConfigSection, "AudioTargetType", systemConfig.SetAudioTargetType);
+    }
 
-        var audioTargetTypeName = systemConfigSection["AudioTargetType"];
-        if (!string.IsNullOrWhiteSpace(audioTargetTypeName))
-        {
-            var t = Type.GetType(audioTargetTypeName)
-                ?? throw new DotNet6502Exception($"AudioTargetType '{audioTargetTypeName}' could not be resolved.");
-            systemConfig.SetAudioTargetType(t);
-        }
+    private static void ApplyTypeKey(IConfiguration section, string key, Action<Type?> setter)
+    {
+        var value = section[key];
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+        var t = Type.GetType(value)
+            ?? throw new DotNet6502Exception($"{key} '{value}' could not be resolved.");
+        setter(t);
     }
 
     /// <summary>No-op by default. Hosts that persist user config override this.</summary>
