@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Systems.Audio;
 /// <item><c>IAudioCommandStream</c> — the system emits synth commands (envelope/oscillator), a
 /// host synth backend (NAudio, WebAudio) generates the actual sound.</item>
 /// <item><c>IAudioSampleProvider</c> — the system generates raw PCM samples itself, a host audio
-/// device just plays the buffer. (Future style.)</item>
+/// device just plays the buffer.</item>
 /// </list>
 /// </summary>
 public interface IAudioSource

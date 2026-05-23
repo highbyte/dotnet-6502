@@ -13,7 +13,7 @@ namespace Highbyte.DotNet6502.Systems.Audio;
 /// <item><c>AudioCommandCoordinator</c> — push: synth commands are drained and applied to the
 /// host backend (driven by the SID post-instruction callback).</item>
 /// <item><c>AudioSampleCoordinator</c> — pull: a ring buffer bridges the emulator clock and the
-/// host audio device callback. (Future style.)</item>
+/// host audio device callback.</item>
 /// </list>
 /// </summary>
 public interface IAudioCoordinator : IAsyncDisposable

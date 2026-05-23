@@ -15,7 +15,10 @@ public class AudioCoordinatorProvider
             return new AudioCommandCoordinator(commandStream, commandTarget);
         }
 
-        // A future PCM-sample style adds an IAudioSampleProvider / IAudioSampleTarget branch here.
+        if (audioSource is IAudioSampleProvider sampleProvider && audioTarget is IAudioSampleTarget sampleTarget)
+        {
+            return new AudioSampleCoordinator(sampleProvider, sampleTarget);
+        }
 
         throw new ArgumentException(
             $"Audio source type {audioSource.GetType().Name} and target type {audioTarget.GetType().Name} is not a supported combination.");
