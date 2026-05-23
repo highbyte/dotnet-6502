@@ -61,7 +61,10 @@ jobs:
           # Optional command arguments to dotnet test
           dotnetTestArguments: ./tests/Highbyte.DotNet6502.Tests --filter TestType!=Integration --logger trx --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
           # Optional extra command arguments the the SonarScanner 'begin' command
-          sonarBeginArguments: /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" -d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" -d:sonar.coverage.exclusions="/**/samples/**/*.*,/**/apps/*.*,/**/Highbyte.DotNet6502.Impl.*/**/*.*,/**/Highbyte.DotNet6502.Systems/**/*.*"
+          # Coverage is measured only for the core CPU emulator library Highbyte.DotNet6502.
+          # The inclusion filter is exact-name: sibling dirs Highbyte.DotNet6502.Impl.*
+          # and Highbyte.DotNet6502.Systems are NOT matched (different directory names).
+          sonarBeginArguments: /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" -d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" -d:sonar.coverage.inclusions="src/libraries/Highbyte.DotNet6502/**/*.*"
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
