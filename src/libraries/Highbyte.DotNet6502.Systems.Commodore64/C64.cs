@@ -1,6 +1,7 @@
 using System.Text;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
@@ -325,14 +326,29 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
     private static void ConfigureAudio(C64 c64, C64Config config)
     {
-        // Audio has a single provider style (command stream). When audio is disabled, no provider
-        // is created — the host then builds no audio coordinator and the system stays silent.
+        // When audio is disabled, no providers are created — the host then builds no audio
+        // coordinator and the system stays silent.
         if (!config.AudioEnabled)
             return;
 
-        var commandStream = new C64SidCommandStream(c64);
-        c64.AudioProviders.Add(commandStream);
-        c64._audioProvider = commandStream;
+        c64.AudioProviders.Add(new C64SidCommandStream(c64));
+        c64.AudioProviders.Add(new C64SidSampleProvider(c64, sidClockHz: (int)c64.CpuFrequencyHz));
+
+        // Default to the command-stream provider if the host didn't pick one.
+        var selectedType = config.AudioProviderType ?? typeof(C64SidCommandStream);
+        c64.SetCurrentAudioProvider(selectedType);
+    }
+
+    private void SetCurrentAudioProvider(Type? audioProviderType)
+    {
+        if (audioProviderType == null)
+        {
+            _audioProvider = null;
+            return;
+        }
+        var audioProvider = AudioProviders.SingleOrDefault(ap => ap.GetType() == audioProviderType)
+            ?? throw new ArgumentException($"The specified audio provider type {audioProviderType.FullName} is not available.");
+        _audioProvider = audioProvider;
     }
 
     private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)

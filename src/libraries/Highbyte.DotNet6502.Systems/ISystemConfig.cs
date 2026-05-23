@@ -40,5 +40,18 @@ public interface ISystemConfig : ICloneable
     public Type? RenderProviderType { get; }
     public Type? RenderTargetType { get; }
 
+    /// <summary>
+    /// Should return a list of types that implement IAudioProvider and that the system supports
+    /// (e.g. a C64 supports both C64SidCommandStream and C64SidSampleProvider). Empty for systems
+    /// with no audio.
+    /// </summary>
+    public List<Type> GetSupportedAudioProviderTypes();
+
+    public void SetAudioProviderType(Type? audioProviderType);
+    public void SetAudioTargetType(Type? audioTargetType);
+
+    public Type? AudioProviderType { get; }
+    public Type? AudioTargetType { get; }
+
     public bool AudioEnabled { get; set; }
 }

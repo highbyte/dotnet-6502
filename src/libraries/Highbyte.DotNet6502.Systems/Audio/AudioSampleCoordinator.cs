@@ -16,11 +16,23 @@ namespace Highbyte.DotNet6502.Systems.Audio;
 public sealed class AudioSampleCoordinator : IAudioCoordinator, IDisposable
 {
     /// <summary>
-    /// Default ring buffer capacity in samples. At 44.1 kHz mono this is ~93 ms (~4–5 PAL frames)
-    /// of headroom — enough to absorb GC pauses and scheduling jitter while keeping latency
-    /// comparable to the existing command-stream path. Tune via the constructor overload.
+    /// Default ring buffer capacity in samples. At 44.1 kHz mono this is ~740 ms (~37 PAL or
+    /// ~44 NTSC frames) of headroom — very comfortably larger than typical host audio chunk
+    /// sizes (NAudio OpenAL on desktop uses 2 × 40 ms = 80 ms per pull) so timer jitter, GC
+    /// pauses, and one-time JIT promotion mid-frame don't drain the buffer between producer
+    /// frame ticks. Latency stays acceptable for emulator audio. Tune via the constructor
+    /// overload.
     /// </summary>
-    public const int DefaultRingBufferCapacitySamples = 4096;
+    public const int DefaultRingBufferCapacitySamples = 32768;
+
+    /// <summary>
+    /// Default number of silent samples to pre-fill the ring buffer with at <see cref="Init"/>
+    /// so the host audio device's first pull (which happens synchronously inside its
+    /// <c>WavePlayer.Init</c>) gets a full chunk instead of underrunning before the emulator has
+    /// produced its first frame. Sized to cover the OpenAL desktop default of 2 × 40 ms latency
+    /// plus a generous safety margin.
+    /// </summary>
+    public const int DefaultPrimeSilenceSamples = 8192;
 
     private readonly IAudioSampleProvider _provider;
     private readonly IAudioSampleTarget _target;
@@ -47,6 +59,19 @@ public sealed class AudioSampleCoordinator : IAudioCoordinator, IDisposable
     public void Init()
     {
         _provider.Init(_ringBuffer.TryWrite);
+
+        // Prime the buffer with silence before the target is initialized. Some host audio
+        // backends (e.g. NAudio's OpenAL wave player) synchronously read several buffers' worth
+        // of samples inside their Init call, before the emulator has produced anything. Without
+        // priming, that initial pull would underrun and the silence-fill at the consumer side
+        // would create an audible click on the very first frame of real audio.
+        int primeCount = Math.Min(DefaultPrimeSilenceSamples, _ringBuffer.Capacity);
+        if (primeCount > 0)
+        {
+            var silence = new float[primeCount];
+            _ringBuffer.TryWrite(silence);
+        }
+
         _target.Init(_provider.SampleRateHz, _provider.ChannelCount, _ringBuffer.TryRead);
     }
 

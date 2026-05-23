@@ -693,7 +693,8 @@ public class HostApp : IHostApp, IManualRenderingProvider
             return;
         }
 
-        var audioTarget = _audioTargetProvider.CreateAudioTargetByAudioProviderType(audioProvider.GetType());
+        var audioTargetType = CurrentHostSystemConfig.SystemConfig.AudioTargetType;
+        var audioTarget = _audioTargetProvider.CreateAudioTargetByAudioProviderType(audioProvider.GetType(), audioTargetType);
         _currentAudioTarget = audioTarget;
         _audioCoordinator = _audioCoordinatorProvider.CreateAudioCoordinator(audioProvider, audioTarget);
         _audioCoordinator.Init();

@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
@@ -80,6 +82,63 @@ public class C64SystemConfig : ISystemConfig
     {
         RenderTargetType = renderTargetType;
 
+        _isDirty = true;
+    }
+
+    [JsonIgnore]
+    public Type? AudioProviderType { get; private set; }
+
+    /// <summary>
+    /// Serializable version of AudioProviderType as assembly qualified name.
+    /// </summary>
+    [JsonPropertyName("AudioProviderType")]
+    public string? AudioProviderTypeName
+    {
+        get => AudioProviderType?.AssemblyQualifiedName;
+        set => SetAudioProviderType(value != null ? Type.GetType(value) : null);
+    }
+
+    [JsonIgnore]
+    public Type? AudioTargetType { get; private set; }
+
+    /// <summary>
+    /// Serializable version of AudioTargetType as assembly qualified name.
+    /// </summary>
+    [JsonPropertyName("AudioTargetType")]
+    public string? AudioTargetTypeName
+    {
+        get => AudioTargetType?.AssemblyQualifiedName;
+        set => SetAudioTargetType(value != null ? Type.GetType(value) : null);
+    }
+
+    public List<Type> GetSupportedAudioProviderTypes()
+    {
+        return new List<Type>
+        {
+            typeof(C64SidCommandStream),
+            typeof(C64SidSampleProvider),
+        };
+    }
+
+    public void SetAudioProviderType(Type? audioProviderType)
+    {
+        if (audioProviderType == null)
+        {
+            AudioProviderType = null;
+            _isDirty = true;
+            return;
+        }
+
+        var supported = GetSupportedAudioProviderTypes();
+        if (!supported.Contains(audioProviderType))
+            throw new DotNet6502Exception($"AudioProvider type {audioProviderType.FullName} is not supported.");
+        AudioProviderType = audioProviderType;
+        _isDirty = true;
+    }
+
+    public void SetAudioTargetType(Type? audioTargetType)
+    {
+        AudioTargetType = audioTargetType;
         _isDirty = true;
     }
 
@@ -252,6 +311,10 @@ public class C64SystemConfig : ISystemConfig
 
         SetRenderProviderType(GetSupportedRenderProviderTypes().First());
         //SetRenderProviderType(GetSupportedRenderProviderTypes().Single(x => x == typeof(C64VideoCommandStream)));
+
+        // Default audio provider — keep the existing command-stream behaviour for back-compat.
+        // Users (or appsettings) can switch to C64SidSampleProvider for sample-accurate audio.
+        SetAudioProviderType(typeof(C64SidCommandStream));
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);

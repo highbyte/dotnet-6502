@@ -461,10 +461,16 @@ public class SadConsoleHostApp : HostApp
         InitInputHandlerContext();
         _audioHandlerContext.Init();
 
-        // Audio pipeline configuration: register the NAudio host audio target.
+        // Audio pipeline configuration: register both NAudio host audio targets — command-stream
+        // (synth) and PCM-sample (sample-accurate SID core). The audio coordinator picks the one
+        // that matches the system's selected audio provider.
         SetAudioConfig(atp =>
+        {
             atp.AddAudioTargetType<NAudioCommandTarget>(
-                () => new NAudioCommandTarget(_audioHandlerContext, _loggerFactory)));
+                () => new NAudioCommandTarget(_audioHandlerContext, _loggerFactory));
+            atp.AddAudioTargetType<NAudioSampleTarget>(
+                () => new NAudioSampleTarget(_audioHandlerContext, _loggerFactory));
+        });
 
         //ScreenSurface screen = new(gameInstance.ScreenCellsX, gameInstance.ScreenCellsY);
         //return screen;

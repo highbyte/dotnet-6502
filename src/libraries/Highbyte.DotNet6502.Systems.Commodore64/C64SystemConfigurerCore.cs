@@ -66,8 +66,36 @@ public class C64SystemConfigurerCore : ISystemConfigurer
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var hostConfig = _hostConfigFactory();
-        Configuration.GetSection(_configSectionName).Bind(hostConfig);
+        var section = Configuration.GetSection(_configSectionName);
+        section.Bind(hostConfig);
+
+        // IConfiguration.Bind() can't fill Type-valued properties (they have private setters and
+        // Type is not a leaf config value). Read the friendly JSON keys explicitly and apply via
+        // the strongly-typed setters so appsettings like
+        //     "SystemConfig": { "AudioProviderType": "Foo.Bar, Assembly" }
+        // actually take effect rather than silently leaving the constructor default in place.
+        ApplyTypeOverridesFromConfig(section.GetSection(nameof(IHostSystemConfig.SystemConfig)), hostConfig.SystemConfig);
+
         return Task.FromResult(hostConfig);
+    }
+
+    private static void ApplyTypeOverridesFromConfig(IConfiguration systemConfigSection, ISystemConfig systemConfig)
+    {
+        var audioProviderTypeName = systemConfigSection["AudioProviderType"];
+        if (!string.IsNullOrWhiteSpace(audioProviderTypeName))
+        {
+            var t = Type.GetType(audioProviderTypeName)
+                ?? throw new DotNet6502Exception($"AudioProviderType '{audioProviderTypeName}' could not be resolved.");
+            systemConfig.SetAudioProviderType(t);
+        }
+
+        var audioTargetTypeName = systemConfigSection["AudioTargetType"];
+        if (!string.IsNullOrWhiteSpace(audioTargetTypeName))
+        {
+            var t = Type.GetType(audioTargetTypeName)
+                ?? throw new DotNet6502Exception($"AudioTargetType '{audioTargetTypeName}' could not be resolved.");
+            systemConfig.SetAudioTargetType(t);
+        }
     }
 
     /// <summary>No-op by default. Hosts that persist user config override this.</summary>
@@ -87,6 +115,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
+            AudioProviderType = c64SystemConfig.AudioProviderType,
         };
 
         var c64 = C64.BuildC64(c64Config, LoggerFactory);

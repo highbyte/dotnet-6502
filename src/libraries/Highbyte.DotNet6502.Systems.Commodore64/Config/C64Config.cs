@@ -25,6 +25,7 @@ public class C64Config
     public int KeyboardJoystick { get; set; }
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; set; }
     public Type? RenderProviderType { get; set; }
+    public Type? AudioProviderType { get; set; }
 
     public C64Config()
     {

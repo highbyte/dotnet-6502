@@ -94,6 +94,28 @@ public class GenericComputerSystemConfig : ISystemConfig
         _isDirty = true;
     }
 
+    // The Generic system has no audio output. Empty list / null defaults satisfy ISystemConfig
+    // without exposing any audio provider choices.
+    [JsonIgnore]
+    public Type? AudioProviderType => null;
+
+    [JsonIgnore]
+    public Type? AudioTargetType => null;
+
+    public List<Type> GetSupportedAudioProviderTypes() => new();
+
+    public void SetAudioProviderType(Type? audioProviderType)
+    {
+        if (audioProviderType != null)
+            throw new DotNet6502Exception("Generic system has no audio providers.");
+    }
+
+    public void SetAudioTargetType(Type? audioTargetType)
+    {
+        if (audioTargetType != null)
+            throw new DotNet6502Exception("Generic system has no audio target.");
+    }
+
     public GenericComputerSystemConfig()
     {
         AudioEnabled = false;

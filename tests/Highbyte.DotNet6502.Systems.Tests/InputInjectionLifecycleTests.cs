@@ -186,6 +186,12 @@ public class InputInjectionLifecycleTests
         public void SetRenderProviderType(Type? renderProviderType) => RenderProviderType = renderProviderType;
 
         public void SetRenderTargetType(Type renderTargetType) => RenderTargetType = renderTargetType;
+
+        public Type? AudioProviderType => null;
+        public Type? AudioTargetType => null;
+        public List<Type> GetSupportedAudioProviderTypes() => new();
+        public void SetAudioProviderType(Type? audioProviderType) { }
+        public void SetAudioTargetType(Type? audioTargetType) { }
     }
 
     private sealed class FrameLifecycleSystem : ISystem
