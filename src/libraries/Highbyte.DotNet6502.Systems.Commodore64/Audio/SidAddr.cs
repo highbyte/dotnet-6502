@@ -39,6 +39,12 @@ public static class SidAddr
     public const ushort RESON =  0xd417;    // 54295
     public const ushort SIGVOL = 0xd418;    // 54296
 
+    // Read-only registers (paddle + voice 3 waveform/envelope readback).
+    public const ushort POTX =   0xd419;    // 54297 — paddle X (read-only)
+    public const ushort POTY =   0xd41a;    // 54298 — paddle Y (read-only)
+    public const ushort OSC3 =   0xd41b;    // 54299 — voice 3 oscillator output (read-only, high 8 bits of waveform)
+    public const ushort ENV3 =   0xd41c;    // 54300 — voice 3 envelope counter (read-only)
+
 
     /// <summary>
     /// Map a voice register "typ" and it's voice number to an actual Sid address.

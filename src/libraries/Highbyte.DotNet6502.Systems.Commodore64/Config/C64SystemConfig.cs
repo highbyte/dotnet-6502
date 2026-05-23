@@ -239,6 +239,22 @@ public class C64SystemConfig : ISystemConfig
         }
     }
 
+    private SidEmulationMode _sidEmulationMode = SidEmulationMode.Auto;
+
+    /// <summary>
+    /// Accuracy / performance trade-off for the sample-based SID emulation provider
+    /// (<see cref="C64SidSampleProvider"/>). Ignored when the command-stream provider is active.
+    /// </summary>
+    public SidEmulationMode SidEmulationMode
+    {
+        get => _sidEmulationMode;
+        set
+        {
+            _sidEmulationMode = value;
+            _isDirty = true;
+        }
+    }
+
     private string _colorMapName;
 
     public string ColorMapName

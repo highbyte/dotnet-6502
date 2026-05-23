@@ -43,7 +43,7 @@ public sealed class AudioSampleRingBuffer
 
     /// <summary>
     /// Producer-side: copy as many of <paramref name="samples"/> as fit. Excess is dropped on the
-    /// caller side (overrun) — Phase 1 keeps behaviour simple; a later phase can swap in a
+    /// caller side (overrun) — Currently a simple behaviour; a later improvements can swap in a
     /// back-pressure policy.
     /// </summary>
     /// <returns>Number of samples actually written (may be less than <c>samples.Length</c>).</returns>

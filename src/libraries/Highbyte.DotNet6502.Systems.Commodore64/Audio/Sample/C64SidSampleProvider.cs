@@ -39,10 +39,11 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider
     public C64SidSampleProvider(
         C64 c64,
         int sampleRateHz = SidSampleCore.DefaultSampleRateHz,
-        int sidClockHz = SidSampleCore.PalSidClockHz)
+        int sidClockHz = SidSampleCore.PalSidClockHz,
+        SidEmulationMode mode = SidEmulationMode.Auto)
     {
         _c64 = c64;
-        _core = new SidSampleCore(sampleRateHz, sidClockHz);
+        _core = new SidSampleCore(sampleRateHz, sidClockHz, mode);
         // Max samples produced per instruction at 44.1 kHz / PAL is ≤ 2 (ceil(7 cycles × ratio)+1).
         // 64 leaves room for unexpected larger deltas without ever dropping samples.
         _stagingBuffer = new float[64];
@@ -51,6 +52,16 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider
     public void Init(AudioSampleWriteCallback writeSamples)
     {
         _writeSamples = writeSamples;
+
+        // Lazy OSC3/ENV3 (Auto mode only). The Sid memory-read mappings invoke these getters on
+        // read, so the values are computed only when software polls them. Fast mode skips wiring
+        // entirely — reads then return 0.
+        if (_core.Mode == SidEmulationMode.Auto)
+        {
+            var sidState = _c64.Sid.InternalSidState;
+            sidState.Osc3ReadbackProvider = () => _core.Osc3;
+            sidState.Env3ReadbackProvider = () => _core.Env3;
+        }
 
         // Force JIT to compile the inner mixing / waveform paths now, so the first BASIC POKE
         // that turns audio on doesn't pay a multi-millisecond JIT cost mid-frame and crackle.
@@ -84,7 +95,8 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider
         }
 
         // Register writes during this instruction land here, after the cycles using the prior
-        // state are accounted for. See `c64-sid-sample-emulation.md` → per-instruction stepping.
+        // state are accounted for. The SID core therefore sees writes at instruction boundaries,
+        // not at the exact intra-instruction cycle they occurred.
         ApplyChangedRegisters();
     }
 

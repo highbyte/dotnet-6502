@@ -332,7 +332,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
             return;
 
         c64.AudioProviders.Add(new C64SidCommandStream(c64));
-        c64.AudioProviders.Add(new C64SidSampleProvider(c64, sidClockHz: (int)c64.CpuFrequencyHz));
+        c64.AudioProviders.Add(new C64SidSampleProvider(c64, sidClockHz: (int)c64.CpuFrequencyHz, mode: config.SidEmulationMode));
 
         // Default to the command-stream provider if the host didn't pick one.
         var selectedType = config.AudioProviderType ?? typeof(C64SidCommandStream);

@@ -13,6 +13,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
@@ -58,6 +59,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private AudioProviderOption? _selectedAudioProvider;
     private AudioTargetOption? _selectedAudioTarget;
     private bool _suppressAudioTargetUpdate;
+    private SidEmulationModeOption? _selectedSidEmulationMode;
 
     private string _corsProxyOverrideURL = string.Empty;
 
@@ -110,6 +112,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         InitializeRenderOptions();
         InitializeAudioOptions();
+        InitializeSidEmulationModeOptions();
         UpdateRomStatuses();
         UpdateKeyboardMappings();
         UpdateValidationMessageFromConfig();
@@ -169,6 +172,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
     public ObservableCollection<AudioProviderOption> AudioProviders { get; } = new();
     public ObservableCollection<AudioTargetOption> AudioTargets { get; } = new();
+    public ObservableCollection<SidEmulationModeOption> SidEmulationModes { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; }
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
     // "Auto" (auto-detect) plus each explicit C64KeyboardLayout, as strings for the dropdown.
@@ -417,6 +421,25 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public string SelectedAudioProviderHelpText => SelectedAudioProvider?.HelpText ?? string.Empty;
 
     public string SelectedAudioTargetHelpText => SelectedAudioTarget?.HelpText ?? string.Empty;
+
+    public SidEmulationModeOption? SelectedSidEmulationMode
+    {
+        get => _selectedSidEmulationMode;
+        set
+        {
+            if (ReferenceEquals(_selectedSidEmulationMode, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedSidEmulationMode, value);
+
+            if (value != null)
+                _workingConfig.SystemConfig.SidEmulationMode = value.Mode;
+
+            this.RaisePropertyChanged(nameof(SelectedSidEmulationModeHelpText));
+        }
+    }
+
+    public string SelectedSidEmulationModeHelpText => SelectedSidEmulationMode?.HelpText ?? string.Empty;
 
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
@@ -944,6 +967,25 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    private void InitializeSidEmulationModeOptions()
+    {
+        SidEmulationModes.Clear();
+        SidEmulationModes.Add(new SidEmulationModeOption(
+            SidEmulationMode.Auto,
+            "Accurate (auto)",
+            "Full SID emulation with combined waveforms, hard sync, ring modulation and OSC3/ENV3 readback. Inner loop takes fast paths automatically when the current SID state doesn't need those features."));
+        SidEmulationModes.Add(new SidEmulationModeOption(
+            SidEmulationMode.Fast,
+            "Fast",
+            "Lower CPU. Disables combined waveforms, hard sync, ring modulation, TEST-bit hold, and OSC3/ENV3 readback regardless of SID state. Some tunes will sound wrong."));
+
+        SelectedSidEmulationMode = SidEmulationModes.FirstOrDefault(o => o.Mode == _workingConfig.SystemConfig.SidEmulationMode)
+            ?? SidEmulationModes.First();
+
+        if (SelectedSidEmulationMode != null)
+            _workingConfig.SystemConfig.SidEmulationMode = SelectedSidEmulationMode.Mode;
+    }
+
     private void InitializeAudioOptions()
     {
         AudioProviders.Clear();
@@ -1225,6 +1267,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
         if (_workingConfig.SystemConfig.AudioTargetType != null)
             _originalConfig.SystemConfig.SetAudioTargetType(_workingConfig.SystemConfig.AudioTargetType);
 
+        _originalConfig.SystemConfig.SidEmulationMode = _workingConfig.SystemConfig.SidEmulationMode;
+
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.InputConfig = (C64InputConfig)_workingConfig.InputConfig.Clone();
 
@@ -1373,6 +1417,8 @@ public record RenderTargetOption(Type Type, string DisplayName, string HelpText)
 public record AudioProviderOption(Type Type, string DisplayName, string HelpText);
 
 public record AudioTargetOption(Type Type, string DisplayName, string HelpText);
+
+public record SidEmulationModeOption(SidEmulationMode Mode, string DisplayName, string HelpText);
 
 public record KeyMappingEntry(string Key, string Action);
 
