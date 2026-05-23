@@ -76,7 +76,8 @@ confirm() {
 
 # Compare two dotted versions ($1 vs $2). Echoes -1, 0, or 1.
 version_cmp() {
-    awk -v a="$1" -v b="$2" 'BEGIN {
+    local a="$1" b="$2"
+    awk -v a="$a" -v b="$b" 'BEGIN {
         n1 = split(a, x, "."); n2 = split(b, y, ".")
         n = (n1 > n2) ? n1 : n2
         for (i = 1; i <= n; i++) {
