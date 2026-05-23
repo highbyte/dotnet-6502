@@ -33,7 +33,13 @@ public class InstructionExecutor
 
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
         {
-            _logger.LogWarning("Unknown instruction {OpCode} at {AtPC}", opCode.ToHex(), atPC.ToHex());
+            // Guard the LogWarning behind IsEnabled. The unknown-opcode path is hit on every
+            // emulated occurrence of an undocumented 6502 opcode (which real games and demos
+            // do use), so it sits on the per-instruction hot path for those workloads. The
+            // .ToHex() calls allocate two short strings each call; the guard skips that
+            // allocation entirely when warning-level logging is filtered out.
+            if (_logger.IsEnabled(LogLevel.Warning))
+                _logger.LogWarning("Unknown instruction {OpCode} at {AtPC}", opCode.ToHex(), atPC.ToHex());
             return InstructionExecResult.UnknownInstructionResult(opCode, atPC);
         }
 

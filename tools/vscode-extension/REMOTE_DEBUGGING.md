@@ -103,7 +103,7 @@ dotnet-6502 --enableExternalDebug \
 
 ### Step 3 — Configure VS Code
 
-Use the Command Palette → **Generate Remote Attach Config (dotnet-6502)** to generate a pre-filled `launch.json` entry. You will be prompted for:
+Use the Command Palette → **DotNet 6502 Debugger: Generate Remote Attach Config** to generate a pre-filled `launch.json` entry. You will be prompted for:
 
 - Remote host IP or hostname
 - Remote debug port (default 6502)

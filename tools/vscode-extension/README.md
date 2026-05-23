@@ -72,7 +72,7 @@ That's it! The extension creates both the build task and launch configuration fo
 You can also generate the build task and launch configuration separately:
 
 1. Right-click .asm file → **"Generate C64 Build Task (ca65)"** → Enter start address
-2. Right-click .prg file → **"Generate Launch Config for C64 emulator (DotNet6502)"** → Select the task
+2. Right-click .prg file → **"Generate Launch Config for C64 emulator from .prg binary"** → Select the task
 
 ### Example Configuration
 
@@ -162,7 +162,7 @@ The generated files look like this:
 
 2. **Create launch config**:
 For full emulator debugging of a C64 .prg program, there is built-in option to create a launch.json configuration.
-- Right-click an .prg file → **"Generate Launch Config for C64 emulator (DotNet6502)"**
+- Right-click an .prg file → **"Generate Launch Config for C64 emulator from .prg binary"**
 
 Or create a manual launch.json configuration for other scenarios (see below).
 

@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Tests.Helpers;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Tests;
@@ -148,6 +149,33 @@ public class CPUTest
         // Assert
         Assert.False(execState.LastOpCodeWasHandled);
         Assert.Equal((ulong)1, (ulong)execState.UnknownOpCodeCount);
+    }
+
+    [Fact]
+    public void CPU_Logs_Warning_On_Unknown_OpCode_When_Warning_Enabled()
+    {
+        // Verifies the IsEnabled-gated LogWarning in InstructionExecutor actually fires when
+        // warning-level logging is enabled. Companion to CPU_Can_Detect_Unknown_OpCode, which
+        // uses NullLoggerFactory (IsEnabled=false) and therefore only exercises the gate's
+        // skip branch. This test plugs in a recording logger (IsEnabled=true) so the
+        // LogWarning call site is also covered.
+        var loggerFactory = new RecordingLoggerFactory();
+        var cpu = new CPU(loggerFactory);
+        var mem = new Memory();
+
+        mem[0x1000] = 0x02; // OpCode that does not exist
+        cpu.PC = 0x1000;
+
+        var execState = cpu.Execute(
+            mem,
+            new LegacyExecEvaluator(new ExecOptions { MaxNumberOfInstructions = 1, UnknownInstructionThrowsException = false }));
+
+        Assert.False(execState.LastOpCodeWasHandled);
+        Assert.Equal((ulong)1, (ulong)execState.UnknownOpCodeCount);
+        // Exactly one warning recorded, and it identifies the unknown opcode and PC.
+        Assert.Single(loggerFactory.Messages);
+        Assert.Contains("0x02", loggerFactory.Messages[0]);
+        Assert.Contains("0x1000", loggerFactory.Messages[0]);
     }
 
     [Fact]

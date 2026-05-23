@@ -596,7 +596,7 @@ public class TestSpec
 
         // Assert
         // Check that we didn't find any unknown opcode
-        Assert.True(thisExecState.UnknownOpCodeCount == 0);
+        Assert.Equal(0UL, thisExecState.UnknownOpCodeCount);
 
         // Verify Program Counter
         if (ExpectedPC.HasValue)

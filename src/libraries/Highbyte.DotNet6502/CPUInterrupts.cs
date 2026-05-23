@@ -16,8 +16,7 @@ public class CPUInterrupts
     /// <param name="autoAcknowledge">Set to true if the IRQ source should automatically be removed when processed by CPU.</param>
     public void SetIRQSourceActive(string source, bool autoAcknowledge)
     {
-        if (!ActiveIRQSources.ContainsKey(source))
-            ActiveIRQSources.Add(source, autoAcknowledge);
+        ActiveIRQSources.TryAdd(source, autoAcknowledge);
     }
 
     /// <summary>
@@ -27,8 +26,7 @@ public class CPUInterrupts
     /// <param name="source">Unique name of source</param>
     public void SetIRQSourceInactive(string source)
     {
-        if (ActiveIRQSources.ContainsKey(source))
-            ActiveIRQSources.Remove(source);
+        ActiveIRQSources.Remove(source);
     }
 
     /// <summary>
@@ -47,8 +45,7 @@ public class CPUInterrupts
     /// <param name="source">Unique name of source</param>
     public void SetNMISourceActive(string source)
     {
-        if (!ActiveNMISources.Contains(source))
-            ActiveNMISources.Add(source);
+        ActiveNMISources.Add(source);
     }
 
     /// <summary>
@@ -57,8 +54,7 @@ public class CPUInterrupts
     /// <param name="source">Unique name of source</param>
     public void SetNMISourceInactive(string source)
     {
-        if (ActiveNMISources.Contains(source))
-            ActiveNMISources.Remove(source);
+        ActiveNMISources.Remove(source);
     }
 
     /// <summary>

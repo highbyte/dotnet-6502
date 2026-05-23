@@ -127,16 +127,16 @@ public class FunctionalTestCompiler
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
 
-            process.OutputDataReceived += (sender, data) => _logger.LogTrace(data.Data);
+            process.OutputDataReceived += (sender, data) => _logger.LogTrace("{Data}", data.Data);
             //Seems every row written to stderr by the as65.exe does not mean it's an error.
             //Hack: Don't send logs to _logger.LogError(data.Data), insted as trace
-            process.ErrorDataReceived += (sender, data) => _logger.LogTrace(data.Data);
-            _logger.LogInformation($"Executing {as65exeFilePath}");
+            process.ErrorDataReceived += (sender, data) => _logger.LogTrace("{Data}", data.Data);
+            _logger.LogInformation("Executing {As65ExeFilePath}", as65exeFilePath);
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             var exited = process.WaitForExit(1000 * 10);     // (optional) wait up to 10 seconds
-            _logger.LogInformation($"Exited: {exited}");
+            _logger.LogInformation("Exited: {Exited}", exited);
         }
 
         if (!File.Exists(compiledBinFile))
@@ -173,7 +173,7 @@ public class FunctionalTestCompiler
         File.WriteAllBytes(outputPath, fileBytes);
     }
 
-    private void ModifyAsmSourceCodeSettings(string originalFile, string newFile, bool disableDecimal)
+    private static void ModifyAsmSourceCodeSettings(string originalFile, string newFile, bool disableDecimal)
     {
         // Change settings by modifying assembler source code
         var fileContentsLineArray = File.ReadAllLines(originalFile);
@@ -183,7 +183,7 @@ public class FunctionalTestCompiler
             var line = fileContentsLineArray[i];
             if(disableDecimal)
             {
-                if (line.StartsWith("disable_decimal") && line.Contains("="))
+                if (line.StartsWith("disable_decimal") && line.Contains('='))
                     line = "disable_decimal = 1";
             }
             modifiedFileContentsLineArray.Add(line);
@@ -211,7 +211,7 @@ public class FunctionalTestCompiler
         return as65ExeFilePath;
     }
 
-    private string GetAS65AssemblerExeFilePath(string as65ZipFilePath)
+    private static string GetAS65AssemblerExeFilePath(string as65ZipFilePath)
     {
         // Unzip to folder in same directory as .zip file
         string zipExtractPath = Path.Join(Path.GetDirectoryName(as65ZipFilePath), Path.GetFileNameWithoutExtension(as65ZipFilePath));

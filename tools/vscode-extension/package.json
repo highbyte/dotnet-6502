@@ -31,32 +31,39 @@
     "commands": [
       {
         "command": "dotnet6502.generateBuildTask",
-        "title": "Generate C64 Build Task (ca65)"
+        "title": "Generate C64 Build Task (ca65)",
+        "category": "DotNet 6502 Debugger"
       },
       {
         "command": "dotnet6502.generateLaunchConfig",
-        "title": "Generate Launch Config for simple emulator (DotNet6502)"
+        "title": "Generate Launch Config for simple emulator",
+        "category": "DotNet 6502 Debugger"
       },
       {
         "command": "dotnet6502.generateEmulatorLaunchConfig",
-        "title": "Generate Launch Config for C64 emulator (DotNet6502)"
+        "title": "Generate Launch Config for C64 emulator from .asm source",
+        "category": "DotNet 6502 Debugger"
       },
       {
         "command": "dotnet6502.generatePrgLaunchConfig",
-        "title": "Generate Launch Config for C64 emulator (DotNet6502)"
+        "title": "Generate Launch Config for C64 emulator from .prg binary",
+        "category": "DotNet 6502 Debugger"
       },
       {
         "command": "dotnet6502.generateRemoteAttachConfig",
-        "title": "Generate Remote Attach Config (dotnet-6502)"
+        "title": "Generate Remote Attach Config",
+        "category": "DotNet 6502 Debugger"
       },
       {
         "command": "dotnet6502.viewMemory",
         "title": "View Memory",
+        "category": "DotNet 6502 Debugger",
         "icon": "$(symbol-array)"
       },
       {
         "command": "dotnet6502.jumpToLine",
         "title": "Jump to Line (Set PC)",
+        "category": "DotNet 6502 Debugger",
         "icon": "$(debug-step-into)"
       }
     ],
