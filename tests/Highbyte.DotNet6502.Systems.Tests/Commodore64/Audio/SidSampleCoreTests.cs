@@ -83,8 +83,12 @@ public class SidSampleCoreTests
     }
 
     [Fact]
-    public void NoWaveform_outputs_silence_even_with_gate_on()
+    public void NoWaveform_contributes_no_audible_signal_even_with_gate_on()
     {
+        // A voice with no waveform bit set must not contribute *any AC content* to the mix.
+        // (The output is not bit-exactly zero because a non-zero master volume still produces
+        // the $D418 DAC's DC term — that's what makes digi playback work. The relevant property
+        // here is "no oscillation", i.e. constant samples.)
         var core = new SidSampleCore();
         core.WriteRegister(SIGVOL, 0x0F);
         core.WriteRegister(FRELO1, 0x45);
@@ -97,8 +101,10 @@ public class SidSampleCoreTests
         int written = core.AdvanceCycles(50_000, buffer);
         Assert.True(written > 0);
 
-        for (int i = 0; i < written; i++)
-            Assert.Equal(0f, buffer[i]);
+        // All samples must be identical — that's a DC level, not an audible signal.
+        float first = buffer[0];
+        for (int i = 1; i < written; i++)
+            Assert.Equal(first, buffer[i]);
     }
 
     [Fact]
@@ -182,13 +188,13 @@ public class SidSampleCoreTests
         var releaseBuf = new float[8192];
         core.AdvanceCycles(1_000_000, releaseBuf);
 
-        // Now sample a fresh window — should be silent (envelope at 0).
+        // Now sample a fresh window — envelope has fully released, so the voice no longer
+        // contributes any AC content. The output is constant (just the $D418 DAC's DC term).
         var finalBuf = new float[1024];
         int finalCount = core.AdvanceCycles(50_000, finalBuf);
-        float finalPeak = 0f;
-        for (int i = 0; i < finalCount; i++)
-            finalPeak = Math.Max(finalPeak, Math.Abs(finalBuf[i]));
-        Assert.Equal(0f, finalPeak);
+        float first = finalBuf[0];
+        for (int i = 1; i < finalCount; i++)
+            Assert.Equal(first, finalBuf[i]);
     }
 
     [Fact]
@@ -213,6 +219,68 @@ public class SidSampleCoreTests
         // 100_000 cycles would normally produce ~4476 samples. Expect 2 written, the rest dropped.
         int written = core.AdvanceCycles(100_000, tinyBuffer);
         Assert.Equal(2, written);
+    }
+
+    [Fact]
+    public void VolumeRegister_dac_produces_output_with_no_voice_waveform_selected()
+    {
+        // Digi / sample-playback tunes work by zeroing all voice waveforms and rapidly rewriting 
+        // $D418 with 4-bit PCM samples. Real SID's master-volume DAC contributes an audible DC 
+        // level on the audio output, so those writes are heard directly. Without that DC term, 
+        // MixOutput sums to zero on those tunes and they play silent.
+        var core = new SidSampleCore();
+        // No voice waveform selected — voice mix contributes nothing.
+
+        var scratch = new float[1024];
+
+        // Mid volume: should produce some non-zero DC output.
+        core.WriteRegister(SIGVOL, 0x08);
+        int written = core.AdvanceCycles(2000, scratch);
+        Assert.True(written > 0);
+        float midSample = scratch[written - 1];
+        Assert.NotEqual(0f, midSample);
+
+        // High volume: should produce a larger output than mid.
+        core.WriteRegister(SIGVOL, 0x0F);
+        written = core.AdvanceCycles(2000, scratch);
+        float highSample = scratch[written - 1];
+        Assert.True(highSample > midSample,
+            $"Volume 15 should produce a larger output than volume 8 (mid={midSample}, high={highSample}).");
+
+        // Volume 0: silent (early return in MixOutput, and the DAC contribution is zero).
+        core.WriteRegister(SIGVOL, 0x00);
+        written = core.AdvanceCycles(2000, scratch);
+        for (int i = 0; i < written; i++)
+            Assert.Equal(0f, scratch[i]);
+    }
+
+    [Fact]
+    public void VolumeRegister_swings_produce_distinct_pcm_samples_for_digi_playback()
+    {
+        // Functional digi test: toggle $D418 between two values at high rate and verify the
+        // resulting output reflects both values (i.e. a real PCM signal would be reconstructable).
+        var core = new SidSampleCore();
+        var scratch = new float[64];
+
+        // Sample at vol=15 ...
+        core.WriteRegister(SIGVOL, 0x0F);
+        int w1 = core.AdvanceCycles(50, scratch);
+        float high = scratch[w1 - 1];
+
+        // ... then at vol=4 ...
+        core.WriteRegister(SIGVOL, 0x04);
+        int w2 = core.AdvanceCycles(50, scratch);
+        float low = scratch[w2 - 1];
+
+        // ... then back at vol=15.
+        core.WriteRegister(SIGVOL, 0x0F);
+        int w3 = core.AdvanceCycles(50, scratch);
+        float highAgain = scratch[w3 - 1];
+
+        Assert.NotEqual(high, low);
+        Assert.Equal(high, highAgain);                 // deterministic — same volume gives same sample
+        Assert.True(Math.Abs(high - low) > 0.05f,      // the swing must be clearly audible, not just numerical noise
+            $"Volume swing 15→4 should produce a clearly audible signal (delta={Math.Abs(high - low)}).");
     }
 
     // --- Phase 2: combined waveforms, ring mod, hard sync, OSC3/ENV3 readback ---------------
@@ -563,23 +631,32 @@ public class SidSampleCoreTests
         hp.AdvanceCycles(10_000, scratch);
         var hpBuf = scratch.AsSpan(0, hp.AdvanceCycles(40_000, scratch)).ToArray();
 
-        // DC-component proxy: absolute average. A low-freq saw has a slow drift; HP removes it.
-        float directMean = 0, hpMean = 0;
-        for (int i = 0; i < directBuf.Length; i++) directMean += directBuf[i];
-        for (int i = 0; i < hpBuf.Length; i++) hpMean += hpBuf[i];
-        directMean = Math.Abs(directMean / directBuf.Length);
-        hpMean = Math.Abs(hpMean / hpBuf.Length);
+        // Low-frequency-content proxy: absolute average deviation from the mean (the AC
+        // component, with any DC offset like the $D418 DAC term factored out). A low-freq saw
+        // has slow drift around its own mean; HP removes that drift so the AC mean shrinks.
+        float AbsAcMean(float[] buf)
+        {
+            float mean = 0;
+            for (int i = 0; i < buf.Length; i++) mean += buf[i];
+            mean /= buf.Length;
+            float acSum = 0;
+            for (int i = 0; i < buf.Length; i++) acSum += Math.Abs(buf[i] - mean);
+            return acSum / buf.Length;
+        }
+        float directAc = AbsAcMean(directBuf);
+        float hpAc = AbsAcMean(hpBuf);
 
-        Assert.True(hpMean <= directMean + 0.001f,
-            $"HP-filtered output mean ({hpMean}) should not exceed direct mean ({directMean}).");
+        Assert.True(hpAc <= directAc + 0.001f,
+            $"HP-filtered AC content ({hpAc}) should not exceed direct AC content ({directAc}).");
     }
 
     [Fact]
     public void Filter_with_no_type_enabled_silences_routed_voices()
     {
         // Voice 1 routed through filter, but no filter type (LP/BP/HP) enabled in $D418.
-        // Real SID behaviour: routed voices vanish entirely. A second voice not routed should
-        // still be audible.
+        // Real SID behaviour: routed voices vanish entirely. "Silent" here means the voice
+        // adds no AC content — the output may still carry the $D418 DAC's DC term, but it
+        // must be a constant level, not an oscillation.
         var core = new SidSampleCore();
         core.WriteRegister(FRELO1, 0x00); core.WriteRegister(FREHI1, 0x40);
         core.WriteRegister(ATDCY1, 0x00); core.WriteRegister(SUREL1, 0xF0);
@@ -592,17 +669,17 @@ public class SidSampleCoreTests
         core.AdvanceCycles(10_000, scratch);
         int written = core.AdvanceCycles(20_000, scratch);
 
-        float peak = 0;
-        for (int i = 0; i < written; i++) peak = Math.Max(peak, Math.Abs(scratch[i]));
-
-        Assert.True(peak < 0.001f,
-            $"Routed voice with no filter type bits set should be silent (peak={peak}).");
+        // No AC content: every sample equal to the first.
+        float first = scratch[0];
+        for (int i = 1; i < written; i++)
+            Assert.Equal(first, scratch[i]);
     }
 
     [Fact]
     public void Voice3Off_silences_voice3_when_not_routed_through_filter()
     {
-        // Voice 3 active, V3-off bit set, V3 not routed → silence.
+        // Voice 3 active, V3-off bit set, V3 not routed → V3 contributes no AC content. The
+        // output is a constant (the $D418 DAC's DC term), not an oscillating waveform.
         var core = new SidSampleCore();
         const int FRELO3 = 0x0E, FREHI3 = 0x0F, VCREG3 = 0x12, ATDCY3 = 0x13, SUREL3 = 0x14;
         core.WriteRegister(FRELO3, 0x00); core.WriteRegister(FREHI3, 0x40);
@@ -614,9 +691,9 @@ public class SidSampleCoreTests
         core.AdvanceCycles(10_000, scratch);
         int written = core.AdvanceCycles(20_000, scratch);
 
-        float peak = 0;
-        for (int i = 0; i < written; i++) peak = Math.Max(peak, Math.Abs(scratch[i]));
-        Assert.True(peak < 0.001f, $"V3-off should silence voice 3 (peak={peak}).");
+        float first = scratch[0];
+        for (int i = 1; i < written; i++)
+            Assert.Equal(first, scratch[i]);
 
         // Now also route V3 through the filter — V3-off no longer mutes it.
         core.WriteRegister(RESFLT, FilterV3);
@@ -625,10 +702,14 @@ public class SidSampleCoreTests
 
         core.AdvanceCycles(10_000, scratch);
         int written2 = core.AdvanceCycles(20_000, scratch);
-        float peak2 = 0;
-        for (int i = 0; i < written2; i++) peak2 = Math.Max(peak2, Math.Abs(scratch[i]));
-        Assert.True(peak2 > 0.001f,
-            $"Routing V3 through filter should bypass V3-off mute (peak={peak2}).");
+        // AC content should now exist (samples differ).
+        bool anyVariation = false;
+        for (int i = 1; i < written2; i++)
+        {
+            if (scratch[i] != scratch[0]) { anyVariation = true; break; }
+        }
+        Assert.True(anyVariation,
+            "Routing V3 through the filter should bypass the V3-off mute and produce AC content.");
     }
 
     [Fact]

@@ -8,15 +8,18 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 ///
 /// Implemented: all four waveforms (triangle, sawtooth, pulse, noise) individually and combined
 /// via bitwise AND; full ADSR with the real 16 rate-counter periods and exponential decay
-/// approximation; hard sync between voices; ring modulation; TEST-bit hold; 4-bit master volume;
-/// voice 3 waveform / envelope readback ($D41B / $D41C); two-pole state-variable filter with
+/// approximation; hard sync between voices; ring modulation; TEST-bit hold; 4-bit master volume
+/// gain plus the $D418 DAC's audible DC term (so digi / sample-playback tunes work); voice 3
+/// waveform / envelope readback ($D41B / $D41C); two-pole state-variable filter with
 /// low / band / high-pass (and combinations), 4-bit resonance, per-voice routing and voice-3
 /// disable; integer Bresenham downsampling from SID rate to output rate (linear interpolation,
 /// no anti-alias filter).
 ///
 /// Not implemented: chip-variant filter models (6581 vs 8580 — currently a single generic
 /// state-variable filter); chip-measured combined-waveform lookup tables; FIR anti-alias on the
-/// downsampler.
+/// downsampler; per-instruction $D418 cycle-offset (writes land at instruction boundaries, so
+/// digi playback works but has a few cycles of timing jitter — enough for high-rate sample
+/// tunes to sound slightly noisier than on real hardware).
 ///
 /// <see cref="SidEmulationMode"/> selects accuracy / CPU trade-off:
 /// <list type="bullet">
@@ -569,12 +572,29 @@ public sealed class SidSampleCore
         return 30;
     }
 
+    /// <summary>
+    /// Scale of the $D418 master-volume DAC's DC contribution per volume step. Real SID outputs
+    /// an audible DC level proportional to the master volume register, independent of the voice
+    /// mix — that's the mechanism that makes digi / sample-playback tunes work:
+    /// they zero all voice waveforms and rapidly rewrite $D418 with 4-bit PCM samples at ~8 kHz.
+    /// Without modelling this DC term, the rest of MixOutput sums to zero on those tunes and they 
+    /// play silently. Scale chosen empirically so a full $D418 swing 0..15 is comparable to one 
+    /// voice playing — loud enough to hear clearly but not overwhelming when stacked on top of 
+    /// voice output.
+    /// </summary>
+    private const int VolumeDacScale = 128;
+
     private float MixOutput()
     {
         int sigvol = _registers[VolumeRegisterOffset];
         int masterVol = sigvol & 0x0F;
         if (masterVol == 0)
             return 0f;
+
+        // $D418 DAC DC term (see VolumeDacScale doc). Active in every mode and every code path
+        // below — digi / sample playback is a fundamental SID capability that users expect to
+        // work regardless of which SidEmulationMode is selected.
+        int volumeDc = masterVol * VolumeDacScale;
 
         // In Fast mode the routing / type / V3-off features are disabled wholesale, so the inner
         // loop becomes the original tight per-voice sum.
@@ -601,7 +621,10 @@ public sealed class SidSampleCore
             }
             // Normalise to roughly [-1, 1] then apply master volume. The denominator is
             // VoiceCount × 2048 (max signed magnitude per voice after DC removal and envelope).
-            return mix * (masterVol / 15f) / (VoiceCount * 2048f);
+            // volumeDc is added AFTER the voice gain — the DC term IS the master volume DAC and
+            // therefore must not itself be scaled by master volume (which would cancel it for
+            // digi playback).
+            return (mix * (masterVol / 15f) + volumeDc) / (VoiceCount * 2048f);
         }
 
         // Filter active — only Auto mode reaches here (Fast forced routingBits=0 above).
@@ -637,7 +660,9 @@ public sealed class SidSampleCore
         if ((filterTypeBits & 0x40) != 0) filteredOut += hp;
         // filterTypeBits == 0 ⇒ filteredOut stays 0: routed voices vanish entirely (real SID behaviour).
 
-        float result = (directMix + filteredOut) * (masterVol / 15f) / (VoiceCount * 2048f);
+        // Same volumeDc handling as the bypass path above: added after master-volume gain so
+        // $D418 digi playback works even when this filter path runs.
+        float result = ((directMix + filteredOut) * (masterVol / 15f) + volumeDc) / (VoiceCount * 2048f);
 
         // High resonance can produce filter output well above unity around fc. Hard-clip to keep
         // downstream code (NAudio float→PCM conversion etc.) inside its expected range.
