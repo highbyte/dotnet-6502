@@ -34,6 +34,7 @@ public interface IWasmHostView
 
     IEnumerable<Type> GetAvailableSystemRenderProviderTypes();
     IEnumerable<(Type renderProviderType, Type renderTargetType)> GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
+    IEnumerable<(Type audioProviderType, Type audioTargetType)> GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations();
 
     string GetSystemVisibilityDisplayStyle(string displayData, string systemName);
 
