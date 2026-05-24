@@ -319,7 +319,7 @@ public class C64SystemConfig : ISystemConfig
 
         _colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
-        _audioEnabled = false;
+        _audioEnabled = true;
         _keyboardJoystickEnabled = false;
         _keyboardJoystick = 2;
 
