@@ -41,5 +41,8 @@ var summary = BenchmarkRunner
 //var summary = BenchmarkRunner
 //    .Run<C64SpriteManagerBenchmark>();
 
+//var summary = BenchmarkRunner
+//    .Run<SidSampleCoreBenchmark>();
+
 #endif
 

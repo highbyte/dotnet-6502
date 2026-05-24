@@ -468,6 +468,211 @@ public class SidSampleCoreTests
         Assert.NotEqual(sawBuf, combinedBuf);
     }
 
+    // --- Phase 3: SID filter ----------------------------------------------------------------
+
+    private const int FCLO   = 0x15;
+    private const int FCHI   = 0x16;
+    private const int RESFLT = 0x17;
+    // SIGVOL bits for filter.
+    private const byte LpEnable = 0x10;
+    private const byte BpEnable = 0x20;
+    private const byte HpEnable = 0x40;
+    private const byte V3Off    = 0x80;
+    // RESFLT routing bits.
+    private const byte FilterV1 = 0x01;
+    private const byte FilterV3 = 0x04;
+
+    [Fact]
+    public void Lowpass_filter_attenuates_high_frequency_content()
+    {
+        // High-frequency saw, routed through LP at very low cutoff: filtered output should have
+        // smaller amplitude swings than a bypass core in the same state.
+        SidSampleCore Build(bool routeThroughFilter)
+        {
+            var core = new SidSampleCore();
+            core.WriteRegister(FRELO1, 0x00);
+            core.WriteRegister(FREHI1, 0x80);            // high-frequency saw
+            core.WriteRegister(ATDCY1, 0x00);
+            core.WriteRegister(SUREL1, 0xF0);
+            core.WriteRegister(VCREG1, (byte)(WaveSawtooth | GateOn));
+            if (routeThroughFilter)
+            {
+                core.WriteRegister(FCLO, 0x00);
+                core.WriteRegister(FCHI, 0x04);          // very low cutoff (~120 Hz)
+                core.WriteRegister(RESFLT, FilterV1);    // no resonance, V1 → filter
+                core.WriteRegister(SIGVOL, (byte)(LpEnable | 0x0F));
+            }
+            else
+            {
+                core.WriteRegister(SIGVOL, 0x0F);
+            }
+            return core;
+        }
+
+        var direct = Build(false);
+        var lp     = Build(true);
+
+        var scratch = new float[4096];
+        direct.AdvanceCycles(10_000, scratch);
+        var directBuf = scratch.AsSpan(0, direct.AdvanceCycles(20_000, scratch)).ToArray();
+        lp.AdvanceCycles(10_000, scratch);
+        var lpBuf = scratch.AsSpan(0, lp.AdvanceCycles(20_000, scratch)).ToArray();
+
+        // Sum of absolute sample-to-sample deltas — a cheap proxy for high-frequency energy.
+        float directDelta = 0, lpDelta = 0;
+        for (int i = 1; i < directBuf.Length; i++) directDelta += Math.Abs(directBuf[i] - directBuf[i - 1]);
+        for (int i = 1; i < lpBuf.Length; i++) lpDelta += Math.Abs(lpBuf[i] - lpBuf[i - 1]);
+
+        Assert.True(lpDelta < directDelta * 0.5f,
+            $"LP-filtered HF saw should have ≥50% less inter-sample delta than direct (direct={directDelta}, lp={lpDelta}).");
+    }
+
+    [Fact]
+    public void Highpass_filter_attenuates_low_frequency_content()
+    {
+        // Low-frequency saw, routed through HP at moderate cutoff: filtered output should have
+        // less low-frequency DC drift than the direct version.
+        SidSampleCore Build(bool routeThroughFilter)
+        {
+            var core = new SidSampleCore();
+            core.WriteRegister(FRELO1, 0x00);
+            core.WriteRegister(FREHI1, 0x02);            // low-frequency saw (~30 Hz)
+            core.WriteRegister(ATDCY1, 0x00);
+            core.WriteRegister(SUREL1, 0xF0);
+            core.WriteRegister(VCREG1, (byte)(WaveSawtooth | GateOn));
+            if (routeThroughFilter)
+            {
+                core.WriteRegister(FCLO, 0x00);
+                core.WriteRegister(FCHI, 0x40);          // mid cutoff (~3 kHz)
+                core.WriteRegister(RESFLT, FilterV1);
+                core.WriteRegister(SIGVOL, (byte)(HpEnable | 0x0F));
+            }
+            else
+            {
+                core.WriteRegister(SIGVOL, 0x0F);
+            }
+            return core;
+        }
+
+        var direct = Build(false);
+        var hp     = Build(true);
+
+        var scratch = new float[8192];
+        direct.AdvanceCycles(10_000, scratch);
+        var directBuf = scratch.AsSpan(0, direct.AdvanceCycles(40_000, scratch)).ToArray();
+        hp.AdvanceCycles(10_000, scratch);
+        var hpBuf = scratch.AsSpan(0, hp.AdvanceCycles(40_000, scratch)).ToArray();
+
+        // DC-component proxy: absolute average. A low-freq saw has a slow drift; HP removes it.
+        float directMean = 0, hpMean = 0;
+        for (int i = 0; i < directBuf.Length; i++) directMean += directBuf[i];
+        for (int i = 0; i < hpBuf.Length; i++) hpMean += hpBuf[i];
+        directMean = Math.Abs(directMean / directBuf.Length);
+        hpMean = Math.Abs(hpMean / hpBuf.Length);
+
+        Assert.True(hpMean <= directMean + 0.001f,
+            $"HP-filtered output mean ({hpMean}) should not exceed direct mean ({directMean}).");
+    }
+
+    [Fact]
+    public void Filter_with_no_type_enabled_silences_routed_voices()
+    {
+        // Voice 1 routed through filter, but no filter type (LP/BP/HP) enabled in $D418.
+        // Real SID behaviour: routed voices vanish entirely. A second voice not routed should
+        // still be audible.
+        var core = new SidSampleCore();
+        core.WriteRegister(FRELO1, 0x00); core.WriteRegister(FREHI1, 0x40);
+        core.WriteRegister(ATDCY1, 0x00); core.WriteRegister(SUREL1, 0xF0);
+        core.WriteRegister(VCREG1, (byte)(WaveSawtooth | GateOn));
+        core.WriteRegister(FCLO, 0x00); core.WriteRegister(FCHI, 0x40);
+        core.WriteRegister(RESFLT, FilterV1);            // V1 routed, no V2/V3
+        core.WriteRegister(SIGVOL, 0x0F);                // master vol 15, no filter type bits
+
+        var scratch = new float[2048];
+        core.AdvanceCycles(10_000, scratch);
+        int written = core.AdvanceCycles(20_000, scratch);
+
+        float peak = 0;
+        for (int i = 0; i < written; i++) peak = Math.Max(peak, Math.Abs(scratch[i]));
+
+        Assert.True(peak < 0.001f,
+            $"Routed voice with no filter type bits set should be silent (peak={peak}).");
+    }
+
+    [Fact]
+    public void Voice3Off_silences_voice3_when_not_routed_through_filter()
+    {
+        // Voice 3 active, V3-off bit set, V3 not routed → silence.
+        var core = new SidSampleCore();
+        const int FRELO3 = 0x0E, FREHI3 = 0x0F, VCREG3 = 0x12, ATDCY3 = 0x13, SUREL3 = 0x14;
+        core.WriteRegister(FRELO3, 0x00); core.WriteRegister(FREHI3, 0x40);
+        core.WriteRegister(ATDCY3, 0x00); core.WriteRegister(SUREL3, 0xF0);
+        core.WriteRegister(VCREG3, (byte)(WaveSawtooth | GateOn));
+        core.WriteRegister(SIGVOL, (byte)(V3Off | 0x0F));
+
+        var scratch = new float[2048];
+        core.AdvanceCycles(10_000, scratch);
+        int written = core.AdvanceCycles(20_000, scratch);
+
+        float peak = 0;
+        for (int i = 0; i < written; i++) peak = Math.Max(peak, Math.Abs(scratch[i]));
+        Assert.True(peak < 0.001f, $"V3-off should silence voice 3 (peak={peak}).");
+
+        // Now also route V3 through the filter — V3-off no longer mutes it.
+        core.WriteRegister(RESFLT, FilterV3);
+        core.WriteRegister(SIGVOL, (byte)(V3Off | LpEnable | 0x0F));
+        core.WriteRegister(FCLO, 0x00); core.WriteRegister(FCHI, 0x80);  // mid cutoff
+
+        core.AdvanceCycles(10_000, scratch);
+        int written2 = core.AdvanceCycles(20_000, scratch);
+        float peak2 = 0;
+        for (int i = 0; i < written2; i++) peak2 = Math.Max(peak2, Math.Abs(scratch[i]));
+        Assert.True(peak2 > 0.001f,
+            $"Routing V3 through filter should bypass V3-off mute (peak={peak2}).");
+    }
+
+    [Fact]
+    public void Fast_mode_ignores_voice3_off_bit()
+    {
+        // In Fast mode V3-off is dropped along with all other "extra" features — V3 plays.
+        var core = new SidSampleCore(mode: SidEmulationMode.Fast);
+        const int FRELO3 = 0x0E, FREHI3 = 0x0F, VCREG3 = 0x12, ATDCY3 = 0x13, SUREL3 = 0x14;
+        core.WriteRegister(FRELO3, 0x00); core.WriteRegister(FREHI3, 0x40);
+        core.WriteRegister(ATDCY3, 0x00); core.WriteRegister(SUREL3, 0xF0);
+        core.WriteRegister(VCREG3, (byte)(WaveSawtooth | GateOn));
+        core.WriteRegister(SIGVOL, (byte)(V3Off | 0x0F));
+
+        var scratch = new float[2048];
+        core.AdvanceCycles(10_000, scratch);
+        int written = core.AdvanceCycles(20_000, scratch);
+
+        float peak = 0;
+        for (int i = 0; i < written; i++) peak = Math.Max(peak, Math.Abs(scratch[i]));
+        Assert.True(peak > 0.01f,
+            $"Fast mode should ignore V3-off (peak={peak}).");
+    }
+
+    [Fact]
+    public void Filter_output_stays_in_normalised_range_even_with_high_resonance()
+    {
+        // High resonance can push the SVF response well above unity around fc. The mixer must
+        // clamp so downstream consumers never see >1.0 or <-1.0.
+        var core = new SidSampleCore();
+        core.WriteRegister(FRELO1, 0x00); core.WriteRegister(FREHI1, 0x40);
+        core.WriteRegister(ATDCY1, 0x00); core.WriteRegister(SUREL1, 0xF0);
+        core.WriteRegister(VCREG1, (byte)(WaveSawtooth | GateOn));
+        core.WriteRegister(FCLO, 0x00); core.WriteRegister(FCHI, 0x20);  // low cutoff
+        core.WriteRegister(RESFLT, (byte)(0xF0 | FilterV1));             // max resonance
+        core.WriteRegister(SIGVOL, (byte)(LpEnable | 0x0F));
+
+        var scratch = new float[8192];
+        core.AdvanceCycles(10_000, scratch);
+        int written = core.AdvanceCycles(50_000, scratch);
+
+        for (int i = 0; i < written; i++)
+            Assert.InRange(scratch[i], -1f, 1f);
+    }
+
     private static SidSampleCore MakeTwoVoiceSyncTestCoreWithMode(bool syncOnVoice2, SidEmulationMode mode)
     {
         var core = new SidSampleCore(mode: mode);

@@ -973,11 +973,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SidEmulationModes.Add(new SidEmulationModeOption(
             SidEmulationMode.Auto,
             "Accurate (auto)",
-            "Full SID emulation with combined waveforms, hard sync, ring modulation and OSC3/ENV3 readback. Inner loop takes fast paths automatically when the current SID state doesn't need those features."));
+            "Full SID emulation with combined waveforms, hard sync, ring modulation, OSC3/ENV3 readback and the SID filter (low/band/high-pass with resonance). Inner loop takes fast paths automatically when the current SID state doesn't need those features."));
         SidEmulationModes.Add(new SidEmulationModeOption(
             SidEmulationMode.Fast,
             "Fast",
-            "Lower CPU. Disables combined waveforms, hard sync, ring modulation, TEST-bit hold, and OSC3/ENV3 readback regardless of SID state. Some tunes will sound wrong."));
+            "Lower CPU. Disables combined waveforms, hard sync, ring modulation, TEST-bit hold, OSC3/ENV3 readback and the filter regardless of SID state. Many tunes will sound wrong."));
 
         SelectedSidEmulationMode = SidEmulationModes.FirstOrDefault(o => o.Mode == _workingConfig.SystemConfig.SidEmulationMode)
             ?? SidEmulationModes.First();

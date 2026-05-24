@@ -2,27 +2,41 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 
 /// <summary>
 /// Pure synchronous SID emulation core. Holds the chip state (registers, 3 voices, master
-/// volume), advances it forward by SID clock cycles, and produces 32-bit float PCM samples at a
-/// fixed output rate. No threading, no I/O, no C64 dependency — feed it cycles and register
-/// writes, read samples back.
+/// volume, filter), advances it forward by SID clock cycles, and produces 32-bit float PCM
+/// samples at a fixed output rate. No threading, no I/O, no C64 dependency — feed it cycles and
+/// register writes, read samples back.
 ///
 /// Implemented: all four waveforms (triangle, sawtooth, pulse, noise) individually and combined
 /// via bitwise AND; full ADSR with the real 16 rate-counter periods and exponential decay
 /// approximation; hard sync between voices; ring modulation; TEST-bit hold; 4-bit master volume;
-/// voice 3 waveform / envelope readback ($D41B / $D41C); integer Bresenham downsampling from
-/// SID rate to output rate (linear interpolation, no anti-alias filter).
+/// voice 3 waveform / envelope readback ($D41B / $D41C); two-pole state-variable filter with
+/// low / band / high-pass (and combinations), 4-bit resonance, per-voice routing and voice-3
+/// disable; integer Bresenham downsampling from SID rate to output rate (linear interpolation,
+/// no anti-alias filter).
 ///
-/// Not implemented: SID filter (cutoff / resonance / filter routing).
+/// Not implemented: chip-variant filter models (6581 vs 8580 — currently a single generic
+/// state-variable filter); chip-measured combined-waveform lookup tables; FIR anti-alias on the
+/// downsampler.
 ///
-/// <see cref="SidEmulationMode"/> chooses between full accuracy (<c>Auto</c>, with inner-loop
-/// fast paths when the current SID state doesn't need the advanced features) and a lower-CPU
-/// mode that disables the advanced features unconditionally (<c>Fast</c>).
+/// <see cref="SidEmulationMode"/> selects accuracy / CPU trade-off:
+/// <list type="bullet">
+///   <item><c>Auto</c> (default): all features above; inner loop takes auto fast paths when the
+///   current SID state doesn't actually use the advanced features, so simple tunes pay no extra
+///   cost.</item>
+///   <item><c>Fast</c>: lower CPU — single waveform per voice, no hard sync / ring mod /
+///   TEST hold / filter / voice-3 disable. Main win is collapsing TickAllVoices's 3-pass sync
+///   path to a single fused loop; modest savings (~4% per frame) for sync-using tunes, near zero
+///   savings for simple tunes. Many tunes will sound wrong.</item>
+/// </list>
 /// </summary>
 public sealed class SidSampleCore
 {
     public const int VoiceCount = 3;
     public const int RegisterCount = 0x1D;          // $D400..$D41C — 29 registers
-    public const int VolumeRegisterOffset = 0x18;   // $D418
+    public const int FilterCutLoOffset = 0x15;      // $D415 — low 3 bits of 11-bit cutoff
+    public const int FilterCutHiOffset = 0x16;      // $D416 — high 8 bits of 11-bit cutoff
+    public const int FilterResRoutOffset = 0x17;    // $D417 — resonance (hi nibble) + voice routing (low 3 bits)
+    public const int VolumeRegisterOffset = 0x18;   // $D418 — master volume (lo nibble) + filter type (bits 4-6) + V3-off (bit 7)
 
     /// <summary>Default output sample rate.</summary>
     public const int DefaultSampleRateHz = 44100;
@@ -55,6 +69,15 @@ public sealed class SidSampleCore
     // Let TickAllVoices fuse into a single-pass loop when no voice currently needs hard sync.
     private bool _anyVoiceUsesSync;
     private bool _anyVoiceUsesTest;
+
+    // Chamberlin SVF state and cached coefficients (Auto mode only).
+    private float _filterLow;        // y_lp accumulator
+    private float _filterBand;       // y_bp accumulator
+    private float _filterCoefF;      // 2*sin(pi*fc/fs) — recomputed on cutoff write
+    private float _filterDamping;    // 1/Q — recomputed on resonance write
+    private byte _filterRoutingBits; // $D417 low 3 bits — V1/V2/V3 routing through filter
+    private byte _filterTypeBits;    // $D418 bits 4-6 — LP/BP/HP enable
+    private bool _voice3Off;         // $D418 bit 7 — silence V3 when not filtered
 
     public SidSampleCore(
         int sampleRateHz = DefaultSampleRateHz,
@@ -108,8 +131,59 @@ public sealed class SidSampleCore
                 return;
             }
         }
-        // Global registers (cutoff/resonance/filter/volume) are read directly from _registers
-        // during sample mixing — no decode needed here.
+
+        // Global filter / mixer registers ($D415..$D418).
+        DecodeFilterRegister(offset, value);
+    }
+
+    private void DecodeFilterRegister(int offset, byte value)
+    {
+        // Fast mode skips every filter-related decode — its mixer path doesn't read any of the
+        // cached state, and recomputing the trig coefficient on every cutoff write is wasted.
+        if (_mode == SidEmulationMode.Fast)
+            return;
+
+        switch (offset)
+        {
+            case FilterCutLoOffset:
+            case FilterCutHiOffset:
+                RecalculateFilterCutoff();
+                break;
+            case FilterResRoutOffset:
+                _filterRoutingBits = (byte)(value & 0x07);
+                RecalculateFilterDamping(value);
+                break;
+            case VolumeRegisterOffset:
+                _voice3Off = (value & 0x80) != 0;
+                _filterTypeBits = (byte)(value & 0x70);
+                break;
+        }
+    }
+
+    private void RecalculateFilterCutoff()
+    {
+        // 11-bit cutoff: high 8 bits from $D416, low 3 bits from $D415 (other bits of $D415 are
+        // ignored on real SID but harmless if stored). Range 0..2047.
+        int fcReg = ((_registers[FilterCutHiOffset] & 0xFF) << 3) | (_registers[FilterCutLoOffset] & 0x07);
+
+        // Linear map 0..2047 → ~30 Hz..12 kHz. Real SID is non-linear and chip-variant; a fitted
+        // 6581/8580 lookup table can be swapped in later for chip-accurate filter response.
+        float fcHz = 30f + (fcReg / 2047f) * 12000f;
+
+        // Cap at ~0.45 × output rate so the Chamberlin SVF stays well inside its stable region.
+        float maxFcHz = _sampleRateHz * 0.45f;
+        if (fcHz > maxFcHz) fcHz = maxFcHz;
+
+        _filterCoefF = 2f * MathF.Sin(MathF.PI * fcHz / _sampleRateHz);
+    }
+
+    private void RecalculateFilterDamping(byte resflt)
+    {
+        int res = (resflt >> 4) & 0x0F;
+        // Damping = 1/Q. res=0 → Q≈0.67 (no audible peak), res=15 → Q≈10 (sharp resonance).
+        // Linear interpolation 1.5 → 0.1 across res=0..15 — coarse but stable for the full cutoff
+        // range we allow above.
+        _filterDamping = 1.5f - res * (1.5f - 0.1f) / 15f;
     }
 
     /// <summary>
@@ -177,6 +251,26 @@ public sealed class SidSampleCore
             WriteRegister(0x0B, 0x16);
             WriteRegister(0x12, 0x30);
             AdvanceCycles(2000, scratch);
+
+            // Exercise the filter path: route voice 1 through the filter, set a mid cutoff with
+            // non-zero resonance, and run LP / BP / HP one after the other so each branch of
+            // MixOutput's filter-type combine gets JIT'd. Skip in Fast mode where the filter
+            // path is dead code.
+            if (_mode == SidEmulationMode.Auto)
+            {
+                WriteRegister(0x04, 0x21);                       // voice 1: sawtooth + gate
+                WriteRegister(0x15, 0x00);                       // FCLO (low 3 bits only)
+                WriteRegister(0x16, 0x80);                       // FCHI mid (cutoff ~6 kHz)
+                WriteRegister(0x17, 0x71);                       // resonance=7, route V1 through filter
+                WriteRegister(0x18, 0x1F);                       // LP enable + master vol 15
+                AdvanceCycles(3000, scratch);
+                WriteRegister(0x18, 0x2F);                       // BP enable
+                AdvanceCycles(3000, scratch);
+                WriteRegister(0x18, 0x4F);                       // HP enable
+                AdvanceCycles(3000, scratch);
+                WriteRegister(0x04, 0x20);                       // drop gate
+                AdvanceCycles(2000, scratch);
+            }
         }
 
         // Reset all chip state so warmup leaves no audible trace.
@@ -186,6 +280,13 @@ public sealed class SidSampleCore
         _sampleRateCounter = 0;
         _anyVoiceUsesSync = false;
         _anyVoiceUsesTest = false;
+        _filterLow = 0f;
+        _filterBand = 0f;
+        _filterCoefF = 0f;
+        _filterDamping = 0f;
+        _filterRoutingBits = 0;
+        _filterTypeBits = 0;
+        _voice3Off = false;
     }
 
     /// <summary>
@@ -460,25 +561,79 @@ public sealed class SidSampleCore
 
     private float MixOutput()
     {
-        int masterVol = _registers[VolumeRegisterOffset] & 0x0F;
+        int sigvol = _registers[VolumeRegisterOffset];
+        int masterVol = sigvol & 0x0F;
         if (masterVol == 0)
             return 0f;
 
-        int mix = 0;
+        // In Fast mode the routing / type / V3-off features are disabled wholesale, so the inner
+        // loop becomes the original tight per-voice sum.
+        bool autoMode = _mode == SidEmulationMode.Auto;
+        int routingBits = autoMode ? _filterRoutingBits : 0;
+        int filterTypeBits = autoMode ? _filterTypeBits : 0;
+        bool voice3Off = autoMode && _voice3Off;
+
+        // Bypass path: no voices routed through the filter — common case (most tunes don't use it).
+        // No SVF tick, no filter-output combine, no split sums.
+        if (routingBits == 0)
+        {
+            int mix = 0;
+            for (int i = 0; i < VoiceCount; i++)
+            {
+                ref var v = ref _voices[i];
+                if (v.WaveformBits == 0)
+                    continue;                                        // silent voice contributes 0
+                if (i == 2 && voice3Off)
+                    continue;                                        // V3 muted (and not routed)
+                int wave = GetWaveformOutput(i);                     // 0..4095
+                int centered = wave - 0x800;                         // remove DC bias: -2048..+2047
+                mix += (centered * v.Envelope) >> 8;                 // envelope=0 ⇒ silent
+            }
+            // Normalise to roughly [-1, 1] then apply master volume. The denominator is
+            // VoiceCount × 2048 (max signed magnitude per voice after DC removal and envelope).
+            return mix * (masterVol / 15f) / (VoiceCount * 2048f);
+        }
+
+        // Filter active — only Auto mode reaches here (Fast forced routingBits=0 above).
+        // Split voice outputs into a filtered sum (SVF input) and a direct sum (bypass mixer).
+        int directMix = 0;
+        int filteredMix = 0;
         for (int i = 0; i < VoiceCount; i++)
         {
             ref var v = ref _voices[i];
             if (v.WaveformBits == 0)
-                continue;                                            // silent voice contributes 0
-            int wave = GetWaveformOutput(i);                         // 0..4095
-            int centered = wave - 0x800;                             // remove DC bias: -2048..+2047
-            int enveloped = (centered * v.Envelope) >> 8;            // envelope=0 ⇒ silent
-            mix += enveloped;
+                continue;
+            bool isFiltered = (routingBits & (1 << i)) != 0;
+            if (i == 2 && voice3Off && !isFiltered)
+                continue;                                            // V3-off only mutes when not routed through filter
+            int wave = GetWaveformOutput(i);
+            int centered = wave - 0x800;
+            int enveloped = (centered * v.Envelope) >> 8;
+            if (isFiltered) filteredMix += enveloped;
+            else            directMix += enveloped;
         }
 
-        // Normalise to roughly [-1, 1] then apply master volume. The denominator is
-        // VoiceCount × 2048 (max signed magnitude per voice after DC removal and envelope).
-        return mix * (masterVol / 15f) / (VoiceCount * 2048f);
+        // Chamberlin state-variable filter — one tick per output sample (~22 SID cycles).
+        // Sub-sampling the IIR at output rate is the same shortcut fastSID and TinySID take;
+        // reSID runs it per chip cycle for cycle-perfect filter behaviour at higher CPU cost.
+        float hp = filteredMix - _filterDamping * _filterBand - _filterLow;
+        _filterBand += _filterCoefF * hp;
+        _filterLow += _filterCoefF * _filterBand;
+
+        // Combine enabled filter outputs (multiple type bits sum, as on real SID).
+        float filteredOut = 0f;
+        if ((filterTypeBits & 0x10) != 0) filteredOut += _filterLow;
+        if ((filterTypeBits & 0x20) != 0) filteredOut += _filterBand;
+        if ((filterTypeBits & 0x40) != 0) filteredOut += hp;
+        // filterTypeBits == 0 ⇒ filteredOut stays 0: routed voices vanish entirely (real SID behaviour).
+
+        float result = (directMix + filteredOut) * (masterVol / 15f) / (VoiceCount * 2048f);
+
+        // High resonance can produce filter output well above unity around fc. Hard-clip to keep
+        // downstream code (NAudio float→PCM conversion etc.) inside its expected range.
+        if (result > 1f) return 1f;
+        if (result < -1f) return -1f;
+        return result;
     }
 
     /// <summary>
