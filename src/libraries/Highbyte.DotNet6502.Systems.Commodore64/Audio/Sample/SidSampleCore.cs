@@ -38,8 +38,12 @@ public sealed class SidSampleCore
     public const int FilterResRoutOffset = 0x17;    // $D417 — resonance (hi nibble) + voice routing (low 3 bits)
     public const int VolumeRegisterOffset = 0x18;   // $D418 — master volume (lo nibble) + filter type (bits 4-6) + V3-off (bit 7)
 
-    /// <summary>Default output sample rate.</summary>
-    public const int DefaultSampleRateHz = 44100;
+    /// <summary>
+    /// Default output sample rate. 48 kHz is the native rate of essentially every modern
+    /// audio device (CoreAudio, PipeWire/PulseAudio, WASAPI shared mode, browser AudioContext),
+    /// so generating at this rate avoids a resampling step at the OS/browser boundary.
+    /// </summary>
+    public const int DefaultSampleRateHz = 48000;
 
     /// <summary>PAL SID clock (~985 kHz).</summary>
     public const int PalSidClockHz = 985248;
