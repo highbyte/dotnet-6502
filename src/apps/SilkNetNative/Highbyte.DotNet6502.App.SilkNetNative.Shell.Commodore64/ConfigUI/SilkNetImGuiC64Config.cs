@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.App.SilkNetNative.Core;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
@@ -69,6 +70,40 @@ public class SilkNetImGuiC64Config
         }
     }
 
+    // Audio combos mirror the render combo pattern above.
+    private List<(Type audioProviderType, Type audioTargetType)> _availableAudioProviderAndAudioTargetTypeCombinations = [];
+
+    private List<Type> _audioProviderTypes => _availableAudioProviderAndAudioTargetTypeCombinations.Select(t => t.audioProviderType).Distinct().ToList();
+    private int _selectedAudioProviderIndex = 0;
+    private Type? _selectedAudioProviderType
+    {
+        get
+        {
+            if (_selectedAudioProviderIndex >= 0 && _selectedAudioProviderIndex < _audioProviderTypes.Count)
+                return _audioProviderTypes[_selectedAudioProviderIndex];
+            return null;
+        }
+    }
+
+    private int _selectedAudioTargetIndex = 0;
+    private List<Type> _audioTargetTypes => _availableAudioProviderAndAudioTargetTypeCombinations
+        .Where(t => t.audioProviderType == _selectedAudioProviderType)
+        .Select(t => t.audioTargetType)
+        .ToList();
+    private Type? _selectedAudioTargetType
+    {
+        get
+        {
+            if (_selectedAudioTargetIndex >= 0 && _selectedAudioTargetIndex < _audioTargetTypes.Count)
+                return _audioTargetTypes[_selectedAudioTargetIndex];
+            return null;
+        }
+    }
+
+    private static readonly SidEmulationMode[] s_sidEmulationModes = Enum.GetValues<SidEmulationMode>();
+    private static readonly string[] s_sidEmulationModeNames = s_sidEmulationModes.Select(m => m.ToString()).ToArray();
+    private int _selectedSidEmulationModeIndex = 0;
+
     private C64SystemConfig GetSystemConfigOrThrow()
     {
         return _systemConfig ?? throw new InvalidOperationException("C64 config dialog has not been initialized.");
@@ -96,6 +131,27 @@ public class SilkNetImGuiC64Config
         var hostConfig = GetHostConfigOrThrow();
         if (_selectedRendererTargetType is not null)
             hostConfig.SystemConfig.SetRenderTargetType(_selectedRendererTargetType);
+    }
+
+    private void UpdateSelectedAudioProvider()
+    {
+        var hostConfig = GetHostConfigOrThrow();
+        if (_selectedAudioProviderType is not null)
+            hostConfig.SystemConfig.SetAudioProviderType(_selectedAudioProviderType);
+        // Auto-select the first compatible target when provider changes — keeps the
+        // (provider, target) pair valid without the user having to touch the target combo.
+        if (_audioTargetTypes.Count > 0)
+        {
+            _selectedAudioTargetIndex = 0;
+            UpdateSelectedAudioTarget();
+        }
+    }
+
+    private void UpdateSelectedAudioTarget()
+    {
+        var hostConfig = GetHostConfigOrThrow();
+        if (_selectedAudioTargetType is not null)
+            hostConfig.SystemConfig.SetAudioTargetType(_selectedAudioTargetType);
     }
 
     private bool _openGLFineScrollPerRasterLineEnabled;
@@ -165,6 +221,22 @@ public class SilkNetImGuiC64Config
         else
             _selectedRendererTargetIndex = _renderTargetTypes.Count > 0 ? 0 : -1;
 
+        // Audio provider + target combinations + SID emulation mode.
+        _availableAudioProviderAndAudioTargetTypeCombinations = _silkNetHostApp.GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations();
+        var currentAudioProviderType = _hostConfig.SystemConfig.AudioProviderType;
+        if (currentAudioProviderType != null && _audioProviderTypes.Contains(currentAudioProviderType))
+            _selectedAudioProviderIndex = _audioProviderTypes.IndexOf(currentAudioProviderType);
+        else
+            _selectedAudioProviderIndex = _audioProviderTypes.Count > 0 ? 0 : -1;
+
+        var currentAudioTargetType = _hostConfig.SystemConfig.AudioTargetType;
+        if (currentAudioTargetType != null && _audioTargetTypes.Contains(currentAudioTargetType))
+            _selectedAudioTargetIndex = _audioTargetTypes.IndexOf(currentAudioTargetType);
+        else
+            _selectedAudioTargetIndex = _audioTargetTypes.Count > 0 ? 0 : -1;
+
+        _selectedSidEmulationModeIndex = Array.IndexOf(s_sidEmulationModes, _systemConfig.SidEmulationMode);
+        if (_selectedSidEmulationModeIndex < 0) _selectedSidEmulationModeIndex = 0;
 
         _openGLFineScrollPerRasterLineEnabled = _hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine;
 
@@ -252,6 +324,39 @@ public class SilkNetImGuiC64Config
             ImGui.PopItemWidth();
             ImGui.SameLine();
             DrawWrappedHelpTextWithTooltip(_selectedRendererTargetType != null ? TypeDisplayHelper.GetHelpText(_selectedRendererTargetType) : string.Empty);
+
+            ImGui.Separator();
+
+            // Audio provider
+            ImGui.Text("Audio provider:");
+            ImGui.PushItemWidth(220);
+            if (ImGui.Combo("##audioprovider", ref _selectedAudioProviderIndex, _audioProviderTypes.Select(t => TypeDisplayHelper.GetDisplayName(t)).ToArray(), _audioProviderTypes.Count))
+            {
+                UpdateSelectedAudioProvider();
+            }
+            ImGui.PopItemWidth();
+            ImGui.SameLine();
+            DrawWrappedHelpTextWithTooltip(_selectedAudioProviderType != null ? TypeDisplayHelper.GetHelpText(_selectedAudioProviderType) : string.Empty);
+
+            // Audio target
+            ImGui.Text("Audio target:");
+            ImGui.PushItemWidth(220);
+            if (ImGui.Combo("##audiotarget", ref _selectedAudioTargetIndex, _audioTargetTypes.Select(t => TypeDisplayHelper.GetDisplayName(t)).ToArray(), _audioTargetTypes.Count))
+            {
+                UpdateSelectedAudioTarget();
+            }
+            ImGui.PopItemWidth();
+            ImGui.SameLine();
+            DrawWrappedHelpTextWithTooltip(_selectedAudioTargetType != null ? TypeDisplayHelper.GetHelpText(_selectedAudioTargetType) : string.Empty);
+
+            // SID emulation mode (shown regardless of provider — alternate providers could also honour it).
+            ImGui.Text("SID emulation:");
+            ImGui.PushItemWidth(120);
+            if (ImGui.Combo("##sidmode", ref _selectedSidEmulationModeIndex, s_sidEmulationModeNames, s_sidEmulationModeNames.Length))
+            {
+                systemConfig.SidEmulationMode = s_sidEmulationModes[_selectedSidEmulationModeIndex];
+            }
+            ImGui.PopItemWidth();
 
             // Renderer: OpenGL options
             if (hostConfig.SystemConfig.RenderProviderType == typeof(C64GpuProvider))
