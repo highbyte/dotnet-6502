@@ -11,7 +11,7 @@ Technologies:
 - UI: `Avalonia` UI controls.
 - Rendering: [`Highbyte.DotNet6502.Impl.Avalonia`](../libraries/implementation/avalonia.md).
 - Input: [`Highbyte.DotNet6502.Impl.Avalonia`](../libraries/implementation/avalonia.md) + [`Highbyte.DotNet6502.Impl.SilkNet.SDL`](../libraries/implementation/silknet-sdl.md) (joystick).
-- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md). Synthesizer via `NAudio` and playback via `OpenAL`.
+- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md), playback via `OpenAL`. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../systems/c64/libraries.md#audio).
 
 ## Installation
 
@@ -29,7 +29,9 @@ See [Desktop apps installation](installation.md) for package manager and manual 
   (W3C `code`), so both `US` and `Swedish` C64 keyboard layouts work; layout is auto-detected from
   the host (Win32 KLID / macOS `TIS*`) and can be overridden in the C64 config dialog. See
   [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
-- Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
+- Audio via [NAudio](https://github.com/naudio/NAudio). Defaults to the sample-based SID
+  provider; switch to the command-stream provider in the C64 config dialog if you need
+  lower CPU. The SID emulation mode (`Auto` / `Fast`) is selectable in the same dialog.
 
 ### System: Generic computer
 

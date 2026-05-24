@@ -21,7 +21,15 @@ Core library: [`Highbyte.DotNet6502.Systems.Commodore64`](../../libraries/system
     - Joystick
     - Timers
     - IRQ
-- Limited SID 6581 audio chip support.
+- SID 6581 audio chip support via two pluggable providers:
+    - **Sample-based** (default, good but not perfect accuracy) — pure-managed sample-accurate
+      emulation: all four waveforms (individual and combined), full ADSR with the real rate
+      counters, hard sync, ring modulation, TEST-bit hold, OSC3/ENV3 readback, and a generic
+      resonant low-pass / band-pass / high-pass filter. Missing: chip-variant filter models
+      (6581 R1/R2/R3/R4 vs 8580), chip-measured combined-waveform tables, anti-aliased
+      downsampling, and per-instruction `$D418` cycle-offset for digi tunes.
+    - **Command stream** (legacy, low CPU but inaccurate) — decodes SID register changes into
+      generic synthesizer commands driven by an oscillator graph. Many tunes sound wrong.
 - **Limited 1541 disk drive support**
     - Attach `.d64` disk images.
     - Load directory and files to the C64 using the Basic `LOAD` command.

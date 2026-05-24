@@ -13,7 +13,7 @@ Technologies:
 - UI: `Blazor` UI controls.
 - Rendering: [`Highbyte.DotNet6502.Impl.Skia`](../libraries/implementation/skia.md). Using [`SkiaSharp.Views.Blazor`](https://www.nuget.org/packages/SkiaSharp.Views.Blazor) library to provide a Canvas for drawing on with [`SkiaSharp`](https://www.nuget.org/packages/SkiaSharp).
 - Input: [`Highbyte.DotNet6502.Impl.AspNet`](../libraries/implementation/aspnet.md).
-- Audio: [`Highbyte.DotNet6502.Impl.AspNet`](../libraries/implementation/aspnet.md). Custom `WebAudio JS interop` for synthesizer and playback.
+- Audio: [`Highbyte.DotNet6502.Impl.AspNet`](../libraries/implementation/aspnet.md). Custom `WebAudio JS interop` for synthesizer and playback. Only the legacy command-stream C64 audio provider is wired up here; the more accurate sample-based provider is currently available on the desktop hosts and on the Avalonia Browser app. See [C64 audio](../systems/c64/libraries.md#audio).
 
 Live version: <https://highbyte.se/dotnet-6502/app>
 
@@ -50,7 +50,9 @@ Live version: <https://highbyte.se/dotnet-6502/app>
   Layout can be overridden in the C64 config UI. See
   [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
 
-- Audio via `WebAudio` synthesizer using .NET → JavaScript interop.
+- Audio via `WebAudio` synthesizer using .NET → JavaScript interop. Only the legacy
+  command-stream C64 audio provider runs here (not very accurate); the more accurate
+  sample-based provider is not yet available in the Blazor WASM host.
 
 ### System: Generic computer
 

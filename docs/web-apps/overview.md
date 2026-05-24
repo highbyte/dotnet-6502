@@ -4,8 +4,8 @@ Web apps run the emulator entirely in the browser via WebAssembly — no install
 
 | App | UI framework | Rendering | Audio | Live version |
 |-----|--------------|-----------|-------|---------------|
-| [Avalonia Browser app](avalonia-browser.md) | [Avalonia UI](https://avaloniaui.net/) | `Highbyte.DotNet6502.Impl.Avalonia` | `Highbyte.DotNet6502.Impl.NAudio` (WebAudio interop) | <https://highbyte.se/dotnet-6502/app2> |
-| [Blazor Web Assembly app](blazor-wasm.md) | [Blazor WebAssembly](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) | `Highbyte.DotNet6502.Impl.Skia` (SkiaSharp on canvas) | `Highbyte.DotNet6502.Impl.AspNet` (custom WebAudio JS interop) | <https://highbyte.se/dotnet-6502/app> |
+| [Avalonia Browser app](avalonia-browser.md) | [Avalonia UI](https://avaloniaui.net/) | `Highbyte.DotNet6502.Impl.Avalonia` | `Highbyte.DotNet6502.Impl.NAudio` (WebAudio interop). C64 sample-based (default) and command-stream providers. | <https://highbyte.se/dotnet-6502/app2> |
+| [Blazor Web Assembly app](blazor-wasm.md) | [Blazor WebAssembly](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) | `Highbyte.DotNet6502.Impl.Skia` (SkiaSharp on canvas) | `Highbyte.DotNet6502.Impl.AspNet` (custom WebAudio JS interop). C64 command-stream provider only (the sample-based one is not yet wired up here). | <https://highbyte.se/dotnet-6502/app> |
 
 ## Why two?
 

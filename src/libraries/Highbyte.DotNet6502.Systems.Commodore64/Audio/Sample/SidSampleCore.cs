@@ -28,6 +28,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 ///   path to a single fused loop; modest savings (~4% per frame) for sync-using tunes, near zero
 ///   savings for simple tunes. Many tunes will sound wrong.</item>
 /// </list>
+///
+/// Acknowledgments: several chip-measured constants in this file (ADSR rate periods,
+/// exponential-decay divider thresholds, noise LFSR feedback taps, and LFSR reset value
+/// <c>0x7FFFF8</c>) originate from Dag Lem's reSID project. No reSID code was read or copied —
+/// only the published numeric constants are used here as facts about the 6581 chip.
+/// See <c>docs/home/references.md</c> "Credits" for the full attribution.
 /// </summary>
 public sealed class SidSampleCore
 {

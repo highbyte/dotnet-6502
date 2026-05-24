@@ -10,7 +10,7 @@ Technologies:
 - UI: `SadConsole` UI controls.
 - Rendering: [`Highbyte.DotNet6502.Impl.SadConsole`](../libraries/implementation/sadconsole.md).
 - Input: [`Highbyte.DotNet6502.Impl.SadConsole`](../libraries/implementation/sadconsole.md).
-- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md). Synthesizer via `NAudio` and playback via `OpenAL`.
+- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md), playback via `OpenAL`. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../systems/c64/libraries.md#audio).
 
 ## Installation
 
@@ -33,7 +33,9 @@ Manual download, see section in [installation.md](installation.md)
   [SadConsole troubleshooting — non-US keyboard layouts](sadconsole-troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)
   and [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md#per-host-keyboard-support).
 
-- Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
+- Audio via [NAudio](https://github.com/naudio/NAudio). Defaults to the sample-based SID
+  provider; switch to the command-stream provider in the C64 config dialog if you need
+  lower CPU. The SID emulation mode (`Auto` / `Fast`) is selectable in the same dialog.
 
 ### System: Generic computer
 
