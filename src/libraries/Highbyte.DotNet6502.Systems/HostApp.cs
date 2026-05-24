@@ -793,7 +793,15 @@ public class HostApp : IHostApp, IManualRenderingProvider
         // the next start via HasConfigChanged in Start().
         if (EmulatorState == EmulatorState.Uninitialized)
             SelectSystemConfigurationVariant(_selectedSystemConfigurationVariant).Wait();
+
+        OnAfterHostSystemConfigUpdated();
     }
+
+    /// <summary>
+    /// Called after UpdateHostSystemConfig has stored the new config.
+    /// Override in subclasses to notify the UI that CurrentHostSystemConfig has changed.
+    /// </summary>
+    public virtual void OnAfterHostSystemConfigUpdated() { }
 
     /// <summary>
     /// Persist current host system configuration
