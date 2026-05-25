@@ -61,6 +61,16 @@ intended starting point. Add real rendering later (see *Filling it in*).
 A small config object — implement `ISystemConfig` (validation, `IsDirty`/`ClearDirty`,
 render-provider selection). It is fine to start with everything valid and no options.
 
+!!! note "Audio-less systems must still implement `AudioEnabled`"
+    `ISystemConfig` has a `bool AudioEnabled { get; set; }` member. Even if your system
+    produces no audio, you must declare it — a plain auto-property that returns `false` is
+    sufficient. Omitting it results in a compile error that is not immediately obvious from
+    the interface name alone.
+
+    ```csharp
+    public bool AudioEnabled { get; set; } = false;
+    ```
+
 ### `ISystemConfigurer`
 
 `ISystemConfigurer` is what the host calls to build the system. Implement its members directly:
@@ -94,6 +104,17 @@ public sealed class Vic20HostConfig : HostSystemConfigBase<Vic20SystemConfig>
 }
 ```
 
+!!! tip "Add a config section to `appsettings.json` even when there are no settings yet"
+    The Avalonia host binds the config section by name at startup. Add an entry matching
+    `ConfigSectionName` to `appsettings.json` — an empty `SystemConfig` object is fine. The
+    host is silent if the section is missing, so omitting it is easy to miss.
+
+    ```json
+    "Highbyte.DotNet6502.Vic20.Avalonia": {
+      "SystemConfig": {}
+    }
+    ```
+
 Then the engine plugin itself — mark the assembly and implement `ISystemEnginePlugin`:
 
 ```csharp
@@ -113,6 +134,16 @@ public sealed class Vic20AvaloniaEnginePlugin : ISystemEnginePlugin
 ```
 
 That is enough for the system to **appear in the app and run** (as a no-op).
+
+!!! warning "Namespace collision when the system name matches the project suffix"
+    If your system name (e.g. `Vic20`) is the same as the last segment of the engine plugin's
+    namespace (`Highbyte.DotNet6502.Impl.Avalonia.Vic20`), the compiler cannot resolve a bare
+    reference to the system class inside that plugin project — it sees `Vic20` as the nested
+    namespace, not the type. Fix it with a using alias at the top of the affected file:
+
+    ```csharp
+    using Vic20System = Highbyte.DotNet6502.Systems.Vic20.Vic20;
+    ```
 
 ## Step 3 — The shell project (Avalonia)
 
@@ -138,6 +169,12 @@ public sealed class Vic20AvaloniaShellPlugin : ISystemShellPlugin
 The system now shows up in the Avalonia Desktop app's system list, is selectable, and steps frames
 — with no per-system menu or config dialog yet.
 
+!!! note "Shell project needs `<ImplicitUsings>enable</ImplicitUsings>`"
+    The shell `.csproj` should include `<ImplicitUsings>enable</ImplicitUsings>` in its
+    `PropertyGroup`. Without it, types like `IServiceProvider` (which appears in the
+    `ISystemShellPlugin` method signatures) are not in scope, producing confusing compile
+    errors about missing types rather than missing usings.
+
 ## Step 4 — Build and verify
 
 Add the three projects to `dotnet-6502.sln`, build, and run the Avalonia Desktop app. Confirm the
@@ -152,6 +189,14 @@ Once the no-op system appears, add real behaviour incrementally — each layer i
 2. **Rendering** — have the system expose an `IRenderProvider`; add a render target. Reuse a host's
    generic render target where possible (the C64 and Generic systems both render through the
    generic Avalonia bitmap target).
+
+    !!! tip "Derive border constants from the system's known pixel budget"
+        The border dimensions in `IScreen` (`VisibleLeftRightBorderWidth`,
+        `VisibleTopBottomBorderHeight`) control the aspect ratio of the rendered window. Start
+        from the system's actual visible pixel area (e.g. NTSC VIC-20: 256×200 px) and subtract
+        the text area (`cols × charWidth` × `rows × charHeight`) to get the border in each
+        direction. Using placeholder values (e.g. 2 cols / 2 rows) produces a portrait window
+        even for systems whose hardware display is landscape.
 3. **Input** — implement `IInputConsumer` on the system; map host keys via `HostKey` /
    `IHostInputState`. See the [C64 keyboard mapping](c64/keyboard.md) for the pattern.
 4. **Audio** — expose an `IAudioProvider`; the system-agnostic host audio targets
