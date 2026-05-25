@@ -42,19 +42,42 @@ public partial class C64MenuView : UserControl
                 ViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
                 ViewModel.AttachDiskImageRequested += OnAttachDiskImageRequested;
 
-                // Update section states if needed (not in WebAssembly to avoid crash)
-                if (!PlatformDetection.IsRunningInWebAssembly())
-                    UpdateSectionStatesIfNeeded();
+                // NOTE: Do NOT call UpdateSectionStatesIfNeeded() here.
+                // DataContextChanged fires before the view is in the visual tree. If
+                // AttachedToVisualTree fires shortly after (which it always does in the
+                // plugin architecture), a second StartButtonFlash call would capture the
+                // button's background while it's already orange, making both "on" and "off"
+                // states orange so the animation appears stuck. AttachedToVisualTree is
+                // the single, reliable trigger used below.
             }
         };
 
-        // Subscribe to visibility property changes to update section states when view becomes visible
+        // Subscribe to visibility property changes to update section states when view becomes visible.
+        // NOTE: In the plugin architecture the ContentControl (not C64MenuView itself) has the
+        // IsVisible binding, so C64MenuView.IsVisible never changes and this handler never fires.
+        // The AttachedToVisualTree handler below is the reliable equivalent trigger in that case.
         this.PropertyChanged += (s, e) =>
         {
             if (e.Property == IsVisibleProperty && this.IsVisible && ViewModel != null)
             {
                 UpdateSectionStatesIfNeeded();
             }
+        };
+
+        // In the plugin architecture (ContentControl + ViewLocator), C64MenuView is created lazily
+        // when the C64 system is selected and added to the visual tree at that point.
+        // AttachedToVisualTree fires after DataContext is set and after the view is in the visual
+        // tree — the equivalent of the old IsVisible false→true transition in the pre-plugin code.
+        //
+        // No WASM exclusion here. The old code only excluded DataContextChanged (which fired too
+        // early in WASM before async initialization completed). The IsVisibleProperty handler —
+        // which was the working WASM trigger — had no WASM guard, and AttachedToVisualTree fires
+        // at the same point in the lifecycle. UpdateSectionStatesIfNeeded is protected by a
+        // try-catch and all inner null checks, so it is safe to call from WASM.
+        this.AttachedToVisualTree += (s, e) =>
+        {
+            if (ViewModel != null)
+                UpdateSectionStatesIfNeeded();
         };
     }
 
@@ -134,17 +157,25 @@ public partial class C64MenuView : UserControl
 
     private void UpdateSectionStatesIfNeeded()
     {
-        // If there are validation errors, expand config section and collapse others.
-        // Section state now lives on the ViewModel; XAML IsVisible is bound to it.
+        // Expand/flash on validation errors; cancel flash when config becomes valid.
+        // Section state lives on the ViewModel; XAML IsVisible is bound to it.
         try
         {
-            if (ViewModel != null && ViewModel.HasConfigValidationErrors)
+            if (ViewModel == null)
+                return;
+
+            if (ViewModel.HasConfigValidationErrors)
             {
                 ViewModel.ExpandConfigSectionOnValidationError();
 
                 var c64ConfigButton = this.FindControl<Button>("C64Config");
                 if (c64ConfigButton != null)
                     StartButtonFlash(c64ConfigButton, Colors.DarkOrange, stopAfterClick: true);
+            }
+            else
+            {
+                // Config is valid (or has just become valid) — stop any ongoing flash.
+                CancelButtonFlash();
             }
         }
         catch (Exception ex)
@@ -155,13 +186,35 @@ public partial class C64MenuView : UserControl
         }
     }
 
+    /// <summary>
+    /// Cancels any ongoing button flash animation without starting a new one.
+    /// CancellationTokenSource.Dispose() is safe to call multiple times, so even if
+    /// StartButtonFlash's finally block also disposes it, there is no harm.
+    /// </summary>
+    private void CancelButtonFlash()
+    {
+        var cts = _buttonFlashCancellation;
+        if (cts == null) return;
+        _buttonFlashCancellation = null;
+        SafeAsyncHelper.Execute(async () =>
+        {
+            await cts.CancelAsync();
+            cts.Dispose(); // safe; StartButtonFlash's catch/finally may also dispose it
+        });
+    }
+
     private void StartButtonFlash(Button button, Color flashColor, bool stopAfterClick)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (_buttonFlashCancellation != null)
+            // Capture the field into a local before awaiting so the finally block's
+            // null-clear cannot cause a NullReferenceException on the Dispose() line
+            // if another concurrent call races through the finally while we're awaiting.
+            var existingCancellation = _buttonFlashCancellation;
+            if (existingCancellation != null)
             {
-                await _buttonFlashCancellation.CancelAsync();
-                _buttonFlashCancellation.Dispose();
+                _buttonFlashCancellation = null;
+                await existingCancellation.CancelAsync();
+                existingCancellation.Dispose();
             }
 
             var buttonFlashCancellation = new CancellationTokenSource();
@@ -268,8 +321,17 @@ public partial class C64MenuView : UserControl
 
         if (result == true)
         {
-            // Notify C64MenuViewModel of state changes
+            // Re-validate config in HostApp so the Config Status tab (ValidationErrors)
+            // and HasConfigValidationErrors both reflect the saved state.
+            await ViewModel!.HostApp!.ValidateConfigAsync();
+
+            // Notify C64MenuViewModel of state changes (refreshes all bindings).
             ViewModel?.RefreshAllBindings();
+
+            // Update flash state: stops the flash if config is now valid,
+            // or keeps it going (restarting from a clean original-brush capture)
+            // if the config is still invalid.
+            UpdateSectionStatesIfNeeded();
         }
     }
 

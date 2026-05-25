@@ -268,6 +268,11 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         OnPropertyChanged(nameof(EmulatorState));
     }
 
+    public override void OnAfterHostSystemConfigUpdated()
+    {
+        OnPropertyChanged(nameof(CurrentHostSystemConfig));
+    }
+
     public override void OnAfterSelectedSystemChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemName));
