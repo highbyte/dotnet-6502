@@ -34,9 +34,14 @@ All three subsystems share one shape: **the system declares a *provider*, the ho
 - **Input** (`Input/`) — `IInputConsumer` (with `Init(IHostInputState)`) is an `ISystem` member.
   `HostKey` is the host-agnostic key abstraction; each host's input context implements
   `IHostInputState` and maps native keys to `HostKey`.
-- **Audio** (`Audio/`) — the system declares an `IAudioProvider`; hosts register an
-  `IAudioCommandTarget`; an `IAudioCoordinator` matches them. Audio output is one of several
-  *styles* declared by the system (today: a synth-command stream).
+- **Audio** (`Audio/`) — the system declares an `IAudioProvider`; hosts register a matching
+  `IAudioTarget`; an `IAudioCoordinator` matches them. Audio output comes in two *styles*:
+  the **command stream** style (`IAudioCommandStream` provider + `IAudioCommandTarget`,
+  routed through a host synth oscillator graph) and the **PCM sample** style
+  (`IAudioSampleProvider` + `IAudioSampleTarget`, with a coordinator-owned SPSC ring buffer
+  bridging emulator-time bursts to wall-time DAC drain). A system can declare both styles
+  and let the host pick which to register, e.g. the C64 ships with both
+  [`C64SidCommandStream`](../../systems/c64/libraries.md#audio) and `C64SidSampleProvider`.
 
 ## Automated startup
 

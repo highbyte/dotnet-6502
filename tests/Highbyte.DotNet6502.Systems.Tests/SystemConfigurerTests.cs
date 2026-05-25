@@ -116,10 +116,16 @@ public class SystemConfigurerTests
         {
             RenderProviderType = renderProviderType;
         }
-        public void SetRenderTargetType(Type renderTargetType)
+        public void SetRenderTargetType(Type? renderTargetType)
         {
             RenderTargetType = renderTargetType;
         }
+
+        public Type? AudioProviderType => null;
+        public Type? AudioTargetType => null;
+        public List<Type> GetSupportedAudioProviderTypes() => new();
+        public void SetAudioProviderType(Type? audioProviderType) { }
+        public void SetAudioTargetType(Type? audioTargetType) { }
     }
 
     public class TestSystem2Config : ISystemConfig
@@ -159,10 +165,16 @@ public class SystemConfigurerTests
         {
             RenderProviderType = renderProviderType;
         }
-        public void SetRenderTargetType(Type renderTargetType)
+        public void SetRenderTargetType(Type? renderTargetType)
         {
             RenderTargetType = renderTargetType;
         }
+
+        public Type? AudioProviderType => null;
+        public Type? AudioTargetType => null;
+        public List<Type> GetSupportedAudioProviderTypes() => new();
+        public void SetAudioProviderType(Type? audioProviderType) { }
+        public void SetAudioTargetType(Type? audioTargetType) { }
     }
 
     public class TestHostSystemConfig : IHostSystemConfig

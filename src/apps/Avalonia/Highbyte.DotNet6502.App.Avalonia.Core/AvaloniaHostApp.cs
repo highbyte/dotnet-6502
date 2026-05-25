@@ -218,6 +218,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         // The factory is invoked per emulator start; GetAudioHandlerContext() returns the
         // appropriate (real or silent) audio context for the current platform / config.
         base.SetAudioConfig(atp =>
+        {
             atp.AddAudioTargetType<NAudioCommandTarget>(() =>
             {
                 var audioHandlerContext = GetAudioHandlerContext();
@@ -225,7 +226,16 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
                     audioHandlerContext.Cleanup();
                 audioHandlerContext.Init();
                 return new NAudioCommandTarget(audioHandlerContext, _loggerFactory);
-            }));
+            });
+            atp.AddAudioTargetType<NAudioSampleTarget>(() =>
+            {
+                var audioHandlerContext = GetAudioHandlerContext();
+                if (audioHandlerContext.IsInitialized)
+                    audioHandlerContext.Cleanup();
+                audioHandlerContext.Init();
+                return new NAudioSampleTarget(audioHandlerContext, _loggerFactory);
+            });
+        });
     }
 
     private void ConfigureRender()

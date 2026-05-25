@@ -13,7 +13,7 @@ Technologies:
 - UI: `Avalonia` UI controls.
 - Rendering: [`Highbyte.DotNet6502.Impl.Avalonia`](../libraries/implementation/avalonia.md).
 - Input: [`Highbyte.DotNet6502.Impl.Avalonia`](../libraries/implementation/avalonia.md) + [`Highbyte.DotNet6502.Impl.Browser`](../libraries/implementation/browser.md) (gamepad).
-- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md). Synthesizer via `NAudio` and playback via WebAudio JS interop.
+- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md), playback via WebAudio JS interop. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../systems/c64/libraries.md#audio).
 
 Live version: <https://highbyte.se/dotnet-6502/app2>
 
@@ -36,7 +36,10 @@ To self-host, see [Run from command line](#run-from-command-line) below.
   `navigator.keyboard.getLayoutMap()` (other browsers fall through to OS culture, then US).
   Layout can be overridden in the C64 config dialog. See
   [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
-- Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
+- Audio via [NAudio](https://github.com/naudio/NAudio) over a WebAudio JS interop wave player.
+  Defaults to the sample-based SID provider; switch to the command-stream provider in the
+  C64 config dialog if you need lower CPU. The SID emulation mode (`Auto` / `Fast`) is
+  selectable in the same dialog.
 
 ### System: Generic computer
 

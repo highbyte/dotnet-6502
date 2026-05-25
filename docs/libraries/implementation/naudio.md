@@ -2,13 +2,37 @@
 
 Library: `Highbyte.DotNet6502.Impl.NAudio`
 
-- A **system-agnostic audio target** (`IAudioCommandTarget`) implemented with the [`NAudio`](https://github.com/naudio/NAudio) audio library, using a custom `Silk.NET.OpenAL` provider for cross-platform support. Can be used from all native applications.
+System-agnostic NAudio-based audio targets for both the **command-stream** and **sample**
+audio styles. Carries no system-specific code — host apps register the appropriate target(s)
+for any system that declares a matching audio provider. (The former `Impl.NAudio.Commodore64`
+library was removed when the audio command vocabulary was generalised.)
 
-This library carries no system-specific code — the audio command vocabulary was generalised, so a
-host app registers the NAudio target for any system that declares an `IAudioProvider`. (The former
-`Impl.NAudio.Commodore64` library was removed.)
+## Audio targets
 
-## Audio
+| Target | Style | Pairs with provider style |
+| --- | --- | --- |
+| `NAudioCommandTarget` | Command stream — synthesizer graph (oscillators + ADSR + master volume) reacts to host-agnostic audio commands. | `IAudioCommandStream` providers, e.g. `C64SidCommandStream`. |
+| `NAudioSampleTarget` | PCM sample pull — adapts the coordinator-supplied `AudioSampleReadCallback` to NAudio's `ISampleProvider` contract. | `IAudioSampleProvider` providers, e.g. `C64SidSampleProvider`. |
 
-TODO
+Both targets share the same NAudio handler context (`NAudioAudioHandlerContext`), which owns
+the underlying `IWavePlayer`. The wave player is selected at host-app startup:
 
+- **Desktop** (Avalonia Desktop, SadConsole, SilkNetNative) — `SilkNetOpenALWavePlayer`
+  (cross-platform OpenAL).
+- **Browser** (Avalonia Browser) — `WebAudioWavePlayer`, a custom NAudio `IWavePlayer` that
+  pushes PCM samples to a browser `AudioContext` via `[JSImport]`/`[JSExport]` interop. The
+  associated JS module is shipped as an embedded resource (`WebAudioWavePlayerResources`)
+  and imported at app startup with `JSHost.ImportAsync(...)`.
+
+## Per-app coverage
+
+| App | `NAudioCommandTarget` | `NAudioSampleTarget` |
+| --- | --- | --- |
+| Avalonia Desktop | ✓ | ✓ |
+| SadConsole | ✓ | ✓ |
+| SilkNetNative | ✓ | ✓ |
+| Avalonia Browser | ✓ | ✓ |
+| Blazor WASM | (uses `WebAudioCommandTarget` from `Impl.AspNet` instead) | — (not yet wired up) |
+
+For the C64-specific provider details and the per-app audio-provider matrix, see
+[C64 audio](../../systems/c64/libraries.md#audio).

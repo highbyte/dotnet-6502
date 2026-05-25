@@ -97,6 +97,14 @@ public class Sid
         // Common audio registers
         c64Mem.MapReader(SidAddr.SIGVOL, (_) => 0);
         c64Mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
+
+        // Voice 3 read-only registers. Tunes that read $D41B/$D41C for waveform- or
+        // envelope-driven effects (vibrato, sweeps, etc.) depend on these. The active audio
+        // provider installs a lazy getter so the value is computed only on read (currently only
+        // the SID sample provider does this; the command-stream path leaves the getter null →
+        // reads return 0).
+        c64Mem.MapReader(SidAddr.OSC3, (_) => _internalSidState.Osc3ReadbackProvider?.Invoke() ?? 0);
+        c64Mem.MapReader(SidAddr.ENV3, (_) => _internalSidState.Env3ReadbackProvider?.Invoke() ?? 0);
     }
 
     /// <summary>

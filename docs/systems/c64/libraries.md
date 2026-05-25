@@ -47,10 +47,37 @@ context. A few genuinely host-specific bits remain in the engine-plugin librarie
 
 ### Audio
 
-C64 audio is host-agnostic. The C64 system declares an `IAudioProvider`; the desktop NAudio host
-target ([`Highbyte.DotNet6502.Impl.NAudio`](../../libraries/implementation/naudio.md)) and the
-WebAudio host target ([`Highbyte.DotNet6502.Impl.AspNet`](../../libraries/implementation/aspnet.md))
-consume it generically. There is no C64-specific audio library — the former
-`Impl.NAudio.Commodore64` was removed when the audio command vocabulary was generalised.
+C64 audio is host-agnostic. The C64 system declares two interchangeable audio providers; the
+host app's audio target chain consumes whichever one is currently selected via the C64 config
+UI (`Audio provider` / `Audio target` / `SID emulation` combos).
+
+| Provider | Default | Accuracy | CPU | Notes |
+| --- | --- | --- | --- | --- |
+| **Sample-based** (`C64SidSampleProvider`) | yes | Good but not perfect | Higher | Pure-managed sample-accurate SID emulation. All four waveforms (individual and combined via bitwise AND), full ADSR with the real 16 rate-counter periods, hard sync, ring modulation, TEST-bit hold, OSC3/ENV3 readback, a generic resonant 2-pole state-variable filter (LP / BP / HP), and the `$D418` volume DAC's audible DC term so digi / sample-playback tunes should work. Inner loop takes auto fast paths when the current SID state doesn't actively use the advanced features. Default output rate is 48 kHz, with integer Bresenham downsampling from the SID clock. Missing: chip-variant filter models (6581 R1/R2/R3/R4 vs 8580), chip-measured combined-waveform tables, anti-aliased downsampling, and per-instruction `$D418` cycle-offset (digi works, but writes land at instruction boundaries so high-rate sample tunes are slightly noisier than on real hardware). |
+| **Command stream** (`C64SidCommandStream`) | no | Not very accurate | Lower | Legacy. Decodes SID register changes into host-agnostic synth commands (volume, voice ADSR + oscillator). A host-side oscillator graph (NAudio or WebAudio) turns them into sound. Cannot reproduce the SID filter, combined waveforms, ring modulation, hard sync, or digi / sample playback. |
+
+The sample-based provider has two **SID emulation modes** (selectable in the config UI):
+
+- `Auto` (default) — full accuracy as listed above.
+- `Fast` — drops the advanced features (single waveform per voice, no sync / ring mod / TEST
+  hold / OSC3/ENV3 readback / filter). Modest savings (~4% per frame) on sync-using tunes,
+  near zero on simple tunes. Many tunes will sound wrong.
+
+Each provider is paired with a host audio target that knows how to play its output style:
+
+| Provider | Compatible target on desktop | Compatible target in browser |
+| --- | --- | --- |
+| Sample-based | `NAudioSampleTarget` ([`Impl.NAudio`](../../libraries/implementation/naudio.md), playback via `OpenAL`) | `NAudioSampleTarget` ([`Impl.NAudio`](../../libraries/implementation/naudio.md), playback via WebAudio JS interop) — Avalonia Browser only |
+| Command stream | `NAudioCommandTarget` ([`Impl.NAudio`](../../libraries/implementation/naudio.md), playback via `OpenAL`) | `NAudioCommandTarget` ([`Impl.NAudio`](../../libraries/implementation/naudio.md), playback via WebAudio JS interop) on Avalonia Browser; `WebAudioCommandTarget` ([`Impl.AspNet`](../../libraries/implementation/aspnet.md), direct WebAudio oscillator nodes) on Blazor WASM |
+
+**Per-app availability:**
+
+- **Avalonia Desktop**, **SadConsole**, **SilkNetNative**: both providers available (sample-based by default).
+- **Avalonia Browser**: both providers available (sample-based by default), playback via WebAudio JS interop.
+- **Blazor WASM**: command-stream only. The sample-based provider is not yet wired up here — see the design log for the planned work.
+
+There is no C64-specific audio library — the former `Impl.NAudio.Commodore64` was removed
+when the audio command vocabulary was generalised, and the new sample path is also
+system-agnostic on the target side.
 
 For the cross-system view (which app uses which library, including Generic), see the [Implementation libraries overview](../../libraries/implementation/overview.md).

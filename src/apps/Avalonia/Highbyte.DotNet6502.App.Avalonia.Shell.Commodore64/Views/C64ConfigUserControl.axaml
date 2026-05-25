@@ -173,13 +173,70 @@
                     <TextBlock Text="Audio"
                                 Classes=""/>
 
-                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Classes="spacing-tight">
                         <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                 AutomationProperties.AutomationId="SidAudioCheckBox"
                                 AutomationProperties.Name="Enable SID audio"
                                 Content="Enable SID audio (experimental)"
                                 IsChecked="{Binding AudioEnabled}"
                                 Classes=""/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                    Text="Audio provider:"
+                                    Classes="secondary-text"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1"
+                                AutomationProperties.AutomationId="AudioProviderComboBox"
+                                AutomationProperties.Name="Audio provider"
+                                IsEnabled="{Binding AudioEnabled}"
+                                ItemsSource="{Binding AudioProviders}"
+                                SelectedItem="{Binding SelectedAudioProvider}"
+                                ToolTip.Tip="{Binding SelectedAudioProviderHelpText}"
+                                Classes="h-stretch"
+                                MaxDropDownHeight="200">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AudioProviderOption">
+                                <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0"
+                                    Text="Audio target:"
+                                    Classes="secondary-text"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1"
+                                AutomationProperties.AutomationId="AudioTargetComboBox"
+                                AutomationProperties.Name="Audio target"
+                                IsEnabled="{Binding AudioEnabled}"
+                                ItemsSource="{Binding AudioTargets}"
+                                SelectedItem="{Binding SelectedAudioTarget}"
+                                ToolTip.Tip="{Binding SelectedAudioTargetHelpText}"
+                                Classes="h-stretch"
+                                MaxDropDownHeight="200">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AudioTargetOption">
+                                <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0"
+                                    Text="SID emulation:"
+                                    Classes="secondary-text"/>
+                        <ComboBox Grid.Row="3" Grid.Column="1"
+                                AutomationProperties.AutomationId="SidEmulationModeComboBox"
+                                AutomationProperties.Name="SID emulation mode"
+                                IsEnabled="{Binding AudioEnabled}"
+                                ItemsSource="{Binding SidEmulationModes}"
+                                SelectedItem="{Binding SelectedSidEmulationMode}"
+                                ToolTip.Tip="{Binding SelectedSidEmulationModeHelpText}"
+                                Classes="h-stretch"
+                                MaxDropDownHeight="200">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SidEmulationModeOption">
+                                <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </Grid>
                 </StackPanel>
             </Border>

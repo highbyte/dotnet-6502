@@ -4,9 +4,9 @@ Cross-platform desktop applications running the emulator natively. Multiple fron
 
 | App | UI / rendering | Input | Audio | Use case |
 |-----|----------------|-------|-------|----------|
-| [Avalonia Desktop](avalonia-desktop.md) | [Avalonia UI](https://avaloniaui.net/) (Skia-based) | Avalonia + SDL (joystick) | NAudio + OpenAL | Default desktop app; most features (scripting, debugger, remote control). |
-| [SadConsole](sadconsole.md) | [SadConsole](https://github.com/Thraka/SadConsole) (terminal/ASCII engine) | SadConsole | NAudio + OpenAL | Console-style retro UI. |
-| [SilkNetNative](silknet-native.md) | [Silk.NET](https://github.com/dotnet/Silk.NET) + ImGui + OpenGL/SkiaSharp | Silk.NET | NAudio + OpenAL | OpenGL/shader rendering paths; multiple renderer providers including a custom GPU-packet C64 renderer. |
+| [Avalonia Desktop](avalonia-desktop.md) | [Avalonia UI](https://avaloniaui.net/) (Skia-based) | Avalonia + SDL (joystick) | NAudio + OpenAL. C64 sample-based (default) and command-stream providers. | Default desktop app; most features (scripting, debugger, remote control). |
+| [SadConsole](sadconsole.md) | [SadConsole](https://github.com/Thraka/SadConsole) (terminal/ASCII engine) | SadConsole | NAudio + OpenAL. C64 sample-based (default) and command-stream providers. | Console-style retro UI. |
+| [SilkNetNative](silknet-native.md) | [Silk.NET](https://github.com/dotnet/Silk.NET) + ImGui + OpenGL/SkiaSharp | Silk.NET | NAudio + OpenAL. C64 sample-based (default) and command-stream providers. | OpenGL/shader rendering paths; multiple renderer providers including a custom GPU-packet C64 renderer. |
 | [Console Monitor](console-monitor.md) | Plain .NET console | Console keyboard | none | Stand-alone 6502 machine code monitor; no system emulation UI. |
 | [Headless](headless.md) | none | none | none | Automation, scripting, CI workflows. Driven entirely by CLI args and Lua. |
 

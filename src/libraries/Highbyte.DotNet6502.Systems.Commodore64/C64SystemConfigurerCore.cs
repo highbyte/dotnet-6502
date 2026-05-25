@@ -66,8 +66,35 @@ public class C64SystemConfigurerCore : ISystemConfigurer
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var hostConfig = _hostConfigFactory();
-        Configuration.GetSection(_configSectionName).Bind(hostConfig);
+        var section = Configuration.GetSection(_configSectionName);
+        section.Bind(hostConfig);
+
+        // IConfiguration.Bind() can't fill Type-valued properties (they have private setters and
+        // Type is not a leaf config value). Read the friendly JSON keys explicitly and apply via
+        // the strongly-typed setters so appsettings like
+        //     "SystemConfig": { "AudioProviderType": "Foo.Bar, Assembly" }
+        // actually take effect rather than silently leaving the constructor default in place.
+        ApplyTypeOverridesFromConfig(section.GetSection(nameof(IHostSystemConfig.SystemConfig)), hostConfig.SystemConfig);
+
         return Task.FromResult(hostConfig);
+    }
+
+    private static void ApplyTypeOverridesFromConfig(IConfiguration systemConfigSection, ISystemConfig systemConfig)
+    {
+        ApplyTypeKey(systemConfigSection, "RenderProviderType", systemConfig.SetRenderProviderType);
+        ApplyTypeKey(systemConfigSection, "RenderTargetType", systemConfig.SetRenderTargetType);
+        ApplyTypeKey(systemConfigSection, "AudioProviderType", systemConfig.SetAudioProviderType);
+        ApplyTypeKey(systemConfigSection, "AudioTargetType", systemConfig.SetAudioTargetType);
+    }
+
+    private static void ApplyTypeKey(IConfiguration section, string key, Action<Type?> setter)
+    {
+        var value = section[key];
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+        var t = Type.GetType(value)
+            ?? throw new DotNet6502Exception($"{key} '{value}' could not be resolved.");
+        setter(t);
     }
 
     /// <summary>No-op by default. Hosts that persist user config override this.</summary>
@@ -87,6 +114,8 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
+            AudioProviderType = c64SystemConfig.AudioProviderType,
+            SidEmulationMode = c64SystemConfig.SidEmulationMode,
         };
 
         var c64 = C64.BuildC64(c64Config, LoggerFactory);

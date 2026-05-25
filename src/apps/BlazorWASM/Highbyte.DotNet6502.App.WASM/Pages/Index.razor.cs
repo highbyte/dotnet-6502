@@ -352,6 +352,9 @@ public partial class Index : IWasmHostView
     public IEnumerable<(Type renderProviderType, Type renderTargetType)> GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations()
         => _wasmHost.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
 
+    public IEnumerable<(Type audioProviderType, Type audioTargetType)> GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations()
+        => _wasmHost.GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations();
+
     public async Task UpdateCanvasSize()
     {
         bool isOk = await _wasmHost.IsSystemConfigValid();
@@ -436,6 +439,11 @@ public partial class Index : IWasmHostView
         {
             // For other config UIs (like Generic), use the original parameter
             parameters.Add("RenderProviderTypes", _wasmHost.GetAvailableSystemRenderProviderTypes().ToArray());
+        }
+
+        if (_activeConfigContribution.UseAudioProviderAndAudioTargetTypeCombinations)
+        {
+            parameters.Add("AvailableAudioProviderAndAudioTargetTypeCombinations", _wasmHost.GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations());
         }
 
         var result = await Modal.Show(_activeConfigContribution.ComponentType, "Config", parameters).Result;

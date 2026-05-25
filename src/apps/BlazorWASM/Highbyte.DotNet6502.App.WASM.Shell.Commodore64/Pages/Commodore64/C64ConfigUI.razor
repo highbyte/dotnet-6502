@@ -5,6 +5,7 @@
 @using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 @using Highbyte.DotNet6502.Systems;
 @using Highbyte.DotNet6502.Systems.Commodore64
+@using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample
 @using Highbyte.DotNet6502.Systems.Commodore64.Config
 @using Highbyte.DotNet6502.Systems.Commodore64.Input;
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -118,6 +119,51 @@
                 <div class="table-row">
                     <div class="table-cell table-cell-fixed-width-medium twocol">Audio enabled (experimental):</div>
                     <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64SystemConfig.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        Audio provider:
+                        @if (SelectedAudioProviderType != null)
+                        {
+                            <span title="@TypeDisplayHelper.GetHelpText(SelectedAudioProviderType)" class="help-icon">ⓘ</span>
+                        }
+                    </div>
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        <select value="@(SelectedAudioProviderType?.Name ?? "")" @onchange="OnAudioProviderChanged">
+                            @foreach (var audioProviderType in AudioProviderTypes)
+                            {
+                                <option value="@audioProviderType.Name"> @TypeDisplayHelper.GetDisplayName(audioProviderType) </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        Audio target:
+                        @if (SelectedAudioTargetType != null)
+                        {
+                            <span title="@TypeDisplayHelper.GetHelpText(SelectedAudioTargetType)" class="help-icon">ⓘ</span>
+                        }
+                    </div>
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        <select value="@(SelectedAudioTargetType?.Name ?? "")" @onchange="OnAudioTargetChanged">
+                            @foreach (var audioTargetType in AudioTargetTypes)
+                            {
+                                <option value="@audioTargetType.Name"> @TypeDisplayHelper.GetDisplayName(audioTargetType) </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">SID emulation:</div>
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        <select value="@C64SystemConfig.SidEmulationMode" @onchange="OnSidEmulationModeChanged">
+                            @foreach (var mode in Enum.GetValues<SidEmulationMode>())
+                            {
+                                <option value="@mode"> @mode </option>
+                            }
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -352,6 +398,7 @@
     [Parameter] public IHostSystemConfig HostSystemConfig { get; set; } = default!;
     [Parameter] public string SelectedSystemConfigurationVariant { get; set; } = default!;
     [Parameter] public List<(Type renderProviderType, Type renderTargetType)> AvailableRendererProviderAndRenderTargetTypeCombinations { get; set; } = default!;
+    [Parameter] public List<(Type audioProviderType, Type audioTargetType)> AvailableAudioProviderAndAudioTargetTypeCombinations { get; set; } = new();
 
 
     public C64HostConfig C64HostConfig => (C64HostConfig)HostSystemConfig;
@@ -364,6 +411,14 @@
         .Select(t => t.renderTargetType)
         .ToList();
     private Type? SelectedRenderTargetType => C64SystemConfig.RenderTargetType;
+
+    private List<Type> AudioProviderTypes => AvailableAudioProviderAndAudioTargetTypeCombinations.Select(t => t.audioProviderType).Distinct().ToList();
+    private Type? SelectedAudioProviderType => C64SystemConfig.AudioProviderType;
+    private List<Type> AudioTargetTypes => AvailableAudioProviderAndAudioTargetTypeCombinations
+        .Where(t => t.audioProviderType == SelectedAudioProviderType)
+        .Select(t => t.audioTargetType)
+        .ToList();
+    private Type? SelectedAudioTargetType => C64SystemConfig.AudioTargetType;
 
     protected override async Task OnInitializedAsync()
     {
@@ -385,6 +440,23 @@
         if (C64SystemConfig.RenderTargetType == null && RenderTargetTypes.Count > 0)
         {
             C64SystemConfig.SetRenderTargetType(RenderTargetTypes.First());
+        }
+
+        // Same auto-select pattern for audio: pick the first compatible target/provider on the
+        // first opening of the dialog when nothing is configured yet, or when the configured
+        // pair isn't a valid combination on this host. The provider check also has to handle the
+        // "configured but not buildable here" case — e.g. C64SidSampleProvider is the C64's
+        // default after the sample-emulation work shipped, but Blazor WASM has only the
+        // WebAudioCommandTarget compiled in, which only pairs with the command-stream provider.
+        // Without this validation the <select> renders empty (no <option> matches the configured
+        // value) even though items are available in the dropdown.
+        if ((C64SystemConfig.AudioProviderType == null || !AudioProviderTypes.Contains(C64SystemConfig.AudioProviderType)) && AudioProviderTypes.Count > 0)
+        {
+            C64SystemConfig.SetAudioProviderType(AudioProviderTypes.First());
+        }
+        if ((C64SystemConfig.AudioTargetType == null || !AudioTargetTypes.Contains(C64SystemConfig.AudioTargetType)) && AudioTargetTypes.Count > 0)
+        {
+            C64SystemConfig.SetAudioTargetType(AudioTargetTypes.First());
         }
     }
 
@@ -555,6 +627,42 @@
         if (selectedRenderTargetType != null)
         {
             C64HostConfig.SystemConfig.SetRenderTargetType(selectedRenderTargetType);
+        }
+    }
+
+    private void OnAudioProviderChanged(ChangeEventArgs e)
+    {
+        string? selectedAudioProviderTypeName = (string?)e.Value;
+        var selectedAudioProviderType = AudioProviderTypes.FirstOrDefault(t => t.Name == selectedAudioProviderTypeName);
+        if (selectedAudioProviderType != null)
+        {
+            C64HostConfig.SystemConfig.SetAudioProviderType(selectedAudioProviderType);
+
+            // Auto-select first compatible target so the (provider, target) pair is always valid.
+            var availableTargets = AudioTargetTypes;
+            if (availableTargets.Count > 0)
+            {
+                C64HostConfig.SystemConfig.SetAudioTargetType(availableTargets.First());
+            }
+        }
+    }
+
+    private void OnAudioTargetChanged(ChangeEventArgs e)
+    {
+        string? selectedAudioTargetTypeName = (string?)e.Value;
+        var selectedAudioTargetType = AudioTargetTypes.FirstOrDefault(t => t.Name == selectedAudioTargetTypeName);
+        if (selectedAudioTargetType != null)
+        {
+            C64HostConfig.SystemConfig.SetAudioTargetType(selectedAudioTargetType);
+        }
+    }
+
+    private void OnSidEmulationModeChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(value) && Enum.TryParse<SidEmulationMode>(value, out var mode))
+        {
+            C64SystemConfig.SidEmulationMode = mode;
         }
     }
 

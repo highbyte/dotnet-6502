@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -25,6 +26,8 @@ public class C64Config
     public int KeyboardJoystick { get; set; }
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; set; }
     public Type? RenderProviderType { get; set; }
+    public Type? AudioProviderType { get; set; }
+    public SidEmulationMode SidEmulationMode { get; set; } = SidEmulationMode.Auto;
 
     public C64Config()
     {

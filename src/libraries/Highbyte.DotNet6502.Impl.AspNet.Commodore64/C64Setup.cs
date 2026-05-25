@@ -10,6 +10,7 @@ using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 using System.Text.Json;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
@@ -69,6 +70,9 @@ public class C64Setup : C64SystemConfigurerCore
             c64HostConfig.SystemConfig.ROMDirectory = "";
             // Audio disabled by default until Web audio playback is more stable
             c64HostConfig.SystemConfig.AudioEnabled = false;
+            // The Blazor WASM/Skia host only registers WebAudioCommandTarget — no sample target —
+            // so override the system-wide default of C64SidSampleProvider with the command stream.
+            c64HostConfig.SystemConfig.SetAudioProviderType(typeof(C64SidCommandStream));
         }
 
         // TODO: After a while, remove this code that tries to load ROMs from old location.

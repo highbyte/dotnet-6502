@@ -33,6 +33,20 @@ public class InternalSidState
     }
 
     /// <summary>
+    /// Lazy getter for voice 3 waveform-output ($D41B). Set by the active audio provider during
+    /// its Init; invoked on each memory read so the value reflects live SID state and unread
+    /// registers cost nothing. Null when no audio provider supplies a value (e.g. the
+    /// command-stream path) — reads then return 0.
+    /// </summary>
+    public Func<byte>? Osc3ReadbackProvider { get; set; }
+
+    /// <summary>
+    /// Lazy getter for voice 3 envelope-counter readback ($D41C). Same lifecycle as
+    /// <see cref="Osc3ReadbackProvider"/>.
+    /// </summary>
+    public Func<byte>? Env3ReadbackProvider { get; set; }
+
+    /// <summary>
     /// Get volume 0-15.
     /// Common for all voices.
     /// </summary>

@@ -5,15 +5,14 @@ namespace Highbyte.DotNet6502.Systems.Audio;
 /// interface that can consume it.
 ///
 /// Audio counterpart of <see cref="Rendering.RenderProviderTargetMap"/>. Populated as styles are
-/// added — phase 2 adds the command-stream style
-/// (<c>IAudioCommandStream</c> → <c>IAudioCommandTarget</c>); a future PCM-sample style adds
-/// <c>IAudioSampleProvider</c> → <c>IAudioSampleTarget</c>.
+/// added — the command-stream style (<c>IAudioCommandStream</c> → <c>IAudioCommandTarget</c>) and
+/// the PCM-sample style (<c>IAudioSampleProvider</c> → <c>IAudioSampleTarget</c>).
 /// </summary>
 public static class AudioProviderTargetMap
 {
     public static readonly Dictionary<Type, Type> Map = new Dictionary<Type, Type>()
     {
         { typeof(IAudioCommandStream), typeof(IAudioCommandTarget) },
-        // A future PCM-sample style adds: IAudioSampleProvider -> IAudioSampleTarget
+        { typeof(IAudioSampleProvider), typeof(IAudioSampleTarget) },
     };
 }

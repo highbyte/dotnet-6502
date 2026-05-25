@@ -220,10 +220,16 @@ public class SilkNetHostApp : HostApp
             _audioHandlerContext.Init();
             _logger.LogInformation("OnLoad: Audio handler context initialized.");
 
-            // Audio pipeline configuration: register the NAudio host audio target.
+            // Audio pipeline configuration: register both NAudio host audio targets — command-stream
+            // (synth) and PCM-sample (sample-accurate SID core). The audio coordinator picks the
+            // one that matches the system's selected audio provider.
             base.SetAudioConfig(atp =>
+            {
                 atp.AddAudioTargetType<NAudioCommandTarget>(
-                    () => new NAudioCommandTarget(_audioHandlerContext, _loggerFactory)));
+                    () => new NAudioCommandTarget(_audioHandlerContext, _loggerFactory));
+                atp.AddAudioTargetType<NAudioSampleTarget>(
+                    () => new NAudioSampleTarget(_audioHandlerContext, _loggerFactory));
+            });
             _logger.LogInformation("OnLoad: Audio configuration set.");
 
             // New rendering pipeline configuration

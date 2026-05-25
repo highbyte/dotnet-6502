@@ -19,7 +19,11 @@
 - Cycle-exact rendering.
 - Full 1541 disk drive support — only basic directory listing and file `LOAD` are supported (see [Systems / C64 / Useful tools](../systems/c64/useful-tools.md)).
 - Tape drive support.
-- Accurate / stable audio. Music is unlikely to sound correct.
+- Fully chip-accurate SID audio. The default sample-based provider reproduces most tunes
+  well (all four waveforms incl. combined, ADSR, hard sync, ring mod, TEST hold, OSC3/ENV3
+  readback, and a generic resonant low-pass/band-pass/high-pass filter). The legacy
+  command-stream provider is still available as a low-CPU fallback but will sound noticeably
+  wrong on most music. See [C64 audio](../systems/c64/libraries.md#audio).
 - The VIC-II video emulation does not cover all tricks possible with the C64 VIC chip; advanced apps, games, and demos may not work as expected.
 - Different renderer implementations support different feature sets (character-mode-only vs full bitmap+sprites). See [Compatible programs](../systems/c64/compatible-programs.md) for the renderer required by each tested title.
 

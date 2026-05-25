@@ -11,7 +11,7 @@ Technologies:
 - UI: `Silk.NET` [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.Extensions.ImGui/).
 - Rendering: [`Highbyte.DotNet6502.Impl.Skia`](../libraries/implementation/skia.md) or [`Highbyte.DotNet6502.Impl.SilkNet`](../libraries/implementation/silknet.md) (OpenGL) on a `Silk.NET` window.
 - Input: [`Highbyte.DotNet6502.Impl.SilkNet`](../libraries/implementation/silknet.md).
-- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md). Synthesizer via `NAudio` and playback via `OpenAL`.
+- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md), playback via `OpenAL`. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../systems/c64/libraries.md#audio).
 
 ## Installation
 
@@ -61,7 +61,9 @@ Manual download, see section in [installation.md](installation.md)
   be overridden from the in-app C64 config UI. See
   [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
 
-- Audio via [NAudio](https://github.com/naudio/NAudio) synthesizer.
+- Audio via [NAudio](https://github.com/naudio/NAudio). Defaults to the sample-based SID
+  provider; switch to the command-stream provider in the in-app C64 config UI if you need
+  lower CPU. The SID emulation mode (`Auto` / `Fast`) is selectable in the same UI.
 
 ### System: Generic computer
 
