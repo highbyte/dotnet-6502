@@ -52,6 +52,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private int _selectedKeyboardJoystick;
     private int _selectedHostJoystick;
     private string _selectedKeyboardLayout = AutoKeyboardLayoutLabel;
+    private bool _swiftLinkEnabled;
+    private C64CartridgeIOAddress _selectedSwiftLinkCartridgeIOAddress;
+    private string _swiftLinkTcpHost = string.Empty;
+    private int _swiftLinkTcpPort;
+    private bool _swiftLinkConnectOnBoot;
     private string _romDirectory = string.Empty;
     private RenderProviderOption? _selectedRenderProvider;
     private RenderTargetOption? _selectedRenderTarget;
@@ -100,6 +105,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
         SelectedHostJoystick = _workingConfig.InputConfig.CurrentJoystick;
         SelectedKeyboardLayout = _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;
+        SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLinkEnabled;
+        SelectedSwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress;
+        SwiftLinkTcpHost = _workingConfig.SwiftLinkTcpHost;
+        SwiftLinkTcpPort = _workingConfig.SwiftLinkTcpPort;
+        SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkConnectOnBoot;
 
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
 
@@ -175,6 +185,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<SidEmulationModeOption> SidEmulationModes { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; }
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
+    public ObservableCollection<C64CartridgeIOAddress> AvailableSwiftLinkCartridgeIOAddresses { get; } =
+        new(Enum.GetValues<C64CartridgeIOAddress>());
     // "Auto" (auto-detect) plus each explicit C64KeyboardLayout, as strings for the dropdown.
     public ObservableCollection<string> AvailableKeyboardLayouts { get; } =
         new(new[] { AutoKeyboardLayoutLabel }.Concat(Enum.GetNames<C64KeyboardLayout>()));
@@ -235,6 +247,71 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     public string RomStatusSummary =>
         $"{RomStatuses.Count(r => r.IsRequired && r.IsLoaded)}/{C64SystemConfig.RequiredROMs.Count} ROMs loaded";
+
+    public bool SwiftLinkEnabled
+    {
+        get => _swiftLinkEnabled;
+        set
+        {
+            if (_swiftLinkEnabled == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkEnabled, value);
+            _workingConfig.SystemConfig.SwiftLinkEnabled = value;
+        }
+    }
+
+    public C64CartridgeIOAddress SelectedSwiftLinkCartridgeIOAddress
+    {
+        get => _selectedSwiftLinkCartridgeIOAddress;
+        set
+        {
+            if (_selectedSwiftLinkCartridgeIOAddress == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedSwiftLinkCartridgeIOAddress, value);
+            _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress = value;
+        }
+    }
+
+    public string SwiftLinkTcpHost
+    {
+        get => _swiftLinkTcpHost;
+        set
+        {
+            if (_swiftLinkTcpHost == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkTcpHost, value);
+            _workingConfig.SwiftLinkTcpHost = value;
+        }
+    }
+
+    public int SwiftLinkTcpPort
+    {
+        get => _swiftLinkTcpPort;
+        set
+        {
+            if (_swiftLinkTcpPort == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkTcpPort, value);
+            _workingConfig.SwiftLinkTcpPort = value;
+        }
+    }
+
+    public bool SwiftLinkConnectOnBoot
+    {
+        get => _swiftLinkConnectOnBoot;
+        set
+        {
+            if (_swiftLinkConnectOnBoot == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkConnectOnBoot, value);
+            _workingConfig.SwiftLinkConnectOnBoot = value;
+        }
+    }
 
     public bool AudioEnabled
     {
@@ -1253,7 +1330,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
         _originalConfig.SystemConfig.KeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
+        _originalConfig.SystemConfig.SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLinkEnabled;
+        _originalConfig.SystemConfig.SwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress;
         _originalConfig.SystemConfig.ColorMapName = _workingConfig.SystemConfig.ColorMapName;
+        _originalConfig.SwiftLinkTcpHost = _workingConfig.SwiftLinkTcpHost;
+        _originalConfig.SwiftLinkTcpPort = _workingConfig.SwiftLinkTcpPort;
+        _originalConfig.SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkConnectOnBoot;
 
         if (_workingConfig.SystemConfig.RenderProviderType != null)
             _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);

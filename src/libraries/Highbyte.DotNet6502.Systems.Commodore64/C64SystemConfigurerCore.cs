@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -111,6 +112,8 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             AudioEnabled = c64SystemConfig.AudioEnabled,
             KeyboardJoystickEnabled = c64SystemConfig.KeyboardJoystickEnabled,
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
+            SwiftLinkEnabled = c64SystemConfig.SwiftLinkEnabled,
+            SwiftLinkCartridgeIOAddress = c64SystemConfig.SwiftLinkCartridgeIOAddress,
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
@@ -126,12 +129,29 @@ public class C64SystemConfigurerCore : ISystemConfigurer
     /// Builds a <see cref="SystemRunner"/> with no input consumer wired — the base behaviour for a
     /// host with no input (the Headless host). Tech hosts override to attach a C64 input handler.
     /// </summary>
-    public virtual Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)
-        => Task.FromResult(new SystemRunner((C64)system));
+    public virtual async Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)
+    {
+        var c64 = (C64)system;
+        if (SupportsSwiftLinkTcpTransport && c64.SwiftLink != null && hostSystemConfig is IC64SwiftLinkTcpHostConfig swiftLinkHostConfig)
+        {
+            var transport = new TcpTransport(swiftLinkHostConfig.SwiftLinkTcpHost, swiftLinkHostConfig.SwiftLinkTcpPort);
+            c64.SwiftLink.Transport = transport;
+            if (swiftLinkHostConfig.SwiftLinkConnectOnBoot)
+                await transport.ConnectAsync();
+        }
+
+        return new SystemRunner(c64);
+    }
 
     /// <summary>
     /// Fallback render-provider type used when <see cref="C64SystemConfig.RenderProviderType"/> is
     /// not set. Null by default (the host decides); the browser host overrides it.
     /// </summary>
     protected virtual Type? DefaultRenderProviderType => null;
+
+    /// <summary>
+    /// Browser hosts cannot use raw TCP, so they override this to defer SwiftLink transport
+    /// hookup until a WebSocket-backed transport exists.
+    /// </summary>
+    protected virtual bool SupportsSwiftLinkTcpTransport => true;
 }

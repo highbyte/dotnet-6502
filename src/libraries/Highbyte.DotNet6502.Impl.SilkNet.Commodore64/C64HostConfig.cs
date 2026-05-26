@@ -6,12 +6,33 @@ using Highbyte.DotNet6502.Systems.Commodore64.Input;
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 
 /// <summary>C64 host config for the SilkNet host.</summary>
-public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>
+public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLinkTcpHostConfig
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.SilkNetNative";
 
     public C64SilkNetOpenGlRendererConfig SilkNetOpenGlRendererConfig { get; set; } = new C64SilkNetOpenGlRendererConfig();
     public C64InputConfig InputConfig { get; set; } = new C64InputConfig();
+
+    private string _swiftLinkTcpHost = "127.0.0.1";
+    public string SwiftLinkTcpHost
+    {
+        get => _swiftLinkTcpHost;
+        set { _swiftLinkTcpHost = value; MarkDirty(); }
+    }
+
+    private int _swiftLinkTcpPort = 5000;
+    public int SwiftLinkTcpPort
+    {
+        get => _swiftLinkTcpPort;
+        set { _swiftLinkTcpPort = value; MarkDirty(); }
+    }
+
+    private bool _swiftLinkConnectOnBoot;
+    public bool SwiftLinkConnectOnBoot
+    {
+        get => _swiftLinkConnectOnBoot;
+        set { _swiftLinkConnectOnBoot = value; MarkDirty(); }
+    }
 
     public override object Clone()
     {

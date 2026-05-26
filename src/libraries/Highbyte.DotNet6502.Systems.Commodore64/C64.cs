@@ -2,6 +2,7 @@ using System.Text;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
@@ -24,7 +25,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor, ISystemState
+public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 {
     public const string SystemName = "C64";
     public string Name => SystemName;
@@ -46,6 +47,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     public Sid Sid { get; set; } = default!;
     public IECBus IECBus { get; set; } = default!;
     public Dictionary<string, byte[]> ROMData { get; set; } = default!;
+    public List<IC64CartridgeDevice> CartridgeDevices { get; } = new();
+    public SwiftLinkDevice? SwiftLink { get; private set; }
 
     public bool AudioEnabled { get; private set; }
     public TimerMode TimerMode { get; private set; }
@@ -188,6 +191,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
         // Update IEC bus devices
         IECBus.TickDevices();
+        foreach (var cartridgeDevice in CartridgeDevices)
+            cartridgeDevice.Tick();
 
         // Advance video raster
         var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
@@ -274,6 +279,15 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         var iecBus = new IECBus(iecHost);
         var diskDrive1541 = new DiskDrive1541(loggerFactory);
         iecBus.Attach(diskDrive1541);
+
+        if (c64Config.SwiftLinkEnabled)
+        {
+            var swiftLink = new SwiftLinkDevice(
+                c64Config.SwiftLinkCartridgeIOAddress,
+                loggerFactory.CreateLogger(nameof(SwiftLinkDevice)));
+            c64.SwiftLink = swiftLink;
+            c64.CartridgeDevices.Add(swiftLink);
+        }
 
         c64.CPU = cpu;
         c64.Vic2 = vic2;
@@ -364,6 +378,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
             Cia1.MapIOLocations(mem);
             Cia2.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
+            foreach (var cartridgeDevice in CartridgeDevices)
+                cartridgeDevice.MapIOLocations(mem);
         }
     }
 
@@ -579,6 +595,11 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         var row1 = $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank}";
         var row2 = $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
         return new List<string>() { row1, row2 };
+    }
+
+    public void Cleanup()
+    {
+        SwiftLink?.Transport?.Dispose();
     }
 
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()

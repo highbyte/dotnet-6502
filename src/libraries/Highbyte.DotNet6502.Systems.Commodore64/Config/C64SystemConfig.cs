@@ -298,6 +298,28 @@ public class C64SystemConfig : ISystemConfig
         }
     }
 
+    private bool _swiftLinkEnabled;
+    public bool SwiftLinkEnabled
+    {
+        get => _swiftLinkEnabled;
+        set
+        {
+            _swiftLinkEnabled = value;
+            _isDirty = true;
+        }
+    }
+
+    private C64CartridgeIOAddress _swiftLinkCartridgeIOAddress;
+    public C64CartridgeIOAddress SwiftLinkCartridgeIOAddress
+    {
+        get => _swiftLinkCartridgeIOAddress;
+        set
+        {
+            _swiftLinkCartridgeIOAddress = value;
+            _isDirty = true;
+        }
+    }
+
     [JsonIgnore]
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
 
@@ -322,6 +344,8 @@ public class C64SystemConfig : ISystemConfig
         _audioEnabled = true;
         _keyboardJoystickEnabled = false;
         _keyboardJoystick = 2;
+        _swiftLinkEnabled = false;
+        _swiftLinkCartridgeIOAddress = C64CartridgeIOAddress.DE00;
 
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
 
@@ -429,6 +453,9 @@ public class C64SystemConfig : ISystemConfig
                     validationErrors.AddRange(romValidationErrors);
             }
         }
+
+        if (!Enum.IsDefined(SwiftLinkCartridgeIOAddress))
+            validationErrors.Add($"{nameof(SwiftLinkCartridgeIOAddress)} has an invalid value.");
 
         return validationErrors.Count == 0;
     }

@@ -40,6 +40,7 @@ public class C64Setup : C64SystemConfigurerCore
 
     // The WASM host always renders the C64 via the custom render provider.
     protected override Type? DefaultRenderProviderType => typeof(C64CustomRenderProvider);
+    protected override bool SupportsSwiftLinkTcpTransport => false;
 
     public override async Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
@@ -104,7 +105,7 @@ public class C64Setup : C64SystemConfigurerCore
         var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, LoggerFactory);
         c64.InputConsumer = new C64InputHandler(c64, LoggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
-        return new SystemRunner(c64);
+        return await base.BuildSystemRunner(system, hostSystemConfig);
     }
 
     private async Task<List<ROM>> GetROMsFromLocalStorageLegacy()

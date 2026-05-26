@@ -25,6 +25,8 @@ public class C64Config
     public bool KeyboardJoystickEnabled { get; set; }
     public int KeyboardJoystick { get; set; }
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; set; }
+    public bool SwiftLinkEnabled { get; set; }
+    public C64CartridgeIOAddress SwiftLinkCartridgeIOAddress { get; set; }
     public Type? RenderProviderType { get; set; }
     public Type? AudioProviderType { get; set; }
     public SidEmulationMode SidEmulationMode { get; set; } = SidEmulationMode.Auto;
@@ -44,6 +46,8 @@ public class C64Config
         AudioEnabled = false;
         KeyboardJoystickEnabled = false;
         KeyboardJoystick = 2;
+        SwiftLinkEnabled = false;
+        SwiftLinkCartridgeIOAddress = C64CartridgeIOAddress.DE00;
 
         // Settings not currently changeable by user
         TimerMode = TimerMode.UpdateEachRasterLine;

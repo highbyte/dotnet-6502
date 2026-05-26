@@ -318,6 +318,68 @@
         </Border>
         </StackPanel>
 
+        <!-- SwiftLink Section -->
+        <StackPanel Width="460" Classes="wrap-item"
+                    IsVisible="{Binding !IsRunningInWebAssembly}">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+            <TextBlock Text="SwiftLink TCP"
+                        Classes=""/>
+            <TextBlock Text="Expose a SwiftLink-compatible ACIA at $DE00 or $DF00 and connect it to a host TCP socket."
+                        Classes="small secondary-text"/>
+
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Classes="spacing-tight">
+                <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                        AutomationProperties.AutomationId="SwiftLinkEnableCheckBox"
+                        AutomationProperties.Name="Enable SwiftLink"
+                        Content="Enable SwiftLink cartridge"
+                        IsChecked="{Binding SwiftLinkEnabled}"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                            Text="Base address:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="1" Grid.Column="1"
+                        AutomationProperties.AutomationId="SwiftLinkBaseAddressComboBox"
+                        AutomationProperties.Name="SwiftLink base address"
+                        ItemsSource="{Binding AvailableSwiftLinkCartridgeIOAddresses}"
+                        SelectedItem="{Binding SelectedSwiftLinkCartridgeIOAddress}"
+                        Classes="small"
+                        MinWidth="100"
+                        MaxDropDownHeight="100"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                            Text="TCP host:"
+                            Classes="secondary-text"/>
+                <TextBox Grid.Row="2" Grid.Column="1"
+                        AutomationProperties.AutomationId="SwiftLinkTcpHostTextBox"
+                        AutomationProperties.Name="SwiftLink TCP host"
+                        Text="{Binding SwiftLinkTcpHost}"
+                        PlaceholderText="127.0.0.1"
+                        Classes="field-aligned"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0"
+                            Text="TCP port:"
+                            Classes="secondary-text"/>
+                <NumericUpDown Grid.Row="3" Grid.Column="1"
+                        AutomationProperties.AutomationId="SwiftLinkTcpPortNumericUpDown"
+                        AutomationProperties.Name="SwiftLink TCP port"
+                        Value="{Binding SwiftLinkTcpPort}"
+                        Minimum="1"
+                        Maximum="65535"
+                        Classes="small"
+                        Width="120"
+                        HorizontalAlignment="Left"/>
+
+                <CheckBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                        AutomationProperties.AutomationId="SwiftLinkConnectOnBootCheckBox"
+                        AutomationProperties.Name="Connect SwiftLink on boot"
+                        Content="Connect automatically when the emulator starts"
+                        IsChecked="{Binding SwiftLinkConnectOnBoot}"/>
+            </Grid>
+            </StackPanel>
+        </Border>
+        </StackPanel>
+
         <!-- Network Section (browser only) -->
         <StackPanel Width="460" Classes="wrap-item"
                     IsVisible="{Binding IsRunningInWebAssembly}">
