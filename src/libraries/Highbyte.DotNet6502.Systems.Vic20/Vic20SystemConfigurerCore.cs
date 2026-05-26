@@ -50,8 +50,14 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
 
     public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
     {
+        var vic20SystemConfig = (Vic20SystemConfig)systemConfig;
         var vic20Config = new Vic20Config();
-        ISystem vic20 = new Vic20(vic20Config, LoggerFactory);
+
+        Dictionary<string, byte[]>? romData = null;
+        if (vic20SystemConfig.ROMs.Count > 0)
+            romData = ROM.LoadROMS(vic20SystemConfig.ROMDirectory, vic20SystemConfig.ROMs.ToArray());
+
+        ISystem vic20 = new Vic20(vic20Config, LoggerFactory, romData);
         return Task.FromResult(vic20);
     }
 

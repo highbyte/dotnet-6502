@@ -70,7 +70,7 @@ public class Vic20 : ISystem, ITextMode, IScreen
 
     public Vic20() : this(new Vic20Config(), new NullLoggerFactory()) { }
 
-    public Vic20(Vic20Config config, ILoggerFactory loggerFactory)
+    public Vic20(Vic20Config config, ILoggerFactory loggerFactory, Dictionary<string, byte[]>? romData = null)
     {
         _vic20Config = config;
         Mem = new Memory();
@@ -83,7 +83,13 @@ public class Vic20 : ISystem, ITextMode, IScreen
         CPU.InstructionExecuted += (_, e) =>
             OnCPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
 
+        if (romData != null)
+            MapROMs(romData);
+
         InitScreenMemory();
+
+        if (romData != null)
+            CPU.Reset(Mem);
 
         RenderProviders.Add(new Vic20VideoCommandStream(this));
         SetCurrentRenderProvider(typeof(Vic20VideoCommandStream));
@@ -101,11 +107,27 @@ public class Vic20 : ISystem, ITextMode, IScreen
             ?? throw new ArgumentException("Render provider type not found.");
     }
 
+    private void MapROMs(Dictionary<string, byte[]> romData)
+    {
+        // VIC-20 ROM layout:
+        //   $8000–$8FFF  Character ROM (4 KB) — VIC-I address space, also CPU-readable
+        //   $C000–$DFFF  BASIC ROM     (8 KB)
+        //   $E000–$FFFF  KERNAL ROM    (8 KB)
+        // Note: $A000–$BFFF is the BLK5 cartridge area (empty on stock VIC-20).
+        if (romData.TryGetValue(Vic20SystemConfig.CHARGEN_ROM_NAME, out var chargen))
+            Mem.MapROM(0x8000, chargen);
+        if (romData.TryGetValue(Vic20SystemConfig.BASIC_ROM_NAME, out var basic))
+            Mem.MapROM(0xC000, basic);
+        if (romData.TryGetValue(Vic20SystemConfig.KERNAL_ROM_NAME, out var kernal))
+            Mem.MapROM(0xE000, kernal);
+    }
+
     private void InitScreenMemory()
     {
-        // Blank the screen with spaces and default colors
-        Mem[_vic20Config.BackgroundColorAddress] = _vic20Config.DefaultBgColor;
-        Mem[_vic20Config.BorderColorAddress] = _vic20Config.DefaultBorderColor;
+        // VIC-I $900F packs: background (bits 7-4) | reverse=1 (bit 3) | border (bits 2-0)
+        Mem[0x900F] = (byte)(((_vic20Config.DefaultBgColor & 0x0F) << 4)
+                             | 0x08
+                             | (_vic20Config.DefaultBorderColor & 0x07));
 
         var screenAddr = _vic20Config.ScreenStartAddress;
         var colorAddr = _vic20Config.ColorStartAddress;

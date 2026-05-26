@@ -20,14 +20,18 @@ public class Vic20Config
     // VIC-20 color RAM: always at this address regardless of RAM expansion
     public ushort ColorStartAddress { get; set; } = 0x9600;
 
-    // Simplified color control: two separate addresses for bg and border
+    // VIC-I register $900F packs both:
+    //   bits 7-4: background color (16 colors)
+    //   bit  3  : reverse video (1=normal, 0=reverse)
+    //   bits 2-0: border color   (8 colors)
+    // $900E is NOT border — it is sound volume (bits 3-0) + auxiliary color (bits 7-4).
     public ushort BackgroundColorAddress { get; set; } = 0x900F;
-    public ushort BorderColorAddress { get; set; } = 0x900E;
+    public ushort BorderColorAddress { get; set; } = 0x900F;
 
-    // VIC-20 boots to a blue screen with white text
-    public byte DefaultFgColor { get; set; } = 0x01;  // White
-    public byte DefaultBgColor { get; set; } = 0x06;  // Blue
-    public byte DefaultBorderColor { get; set; } = 0x03; // Cyan
+    // VIC-20 boots to a white screen with cyan border and blue text.
+    public byte DefaultFgColor { get; set; } = 0x06;  // Blue (3-bit)
+    public byte DefaultBgColor { get; set; } = 0x01;  // White (4-bit)
+    public byte DefaultBorderColor { get; set; } = 0x03; // Cyan (3-bit)
 
     // CPU cycles per frame: VIC-20 NTSC runs at ~14318 cycles/frame at 60 Hz
     public ulong CpuCyclesPerFrame { get; set; } = 14318;

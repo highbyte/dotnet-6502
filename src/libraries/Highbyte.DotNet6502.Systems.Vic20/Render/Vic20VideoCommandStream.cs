@@ -51,7 +51,8 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
     private void RenderMainScreen()
     {
         var mem = _vic20.Mem;
-        var bgColorByte = mem[_config.BackgroundColorAddress];
+        // VIC-I $900F: background color is in bits 7-4 (high nibble, 16 colors)
+        var bgColorIndex = (byte)((mem[_config.BackgroundColorAddress] >> 4) & 0x0F);
 
         var screenAddr = _config.ScreenStartAddress;
         var colorAddr = _config.ColorStartAddress;
@@ -61,14 +62,15 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
             for (var col = 0; col < Vic20Config.Cols; col++)
             {
                 var charByte = mem[screenAddr++];
-                var fgColorByte = mem[colorAddr++];
+                // Color RAM stores 3-bit foreground color in bits 2-0
+                var fgColorIndex = (byte)(mem[colorAddr++] & 0x07);
 
                 _commands.Enqueue(MakeDrawGlyph(
                     col + Vic20Config.BorderCols,
                     row + Vic20Config.BorderRows,
                     charByte,
-                    fgColorByte,
-                    bgColorByte));
+                    fgColorIndex,
+                    bgColorIndex));
             }
         }
     }
@@ -76,7 +78,8 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
     private void RenderBorder()
     {
         var mem = _vic20.Mem;
-        var borderColorByte = mem[_config.BorderColorAddress];
+        // VIC-I $900F: border color is in bits 2-0 (low 3 bits, 8 colors)
+        var borderColorByte = (byte)(mem[_config.BorderColorAddress] & 0x07);
 
         var totalCols = Vic20Config.Cols + Vic20Config.BorderCols * 2;
         var totalRows = Vic20Config.Rows + Vic20Config.BorderRows * 2;
