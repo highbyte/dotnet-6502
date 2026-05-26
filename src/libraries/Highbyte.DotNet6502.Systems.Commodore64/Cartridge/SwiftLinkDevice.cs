@@ -9,6 +9,11 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private const byte StatusRxFullBit = 1 << 3;
     private const byte StatusTxEmptyBit = 1 << 4;
     private const byte StatusIrqBit = 1 << 7;
+    private const byte CommandDtrBit = 1 << 0;
+    private const byte CommandReceiverIrqDisableBit = 1 << 1;
+    private const byte CommandTransmitterControlMask = 0b0000_1100;
+    private const byte CommandTransmitterIrqControl = 0b0000_0100;
+    private const string IrqSourceName = "SwiftLink";
 
     private readonly ILogger _logger;
     private readonly ushort _baseAddress;
@@ -29,6 +34,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
     public string Name => "SwiftLink";
     public ISwiftLinkTransport? Transport { get; set; }
+    public CPUInterrupts? CpuInterrupts { get; set; }
     public ushort BaseAddress => _baseAddress;
 
     public void MapIOLocations(Memory mem)
@@ -54,6 +60,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         {
             _rxData = value;
             _rxFull = true;
+            RaiseReceiveIrqIfEnabled();
         }
     }
 
@@ -66,6 +73,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         _commandRegister = 0;
         _controlRegister = 0;
         _pendingSendTask = null;
+        ClearIrqPending();
         Transport?.Reset();
     }
 
@@ -119,6 +127,11 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             value |= StatusTxEmptyBit;
         if (_irqPending)
             value |= StatusIrqBit;
+
+        // The 6551 IRQ status flag is cleared by reading the status register.
+        if (_irqPending)
+            ClearIrqPending();
+
         return value;
     }
 
@@ -130,6 +143,9 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private void CommandStore(ushort _, byte value)
     {
         _commandRegister = value;
+
+        if (!InterruptsEnabled)
+            ClearIrqPending();
     }
 
     private void ControlStore(ushort _, byte value)
@@ -152,5 +168,38 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             _logger.LogDebug(pendingSendTask.Exception, "SwiftLink send task faulted.");
 
         _txEmpty = true;
+        RaiseTransmitIrqIfEnabled();
+    }
+
+    private bool InterruptsEnabled => (_commandRegister & CommandDtrBit) != 0;
+
+    private bool ReceiveInterruptEnabled
+        => InterruptsEnabled && (_commandRegister & CommandReceiverIrqDisableBit) == 0;
+
+    private bool TransmitInterruptEnabled
+        => InterruptsEnabled && (_commandRegister & CommandTransmitterControlMask) == CommandTransmitterIrqControl;
+
+    private void RaiseReceiveIrqIfEnabled()
+    {
+        if (_rxFull && ReceiveInterruptEnabled)
+            SetIrqPending();
+    }
+
+    private void RaiseTransmitIrqIfEnabled()
+    {
+        if (_txEmpty && TransmitInterruptEnabled)
+            SetIrqPending();
+    }
+
+    private void SetIrqPending()
+    {
+        _irqPending = true;
+        CpuInterrupts?.SetIRQSourceActive(IrqSourceName, autoAcknowledge: false);
+    }
+
+    private void ClearIrqPending()
+    {
+        _irqPending = false;
+        CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
     }
 }

@@ -2,12 +2,16 @@ using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.Cartridge;
 
 public class SwiftLinkDeviceTests
 {
+    private const byte ReceiveIrqEnabledCommand = 0x09;
+    private const byte TransmitIrqEnabledCommand = 0x05;
+
     [Fact]
     public async Task Rx_Full_Is_Set_When_Transport_Has_Data_And_Cleared_On_Read()
     {
@@ -88,6 +92,109 @@ public class SwiftLinkDeviceTests
     }
 
     [Fact]
+    public async Task Receive_Irq_Is_Raised_When_Rx_Full_Transitions_And_Cleared_On_Status_Read()
+    {
+        var interrupts = new CPUInterrupts();
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
+        {
+            CpuInterrupts = interrupts
+        };
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        device.Transport = transport;
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+        mem.Write(0xDE02, ReceiveIrqEnabledCommand);
+
+        await transport.SendAsync(0x41);
+        device.Tick();
+
+        Assert.True(interrupts.IRQLineEnabled);
+        var status = mem.Read(0xDE01);
+        Assert.True(IsRxFull(status));
+        Assert.True(IsIrqPending(status));
+        Assert.False(interrupts.IRQLineEnabled);
+
+        Assert.Equal(0x41, mem.Read(0xDE00));
+        Assert.False(IsIrqPending(mem.Read(0xDE01)));
+    }
+
+    [Fact]
+    public void Transmit_Irq_Is_Raised_When_Send_Completes_And_Cleared_On_Status_Read()
+    {
+        var interrupts = new CPUInterrupts();
+        var transport = new PendingSendTransport();
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
+        {
+            Transport = transport,
+            CpuInterrupts = interrupts
+        };
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+        mem.Write(0xDE02, TransmitIrqEnabledCommand);
+
+        mem.Write(0xDE00, 0x42);
+        Assert.False(interrupts.IRQLineEnabled);
+
+        transport.CompletePendingSend();
+        device.Tick();
+
+        Assert.True(interrupts.IRQLineEnabled);
+        var status = mem.Read(0xDE01);
+        Assert.True(IsTxEmpty(status));
+        Assert.True(IsIrqPending(status));
+        Assert.False(interrupts.IRQLineEnabled);
+    }
+
+    [Fact]
+    public async Task Rx_Queue_Behaves_As_Network_Side_Fifo_While_C64_Side_Stays_One_Byte()
+    {
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance);
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        device.Transport = transport;
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+
+        await transport.SendAsync(0x41);
+        await transport.SendAsync(0x42);
+
+        device.Tick();
+        Assert.True(IsRxFull(mem.Read(0xDE01)));
+        Assert.Equal(0x41, mem.Read(0xDE00));
+
+        device.Tick();
+        Assert.True(IsRxFull(mem.Read(0xDE01)));
+        Assert.Equal(0x42, mem.Read(0xDE00));
+    }
+
+    [Fact]
+    public async Task Receive_Irq_Is_Not_Raised_When_Disabled()
+    {
+        var interrupts = new CPUInterrupts();
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
+        {
+            CpuInterrupts = interrupts
+        };
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        device.Transport = transport;
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+
+        await transport.SendAsync(0x41);
+        device.Tick();
+
+        Assert.False(interrupts.IRQLineEnabled);
+        Assert.True(IsRxFull(mem.Read(0xDE01)));
+        Assert.False(IsIrqPending(mem.Read(0xDE01)));
+    }
+
+    [Fact]
     public void BuildC64_Creates_SwiftLink_Device_When_Enabled()
     {
         var c64 = C64.BuildC64(new C64Config
@@ -99,6 +206,7 @@ public class SwiftLinkDeviceTests
 
         Assert.NotNull(c64.SwiftLink);
         Assert.Equal((ushort)0xDF00, c64.SwiftLink!.BaseAddress);
+        Assert.Same(c64.CPU.CPUInterrupts, c64.SwiftLink.CpuInterrupts);
     }
 
     [Fact]
@@ -118,6 +226,9 @@ public class SwiftLinkDeviceTests
 
     private static bool IsTxEmpty(byte status)
         => (status & (1 << 4)) != 0;
+
+    private static bool IsIrqPending(byte status)
+        => (status & (1 << 7)) != 0;
 
     private sealed class PendingSendTransport : ISwiftLinkTransport
     {

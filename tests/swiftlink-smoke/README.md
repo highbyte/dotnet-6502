@@ -21,6 +21,12 @@ Run locally:
 ./tests/swiftlink-smoke/run-local.ps1
 ```
 
+Interrupt-driven burst smoke:
+
+```sh
+./tests/swiftlink-smoke/run-irq-local.sh
+```
+
 Requirements:
 
 - Python 3 available as `python3`, `python`, or `py -3`.
