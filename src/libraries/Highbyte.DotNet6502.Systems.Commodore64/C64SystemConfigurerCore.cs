@@ -114,6 +114,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
             SwiftLinkEnabled = c64SystemConfig.SwiftLinkEnabled,
             SwiftLinkCartridgeIOAddress = c64SystemConfig.SwiftLinkCartridgeIOAddress,
+            SwiftLinkInterruptMode = c64SystemConfig.SwiftLinkInterruptMode,
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
@@ -134,7 +135,10 @@ public class C64SystemConfigurerCore : ISystemConfigurer
         var c64 = (C64)system;
         if (SupportsSwiftLinkTcpTransport && c64.SwiftLink != null && hostSystemConfig is IC64SwiftLinkTcpHostConfig swiftLinkHostConfig)
         {
-            var transport = new TcpTransport(swiftLinkHostConfig.SwiftLinkTcpHost, swiftLinkHostConfig.SwiftLinkTcpPort);
+            var transport = new TcpTransport(
+                swiftLinkHostConfig.SwiftLinkTcpHost,
+                swiftLinkHostConfig.SwiftLinkTcpPort,
+                LoggerFactory.CreateLogger(nameof(TcpTransport)));
             c64.SwiftLink.Transport = transport;
             if (swiftLinkHostConfig.SwiftLinkConnectOnBoot)
                 await transport.ConnectAsync();

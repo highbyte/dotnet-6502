@@ -54,6 +54,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private string _selectedKeyboardLayout = AutoKeyboardLayoutLabel;
     private bool _swiftLinkEnabled;
     private C64CartridgeIOAddress _selectedSwiftLinkCartridgeIOAddress;
+    private C64SwiftLinkInterruptMode _selectedSwiftLinkInterruptMode;
     private string _swiftLinkTcpHost = string.Empty;
     private int _swiftLinkTcpPort;
     private bool _swiftLinkConnectOnBoot;
@@ -107,6 +108,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SelectedKeyboardLayout = _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;
         SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLinkEnabled;
         SelectedSwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress;
+        SelectedSwiftLinkInterruptMode = _workingConfig.SystemConfig.SwiftLinkInterruptMode;
         SwiftLinkTcpHost = _workingConfig.SwiftLinkTcpHost;
         SwiftLinkTcpPort = _workingConfig.SwiftLinkTcpPort;
         SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkConnectOnBoot;
@@ -187,6 +189,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
     public ObservableCollection<C64CartridgeIOAddress> AvailableSwiftLinkCartridgeIOAddresses { get; } =
         new(Enum.GetValues<C64CartridgeIOAddress>());
+    public ObservableCollection<C64SwiftLinkInterruptMode> AvailableSwiftLinkInterruptModes { get; } =
+        new(Enum.GetValues<C64SwiftLinkInterruptMode>());
     // "Auto" (auto-detect) plus each explicit C64KeyboardLayout, as strings for the dropdown.
     public ObservableCollection<string> AvailableKeyboardLayouts { get; } =
         new(new[] { AutoKeyboardLayoutLabel }.Concat(Enum.GetNames<C64KeyboardLayout>()));
@@ -271,6 +275,19 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkCartridgeIOAddress, value);
             _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress = value;
+        }
+    }
+
+    public C64SwiftLinkInterruptMode SelectedSwiftLinkInterruptMode
+    {
+        get => _selectedSwiftLinkInterruptMode;
+        set
+        {
+            if (_selectedSwiftLinkInterruptMode == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedSwiftLinkInterruptMode, value);
+            _workingConfig.SystemConfig.SwiftLinkInterruptMode = value;
         }
     }
 
@@ -1332,6 +1349,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.KeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
         _originalConfig.SystemConfig.SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLinkEnabled;
         _originalConfig.SystemConfig.SwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress;
+        _originalConfig.SystemConfig.SwiftLinkInterruptMode = _workingConfig.SystemConfig.SwiftLinkInterruptMode;
         _originalConfig.SystemConfig.ColorMapName = _workingConfig.SystemConfig.ColorMapName;
         _originalConfig.SwiftLinkTcpHost = _workingConfig.SwiftLinkTcpHost;
         _originalConfig.SwiftLinkTcpPort = _workingConfig.SwiftLinkTcpPort;

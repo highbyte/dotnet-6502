@@ -1,33 +1,41 @@
 using System.Collections.Concurrent;
 using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Transport;
 
 public sealed class TcpTransport : ISwiftLinkTransport
 {
+    private static readonly TimeSpan ReaderShutdownTimeout = TimeSpan.FromSeconds(1);
+
     private readonly string _host;
     private readonly int _port;
     private readonly ConcurrentQueue<byte> _receivedBytes = new();
     private readonly object _sync = new();
 
+    private readonly ILogger _logger;
     private TcpClient? _tcpClient;
     private NetworkStream? _stream;
     private CancellationTokenSource? _readerCts;
     private Task? _readerTask;
+    private bool _isConnected;
+    private bool _warnedDisconnectedSend;
 
-    public TcpTransport(string host, int port)
+    public TcpTransport(string host, int port, ILogger logger)
     {
         _host = host;
         _port = port;
+        _logger = logger;
     }
 
-    public bool IsConnected => _tcpClient?.Connected == true;
+    public bool IsConnected => _isConnected;
 
     public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
             return;
 
+        _logger.LogInformation("Connecting SwiftLink TCP transport to {Host}:{Port}.", _host, _port);
         var tcpClient = new TcpClient();
         await tcpClient.ConnectAsync(_host, _port, cancellationToken);
         var stream = tcpClient.GetStream();
@@ -39,7 +47,11 @@ public sealed class TcpTransport : ISwiftLinkTransport
             _stream = stream;
             _readerCts = readerCts;
             _readerTask = Task.Run(() => ReaderLoopAsync(stream, readerCts.Token), CancellationToken.None);
+            _isConnected = true;
+            _warnedDisconnectedSend = false;
         }
+
+        _logger.LogInformation("Connected SwiftLink TCP transport to {Host}:{Port}.", _host, _port);
     }
 
     public async ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
@@ -59,9 +71,11 @@ public sealed class TcpTransport : ISwiftLinkTransport
             _readerCts = null;
             _stream = null;
             _tcpClient = null;
+            _isConnected = false;
         }
 
         readerCts?.Cancel();
+        TryShutdownSocket(tcpClient);
 
         if (stream != null)
             await stream.DisposeAsync();
@@ -71,10 +85,23 @@ public sealed class TcpTransport : ISwiftLinkTransport
         {
             try
             {
-                await readerTask.WaitAsync(cancellationToken);
+                var waitToken = cancellationToken;
+                if (!waitToken.CanBeCanceled)
+                {
+                    using var waitCts = new CancellationTokenSource(ReaderShutdownTimeout);
+                    await readerTask.WaitAsync(waitCts.Token);
+                }
+                else
+                {
+                    await readerTask.WaitAsync(waitToken);
+                }
             }
             catch (OperationCanceledException)
             {
+                _logger.LogWarning(
+                    "Timed out waiting for SwiftLink TCP transport reader loop to stop for {Host}:{Port}.",
+                    _host,
+                    _port);
             }
             catch (ObjectDisposedException)
             {
@@ -86,6 +113,7 @@ public sealed class TcpTransport : ISwiftLinkTransport
 
         readerCts?.Dispose();
         Reset();
+        _logger.LogInformation("Disconnected SwiftLink TCP transport from {Host}:{Port}.", _host, _port);
     }
 
     public bool TryDequeueReceivedByte(out byte value)
@@ -94,9 +122,17 @@ public sealed class TcpTransport : ISwiftLinkTransport
     public async ValueTask SendAsync(byte value, CancellationToken cancellationToken = default)
     {
         var stream = _stream;
-        if (stream == null)
+        if (stream == null || !_isConnected)
+        {
+            if (!_warnedDisconnectedSend)
+            {
+                _logger.LogWarning("SwiftLink send attempted while TCP transport is not connected.");
+                _warnedDisconnectedSend = true;
+            }
             return;
+        }
 
+        _logger.LogDebug("SwiftLink TCP transport sending byte 0x{Value:X2}.", value);
         await stream.WriteAsync(new[] { value }, cancellationToken);
     }
 
@@ -136,10 +172,36 @@ public sealed class TcpTransport : ISwiftLinkTransport
             }
 
             if (bytesRead <= 0)
+            {
+                _logger.LogInformation("SwiftLink TCP transport remote closed the connection.");
+                lock (_sync)
+                {
+                    _isConnected = false;
+                }
                 break;
+            }
+
+            _logger.LogDebug("SwiftLink TCP transport received {ByteCount} byte(s).", bytesRead);
 
             for (var i = 0; i < bytesRead; i++)
                 _receivedBytes.Enqueue(buffer[i]);
+        }
+    }
+
+    private void TryShutdownSocket(TcpClient? tcpClient)
+    {
+        if (tcpClient?.Client == null)
+            return;
+
+        try
+        {
+            tcpClient.Client.Shutdown(SocketShutdown.Both);
+        }
+        catch (SocketException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
         }
     }
 }

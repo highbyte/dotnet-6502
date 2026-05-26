@@ -294,7 +294,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
                 c64Config.SwiftLinkCartridgeIOAddress,
                 loggerFactory.CreateLogger(nameof(SwiftLinkDevice)))
             {
-                CpuInterrupts = cpu.CPUInterrupts
+                CpuInterrupts = cpu.CPUInterrupts,
+                InterruptMode = c64Config.SwiftLinkInterruptMode,
             };
             c64.SwiftLink = swiftLink;
             c64.CartridgeDevices.Add(swiftLink);

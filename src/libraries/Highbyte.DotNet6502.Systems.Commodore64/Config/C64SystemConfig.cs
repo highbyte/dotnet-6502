@@ -320,6 +320,18 @@ public class C64SystemConfig : ISystemConfig
         }
     }
 
+    private C64SwiftLinkInterruptMode _swiftLinkInterruptMode;
+    [JsonConverter(typeof(JsonStringEnumConverter<C64SwiftLinkInterruptMode>))]
+    public C64SwiftLinkInterruptMode SwiftLinkInterruptMode
+    {
+        get => _swiftLinkInterruptMode;
+        set
+        {
+            _swiftLinkInterruptMode = value;
+            _isDirty = true;
+        }
+    }
+
     [JsonIgnore]
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
 
@@ -338,6 +350,8 @@ public class C64SystemConfig : ISystemConfig
         {
             _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
         }
+
+        _swiftLinkInterruptMode = C64SwiftLinkInterruptMode.IRQ;
 
         _colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
@@ -456,6 +470,8 @@ public class C64SystemConfig : ISystemConfig
 
         if (!Enum.IsDefined(SwiftLinkCartridgeIOAddress))
             validationErrors.Add($"{nameof(SwiftLinkCartridgeIOAddress)} has an invalid value.");
+        if (!Enum.IsDefined(SwiftLinkInterruptMode))
+            validationErrors.Add($"{nameof(SwiftLinkInterruptMode)} has an invalid value.");
 
         return validationErrors.Count == 0;
     }

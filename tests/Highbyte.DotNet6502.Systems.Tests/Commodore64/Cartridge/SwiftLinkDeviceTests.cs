@@ -121,6 +121,33 @@ public class SwiftLinkDeviceTests
     }
 
     [Fact]
+    public async Task Receive_Nmi_Is_Raised_When_Configured_And_Cleared_On_Status_Read()
+    {
+        var interrupts = new CPUInterrupts();
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
+        {
+            CpuInterrupts = interrupts,
+            InterruptMode = C64SwiftLinkInterruptMode.NMI
+        };
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        device.Transport = transport;
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+        mem.Write(0xDE02, ReceiveIrqEnabledCommand);
+
+        await transport.SendAsync(0x41);
+        device.Tick();
+
+        Assert.True(interrupts.NMILineEnabled);
+        var status = mem.Read(0xDE01);
+        Assert.True(IsRxFull(status));
+        Assert.True(IsIrqPending(status));
+        Assert.False(interrupts.NMILineEnabled);
+    }
+
+    [Fact]
     public void Transmit_Irq_Is_Raised_When_Send_Completes_And_Cleared_On_Status_Read()
     {
         var interrupts = new CPUInterrupts();
@@ -195,6 +222,26 @@ public class SwiftLinkDeviceTests
     }
 
     [Fact]
+    public async Task Status_Reflects_Carrier_And_Dsr_State_From_Transport_Connection()
+    {
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance);
+        var transport = new LoopbackTransport();
+        device.Transport = transport;
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+
+        Assert.True(IsDcdHigh(mem.Read(0xDE01)));
+        Assert.True(IsDsrHigh(mem.Read(0xDE01)));
+
+        await transport.ConnectAsync();
+        device.Tick();
+
+        Assert.False(IsDcdHigh(mem.Read(0xDE01)));
+        Assert.False(IsDsrHigh(mem.Read(0xDE01)));
+    }
+
+    [Fact]
     public void BuildC64_Creates_SwiftLink_Device_When_Enabled()
     {
         var c64 = C64.BuildC64(new C64Config
@@ -207,6 +254,7 @@ public class SwiftLinkDeviceTests
         Assert.NotNull(c64.SwiftLink);
         Assert.Equal((ushort)0xDF00, c64.SwiftLink!.BaseAddress);
         Assert.Same(c64.CPU.CPUInterrupts, c64.SwiftLink.CpuInterrupts);
+        Assert.Equal(C64SwiftLinkInterruptMode.IRQ, c64.SwiftLink.InterruptMode);
     }
 
     [Fact]
@@ -229,6 +277,12 @@ public class SwiftLinkDeviceTests
 
     private static bool IsIrqPending(byte status)
         => (status & (1 << 7)) != 0;
+
+    private static bool IsDcdHigh(byte status)
+        => (status & (1 << 5)) != 0;
+
+    private static bool IsDsrHigh(byte status)
+        => (status & (1 << 6)) != 0;
 
     private sealed class PendingSendTransport : ISwiftLinkTransport
     {

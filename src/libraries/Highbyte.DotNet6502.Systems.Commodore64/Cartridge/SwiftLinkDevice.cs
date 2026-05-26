@@ -8,6 +8,8 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 {
     private const byte StatusRxFullBit = 1 << 3;
     private const byte StatusTxEmptyBit = 1 << 4;
+    private const byte StatusDcdBit = 1 << 5;
+    private const byte StatusDsrBit = 1 << 6;
     private const byte StatusIrqBit = 1 << 7;
     private const byte CommandDtrBit = 1 << 0;
     private const byte CommandReceiverIrqDisableBit = 1 << 1;
@@ -25,6 +27,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private byte _commandRegister;
     private byte _controlRegister;
     private Task? _pendingSendTask;
+    private bool? _lastConnectedState;
 
     public SwiftLinkDevice(C64CartridgeIOAddress baseAddress, ILogger logger)
     {
@@ -35,6 +38,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     public string Name => "SwiftLink";
     public ISwiftLinkTransport? Transport { get; set; }
     public CPUInterrupts? CpuInterrupts { get; set; }
+    public C64SwiftLinkInterruptMode InterruptMode { get; set; } = C64SwiftLinkInterruptMode.IRQ;
     public ushort BaseAddress => _baseAddress;
 
     public void MapIOLocations(Memory mem)
@@ -51,6 +55,8 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
     public void Tick()
     {
+        UpdateConnectionState();
+
         if (_pendingSendTask != null && _pendingSendTask.IsCompleted)
         {
             CompletePendingSend();
@@ -73,6 +79,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         _commandRegister = 0;
         _controlRegister = 0;
         _pendingSendTask = null;
+        _lastConnectedState = null;
         ClearIrqPending();
         Transport?.Reset();
     }
@@ -121,6 +128,10 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private byte StatusLoad(ushort _)
     {
         byte value = 0;
+        if (!IsCarrierDetected)
+            value |= StatusDcdBit;
+        if (!IsDataSetReady)
+            value |= StatusDsrBit;
         if (_rxFull)
             value |= StatusRxFullBit;
         if (_txEmpty)
@@ -143,14 +154,16 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private void CommandStore(ushort _, byte value)
     {
         _commandRegister = value;
+        _logger.LogDebug("SwiftLink command register set to 0x{Value:X2}.", value);
 
-        if (!InterruptsEnabled)
+        if (!InterruptsEnabled || !ReceiveInterruptEnabled)
             ClearIrqPending();
     }
 
     private void ControlStore(ushort _, byte value)
     {
         _controlRegister = value;
+        _logger.LogDebug("SwiftLink control register set to 0x{Value:X2}.", value);
     }
 
     private void CompletePendingSend()
@@ -194,12 +207,39 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private void SetIrqPending()
     {
         _irqPending = true;
-        CpuInterrupts?.SetIRQSourceActive(IrqSourceName, autoAcknowledge: false);
+        if (InterruptMode == C64SwiftLinkInterruptMode.NMI)
+            CpuInterrupts?.SetNMISourceActive(IrqSourceName);
+        else
+            CpuInterrupts?.SetIRQSourceActive(IrqSourceName, autoAcknowledge: false);
     }
 
     private void ClearIrqPending()
     {
         _irqPending = false;
-        CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
+        if (InterruptMode == C64SwiftLinkInterruptMode.NMI)
+            CpuInterrupts?.SetNMISourceInactive(IrqSourceName);
+        else
+            CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
+    }
+
+    private bool IsCarrierDetected => Transport?.IsConnected == true;
+
+    private bool IsDataSetReady => Transport?.IsConnected == true;
+
+    private void UpdateConnectionState()
+    {
+        var isConnected = Transport?.IsConnected == true;
+        if (_lastConnectedState == isConnected)
+            return;
+
+        var hadPreviousState = _lastConnectedState.HasValue;
+        _lastConnectedState = isConnected;
+        if (hadPreviousState)
+            _logger.LogInformation("SwiftLink TCP transport {State}.", isConnected ? "connected" : "disconnected");
+        else
+            _logger.LogDebug("SwiftLink TCP transport initial state is {State}.", isConnected ? "connected" : "disconnected");
+
+        if (hadPreviousState && ReceiveInterruptEnabled)
+            SetIrqPending();
     }
 }
