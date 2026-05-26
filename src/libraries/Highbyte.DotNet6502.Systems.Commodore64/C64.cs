@@ -27,6 +27,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64;
 
 public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 {
+    private const byte CpuPortBankBitsMask = 0x07;
+    private const byte CpuPortDataDirectionResetValue = 0x2F;
+    private const byte CpuPortDataResetValue = 0x37;
+    private const byte CpuPortInputPullupMask = 0x17;
+
     public const string SystemName = "C64";
     public string Name => SystemName;
     public List<string> SystemInfo => BuildSystemInfo();
@@ -90,6 +95,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public C64TextPaste TextPaste { get; private set; } = default!;
     public C64InputInjector? InputInjector { get; private set; }
     IInputInjector? ISystem.InputInjector => InputInjector;
+
+    private byte _cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
+    private byte _cpuPortDataRegister = CpuPortDataResetValue;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -370,7 +378,10 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)
     {
-        // Address 0x01: IO Port. Controls bank switching and Cassette control
+        // Address 0x00: 6510 CPU data direction register.
+        mem.MapReader(0x00, IoPortDirectionLoad);
+        mem.MapWriter(0x00, IoPortDirectionStore);
+        // Address 0x01: 6510 CPU data register. Controls bank switching and cassette signals.
         mem.MapReader(0x01, IoPortLoad);
         mem.MapWriter(0x01, IoPortStore);
 
@@ -390,12 +401,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     {
         var mem = c64.Mem;
 
-        // Initialize to bank 31
-        mem.SetMemoryConfiguration(31);
-        // GAME and EXROM on to start (cartridge). These "values" are not read/stored from a actual memory location, just 2 bits of data that the CPU uses together with the first 3 bits of 0x01 to determine which memory configuration to use
+        // Preserve the cartridge control bits (GAME/EXROM) while restoring the 6510
+        // processor port to the C64 startup defaults.
         c64.CurrentBank = 0x18;
-        // HIMEM, LOMEM, CHAREN on to start
-        mem.Write(1, 0x7);
+        c64._cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
+        c64._cpuPortDataRegister = CpuPortDataResetValue;
+        c64.ApplyCpuPortMemoryConfiguration();
     }
 
     private static CPU CreateC64CPU(ILoggerFactory loggerFactory)
@@ -560,19 +571,46 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         return true;
     }
 
+    private void IoPortDirectionStore(ushort _, byte value)
+    {
+        _cpuPortDataDirectionRegister = value;
+        ApplyCpuPortMemoryConfiguration();
+    }
+
+    private byte IoPortDirectionLoad(ushort _)
+    {
+        return _cpuPortDataDirectionRegister;
+    }
+
     private void IoPortStore(ushort _, byte value)
     {
-        var bank = CurrentBank;
-        bank.ClearBits(0x07);            // Clear the first 3 bits
-        bank |= (byte)(value & 0x07);    // Replace the first 3 bits with new ones
-        CurrentBank = bank;
-        Mem.SetMemoryConfiguration(CurrentBank);
+        _cpuPortDataRegister = value;
+        ApplyCpuPortMemoryConfiguration();
     }
 
     private byte IoPortLoad(ushort _)
     {
-        // For now, only the the first 3 bits which is the current bank
-        return (byte)(CurrentBank & 0x07);
+        return GetCpuPortEffectiveValue();
+    }
+
+    private void ApplyCpuPortMemoryConfiguration()
+    {
+        var bank = CurrentBank;
+        bank.ClearBits(CpuPortBankBitsMask);
+        bank |= (byte)(GetCpuPortEffectiveValue() & CpuPortBankBitsMask);
+        CurrentBank = bank;
+        Mem.SetMemoryConfiguration(CurrentBank);
+    }
+
+    private byte GetCpuPortEffectiveValue()
+    {
+        // On the C64 the lower 3 banking lines and cassette sense line are pulled high
+        // when configured as inputs. Compunet relies on INC/DEC $01 read-modify-write
+        // preserving those pull-up semantics.
+        var inputBits = (byte)(CpuPortInputPullupMask & ~_cpuPortDataDirectionRegister);
+        var outputBits = (byte)(_cpuPortDataRegister & _cpuPortDataDirectionRegister);
+        var upperBits = (byte)(_cpuPortDataRegister & 0b1100_0000);
+        return (byte)(upperBits | outputBits | inputBits);
     }
 
     /// <summary>
