@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20MenuView"
+             x:DataType="vm:Vic20MenuViewModel"
+             AutomationProperties.AutomationId="Vic20MenuView"
+             AutomationProperties.Name="VIC-20 menu panel"
+             Focusable="False">
+    <StackPanel Margin="6" Spacing="6">
+        <TextBlock Text="VIC-20" FontWeight="Bold" />
+        <Button Content="Reset"
+                Command="{Binding ResetCommand}"
+                IsEnabled="{Binding IsResetEnabled}"
+                HorizontalAlignment="Left" />
+    </StackPanel>
+</UserControl>

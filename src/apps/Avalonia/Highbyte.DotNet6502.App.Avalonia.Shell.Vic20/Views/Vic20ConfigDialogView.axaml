@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20ConfigDialogView"
+             x:DataType="vm:Vic20ConfigDialogViewModel"
+             AutomationProperties.AutomationId="Vic20ConfigDialogView"
+             AutomationProperties.Name="VIC-20 configuration panel"
+             Focusable="False">
+    <StackPanel Margin="6" Spacing="6">
+        <TextBlock Text="VIC-20 configuration (read-only)" FontWeight="Bold" />
+        <StackPanel Spacing="2">
+            <TextBlock Text="ROM directory:" />
+            <TextBlock Text="{Binding ROMDirectory}" FontFamily="Consolas,Menlo,monospace" />
+        </StackPanel>
+        <StackPanel Spacing="2">
+            <TextBlock Text="ROM files:" />
+            <ItemsControl ItemsSource="{Binding ROMs}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:Vic20ConfigDialogViewModel+RomEntry">
+                        <TextBlock FontFamily="Consolas,Menlo,monospace">
+                            <Run Text="  " />
+                            <Run Text="{Binding Name}" />
+                            <Run Text=" → " />
+                            <Run Text="{Binding File}" />
+                        </TextBlock>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20InfoView"
+             x:DataType="vm:Vic20InfoViewModel"
+             AutomationProperties.AutomationId="Vic20InfoView"
+             AutomationProperties.Name="VIC-20 information panel"
+             Focusable="False">
+    <StackPanel Margin="6" Spacing="4">
+        <TextBlock Text="VIC-20 (stub system plugin)" FontWeight="Bold" />
+        <TextBlock Text="{Binding TextMode}" />
+        <TextBlock Text="{Binding RefreshRate}" />
+        <TextBlock Text="{Binding MemoryLayout}" TextWrapping="Wrap" />
+        <TextBlock>
+            <Run Text="Required ROMs: " />
+            <Run Text="{Binding RequiredROMs}" />
+        </TextBlock>
+    </StackPanel>
+</UserControl>
