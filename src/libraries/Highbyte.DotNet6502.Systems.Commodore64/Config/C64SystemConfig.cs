@@ -332,6 +332,18 @@ public class C64SystemConfig : ISystemConfig
         }
     }
 
+    private C64SwiftLinkReceiveMode _swiftLinkReceiveMode;
+    [JsonConverter(typeof(JsonStringEnumConverter<C64SwiftLinkReceiveMode>))]
+    public C64SwiftLinkReceiveMode SwiftLinkReceiveMode
+    {
+        get => _swiftLinkReceiveMode;
+        set
+        {
+            _swiftLinkReceiveMode = value;
+            _isDirty = true;
+        }
+    }
+
     [JsonIgnore]
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
 
@@ -352,6 +364,7 @@ public class C64SystemConfig : ISystemConfig
         }
 
         _swiftLinkInterruptMode = C64SwiftLinkInterruptMode.IRQ;
+        _swiftLinkReceiveMode = C64SwiftLinkReceiveMode.Compatible;
 
         _colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
@@ -472,6 +485,8 @@ public class C64SystemConfig : ISystemConfig
             validationErrors.Add($"{nameof(SwiftLinkCartridgeIOAddress)} has an invalid value.");
         if (!Enum.IsDefined(SwiftLinkInterruptMode))
             validationErrors.Add($"{nameof(SwiftLinkInterruptMode)} has an invalid value.");
+        if (!Enum.IsDefined(SwiftLinkReceiveMode))
+            validationErrors.Add($"{nameof(SwiftLinkReceiveMode)} has an invalid value.");
 
         return validationErrors.Count == 0;
     }

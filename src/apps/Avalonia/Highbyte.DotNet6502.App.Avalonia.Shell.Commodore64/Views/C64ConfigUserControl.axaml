@@ -323,12 +323,12 @@
                     IsVisible="{Binding !IsRunningInWebAssembly}">
         <Border Classes="content-section">
             <StackPanel Classes="spacing-tight">
-            <TextBlock Text="SwiftLink TCP"
+            <TextBlock Text="SwiftLink"
                         Classes=""/>
-            <TextBlock Text="Expose a SwiftLink-compatible ACIA at $DE00 or $DF00 and connect it to a host TCP socket."
+            <TextBlock Text="Expose a SwiftLink-compatible ACIA at $DE00 or $DF00 and use either a raw TCP byte pipe or a local Hayes modem layer."
                         Classes="small secondary-text"/>
 
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Classes="spacing-tight">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Classes="spacing-tight">
                 <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                         AutomationProperties.AutomationId="SwiftLinkEnableCheckBox"
                         AutomationProperties.Name="Enable SwiftLink"
@@ -348,9 +348,21 @@
                         MaxDropDownHeight="100"/>
 
                 <TextBlock Grid.Row="2" Grid.Column="0"
-                            Text="Interrupt line:"
+                            Text="Transport mode:"
                             Classes="secondary-text"/>
                 <ComboBox Grid.Row="2" Grid.Column="1"
+                        AutomationProperties.AutomationId="SwiftLinkTransportModeComboBox"
+                        AutomationProperties.Name="SwiftLink transport mode"
+                        ItemsSource="{Binding AvailableSwiftLinkTransportModes}"
+                        SelectedItem="{Binding SelectedSwiftLinkTransportMode}"
+                        Classes="small"
+                        MinWidth="140"
+                        MaxDropDownHeight="100"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0"
+                            Text="Interrupt line:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="3" Grid.Column="1"
                         AutomationProperties.AutomationId="SwiftLinkInterruptModeComboBox"
                         AutomationProperties.Name="SwiftLink interrupt line"
                         ItemsSource="{Binding AvailableSwiftLinkInterruptModes}"
@@ -359,20 +371,32 @@
                         MinWidth="100"
                         MaxDropDownHeight="100"/>
 
-                <TextBlock Grid.Row="3" Grid.Column="0"
+                <TextBlock Grid.Row="4" Grid.Column="0"
+                            Text="Receive mode:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="4" Grid.Column="1"
+                        AutomationProperties.AutomationId="SwiftLinkReceiveModeComboBox"
+                        AutomationProperties.Name="SwiftLink receive mode"
+                        ItemsSource="{Binding AvailableSwiftLinkReceiveModes}"
+                        SelectedItem="{Binding SelectedSwiftLinkReceiveMode}"
+                        Classes="small"
+                        MinWidth="140"
+                        MaxDropDownHeight="100"/>
+
+                <TextBlock Grid.Row="5" Grid.Column="0"
                             Text="TCP host:"
                             Classes="secondary-text"/>
-                <TextBox Grid.Row="3" Grid.Column="1"
+                <TextBox Grid.Row="5" Grid.Column="1"
                         AutomationProperties.AutomationId="SwiftLinkTcpHostTextBox"
                         AutomationProperties.Name="SwiftLink TCP host"
                         Text="{Binding SwiftLinkTcpHost}"
                         PlaceholderText="127.0.0.1"
                         Classes="field-aligned"/>
 
-                <TextBlock Grid.Row="4" Grid.Column="0"
+                <TextBlock Grid.Row="6" Grid.Column="0"
                             Text="TCP port:"
                             Classes="secondary-text"/>
-                <NumericUpDown Grid.Row="4" Grid.Column="1"
+                <NumericUpDown Grid.Row="6" Grid.Column="1"
                         AutomationProperties.AutomationId="SwiftLinkTcpPortNumericUpDown"
                         AutomationProperties.Name="SwiftLink TCP port"
                         Value="{Binding SwiftLinkTcpPort}"
@@ -382,7 +406,7 @@
                         Width="120"
                         HorizontalAlignment="Left"/>
 
-                <CheckBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                <CheckBox Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2"
                         AutomationProperties.AutomationId="SwiftLinkConnectOnBootCheckBox"
                         AutomationProperties.Name="Connect SwiftLink on boot"
                         Content="Connect automatically when the emulator starts"

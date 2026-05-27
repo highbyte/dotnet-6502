@@ -13,6 +13,13 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     public C64SilkNetOpenGlRendererConfig SilkNetOpenGlRendererConfig { get; set; } = new C64SilkNetOpenGlRendererConfig();
     public C64InputConfig InputConfig { get; set; } = new C64InputConfig();
 
+    private C64SwiftLinkTransportMode _swiftLinkTransportMode;
+    public C64SwiftLinkTransportMode SwiftLinkTransportMode
+    {
+        get => _swiftLinkTransportMode;
+        set { _swiftLinkTransportMode = value; MarkDirty(); }
+    }
+
     private string _swiftLinkTcpHost = "127.0.0.1";
     public string SwiftLinkTcpHost
     {
@@ -40,5 +47,10 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
         clone.InputConfig = (C64InputConfig)InputConfig.Clone();
         clone.SilkNetOpenGlRendererConfig = (C64SilkNetOpenGlRendererConfig)SilkNetOpenGlRendererConfig.Clone();
         return clone;
+    }
+
+    public C64HostConfig()
+    {
+        SwiftLinkTransportMode = C64SwiftLinkTransportMode.RawTcp;
     }
 }

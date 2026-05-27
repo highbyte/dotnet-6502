@@ -112,9 +112,10 @@ cat >"$APPSETTINGS_PATH" <<JSON
     "SwiftLinkTcpHost": "127.0.0.1",
     "SwiftLinkTcpPort": $ECHO_PORT,
     "SwiftLinkConnectOnBoot": true,
-    "SystemConfig": {
+      "SystemConfig": {
       "SwiftLinkEnabled": true,
-      "SwiftLinkCartridgeIOAddress": "DE00"
+      "SwiftLinkCartridgeIOAddress": "DE00",
+      "SwiftLinkReceiveMode": "FastBuffered"
     }
   }
 }

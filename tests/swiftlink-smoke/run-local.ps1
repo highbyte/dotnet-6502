@@ -112,9 +112,10 @@ try {
     "SwiftLinkTcpHost": "127.0.0.1",
     "SwiftLinkTcpPort": $EchoPort,
     "SwiftLinkConnectOnBoot": true,
-    "SystemConfig": {
+      "SystemConfig": {
       "SwiftLinkEnabled": true,
-      "SwiftLinkCartridgeIOAddress": "DE00"
+      "SwiftLinkCartridgeIOAddress": "DE00",
+      "SwiftLinkReceiveMode": "FastBuffered"
     }
   }
 }

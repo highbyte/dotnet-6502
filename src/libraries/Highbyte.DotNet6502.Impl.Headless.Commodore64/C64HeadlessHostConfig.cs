@@ -10,6 +10,13 @@ public class C64HeadlessHostConfig : HostSystemConfigBase<C64SystemConfig>, IC64
 
     public override bool AudioSupported => false;
 
+    private C64SwiftLinkTransportMode _swiftLinkTransportMode;
+    public C64SwiftLinkTransportMode SwiftLinkTransportMode
+    {
+        get => _swiftLinkTransportMode;
+        set { _swiftLinkTransportMode = value; MarkDirty(); }
+    }
+
     private string _swiftLinkTcpHost = "127.0.0.1";
     public string SwiftLinkTcpHost
     {
@@ -29,5 +36,10 @@ public class C64HeadlessHostConfig : HostSystemConfigBase<C64SystemConfig>, IC64
     {
         get => _swiftLinkConnectOnBoot;
         set { _swiftLinkConnectOnBoot = value; MarkDirty(); }
+    }
+
+    public C64HeadlessHostConfig()
+    {
+        SwiftLinkTransportMode = C64SwiftLinkTransportMode.RawTcp;
     }
 }

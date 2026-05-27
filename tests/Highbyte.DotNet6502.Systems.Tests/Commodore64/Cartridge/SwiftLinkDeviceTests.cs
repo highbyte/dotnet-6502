@@ -199,6 +199,59 @@ public class SwiftLinkDeviceTests
     }
 
     [Fact]
+    public async Task Compatible_Receive_Mode_Waits_For_New_Acia_Access_After_Empty_Poll()
+    {
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
+        {
+            ReceiveMode = C64SwiftLinkReceiveMode.Compatible
+        };
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        device.Transport = transport;
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+
+        mem.Read(0xDE01);
+        device.Tick();
+
+        await transport.SendAsync(0x41);
+        device.Tick();
+
+        Assert.False(IsRxFull(mem.Read(0xDE01)));
+
+        mem.Read(0xDE01);
+        device.Tick();
+
+        Assert.True(IsRxFull(mem.Read(0xDE01)));
+        Assert.Equal(0x41, mem.Read(0xDE00));
+    }
+
+    [Fact]
+    public async Task FastBuffered_Receive_Mode_Latches_Queued_Byte_Without_New_Acia_Access()
+    {
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
+        {
+            ReceiveMode = C64SwiftLinkReceiveMode.FastBuffered
+        };
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        device.Transport = transport;
+
+        var mem = new Memory();
+        device.MapIOLocations(mem);
+
+        mem.Read(0xDE01);
+        device.Tick();
+
+        await transport.SendAsync(0x41);
+        device.Tick();
+
+        Assert.True(IsRxFull(mem.Read(0xDE01)));
+        Assert.Equal(0x41, mem.Read(0xDE00));
+    }
+
+    [Fact]
     public async Task Receive_Irq_Is_Not_Raised_When_Disabled()
     {
         var interrupts = new CPUInterrupts();
@@ -231,7 +284,7 @@ public class SwiftLinkDeviceTests
         var mem = new Memory();
         device.MapIOLocations(mem);
 
-        Assert.True(IsDcdHigh(mem.Read(0xDE01)));
+        Assert.False(IsDcdHigh(mem.Read(0xDE01)));
         Assert.True(IsDsrHigh(mem.Read(0xDE01)));
 
         await transport.ConnectAsync();
@@ -255,6 +308,7 @@ public class SwiftLinkDeviceTests
         Assert.Equal((ushort)0xDF00, c64.SwiftLink!.BaseAddress);
         Assert.Same(c64.CPU.CPUInterrupts, c64.SwiftLink.CpuInterrupts);
         Assert.Equal(C64SwiftLinkInterruptMode.IRQ, c64.SwiftLink.InterruptMode);
+        Assert.Equal(C64SwiftLinkReceiveMode.Compatible, c64.SwiftLink.ReceiveMode);
     }
 
     [Fact]
@@ -289,6 +343,8 @@ public class SwiftLinkDeviceTests
         private TaskCompletionSource _sendCompletionSource = NewCompletionSource();
 
         public bool IsConnected => true;
+        public bool IsCarrierDetected => true;
+        public bool IsDataSetReady => true;
 
         public ValueTask ConnectAsync(CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;

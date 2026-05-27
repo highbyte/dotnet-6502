@@ -296,6 +296,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             {
                 CpuInterrupts = cpu.CPUInterrupts,
                 InterruptMode = c64Config.SwiftLinkInterruptMode,
+                ReceiveMode = c64Config.SwiftLinkReceiveMode,
             };
             c64.SwiftLink = swiftLink;
             c64.CartridgeDevices.Add(swiftLink);

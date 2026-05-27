@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net.Sockets;
+using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Transport;
@@ -29,6 +30,8 @@ public sealed class TcpTransport : ISwiftLinkTransport
     }
 
     public bool IsConnected => _isConnected;
+    public bool IsCarrierDetected => _isConnected;
+    public bool IsDataSetReady => _isConnected;
 
     public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {
@@ -181,7 +184,11 @@ public sealed class TcpTransport : ISwiftLinkTransport
                 break;
             }
 
-            _logger.LogDebug("SwiftLink TCP transport received {ByteCount} byte(s).", bytesRead);
+            _logger.LogDebug(
+                "SwiftLink TCP transport received {ByteCount} byte(s): {HexBytes} |{Ascii}|",
+                bytesRead,
+                FormatHexBytes(buffer, bytesRead),
+                FormatAsciiBytes(buffer, bytesRead));
 
             for (var i = 0; i < bytesRead; i++)
                 _receivedBytes.Enqueue(buffer[i]);
@@ -203,5 +210,28 @@ public sealed class TcpTransport : ISwiftLinkTransport
         catch (ObjectDisposedException)
         {
         }
+    }
+
+    private static string FormatHexBytes(byte[] buffer, int bytesRead)
+    {
+        var builder = new StringBuilder(bytesRead * 3);
+        for (var i = 0; i < bytesRead; i++)
+        {
+            if (i > 0)
+                builder.Append(' ');
+            builder.Append(buffer[i].ToString("X2"));
+        }
+        return builder.ToString();
+    }
+
+    private static string FormatAsciiBytes(byte[] buffer, int bytesRead)
+    {
+        var builder = new StringBuilder(bytesRead);
+        for (var i = 0; i < bytesRead; i++)
+        {
+            var value = buffer[i];
+            builder.Append(value is >= 0x20 and <= 0x7E ? (char)value : '.');
+        }
+        return builder.ToString();
     }
 }

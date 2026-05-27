@@ -115,6 +115,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             SwiftLinkEnabled = c64SystemConfig.SwiftLinkEnabled,
             SwiftLinkCartridgeIOAddress = c64SystemConfig.SwiftLinkCartridgeIOAddress,
             SwiftLinkInterruptMode = c64SystemConfig.SwiftLinkInterruptMode,
+            SwiftLinkReceiveMode = c64SystemConfig.SwiftLinkReceiveMode,
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
@@ -135,10 +136,16 @@ public class C64SystemConfigurerCore : ISystemConfigurer
         var c64 = (C64)system;
         if (SupportsSwiftLinkTcpTransport && c64.SwiftLink != null && hostSystemConfig is IC64SwiftLinkTcpHostConfig swiftLinkHostConfig)
         {
-            var transport = new TcpTransport(
-                swiftLinkHostConfig.SwiftLinkTcpHost,
-                swiftLinkHostConfig.SwiftLinkTcpPort,
-                LoggerFactory.CreateLogger(nameof(TcpTransport)));
+            ISwiftLinkTransport transport = swiftLinkHostConfig.SwiftLinkTransportMode switch
+            {
+                C64SwiftLinkTransportMode.HayesModem => new HayesModemTransport(
+                    (host, port) => new TcpTransport(host, port, LoggerFactory.CreateLogger(nameof(TcpTransport))),
+                    LoggerFactory.CreateLogger(nameof(HayesModemTransport))),
+                _ => new TcpTransport(
+                    swiftLinkHostConfig.SwiftLinkTcpHost,
+                    swiftLinkHostConfig.SwiftLinkTcpPort,
+                    LoggerFactory.CreateLogger(nameof(TcpTransport)))
+            };
             c64.SwiftLink.Transport = transport;
             if (swiftLinkHostConfig.SwiftLinkConnectOnBoot)
                 await transport.ConnectAsync();

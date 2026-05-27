@@ -7,6 +7,8 @@ public sealed class LoopbackTransport : ISwiftLinkTransport
     private readonly ConcurrentQueue<byte> _receivedBytes = new();
 
     public bool IsConnected { get; private set; }
+    public bool IsCarrierDetected => IsConnected;
+    public bool IsDataSetReady => IsConnected;
 
     public ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {

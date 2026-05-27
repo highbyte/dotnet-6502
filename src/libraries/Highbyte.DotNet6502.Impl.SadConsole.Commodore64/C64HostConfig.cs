@@ -12,6 +12,7 @@ public class C64HostConfig : SadConsoleHostSystemConfigBase<C64SystemConfig>, IC
 
     public bool BasicAIAssistantDefaultEnabled { get; set; }
 
+    public C64SwiftLinkTransportMode SwiftLinkTransportMode { get; set; } = C64SwiftLinkTransportMode.RawTcp;
     public string SwiftLinkTcpHost { get; set; } = "127.0.0.1";
     public int SwiftLinkTcpPort { get; set; } = 5000;
     public bool SwiftLinkConnectOnBoot { get; set; }
