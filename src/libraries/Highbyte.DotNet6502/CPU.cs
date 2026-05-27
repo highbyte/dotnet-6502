@@ -92,7 +92,7 @@ public class CPU
     /// </summary>
     /// <value></value>
 
-    public bool NMI => CPUInterrupts.NMILineEnabled;
+    public bool NMI => CPUInterrupts.NMIPending;
 
     /// <summary>
     /// Aggregated stats and info for all invocations of Execute()
@@ -273,14 +273,9 @@ public class CPU
 
     private void ProcessInterrupts(Memory mem)
     {
-        if (CPUInterrupts.NMILineEnabled)
+        if (CPUInterrupts.NMIPending)
         {
-            // TODO: Should all NMI sources be cleared here?
-            for (int i = CPUInterrupts.ActiveNMISources.Count - 1; i >= 0; i--)
-            {
-                var source = CPUInterrupts.ActiveNMISources.ElementAt(i);
-                CPUInterrupts.SetNMISourceInactive(source);
-            }
+            CPUInterrupts.ClearPendingNMI();
             ProcessHardwareNMI(mem);
         }
         else if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)

@@ -3,8 +3,12 @@ namespace Highbyte.DotNet6502;
 public class CPUInterrupts
 {
     public bool IRQLineEnabled => ActiveIRQSources.Count > 0;
-
     public bool NMILineEnabled => ActiveNMISources.Count > 0;
+
+    // 6502 NMI is edge-triggered: once a source transitions active we latch a pending
+    // NMI until the CPU services it. Keeping a source active does not retrigger NMI
+    // until it has been cleared and asserted again.
+    public bool NMIPending { get; private set; }
 
     public Dictionary<string, bool> ActiveIRQSources { get; private set; } = new();
     public HashSet<string> ActiveNMISources { get; private set; } = new();
@@ -45,7 +49,8 @@ public class CPUInterrupts
     /// <param name="source">Unique name of source</param>
     public void SetNMISourceActive(string source)
     {
-        ActiveNMISources.Add(source);
+        if (ActiveNMISources.Add(source))
+            NMIPending = true;
     }
 
     /// <summary>
@@ -65,5 +70,10 @@ public class CPUInterrupts
     public bool IsNMISourceActive(string source)
     {
         return ActiveNMISources.Contains(source);
+    }
+
+    public void ClearPendingNMI()
+    {
+        NMIPending = false;
     }
 }

@@ -136,10 +136,19 @@ public class C64SystemConfigurerCore : ISystemConfigurer
         var c64 = (C64)system;
         if (SupportsSwiftLinkTcpTransport && c64.SwiftLink != null && hostSystemConfig is IC64SwiftLinkTcpHostConfig swiftLinkHostConfig)
         {
+            c64.SwiftLink.ReceivePacingCycles =
+                swiftLinkHostConfig.SwiftLinkTransportMode == C64SwiftLinkTransportMode.HayesModem
+                && c64.SwiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
+                    ? GetCyclesPer1200BaudCharacter(c64)
+                    : 0;
+
             ISwiftLinkTransport transport = swiftLinkHostConfig.SwiftLinkTransportMode switch
             {
                 C64SwiftLinkTransportMode.HayesModem => new HayesModemTransport(
-                    (host, port) => new TcpTransport(host, port, LoggerFactory.CreateLogger(nameof(TcpTransport))),
+                    (host, port) => new TcpTransport(
+                        host,
+                        port,
+                        LoggerFactory.CreateLogger(nameof(TcpTransport))),
                     LoggerFactory.CreateLogger(nameof(HayesModemTransport))),
                 _ => new TcpTransport(
                     swiftLinkHostConfig.SwiftLinkTcpHost,
@@ -152,6 +161,13 @@ public class C64SystemConfigurerCore : ISystemConfigurer
         }
 
         return new SystemRunner(c64);
+    }
+
+    private static ulong GetCyclesPer1200BaudCharacter(C64 c64)
+    {
+        const double BitsPerCharacter = 10.0; // 8N1 framing
+        const double BaudRate = 1200.0;
+        return (ulong)Math.Ceiling(c64.CpuFrequencyHz * (BitsPerCharacter / BaudRate));
     }
 
     /// <summary>

@@ -199,11 +199,14 @@ public class SwiftLinkDeviceTests
     }
 
     [Fact]
-    public async Task Compatible_Receive_Mode_Waits_For_New_Acia_Access_After_Empty_Poll()
+    public async Task Compatible_Receive_Mode_Paces_Queued_Bytes_By_Cpu_Cycles()
     {
+        ulong currentCycles = 0;
         var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
         {
-            ReceiveMode = C64SwiftLinkReceiveMode.Compatible
+            ReceiveMode = C64SwiftLinkReceiveMode.Compatible,
+            ReceivePacingCycles = 10,
+            GetCurrentCycleCount = () => currentCycles,
         };
         var transport = new LoopbackTransport();
         await transport.ConnectAsync();
@@ -212,19 +215,23 @@ public class SwiftLinkDeviceTests
         var mem = new Memory();
         device.MapIOLocations(mem);
 
-        mem.Read(0xDE01);
-        device.Tick();
-
         await transport.SendAsync(0x41);
+        await transport.SendAsync(0x42);
+
         device.Tick();
+        Assert.True(IsRxFull(mem.Read(0xDE01)));
+        Assert.Equal(0x41, mem.Read(0xDE00));
 
         Assert.False(IsRxFull(mem.Read(0xDE01)));
 
-        mem.Read(0xDE01);
+        currentCycles = 9;
         device.Tick();
+        Assert.False(IsRxFull(mem.Read(0xDE01)));
 
+        currentCycles = 10;
+        device.Tick();
         Assert.True(IsRxFull(mem.Read(0xDE01)));
-        Assert.Equal(0x41, mem.Read(0xDE00));
+        Assert.Equal(0x42, mem.Read(0xDE00));
     }
 
     [Fact]

@@ -30,7 +30,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private bool? _lastConnectedState;
     private byte? _lastLoggedStatusValue;
     private int _statusReadCount;
-    private bool _receivePollRequested = true;
+    private ulong _nextReceiveCycleAvailable;
 
     public SwiftLinkDevice(C64CartridgeIOAddress baseAddress, ILogger logger)
     {
@@ -43,6 +43,8 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     public CPUInterrupts? CpuInterrupts { get; set; }
     public C64SwiftLinkInterruptMode InterruptMode { get; set; } = C64SwiftLinkInterruptMode.IRQ;
     public C64SwiftLinkReceiveMode ReceiveMode { get; set; } = C64SwiftLinkReceiveMode.Compatible;
+    public Func<ulong>? GetCurrentCycleCount { get; set; }
+    public ulong ReceivePacingCycles { get; set; }
     public ushort BaseAddress => _baseAddress;
 
     public void MapIOLocations(Memory mem)
@@ -69,16 +71,13 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         if (_rxFull)
             return;
 
-        if (ReceiveMode == C64SwiftLinkReceiveMode.FastBuffered)
+        if (ReceivePacingCycles > 0)
         {
-            TryLatchReceivedByte();
-            return;
+            var currentCycles = GetCurrentCycleCount?.Invoke() ?? 0;
+            if (currentCycles < _nextReceiveCycleAvailable)
+                return;
         }
 
-        if (!_receivePollRequested)
-            return;
-
-        _receivePollRequested = false;
         TryLatchReceivedByte();
     }
 
@@ -94,14 +93,13 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         _lastConnectedState = null;
         _lastLoggedStatusValue = null;
         _statusReadCount = 0;
-        _receivePollRequested = true;
+        _nextReceiveCycleAvailable = 0;
         ClearIrqPending();
         Transport?.Reset();
     }
 
     private byte DataLoad(ushort _)
     {
-        RequestReceivePoll();
         var value = _rxData;
         _rxFull = false;
         _logger.LogDebug("SwiftLink DATA read returned 0x{Value:X2}.", value);
@@ -110,14 +108,18 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
     private void DataStore(ushort _, byte value)
     {
-        RequestReceivePoll();
         if (!_txEmpty)
+        {
+            _logger.LogDebug("SwiftLink DATA write dropped while TX not empty: 0x{Value:X2}.", value);
             return;
+        }
 
+        _logger.LogDebug("SwiftLink DATA write sent 0x{Value:X2}.", value);
         _txEmpty = false;
         var transport = Transport;
         if (transport == null)
         {
+            _logger.LogDebug("SwiftLink DATA write had no transport attached.");
             _txEmpty = true;
             return;
         }
@@ -145,7 +147,6 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
     private byte StatusLoad(ushort _)
     {
-        RequestReceivePoll();
         byte value = 0;
         // Match the C64-specific behavior used by VICE's ACIA emulation more closely:
         // software tends to observe carrier readiness through the DSR bit, while DCD is
@@ -191,19 +192,16 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
     private void StatusStore(ushort _, byte __)
     {
-        RequestReceivePoll();
         Reset();
     }
 
     private byte CommandLoad(ushort _)
     {
-        RequestReceivePoll();
         return _commandRegister;
     }
 
     private void CommandStore(ushort _, byte value)
     {
-        RequestReceivePoll();
         _commandRegister = value;
         _logger.LogDebug("SwiftLink command register set to 0x{Value:X2}.", value);
 
@@ -213,13 +211,11 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
     private byte ControlLoad(ushort _)
     {
-        RequestReceivePoll();
         return _controlRegister;
     }
 
     private void ControlStore(ushort _, byte value)
     {
-        RequestReceivePoll();
         _controlRegister = value;
         _logger.LogDebug("SwiftLink control register set to 0x{Value:X2}.", value);
     }
@@ -290,12 +286,6 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
     private bool IsDataSetReady => Transport?.IsDataSetReady == true;
 
-    private void RequestReceivePoll()
-    {
-        if (ReceiveMode == C64SwiftLinkReceiveMode.Compatible)
-            _receivePollRequested = true;
-    }
-
     private void TryLatchReceivedByte()
     {
         if (Transport?.TryDequeueReceivedByte(out var value) != true)
@@ -303,6 +293,11 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
 
         _rxData = value;
         _rxFull = true;
+        if (ReceivePacingCycles > 0)
+        {
+            var currentCycles = GetCurrentCycleCount?.Invoke() ?? 0;
+            _nextReceiveCycleAvailable = currentCycles + ReceivePacingCycles;
+        }
         _logger.LogDebug("SwiftLink RX latched byte 0x{Value:X2}.", value);
         RaiseReceiveIrqIfEnabled();
     }

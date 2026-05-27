@@ -22,7 +22,7 @@ public sealed class HayesModemTransport : ISwiftLinkTransport
     private ISwiftLinkTransport? _dataTransport;
     private ModemMode _mode = ModemMode.Command;
     private bool _lastCarrierDetected;
-
+    private bool _connectResponsePending;
     public HayesModemTransport(Func<string, int, ISwiftLinkTransport> dialTransportFactory, ILogger logger)
     {
         _dialTransportFactory = dialTransportFactory;
@@ -31,7 +31,7 @@ public sealed class HayesModemTransport : ISwiftLinkTransport
 
     public bool IsConnected => IsCarrierDetected;
 
-    public bool IsCarrierDetected => _mode == ModemMode.Data && _dataTransport?.IsConnected == true;
+    public bool IsCarrierDetected => (_mode == ModemMode.Data || _mode == ModemMode.AwaitingRemoteReady) && _dataTransport?.IsConnected == true;
 
     public bool IsDataSetReady => IsCarrierDetected;
 
@@ -54,8 +54,22 @@ public sealed class HayesModemTransport : ISwiftLinkTransport
         if (_receivedBytes.TryDequeue(out value))
             return true;
 
-        if (_mode == ModemMode.Data && _dataTransport != null)
-            return _dataTransport.TryDequeueReceivedByte(out value);
+        if ((_mode == ModemMode.Data || _mode == ModemMode.AwaitingRemoteReady) && _dataTransport != null)
+        {
+            if (_dataTransport.TryDequeueReceivedByte(out value))
+            {
+                if (_connectResponsePending)
+                {
+                    _mode = ModemMode.Data;
+                    _connectResponsePending = false;
+                    EnqueueResponse(ConnectResponse);
+                    _receivedBytes.Enqueue(value);
+                    return _receivedBytes.TryDequeue(out value);
+                }
+
+                return true;
+            }
+        }
 
         value = 0;
         return false;
@@ -169,11 +183,11 @@ public sealed class HayesModemTransport : ISwiftLinkTransport
             await dataTransport.ConnectAsync(cancellationToken);
 
             _dataTransport = dataTransport;
-            _mode = ModemMode.Data;
+            _mode = ModemMode.AwaitingRemoteReady;
             _lastCarrierDetected = true;
+            _connectResponsePending = true;
 
             _logger.LogInformation("SwiftLink Hayes modem connected to {Host}:{Port}.", host, port);
-            EnqueueResponse(ConnectResponse);
         }
         catch (Exception ex)
         {
@@ -182,6 +196,7 @@ public sealed class HayesModemTransport : ISwiftLinkTransport
             _dataTransport = null;
             _mode = ModemMode.Command;
             _lastCarrierDetected = false;
+            _connectResponsePending = false;
             EnqueueResponse(NoCarrierResponse);
         }
     }
@@ -192,6 +207,7 @@ public sealed class HayesModemTransport : ISwiftLinkTransport
         _dataTransport = null;
         _mode = ModemMode.Command;
         _lastCarrierDetected = false;
+        _connectResponsePending = false;
 
         if (dataTransport == null)
             return;
@@ -245,6 +261,7 @@ public sealed class HayesModemTransport : ISwiftLinkTransport
     private enum ModemMode
     {
         Command,
+        AwaitingRemoteReady,
         Data
     }
 }
