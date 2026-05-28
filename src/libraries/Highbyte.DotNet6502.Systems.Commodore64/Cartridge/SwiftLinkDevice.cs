@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Microsoft.Extensions.Logging;
+using System.Text;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 
@@ -16,6 +17,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private const byte CommandTransmitterControlMask = 0b0000_1100;
     private const byte CommandTransmitterIrqControl = 0b0000_0100;
     private const string IrqSourceName = "SwiftLink";
+    private const int DiagnosticHistorySize = 24;
 
     private readonly ILogger _logger;
     private readonly ushort _baseAddress;
@@ -31,6 +33,9 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private byte? _lastLoggedStatusValue;
     private int _statusReadCount;
     private ulong _nextReceiveCycleAvailable;
+    private readonly string?[] _diagnosticHistory = new string?[DiagnosticHistorySize];
+    private int _diagnosticHistoryNextIndex;
+    private int _diagnosticHistoryCount;
 
     public SwiftLinkDevice(C64CartridgeIOAddress baseAddress, ILogger logger)
     {
@@ -44,6 +49,10 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     public C64SwiftLinkInterruptMode InterruptMode { get; set; } = C64SwiftLinkInterruptMode.IRQ;
     public C64SwiftLinkReceiveMode ReceiveMode { get; set; } = C64SwiftLinkReceiveMode.Compatible;
     public Func<ulong>? GetCurrentCycleCount { get; set; }
+    // Optional device-specific compatibility hook. When unset, NMI is asserted as soon as
+    // SwiftLink marks its receive interrupt pending. C64 currently uses this for software
+    // that temporarily banks out the mapped NMI vector area.
+    public Func<bool>? CanDeliverNmi { get; set; }
     public ulong ReceivePacingCycles { get; set; }
     public ushort BaseAddress => _baseAddress;
 
@@ -68,17 +77,12 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             CompletePendingSend();
         }
 
+        TryAssertDeferredNmi();
+
         if (_rxFull)
             return;
 
-        if (ReceivePacingCycles > 0)
-        {
-            var currentCycles = GetCurrentCycleCount?.Invoke() ?? 0;
-            if (currentCycles < _nextReceiveCycleAvailable)
-                return;
-        }
-
-        TryLatchReceivedByte();
+        TryLatchReceivedByteIfReady();
     }
 
     public void Reset()
@@ -94,6 +98,9 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         _lastLoggedStatusValue = null;
         _statusReadCount = 0;
         _nextReceiveCycleAvailable = 0;
+        Array.Clear(_diagnosticHistory);
+        _diagnosticHistoryNextIndex = 0;
+        _diagnosticHistoryCount = 0;
         ClearIrqPending();
         Transport?.Reset();
     }
@@ -103,6 +110,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         var value = _rxData;
         _rxFull = false;
         _logger.LogDebug("SwiftLink DATA read returned 0x{Value:X2}.", value);
+        RecordDiagnosticEvent($"DATA read 0x{value:X2}");
         return value;
     }
 
@@ -115,6 +123,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         }
 
         _logger.LogDebug("SwiftLink DATA write sent 0x{Value:X2}.", value);
+        RecordDiagnosticEvent($"DATA write 0x{value:X2}");
         _txEmpty = false;
         var transport = Transport;
         if (transport == null)
@@ -204,6 +213,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     {
         _commandRegister = value;
         _logger.LogDebug("SwiftLink command register set to 0x{Value:X2}.", value);
+        RecordDiagnosticEvent($"COMMAND=0x{value:X2}");
 
         if (!InterruptsEnabled || !ReceiveInterruptEnabled)
             ClearIrqPending();
@@ -218,6 +228,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     {
         _controlRegister = value;
         _logger.LogDebug("SwiftLink control register set to 0x{Value:X2}.", value);
+        RecordDiagnosticEvent($"CONTROL=0x{value:X2}");
     }
 
     private void CompletePendingSend()
@@ -266,8 +277,9 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             InterruptMode,
             _rxFull,
             _txEmpty);
+        RecordDiagnosticEvent($"IRQ set mode={InterruptMode} rx={_rxFull} tx={_txEmpty}");
         if (InterruptMode == C64SwiftLinkInterruptMode.NMI)
-            CpuInterrupts?.SetNMISourceActive(IrqSourceName);
+            TryAssertDeferredNmi();
         else
             CpuInterrupts?.SetIRQSourceActive(IrqSourceName, autoAcknowledge: false);
     }
@@ -276,6 +288,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     {
         _irqPending = false;
         _logger.LogDebug("SwiftLink {InterruptMode} pending cleared.", InterruptMode);
+        RecordDiagnosticEvent($"IRQ clear mode={InterruptMode}");
         if (InterruptMode == C64SwiftLinkInterruptMode.NMI)
             CpuInterrupts?.SetNMISourceInactive(IrqSourceName);
         else
@@ -285,6 +298,26 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     private bool IsCarrierDetected => Transport?.IsCarrierDetected == true;
 
     private bool IsDataSetReady => Transport?.IsDataSetReady == true;
+
+    private void TryAssertDeferredNmi()
+    {
+        if (!_irqPending || InterruptMode != C64SwiftLinkInterruptMode.NMI)
+            return;
+
+        if (CpuInterrupts?.IsNMISourceActive(IrqSourceName) == true)
+            return;
+
+        if (CanDeliverNmi?.Invoke() == false)
+        {
+            // SwiftLink-specific compatibility behavior: keep the pending receive state but
+            // avoid asserting the NMI source until the mapped NMI vector is usable again.
+            RecordDiagnosticEvent("NMI deferred");
+            return;
+        }
+
+        CpuInterrupts?.SetNMISourceActive(IrqSourceName);
+        RecordDiagnosticEvent("NMI asserted");
+    }
 
     private void TryLatchReceivedByte()
     {
@@ -299,7 +332,20 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             _nextReceiveCycleAvailable = currentCycles + ReceivePacingCycles;
         }
         _logger.LogDebug("SwiftLink RX latched byte 0x{Value:X2}.", value);
+        RecordDiagnosticEvent($"RX latch 0x{value:X2}");
         RaiseReceiveIrqIfEnabled();
+    }
+
+    private void TryLatchReceivedByteIfReady()
+    {
+        if (ReceivePacingCycles > 0)
+        {
+            var currentCycles = GetCurrentCycleCount?.Invoke() ?? 0;
+            if (currentCycles < _nextReceiveCycleAvailable)
+                return;
+        }
+
+        TryLatchReceivedByte();
     }
 
     private void UpdateConnectionState()
@@ -314,8 +360,53 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             _logger.LogInformation("SwiftLink TCP transport {State}.", isConnected ? "connected" : "disconnected");
         else
             _logger.LogDebug("SwiftLink TCP transport initial state is {State}.", isConnected ? "connected" : "disconnected");
+        RecordDiagnosticEvent($"Transport {(isConnected ? "connected" : "disconnected")}");
 
         if (hadPreviousState && ReceiveInterruptEnabled)
             SetIrqPending();
+    }
+
+    private void RecordDiagnosticEvent(string message)
+    {
+        var cycle = GetCurrentCycleCount?.Invoke() ?? 0;
+        _diagnosticHistory[_diagnosticHistoryNextIndex] = $"{cycle}:{message}";
+        _diagnosticHistoryNextIndex = (_diagnosticHistoryNextIndex + 1) % DiagnosticHistorySize;
+        if (_diagnosticHistoryCount < DiagnosticHistorySize)
+            _diagnosticHistoryCount++;
+    }
+
+    private string GetDiagnosticHistory()
+    {
+        if (_diagnosticHistoryCount == 0)
+            return "-";
+
+        var sb = new StringBuilder();
+        var startIndex = (_diagnosticHistoryNextIndex - _diagnosticHistoryCount + DiagnosticHistorySize) % DiagnosticHistorySize;
+        for (var i = 0; i < _diagnosticHistoryCount; i++)
+        {
+            if (i > 0)
+                sb.Append(" | ");
+            var entryIndex = (startIndex + i) % DiagnosticHistorySize;
+            sb.Append(_diagnosticHistory[entryIndex]);
+        }
+        return sb.ToString();
+    }
+
+    // Targeted troubleshooting helpers: keep the capture local to SwiftLink so future
+    // investigations can log GetDiagnosticState() from a caller without adding ad hoc
+    // logging back into the broader C64 execution path.
+    public string GetDiagnosticState()
+    {
+        var transport = Transport;
+        return
+            $"Base=0x{_baseAddress:X4}, " +
+            $"InterruptMode={InterruptMode}, ReceiveMode={ReceiveMode}, " +
+            $"RX_FULL={_rxFull}, RX_DATA=0x{_rxData:X2}, TX_EMPTY={_txEmpty}, IRQ_PENDING={_irqPending}, " +
+            $"CMD=0x{_commandRegister:X2}, CTRL=0x{_controlRegister:X2}, " +
+            $"IRQ_ENABLED={InterruptsEnabled}, RX_IRQ_ENABLED={ReceiveInterruptEnabled}, TX_IRQ_ENABLED={TransmitInterruptEnabled}, " +
+            $"CARRIER={IsCarrierDetected}, DSR_READY={IsDataSetReady}, " +
+            $"TRANSPORT_CONNECTED={transport?.IsConnected == true}, NMI_DELIVERABLE={CanDeliverNmi?.Invoke()}, " +
+            $"NEXT_RX_CYCLE={_nextReceiveCycleAvailable}, STATUS_READS={_statusReadCount}, " +
+            $"HISTORY=[{GetDiagnosticHistory()}]";
     }
 }

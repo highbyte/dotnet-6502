@@ -99,7 +99,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     private byte _cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
     private byte _cpuPortDataRegister = CpuPortDataResetValue;
-
     //public static ROM[] ROMS = new ROM[]
     //{   
     //    // name, file, checksum 
@@ -202,6 +201,11 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         IECBus.TickDevices();
         foreach (var cartridgeDevice in CartridgeDevices)
             cartridgeDevice.Tick();
+
+        // General emulator timing fix: devices tick after the CPU instruction has already
+        // completed, so newly raised hardware IRQ/NMI lines must be serviced here to land
+        // on the next instruction boundary instead of one instruction late.
+        CPU.ProcessPendingInterrupts(Mem);
 
         // Advance video raster
         var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
@@ -313,6 +317,14 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
         var mem = c64.CreateC64Memory(ram, io, romData);
         c64.Mem = mem;
+        if (c64.SwiftLink != null)
+        {
+            // SwiftLink-specific compatibility hook: some modem software temporarily banks
+            // out the mapped NMI vector area. SwiftLink can consult this callback and defer
+            // asserting its NMI source until the currently mapped vector is usable again.
+            c64.SwiftLink.CanDeliverNmi =
+                () => c64.Mem.FetchWord(CPU.NonMaskableIRQHandlerVector) != 0;
+        }
 
         c64.BasicTokenParser = new C64BasicTokenParser(c64, loggerFactory);
         c64.TextPaste = new C64TextPaste(c64, loggerFactory);
