@@ -273,6 +273,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _swiftLinkEnabled, value);
             _workingConfig.SystemConfig.SwiftLink.Enabled = value;
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -286,6 +287,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkCartridgeIOAddress, value);
             _workingConfig.SystemConfig.SwiftLink.CartridgeIOAddress = value;
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -299,6 +301,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkInterruptMode, value);
             _workingConfig.SystemConfig.SwiftLink.InterruptMode = value;
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -312,6 +315,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkReceiveMode, value);
             _workingConfig.SystemConfig.SwiftLink.ReceiveMode = value;
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -327,6 +331,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             _workingConfig.SwiftLinkHost.TransportMode = value;
             this.RaisePropertyChanged(nameof(IsSwiftLinkConnectOnBootAvailable));
             this.RaisePropertyChanged(nameof(SwiftLinkConnectOnBootToolTip));
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -348,6 +353,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _swiftLinkTcpHost, value);
             _workingConfig.SwiftLinkHost.TcpHost = value;
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -362,6 +368,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             this.RaiseAndSetIfChanged(ref _swiftLinkTcpPort, value);
             this.RaiseAndSetIfChanged(ref _swiftLinkTcpPortText, value.ToString(CultureInfo.InvariantCulture), nameof(SwiftLinkTcpPortText));
             _workingConfig.SwiftLinkHost.TcpPort = value;
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -377,13 +384,14 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedPort))
             {
-                parsedPort = Math.Clamp(parsedPort, 1, 65535);
                 if (_swiftLinkTcpPort != parsedPort)
                 {
                     this.RaiseAndSetIfChanged(ref _swiftLinkTcpPort, parsedPort, nameof(SwiftLinkTcpPort));
                     _workingConfig.SwiftLinkHost.TcpPort = parsedPort;
                 }
             }
+
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -397,6 +405,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _swiftLinkConnectOnBoot, value);
             _workingConfig.SwiftLinkHost.ConnectOnBoot = value;
+            UpdateValidationMessageFromConfig();
         }
     }
 
@@ -1388,7 +1397,17 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     private void UpdateValidationMessageFromConfig()
     {
-        if (!_workingConfig.IsValid(out var validationErrors))
+        var validationErrors = new List<string>();
+        if (!_workingConfig.IsValid(out validationErrors))
+        {
+            // validationErrors already populated by host/system config validation
+        }
+
+        var swiftLinkPortInputError = GetSwiftLinkPortInputValidationError();
+        if (!string.IsNullOrEmpty(swiftLinkPortInputError))
+            validationErrors.Add(swiftLinkPortInputError);
+
+        if (validationErrors.Count > 0)
         {
             ValidationMessage = string.Join(Environment.NewLine, validationErrors);
 
@@ -1408,6 +1427,20 @@ public class C64ConfigDialogViewModel : ViewModelBase
         // Notify UI about changes
         this.RaisePropertyChanged(nameof(HasValidationErrors));
         this.RaisePropertyChanged(nameof(CanSave));
+    }
+
+    private string? GetSwiftLinkPortInputValidationError()
+    {
+        if (string.IsNullOrWhiteSpace(SwiftLinkTcpPortText))
+            return $"{nameof(C64HostConfig.SwiftLinkHost)}.{nameof(C64SwiftLinkHostConfig.TcpPort)} must be between 1 and 65535.";
+
+        if (!int.TryParse(SwiftLinkTcpPortText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedPort))
+            return $"{nameof(C64HostConfig.SwiftLinkHost)}.{nameof(C64SwiftLinkHostConfig.TcpPort)} must be between 1 and 65535.";
+
+        if (parsedPort is < 1 or > 65535)
+            return $"{nameof(C64HostConfig.SwiftLinkHost)}.{nameof(C64SwiftLinkHostConfig.TcpPort)} must be between 1 and 65535.";
+
+        return null;
     }
 
     private void ApplyWorkingConfigToOriginal()

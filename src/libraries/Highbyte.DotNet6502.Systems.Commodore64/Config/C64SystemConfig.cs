@@ -449,12 +449,16 @@ public class C64SystemConfig : ISystemConfig
             }
         }
 
-        if (!Enum.IsDefined(SwiftLink.CartridgeIOAddress))
-            validationErrors.Add($"{nameof(SwiftLink)}.{nameof(SwiftLink.CartridgeIOAddress)} has an invalid value.");
-        if (!Enum.IsDefined(SwiftLink.InterruptMode))
-            validationErrors.Add($"{nameof(SwiftLink)}.{nameof(SwiftLink.InterruptMode)} has an invalid value.");
-        if (!Enum.IsDefined(SwiftLink.ReceiveMode))
-            validationErrors.Add($"{nameof(SwiftLink)}.{nameof(SwiftLink.ReceiveMode)} has an invalid value.");
+        if (SwiftLink == null)
+        {
+            validationErrors.Add($"{nameof(SwiftLink)} must be set.");
+        }
+        else
+        {
+            var swiftLinkValidationErrors = new List<string>();
+            if (!SwiftLink.IsValid(out swiftLinkValidationErrors, nameof(SwiftLink)))
+                validationErrors.AddRange(swiftLinkValidationErrors);
+        }
 
         return validationErrors.Count == 0;
     }

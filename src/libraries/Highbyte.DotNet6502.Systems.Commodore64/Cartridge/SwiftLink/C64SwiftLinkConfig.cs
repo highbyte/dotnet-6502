@@ -63,6 +63,20 @@ public class C64SwiftLinkConfig
 
     public void SetDirtyCallback(Action? markDirty) => _markDirty = markDirty;
 
+    public bool IsValid(out List<string> validationErrors, string configPath = nameof(C64SwiftLinkConfig))
+    {
+        validationErrors = new List<string>();
+
+        if (!Enum.IsDefined(CartridgeIOAddress))
+            validationErrors.Add($"{configPath}.{nameof(CartridgeIOAddress)} has an invalid value.");
+        if (!Enum.IsDefined(InterruptMode))
+            validationErrors.Add($"{configPath}.{nameof(InterruptMode)} has an invalid value.");
+        if (!Enum.IsDefined(ReceiveMode))
+            validationErrors.Add($"{configPath}.{nameof(ReceiveMode)} has an invalid value.");
+
+        return validationErrors.Count == 0;
+    }
+
     public C64SwiftLinkConfig Clone()
     {
         var clone = (C64SwiftLinkConfig)MemberwiseClone();

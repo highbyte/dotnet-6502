@@ -59,6 +59,35 @@ public class C64SwiftLinkHostConfig
 
     public void SetDirtyCallback(Action? markDirty) => _markDirty = markDirty;
 
+    public bool IsValid(out List<string> validationErrors, string configPath = nameof(C64SwiftLinkHostConfig))
+    {
+        validationErrors = new List<string>();
+
+        if (!Enum.IsDefined(TransportMode))
+            validationErrors.Add($"{configPath}.{nameof(TransportMode)} has an invalid value.");
+
+        if (TransportMode == C64SwiftLinkTransportMode.RawTcp)
+        {
+            if (string.IsNullOrWhiteSpace(TcpHost))
+            {
+                validationErrors.Add($"{configPath}.{nameof(TcpHost)} must be set for RawTcp mode.");
+            }
+            else if (Uri.CheckHostName(TcpHost.Trim()) == UriHostNameType.Unknown)
+            {
+                validationErrors.Add($"{configPath}.{nameof(TcpHost)} must be a valid host name or IP address.");
+            }
+        }
+        else if (TransportMode == C64SwiftLinkTransportMode.HayesModem && ConnectOnBoot)
+        {
+            validationErrors.Add($"{configPath}.{nameof(ConnectOnBoot)} can only be enabled in RawTcp mode.");
+        }
+
+        if (TcpPort is < 1 or > 65535)
+            validationErrors.Add($"{configPath}.{nameof(TcpPort)} must be between 1 and 65535.");
+
+        return validationErrors.Count == 0;
+    }
+
     public C64SwiftLinkHostConfig Clone()
     {
         var clone = (C64SwiftLinkHostConfig)MemberwiseClone();

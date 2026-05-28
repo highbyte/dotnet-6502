@@ -37,4 +37,12 @@ public class C64HostConfig : SadConsoleHostSystemConfigBase<C64SystemConfig>, IC
         clone.SwiftLinkHost = SwiftLinkHost.Clone();
         return clone;
     }
+
+    public override bool IsValid(out List<string> validationErrors)
+    {
+        var isValid = base.IsValid(out validationErrors);
+        if (!SwiftLinkHost.IsValid(out var swiftLinkHostValidationErrors, nameof(SwiftLinkHost)))
+            validationErrors.AddRange(swiftLinkHostValidationErrors);
+        return isValid && validationErrors.Count == 0;
+    }
 }
