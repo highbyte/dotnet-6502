@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
@@ -288,15 +289,15 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         var diskDrive1541 = new DiskDrive1541(loggerFactory);
         iecBus.Attach(diskDrive1541);
 
-        if (c64Config.SwiftLinkEnabled)
+        if (c64Config.SwiftLink.Enabled)
         {
             var swiftLink = new SwiftLinkDevice(
-                c64Config.SwiftLinkCartridgeIOAddress,
+                c64Config.SwiftLink.CartridgeIOAddress,
                 loggerFactory.CreateLogger(nameof(SwiftLinkDevice)))
             {
                 CpuInterrupts = cpu.CPUInterrupts,
-                InterruptMode = c64Config.SwiftLinkInterruptMode,
-                ReceiveMode = c64Config.SwiftLinkReceiveMode,
+                InterruptMode = c64Config.SwiftLink.InterruptMode,
+                ReceiveMode = c64Config.SwiftLink.ReceiveMode,
                 GetCurrentCycleCount = () => cpu.ExecState.CyclesConsumed,
             };
             c64.SwiftLink = swiftLink;

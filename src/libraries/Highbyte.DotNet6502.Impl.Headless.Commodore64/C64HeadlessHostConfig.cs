@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.Impl.Headless.Commodore64;
@@ -10,36 +11,33 @@ public class C64HeadlessHostConfig : HostSystemConfigBase<C64SystemConfig>, IC64
 
     public override bool AudioSupported => false;
 
-    private C64SwiftLinkTransportMode _swiftLinkTransportMode;
-    public C64SwiftLinkTransportMode SwiftLinkTransportMode
+    private C64SwiftLinkHostConfig _swiftLinkHost = new();
+    public C64SwiftLinkHostConfig SwiftLinkHost
     {
-        get => _swiftLinkTransportMode;
-        set { _swiftLinkTransportMode = value; MarkDirty(); }
+        get => _swiftLinkHost;
+        set
+        {
+            _swiftLinkHost = value ?? new C64SwiftLinkHostConfig();
+            _swiftLinkHost.SetDirtyCallback(MarkDirty);
+            MarkDirty();
+        }
     }
 
-    private string _swiftLinkTcpHost = "127.0.0.1";
-    public string SwiftLinkTcpHost
-    {
-        get => _swiftLinkTcpHost;
-        set { _swiftLinkTcpHost = value; MarkDirty(); }
-    }
-
-    private int _swiftLinkTcpPort = 5000;
-    public int SwiftLinkTcpPort
-    {
-        get => _swiftLinkTcpPort;
-        set { _swiftLinkTcpPort = value; MarkDirty(); }
-    }
-
-    private bool _swiftLinkConnectOnBoot;
-    public bool SwiftLinkConnectOnBoot
-    {
-        get => _swiftLinkConnectOnBoot;
-        set { _swiftLinkConnectOnBoot = value; MarkDirty(); }
-    }
+    public C64SwiftLinkTransportMode SwiftLinkTransportMode => SwiftLinkHost.TransportMode;
+    public string SwiftLinkTcpHost => SwiftLinkHost.TcpHost;
+    public int SwiftLinkTcpPort => SwiftLinkHost.TcpPort;
+    public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
     public C64HeadlessHostConfig()
     {
-        SwiftLinkTransportMode = C64SwiftLinkTransportMode.RawTcp;
+        _swiftLinkHost.SetDirtyCallback(MarkDirty);
+    }
+
+    public override object Clone()
+    {
+        var clone = (C64HeadlessHostConfig)base.Clone();
+        clone._swiftLinkHost = SwiftLinkHost.Clone();
+        clone._swiftLinkHost.SetDirtyCallback(clone.MarkDirty);
+        return clone;
     }
 }

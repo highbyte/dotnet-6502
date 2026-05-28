@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 
@@ -20,33 +21,29 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
 
     public C64InputConfig InputConfig { get; set; } = new C64InputConfig();
 
-    private C64SwiftLinkTransportMode _swiftLinkTransportMode;
-    public C64SwiftLinkTransportMode SwiftLinkTransportMode
+    private C64SwiftLinkHostConfig _swiftLinkHost = new();
+    public C64SwiftLinkHostConfig SwiftLinkHost
     {
-        get => _swiftLinkTransportMode;
-        set { _swiftLinkTransportMode = value; MarkDirty(); }
+        get => _swiftLinkHost;
+        set
+        {
+            _swiftLinkHost = value ?? new C64SwiftLinkHostConfig();
+            _swiftLinkHost.SetDirtyCallback(MarkDirty);
+            MarkDirty();
+        }
     }
 
-    private string _swiftLinkTcpHost = "127.0.0.1";
-    public string SwiftLinkTcpHost
-    {
-        get => _swiftLinkTcpHost;
-        set { _swiftLinkTcpHost = value; MarkDirty(); }
-    }
+    [JsonIgnore]
+    public C64SwiftLinkTransportMode SwiftLinkTransportMode => SwiftLinkHost.TransportMode;
 
-    private int _swiftLinkTcpPort = 5000;
-    public int SwiftLinkTcpPort
-    {
-        get => _swiftLinkTcpPort;
-        set { _swiftLinkTcpPort = value; MarkDirty(); }
-    }
+    [JsonIgnore]
+    public string SwiftLinkTcpHost => SwiftLinkHost.TcpHost;
 
-    private bool _swiftLinkConnectOnBoot;
-    public bool SwiftLinkConnectOnBoot
-    {
-        get => _swiftLinkConnectOnBoot;
-        set { _swiftLinkConnectOnBoot = value; MarkDirty(); }
-    }
+    [JsonIgnore]
+    public int SwiftLinkTcpPort => SwiftLinkHost.TcpPort;
+
+    [JsonIgnore]
+    public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
     /// <summary>
     /// CORS proxy address override. If null/empty, the default CORS proxy URL is used when running
@@ -84,13 +81,15 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     {
         BasicAIAssistantDefaultEnabled = false;
         CodeSuggestionBackendType = CodeSuggestionBackendTypeEnum.CustomEndpoint;
-        SwiftLinkTransportMode = C64SwiftLinkTransportMode.RawTcp;
+        _swiftLinkHost.SetDirtyCallback(MarkDirty);
     }
 
     public override object Clone()
     {
         var clone = (C64HostConfig)base.Clone();
         clone.InputConfig = (C64InputConfig)InputConfig.Clone();
+        clone._swiftLinkHost = SwiftLinkHost.Clone();
+        clone._swiftLinkHost.SetDirtyCallback(clone.MarkDirty);
         return clone;
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -116,6 +117,14 @@ public partial class C64ConfigUserControl : UserControl
         else if (e.Key == Key.A)
         {
             textBox.SelectAll();
+            e.Handled = true;
+        }
+    }
+
+    private void OnDigitsOnlyTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.Text) && e.Text.Any(ch => !char.IsDigit(ch)))
+        {
             e.Handled = true;
         }
     }

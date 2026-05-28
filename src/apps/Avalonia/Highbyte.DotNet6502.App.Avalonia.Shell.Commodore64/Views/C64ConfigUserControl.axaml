@@ -396,21 +396,23 @@
                 <TextBlock Grid.Row="6" Grid.Column="0"
                             Text="TCP port:"
                             Classes="secondary-text"/>
-                <NumericUpDown Grid.Row="6" Grid.Column="1"
-                        AutomationProperties.AutomationId="SwiftLinkTcpPortNumericUpDown"
+                <TextBox Grid.Row="6" Grid.Column="1"
+                        AutomationProperties.AutomationId="SwiftLinkTcpPortInput"
                         AutomationProperties.Name="SwiftLink TCP port"
-                        Value="{Binding SwiftLinkTcpPort}"
-                        Minimum="1"
-                        Maximum="65535"
+                        Text="{Binding SwiftLinkTcpPortText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        Width="68"
+                        MaxLength="5"
                         Classes="small"
-                        Width="120"
-                        HorizontalAlignment="Left"/>
+                        HorizontalAlignment="Left"
+                        TextInput="OnDigitsOnlyTextInput"/>
 
                 <CheckBox Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2"
                         AutomationProperties.AutomationId="SwiftLinkConnectOnBootCheckBox"
                         AutomationProperties.Name="Connect SwiftLink on boot"
                         Content="Connect automatically when the emulator starts"
-                        IsChecked="{Binding SwiftLinkConnectOnBoot}"/>
+                        IsChecked="{Binding SwiftLinkConnectOnBoot}"
+                        IsEnabled="{Binding IsSwiftLinkConnectOnBootAvailable}"
+                        ToolTip.Tip="{Binding SwiftLinkConnectOnBootToolTip}"/>
             </Grid>
             </StackPanel>
         </Border>

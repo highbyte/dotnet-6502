@@ -109,13 +109,17 @@ echo "==> Generating SwiftLink smoke PRG"
 cat >"$APPSETTINGS_PATH" <<JSON
 {
   "Highbyte.DotNet6502.C64.Headless": {
-    "SwiftLinkTcpHost": "127.0.0.1",
-    "SwiftLinkTcpPort": $ECHO_PORT,
-    "SwiftLinkConnectOnBoot": true,
-      "SystemConfig": {
-      "SwiftLinkEnabled": true,
-      "SwiftLinkCartridgeIOAddress": "DE00",
-      "SwiftLinkReceiveMode": "FastBuffered"
+    "SwiftLinkHost": {
+      "TcpHost": "127.0.0.1",
+      "TcpPort": $ECHO_PORT,
+      "ConnectOnBoot": true
+    },
+    "SystemConfig": {
+      "SwiftLink": {
+        "Enabled": true,
+        "CartridgeIOAddress": "DE00",
+        "ReceiveMode": "FastBuffered"
+      }
     }
   }
 }

@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Systems.Input;
 namespace Highbyte.DotNet6502.Systems.Commodore64.Input;
 
 /// <summary>
+/// 
 /// Host-agnostic C64 gamepad/joystick configuration: which C64 joystick port a host gamepad
 /// drives, and the gamepad-button to C64-joystick-action mapping.
 ///

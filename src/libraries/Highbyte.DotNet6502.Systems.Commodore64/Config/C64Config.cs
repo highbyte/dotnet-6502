@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -25,10 +26,7 @@ public class C64Config
     public bool KeyboardJoystickEnabled { get; set; }
     public int KeyboardJoystick { get; set; }
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; set; }
-    public bool SwiftLinkEnabled { get; set; }
-    public C64CartridgeIOAddress SwiftLinkCartridgeIOAddress { get; set; }
-    public C64SwiftLinkInterruptMode SwiftLinkInterruptMode { get; set; }
-    public C64SwiftLinkReceiveMode SwiftLinkReceiveMode { get; set; }
+    public C64SwiftLinkConfig SwiftLink { get; set; }
     public Type? RenderProviderType { get; set; }
     public Type? AudioProviderType { get; set; }
     public SidEmulationMode SidEmulationMode { get; set; } = SidEmulationMode.Auto;
@@ -48,10 +46,7 @@ public class C64Config
         AudioEnabled = false;
         KeyboardJoystickEnabled = false;
         KeyboardJoystick = 2;
-        SwiftLinkEnabled = false;
-        SwiftLinkCartridgeIOAddress = C64CartridgeIOAddress.DE00;
-        SwiftLinkInterruptMode = C64SwiftLinkInterruptMode.IRQ;
-        SwiftLinkReceiveMode = C64SwiftLinkReceiveMode.Compatible;
+        SwiftLink = new C64SwiftLinkConfig();
 
         // Settings not currently changeable by user
         TimerMode = TimerMode.UpdateEachRasterLine;
@@ -65,6 +60,7 @@ public class C64Config
     {
         var clone = (C64Config)this.MemberwiseClone();
         clone.ROMs = ROM.Clone(ROMs);
+        clone.SwiftLink = SwiftLink.Clone();
         return clone;
     }
 }

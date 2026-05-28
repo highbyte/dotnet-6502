@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -307,8 +308,11 @@ public class SwiftLinkDeviceTests
         var c64 = C64.BuildC64(new C64Config
         {
             LoadROMs = false,
-            SwiftLinkEnabled = true,
-            SwiftLinkCartridgeIOAddress = C64CartridgeIOAddress.DF00,
+            SwiftLink =
+            {
+                Enabled = true,
+                CartridgeIOAddress = C64CartridgeIOAddress.DF00,
+            },
         }, new NullLoggerFactory());
 
         Assert.NotNull(c64.SwiftLink);
@@ -324,7 +328,10 @@ public class SwiftLinkDeviceTests
         var c64 = C64.BuildC64(new C64Config
         {
             LoadROMs = false,
-            SwiftLinkEnabled = false,
+            SwiftLink =
+            {
+                Enabled = false,
+            },
         }, new NullLoggerFactory());
 
         Assert.Null(c64.SwiftLink);

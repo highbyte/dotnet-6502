@@ -1,4 +1,4 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Microsoft.Extensions.Logging;
 

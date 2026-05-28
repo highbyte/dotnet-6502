@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Microsoft.Extensions.Configuration;
@@ -112,10 +113,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             AudioEnabled = c64SystemConfig.AudioEnabled,
             KeyboardJoystickEnabled = c64SystemConfig.KeyboardJoystickEnabled,
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
-            SwiftLinkEnabled = c64SystemConfig.SwiftLinkEnabled,
-            SwiftLinkCartridgeIOAddress = c64SystemConfig.SwiftLinkCartridgeIOAddress,
-            SwiftLinkInterruptMode = c64SystemConfig.SwiftLinkInterruptMode,
-            SwiftLinkReceiveMode = c64SystemConfig.SwiftLinkReceiveMode,
+            SwiftLink = c64SystemConfig.SwiftLink.Clone(),
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,

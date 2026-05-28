@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -14,6 +15,7 @@ using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
@@ -59,6 +61,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private C64SwiftLinkReceiveMode _selectedSwiftLinkReceiveMode;
     private string _swiftLinkTcpHost = string.Empty;
     private int _swiftLinkTcpPort;
+    private string _swiftLinkTcpPortText = string.Empty;
     private bool _swiftLinkConnectOnBoot;
     private string _romDirectory = string.Empty;
     private RenderProviderOption? _selectedRenderProvider;
@@ -108,14 +111,14 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
         SelectedHostJoystick = _workingConfig.InputConfig.CurrentJoystick;
         SelectedKeyboardLayout = _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;
-        SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLinkEnabled;
-        SelectedSwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress;
-        SelectedSwiftLinkTransportMode = _workingConfig.SwiftLinkTransportMode;
-        SelectedSwiftLinkInterruptMode = _workingConfig.SystemConfig.SwiftLinkInterruptMode;
-        SelectedSwiftLinkReceiveMode = _workingConfig.SystemConfig.SwiftLinkReceiveMode;
-        SwiftLinkTcpHost = _workingConfig.SwiftLinkTcpHost;
-        SwiftLinkTcpPort = _workingConfig.SwiftLinkTcpPort;
-        SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkConnectOnBoot;
+        SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLink.Enabled;
+        SelectedSwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLink.CartridgeIOAddress;
+        SelectedSwiftLinkTransportMode = _workingConfig.SwiftLinkHost.TransportMode;
+        SelectedSwiftLinkInterruptMode = _workingConfig.SystemConfig.SwiftLink.InterruptMode;
+        SelectedSwiftLinkReceiveMode = _workingConfig.SystemConfig.SwiftLink.ReceiveMode;
+        SwiftLinkTcpHost = _workingConfig.SwiftLinkHost.TcpHost;
+        SwiftLinkTcpPort = _workingConfig.SwiftLinkHost.TcpPort;
+        SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkHost.ConnectOnBoot;
 
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
 
@@ -269,7 +272,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _swiftLinkEnabled, value);
-            _workingConfig.SystemConfig.SwiftLinkEnabled = value;
+            _workingConfig.SystemConfig.SwiftLink.Enabled = value;
         }
     }
 
@@ -282,7 +285,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkCartridgeIOAddress, value);
-            _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress = value;
+            _workingConfig.SystemConfig.SwiftLink.CartridgeIOAddress = value;
         }
     }
 
@@ -295,7 +298,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkInterruptMode, value);
-            _workingConfig.SystemConfig.SwiftLinkInterruptMode = value;
+            _workingConfig.SystemConfig.SwiftLink.InterruptMode = value;
         }
     }
 
@@ -308,7 +311,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkReceiveMode, value);
-            _workingConfig.SystemConfig.SwiftLinkReceiveMode = value;
+            _workingConfig.SystemConfig.SwiftLink.ReceiveMode = value;
         }
     }
 
@@ -321,9 +324,19 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkTransportMode, value);
-            _workingConfig.SwiftLinkTransportMode = value;
+            _workingConfig.SwiftLinkHost.TransportMode = value;
+            this.RaisePropertyChanged(nameof(IsSwiftLinkConnectOnBootAvailable));
+            this.RaisePropertyChanged(nameof(SwiftLinkConnectOnBootToolTip));
         }
     }
+
+    public bool IsSwiftLinkConnectOnBootAvailable
+        => SelectedSwiftLinkTransportMode == C64SwiftLinkTransportMode.RawTcp;
+
+    public string SwiftLinkConnectOnBootToolTip
+        => IsSwiftLinkConnectOnBootAvailable
+            ? "Automatically opens the configured raw TCP SwiftLink connection when the emulator starts."
+            : "Only applies to Raw TCP mode. Hayes modem mode waits for the emulated C64 software to dial with an ATDT command.";
 
     public string SwiftLinkTcpHost
     {
@@ -334,7 +347,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _swiftLinkTcpHost, value);
-            _workingConfig.SwiftLinkTcpHost = value;
+            _workingConfig.SwiftLinkHost.TcpHost = value;
         }
     }
 
@@ -347,7 +360,30 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _swiftLinkTcpPort, value);
-            _workingConfig.SwiftLinkTcpPort = value;
+            this.RaiseAndSetIfChanged(ref _swiftLinkTcpPortText, value.ToString(CultureInfo.InvariantCulture), nameof(SwiftLinkTcpPortText));
+            _workingConfig.SwiftLinkHost.TcpPort = value;
+        }
+    }
+
+    public string SwiftLinkTcpPortText
+    {
+        get => _swiftLinkTcpPortText;
+        set
+        {
+            if (_swiftLinkTcpPortText == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkTcpPortText, value);
+
+            if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedPort))
+            {
+                parsedPort = Math.Clamp(parsedPort, 1, 65535);
+                if (_swiftLinkTcpPort != parsedPort)
+                {
+                    this.RaiseAndSetIfChanged(ref _swiftLinkTcpPort, parsedPort, nameof(SwiftLinkTcpPort));
+                    _workingConfig.SwiftLinkHost.TcpPort = parsedPort;
+                }
+            }
         }
     }
 
@@ -360,7 +396,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 return;
 
             this.RaiseAndSetIfChanged(ref _swiftLinkConnectOnBoot, value);
-            _workingConfig.SwiftLinkConnectOnBoot = value;
+            _workingConfig.SwiftLinkHost.ConnectOnBoot = value;
         }
     }
 
@@ -1381,15 +1417,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
         _originalConfig.SystemConfig.KeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
-        _originalConfig.SystemConfig.SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLinkEnabled;
-        _originalConfig.SystemConfig.SwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLinkCartridgeIOAddress;
-        _originalConfig.SystemConfig.SwiftLinkInterruptMode = _workingConfig.SystemConfig.SwiftLinkInterruptMode;
-        _originalConfig.SystemConfig.SwiftLinkReceiveMode = _workingConfig.SystemConfig.SwiftLinkReceiveMode;
+        _originalConfig.SystemConfig.SwiftLink = _workingConfig.SystemConfig.SwiftLink.Clone();
         _originalConfig.SystemConfig.ColorMapName = _workingConfig.SystemConfig.ColorMapName;
-        _originalConfig.SwiftLinkTransportMode = _workingConfig.SwiftLinkTransportMode;
-        _originalConfig.SwiftLinkTcpHost = _workingConfig.SwiftLinkTcpHost;
-        _originalConfig.SwiftLinkTcpPort = _workingConfig.SwiftLinkTcpPort;
-        _originalConfig.SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkConnectOnBoot;
+        _originalConfig.SwiftLinkHost = _workingConfig.SwiftLinkHost.Clone();
 
         if (_workingConfig.SystemConfig.RenderProviderType != null)
             _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);

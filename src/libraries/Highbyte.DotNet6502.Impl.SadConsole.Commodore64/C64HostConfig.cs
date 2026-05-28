@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Impl.SadConsole;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using SadConsole;
 
@@ -12,10 +13,11 @@ public class C64HostConfig : SadConsoleHostSystemConfigBase<C64SystemConfig>, IC
 
     public bool BasicAIAssistantDefaultEnabled { get; set; }
 
-    public C64SwiftLinkTransportMode SwiftLinkTransportMode { get; set; } = C64SwiftLinkTransportMode.RawTcp;
-    public string SwiftLinkTcpHost { get; set; } = "127.0.0.1";
-    public int SwiftLinkTcpPort { get; set; } = 5000;
-    public bool SwiftLinkConnectOnBoot { get; set; }
+    public C64SwiftLinkHostConfig SwiftLinkHost { get; set; } = new();
+    public C64SwiftLinkTransportMode SwiftLinkTransportMode => SwiftLinkHost.TransportMode;
+    public string SwiftLinkTcpHost => SwiftLinkHost.TcpHost;
+    public int SwiftLinkTcpPort => SwiftLinkHost.TcpPort;
+    public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
     //TODO: CodeSuggestionBackendType setting should be common and not specific for a system
     public CodeSuggestionBackendTypeEnum CodeSuggestionBackendType { get; set; }
@@ -27,5 +29,12 @@ public class C64HostConfig : SadConsoleHostSystemConfigBase<C64SystemConfig>, IC
 
         Font = "Fonts/C64_ROM.font";
         DefaultFontSize = IFont.Sizes.Two;
+    }
+
+    public override object Clone()
+    {
+        var clone = (C64HostConfig)base.Clone();
+        clone.SwiftLinkHost = SwiftLinkHost.Clone();
+        return clone;
     }
 }

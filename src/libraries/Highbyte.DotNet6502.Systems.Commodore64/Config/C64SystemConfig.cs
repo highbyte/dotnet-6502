@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
@@ -14,6 +15,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
 public class C64SystemConfig : ISystemConfig
 {
     private bool _isDirty = false;
+    private void MarkDirty() => _isDirty = true;
+
     [JsonIgnore]
     public bool IsDirty => _isDirty;
 
@@ -298,48 +301,14 @@ public class C64SystemConfig : ISystemConfig
         }
     }
 
-    private bool _swiftLinkEnabled;
-    public bool SwiftLinkEnabled
+    private C64SwiftLinkConfig _swiftLink = new();
+    public C64SwiftLinkConfig SwiftLink
     {
-        get => _swiftLinkEnabled;
+        get => _swiftLink;
         set
         {
-            _swiftLinkEnabled = value;
-            _isDirty = true;
-        }
-    }
-
-    private C64CartridgeIOAddress _swiftLinkCartridgeIOAddress;
-    public C64CartridgeIOAddress SwiftLinkCartridgeIOAddress
-    {
-        get => _swiftLinkCartridgeIOAddress;
-        set
-        {
-            _swiftLinkCartridgeIOAddress = value;
-            _isDirty = true;
-        }
-    }
-
-    private C64SwiftLinkInterruptMode _swiftLinkInterruptMode;
-    [JsonConverter(typeof(JsonStringEnumConverter<C64SwiftLinkInterruptMode>))]
-    public C64SwiftLinkInterruptMode SwiftLinkInterruptMode
-    {
-        get => _swiftLinkInterruptMode;
-        set
-        {
-            _swiftLinkInterruptMode = value;
-            _isDirty = true;
-        }
-    }
-
-    private C64SwiftLinkReceiveMode _swiftLinkReceiveMode;
-    [JsonConverter(typeof(JsonStringEnumConverter<C64SwiftLinkReceiveMode>))]
-    public C64SwiftLinkReceiveMode SwiftLinkReceiveMode
-    {
-        get => _swiftLinkReceiveMode;
-        set
-        {
-            _swiftLinkReceiveMode = value;
+            _swiftLink = value ?? new C64SwiftLinkConfig();
+            _swiftLink.SetDirtyCallback(MarkDirty);
             _isDirty = true;
         }
     }
@@ -363,16 +332,13 @@ public class C64SystemConfig : ISystemConfig
             _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
         }
 
-        _swiftLinkInterruptMode = C64SwiftLinkInterruptMode.IRQ;
-        _swiftLinkReceiveMode = C64SwiftLinkReceiveMode.Compatible;
-
         _colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
         _audioEnabled = true;
         _keyboardJoystickEnabled = false;
         _keyboardJoystick = 2;
-        _swiftLinkEnabled = false;
-        _swiftLinkCartridgeIOAddress = C64CartridgeIOAddress.DE00;
+        _swiftLink = new C64SwiftLinkConfig();
+        _swiftLink.SetDirtyCallback(MarkDirty);
 
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
 
@@ -439,6 +405,8 @@ public class C64SystemConfig : ISystemConfig
     {
         var clone = (C64SystemConfig)this.MemberwiseClone();
         clone.ROMs = ROM.Clone(ROMs);
+        clone._swiftLink = SwiftLink.Clone();
+        clone._swiftLink.SetDirtyCallback(clone.MarkDirty);
         return clone;
     }
 
@@ -481,12 +449,12 @@ public class C64SystemConfig : ISystemConfig
             }
         }
 
-        if (!Enum.IsDefined(SwiftLinkCartridgeIOAddress))
-            validationErrors.Add($"{nameof(SwiftLinkCartridgeIOAddress)} has an invalid value.");
-        if (!Enum.IsDefined(SwiftLinkInterruptMode))
-            validationErrors.Add($"{nameof(SwiftLinkInterruptMode)} has an invalid value.");
-        if (!Enum.IsDefined(SwiftLinkReceiveMode))
-            validationErrors.Add($"{nameof(SwiftLinkReceiveMode)} has an invalid value.");
+        if (!Enum.IsDefined(SwiftLink.CartridgeIOAddress))
+            validationErrors.Add($"{nameof(SwiftLink)}.{nameof(SwiftLink.CartridgeIOAddress)} has an invalid value.");
+        if (!Enum.IsDefined(SwiftLink.InterruptMode))
+            validationErrors.Add($"{nameof(SwiftLink)}.{nameof(SwiftLink.InterruptMode)} has an invalid value.");
+        if (!Enum.IsDefined(SwiftLink.ReceiveMode))
+            validationErrors.Add($"{nameof(SwiftLink)}.{nameof(SwiftLink.ReceiveMode)} has an invalid value.");
 
         return validationErrors.Count == 0;
     }
