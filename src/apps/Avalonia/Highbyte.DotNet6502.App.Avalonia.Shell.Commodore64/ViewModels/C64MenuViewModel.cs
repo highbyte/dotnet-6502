@@ -12,6 +12,7 @@ using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
@@ -40,6 +41,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
     {
         {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
+        {"compunetreborn", new D64DownloadDiskInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.d64", c64Variant: "C64PAL", availableInBrowser: false)},
         {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
         {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
@@ -567,13 +569,13 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         // Initialize preloaded D64 programs
         PreloadedD64Programs.Clear();
         PreloadedD64Programs.Add(new KeyValuePair<string, string>("", "-- Select a program --"));
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("bubblebobble", "Bubble Bobble"));
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("digiloi", "Digiloi"));
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("elite", "Elite"));
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("lastninja", "Last Ninja"));
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("minizork", "Mini Zork"));
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("montezuma", "Montezuma's Revenge"));
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("rallyspeedway", "Rally Speedway"));
+        var preloadedDisks = PlatformDetection.IsRunningInWebAssembly()
+            ? _preloadedD64Images.Where(d => d.Value.AvailableInBrowser)
+            : _preloadedD64Images.AsEnumerable();
+        foreach (var disk in preloadedDisks.OrderBy(d => d.Value.DisplayName))
+        {
+            PreloadedD64Programs.Add(new KeyValuePair<string, string>(disk.Key, disk.Value.DisplayName));
+        }
 
         // Debug: List all embedded resource names
         // var resourceNames = _examplesAssembly.GetManifestResourceNames();
