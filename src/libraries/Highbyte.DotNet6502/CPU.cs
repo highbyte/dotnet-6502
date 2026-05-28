@@ -179,6 +179,16 @@ public class CPU
     }
 
     /// <summary>
+    /// Services any pending hardware interrupts at the current instruction boundary.
+    /// Intended for system-level device ticking that occurs after instruction execution.
+    /// </summary>
+    /// <param name="mem"></param>
+    public void ProcessPendingInterrupts(Memory mem)
+    {
+        ProcessInterrupts(mem);
+    }
+
+    /// <summary>
     /// Executes one instruction, and will fire events and collect statistics.
     /// </summary>
     /// <param name="mem"></param>
