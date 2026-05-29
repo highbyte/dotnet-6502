@@ -86,6 +86,9 @@
     <TrimmerRootAssembly Include="Highbyte.DotNet6502.App.Avalonia.Shell.Generic" />
     <TrimmerRootAssembly Include="Highbyte.DotNet6502.Impl.Avalonia.Generic" />
     <TrimmerRootAssembly Include="Highbyte.DotNet6502.Systems.Generic" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Impl.Avalonia.Vic20" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Systems.Vic20" />
   </ItemGroup>
 
   <!--

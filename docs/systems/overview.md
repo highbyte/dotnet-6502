@@ -10,6 +10,7 @@ For the four-tier model and how host apps stay system-agnostic via plugin discov
 ## Systems
 
 - [Commodore 64](c64/overview.md)
+- [VIC-20](vic20/overview.md)
 - [Generic computer](generic/overview.md)
 
 ## Adding a new system
