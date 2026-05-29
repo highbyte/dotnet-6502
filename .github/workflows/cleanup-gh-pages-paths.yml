@@ -1,0 +1,68 @@
+name: Clean up GitHub Pages paths
+
+on:
+  workflow_dispatch:
+    inputs:
+      paths:
+        description: "Comma-separated list of gh-pages subpaths to delete"
+        required: true
+        default: "app-test,app2-test"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-pages-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out gh-pages branch
+        uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Remove requested paths
+        env:
+          PATHS: ${{ github.event.inputs.paths }}
+        run: |
+          set -euo pipefail
+
+          removed=0
+          IFS=, read -ra entries <<< "$PATHS"
+          for raw_path in "${entries[@]}"; do
+            path="$(echo "$raw_path" | xargs)"
+            if [[ -z "$path" ]]; then
+              continue
+            fi
+
+            if [[ -e "$path" ]]; then
+              echo "Removing $path"
+              git rm -r --ignore-unmatch -- "$path"
+              removed=1
+            else
+              echo "Skipping missing path $path"
+            fi
+          done
+
+          if [[ "$removed" -eq 0 ]]; then
+            echo "No matching paths were found."
+          fi
+
+      - name: Commit and push cleanup
+        run: |
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Clean up selected GitHub Pages paths"
+          git push origin gh-pages
