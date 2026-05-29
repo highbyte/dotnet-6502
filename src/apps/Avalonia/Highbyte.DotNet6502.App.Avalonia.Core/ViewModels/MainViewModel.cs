@@ -42,6 +42,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly IReadOnlyDictionary<string, ISystemShellPlugin> _shellPlugins;
     private readonly IServiceProvider _serviceProvider;
 
+    private const int DefaultSystemDisplayOrder = 1000;
+
     private ISystemShellPlugin? ActivePlugin
         => SelectedSystemName != null && _shellPlugins.TryGetValue(SelectedSystemName, out var p) ? p : null;
 
@@ -73,6 +75,15 @@ public class MainViewModel : ViewModelBase, IDisposable
             cache[plugin.SystemName] = contribution;
         }
         return contribution;
+    }
+
+    private IEnumerable<string> OrderSystemsForDisplay(IEnumerable<string> systems)
+    {
+        return systems
+            .OrderBy(system => _shellPlugins.TryGetValue(system, out var plugin)
+                ? plugin.DisplayOrder
+                : DefaultSystemDisplayOrder)
+            .ThenBy(system => system, StringComparer.OrdinalIgnoreCase);
     }
 
     public bool IsSystemPluginActive => ActivePlugin != null;
@@ -615,7 +626,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         _availableSystems = _hostApp
             .WhenAnyValue(x => x.AvailableSystemNames)
-            .Select(systems => new ObservableCollection<string>(systems))
+            .Select(systems => new ObservableCollection<string>(OrderSystemsForDisplay(systems)))
             .ToProperty(this, x => x.AvailableSystems);
 
         _availableSystemVariants = _hostApp

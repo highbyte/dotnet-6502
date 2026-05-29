@@ -18,11 +18,14 @@ public sealed class Vic20AvaloniaShellPlugin : ISystemShellPlugin
 {
     public string SystemName => global::Highbyte.DotNet6502.Systems.Vic20.Vic20.SystemName;
 
+    public int DisplayOrder => 20;
+
     public void RegisterShellServices(IServiceCollection services)
     {
         services.AddTransient<Vic20MenuViewModel>();
         services.AddTransient<Vic20InfoViewModel>();
         services.AddTransient<Vic20ConfigDialogViewModel>();
+        services.AddTransient<Vic20RomPromptService>();
     }
 
     public object? CreateMenuContribution(IServiceProvider sp) => sp.GetService<Vic20MenuViewModel>();

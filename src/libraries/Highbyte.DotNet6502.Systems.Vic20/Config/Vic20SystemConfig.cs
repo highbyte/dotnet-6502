@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Utils;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
 
@@ -11,6 +12,11 @@ public class Vic20SystemConfig : ISystemConfig
     public const string CHARGEN_ROM_NAME = "chargen";
 
     public static readonly List<string> RequiredROMs = new() { BASIC_ROM_NAME, KERNAL_ROM_NAME, CHARGEN_ROM_NAME };
+
+    public static string DEFAULT_ROM_DOWNLOAD_BASE_URL = "https://www.zimmers.net/anonftp/pub/cbm/firmware/computers/vic20";
+    public static string DEFAULT_BASIC_ROM_DOWNLOAD_URL = $"{DEFAULT_ROM_DOWNLOAD_BASE_URL}/basic.901486-01.bin";
+    public static string DEFAULT_KERNAL_ROM_DOWNLOAD_URL = $"{DEFAULT_ROM_DOWNLOAD_BASE_URL}/kernal.901486-07.bin";
+    public static string DEFAULT_CHARGEN_ROM_DOWNLOAD_URL = $"{DEFAULT_ROM_DOWNLOAD_BASE_URL}/characters.901460-03.bin";
 
     // SHA1 checksums for known VIC-20 ROM versions (version label → sha1 hex, lowercase)
     public static Dictionary<string, string> DefaultBasicROMChecksums = new()
@@ -58,6 +64,13 @@ public class Vic20SystemConfig : ISystemConfig
         set { _romDirectory = value; _isDirty = true; }
     }
 
+    public Dictionary<string, string> ROMDownloadUrls { get; } = new()
+    {
+        { BASIC_ROM_NAME, DEFAULT_BASIC_ROM_DOWNLOAD_URL },
+        { KERNAL_ROM_NAME, DEFAULT_KERNAL_ROM_DOWNLOAD_URL },
+        { CHARGEN_ROM_NAME, DEFAULT_CHARGEN_ROM_DOWNLOAD_URL }
+    };
+
     private List<ROM> _roms = new();
     public List<ROM> ROMs
     {
@@ -85,6 +98,30 @@ public class Vic20SystemConfig : ISystemConfig
 
     public bool HasROM(string romName) => _roms.Any(x => x.Name == romName);
     public ROM GetROM(string romName) => _roms.Single(x => x.Name == romName);
+
+    public void SetROM(string romName, string? file = null, byte[]? data = null)
+    {
+        if (HasROM(romName))
+        {
+            var rom = GetROM(romName);
+            rom.File = file;
+            rom.Data = data;
+        }
+        else
+        {
+            var rom = new ROM
+            {
+                Name = romName,
+                File = file,
+                Data = data
+            };
+
+            ApplyDefaultChecksums(rom);
+            ROMs.Add(rom);
+        }
+
+        _isDirty = true;
+    }
 
     [JsonIgnore]
     public Type? AudioProviderType => null;
@@ -129,6 +166,16 @@ public class Vic20SystemConfig : ISystemConfig
 
     public Vic20SystemConfig()
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("BROWSER")) ||
+            RuntimeInformation.OSArchitecture == Architecture.Wasm)
+        {
+            _romDirectory = string.Empty;
+        }
+        else
+        {
+            _romDirectory = "%USERPROFILE%/Documents/VIC20/VICE/VIC20";
+        }
+
         SetRenderProviderType(GetSupportedRenderProviderTypes().First());
     }
 

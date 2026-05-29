@@ -12,6 +12,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="ReactiveUI" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +31,9 @@
     </Compile>
     <Compile Update="Views\Vic20ConfigDialogView.axaml.cs">
       <DependentUpon>Vic20ConfigDialogView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Vic20ConfigDialog.axaml.cs">
+      <DependentUpon>Vic20ConfigDialog.axaml</DependentUpon>
     </Compile>
   </ItemGroup>
 </Project>

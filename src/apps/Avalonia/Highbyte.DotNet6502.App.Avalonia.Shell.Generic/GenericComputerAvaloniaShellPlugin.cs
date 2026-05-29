@@ -21,6 +21,8 @@ public sealed class GenericComputerAvaloniaShellPlugin : ISystemShellPlugin
 {
     public string SystemName => GenericComputer.SystemName;
 
+    public int DisplayOrder => 100;
+
     public void RegisterShellServices(IServiceCollection services)
     {
         // No UI services — the Generic computer has no Avalonia-specific shell UI.

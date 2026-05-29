@@ -23,6 +23,8 @@ public sealed class C64AvaloniaShellPlugin : ISystemShellPlugin, IAvaloniaNative
 {
     public string SystemName => C64.SystemName;
 
+    public int DisplayOrder => 10;
+
     public void RegisterShellServices(IServiceCollection services)
     {
         services.AddTransient<C64MenuViewModel>();
