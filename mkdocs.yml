@@ -135,6 +135,7 @@ nav:
       - System-specific core libraries:
           - C64: libraries/system-specific/c64.md
           - Generic: libraries/system-specific/generic.md
+          - VIC-20: libraries/system-specific/vic20.md
       - Implementation libraries:
           - Overview: libraries/implementation/overview.md
           - AspNet: libraries/implementation/aspnet.md
@@ -175,3 +176,7 @@ nav:
       - Generic:
           - Overview: systems/generic/overview.md
           - Libraries: systems/generic/libraries.md
+      - VIC-20:
+          - Overview: systems/vic20/overview.md
+          - Libraries: systems/vic20/libraries.md
+          - ROMs: systems/vic20/roms.md
