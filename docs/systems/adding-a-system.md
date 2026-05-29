@@ -16,7 +16,7 @@ configurer, the `--system` CLI argument).
 ## What you will create
 
 A new system touches three tiers — a **system core**, an **engine plugin**, and a **shell
-plugin** — per the model described in [Architecture](../architecture.md). System cores and
+plugin** — per the model described in [architecture.md](./../architecture.md). System cores and
 engine plugins live under `src/libraries/`; shell projects live under `src/apps/`. Add every
 new project to the solution (`dotnet-6502.sln`).
 
@@ -27,7 +27,7 @@ and `Highbyte.DotNet6502.Systems`.
 
 ### `ISystem`
 
-Implement [`ISystem`](../libraries/core/dotnet6502-systems.md). For a minimum no-op system, wire a
+Implement [dotnet6502-systems.md](./../libraries/core/dotnet6502-systems.md). For a minimum no-op system, wire a
 real `CPU` + `Memory` (so it executes 6502 code) but leave the rendering/input/audio members at
 their defaults:
 
@@ -67,16 +67,16 @@ render-provider selection). It is fine to start with everything valid and no opt
     sufficient. Omitting it results in a compile error that is not immediately obvious from
     the interface name alone.
 
-    ```csharp
+```csharp
     public bool AudioEnabled { get; set; } = false;
-    ```
+```
 
 ### `ISystemConfigurer`
 
 `ISystemConfigurer` is what the host calls to build the system. Implement its members directly:
 
 | Member | Minimum behaviour |
-|---|---|
+| --- | --- |
 | `SystemName` | Return your `SystemName` constant. |
 | `GetConfigurationVariants` | Return e.g. `["DEFAULT"]`. |
 | `GetNewHostSystemConfig` / `PersistHostSystemConfig` | Create / save the host config (see Step 2). |
@@ -109,11 +109,11 @@ public sealed class Vic20HostConfig : HostSystemConfigBase<Vic20SystemConfig>
     `ConfigSectionName` to `appsettings.json` — an empty `SystemConfig` object is fine. The
     host is silent if the section is missing, so omitting it is easy to miss.
 
-    ```json
+```json
     "Highbyte.DotNet6502.Vic20.Avalonia": {
       "SystemConfig": {}
     }
-    ```
+```
 
 Then the engine plugin itself — mark the assembly and implement `ISystemEnginePlugin`:
 
@@ -141,9 +141,9 @@ That is enough for the system to **appear in the app and run** (as a no-op).
     reference to the system class inside that plugin project — it sees `Vic20` as the nested
     namespace, not the type. Fix it with a using alias at the top of the affected file:
 
-    ```csharp
+```csharp
     using Vic20System = Highbyte.DotNet6502.Systems.Vic20.Vic20;
-    ```
+```
 
 ## Step 3 — The shell project (Avalonia)
 
@@ -198,7 +198,7 @@ Once the no-op system appears, add real behaviour incrementally — each layer i
         direction. Using placeholder values (e.g. 2 cols / 2 rows) produces a portrait window
         even for systems whose hardware display is landscape.
 3. **Input** — implement `IInputConsumer` on the system; map host keys via `HostKey` /
-   `IHostInputState`. See the [C64 keyboard mapping](c64/keyboard.md) for the pattern.
+   `IHostInputState`. See the [keyboard.md](./c64/keyboard.md) for the pattern.
 4. **Audio** — expose an `IAudioProvider`; the system-agnostic host audio targets
    (`Impl.NAudio`, `Impl.AspNet`) consume it with no per-system audio library.
 5. **Per-host UI** — flesh out the shell plugin: a menu ViewModel, an info panel, a config dialog.
@@ -211,10 +211,10 @@ Once the no-op system appears, add real behaviour incrementally — each layer i
 !!! warning "Browser hosts — Avalonia Browser and Blazor WASM"
     Both browser hosts need extra care, for two reasons:
 
-    1. **No filesystem scan.** A browser host cannot enumerate plugin DLLs on disk, so it relies on
+  1. **No filesystem scan.** A browser host cannot enumerate plugin DLLs on disk, so it relies on
        a build-emitted plugin manifest — see
-       [`Systems.Plugins`](../libraries/core/dotnet6502-systems-plugins.md).
-    2. **Trimming / AOT.** Browser publishes run the IL trimmer, which removes assemblies that are
+       [dotnet6502-systems-plugins.md](./../libraries/core/dotnet6502-systems-plugins.md).
+  2. **Trimming / AOT.** Browser publishes run the IL trimmer, which removes assemblies that are
        only referenced indirectly via `[SystemPlugin]` attributes. Each browser app's `.csproj`
        therefore keeps a `TrimmerRootAssembly` block that pins the per-system projects **by name**.
        Unlike the shell `ProjectReference` glob, this block **cannot be globbed** — you must extend
@@ -223,28 +223,28 @@ Once the no-op system appears, add real behaviour incrementally — each layer i
     Add your system's three projects to the `TrimmerRootAssembly` block in **both** browser
     csproj files:
 
-    - `src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/...csproj` —
+  - `src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/...csproj` —
       `App.Avalonia.Shell.<System>`, `Impl.Avalonia.<System>`, `Systems.<System>`.
-    - `src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/...csproj` —
+  - `src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/...csproj` —
       `App.WASM.Shell.<System>`, `Impl.AspNet.<System>`, `Systems.<System>`.
 
     For example, in the Avalonia Browser app's csproj:
 
-    ```xml
+```xml
     <ItemGroup>
       <!-- existing systems ... -->
       <TrimmerRootAssembly Include="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20" />
       <TrimmerRootAssembly Include="Highbyte.DotNet6502.Impl.Avalonia.Vic20" />
       <TrimmerRootAssembly Include="Highbyte.DotNet6502.Systems.Vic20" />
     </ItemGroup>
-    ```
+```
 
     Omitting these entries makes the system work in a Debug run but silently disappear from a
     published (trimmed/AOT) browser build.
 
 ## See also
 
-- [`Highbyte.DotNet6502.Systems`](../libraries/core/dotnet6502-systems.md) — the abstractions you implement.
-- [`Highbyte.DotNet6502.Systems.Plugins`](../libraries/core/dotnet6502-systems-plugins.md) — plugin contracts + discovery.
-- [Implementation libraries overview](../libraries/implementation/overview.md) — `Impl.<Tech>` vs `Impl.<Tech>.<System>`.
-- [C64 libraries](c64/libraries.md) / [Generic libraries](generic/libraries.md) — worked examples to copy from.
+- [dotnet6502-systems.md](./../libraries/core/dotnet6502-systems.md) — the abstractions you implement.
+- [dotnet6502-systems-plugins.md](./../libraries/core/dotnet6502-systems-plugins.md) — plugin contracts + discovery.
+- [overview.md](./../libraries/implementation/overview.md) — `Impl.<Tech>` vs `Impl.<Tech>.<System>`.
+- [libraries.md](./c64/libraries.md) / [libraries.md](./generic/libraries.md) — worked examples to copy from.

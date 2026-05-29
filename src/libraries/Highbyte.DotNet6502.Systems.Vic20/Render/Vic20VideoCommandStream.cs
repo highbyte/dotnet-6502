@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoCommands;
 using Highbyte.DotNet6502.Systems.Vic20.Config;
 using Highbyte.DotNet6502.Systems.Vic20.Video;
+using Vic20ScreenCode = Highbyte.DotNet6502.Systems.Vic20.Video.Vic20ScreenCode;
 
 namespace Highbyte.DotNet6502.Systems.Vic20.Render;
 
@@ -44,6 +45,9 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
 
     private void GenerateCommands()
     {
+        // Emit the glyph-to-Unicode mapper every frame so the command target uses
+        // VIC-20/PETSCII screen codes rather than raw ASCII (same pattern as C64).
+        _commands.Enqueue(new SetConfig(GlyphToUnicodeConverter: Vic20ScreenCode.ScreenCodeToUnicode));
         RenderBorder();
         RenderMainScreen();
     }
