@@ -2,6 +2,8 @@ using System.Text;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
@@ -24,8 +26,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor, ISystemState
+public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 {
+    private const byte CpuPortBankBitsMask = 0x07;
+    private const byte CpuPortDataDirectionResetValue = 0x2F;
+    private const byte CpuPortDataResetValue = 0x37;
+    private const byte CpuPortInputPullupMask = 0x17;
+
     public const string SystemName = "C64";
     public string Name => SystemName;
     public List<string> SystemInfo => BuildSystemInfo();
@@ -46,6 +53,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     public Sid Sid { get; set; } = default!;
     public IECBus IECBus { get; set; } = default!;
     public Dictionary<string, byte[]> ROMData { get; set; } = default!;
+    public List<IC64CartridgeDevice> CartridgeDevices { get; } = new();
+    public SwiftLinkDevice? SwiftLink { get; private set; }
 
     public bool AudioEnabled { get; private set; }
     public TimerMode TimerMode { get; private set; }
@@ -88,6 +97,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     public C64InputInjector? InputInjector { get; private set; }
     IInputInjector? ISystem.InputInjector => InputInjector;
 
+    private byte _cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
+    private byte _cpuPortDataRegister = CpuPortDataResetValue;
     //public static ROM[] ROMS = new ROM[]
     //{   
     //    // name, file, checksum 
@@ -188,6 +199,13 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
         // Update IEC bus devices
         IECBus.TickDevices();
+        foreach (var cartridgeDevice in CartridgeDevices)
+            cartridgeDevice.Tick();
+
+        // General emulator timing fix: devices tick after the CPU instruction has already
+        // completed, so newly raised hardware IRQ/NMI lines must be serviced here to land
+        // on the next instruction boundary instead of one instruction late.
+        CPU.ProcessPendingInterrupts(Mem);
 
         // Advance video raster
         var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
@@ -275,6 +293,21 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         var diskDrive1541 = new DiskDrive1541(loggerFactory);
         iecBus.Attach(diskDrive1541);
 
+        if (c64Config.SwiftLink.Enabled)
+        {
+            var swiftLink = new SwiftLinkDevice(
+                c64Config.SwiftLink.CartridgeIOAddress,
+                loggerFactory.CreateLogger(nameof(SwiftLinkDevice)))
+            {
+                CpuInterrupts = cpu.CPUInterrupts,
+                InterruptMode = c64Config.SwiftLink.InterruptMode,
+                ReceiveMode = c64Config.SwiftLink.ReceiveMode,
+                GetCurrentCycleCount = () => cpu.ExecState.CyclesConsumed,
+            };
+            c64.SwiftLink = swiftLink;
+            c64.CartridgeDevices.Add(swiftLink);
+        }
+
         c64.CPU = cpu;
         c64.Vic2 = vic2;
         c64.Cia1 = cia1;
@@ -284,6 +317,14 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
         var mem = c64.CreateC64Memory(ram, io, romData);
         c64.Mem = mem;
+        if (c64.SwiftLink != null)
+        {
+            // SwiftLink-specific compatibility hook: some modem software temporarily banks
+            // out the mapped NMI vector area. SwiftLink can consult this callback and defer
+            // asserting its NMI source until the currently mapped vector is usable again.
+            c64.SwiftLink.CanDeliverNmi =
+                () => c64.Mem.FetchWord(CPU.NonMaskableIRQHandlerVector) != 0;
+        }
 
         c64.BasicTokenParser = new C64BasicTokenParser(c64, loggerFactory);
         c64.TextPaste = new C64TextPaste(c64, loggerFactory);
@@ -353,7 +394,10 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
 
     private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)
     {
-        // Address 0x01: IO Port. Controls bank switching and Cassette control
+        // Address 0x00: 6510 CPU data direction register.
+        mem.MapReader(0x00, IoPortDirectionLoad);
+        mem.MapWriter(0x00, IoPortDirectionStore);
+        // Address 0x01: 6510 CPU data register. Controls bank switching and cassette signals.
         mem.MapReader(0x01, IoPortLoad);
         mem.MapWriter(0x01, IoPortStore);
 
@@ -364,6 +408,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
             Cia1.MapIOLocations(mem);
             Cia2.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
+            foreach (var cartridgeDevice in CartridgeDevices)
+                cartridgeDevice.MapIOLocations(mem);
         }
     }
 
@@ -371,12 +417,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
     {
         var mem = c64.Mem;
 
-        // Initialize to bank 31
-        mem.SetMemoryConfiguration(31);
-        // GAME and EXROM on to start (cartridge). These "values" are not read/stored from a actual memory location, just 2 bits of data that the CPU uses together with the first 3 bits of 0x01 to determine which memory configuration to use
+        // Preserve the cartridge control bits (GAME/EXROM) while restoring the 6510
+        // processor port to the C64 startup defaults.
         c64.CurrentBank = 0x18;
-        // HIMEM, LOMEM, CHAREN on to start
-        mem.Write(1, 0x7);
+        c64._cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
+        c64._cpuPortDataRegister = CpuPortDataResetValue;
+        c64.ApplyCpuPortMemoryConfiguration();
     }
 
     private static CPU CreateC64CPU(ILoggerFactory loggerFactory)
@@ -541,19 +587,46 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         return true;
     }
 
+    private void IoPortDirectionStore(ushort _, byte value)
+    {
+        _cpuPortDataDirectionRegister = value;
+        ApplyCpuPortMemoryConfiguration();
+    }
+
+    private byte IoPortDirectionLoad(ushort _)
+    {
+        return _cpuPortDataDirectionRegister;
+    }
+
     private void IoPortStore(ushort _, byte value)
     {
-        var bank = CurrentBank;
-        bank.ClearBits(0x07);            // Clear the first 3 bits
-        bank |= (byte)(value & 0x07);    // Replace the first 3 bits with new ones
-        CurrentBank = bank;
-        Mem.SetMemoryConfiguration(CurrentBank);
+        _cpuPortDataRegister = value;
+        ApplyCpuPortMemoryConfiguration();
     }
 
     private byte IoPortLoad(ushort _)
     {
-        // For now, only the the first 3 bits which is the current bank
-        return (byte)(CurrentBank & 0x07);
+        return GetCpuPortEffectiveValue();
+    }
+
+    private void ApplyCpuPortMemoryConfiguration()
+    {
+        var bank = CurrentBank;
+        bank.ClearBits(CpuPortBankBitsMask);
+        bank |= (byte)(GetCpuPortEffectiveValue() & CpuPortBankBitsMask);
+        CurrentBank = bank;
+        Mem.SetMemoryConfiguration(CurrentBank);
+    }
+
+    private byte GetCpuPortEffectiveValue()
+    {
+        // On the C64 the lower 3 banking lines and cassette sense line are pulled high
+        // when configured as inputs. Compunet relies on INC/DEC $01 read-modify-write
+        // preserving those pull-up semantics.
+        var inputBits = (byte)(CpuPortInputPullupMask & ~_cpuPortDataDirectionRegister);
+        var outputBits = (byte)(_cpuPortDataRegister & _cpuPortDataDirectionRegister);
+        var upperBits = (byte)(_cpuPortDataRegister & 0b1100_0000);
+        return (byte)(upperBits | outputBits | inputBits);
     }
 
     /// <summary>
@@ -579,6 +652,11 @@ public class C64 : ISystem, ISystemMonitor, ISystemState
         var row1 = $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank}";
         var row2 = $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
         return new List<string>() { row1, row2 };
+    }
+
+    public void Cleanup()
+    {
+        SwiftLink?.Transport?.Dispose();
     }
 
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()

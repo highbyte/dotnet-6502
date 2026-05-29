@@ -55,5 +55,6 @@ public class SystemRunner
     public void Cleanup()
     {
         _system.InputConsumer?.Cleanup();
+        (_system as ISystemCleanup)?.Cleanup();
     }
 }

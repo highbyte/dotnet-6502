@@ -25,6 +25,6 @@ public class C64Setup : C64SystemConfigurerCore
 
         c64.InputConsumer = new C64InputHandler(c64, LoggerFactory, c64HostConfig.InputConfig);
 
-        return Task.FromResult(new SystemRunner(c64));
+        return base.BuildSystemRunner(system, hostSystemConfig);
     }
 }

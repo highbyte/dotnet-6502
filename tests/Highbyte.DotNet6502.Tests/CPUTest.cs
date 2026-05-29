@@ -132,6 +132,36 @@ public class CPUTest
     }
 
     [Fact]
+    public void CPU_Can_Service_Pending_NMI_Between_Instructions()
+    {
+        var cpu = new CPU();
+        var mem = new Memory();
+
+        mem[0x1000] = (byte)OpCodeId.NOP;
+        mem.WriteWord(CPU.NonMaskableIRQHandlerVector, 0x3456);
+        cpu.PC = 0x1000;
+        cpu.SP = 0xFF;
+        cpu.ProcessorStatus.InterruptDisable = false;
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+        Assert.Equal(0x1001, cpu.PC);
+
+        cpu.CPUInterrupts.SetNMISourceActive("dummy");
+
+        cpu.ProcessPendingInterrupts(mem);
+
+        Assert.Equal((ushort)0x3456, cpu.PC);
+        Assert.False(cpu.NMI);
+
+        var pcOnStackAddress = (ushort)(CPU.StackBaseAddress + (byte)(cpu.SP + 2));
+        var addrFromStack = new byte[2];
+        addrFromStack[0] = mem[pcOnStackAddress];
+        addrFromStack[1] = mem[(ushort)(pcOnStackAddress + 1)];
+        var pcOnStack = ByteHelpers.ToLittleEndianWord(addrFromStack);
+        Assert.Equal((ushort)0x1001, pcOnStack);
+    }
+
+    [Fact]
     public void CPU_Can_Detect_Unknown_OpCode()
     {
         // Arrange

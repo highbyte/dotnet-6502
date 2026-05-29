@@ -1,4 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
+using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -111,6 +113,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             AudioEnabled = c64SystemConfig.AudioEnabled,
             KeyboardJoystickEnabled = c64SystemConfig.KeyboardJoystickEnabled,
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
+            SwiftLink = c64SystemConfig.SwiftLink.Clone(),
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
@@ -126,12 +129,54 @@ public class C64SystemConfigurerCore : ISystemConfigurer
     /// Builds a <see cref="SystemRunner"/> with no input consumer wired — the base behaviour for a
     /// host with no input (the Headless host). Tech hosts override to attach a C64 input handler.
     /// </summary>
-    public virtual Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)
-        => Task.FromResult(new SystemRunner((C64)system));
+    public virtual async Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)
+    {
+        var c64 = (C64)system;
+        if (SupportsSwiftLinkTcpTransport && c64.SwiftLink != null && hostSystemConfig is IC64SwiftLinkTcpHostConfig swiftLinkHostConfig)
+        {
+            c64.SwiftLink.ReceivePacingCycles =
+                swiftLinkHostConfig.SwiftLinkTransportMode == C64SwiftLinkTransportMode.HayesModem
+                && c64.SwiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
+                    ? GetCyclesPer1200BaudCharacter(c64)
+                    : 0;
+
+            ISwiftLinkTransport transport = swiftLinkHostConfig.SwiftLinkTransportMode switch
+            {
+                C64SwiftLinkTransportMode.HayesModem => new HayesModemTransport(
+                    (host, port) => new TcpTransport(
+                        host,
+                        port,
+                        LoggerFactory.CreateLogger(nameof(TcpTransport))),
+                    LoggerFactory.CreateLogger(nameof(HayesModemTransport))),
+                _ => new TcpTransport(
+                    swiftLinkHostConfig.SwiftLinkTcpHost,
+                    swiftLinkHostConfig.SwiftLinkTcpPort,
+                    LoggerFactory.CreateLogger(nameof(TcpTransport)))
+            };
+            c64.SwiftLink.Transport = transport;
+            if (swiftLinkHostConfig.SwiftLinkConnectOnBoot)
+                await transport.ConnectAsync();
+        }
+
+        return new SystemRunner(c64);
+    }
+
+    private static ulong GetCyclesPer1200BaudCharacter(C64 c64)
+    {
+        const double BitsPerCharacter = 10.0; // 8N1 framing
+        const double BaudRate = 1200.0;
+        return (ulong)Math.Ceiling(c64.CpuFrequencyHz * (BitsPerCharacter / BaudRate));
+    }
 
     /// <summary>
     /// Fallback render-provider type used when <see cref="C64SystemConfig.RenderProviderType"/> is
     /// not set. Null by default (the host decides); the browser host overrides it.
     /// </summary>
     protected virtual Type? DefaultRenderProviderType => null;
+
+    /// <summary>
+    /// Browser hosts cannot use raw TCP, so they override this to defer SwiftLink transport
+    /// hookup until a WebSocket-backed transport exists.
+    /// </summary>
+    protected virtual bool SupportsSwiftLinkTcpTransport => true;
 }

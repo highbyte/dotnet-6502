@@ -2,13 +2,14 @@ using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 
 namespace Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
 
 /// <summary>C64 host config for the Avalonia host.</summary>
-public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>
+public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLinkTcpHostConfig
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.Avalonia";
 
@@ -19,6 +20,30 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>
         PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly();
 
     public C64InputConfig InputConfig { get; set; } = new C64InputConfig();
+
+    private C64SwiftLinkHostConfig _swiftLinkHost = new();
+    public C64SwiftLinkHostConfig SwiftLinkHost
+    {
+        get => _swiftLinkHost;
+        set
+        {
+            _swiftLinkHost = value ?? new C64SwiftLinkHostConfig();
+            _swiftLinkHost.SetDirtyCallback(MarkDirty);
+            MarkDirty();
+        }
+    }
+
+    [JsonIgnore]
+    public C64SwiftLinkTransportMode SwiftLinkTransportMode => SwiftLinkHost.TransportMode;
+
+    [JsonIgnore]
+    public string SwiftLinkTcpHost => SwiftLinkHost.TcpHost;
+
+    [JsonIgnore]
+    public int SwiftLinkTcpPort => SwiftLinkHost.TcpPort;
+
+    [JsonIgnore]
+    public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
     /// <summary>
     /// CORS proxy address override. If null/empty, the default CORS proxy URL is used when running
@@ -56,12 +81,23 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>
     {
         BasicAIAssistantDefaultEnabled = false;
         CodeSuggestionBackendType = CodeSuggestionBackendTypeEnum.CustomEndpoint;
+        _swiftLinkHost.SetDirtyCallback(MarkDirty);
     }
 
     public override object Clone()
     {
         var clone = (C64HostConfig)base.Clone();
         clone.InputConfig = (C64InputConfig)InputConfig.Clone();
+        clone._swiftLinkHost = SwiftLinkHost.Clone();
+        clone._swiftLinkHost.SetDirtyCallback(clone.MarkDirty);
         return clone;
+    }
+
+    public override bool IsValid(out List<string> validationErrors)
+    {
+        var isValid = base.IsValid(out validationErrors);
+        if (!SwiftLinkHost.IsValid(out var swiftLinkHostValidationErrors, nameof(SwiftLinkHost)))
+            validationErrors.AddRange(swiftLinkHostValidationErrors);
+        return isValid && validationErrors.Count == 0;
     }
 }

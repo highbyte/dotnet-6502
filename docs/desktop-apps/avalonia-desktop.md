@@ -32,6 +32,9 @@ See [Desktop apps installation](installation.md) for package manager and manual 
 - Audio via [NAudio](https://github.com/naudio/NAudio). Defaults to the sample-based SID
   provider; switch to the command-stream provider in the C64 config dialog if you need
   lower CPU. The SID emulation mode (`Auto` / `Fast`) is selectable in the same dialog.
+- Optional SwiftLink cartridge support with `RawTcp` and `HayesModem` transport modes. This is
+  the native host currently recommended for SwiftLink-based software such as Compunet Reborn. See
+  [Systems / C64 / SwiftLink support](../systems/c64/swiftlink.md).
 
 ### System: Generic computer
 

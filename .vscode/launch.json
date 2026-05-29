@@ -35,7 +35,7 @@
             "preLaunchTask": "build avalonia browser app",
             "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser",
             "url": "http://localhost:5000",
-            "browser": "chrome"
+            //"browser": "chrome"
         },
         {
             "name": "SadConsole - Launch",

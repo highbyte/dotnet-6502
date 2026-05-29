@@ -37,6 +37,11 @@ Core library: [`Highbyte.DotNet6502.Systems.Commodore64`](../../libraries/system
 - **Limited 1541 disk drive support**
     - Attach `.d64` disk images.
     - Load directory and files to the C64 using the Basic `LOAD` command.
+- **SwiftLink-compatible ACIA support**
+    - Optional SwiftLink cartridge at `$DE00` or `$DF00`.
+    - `RawTcp` and `HayesModem` host transport modes.
+    - `IRQ` or `NMI` interrupt routing.
+    - `Compatible` and `FastBuffered` receive modes.
 - Blazor Browser (WASM), Avalonia Browser (WASM) and Desktop, SilkNetNative Desktop, and SadConsole Desktop UI:s.
 
 ## 1541 Disk Drive Support
@@ -48,6 +53,21 @@ The C64 emulator now includes limited support for the Commodore 1541 disk drive.
 - Example: `LOAD "$",8` to list the directory, or `LOAD "FILENAME",8` to load a file.
 
 *Note: Only basic directory and file loading is supported. Advanced disk operations, file writing, and copy protection schemes are not supported.*
+
+## SwiftLink support
+
+The C64 emulator includes optional SwiftLink-compatible ACIA support for software that expects a
+SwiftLink cartridge.
+
+You can:
+
+- Enable a SwiftLink cartridge in the C64 config.
+- Select base address `$DE00` or `$DF00`.
+- Route interrupts over `IRQ` or `NMI`.
+- Choose `RawTcp` for custom byte-pipe scenarios or `HayesModem` for modem-style software.
+
+For host availability, modem support, and configuration details, see
+[SwiftLink support](swiftlink.md).
 
 ## Implementation libraries
 

@@ -53,6 +53,6 @@ public class C64Setup : C64SystemConfigurerCore
         c64.InputConsumer = new C64InputHandler(c64, LoggerFactory, new C64InputConfig(),
             c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
-        return Task.FromResult(new SystemRunner(c64));
+        return base.BuildSystemRunner(system, hostSystemConfig);
     }
 }

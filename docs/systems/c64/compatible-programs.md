@@ -27,3 +27,9 @@ A list of applications that seem to work decently with the [C64 emulator](overvi
 | Bubble Bobble      | <https://csdb.dk/release/download.php?id=187937> | `Bubble Bobble.d64` → `bubble bobble`  | Basic      | Rasterizer, Custom (v1+), GPU Packet   | Character mode, sprites. |
 
 For advanced use, see [Useful tools](useful-tools.md) for how to extract PRG files from D64 disk images.
+
+## Online / modem-style software
+
+| Program | Media | SwiftLink requirement | Comment |
+| --- | --- | --- | --- |
+| Compunet Reborn | `compunet-reborn-live.d64` or `compunet-reborn-live.prg` | SwiftLink at `$DE00`, `NMI`, `HayesModem` mode recommended | Reaches the login prompt reliably on native hosts. Not available in browser-hosted builds. |

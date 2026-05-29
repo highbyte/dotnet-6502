@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomGeneral;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
@@ -14,6 +15,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
 public class C64SystemConfig : ISystemConfig
 {
     private bool _isDirty = false;
+    private void MarkDirty() => _isDirty = true;
+
     [JsonIgnore]
     public bool IsDirty => _isDirty;
 
@@ -298,6 +301,18 @@ public class C64SystemConfig : ISystemConfig
         }
     }
 
+    private C64SwiftLinkConfig _swiftLink = new();
+    public C64SwiftLinkConfig SwiftLink
+    {
+        get => _swiftLink;
+        set
+        {
+            _swiftLink = value ?? new C64SwiftLinkConfig();
+            _swiftLink.SetDirtyCallback(MarkDirty);
+            _isDirty = true;
+        }
+    }
+
     [JsonIgnore]
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
 
@@ -322,6 +337,8 @@ public class C64SystemConfig : ISystemConfig
         _audioEnabled = true;
         _keyboardJoystickEnabled = false;
         _keyboardJoystick = 2;
+        _swiftLink = new C64SwiftLinkConfig();
+        _swiftLink.SetDirtyCallback(MarkDirty);
 
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
 
@@ -388,6 +405,8 @@ public class C64SystemConfig : ISystemConfig
     {
         var clone = (C64SystemConfig)this.MemberwiseClone();
         clone.ROMs = ROM.Clone(ROMs);
+        clone._swiftLink = SwiftLink.Clone();
+        clone._swiftLink.SetDirtyCallback(clone.MarkDirty);
         return clone;
     }
 
@@ -428,6 +447,17 @@ public class C64SystemConfig : ISystemConfig
                 if (!rom.Validate(out romValidationErrors, ROMDirectory))
                     validationErrors.AddRange(romValidationErrors);
             }
+        }
+
+        if (SwiftLink == null)
+        {
+            validationErrors.Add($"{nameof(SwiftLink)} must be set.");
+        }
+        else
+        {
+            var swiftLinkValidationErrors = new List<string>();
+            if (!SwiftLink.IsValid(out swiftLinkValidationErrors, nameof(SwiftLink)))
+                validationErrors.AddRange(swiftLinkValidationErrors);
         }
 
         return validationErrors.Count == 0;
