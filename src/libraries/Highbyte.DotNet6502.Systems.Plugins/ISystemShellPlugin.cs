@@ -17,6 +17,12 @@ public interface ISystemShellPlugin
     string SystemName { get; }
 
     /// <summary>
+    /// Relative display order for host UI system lists. Lower values appear first;
+    /// hosts should use <see cref="SystemName"/> as a stable tie-breaker.
+    /// </summary>
+    int DisplayOrder => 1000;
+
+    /// <summary>
     /// Register the plugin's ViewModels / Views / helper services in DI.
     /// Called once at app startup before the shell resolves anything.
     /// </summary>

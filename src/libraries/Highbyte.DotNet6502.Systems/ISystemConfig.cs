@@ -54,5 +54,11 @@ public interface ISystemConfig : ICloneable
     public Type? AudioProviderType { get; }
     public Type? AudioTargetType { get; }
 
+    /// <summary>
+    /// Whether audio output is enabled for this system. Systems with no audio must still
+    /// implement this property — declare it as a plain auto-property that always returns
+    /// <c>false</c> (and whose setter is a no-op or ignored). Omitting it causes a compile
+    /// error that is not immediately obvious without reading the full interface.
+    /// </summary>
     public bool AudioEnabled { get; set; }
 }

@@ -1,0 +1,157 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20ConfigDialogView"
+             x:DataType="vm:Vic20ConfigDialogViewModel"
+             AutomationProperties.AutomationId="Vic20ConfigDialogView"
+             AutomationProperties.Name="VIC-20 configuration panel"
+             Focusable="False">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
+        <Border Grid.Row="0" CornerRadius="4" Classes="panel-container">
+            <TextBlock Text="VIC-20 Configuration"
+                       Classes="h-center h2"/>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Classes="vertical-only">
+            <WrapPanel Orientation="Horizontal">
+                <StackPanel Width="460" Classes="wrap-item">
+                    <Border Classes="content-section">
+                        <StackPanel Classes="spacing-tight">
+                            <TextBlock Text="ROM Management"/>
+                            <TextBlock Text="The emulator requires Basic, Kernal, and Character ROMs."
+                                       Classes="small secondary-text"/>
+                            <TextBlock Text="{Binding RomStatusSummary}"
+                                       Classes="accent bold"/>
+
+                            <ItemsControl ItemsSource="{Binding RomStatuses}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:Vic20RomStatusViewModel">
+                                        <StackPanel Classes="spacing-tight">
+                                            <Grid ColumnDefinitions="90,*" Classes="spacing-tight"
+                                                  IsVisible="{Binding IsRunningInWebAssembly}">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Name, StringFormat='{}{0}:'}"
+                                                           Classes="secondary-text"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Details}"
+                                                           Foreground="{Binding ForegroundColor}"/>
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="90,*" Classes="spacing-tight"
+                                                  IsVisible="{Binding !IsRunningInWebAssembly}">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Name, StringFormat='{}{0}:'}"
+                                                           Classes="secondary-text"/>
+                                                <TextBox Grid.Column="1"
+                                                         AutomationProperties.AutomationId="{Binding Name, StringFormat='Vic20RomFileTextBox.{0}'}"
+                                                         AutomationProperties.Name="{Binding Name, StringFormat='{}{0} ROM file name'}"
+                                                         Text="{Binding RomFile, Mode=TwoWay}"
+                                                         PlaceholderText="File name"
+                                                         Classes="field-aligned"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <StackPanel Classes="spacing-tight">
+                                <Grid ColumnDefinitions="90,*" Classes="spacing-tight"
+                                      IsVisible="{Binding !IsRunningInWebAssembly}">
+                                    <TextBlock Grid.Column="0"
+                                               Text="ROM directory:"
+                                               Classes="secondary-text"/>
+                                    <TextBox Grid.Column="1"
+                                             AutomationProperties.AutomationId="Vic20RomDirectoryTextBox"
+                                             AutomationProperties.Name="VIC-20 ROM directory"
+                                             Text="{Binding RomDirectory}"
+                                             PlaceholderText="Directory path"
+                                             Classes="field-aligned"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+                                <Button Content="Clear"
+                                        AutomationProperties.AutomationId="Vic20ClearRomsButton"
+                                        Command="{Binding ClearRomsCommand}"
+                                        MinWidth="90"
+                                        Classes="danger"
+                                        IsVisible="{Binding IsRunningInWebAssembly}"
+                                        IsEnabled="{Binding IsNotBusy}"/>
+                                <Button Content="Load ROMs from files"
+                                        AutomationProperties.AutomationId="Vic20LoadRomsButton"
+                                        MinWidth="150"
+                                        Classes="extraWide"
+                                        IsVisible="{Binding IsRunningInWebAssembly}"
+                                        IsEnabled="{Binding IsNotBusy}"
+                                        Click="LoadRoms_Click"/>
+                                <Button Content="Download ROMs"
+                                        AutomationProperties.AutomationId="Vic20DownloadRomsButton"
+                                        Command="{Binding DownloadRomsToByteArrayCommand}"
+                                        MinWidth="130"
+                                        Classes="primary wide"
+                                        IsVisible="{Binding IsRunningInWebAssembly}"
+                                        IsEnabled="{Binding IsNotBusy}"/>
+                                <Button Content="Download ROM Files"
+                                        AutomationProperties.AutomationId="Vic20DownloadRomFilesButton"
+                                        Command="{Binding DownloadRomsToFilesCommand}"
+                                        MinWidth="130"
+                                        Classes="primary extraWide"
+                                        IsVisible="{Binding !IsRunningInWebAssembly}"
+                                        IsEnabled="{Binding IsNotBusy}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Width="460" Classes="wrap-item" IsVisible="{Binding IsRunningInWebAssembly}">
+                    <Border Classes="content-section">
+                        <StackPanel Classes="spacing-tight">
+                            <TextBlock Text="Web Download"/>
+                            <TextBlock Text="Override CORS proxy"
+                                       Classes="small secondary-text"/>
+                            <TextBox AutomationProperties.AutomationId="Vic20CorsProxyTextBox"
+                                     AutomationProperties.Name="VIC-20 CORS proxy URL"
+                                     Text="{Binding CorsProxyOverrideURL}"
+                                     PlaceholderText="{Binding CorsProxyOverrideURLWatermark}"
+                                     Classes="field-aligned"
+                                     KeyDown="CorsProxyTextBox_KeyDown"/>
+                            <Button Content="Reset"
+                                    AutomationProperties.AutomationId="Vic20ResetCorsProxyButton"
+                                    Command="{Binding ResetCorsProxyOverrideURLCommand}"
+                                    Classes="small"
+                                    HorizontalAlignment="Left"
+                                    IsEnabled="{Binding IsNotBusy}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </WrapPanel>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="2"
+                   Text="{Binding ValidationMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="#F56565"
+                   Classes="small"
+                   IsVisible="{Binding HasValidationMessage}"/>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-normal">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding StatusMessage}"
+                       Classes="small secondary-text"
+                       IsVisible="{Binding HasStatusMessage}"/>
+            <Button Grid.Column="1"
+                    Content="Cancel"
+                    AutomationProperties.AutomationId="Vic20ConfigCancelButton"
+                    Command="{Binding CancelCommand}"
+                    Classes="cancel"
+                    IsEnabled="{Binding IsNotBusy}"/>
+            <Button Grid.Column="2"
+                    Content="{Binding OkButtonText}"
+                    AutomationProperties.AutomationId="Vic20ConfigOkButton"
+                    Command="{Binding SaveCommand}"
+                    Classes="primary"
+                    IsEnabled="{Binding CanSave}"/>
+        </Grid>
+    </Grid>
+</UserControl>

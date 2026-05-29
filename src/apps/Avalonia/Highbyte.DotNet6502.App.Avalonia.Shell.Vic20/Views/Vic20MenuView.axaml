@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20MenuView"
+             x:DataType="vm:Vic20MenuViewModel"
+             AutomationProperties.AutomationId="Vic20MenuView"
+             AutomationProperties.Name="VIC-20 menu panel"
+             Focusable="False">
+    <StackPanel Margin="6" Spacing="6">
+        <TextBlock Text="VIC-20" FontWeight="Bold" />
+        <Button Name="Vic20Config"
+                Content="VIC20 Config"
+                AutomationProperties.AutomationId="Vic20ConfigButton"
+                AutomationProperties.Name="Open VIC-20 configuration dialog"
+                Click="OpenVic20Config_Click"
+                HorizontalAlignment="Left">
+            <Button.Transitions>
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.7"/>
+                </Transitions>
+            </Button.Transitions>
+        </Button>
+    </StackPanel>
+</UserControl>

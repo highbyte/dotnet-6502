@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20InfoView"
+             x:DataType="vm:Vic20InfoViewModel"
+             AutomationProperties.AutomationId="Vic20InfoView"
+             AutomationProperties.Name="VIC-20 information panel"
+             Focusable="False">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+    </UserControl.Styles>
+
+    <ScrollViewer Classes="auto-scroll">
+        <StackPanel Classes="spacing-tight">
+            <TextBlock Text="VIC-20 keyboard mapping"
+                       Classes=""/>
+
+            <Border Classes="section-container">
+                <Grid Classes="spacing-none">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="150"/>
+                        <ColumnDefinition Width="*" MinWidth="120"/>
+                        <ColumnDefinition Width="*" MinWidth="150"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Row="0" Grid.Column="0" Classes="table-header-cell">
+                        <TextBlock Text="Command" Classes="small bold"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="1" Classes="table-header-cell">
+                        <TextBlock Text="VIC-20 key" Classes="small bold"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="2" Classes="table-header-cell-last">
+                        <TextBlock Text="PC / Mac key" Classes="small bold"/>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Stop running Basic program" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="Run/Stop" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Esc" Classes="small"/>
+                    </Border>
+
+                    <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Move cursor" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="2" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="Cursor keys" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="2" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Arrow keys" Classes="small"/>
+                    </Border>
+
+                    <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Change text color 1-8" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="3" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="CTRL + numbers 1-8" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="3" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="LeftCtrl + numbers 1-8" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Delete character" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="4" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="Del" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="4" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Backspace or Delete" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="5" Grid.Column="0" Classes="table-cell-last-row">
+                        <TextBlock Text="Function keys" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="5" Grid.Column="1" Classes="table-cell-last-row">
+                        <TextBlock Text="F1, F3, F5, F7" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="5" Grid.Column="2" Classes="table-cell-last">
+                        <TextBlock Text="F1, F3, F5, F7" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
