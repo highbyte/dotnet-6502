@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Vic20.Config;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
 using Highbyte.DotNet6502.Systems.Vic20.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Vic20.Video;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -49,6 +50,7 @@ public class Vic20 : ISystem, ITextMode, IScreen
 
     private readonly Vic20Config _vic20Config;
     public Vic20Config Vic20Config => _vic20Config;
+    public Vic20VideoLayout CurrentVideoLayout => Vic20VideoLayout.FromMemory(Mem, _vic20Config);
 
     // VIA chips — created before memory mapping so MapIOLocations can wire callbacks.
     public Via1 Via1 { get; }
@@ -93,6 +95,7 @@ public class Vic20 : ISystem, ITextMode, IScreen
         if (romData != null)
             CPU.Reset(Mem);
 
+        RenderProviders.Add(new Vic20Rasterizer(this));
         RenderProviders.Add(new Vic20VideoCommandStream(this));
         SetCurrentRenderProvider(typeof(Vic20VideoCommandStream));
 
@@ -108,6 +111,8 @@ public class Vic20 : ISystem, ITextMode, IScreen
         _renderProvider = RenderProviders.SingleOrDefault(rp => rp.GetType() == renderProviderType)
             ?? throw new ArgumentException("Render provider type not found.");
     }
+
+    public void SetCurrentRenderProviderType(Type? renderProviderType) => SetCurrentRenderProvider(renderProviderType);
 
     private void MapROMs(Dictionary<string, byte[]> romData)
     {
@@ -125,14 +130,24 @@ public class Vic20 : ISystem, ITextMode, IScreen
 
     private void InitScreenMemory()
     {
-        // VIC-I $900F packs: background (bits 7-4) | reverse=1 (bit 3) | border (bits 2-0)
-        Mem[0x900F] = (byte)(((_vic20Config.DefaultBgColor & 0x0F) << 4)
-                             | 0x08
-                             | (_vic20Config.DefaultBorderColor & 0x07));
+        Mem[Vic20VideoLayout.RegisterColumns] = Vic20VideoLayout.EncodeColumnsRegister(
+            _vic20Config.ScreenStartAddress,
+            Vic20Config.Cols);
+        Mem[Vic20VideoLayout.RegisterRows] = Vic20VideoLayout.EncodeRowsRegister(Vic20Config.Rows);
+        Mem[Vic20VideoLayout.RegisterAddress] = Vic20VideoLayout.EncodeAddressRegister(
+            _vic20Config.ScreenStartAddress,
+            0x8000);
+        Mem[Vic20VideoLayout.RegisterAuxiliaryColor] = (byte)(0x00 << 4);
 
-        var screenAddr = _vic20Config.ScreenStartAddress;
-        var colorAddr  = _vic20Config.ColorStartAddress;
-        for (var i = 0; i < Vic20Config.Cols * Vic20Config.Rows; i++)
+        // VIC-I $900F packs: background (bits 7-4) | reverse=1 (bit 3) | border (bits 2-0)
+        Mem[Vic20VideoLayout.RegisterBackgroundBorderColor] = (byte)(((_vic20Config.DefaultBgColor & 0x0F) << 4)
+                                                                    | 0x08
+                                                                    | (_vic20Config.DefaultBorderColor & 0x07));
+
+        var layout = CurrentVideoLayout;
+        var screenAddr = layout.ScreenStartAddress;
+        var colorAddr = layout.ColorStartAddress;
+        for (var i = 0; i < layout.Columns * layout.Rows; i++)
         {
             Mem[screenAddr++] = 0x20; // space
             Mem[colorAddr++]  = _vic20Config.DefaultFgColor;

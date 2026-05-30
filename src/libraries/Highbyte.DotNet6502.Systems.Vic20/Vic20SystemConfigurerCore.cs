@@ -57,8 +57,10 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
         if (vic20SystemConfig.ROMs.Count > 0)
             romData = ROM.LoadROMS(vic20SystemConfig.ROMDirectory, vic20SystemConfig.ROMs.ToArray());
 
-        ISystem vic20 = new Vic20(vic20Config, LoggerFactory, romData);
-        return Task.FromResult(vic20);
+        var vic20 = new Vic20(vic20Config, LoggerFactory, romData);
+        vic20.SetCurrentRenderProviderType(vic20SystemConfig.RenderProviderType);
+        ISystem system = vic20;
+        return Task.FromResult(system);
     }
 
     public virtual Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)

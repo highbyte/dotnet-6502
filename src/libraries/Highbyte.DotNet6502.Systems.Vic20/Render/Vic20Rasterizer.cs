@@ -1,0 +1,220 @@
+using System.Runtime.CompilerServices;
+using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using Highbyte.DotNet6502.Systems.Utils;
+using Highbyte.DotNet6502.Systems.Vic20.Config;
+using Highbyte.DotNet6502.Systems.Vic20.Video;
+
+namespace Highbyte.DotNet6502.Systems.Vic20.Render;
+
+[DisplayName("Rasterizer")]
+[HelpText("A VIC-20 rasterizer that renders character graphics as exact pixels in two layers.")]
+public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
+{
+    private readonly Vic20 _vic20;
+    private readonly ReaderWriterLockSlim _bufferLock = new(LockRecursionPolicy.NoRecursion);
+
+    private uint[] _frontBackground;
+    private uint[] _frontForeground;
+    private uint[] _backBackground;
+    private uint[] _backForeground;
+    private readonly ReadOnlyMemory<uint>[] _cachedLayerBuffers;
+    private readonly Dictionary<byte, uint> _colorMap = new();
+
+    public string Name => "Vic20Rasterizer";
+    public RenderSize NativeSize { get; }
+    public PixelFormat PixelFormat { get; } = PixelFormat.Bgra32;
+    public int StrideBytes { get; }
+    public event EventHandler? FrameCompleted;
+
+    public Vic20Rasterizer(Vic20 vic20)
+    {
+        _vic20 = vic20;
+
+        var width = vic20.VisibleWidth;
+        var height = vic20.VisibleHeight;
+        NativeSize = new RenderSize(width, height);
+        StrideBytes = width * 4;
+
+        var pixelCount = width * height;
+        _frontBackground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+        _frontForeground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+        _backBackground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+        _backForeground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+
+        _cachedLayerBuffers = new ReadOnlyMemory<uint>[]
+        {
+            _frontBackground.AsMemory(),
+            _frontForeground.AsMemory()
+        };
+
+        foreach (var entry in ColorMaps.Vic20ColorMap)
+            _colorMap[entry.Key] = PackBgra(entry.Value.B, entry.Value.G, entry.Value.R, entry.Value.A);
+    }
+
+    public IReadOnlyList<LayerInfo> Layers => new LayerInfo[]
+    {
+        new(NativeSize, PixelFormat, StrideBytes, 1f, BlendMode.Normal, 0),
+        new(NativeSize, PixelFormat, StrideBytes, 1f, BlendMode.Overlay, 1)
+    };
+
+    public IReadOnlyList<ReadOnlyMemory<uint>> CurrentFrontLayerBuffers
+    {
+        get
+        {
+            _bufferLock.EnterReadLock();
+            try
+            {
+                return _cachedLayerBuffers;
+            }
+            finally
+            {
+                _bufferLock.ExitReadLock();
+            }
+        }
+    }
+
+    public ReadOnlyMemory<uint> CurrentFrontBuffer
+    {
+        get
+        {
+            _bufferLock.EnterReadLock();
+            try
+            {
+                return _frontBackground.AsMemory();
+            }
+            finally
+            {
+                _bufferLock.ExitReadLock();
+            }
+        }
+    }
+
+    public void OnAfterInstruction()
+    {
+    }
+
+    public void OnEndFrame()
+    {
+        RasterizeFrame();
+        FlipBuffers();
+        FrameCompleted?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void FlipBuffers()
+    {
+        _bufferLock.EnterWriteLock();
+        try
+        {
+            (_frontBackground, _backBackground) = (_backBackground, _frontBackground);
+            (_frontForeground, _backForeground) = (_backForeground, _frontForeground);
+            _cachedLayerBuffers[0] = _frontBackground.AsMemory();
+            _cachedLayerBuffers[1] = _frontForeground.AsMemory();
+        }
+        finally
+        {
+            _bufferLock.ExitWriteLock();
+        }
+    }
+
+    public static uint PackBgra(byte b, byte g, byte r, byte a)
+        => (uint)(b | (g << 8) | (r << 16) | (a << 24));
+
+    private void RasterizeFrame()
+    {
+        var layout = _vic20.CurrentVideoLayout;
+        var borderWidth = Vic20Config.BorderCols * 8;
+        var borderHeight = Vic20Config.BorderRows * 8;
+        var maxCols = Math.Max(0, (NativeSize.Width - (borderWidth * 2)) / 8);
+        var maxRows = Math.Max(0, (NativeSize.Height - (borderHeight * 2)) / layout.CharacterHeight);
+        var cols = Math.Min(layout.Columns, maxCols);
+        var rows = Math.Min(layout.Rows, maxRows);
+        var verticalScale = Math.Max(1, layout.CharacterHeight / 8);
+
+        var borderColor = GetColor(layout.BorderColor);
+        var backgroundColor = GetColor(layout.BackgroundColor);
+        var auxiliaryColor = GetColor(layout.AuxiliaryColor);
+
+        Array.Fill(_backBackground, borderColor);
+        Array.Clear(_backForeground);
+
+        for (var row = 0; row < rows; row++)
+        {
+            for (var col = 0; col < cols; col++)
+            {
+                var screenAddress = (ushort)(layout.ScreenStartAddress + (row * layout.Columns) + col);
+                var colorAddress = (ushort)(layout.ColorStartAddress + (row * layout.Columns) + col);
+                var characterCode = _vic20.Mem[screenAddress];
+                var colorRamValue = (byte)(_vic20.Mem[colorAddress] & 0x0F);
+                var multicolor = (colorRamValue & 0x08) != 0;
+                var foregroundColor = GetColor((byte)(colorRamValue & 0x07));
+                var zeroBitColor = layout.ReverseScreen ? foregroundColor : backgroundColor;
+                var oneBitColor = layout.ReverseScreen ? backgroundColor : foregroundColor;
+
+                var cellPixelX = borderWidth + (col * 8);
+                var cellPixelY = borderHeight + (row * layout.CharacterHeight);
+                var glyphBaseAddress = ResolveGlyphBaseAddress(layout.CharacterStartAddress, characterCode);
+
+                for (var glyphRow = 0; glyphRow < 8; glyphRow++)
+                {
+                    var glyphLine = _vic20.Mem[(ushort)(glyphBaseAddress + glyphRow)];
+                    for (var stretchRow = 0; stretchRow < verticalScale; stretchRow++)
+                    {
+                        var pixelY = cellPixelY + (glyphRow * verticalScale) + stretchRow;
+                        var rowOffset = pixelY * NativeSize.Width;
+
+                        if (multicolor)
+                        {
+                            for (var pair = 0; pair < 4; pair++)
+                            {
+                                var pairValue = (glyphLine >> (6 - (pair * 2))) & 0x03;
+                                var pairColor = pairValue switch
+                                {
+                                    0b00 => backgroundColor,
+                                    0b01 => borderColor,
+                                    0b10 => foregroundColor,
+                                    _ => auxiliaryColor,
+                                };
+
+                                var x0 = cellPixelX + (pair * 2);
+                                SetRasterPixel(rowOffset + x0, backgroundColor, pairColor);
+                                SetRasterPixel(rowOffset + x0 + 1, backgroundColor, pairColor);
+                            }
+                        }
+                        else
+                        {
+                            for (var bit = 0; bit < 8; bit++)
+                            {
+                                var set = ((glyphLine >> (7 - bit)) & 0x01) != 0;
+                                var pixelColor = set ? oneBitColor : zeroBitColor;
+                                SetRasterPixel(rowOffset + cellPixelX + bit, zeroBitColor, pixelColor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetRasterPixel(int index, uint backgroundColor, uint pixelColor)
+    {
+        _backBackground[index] = backgroundColor;
+        _backForeground[index] = pixelColor == backgroundColor ? 0u : pixelColor;
+    }
+
+    private static ushort ResolveGlyphBaseAddress(ushort characterStartAddress, byte characterCode)
+    {
+        var glyphOffset = characterCode * 8;
+        var bankStartAddress = (characterStartAddress & 0x8000) != 0 ? 0x8000 : 0x0000;
+        var offsetWithinBank = (characterStartAddress - bankStartAddress + glyphOffset) & 0x1FFF;
+        return (ushort)(bankStartAddress + offsetWithinBank);
+    }
+
+    private uint GetColor(byte colorCode)
+    {
+        if (_colorMap.TryGetValue(colorCode, out var color))
+            return color;
+        return PackBgra(0, 0, 0, 255);
+    }
+}

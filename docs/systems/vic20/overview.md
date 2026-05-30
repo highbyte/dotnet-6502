@@ -12,11 +12,15 @@ Core library: [`Highbyte.DotNet6502.Systems.Vic20`](../../libraries/system-speci
     - Border rendering (5 character columns each side, 1 row top/bottom).
     - Background and border color via VIC-I register `$900F`.
     - 16 background colors (`$900F` high nibble), 8 foreground/border colors (low nibble).
+    - Auxiliary color via VIC-I register `$900E`.
+    - Rasterizer path sources character glyphs from the active VIC-I character base address in ROM or RAM (`$9005`).
+    - Rasterizer path supports per-cell multicolor rendering via color RAM bit 3.
 - Two VIA 6522 chips
     - **VIA1** — keyboard matrix scanning, system timer (CA1 raster IRQ from VIC-I).
     - **VIA2** — user port, additional timer.
 - VIC-I raster interrupt via VIA1 CA1, used by KERNAL for keyboard scan and cursor blink.
-- Host-agnostic command-stream render path (`Vic20VideoCommandStream`).
+- Host-agnostic rasterizer render path (`Vic20Rasterizer`).
+- Host-agnostic command-stream render path (`Vic20VideoCommandStream`) for lightweight glyph rendering.
 - PETSCII screen code rendering with glyph-to-Unicode conversion.
 - Host-agnostic input handling (VIA-based keyboard matrix).
 - Avalonia Desktop and Avalonia Browser (WASM) UI.
@@ -29,6 +33,7 @@ Core library: [`Highbyte.DotNet6502.Systems.Vic20`](../../libraries/system-speci
 - PAL variant (NTSC only at present).
 - RAM expansion (unexpanded memory map only).
 - VIC-I bitmap/graphics modes beyond character mode.
+- Dynamic host resizing for VIC-I geometry changes beyond the default 22&times;23 text layout.
 - Light pen support.
 
 ## Implementation libraries
