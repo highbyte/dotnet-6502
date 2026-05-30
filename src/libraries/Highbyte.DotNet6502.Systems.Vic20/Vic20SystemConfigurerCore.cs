@@ -35,8 +35,11 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
 
     public string SystemName => Vic20.SystemName;
 
+    public const string VariantNtsc = "NTSC";
+    public const string VariantPal = "PAL";
+
     public virtual Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
-        => Task.FromResult(new List<string> { "Default" });
+        => Task.FromResult(new List<string> { VariantNtsc, VariantPal });
 
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
@@ -51,7 +54,7 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
     public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
     {
         var vic20SystemConfig = (Vic20SystemConfig)systemConfig;
-        var vic20Config = new Vic20Config();
+        var vic20Config = BuildVic20ConfigForVariant(configurationVariant);
 
         Dictionary<string, byte[]>? romData = null;
         if (vic20SystemConfig.ROMs.Count > 0)
@@ -61,6 +64,21 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
         vic20.SetCurrentRenderProviderType(vic20SystemConfig.RenderProviderType);
         ISystem system = vic20;
         return Task.FromResult(system);
+    }
+
+    private static Vic20Config BuildVic20ConfigForVariant(string configurationVariant)
+    {
+        return configurationVariant switch
+        {
+            VariantPal => new Vic20Config
+            {
+                TvModel = TvModel.Pal,
+                // VIC-20 PAL (6561): 71 cycles/line × 312 lines = 22152 cycles/frame at 50 Hz.
+                CpuCyclesPerFrame = 22152,
+            },
+            // Default to NTSC. The base Vic20Config already targets NTSC timing.
+            _ => new Vic20Config(),
+        };
     }
 
     public virtual Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)
