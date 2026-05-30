@@ -159,6 +159,25 @@ public class Vic20RasterizerTests
         rasterizer.OnEndFrame();
     }
 
+    [Fact]
+    public void Vic20UsesNtscTvModelByDefault()
+    {
+        var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(new Vic20Config(), NullLoggerFactory.Instance);
+        Assert.Equal(TvModel.Ntsc.MaxVisibleWidth, vic20.VisibleWidth);
+        Assert.Equal(TvModel.Ntsc.MaxVisibleHeight, vic20.VisibleHeight);
+        Assert.Equal(TvModel.Ntsc.RefreshFrequencyHz, vic20.Screen.RefreshFrequencyHz);
+    }
+
+    [Fact]
+    public void Vic20HonorsPalTvModelWhenConfigured()
+    {
+        var config = new Vic20Config { TvModel = TvModel.Pal };
+        var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(config, NullLoggerFactory.Instance);
+        Assert.Equal(TvModel.Pal.MaxVisibleWidth, vic20.VisibleWidth);
+        Assert.Equal(TvModel.Pal.MaxVisibleHeight, vic20.VisibleHeight);
+        Assert.Equal(TvModel.Pal.RefreshFrequencyHz, vic20.Screen.RefreshFrequencyHz);
+    }
+
     private static uint Pack(System.Drawing.Color color)
         => Vic20Rasterizer.PackBgra(color.B, color.G, color.R, color.A);
 }

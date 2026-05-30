@@ -6,12 +6,14 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Models;
 public class Vic2ModelNTSC_old : Vic2ModelBase
 {
     public override string Name => "NTSC_old";
+    public override TvModel TvModel => TvModel.Ntsc;
     public override ulong CyclesPerLine => 64;
     public override ulong CyclesPerFrame => 64 * 262;   //CyclesPerLine * TotalHeight;
 
     public override int TotalWidth => 512;       // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
     public override int TotalHeight => 262;               // Total lines, incl. normal draw area (200 lines), border, and VBlank.
 
+    // Chip-specific overrides — the 6567R56A has slightly different timing than the later 6567R8.
     public override int MaxVisibleWidth => 411;
     public override int MaxVisibleHeight => 234;
 
@@ -33,15 +35,14 @@ public class Vic2ModelNTSC : Vic2ModelBase
 {
 
     public override string Name => "NTSC";
+    public override TvModel TvModel => TvModel.Ntsc;
     public override ulong CyclesPerLine => 65;
     public override ulong CyclesPerFrame => 65 * 263;    // CyclesPerLine * TotalHeight;
 
     public override int TotalWidth => 520;       // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
     public override int TotalHeight => 263;               // Total lines, incl. normal draw area (200 lines), border, and VBlank.
 
-
-    public override int MaxVisibleWidth => 418;
-    public override int MaxVisibleHeight => 235;
+    // MaxVisibleWidth (418) and MaxVisibleHeight (235) inherited from TvModel.Ntsc.
 
     public override int FirstRasterLineOfMainScreen => 51;
 
@@ -100,6 +101,7 @@ public class Vic2ModelNTSC : Vic2ModelBase
 public class Vic2ModelPAL : Vic2ModelBase
 {
     public override string Name => "PAL";
+    public override TvModel TvModel => TvModel.Pal;
     public override ulong CyclesPerLine => 63;          // Total cycles per line, incl normal draw area (320 pixels), border, and HBlank
 
     public override ulong CyclesPerFrame => 63 * 312;   // CyclesPerLine * TotalHeight;
@@ -107,8 +109,7 @@ public class Vic2ModelPAL : Vic2ModelBase
     public override int TotalWidth => 504;            // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
     public override int TotalHeight => 312;           // Total lines, incl. normal draw area (200 lines), border, and VBlank.
 
-    public override int MaxVisibleWidth => 403;          // Max visible, includes normal screen and left/right border
-    public override int MaxVisibleHeight => 284;         // Max visible, includes normal screen and top/bottom border
+    // MaxVisibleWidth (403) and MaxVisibleHeight (284) inherited from TvModel.Pal.
 
     public override int FirstRasterLineOfMainScreen => 51;
 
@@ -162,6 +163,12 @@ public abstract class Vic2ModelBase
 
     public abstract string Name { get; }
 
+    /// <summary>
+    /// TV broadcast standard for this chip variant. Provides the canonical visible raster
+    /// area shared across all systems on the same TV (PAL/NTSC).
+    /// </summary>
+    public abstract TvModel TvModel { get; }
+
     public virtual int TextCols => 40;           // # characters per line in text mode
     public virtual int TextRows => 25;           // # rows in text mode
     public virtual int CharacterWidth => 8;      // # pixels width per character in text mode
@@ -178,8 +185,10 @@ public abstract class Vic2ModelBase
     public abstract int TotalWidth { get; }           // CyclesPerLine * PixelsPerCPUCycle;
     public abstract int TotalHeight { get; }
 
-    public abstract int MaxVisibleWidth { get; }         // TotalWidth - HBlankWidth;
-    public abstract int MaxVisibleHeight { get; }        // TotalHeight - VBlankHeight;
+    // Default to the shared TV model dimensions; chip variants with non-standard pixel timing
+    // (e.g., Vic2ModelNTSC_old) can override to provide chip-specific values.
+    public virtual int MaxVisibleWidth => TvModel.MaxVisibleWidth;
+    public virtual int MaxVisibleHeight => TvModel.MaxVisibleHeight;
 
     public abstract int FirstRasterLineOfMainScreen { get; }    // The raster line where the main screen with background starts. Note that raster line 0 in NTSC variant is within the bottom border.
 

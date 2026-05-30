@@ -21,15 +21,13 @@ public class Vic20Config
     public const int DrawableAreaWidth = Cols * 8 * PixelScaleX;   // 352
     public const int DrawableAreaHeight = Rows * 8;                // 184
 
-    // Max visible pixel area including borders, in buffer pixels (with stretching).
-    // Border = (MaxVisible - DrawableArea) / 2.
-    // Real VIC-20s show substantial border area around the character display, so we use
-    // generous border allocation while keeping total dimensions in the C64 ballpark
-    // (C64 NTSC: 418×235, C64 PAL: 403×284).
-    // NTSC (6560): visible 432×264 → borders 40px×40px (9.3% horizontal, 15.2% vertical)
-    // PAL  (6561): visible 464×292 → borders 56px×54px
-    public int MaxVisibleWidth { get; set; } = 432;
-    public int MaxVisibleHeight { get; set; } = 264;
+    // TV broadcast standard. Defines visible raster area shared with the C64 (a TV is a TV,
+    // regardless of which computer is plugged in). VIC-20's smaller character area naturally
+    // results in more border than the C64 within the same TV space.
+    public TvModel TvModel { get; set; } = TvModel.Ntsc;
+
+    public int MaxVisibleWidth => TvModel.MaxVisibleWidth;
+    public int MaxVisibleHeight => TvModel.MaxVisibleHeight;
 
     // Cell-based border dimensions for the lightweight command-stream renderer
     // (which renders character cells, not raw pixels).
@@ -58,5 +56,5 @@ public class Vic20Config
     // CPU cycles per frame: VIC-20 NTSC runs at ~14318 cycles/frame at 60 Hz
     public ulong CpuCyclesPerFrame { get; set; } = 14318;
 
-    public float ScreenRefreshFrequencyHz { get; set; } = 60.0f;
+    public float ScreenRefreshFrequencyHz => TvModel.RefreshFrequencyHz;
 }
