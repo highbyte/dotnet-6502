@@ -51,8 +51,11 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
         var mem = _vic20.Mem;
         var layout = _vic20.CurrentVideoLayout;
         var bgColorIndex = layout.BackgroundColor;
-        var rows = Math.Min(layout.Rows, Vic20Config.Rows);
+
         var cols = Math.Min(layout.Columns, Vic20Config.Cols);
+        var rows = Math.Min(layout.Rows, Vic20Config.Rows);
+        const int borderCols = Vic20Config.BorderCols;
+        const int borderRows = Vic20Config.BorderRows;
 
         for (var row = 0; row < rows; row++)
         {
@@ -64,8 +67,8 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
                 var fgColorIndex = (byte)(mem[colorAddress] & 0x07);
 
                 _commands.Enqueue(MakeDrawGlyph(
-                    col + Vic20Config.BorderCols,
-                    row + Vic20Config.BorderRows,
+                    col + borderCols,
+                    row + borderRows,
                     charByte,
                     fgColorIndex,
                     bgColorIndex));
@@ -76,21 +79,23 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
     private void RenderBorder()
     {
         var layout = _vic20.CurrentVideoLayout;
-        var rows = Math.Min(layout.Rows, Vic20Config.Rows);
         var cols = Math.Min(layout.Columns, Vic20Config.Cols);
+        var rows = Math.Min(layout.Rows, Vic20Config.Rows);
+        const int borderCols = Vic20Config.BorderCols;
+        const int borderRows = Vic20Config.BorderRows;
         var borderColorByte = layout.BorderColor;
 
-        var totalCols = cols + Vic20Config.BorderCols * 2;
-        var totalRows = rows + Vic20Config.BorderRows * 2;
+        var totalCols = cols + borderCols * 2;
+        var totalRows = rows + borderRows * 2;
 
         for (var row = 0; row < totalRows; row++)
         {
             for (var col = 0; col < totalCols; col++)
             {
-                var isBorder = row < Vic20Config.BorderRows
-                    || row >= rows + Vic20Config.BorderRows
-                    || col < Vic20Config.BorderCols
-                    || col >= cols + Vic20Config.BorderCols;
+                var isBorder = row < borderRows
+                    || row >= rows + borderRows
+                    || col < borderCols
+                    || col >= cols + borderCols;
 
                 if (isBorder)
                     _commands.Enqueue(MakeDrawGlyph(col, row, 0, borderColorByte, borderColorByte));

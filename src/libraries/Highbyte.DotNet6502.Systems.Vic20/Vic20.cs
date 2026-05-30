@@ -36,14 +36,14 @@ public class Vic20 : ISystem, ITextMode, IScreen
     public int CharacterWidth => 8;
     public int CharacterHeight => 8;
 
-    // IScreen
-    public int DrawableAreaWidth => TextCols * CharacterWidth;
-    public int DrawableAreaHeight => TextRows * CharacterHeight;
-    public int VisibleWidth => DrawableAreaWidth + 2 * (Vic20Config.BorderCols * CharacterWidth);
-    public int VisibleHeight => DrawableAreaHeight + 2 * (Vic20Config.BorderRows * CharacterHeight);
+    // IScreen — visible dimensions from VIC-I chip model, borders derived from (visible - drawable) / 2
+    public int DrawableAreaWidth => Vic20Config.DrawableAreaWidth;
+    public int DrawableAreaHeight => Vic20Config.DrawableAreaHeight;
+    public int VisibleWidth => _vic20Config.MaxVisibleWidth;
+    public int VisibleHeight => _vic20Config.MaxVisibleHeight;
     public bool HasBorder => true;
-    public int VisibleLeftRightBorderWidth => Vic20Config.BorderCols * CharacterWidth;
-    public int VisibleTopBottomBorderHeight => Vic20Config.BorderRows * CharacterHeight;
+    public int VisibleLeftRightBorderWidth => (VisibleWidth - DrawableAreaWidth) / 2;
+    public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _vic20Config.ScreenRefreshFrequencyHz;
 
     public ulong CPUCyclesPerFrame => _vic20Config.CpuCyclesPerFrame;

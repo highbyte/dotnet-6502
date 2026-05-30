@@ -6,13 +6,35 @@ namespace Highbyte.DotNet6502.Systems.Vic20.Config;
 /// </summary>
 public class Vic20Config
 {
-    // Standard VIC-20 text-mode dimensions
+    // Standard VIC-20 text-mode dimensions (default column/row count)
     public const int Cols = 22;
     public const int Rows = 23;
-    // NTSC VIC-20 border: ~5 char columns each side, ~1 row top/bottom.
-    // This gives a 256×200 visible pixel area (wider than tall), matching real hardware.
+
+    // Horizontal pixel stretching to approximate the VIC-I's non-square pixel aspect ratio.
+    // On a real TV, VIC-I pixels are physically wider than tall (the VIC-20 displays only
+    // 22 columns in a horizontal scan that the C64 fills with 40), so square-pixel rendering
+    // would make characters appear too narrow. 2× horizontal stretching gives a close visual
+    // match to real hardware.
+    public const int PixelScaleX = 2;
+
+    // Drawable area in buffer pixels (includes horizontal stretching).
+    public const int DrawableAreaWidth = Cols * 8 * PixelScaleX;   // 352
+    public const int DrawableAreaHeight = Rows * 8;                // 184
+
+    // Max visible pixel area including borders, in buffer pixels (with stretching).
+    // Border = (MaxVisible - DrawableArea) / 2.
+    // Real VIC-20s show substantial border area around the character display, so we use
+    // generous border allocation while keeping total dimensions in the C64 ballpark
+    // (C64 NTSC: 418×235, C64 PAL: 403×284).
+    // NTSC (6560): visible 432×264 → borders 40px×40px (9.3% horizontal, 15.2% vertical)
+    // PAL  (6561): visible 464×292 → borders 56px×54px
+    public int MaxVisibleWidth { get; set; } = 432;
+    public int MaxVisibleHeight { get; set; } = 264;
+
+    // Cell-based border dimensions for the lightweight command-stream renderer
+    // (which renders character cells, not raw pixels).
     public const int BorderCols = 5;
-    public const int BorderRows = 1;
+    public const int BorderRows = 3;
 
     // VIC-20 screen RAM: VIC-I $9005 bits[7:4]=$C encodes screen at $1000 (start of 4KB user RAM)
     public ushort ScreenStartAddress { get; set; } = 0x1000;

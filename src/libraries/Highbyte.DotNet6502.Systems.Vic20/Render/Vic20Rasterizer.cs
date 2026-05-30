@@ -123,12 +123,27 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     private void RasterizeFrame()
     {
         var layout = _vic20.CurrentVideoLayout;
-        var borderWidth = Vic20Config.BorderCols * 8;
-        var borderHeight = Vic20Config.BorderRows * 8;
-        var maxCols = Math.Max(0, (NativeSize.Width - (borderWidth * 2)) / 8);
-        var maxRows = Math.Max(0, (NativeSize.Height - (borderHeight * 2)) / layout.CharacterHeight);
-        var cols = Math.Min(layout.Columns, maxCols);
-        var rows = Math.Min(layout.Rows, maxRows);
+        const int scaleX = Vic20Config.PixelScaleX;
+        const int cellPixelWidth = 8 * scaleX;
+
+        var cols = layout.Columns;
+        var rows = layout.Rows;
+        var charAreaWidth = cols * cellPixelWidth;
+        var charAreaHeight = rows * layout.CharacterHeight;
+
+        if (charAreaWidth > NativeSize.Width)
+        {
+            cols = NativeSize.Width / cellPixelWidth;
+            charAreaWidth = cols * cellPixelWidth;
+        }
+        if (charAreaHeight > NativeSize.Height)
+        {
+            rows = NativeSize.Height / layout.CharacterHeight;
+            charAreaHeight = rows * layout.CharacterHeight;
+        }
+
+        var borderWidth = (NativeSize.Width - charAreaWidth) / 2;
+        var borderHeight = (NativeSize.Height - charAreaHeight) / 2;
         var verticalScale = Math.Max(1, layout.CharacterHeight / 8);
 
         var borderColor = GetColor(layout.BorderColor);
@@ -151,7 +166,7 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                 var zeroBitColor = layout.ReverseScreen ? foregroundColor : backgroundColor;
                 var oneBitColor = layout.ReverseScreen ? backgroundColor : foregroundColor;
 
-                var cellPixelX = borderWidth + (col * 8);
+                var cellPixelX = borderWidth + (col * cellPixelWidth);
                 var cellPixelY = borderHeight + (row * layout.CharacterHeight);
                 var glyphBaseAddress = ResolveGlyphBaseAddress(layout.CharacterStartAddress, characterCode);
 
@@ -176,9 +191,10 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                                     _ => auxiliaryColor,
                                 };
 
-                                var x0 = cellPixelX + (pair * 2);
-                                SetRasterPixel(rowOffset + x0, backgroundColor, pairColor);
-                                SetRasterPixel(rowOffset + x0 + 1, backgroundColor, pairColor);
+                                // Each pair covers 2 source pixels; with horizontal scaling each pair spans 2*scaleX buffer pixels.
+                                var pairPixelStart = cellPixelX + (pair * 2 * scaleX);
+                                for (var x = 0; x < 2 * scaleX; x++)
+                                    SetRasterPixel(rowOffset + pairPixelStart + x, backgroundColor, pairColor);
                             }
                         }
                         else
@@ -187,7 +203,9 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                             {
                                 var set = ((glyphLine >> (7 - bit)) & 0x01) != 0;
                                 var pixelColor = set ? oneBitColor : zeroBitColor;
-                                SetRasterPixel(rowOffset + cellPixelX + bit, zeroBitColor, pixelColor);
+                                var bitPixelStart = cellPixelX + (bit * scaleX);
+                                for (var x = 0; x < scaleX; x++)
+                                    SetRasterPixel(rowOffset + bitPixelStart + x, zeroBitColor, pixelColor);
                             }
                         }
                     }
