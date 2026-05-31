@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Systems.Generic\Highbyte.DotNet6502.Systems.Generic.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Systems.Vic20\Highbyte.DotNet6502.Systems.Vic20.csproj" />
