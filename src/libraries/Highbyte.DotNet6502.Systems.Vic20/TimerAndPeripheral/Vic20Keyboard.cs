@@ -31,13 +31,19 @@ namespace Highbyte.DotNet6502.Systems.Vic20.TimerAndPeripheral;
 /// </summary>
 public class Vic20Keyboard
 {
+    private const string RestoreNmiSource = "KeyboardRestore";
     private readonly Vic20Key[,] _matrix = new Vic20Key[8, 8];
     private readonly List<Vic20Key> _pressedKeys = new();
     private byte _selectedColumnMask = 0xFF; // all columns deselected by default
+    private readonly Vic20 _vic20;
+    private bool _capsLockOn;
+    private bool _restorePressedLastFrame;
+    private bool _runStopPressedLastFrame;
     private readonly ILogger _logger;
 
-    public Vic20Keyboard(ILoggerFactory loggerFactory)
+    public Vic20Keyboard(Vic20 vic20, ILoggerFactory loggerFactory)
     {
+        _vic20 = vic20;
         _logger = loggerFactory.CreateLogger(nameof(Vic20Keyboard));
         InitMatrix();
     }
@@ -131,15 +137,56 @@ public class Vic20Keyboard
     }
 
     /// <summary>Called by the host input consumer each frame with the current key state.</summary>
-    public void SetKeysPressed(List<Vic20Key> keys, bool capsLockOn)
+    public void SetKeysPressed(List<Vic20Key> keys, bool restorePressed, bool capsLockOn)
     {
+        bool runStopPressed = keys.Contains(Vic20Key.RunStop);
+
+        if (restorePressed)
+        {
+            bool chordJustCompleted = runStopPressed && !_runStopPressedLastFrame;
+            if (!_restorePressedLastFrame || chordJustCompleted)
+            {
+                PulseRestoreKeyPressed();
+                _logger.LogTrace("VIC-20 RESTORE key pressed, NMI is invoked.");
+            }
+        }
+        else
+        {
+            _vic20.CPU.CPUInterrupts.SetNMISourceInactive(RestoreNmiSource);
+        }
+
+        if (restorePressed != _restorePressedLastFrame)
+        {
+            _logger.LogDebug(
+                "VIC-20 RESTORE {State}. NMILineEnabled={NMILineEnabled}, NMIPending={NMIPending}",
+                restorePressed ? "asserted" : "released",
+                _vic20.CPU.CPUInterrupts.NMILineEnabled,
+                _vic20.CPU.CPUInterrupts.NMIPending);
+        }
+        _restorePressedLastFrame = restorePressed;
+        _runStopPressedLastFrame = runStopPressed;
+
         _pressedKeys.Clear();
         foreach (var key in keys)
             _pressedKeys.Add(key);
+        if (capsLockOn != _capsLockOn)
+            _logger.LogTrace($"VIC-20 caps lock changed to: {capsLockOn}");
+        _capsLockOn = capsLockOn;
         if (capsLockOn)
             _pressedKeys.Add(Vic20Key.LShift);
         if (keys.Count > 0)
             _logger.LogTrace($"VIC-20 keys pressed: {string.Join(",", keys)}");
+    }
+
+    public void SetRestoreKeyPressed()
+    {
+        _vic20.CPU.CPUInterrupts.SetNMISourceActive(RestoreNmiSource);
+    }
+
+    private void PulseRestoreKeyPressed()
+    {
+        _vic20.CPU.CPUInterrupts.SetNMISourceInactive(RestoreNmiSource);
+        SetRestoreKeyPressed();
     }
 
     /// <summary>
