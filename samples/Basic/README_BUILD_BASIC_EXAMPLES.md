@@ -111,5 +111,11 @@ petcat -w2 -l 1001 -o Build/MulticolorChars.prg       -- MulticolorChars.txt
 petcat -w2 -l 1001 -o Build/ScreenGeometry.prg        -- ScreenGeometry.txt
 ```
 
+`petcat` tokenizes BASIC V2 source as PETSCII, so the case you type in the `.txt`
+file is not a 1:1 match for what appears on a VIC-20 or C64 screen. For readable
+text in the default upper/graphics mode, keep quoted source text lowercase. To
+demonstrate the VIC-20 lowercase/uppercase character set, switch modes with
+`CHR$(14)` and switch back with `CHR$(142)`.
+
 If running an expanded VIC-20 (8K+), use `-l 1201` instead. The
 `Build/` subdirectory must exist before running these commands.
