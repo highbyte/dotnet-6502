@@ -88,6 +88,7 @@ public class Vic20HostKeyboard
         { new[] { HostKey.ArrowUp    }, new[] { Vic20Key.LShift, Vic20Key.CrsrDown  } },
 
         // Modifier keys
+        { new[] { HostKey.Tab          }, new[] { Vic20Key.Ctrl  } },
         { new[] { HostKey.ShiftLeft  }, new[] { Vic20Key.LShift  } },
         { new[] { HostKey.ShiftRight }, new[] { Vic20Key.RShift  } },
         { new[] { HostKey.ControlLeft  }, new[] { Vic20Key.CBM   } }, // Ctrl → Commodore key
