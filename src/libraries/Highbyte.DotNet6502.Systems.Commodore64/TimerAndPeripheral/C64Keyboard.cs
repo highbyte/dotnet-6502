@@ -8,11 +8,14 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// </summary>
 public class C64Keyboard
 {
+    private const string RestoreNmiSource = "KeyboardReset";
     private readonly C64Key[,] _matrix;
     private readonly List<C64Key> _pressedKeys = new List<C64Key>();
     private readonly C64 _c64;
     private readonly List<int> _selectedMatrixRowBitPositions = new();
     private bool _capsLockOn;
+    private bool _restorePressedLastFrame;
+    private bool _runStopPressedLastFrame;
     private readonly ILogger _logger;
 
     public C64Keyboard(C64 c64, ILoggerFactory loggerFactory)
@@ -51,12 +54,33 @@ public class C64Keyboard
     /// <param name="key"></param>
     public void SetKeysPressed(List<C64Key> keys, bool restorePressed, bool capsLockOn)
     {
+        bool runStopPressed = keys.Contains(C64Key.Stop);
+
         // Check for special key: Restore
         if (restorePressed)
         {
-            SetRestoreKeyPressed();
-            _logger.LogTrace($"C64 restore key pressed, NMI is invoked.");
+            bool chordJustCompleted = runStopPressed && !_runStopPressedLastFrame;
+            if (!_restorePressedLastFrame || chordJustCompleted)
+            {
+                PulseRestoreKeyPressed();
+                _logger.LogTrace($"C64 restore key pressed, NMI is invoked.");
+            }
         }
+        else
+        {
+            _c64.CPU.CPUInterrupts.SetNMISourceInactive(RestoreNmiSource);
+        }
+
+        if (restorePressed != _restorePressedLastFrame)
+        {
+            _logger.LogDebug(
+                "C64 RESTORE {State}. NMILineEnabled={NMILineEnabled}, NMIPending={NMIPending}",
+                restorePressed ? "asserted" : "released",
+                _c64.CPU.CPUInterrupts.NMILineEnabled,
+                _c64.CPU.CPUInterrupts.NMIPending);
+            _restorePressedLastFrame = restorePressed;
+        }
+        _runStopPressedLastFrame = runStopPressed;
 
         // Set pressed keys
         _pressedKeys.Clear();
@@ -84,7 +108,57 @@ public class C64Keyboard
     /// </summary>
     public void SetRestoreKeyPressed()
     {
-        _c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
+        _c64.CPU.CPUInterrupts.SetNMISourceActive(RestoreNmiSource);
+    }
+
+    private void PulseRestoreKeyPressed()
+    {
+        _c64.CPU.CPUInterrupts.SetNMISourceInactive(RestoreNmiSource);
+        SetRestoreKeyPressed();
+    }
+
+    /// <summary>
+    /// Returns the active-low input value seen on CIA1 Port A ($DC00) when Port B ($DC01)
+    /// drives selected keyboard lines low.
+    /// </summary>
+    public byte GetPortAInput(byte portBDrivenMask)
+    {
+        byte pressedKeys = 0xff;
+
+        for (var col = 0; col < 8; col++)
+        {
+            if ((portBDrivenMask & (1 << col)) != 0)
+                continue;
+
+            for (var row = 0; row < 8; row++)
+            {
+                if (_pressedKeys.Contains(_matrix[row, col]))
+                    pressedKeys.ClearBit(row);
+            }
+        }
+        return pressedKeys;
+    }
+
+    /// <summary>
+    /// Returns the active-low input value seen on CIA1 Port B ($DC01) when Port A ($DC00)
+    /// drives selected keyboard lines low.
+    /// </summary>
+    public byte GetPortBInput(byte portADrivenMask)
+    {
+        byte pressedKeys = 0xff;
+
+        for (var row = 0; row < 8; row++)
+        {
+            if ((portADrivenMask & (1 << row)) != 0)
+                continue;
+
+            for (var col = 0; col < 8; col++)
+            {
+                if (_pressedKeys.Contains(_matrix[row, col]))
+                    pressedKeys.ClearBit(col);
+            }
+        }
+        return pressedKeys;
     }
 
     /// <summary>
@@ -141,17 +215,7 @@ public class C64Keyboard
     /// </remarks>
     public byte GetPressedKeysForSelectedMatrixRow()
     {
-        byte pressedKeys = 0xff;    // All bits set to 1 means no keys pressed.
-
-        foreach (var row in _selectedMatrixRowBitPositions)
-        {
-            for (var col = 0; col < 8; col++)
-            {
-                if (_pressedKeys.Contains(_matrix[row, col]))
-                    pressedKeys.ClearBit(col);
-            }
-        }
-        return pressedKeys;
+        return GetPortBInput(GetSelectedMatrixRow());
     }
 
     /// <summary>
