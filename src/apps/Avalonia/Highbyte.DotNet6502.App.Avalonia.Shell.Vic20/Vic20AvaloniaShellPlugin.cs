@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels;
+using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Highbyte.DotNet6502.Systems.Vic20;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,13 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Highbyte.DotNet6502.App.Avalonia.Shell.Vic20;
 
 /// <summary>
-/// Shell-side plugin for the VIC-20 on the Avalonia host. Contributes a minimal but
-/// non-null menu / info / config-dialog surface so the proof-of-contract exercise also
-/// validates the three UI contribution paths (not just engine-side wiring). The contents
-/// are intentionally tiny — the point is that the contribution objects are reachable
-/// and that the host's ViewLocator can resolve their views.
+/// Shell-side plugin for the VIC-20 on the Avalonia host.
 /// </summary>
-public sealed class Vic20AvaloniaShellPlugin : ISystemShellPlugin
+public sealed class Vic20AvaloniaShellPlugin : ISystemShellPlugin, IAvaloniaNativeMenuPlugin
 {
     public string SystemName => global::Highbyte.DotNet6502.Systems.Vic20.Vic20.SystemName;
 
@@ -33,4 +30,7 @@ public sealed class Vic20AvaloniaShellPlugin : ISystemShellPlugin
     public object? CreateInfoContribution(IServiceProvider sp) => sp.GetService<Vic20InfoViewModel>();
 
     public object? CreateConfigDialogContribution(IServiceProvider sp) => sp.GetService<Vic20ConfigDialogViewModel>();
+
+    public ISystemMenuContributor? GetNativeMenuContributor(object? menuContribution)
+        => menuContribution as ISystemMenuContributor;
 }

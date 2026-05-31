@@ -46,6 +46,8 @@ public partial class Vic20MenuView : UserControl
 
             if (ViewModel.HasConfigValidationErrors)
             {
+                ViewModel.ExpandConfigSectionOnValidationError();
+
                 var vic20ConfigButton = this.FindControl<Button>("Vic20Config");
                 if (vic20ConfigButton != null)
                     StartButtonFlash(vic20ConfigButton, Colors.DarkOrange, stopAfterClick: true);

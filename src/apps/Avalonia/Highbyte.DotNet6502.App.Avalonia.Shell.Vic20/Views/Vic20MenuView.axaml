@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
              xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20MenuView"
              x:DataType="vm:Vic20MenuViewModel"
@@ -13,33 +14,213 @@
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
     </UserControl.Styles>
 
-
     <StackPanel Classes="spacing-tight">
-        <TextBlock Text="VIC-20" Classes="" />
+        <TextBlock Text="VIC-20" />
 
-        <!-- Load/Save -->
-        <TextBlock Text="Load/Save" FontWeight="SemiBold"/>
-        <Button Content="Load Basic"
-                AutomationProperties.AutomationId="LoadBasicButton"
-                IsEnabled="{Binding IsFileOperationEnabled}"
-                Click="LoadBasicFile_Click"
-                Classes="small"/>
+        <Grid Classes="spacing-tight">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0"
+                    Content="Copy"
+                    AutomationProperties.AutomationId="CopyBasicButton"
+                    AutomationProperties.Name="Copy BASIC source to clipboard"
+                    Classes="small"
+                    IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+            <Button Grid.Column="1"
+                    Content="Paste"
+                    AutomationProperties.AutomationId="PasteTextButton"
+                    AutomationProperties.Name="Paste text from clipboard"
+                    Classes="small"
+                    IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+        </Grid>
 
-        <Separator/>
+        <StackPanel>
+            <Button Name="LoadSaveSectionHeader"
+                    AutomationProperties.AutomationId="LoadSaveSectionHeader"
+                    AutomationProperties.Name="Toggle Load/Save section"
+                    Classes="section-toggle"
+                    Command="{Binding ToggleLoadSaveSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsLoadSaveSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsLoadSaveSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Load/Save"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
 
-        <Button Name="Vic20Config"
-                Content="VIC20 Config"
-                AutomationProperties.AutomationId="Vic20ConfigButton"
-                AutomationProperties.Name="Open VIC-20 configuration dialog"
-                Click="OpenVic20Config_Click"
-                Classes="small"
-                HorizontalAlignment="Left">
-            <Button.Transitions>
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.7"/>
-                </Transitions>
-            </Button.Transitions>
-        </Button>
+            <Border Name="LoadSaveSectionContent"
+                    AutomationProperties.AutomationId="LoadSaveSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsLoadSaveSectionExpanded}">
+                <StackPanel Classes="spacing-tight">
+                    <TextBlock Text="Load/save .prg files"
+                               Classes="small secondary-text"/>
 
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="Load Basic"
+                                AutomationProperties.AutomationId="LoadBasicButton"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="LoadBasicFile_Click"
+                                Classes="small"/>
+                        <Button Grid.Column="1"
+                                Content="Save Basic"
+                                AutomationProperties.AutomationId="SaveBasicButton"
+                                IsEnabled="{Binding ArePlaceholderControlsEnabled}"
+                                Classes="small"/>
+                    </Grid>
+
+                    <Button Content="Load &amp; start binary"
+                            AutomationProperties.AutomationId="LoadBinaryButton"
+                            Classes="primary small"
+                            IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+
+                    <TextBlock Text="Assembly example files"
+                               Classes="small secondary-text"/>
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="AssemblyExampleComboBox"
+                                  AutomationProperties.Name="Assembly example file"
+                                  ItemsSource="{Binding AssemblyExamples}"
+                                  SelectedValue="{Binding SelectedAssemblyExample}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="{Binding ArePlaceholderControlsEnabled}"
+                                  Classes="small"
+                                  VerticalAlignment="Stretch"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="Load &amp; start"
+                                AutomationProperties.AutomationId="LoadAssemblyExampleButton"
+                                VerticalAlignment="Stretch"
+                                Classes="primary small"
+                                IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                    </Grid>
+
+                    <TextBlock Text="Basic example files"
+                               Classes="small secondary-text"/>
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  AutomationProperties.AutomationId="BasicExampleComboBox"
+                                  AutomationProperties.Name="Basic example file"
+                                  ItemsSource="{Binding BasicExamples}"
+                                  SelectedValue="{Binding SelectedBasicExample}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="{Binding ArePlaceholderControlsEnabled}"
+                                  Classes="small"
+                                  VerticalAlignment="Stretch"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="Load"
+                                AutomationProperties.AutomationId="LoadBasicExampleButton"
+                                VerticalAlignment="Stretch"
+                                Classes="primary small"
+                                IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <StackPanel>
+            <Button Name="ConfigSectionHeader"
+                    AutomationProperties.AutomationId="ConfigSectionHeader"
+                    AutomationProperties.Name="Toggle Configuration section"
+                    Classes="section-toggle"
+                    Command="{Binding ToggleConfigSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsConfigSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsConfigSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Configuration"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Border Name="ConfigSectionContent"
+                    AutomationProperties.AutomationId="ConfigSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsConfigSectionExpanded}">
+                <StackPanel Classes="spacing-tight">
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Active joystick:"
+                                   Classes="small secondary-text"/>
+                        <ComboBox Grid.Column="1"
+                                  AutomationProperties.AutomationId="ActiveJoystickComboBox"
+                                  AutomationProperties.Name="Active joystick"
+                                  ItemsSource="{Binding AvailableJoysticks}"
+                                  SelectedItem="{Binding CurrentJoystick}"
+                                  IsEnabled="{Binding ArePlaceholderControlsEnabled}"
+                                  Classes="small"
+                                  MinWidth="30"/>
+                    </Grid>
+
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0"
+                                  Content="Joystick KB:"
+                                  AutomationProperties.AutomationId="JoystickKeyboardCheckBox"
+                                  Classes="small"
+                                  IsChecked="{Binding JoystickKeyboardEnabled}"
+                                  IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                        <ComboBox Grid.Column="1"
+                                  AutomationProperties.AutomationId="KeyboardJoystickComboBox"
+                                  AutomationProperties.Name="Keyboard joystick port"
+                                  ItemsSource="{Binding AvailableJoysticks}"
+                                  SelectedItem="{Binding KeyboardJoystick}"
+                                  IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
+                                  Classes="small"
+                                  MinWidth="30"/>
+                    </Grid>
+
+                    <Button Name="Vic20Config"
+                            Content="VIC20 Config"
+                            AutomationProperties.AutomationId="Vic20ConfigButton"
+                            AutomationProperties.Name="Open VIC-20 configuration dialog"
+                            Click="OpenVic20Config_Click"
+                            IsEnabled="{Binding IsVic20ConfigEnabled}"
+                            Classes="small">
+                        <Button.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.7"/>
+                            </Transitions>
+                        </Button.Transitions>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </StackPanel>
     </StackPanel>
 </UserControl>
