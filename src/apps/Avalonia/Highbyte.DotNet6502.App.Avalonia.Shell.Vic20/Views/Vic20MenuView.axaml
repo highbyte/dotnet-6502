@@ -6,13 +6,33 @@
              AutomationProperties.AutomationId="Vic20MenuView"
              AutomationProperties.Name="VIC-20 menu panel"
              Focusable="False">
-    <StackPanel Margin="6" Spacing="6">
-        <TextBlock Text="VIC-20" FontWeight="Bold" />
+    <!-- DataContext will be set from constructor via DI -->
+
+    <UserControl.Styles>
+        <!-- Include non-focusable styles -->
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+    </UserControl.Styles>
+
+
+    <StackPanel Classes="spacing-tight">
+        <TextBlock Text="VIC-20" Classes="" />
+
+        <!-- Load/Save -->
+        <TextBlock Text="Load/Save" FontWeight="SemiBold"/>
+        <Button Content="Load Basic"
+                AutomationProperties.AutomationId="LoadBasicButton"
+                IsEnabled="{Binding IsFileOperationEnabled}"
+                Click="LoadBasicFile_Click"
+                Classes="small"/>
+
+        <Separator/>
+
         <Button Name="Vic20Config"
                 Content="VIC20 Config"
                 AutomationProperties.AutomationId="Vic20ConfigButton"
                 AutomationProperties.Name="Open VIC-20 configuration dialog"
                 Click="OpenVic20Config_Click"
+                Classes="small"
                 HorizontalAlignment="Left">
             <Button.Transitions>
                 <Transitions>
@@ -20,5 +40,6 @@
                 </Transitions>
             </Button.Transitions>
         </Button>
+
     </StackPanel>
 </UserControl>

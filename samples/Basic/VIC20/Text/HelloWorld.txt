@@ -1,0 +1,9 @@
+10 rem alternates the border color while printing
+20 c1=3:c2=4
+30 c=c1
+40 if c=c1 then c=c2 : goto 60
+50 if c=c2 then c=c1
+60 poke 36879, 16+8+c : rem white bg, normal video, border=c
+70 print "hello world!"
+80 for i=1 to 150:next
+90 goto 40

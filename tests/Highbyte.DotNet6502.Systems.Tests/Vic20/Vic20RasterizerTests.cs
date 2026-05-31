@@ -32,6 +32,35 @@ public class Vic20RasterizerTests
     }
 
     [Fact]
+    public void Vic20DefaultsMatchUnexpandedMemoryMap()
+    {
+        var config = new Vic20Config();
+        var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(config, NullLoggerFactory.Instance);
+
+        Assert.Equal(0x1E00, config.ScreenStartAddress);
+        Assert.Equal(0x9600, config.ColorStartAddress);
+        Assert.Equal(0x1E00, vic20.CurrentVideoLayout.ScreenStartAddress);
+        Assert.Equal(0x9600, vic20.CurrentVideoLayout.ColorStartAddress);
+        Assert.Equal(Highbyte.DotNet6502.Systems.Vic20.Vic20.BASIC_LOAD_ADDRESS, (ushort)0x1001);
+    }
+
+    [Fact]
+    public void Vic20UsesOnlyUnexpandedRamRegionsByDefault()
+    {
+        var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(new Vic20Config(), NullLoggerFactory.Instance);
+
+        vic20.Mem[0x0002] = 0x12;
+        vic20.Mem[0x1001] = 0x34;
+        vic20.Mem[0x0400] = 0x56;
+        vic20.Mem[0x2000] = 0x78;
+
+        Assert.Equal(0x12, vic20.Mem[0x0002]);
+        Assert.Equal(0x34, vic20.Mem[0x1001]);
+        Assert.Equal(0xFF, vic20.Mem[0x0400]);
+        Assert.Equal(0xFF, vic20.Mem[0x2000]);
+    }
+
+    [Fact]
     public void RasterizerReadsGlyphPixelsFromTheActiveCharacterBase()
     {
         var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(new Vic20Config(), NullLoggerFactory.Instance);

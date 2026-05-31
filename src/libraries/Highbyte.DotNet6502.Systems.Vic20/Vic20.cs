@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Systems.Vic20.Config;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
 using Highbyte.DotNet6502.Systems.Vic20.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Vic20.Video;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -69,13 +70,25 @@ public class Vic20 : ISystem, ITextMode, IScreen
     private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerInstructionStat;
     private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerFrameStat;
     private const string StatsCategoryRenderProvider = "RenderProvider";
+    private const byte UnconnectedReadValue = 0xFF;
+
+    private readonly byte[] _lowRam = new byte[0x0400];
+    private readonly byte[] _mainRam = new byte[0x1000];
+    private readonly byte[] _vicRegisterStorage = new byte[0x0010];
+    private readonly byte[] _colorRam = new byte[0x0400];
+
+
+    /// <summary>
+    /// Standard BASIC program load address for unexpanded VIC-20 (TXTTAB = $1001).
+    /// </summary>
+    public const ushort BASIC_LOAD_ADDRESS = 0x1001;
 
     public Vic20() : this(new Vic20Config(), new NullLoggerFactory()) { }
 
     public Vic20(Vic20Config config, ILoggerFactory loggerFactory, Dictionary<string, byte[]>? romData = null)
     {
         _vic20Config = config;
-        Mem = new Memory();
+        Mem = CreateUnexpandedMemory();
         CPU = new CPU(loggerFactory);
         DefaultExecOptions = new ExecOptions();
 
@@ -113,6 +126,38 @@ public class Vic20 : ISystem, ITextMode, IScreen
     }
 
     public void SetCurrentRenderProviderType(Type? renderProviderType) => SetCurrentRenderProvider(renderProviderType);
+
+    private Memory CreateUnexpandedMemory()
+    {
+        var mem = new Memory(mapToDefaultRAM: false);
+
+        // Default to "no device" in areas that are not populated on an unexpanded VIC-20.
+        MapUnconnectedRange(mem, 0x0400, 0x0C00);
+        MapUnconnectedRange(mem, 0x2000, 0x6000);
+        MapUnconnectedRange(mem, 0x8000, 0x1000);
+        MapUnconnectedRange(mem, 0x9000, 0x0400);
+        MapUnconnectedRange(mem, 0x9800, 0x0800);
+        MapUnconnectedRange(mem, 0xA000, 0x2000);
+        MapUnconnectedRange(mem, 0xC000, 0x2000);
+        MapUnconnectedRange(mem, 0xE000, 0x2000);
+
+        mem.MapRAM(0x0000, _lowRam);
+        mem.MapRAM(0x1000, _mainRam);
+        mem.MapRAM(0x9000, _vicRegisterStorage);
+        mem.MapRAM(0x9400, _colorRam);
+
+        return mem;
+    }
+
+    private static void MapUnconnectedRange(Memory mem, ushort startAddress, ushort length)
+    {
+        for (var offset = 0; offset < length; offset++)
+        {
+            var address = (ushort)(startAddress + offset);
+            mem.MapReader(address, static _ => UnconnectedReadValue);
+            mem.MapWriter(address, static (_, _) => { });
+        }
+    }
 
     private void MapROMs(Dictionary<string, byte[]> romData)
     {
@@ -226,5 +271,21 @@ public class Vic20 : ISystem, ITextMode, IScreen
             CPU.Reset(Mem);
         else
             CPU.PC = cpuStartPos.Value;
+    }
+
+    /// <summary>
+    /// Initializes BASIC memory pointers after a BASIC program has been loaded directly into RAM.
+    /// Sets VARTAB, ARYTAB, and STREND to one byte past the end of the loaded program,
+    /// matching what the KERNAL would do after a normal LOAD command.
+    /// </summary>
+    public void InitBasicMemoryVariables(ushort loadedAtAddress, int fileLength)
+    {
+        // VARTAB $002D-$002E   Pointer to the Start of the BASIC Variable Storage Area
+        // ARYTAB $002F-$0030   Pointer to the Start of the BASIC Array Storage Area
+        // STREND $0031-$0032   Pointer to End of the BASIC Array Storage Area (+1), and the Start of Free RAM
+        ushort varStartAddress = (ushort)(loadedAtAddress + fileLength + 1);
+        Mem.WriteWord(0x2d, varStartAddress);
+        Mem.WriteWord(0x2f, varStartAddress);
+        Mem.WriteWord(0x31, varStartAddress);
     }
 }

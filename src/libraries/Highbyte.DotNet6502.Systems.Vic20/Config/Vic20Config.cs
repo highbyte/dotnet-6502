@@ -34,11 +34,12 @@ public class Vic20Config
     public const int BorderCols = 5;
     public const int BorderRows = 3;
 
-    // VIC-20 screen RAM: VIC-I $9005 bits[7:4]=$C encodes screen at $1000 (start of 4KB user RAM)
-    public ushort ScreenStartAddress { get; set; } = 0x1000;
+    // Unexpanded VIC-20 screen RAM defaults to $1E00 (top of the built-in 4 KB user RAM block).
+    // VIC-I registers $9002/$9005 then decode to screen RAM at $1E00 and color RAM at $9600.
+    public ushort ScreenStartAddress { get; set; } = 0x1E00;
 
-    // VIC-20 color RAM: always at this address regardless of RAM expansion
-    public ushort ColorStartAddress { get; set; } = 0x9400;
+    // Unexpanded VIC-20 color RAM defaults to $9600 because screen base bit A9 is set.
+    public ushort ColorStartAddress { get; set; } = 0x9600;
 
     // VIC-I register $900F packs both:
     //   bits 7-4: background color (16 colors)

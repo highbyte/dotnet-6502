@@ -1,0 +1,17 @@
+10 rem switch character set via 36869 ($9005) lower nibble
+20 rem default 240 -> uppercase/graphics rom at $8000
+30 rem set lower nibble to 1 -> lowercase/uppercase rom at $8400
+40 print chr$(147)
+50 print "uppercase / graphics charset"
+60 print "the quick brown fox"
+70 print "abcdefghijklmnopqrstuv"
+80 for i=1 to 2000:next
+90 poke 36869, 241 : rem lowercase rom charset
+100 print chr$(147)
+110 print "lowercase / uppercase charset"
+120 print "the quick brown fox"
+130 print "abcdefghijklmnopqrstuv"
+140 for i=1 to 2000:next
+150 poke 36869, 240 : rem back to default
+160 print chr$(147)
+170 print "back to uppercase charset"

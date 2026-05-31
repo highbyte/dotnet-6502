@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
@@ -124,6 +125,43 @@ public partial class Vic20MenuView : UserControl
 
                 if (ReferenceEquals(_buttonFlashCancellation, buttonFlashCancellation))
                     _buttonFlashCancellation = null;
+            }
+        });
+
+    private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+            var storageProvider = topLevel.StorageProvider;
+            if (!storageProvider.CanOpen)
+                return;
+
+            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Load Basic PRG File",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                }
+            });
+
+            if (files.Count > 0)
+            {
+                try
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    var fileBuffer = new byte[stream.Length];
+                    await stream.ReadExactlyAsync(fileBuffer);
+
+                    _ = ViewModel!.LoadBasicFileCommand.Execute(fileBuffer);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error loading Basic .prg");
+                }
             }
         });
 

@@ -1,0 +1,19 @@
+10 rem per-cell multicolor: set bit 3 of color ram byte
+20 rem unexpanded vic-20 color ram is at 38400
+30 rem 36879 bg/border, 36878 aux color (upper nibble) + volume (lower)
+40 poke 36879, 16+8+3 : rem white bg, normal video, cyan border
+50 poke 36878, (5*16) + (peek(36878) and 15) : rem aux=green, keep volume
+60 print chr$(147)
+70 rem top row: multicolor cells (bit 3 set in color ram)
+80 for i=0 to 21
+90 poke 7680+i, 102+i : rem some graphic chars
+100 poke 38400+i, 8 or 6 : rem multicolor flag + blue
+110 next i
+120 rem next row: same chars, single color for comparison
+130 for i=0 to 21
+140 poke 7702+i, 102+i
+150 poke 38422+i, 6 : rem blue, no multicolor
+160 next i
+170 print chr$(19) : rem home
+180 for i=1 to 4:print:next
+190 print "top: multicolor   below: 1-color"
