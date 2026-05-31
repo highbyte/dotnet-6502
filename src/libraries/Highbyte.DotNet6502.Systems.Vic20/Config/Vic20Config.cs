@@ -6,19 +6,40 @@ namespace Highbyte.DotNet6502.Systems.Vic20.Config;
 /// </summary>
 public class Vic20Config
 {
-    // Standard VIC-20 text-mode dimensions
+    // Standard VIC-20 text-mode dimensions (default column/row count)
     public const int Cols = 22;
     public const int Rows = 23;
-    // NTSC VIC-20 border: ~5 char columns each side, ~1 row top/bottom.
-    // This gives a 256×200 visible pixel area (wider than tall), matching real hardware.
+
+    // Horizontal pixel stretching to approximate the VIC-I's non-square pixel aspect ratio.
+    // On a real TV, VIC-I pixels are physically wider than tall (the VIC-20 displays only
+    // 22 columns in a horizontal scan that the C64 fills with 40), so square-pixel rendering
+    // would make characters appear too narrow. 2× horizontal stretching gives a close visual
+    // match to real hardware.
+    public const int PixelScaleX = 2;
+
+    // Drawable area in buffer pixels (includes horizontal stretching).
+    public const int DrawableAreaWidth = Cols * 8 * PixelScaleX;   // 352
+    public const int DrawableAreaHeight = Rows * 8;                // 184
+
+    // TV broadcast standard. Defines visible raster area shared with the C64 (a TV is a TV,
+    // regardless of which computer is plugged in). VIC-20's smaller character area naturally
+    // results in more border than the C64 within the same TV space.
+    public TvModel TvModel { get; set; } = TvModel.Ntsc;
+
+    public int MaxVisibleWidth => TvModel.MaxVisibleWidth;
+    public int MaxVisibleHeight => TvModel.MaxVisibleHeight;
+
+    // Cell-based border dimensions for the lightweight command-stream renderer
+    // (which renders character cells, not raw pixels).
     public const int BorderCols = 5;
-    public const int BorderRows = 1;
+    public const int BorderRows = 3;
 
-    // VIC-20 screen RAM: VIC-I $9005 bits[7:4]=$C encodes screen at $1000 (start of 4KB user RAM)
-    public ushort ScreenStartAddress { get; set; } = 0x1000;
+    // Unexpanded VIC-20 screen RAM defaults to $1E00 (top of the built-in 4 KB user RAM block).
+    // VIC-I registers $9002/$9005 then decode to screen RAM at $1E00 and color RAM at $9600.
+    public ushort ScreenStartAddress { get; set; } = 0x1E00;
 
-    // VIC-20 color RAM: always at this address regardless of RAM expansion
-    public ushort ColorStartAddress { get; set; } = 0x9400;
+    // Unexpanded VIC-20 color RAM defaults to $9600 because screen base bit A9 is set.
+    public ushort ColorStartAddress { get; set; } = 0x9600;
 
     // VIC-I register $900F packs both:
     //   bits 7-4: background color (16 colors)
@@ -36,5 +57,5 @@ public class Vic20Config
     // CPU cycles per frame: VIC-20 NTSC runs at ~14318 cycles/frame at 60 Hz
     public ulong CpuCyclesPerFrame { get; set; } = 14318;
 
-    public float ScreenRefreshFrequencyHz { get; set; } = 60.0f;
+    public float ScreenRefreshFrequencyHz => TvModel.RefreshFrequencyHz;
 }

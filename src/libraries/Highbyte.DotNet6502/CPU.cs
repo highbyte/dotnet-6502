@@ -285,6 +285,12 @@ public class CPU
     {
         if (CPUInterrupts.NMIPending)
         {
+            ushort nmiVector = FetchWord(mem, CPU.NonMaskableIRQHandlerVector);
+            _logger.LogDebug(
+                "Servicing NMI. PC={PC:X4}, Vector={Vector:X4}, ActiveSources=[{Sources}]",
+                PC,
+                nmiVector,
+                string.Join(",", CPUInterrupts.ActiveNMISources));
             CPUInterrupts.ClearPendingNMI();
             ProcessHardwareNMI(mem);
         }

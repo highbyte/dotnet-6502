@@ -800,8 +800,9 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// <param name="modifiers"></param>
     internal void OnKeyDown(Key key, PhysicalKey physicalKey, KeyModifiers modifiers = KeyModifiers.None)
     {
-        // Send event to emulator (physical key position, per the neutral HostKey contract)
-        _inputHandlerContext.AddKeyDown(physicalKey);
+        // Send event to emulator. PhysicalKey stays authoritative, but the input context can
+        // normalize logical Fn-generated navigation keys such as macOS PageUp/PageDown.
+        _inputHandlerContext.AddKeyDown(key, physicalKey);
 
         // Publish KeyDown event for subscribers
         KeyDownEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
@@ -830,8 +831,8 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// </summary>
     internal void OnKeyUp(Key key, PhysicalKey physicalKey, KeyModifiers modifiers = KeyModifiers.None)
     {
-        // Send event to emulator (physical key position, per the neutral HostKey contract)
-        _inputHandlerContext.RemoveKeyDown(physicalKey);
+        // Keep key-up normalization in sync with key-down for Fn-generated navigation keys.
+        _inputHandlerContext.RemoveKeyDown(key, physicalKey);
 
         // Publish KeyUp event for subscribers
         KeyUpEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });

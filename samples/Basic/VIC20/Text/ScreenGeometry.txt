@@ -1,0 +1,22 @@
+10 rem demonstrate dynamic column/row count via 36866/36867
+20 rem 36866 ($9002) = screen-a9 (bit 7) | columns (bits 0-6)
+30 rem 36867 ($9003) = raster bit 0 (bit 7) | rows (bits 1-6) | char-height (bit 0)
+40 print chr$(147)
+50 print "default 22 cols x 23 rows"
+60 for i=1 to 2000:next
+70 c2=peek(36866):c3=peek(36867)
+80 rem narrower: 18 columns (keep screen-a9 bit)
+90 poke 36866, (c2 and 128) or 18
+100 print chr$(147)
+110 print "18 columns"
+120 for i=1 to 2000:next
+130 rem taller: 25 rows (keep raster bit and char-height)
+140 poke 36867, (c3 and 129) or (25*2)
+150 print chr$(147)
+160 print "18 cols x 25 rows"
+170 for i=1 to 2000:next
+180 rem back to defaults
+190 poke 36866, c2
+200 poke 36867, c3
+210 print chr$(147)
+220 print "back to 22x23"

@@ -25,6 +25,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     private readonly AvaloniaHostApp _hostApp;
     private readonly Vic20HostConfig _originalConfig;
     private readonly Vic20HostConfig _workingConfig;
+    private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
     private readonly HttpClient _httpClient;
     private readonly ObservableCollection<string> _validationErrors = new();
 
@@ -33,6 +34,9 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     private string? _validationMessage;
     private string _romDirectory = string.Empty;
     private string _corsProxyOverrideURL = string.Empty;
+    private RenderProviderOption? _selectedRenderProvider;
+    private RenderTargetOption? _selectedRenderTarget;
+    private bool _suppressRenderTargetUpdate;
 
     public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
@@ -46,12 +50,14 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _originalConfig = hostApp.CurrentHostSystemConfig as Vic20HostConfig
             ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type Vic20HostConfig");
+        _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
         _workingConfig = (Vic20HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
         CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
 
+        InitializeRenderOptions();
         UpdateRomStatuses();
         UpdateValidationMessageFromConfig();
 
@@ -100,6 +106,8 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     public event EventHandler<Vic20RomLicenseAcknowledgementEventArgs>? RomLicenseAcknowledgementRequested;
 
     public ObservableCollection<Vic20RomStatusViewModel> RomStatuses { get; } = new();
+    public ObservableCollection<RenderProviderOption> RenderProviders { get; } = new();
+    public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
 
     public bool IsRunningInWebAssembly { get; } = PlatformDetection.IsRunningInWebAssembly();
 
@@ -183,6 +191,47 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     }
 
     public static string CorsProxyOverrideURLWatermark => Vic20HostConfig.DefaultCorsProxyURL;
+
+    public RenderProviderOption? SelectedRenderProvider
+    {
+        get => _selectedRenderProvider;
+        set
+        {
+            if (ReferenceEquals(_selectedRenderProvider, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedRenderProvider, value);
+
+            if (value != null)
+            {
+                _workingConfig.SystemConfig.SetRenderProviderType(value.Type);
+                UpdateRenderTargetsForProvider(value.Type);
+            }
+
+            this.RaisePropertyChanged(nameof(SelectedRenderProviderHelpText));
+        }
+    }
+
+    public RenderTargetOption? SelectedRenderTarget
+    {
+        get => _selectedRenderTarget;
+        set
+        {
+            if (ReferenceEquals(_selectedRenderTarget, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedRenderTarget, value);
+
+            if (value != null && !_suppressRenderTargetUpdate)
+                _workingConfig.SystemConfig.SetRenderTargetType(value.Type);
+
+            this.RaisePropertyChanged(nameof(SelectedRenderTargetHelpText));
+        }
+    }
+
+    public string SelectedRenderProviderHelpText => SelectedRenderProvider?.HelpText ?? string.Empty;
+
+    public string SelectedRenderTargetHelpText => SelectedRenderTarget?.HelpText ?? string.Empty;
 
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
@@ -365,6 +414,12 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             _originalConfig.CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL;
             _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
 
+            if (_workingConfig.SystemConfig.RenderProviderType != null)
+                _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);
+
+            if (_workingConfig.SystemConfig.RenderTargetType != null)
+                _originalConfig.SystemConfig.SetRenderTargetType(_workingConfig.SystemConfig.RenderTargetType);
+
             _hostApp.UpdateHostSystemConfig(_originalConfig);
             await _hostApp.PersistCurrentHostSystemConfig();
 
@@ -379,6 +434,62 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private void InitializeRenderOptions()
+    {
+        RenderProviders.Clear();
+
+        var providerTypes = _renderCombinations.Select(c => c.renderProviderType).Distinct().ToList();
+        if (_workingConfig.SystemConfig.RenderProviderType != null && !providerTypes.Contains(_workingConfig.SystemConfig.RenderProviderType))
+            providerTypes.Add(_workingConfig.SystemConfig.RenderProviderType);
+
+        foreach (var providerType in providerTypes)
+        {
+            RenderProviders.Add(new RenderProviderOption(
+                providerType,
+                TypeDisplayHelper.GetDisplayName(providerType),
+                TypeDisplayHelper.GetHelpText(providerType)));
+        }
+
+        SelectedRenderProvider = RenderProviders.FirstOrDefault(rp => rp.Type == _workingConfig.SystemConfig.RenderProviderType)
+            ?? RenderProviders.FirstOrDefault();
+
+        if (SelectedRenderProvider != null)
+            _workingConfig.SystemConfig.SetRenderProviderType(SelectedRenderProvider.Type);
+    }
+
+    private void UpdateRenderTargetsForProvider(Type providerType)
+    {
+        try
+        {
+            _suppressRenderTargetUpdate = true;
+            RenderTargets.Clear();
+
+            var targetTypes = _renderCombinations
+                .Where(c => c.renderProviderType == providerType)
+                .Select(c => c.renderTargetType)
+                .Distinct()
+                .ToList();
+
+            foreach (var targetType in targetTypes)
+            {
+                RenderTargets.Add(new RenderTargetOption(
+                    targetType,
+                    TypeDisplayHelper.GetDisplayName(targetType),
+                    TypeDisplayHelper.GetHelpText(targetType)));
+            }
+
+            SelectedRenderTarget = RenderTargets.FirstOrDefault(rt => rt.Type == _workingConfig.SystemConfig.RenderTargetType)
+                ?? RenderTargets.FirstOrDefault();
+
+            if (SelectedRenderTarget != null)
+                _workingConfig.SystemConfig.SetRenderTargetType(SelectedRenderTarget.Type);
+        }
+        finally
+        {
+            _suppressRenderTargetUpdate = false;
         }
     }
 
@@ -637,3 +748,7 @@ public record Vic20RomStatusData(
     string Details,
     string ForegroundColor,
     string RomFile);
+
+public record RenderProviderOption(Type Type, string DisplayName, string HelpText);
+
+public record RenderTargetOption(Type Type, string DisplayName, string HelpText);

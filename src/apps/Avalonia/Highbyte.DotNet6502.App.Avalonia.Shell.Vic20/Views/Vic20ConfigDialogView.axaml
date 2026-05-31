@@ -104,6 +104,52 @@
                     </Border>
                 </StackPanel>
 
+                <StackPanel Width="460" Classes="wrap-item">
+                    <Border Classes="content-section">
+                        <StackPanel Classes="spacing-tight">
+                            <TextBlock Text="Video"/>
+
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="Render provider:"
+                                           Classes="secondary-text"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1"
+                                          AutomationProperties.AutomationId="Vic20RenderProviderComboBox"
+                                          AutomationProperties.Name="VIC-20 render provider"
+                                          ItemsSource="{Binding RenderProviders}"
+                                          SelectedItem="{Binding SelectedRenderProvider}"
+                                          ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
+                                          Classes="h-stretch"
+                                          MaxDropDownHeight="200">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RenderProviderOption">
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="Render target:"
+                                           Classes="secondary-text"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1"
+                                          AutomationProperties.AutomationId="Vic20RenderTargetComboBox"
+                                          AutomationProperties.Name="VIC-20 render target"
+                                          ItemsSource="{Binding RenderTargets}"
+                                          SelectedItem="{Binding SelectedRenderTarget}"
+                                          ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
+                                          Classes="h-stretch"
+                                          MaxDropDownHeight="200">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RenderTargetOption">
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <StackPanel Width="460" Classes="wrap-item" IsVisible="{Binding IsRunningInWebAssembly}">
                     <Border Classes="content-section">
                         <StackPanel Classes="spacing-tight">

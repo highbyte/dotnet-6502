@@ -92,3 +92,30 @@ $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 cd C64/Timer
 & $PETCAT_APP -w2 -o "Build\Test_CIA_Timers.prg" -- "Test_CIA_Timers.txt"
 ```
+
+# Convert VIC-20 Basic text files to VIC-20 .prg file
+
+VIC-20 uses BASIC V2 (same tokens as the C64), but the BASIC program load address is
+different. For an unexpanded VIC-20 it is `$1001`. Pass it to `petcat` with `-l 1001`
+(no leading `0x` or `$`).
+
+Assuming `petcat` is in your `PATH`:
+
+``` sh
+cd VIC20/Text
+petcat -w2 -l 1001 -o Build/HelloWorld.prg            -- HelloWorld.txt
+petcat -w2 -l 1001 -o Build/BorderBackgroundColors.prg -- BorderBackgroundColors.txt
+petcat -w2 -l 1001 -o Build/ReverseVideo.prg          -- ReverseVideo.txt
+petcat -w2 -l 1001 -o Build/LowerCaseCharset.prg      -- LowerCaseCharset.txt
+petcat -w2 -l 1001 -o Build/MulticolorChars.prg       -- MulticolorChars.txt
+petcat -w2 -l 1001 -o Build/ScreenGeometry.prg        -- ScreenGeometry.txt
+```
+
+`petcat` tokenizes BASIC V2 source as PETSCII, so the case you type in the `.txt`
+file is not a 1:1 match for what appears on a VIC-20 or C64 screen. For readable
+text in the default upper/graphics mode, keep quoted source text lowercase. To
+demonstrate the VIC-20 lowercase/uppercase character set, switch modes with
+`CHR$(14)` and switch back with `CHR$(142)`.
+
+If running an expanded VIC-20 (8K+), use `-l 1201` instead. The
+`Build/` subdirectory must exist before running these commands.

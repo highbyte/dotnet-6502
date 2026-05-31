@@ -1,0 +1,10 @@
+10 rem toggle reverse video via 36879 bit 3
+20 print chr$(147)
+30 print "this is the vic-20"
+40 print "press a key to toggle reverse video"
+50 r=1
+60 get a$:if a$="" then 60
+70 r=1-r
+80 if r=0 then poke 36879, peek(36879) and 247 : rem clear bit 3 = reverse
+90 if r=1 then poke 36879, peek(36879) or 8 : rem set bit 3 = normal
+100 goto 60

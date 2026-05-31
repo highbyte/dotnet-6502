@@ -130,7 +130,7 @@ public class Vic20SystemConfig : ISystemConfig
     public Type? AudioTargetType => null;
 
     public List<Type> GetSupportedRenderProviderTypes() =>
-        new() { typeof(Vic20VideoCommandStream) };
+        new() { typeof(Vic20Rasterizer), typeof(Vic20VideoCommandStream) };
 
     public List<Type> GetSupportedAudioProviderTypes() => new();
 

@@ -27,13 +27,18 @@ Headless plugins exist yet.
 
 ### Render
 
-The VIC-20 produces a stream of host-agnostic video commands via
-[`Vic20VideoCommandStream`](https://github.com/highbyte/dotnet-6502/blob/master/src/libraries/Highbyte.DotNet6502.Systems.Vic20/Render/Vic20VideoCommandStream.cs).
-Avalonia renders that stream via the generic `AvaloniaCommandTarget` in
-[`Highbyte.DotNet6502.Impl.Avalonia`](../../libraries/implementation/avalonia.md).
+The VIC-20 now exposes two host-agnostic render paths:
 
-There is no rasterizer-based render path for the VIC-20 — the 22&times;23 character-mode display is
-handled entirely through the command stream.
+- [`Vic20Rasterizer`](https://github.com/highbyte/dotnet-6502/blob/master/src/libraries/Highbyte.DotNet6502.Systems.Vic20/Render/Vic20Rasterizer.cs)
+  for pixel-accurate character rendering from VIC-I memory.
+- [`Vic20VideoCommandStream`](https://github.com/highbyte/dotnet-6502/blob/master/src/libraries/Highbyte.DotNet6502.Systems.Vic20/Render/Vic20VideoCommandStream.cs)
+  for lightweight glyph-based rendering.
+
+Avalonia can consume both through the generic render targets in
+[`Highbyte.DotNet6502.Impl.Avalonia`](../../libraries/implementation/avalonia.md):
+
+- `AvaloniaBitmapTwoLayerRenderTarget` for the rasterizer path.
+- `AvaloniaCommandTarget` for the command-stream path.
 
 ### Input
 

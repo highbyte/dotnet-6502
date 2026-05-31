@@ -10,6 +10,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// </summary>
 public class Cia1 : CiaBase
 {
+    private byte _portA = 0xFF;
+    private byte _portB = 0xFF;
+    private byte _ddra;
+    private byte _ddrb;
+
     public C64Keyboard Keyboard { get; private set; }
     public C64Joystick Joystick { get; private set; }
 
@@ -70,11 +75,11 @@ public class Cia1 : CiaBase
         c64mem.MapReader(CiaAddr.CIA1_SDR, DebugLoad);
         c64mem.MapWriter(CiaAddr.CIA1_SDR, DebugStore);
 
-        // CIA #1 Data Direction Registers (temporary debug implementation)
-        c64mem.MapReader(CiaAddr.CIA1_DDRA, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_DDRA, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA1_DDRB, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_DDRB, DebugStore);
+        // CIA #1 Data Direction Registers
+        c64mem.MapReader(CiaAddr.CIA1_DDRA, DDRARead);
+        c64mem.MapWriter(CiaAddr.CIA1_DDRA, DDRAWrite);
+        c64mem.MapReader(CiaAddr.CIA1_DDRB, DDRBRead);
+        c64mem.MapWriter(CiaAddr.CIA1_DDRB, DDRBWrite);
     }
 
     /// <summary>
@@ -83,15 +88,15 @@ public class Cia1 : CiaBase
     /// </summary>
     public byte DataALoad(ushort _)
     {
-        var value = Keyboard.GetSelectedMatrixRow();
+        var inputValue = Keyboard.GetPortAInput(GetDrivenMask(_portB, _ddrb));
 
         // Also set Joystick #2 bits
         foreach (var action in Joystick.CurrentJoystickActions[2])
         {
-            value.ClearBit((int)action);
+            inputValue.ClearBit((int)action);
         }
 
-        return value;
+        return ComposePortReadValue(_portA, _ddra, inputValue);
     }
 
     /// <summary>
@@ -99,7 +104,8 @@ public class Cia1 : CiaBase
     /// </summary>
     public void DataAStore(ushort address, byte value)
     {
-        Keyboard.SetSelectedMatrixRow(value);
+        _portA = value;
+        _c64.WriteIOStorage(address, value);
     }
 
     /// <summary>
@@ -107,20 +113,43 @@ public class Cia1 : CiaBase
     /// </summary>
     public byte DataBLoad(ushort address)
     {
-        // Get the pressed keys for the selected matrix row (set by writing to CIA 1 Data Port A DC00)
-        var value = Keyboard.GetPressedKeysForSelectedMatrixRow();
+        var inputValue = Keyboard.GetPortBInput(GetDrivenMask(_portA, _ddra));
 
         // Also set Joystick #1 bits
         foreach (var action in Joystick.CurrentJoystickActions[1])
         {
-            value.ClearBit((int)action);
+            inputValue.ClearBit((int)action);
         }
-        return value;
+        return ComposePortReadValue(_portB, _ddrb, inputValue);
     }
 
     public void DataBStore(ushort address, byte value)
     {
-        // TODO: What will writing to this address affect?
+        _portB = value;
         _c64.WriteIOStorage(address, value);
+    }
+
+    public byte DDRARead(ushort _) => _ddra;
+    public void DDRAWrite(ushort address, byte value)
+    {
+        _ddra = value;
+        _c64.WriteIOStorage(address, value);
+    }
+
+    public byte DDRBRead(ushort _) => _ddrb;
+    public void DDRBWrite(ushort address, byte value)
+    {
+        _ddrb = value;
+        _c64.WriteIOStorage(address, value);
+    }
+
+    private static byte ComposePortReadValue(byte outputRegister, byte dataDirectionRegister, byte inputValue)
+    {
+        return (byte)((outputRegister & dataDirectionRegister) | (inputValue & ~dataDirectionRegister));
+    }
+
+    private static byte GetDrivenMask(byte outputRegister, byte dataDirectionRegister)
+    {
+        return (byte)(outputRegister | ~dataDirectionRegister);
     }
 }

@@ -13,6 +13,7 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext, IHostInputState
     // Tracked by PhysicalKey (W3C `code` — the key's physical position), not the layout-dependent
     // Key, so the neutral HostKey produced downstream is a true physical key as HostKey requires.
     public HashSet<PhysicalKey> KeysDown = new();
+    private readonly Dictionary<PhysicalKey, HostKey> _hostKeyOverrides = new();
     private bool _capsLockOn;
 
     // Gamepad state tracking
@@ -67,13 +68,33 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext, IHostInputState
     public void AddKeyDown(PhysicalKey key)
     {
         KeysDown.Add(key);
+        _hostKeyOverrides.Remove(key);
         if (key == PhysicalKey.CapsLock)
+            _capsLockOn = !_capsLockOn;
+    }
+
+    public void AddKeyDown(Key key, PhysicalKey physicalKey)
+    {
+        KeysDown.Add(physicalKey);
+        if (TryMapLogicalOverride(key, out var hostKey))
+            _hostKeyOverrides[physicalKey] = hostKey;
+        else
+            _hostKeyOverrides.Remove(physicalKey);
+
+        if (physicalKey == PhysicalKey.CapsLock)
             _capsLockOn = !_capsLockOn;
     }
 
     public void RemoveKeyDown(PhysicalKey key)
     {
         KeysDown.Remove(key);
+        _hostKeyOverrides.Remove(key);
+    }
+
+    public void RemoveKeyDown(Key key, PhysicalKey physicalKey)
+    {
+        KeysDown.Remove(physicalKey);
+        _hostKeyOverrides.Remove(physicalKey);
     }
 
     public void ClearKeysDown()
@@ -115,7 +136,9 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext, IHostInputState
             var result = new HashSet<HostKey>();
             foreach (var key in KeysDown)
             {
-                var hostKey = MapToHostKey(key);
+                var hostKey = _hostKeyOverrides.TryGetValue(key, out var overrideKey)
+                    ? overrideKey
+                    : MapToHostKey(key);
                 if (hostKey != HostKey.None)
                     result.Add(hostKey);
             }
@@ -138,6 +161,21 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext, IHostInputState
 
     string? IHostInputState.DetectNativeKeyboardLayoutId() =>
         BrowserDetectedKeyboardLayoutId ?? KeyboardLayoutDetector.DetectNativeLayoutId();
+
+    private static bool TryMapLogicalOverride(Key key, out HostKey hostKey)
+    {
+        hostKey = key switch
+        {
+            Key.Insert => HostKey.Insert,
+            Key.Delete => HostKey.Delete,
+            Key.Home => HostKey.Home,
+            Key.End => HostKey.End,
+            Key.PageUp => HostKey.PageUp,
+            Key.PageDown => HostKey.PageDown,
+            _ => HostKey.None,
+        };
+        return hostKey != HostKey.None;
+    }
 
     private static HostKey MapToHostKey(PhysicalKey key) => key switch
     {

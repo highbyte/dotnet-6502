@@ -1,0 +1,14 @@
+10 rem chr$(14)/chr$(142) switch between upper/graphics and lower/upper
+20 rem keep quoted text lowercase so upper/graphics mode still prints readable letters
+30 print chr$(147)
+40 print "upper / graphics charset"
+50 print "the quick brown fox"
+60 print "mnpqgrs look different"
+70 for i=1 to 2000:next
+80 print chr$(14);chr$(147);
+90 print "lower / upper charset"
+100 print "the quick brown fox"
+110 print "mnpqgrs look different"
+120 for i=1 to 2000:next
+130 print chr$(142);chr$(147);
+140 print "back to upper / graphics"

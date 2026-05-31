@@ -1,0 +1,10 @@
+10 rem cycle through all border + background combinations
+20 rem 36879 = $900f: bg(7-4) | reverse(3) | border(2-0)
+30 print chr$(147) : rem clear
+40 for bg=0 to 15
+50 for bd=0 to 7
+60 poke 36879, bg*16 + 8 + bd
+70 for d=0 to 100:next d
+80 next bd
+90 next bg
+100 goto 40

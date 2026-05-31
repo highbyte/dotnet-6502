@@ -14,13 +14,13 @@ namespace Highbyte.DotNet6502.Systems.Vic20.TimerAndPeripheral;
 /// (_matrix[sense_row, scan_col], indexed as Y = scan_col*8 + sense_row):
 ///
 ///           scan0  scan1  scan2   scan3    scan4   scan5   scan6   scan7
-/// sense0:    1      ←      CBM    RunStop  Space   LShift  Q       2
-/// sense1:    3      W      A      RShift   Z       S       E       4
+/// sense0:    1      ←      Ctrl   RunStop  Space   CBM     Q       2
+/// sense1:    3      W      A      LShift   Z       S       E       4
 /// sense2:    5      R      D      X        C       F       T       6
 /// sense3:    7      Y      G      V        B       H       U       8
 /// sense4:    9      I      J      N        M       K       O       0
 /// sense5:    +      P      L      ,        .       :       @       -
-/// sense6:    £      *      ;      /        ShLk    =       ↑      Home
+/// sense6:    £      *      ;      /        RShift  =       ↑      Home
 /// sense7:   Del   Ret    CrLR   CrUD      F1      F3      F5      F7
 ///
 /// Notes:
@@ -70,7 +70,7 @@ public class Vic20Keyboard
         _matrix[7, 1] = Vic20Key.Return;
 
         // scan col 2 (PB2 = 0)
-        _matrix[0, 2] = Vic20Key.CBM;
+        _matrix[0, 2] = Vic20Key.Ctrl;
         _matrix[1, 2] = Vic20Key.A;
         _matrix[2, 2] = Vic20Key.D;
         _matrix[3, 2] = Vic20Key.G;
@@ -81,7 +81,7 @@ public class Vic20Keyboard
 
         // scan col 3 (PB3 = 0)
         _matrix[0, 3] = Vic20Key.RunStop;
-        _matrix[1, 3] = Vic20Key.RShift;
+        _matrix[1, 3] = Vic20Key.LShift;
         _matrix[2, 3] = Vic20Key.X;
         _matrix[3, 3] = Vic20Key.V;
         _matrix[4, 3] = Vic20Key.N;
@@ -96,11 +96,11 @@ public class Vic20Keyboard
         _matrix[3, 4] = Vic20Key.B;
         _matrix[4, 4] = Vic20Key.M;
         _matrix[5, 4] = Vic20Key.Period;
-        _matrix[6, 4] = Vic20Key.ShiftLock;
+        _matrix[6, 4] = Vic20Key.RShift;
         _matrix[7, 4] = Vic20Key.F1;
 
         // scan col 5 (PB5 = 0)
-        _matrix[0, 5] = Vic20Key.LShift;
+        _matrix[0, 5] = Vic20Key.CBM;
         _matrix[1, 5] = Vic20Key.S;
         _matrix[2, 5] = Vic20Key.F;
         _matrix[3, 5] = Vic20Key.H;
@@ -205,9 +205,9 @@ public enum Vic20Key
     Delete,
     Home,
     RunStop,    // RUN/STOP key (PETSCII $03)
+    Ctrl,
     LShift,
     RShift,
-    ShiftLock,
     CBM,        // Commodore key (PETSCII $04)
     CrsrRight,  // Cursor right physical key (shift = left)
     CrsrDown,   // Cursor down physical key (shift = up)
