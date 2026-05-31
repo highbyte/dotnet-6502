@@ -175,6 +175,8 @@ public class Vic20 : ISystem, ITextMode, IScreen
 
     private void InitScreenMemory()
     {
+        Mem[Vic20VideoLayout.RegisterHorizontalOrigin] = Vic20VideoLayout.GetDefaultHorizontalOriginRegister(_vic20Config.TvModel);
+        Mem[Vic20VideoLayout.RegisterVerticalOrigin] = Vic20VideoLayout.GetDefaultVerticalOriginRegister(_vic20Config.TvModel);
         Mem[Vic20VideoLayout.RegisterColumns] = Vic20VideoLayout.EncodeColumnsRegister(
             _vic20Config.ScreenStartAddress,
             Vic20Config.Cols);

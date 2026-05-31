@@ -128,22 +128,8 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
         var cols = layout.Columns;
         var rows = layout.Rows;
-        var charAreaWidth = cols * cellPixelWidth;
-        var charAreaHeight = rows * layout.CharacterHeight;
-
-        if (charAreaWidth > NativeSize.Width)
-        {
-            cols = NativeSize.Width / cellPixelWidth;
-            charAreaWidth = cols * cellPixelWidth;
-        }
-        if (charAreaHeight > NativeSize.Height)
-        {
-            rows = NativeSize.Height / layout.CharacterHeight;
-            charAreaHeight = rows * layout.CharacterHeight;
-        }
-
-        var borderWidth = (NativeSize.Width - charAreaWidth) / 2;
-        var borderHeight = (NativeSize.Height - charAreaHeight) / 2;
+        var originX = layout.HorizontalOriginPixels;
+        var originY = layout.VerticalOriginPixels;
         var verticalScale = Math.Max(1, layout.CharacterHeight / 8);
 
         var borderColor = GetColor(layout.BorderColor);
@@ -153,9 +139,20 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         Array.Fill(_backBackground, borderColor);
         Array.Clear(_backForeground);
 
-        for (var row = 0; row < rows; row++)
+        if (originX >= NativeSize.Width || originY >= NativeSize.Height)
+            return;
+
+        var firstVisibleCol = Math.Max(0, DivideCeiling(-originX, cellPixelWidth));
+        var firstVisibleRow = Math.Max(0, DivideCeiling(-originY, layout.CharacterHeight));
+        var pastLastVisibleCol = Math.Min(cols, DivideCeiling(NativeSize.Width - originX, cellPixelWidth));
+        var pastLastVisibleRow = Math.Min(rows, DivideCeiling(NativeSize.Height - originY, layout.CharacterHeight));
+
+        if (firstVisibleCol >= pastLastVisibleCol || firstVisibleRow >= pastLastVisibleRow)
+            return;
+
+        for (var row = firstVisibleRow; row < pastLastVisibleRow; row++)
         {
-            for (var col = 0; col < cols; col++)
+            for (var col = firstVisibleCol; col < pastLastVisibleCol; col++)
             {
                 var screenAddress = (ushort)(layout.ScreenStartAddress + (row * layout.Columns) + col);
                 var colorAddress = (ushort)(layout.ColorStartAddress + (row * layout.Columns) + col);
@@ -166,8 +163,8 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                 var zeroBitColor = layout.ReverseScreen ? foregroundColor : backgroundColor;
                 var oneBitColor = layout.ReverseScreen ? backgroundColor : foregroundColor;
 
-                var cellPixelX = borderWidth + (col * cellPixelWidth);
-                var cellPixelY = borderHeight + (row * layout.CharacterHeight);
+                var cellPixelX = originX + (col * cellPixelWidth);
+                var cellPixelY = originY + (row * layout.CharacterHeight);
                 var glyphBaseAddress = ResolveGlyphBaseAddress(layout.CharacterStartAddress, characterCode);
 
                 for (var glyphRow = 0; glyphRow < 8; glyphRow++)
@@ -176,6 +173,11 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                     for (var stretchRow = 0; stretchRow < verticalScale; stretchRow++)
                     {
                         var pixelY = cellPixelY + (glyphRow * verticalScale) + stretchRow;
+                        if (pixelY < 0)
+                            continue;
+                        if (pixelY >= NativeSize.Height)
+                            break;
+
                         var rowOffset = pixelY * NativeSize.Width;
 
                         if (multicolor)
@@ -194,7 +196,14 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                                 // Each pair covers 2 source pixels; with horizontal scaling each pair spans 2*scaleX buffer pixels.
                                 var pairPixelStart = cellPixelX + (pair * 2 * scaleX);
                                 for (var x = 0; x < 2 * scaleX; x++)
-                                    SetRasterPixel(rowOffset + pairPixelStart + x, backgroundColor, pairColor);
+                                {
+                                    var pixelX = pairPixelStart + x;
+                                    if (pixelX < 0)
+                                        continue;
+                                    if (pixelX >= NativeSize.Width)
+                                        break;
+                                    SetRasterPixel(rowOffset + pixelX, backgroundColor, pairColor);
+                                }
                             }
                         }
                         else
@@ -205,7 +214,14 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                                 var pixelColor = set ? oneBitColor : zeroBitColor;
                                 var bitPixelStart = cellPixelX + (bit * scaleX);
                                 for (var x = 0; x < scaleX; x++)
-                                    SetRasterPixel(rowOffset + bitPixelStart + x, zeroBitColor, pixelColor);
+                                {
+                                    var pixelX = bitPixelStart + x;
+                                    if (pixelX < 0)
+                                        continue;
+                                    if (pixelX >= NativeSize.Width)
+                                        break;
+                                    SetRasterPixel(rowOffset + pixelX, zeroBitColor, pixelColor);
+                                }
                             }
                         }
                     }
@@ -227,6 +243,11 @@ public sealed class Vic20Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         var bankStartAddress = (characterStartAddress & 0x8000) != 0 ? 0x8000 : 0x0000;
         var offsetWithinBank = (characterStartAddress - bankStartAddress + glyphOffset) & 0x1FFF;
         return (ushort)(bankStartAddress + offsetWithinBank);
+    }
+
+    private static int DivideCeiling(int numerator, int denominator)
+    {
+        return (numerator + denominator - 1) / denominator;
     }
 
     private uint GetColor(byte colorCode)
