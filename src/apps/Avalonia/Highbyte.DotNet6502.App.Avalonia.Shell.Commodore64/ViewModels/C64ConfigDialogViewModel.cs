@@ -70,6 +70,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private AudioProviderOption? _selectedAudioProvider;
     private AudioTargetOption? _selectedAudioTarget;
     private bool _suppressAudioTargetUpdate;
+    private CpuCompatibilityProfileOption? _selectedCpuCompatibilityProfile;
     private SidEmulationModeOption? _selectedSidEmulationMode;
 
     private string _corsProxyOverrideURL = string.Empty;
@@ -121,6 +122,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkHost.ConnectOnBoot;
 
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+        _selectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
 
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
         CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
@@ -191,6 +193,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
     public ObservableCollection<AudioProviderOption> AudioProviders { get; } = new();
     public ObservableCollection<AudioTargetOption> AudioTargets { get; } = new();
+    public ObservableCollection<CpuCompatibilityProfileOption> CpuCompatibilityProfiles { get; } =
+        new(CpuCompatibilityProfileOption.All);
     public ObservableCollection<SidEmulationModeOption> SidEmulationModes { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; }
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
@@ -594,6 +598,25 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public string SelectedAudioProviderHelpText => SelectedAudioProvider?.HelpText ?? string.Empty;
 
     public string SelectedAudioTargetHelpText => SelectedAudioTarget?.HelpText ?? string.Empty;
+
+    public CpuCompatibilityProfileOption? SelectedCpuCompatibilityProfile
+    {
+        get => _selectedCpuCompatibilityProfile;
+        set
+        {
+            if (ReferenceEquals(_selectedCpuCompatibilityProfile, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedCpuCompatibilityProfile, value);
+
+            if (value != null)
+                _workingConfig.SystemConfig.CpuCompatibilityProfile = value.Profile;
+
+            this.RaisePropertyChanged(nameof(SelectedCpuCompatibilityProfileHelpText));
+        }
+    }
+
+    public string SelectedCpuCompatibilityProfileHelpText => SelectedCpuCompatibilityProfile?.HelpText ?? string.Empty;
 
     public SidEmulationModeOption? SelectedSidEmulationMode
     {
@@ -1466,6 +1489,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         if (_workingConfig.SystemConfig.AudioTargetType != null)
             _originalConfig.SystemConfig.SetAudioTargetType(_workingConfig.SystemConfig.AudioTargetType);
 
+        _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
         _originalConfig.SystemConfig.SidEmulationMode = _workingConfig.SystemConfig.SidEmulationMode;
 
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);

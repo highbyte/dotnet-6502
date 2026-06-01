@@ -24,15 +24,30 @@ public class OutputGenTest
     public void OutputGen_Returns_Correctly_Formatted_Disassembly_If_OpCode_Is_Unknown()
     {
         // Arrange
-        var cpu = new CPU();
+        var cpu = new CPU(CpuCompatibilityProfile.ExperimentalUnofficial);
         var mem = new Memory();
-        mem[0x1000] = 0xff; // 0xff is not a (official) 6502 opcode
+        mem[0x1000] = 0x02; // 0x02 (JAM/KIL) is only available in FullUnofficial
 
         // Act
         var outputString = OutputGen.GetInstructionDisassembly(cpu, mem, 0x1000);
 
         // Assert
-        Assert.Equal("1000  ff        ???        ", outputString);
+        Assert.Equal("1000  02        ???        ", outputString);
+    }
+
+    [Fact]
+    public void OutputGen_Returns_Correctly_Formatted_Disassembly_For_JAM_In_FullUnofficial()
+    {
+        // Arrange
+        var cpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
+        var mem = new Memory();
+        mem[0x1000] = 0x02;
+
+        // Act
+        var outputString = OutputGen.GetInstructionDisassembly(cpu, mem, 0x1000);
+
+        // Assert
+        Assert.Equal("1000  02        JAM        ", outputString);
     }
 
     [Fact]

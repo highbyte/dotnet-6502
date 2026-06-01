@@ -49,7 +49,7 @@ public class CPUHelperTest
         var cpu = new CPU();
         var mem = new Memory();
 
-        var opCodeByte = (byte)0xff;    // 0xff (255) is not a known opcode.
+        var opCodeByte = (byte)0x02;    // 0x02 (JAM/KIL) is not a known opcode.
         mem[0x1000] = opCodeByte;
         cpu.PC = 0x1000;
         

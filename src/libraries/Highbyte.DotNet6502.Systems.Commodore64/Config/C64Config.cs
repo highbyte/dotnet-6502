@@ -30,6 +30,7 @@ public class C64Config
     public Type? RenderProviderType { get; set; }
     public Type? AudioProviderType { get; set; }
     public SidEmulationMode SidEmulationMode { get; set; } = SidEmulationMode.Auto;
+    public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
 
     public C64Config()
     {

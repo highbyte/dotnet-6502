@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels"
+             xmlns:corevm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.Views.Vic20ConfigDialogView"
              x:DataType="vm:Vic20ConfigDialogViewModel"
              AutomationProperties.AutomationId="Vic20ConfigDialogView"
@@ -100,6 +101,34 @@
                                         IsVisible="{Binding !IsRunningInWebAssembly}"
                                         IsEnabled="{Binding IsNotBusy}"/>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Width="460" Classes="wrap-item">
+                    <Border Classes="content-section">
+                        <StackPanel Classes="spacing-tight">
+                            <TextBlock Text="CPU"/>
+
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-tight">
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="Profile:"
+                                           Classes="secondary-text"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1"
+                                          AutomationProperties.AutomationId="Vic20CpuCompatibilityProfileComboBox"
+                                          AutomationProperties.Name="VIC-20 CPU opcode compatibility profile"
+                                          ItemsSource="{Binding CpuCompatibilityProfiles}"
+                                          SelectedItem="{Binding SelectedCpuCompatibilityProfile}"
+                                          ToolTip.Tip="{Binding SelectedCpuCompatibilityProfileHelpText}"
+                                          Classes="h-stretch"
+                                          MaxDropDownHeight="200">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="corevm:CpuCompatibilityProfileOption">
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
                         </StackPanel>
                     </Border>
                 </StackPanel>

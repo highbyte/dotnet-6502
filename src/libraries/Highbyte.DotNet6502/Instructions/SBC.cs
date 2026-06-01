@@ -86,6 +86,13 @@ public class SBC : Instruction, IInstructionUsesByte
                 Size = 2,
                 MinimumCycles = 5, // +1 if page boundary is crossed
             },
+            new OpCode
+            {
+                Code = OpCodeId.SBC_I_EB,
+                AddressingMode = AddrMode.I,
+                Size = 2,
+                MinimumCycles = 2,
+            },
         };
 
     }

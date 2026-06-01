@@ -9,6 +9,7 @@ public class GenericComputerConfig
     private float _screenRefreshFrequencyHz;
     private bool _waitForHostToAcknowledgeFrame;
     private EmulatorMemoryConfig _memory = default!;
+    private CpuCompatibilityProfile _cpuCompatibilityProfile = CpuCompatibilityProfile.ExperimentalUnofficial;
     public Type? RenderProviderType { get; set; }
 
     public string ProgramBinaryFile
@@ -68,6 +69,15 @@ public class GenericComputerConfig
         set
         {
             _memory = value;
+        }
+    }
+
+    public CpuCompatibilityProfile CpuCompatibilityProfile
+    {
+        get { return _cpuCompatibilityProfile; }
+        set
+        {
+            _cpuCompatibilityProfile = value;
         }
     }
 

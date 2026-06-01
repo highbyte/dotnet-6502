@@ -12,7 +12,7 @@
 
 ## Missing 6502 features
 
-- Support for unofficial / undocumented opcodes is not implemented.
+- Coverage of unofficial / undocumented **NMOS** opcodes is partial. Official 6502 opcodes are implemented, and the currently supported unofficial opcodes are exposed through compatibility profiles in [`Highbyte.DotNet6502`](../libraries/core/dotnet6502.md).
 
 ## Missing or incomplete C64 features
 

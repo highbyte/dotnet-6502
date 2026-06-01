@@ -243,6 +243,7 @@ public class C64SystemConfig : ISystemConfig
     }
 
     private SidEmulationMode _sidEmulationMode = SidEmulationMode.Auto;
+    private CpuCompatibilityProfile _cpuCompatibilityProfile = CpuCompatibilityProfile.StableUnofficial;
 
     /// <summary>
     /// Accuracy / performance trade-off for the sample-based SID emulation provider
@@ -254,6 +255,16 @@ public class C64SystemConfig : ISystemConfig
         set
         {
             _sidEmulationMode = value;
+            _isDirty = true;
+        }
+    }
+
+    public CpuCompatibilityProfile CpuCompatibilityProfile
+    {
+        get => _cpuCompatibilityProfile;
+        set
+        {
+            _cpuCompatibilityProfile = value;
             _isDirty = true;
         }
     }

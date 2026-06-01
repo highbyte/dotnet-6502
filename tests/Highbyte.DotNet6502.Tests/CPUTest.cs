@@ -10,6 +10,15 @@ namespace Highbyte.DotNet6502.Tests;
 public class CPUTest
 {
     [Fact]
+    public void CPU_Without_Profile_Uses_ExperimentalUnofficial_Default()
+    {
+        var cpu = new CPU();
+
+        Assert.Equal(CpuCompatibilityProfile.ExperimentalUnofficial, cpu.CompatibilityProfile);
+        Assert.DoesNotContain((byte)OpCodeId.JAM_02, cpu.InstructionList.OpCodeDictionary.Keys);
+    }
+
+    [Fact]
     public void CPU_Handles_Hardware_IRQ_When_InterruptDisable_Is_Not_Set()
     {
         // Arrange
@@ -165,10 +174,10 @@ public class CPUTest
     public void CPU_Can_Detect_Unknown_OpCode()
     {
         // Arrange
-        var cpu = new CPU();
+        var cpu = new CPU(CpuCompatibilityProfile.ExperimentalUnofficial);
         var mem = new Memory();
 
-        mem[0x1000] = 0x02; // OpCode that does not exist
+        mem[0x1000] = 0x02; // JAM is not available below FullUnofficial
         cpu.PC = 0x1000;
 
         // Act
@@ -190,10 +199,10 @@ public class CPUTest
         // skip branch. This test plugs in a recording logger (IsEnabled=true) so the
         // LogWarning call site is also covered.
         var loggerFactory = new RecordingLoggerFactory();
-        var cpu = new CPU(loggerFactory);
+        var cpu = new CPU(loggerFactory, CpuCompatibilityProfile.ExperimentalUnofficial);
         var mem = new Memory();
 
-        mem[0x1000] = 0x02; // OpCode that does not exist
+        mem[0x1000] = 0x02; // JAM is not available below FullUnofficial
         cpu.PC = 0x1000;
 
         var execState = cpu.Execute(
@@ -273,10 +282,10 @@ public class CPUTest
     public void CPU_Can_Detect_Unknown_OpCode_With_MinimalExecution()
     {
         // Arrange
-        var cpu = new CPU();
+        var cpu = new CPU(CpuCompatibilityProfile.ExperimentalUnofficial);
         var mem = new Memory();
 
-        mem[0x1000] = 0x02; // OpCode that does not exist
+        mem[0x1000] = 0x02; // JAM is not available below FullUnofficial
         cpu.PC = 0x1000;
 
         // Act
@@ -284,6 +293,50 @@ public class CPUTest
 
         // Assert
         Assert.True(execResult.UnknownInstruction);
+    }
+
+    [Fact]
+    public void CPU_Halts_When_FullUnofficial_JAM_Opcode_Is_Executed()
+    {
+        var cpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
+        var mem = new Memory();
+        CPUUnknownOpCodeDetectedEventArgs? detectedEvent = null;
+        cpu.UnknownOpCodeDetected += (_, args) => detectedEvent = args;
+
+        ushort originalPC = 0x1000;
+        mem[originalPC] = (byte)OpCodeId.JAM_02;
+        mem[(ushort)(originalPC + 1)] = (byte)OpCodeId.NOP;
+        cpu.PC = originalPC;
+
+        var execState = cpu.Execute(
+            mem,
+            new LegacyExecEvaluator(new ExecOptions { MaxNumberOfInstructions = 10, UnknownInstructionThrowsException = false }));
+
+        Assert.True(cpu.IsHalted);
+        Assert.True(execState.LastOpCodeWasHandled);
+        Assert.True(execState.LastInstructionExecResult.IsHaltInstruction);
+        Assert.Equal((ulong)0, execState.UnknownOpCodeCount);
+        Assert.Equal((ulong)1, execState.InstructionsExecutionCount);
+        Assert.Equal((ushort)(originalPC + 1), cpu.PC);
+        Assert.NotNull(detectedEvent);
+        Assert.Equal((byte)OpCodeId.JAM_02, detectedEvent!.OpCode);
+    }
+
+    [Fact]
+    public void CPU_Reset_Clears_Halt_State()
+    {
+        var cpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
+        var mem = new Memory();
+
+        mem[0x1000] = (byte)OpCodeId.JAM_02;
+        mem.WriteWord(CPU.ResetVector, 0xC000);
+        cpu.PC = 0x1000;
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+        cpu.Reset(mem);
+
+        Assert.False(cpu.IsHalted);
+        Assert.Equal((ushort)0xC000, cpu.PC);
     }
 
     [Fact]

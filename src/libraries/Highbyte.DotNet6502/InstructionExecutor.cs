@@ -160,6 +160,14 @@ public class InstructionExecutor
             throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}");
         }
 
-        return InstructionExecResult.KnownInstructionResult(opCode, atPC, opCodeObject.MinimumCycles + extraCyclesConsumed);
+        var cyclesConsumed = opCodeObject.MinimumCycles + extraCyclesConsumed;
+        if (cpu.IsHalted)
+        {
+            if (_logger.IsEnabled(LogLevel.Warning))
+                _logger.LogWarning("CPU halted by unofficial instruction {OpCode} at {AtPC}", opCode.ToHex(), atPC.ToHex());
+            return InstructionExecResult.HaltInstructionResult(opCode, atPC, cyclesConsumed);
+        }
+
+        return InstructionExecResult.KnownInstructionResult(opCode, atPC, cyclesConsumed);
     }
 }

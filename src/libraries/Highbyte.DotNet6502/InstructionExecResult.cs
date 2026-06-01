@@ -4,6 +4,7 @@ public struct InstructionExecResult
 {
     public byte OpCodeByte { get; private set; }
     public bool UnknownInstruction { get; private set; }
+    public bool HaltedCpu { get; private set; }
     /// <summary>
     /// True when this result was produced by an actual instruction execution or a
     /// deliberate pre-execution peek (i.e. not a default zero-initialised instance).
@@ -13,6 +14,7 @@ public struct InstructionExecResult
     /// </summary>
     public bool IsValid { get; private set; }
     public bool IsBRKInstruction => IsValid && OpCodeByte == (byte)OpCodeId.BRK;
+    public bool IsHaltInstruction => IsValid && HaltedCpu;
     public ulong CyclesConsumed { get; private set; }
     public ushort AtPC { get; private set; }
 
@@ -28,6 +30,7 @@ public struct InstructionExecResult
         return new InstructionExecResult(opCodeByte)
         {
             UnknownInstruction = true,
+            HaltedCpu = false,
             IsValid = true,
             CyclesConsumed = 1,
             AtPC = atPC
@@ -39,8 +42,33 @@ public struct InstructionExecResult
         return new InstructionExecResult(opCodeByte)
         {
             UnknownInstruction = false,
+            HaltedCpu = false,
             IsValid = true,
             CyclesConsumed = cyclesConsumed,
+            AtPC = atPC,
+        };
+    }
+
+    public static InstructionExecResult HaltInstructionResult(byte opCodeByte, ushort atPC, ulong cyclesConsumed)
+    {
+        return new InstructionExecResult(opCodeByte)
+        {
+            UnknownInstruction = false,
+            HaltedCpu = true,
+            IsValid = true,
+            CyclesConsumed = cyclesConsumed,
+            AtPC = atPC,
+        };
+    }
+
+    public static InstructionExecResult CpuAlreadyHaltedResult(ushort atPC)
+    {
+        return new InstructionExecResult(0)
+        {
+            UnknownInstruction = false,
+            HaltedCpu = true,
+            IsValid = false,
+            CyclesConsumed = 0,
             AtPC = atPC,
         };
     }

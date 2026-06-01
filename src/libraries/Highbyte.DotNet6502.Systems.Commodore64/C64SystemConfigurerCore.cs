@@ -119,6 +119,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
             AudioProviderType = c64SystemConfig.AudioProviderType,
             SidEmulationMode = c64SystemConfig.SidEmulationMode,
+            CpuCompatibilityProfile = c64SystemConfig.CpuCompatibilityProfile,
         };
 
         var c64 = C64.BuildC64(c64Config, LoggerFactory);

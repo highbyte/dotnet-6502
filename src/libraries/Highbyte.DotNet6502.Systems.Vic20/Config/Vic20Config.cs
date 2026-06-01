@@ -56,6 +56,7 @@ public class Vic20Config
 
     // CPU cycles per frame: VIC-20 NTSC runs at ~14318 cycles/frame at 60 Hz
     public ulong CpuCyclesPerFrame { get; set; } = 14318;
+    public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
 
     public float ScreenRefreshFrequencyHz => TvModel.RefreshFrequencyHz;
 }

@@ -55,6 +55,7 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
     {
         var vic20SystemConfig = (Vic20SystemConfig)systemConfig;
         var vic20Config = BuildVic20ConfigForVariant(configurationVariant);
+        vic20Config.CpuCompatibilityProfile = vic20SystemConfig.CpuCompatibilityProfile;
 
         Dictionary<string, byte[]>? romData = null;
         if (vic20SystemConfig.ROMs.Count > 0)

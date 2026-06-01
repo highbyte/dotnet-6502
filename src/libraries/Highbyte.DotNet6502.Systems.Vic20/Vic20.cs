@@ -92,7 +92,7 @@ public class Vic20 : ISystem, ITextMode, IScreen, ISystemState
     {
         _vic20Config = config;
         Mem = CreateUnexpandedMemory();
-        CPU = new CPU(loggerFactory);
+        CPU = new CPU(loggerFactory, config.CpuCompatibilityProfile);
         DefaultExecOptions = new ExecOptions();
 
         // Create VIA chips before ROM mapping so they can register memory callbacks.
