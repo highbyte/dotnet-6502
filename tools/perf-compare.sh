@@ -30,7 +30,7 @@ if ! git diff-index --quiet HEAD --; then
 fi
 
 head_ref=$(git rev-parse --abbrev-ref HEAD)
-if [ "$head_ref" = "HEAD" ]; then
+if [[ "$head_ref" = "HEAD" ]]; then
   head_ref=$(git rev-parse HEAD)
 fi
 
@@ -47,7 +47,7 @@ run_benchmark() {
   # plus a CSV. Grab the CSV for diffing.
   local csv
   csv=$(ls "$ARTIFACTS_DIR"/*HotPathBenchmarks-report.csv 2>/dev/null | head -1 || true)
-  if [ -z "$csv" ]; then
+  if [[ -z "$csv" ]]; then
     echo "perf-compare: no benchmark CSV produced for $label" >&2
     exit 3
   fi

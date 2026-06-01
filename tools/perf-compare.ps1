@@ -97,7 +97,7 @@ try {
             $ratioStr = '{0:N3}' -f $ratio
         }
         $allocDelta = ''
-        if ($bAlloc -ne $null -and $hAlloc -ne $null) {
+        if ($null -ne $bAlloc -and $null -ne $hAlloc) {
             $delta = $hAlloc - $bAlloc
             if ($delta -ne 0) { $allocDelta = ('{0:+0;-0;0}B' -f $delta) } else { $allocDelta = '0' }
         }

@@ -124,6 +124,32 @@ public class CPU
         handler?.Invoke(this, e);
     }
 
+    // Per-instruction event-firing helpers. Each snapshots the delegate first to avoid
+    // the standard event-race (subscriber detaches between null check and invocation)
+    // and skips the EventArgs allocation when no subscriber is attached -- a measurable
+    // win on the full CPU.Execute path where every iteration would otherwise allocate.
+    private void RaiseInstructionToBeExecutedIfSubscribed(Memory mem)
+    {
+        var handler = InstructionToBeExecuted;
+        if (handler != null)
+            handler(this, new CPUInstructionToBeExecutedEventArgs(this, mem));
+    }
+    private void RaiseUnknownOpCodeDetectedIfSubscribed(Memory mem, byte opCode)
+    {
+        var handler = UnknownOpCodeDetected;
+        if (handler != null)
+            handler(this, new CPUUnknownOpCodeDetectedEventArgs(this, mem, opCode));
+    }
+    private void RaiseInstructionExecutedIfSubscribed(Memory mem, InstructionExecResult result)
+    {
+        var handler = InstructionExecuted;
+        if (handler != null)
+        {
+            var instructionExecState = ExecState.ExecStateAfterInstruction(lastinstructionExecutionResult: result);
+            handler(this, new CPUInstructionExecutedEventArgs(this, mem, instructionExecState));
+        }
+    }
+
     private readonly InstructionExecutor _instructionExecutor;
 
     private ILogger _logger;
@@ -247,69 +273,37 @@ public class CPU
             if (IsHalted)
                 break;
 
-            // Evaluate BEFORE executing the next instruction.
-            // Checking pre-execution means breakpoints trigger at the correct address
-            // (before the instruction at that address runs), and evaluators that count
-            // cycles/instructions use the cumulative totals from prior iterations.
-            bool triggered = false;
-            foreach (var execEvaluator in execEvaluators)
-            {
-                if (execEvaluator.Check(thisExecState, this, mem).Triggered)
-                {
-                    triggered = true;
-                    break;
-                }
-            }
-            if (triggered)
+            // Evaluate BEFORE executing the next instruction. Checking pre-execution
+            // means breakpoints trigger at the correct address (before the instruction
+            // at that address runs), and evaluators that count cycles/instructions use
+            // the cumulative totals from prior iterations.
+            if (AnyEvaluatorTriggered(thisExecState, mem, execEvaluators))
                 break;
 
-            // Fire event before instruction executes -- but only allocate the EventArgs
-            // when a subscriber actually exists. Snapshot the delegate to avoid the
-            // standard event-race where a subscriber unsubscribes between the null
-            // check and the invocation.
-            var preHandler = InstructionToBeExecuted;
-            if (preHandler != null)
-                preHandler(this, new CPUInstructionToBeExecutedEventArgs(this, mem));
+            RaiseInstructionToBeExecutedIfSubscribed(mem);
 
-            // Execute instruction
             var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
-            // Aggregate stats directly from the InstructionExecResult into both ExecStates.
-            // The previous code path constructed an intermediate ExecState struct per
-            // iteration via ExecStateAfterInstruction(); that allocated on every step.
-            // UpdateTotal(InstructionExecResult) accumulates the same numbers without
-            // the extra heap object.
+            // Aggregate stats directly from the InstructionExecResult into both ExecStates;
+            // the previous code path went via ExecStateAfterInstruction() which allocated
+            // an ExecState per step.
             ExecState.UpdateTotal(instructionExecutionResult);
             thisExecState.UpdateTotal(instructionExecutionResult);
 
+            if (instructionExecutionResult.HaltedCpu)
+            {
+                RaiseUnknownOpCodeDetectedIfSubscribed(mem, instructionExecutionResult.OpCodeByte);
+                break;
+            }
+
             if (instructionExecutionResult.UnknownInstruction)
             {
-                // Fire event for unknown instruction -- only allocate EventArgs when subscribed.
-                var unknownHandler = UnknownOpCodeDetected;
-                if (unknownHandler != null)
-                    unknownHandler(this, new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
+                RaiseUnknownOpCodeDetectedIfSubscribed(mem, instructionExecutionResult.OpCodeByte);
                 Debug.WriteLine($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}");
-            }
-            else if (instructionExecutionResult.HaltedCpu)
-            {
-                var unknownHandler = UnknownOpCodeDetected;
-                if (unknownHandler != null)
-                    unknownHandler(this, new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
-                break;
             }
             else
             {
-                // Fire event for instruction recognized and executed. The post-event
-                // EventArgs needs a per-instruction ExecState snapshot; only build it
-                // when a subscriber is present so the no-subscriber path stays free of
-                // both the EventArgs and the ExecState allocation.
-                var postHandler = InstructionExecuted;
-                if (postHandler != null)
-                {
-                    var instructionExecState = ExecState.ExecStateAfterInstruction(
-                        lastinstructionExecutionResult: instructionExecutionResult);
-                    postHandler(this, new CPUInstructionExecutedEventArgs(this, mem, instructionExecState));
-                }
+                RaiseInstructionExecutedIfSubscribed(mem, instructionExecutionResult);
             }
 
             ProcessInterrupts(mem);
@@ -317,6 +311,16 @@ public class CPU
 
         // Return the per-invocation stats accumulated above.
         return thisExecState;
+    }
+
+    private bool AnyEvaluatorTriggered(ExecState thisExecState, Memory mem, IExecEvaluator[] execEvaluators)
+    {
+        foreach (var execEvaluator in execEvaluators)
+        {
+            if (execEvaluator.Check(thisExecState, this, mem).Triggered)
+                return true;
+        }
+        return false;
     }
 
     private void ProcessInterrupts(Memory mem)
