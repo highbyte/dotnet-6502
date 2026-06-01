@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
+using Highbyte.DotNet6502.Benchmarks;
 using Highbyte.DotNet6502.Benchmarks.Commodore64;
 
 //var lab = new C64SpriteManagerBenchmark();
@@ -32,8 +33,14 @@ BenchmarkSwitcher
 //var summary = BenchmarkRunner
 //    .Run<ExecuteAll6502InstructionsBenchmark>();
 
+// Hot-path micro-benchmarks. Run this when validating changes to ExecEvaluator.Check
+// or the per-instruction step path. See benchmarks/Highbyte.DotNet6502.Benchmarks/RESULTS.md
+// for the baseline numbers and the tools/perf-compare.sh script for diffing master vs HEAD.
 var summary = BenchmarkRunner
-    .Run<C64ExecuteInstructionBenchmark>();
+    .Run<HotPathBenchmarks>();
+
+//var summary = BenchmarkRunner
+//    .Run<C64ExecuteInstructionBenchmark>();
 
 //var summary = BenchmarkRunner
 //    .Run<C64ExecuteFrameBenchmark>();
