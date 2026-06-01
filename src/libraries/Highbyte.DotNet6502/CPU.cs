@@ -263,38 +263,53 @@ public class CPU
             if (triggered)
                 break;
 
-            // Fire event before instruction executes
-            OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this, mem));
+            // Fire event before instruction executes -- but only allocate the EventArgs
+            // when a subscriber actually exists. Snapshot the delegate to avoid the
+            // standard event-race where a subscriber unsubscribes between the null
+            // check and the invocation.
+            var preHandler = InstructionToBeExecuted;
+            if (preHandler != null)
+                preHandler(this, new CPUInstructionToBeExecutedEventArgs(this, mem));
 
             // Execute instruction
             var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
-            // Collect stats for this instruction.
-            // Whereas the property thisExecState contains the aggregate stats for this invocation of Execute().
-            // and the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
-            var instructionExecState = ExecState.ExecStateAfterInstruction(
-                lastinstructionExecutionResult: instructionExecutionResult);
-
-            // Update/Aggregate total Cpu.ExecState stats
-            ExecState.UpdateTotal(instructionExecState);
-            // Update/Aggregate this invocation of Execute() ExecState stats
-            thisExecState.UpdateTotal(instructionExecState);
+            // Aggregate stats directly from the InstructionExecResult into both ExecStates.
+            // The previous code path constructed an intermediate ExecState struct per
+            // iteration via ExecStateAfterInstruction(); that allocated on every step.
+            // UpdateTotal(InstructionExecResult) accumulates the same numbers without
+            // the extra heap object.
+            ExecState.UpdateTotal(instructionExecutionResult);
+            thisExecState.UpdateTotal(instructionExecutionResult);
 
             if (instructionExecutionResult.UnknownInstruction)
             {
-                // Fire event for unknown instruction
-                OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
+                // Fire event for unknown instruction -- only allocate EventArgs when subscribed.
+                var unknownHandler = UnknownOpCodeDetected;
+                if (unknownHandler != null)
+                    unknownHandler(this, new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
                 Debug.WriteLine($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}");
             }
             else if (instructionExecutionResult.HaltedCpu)
             {
-                OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
+                var unknownHandler = UnknownOpCodeDetected;
+                if (unknownHandler != null)
+                    unknownHandler(this, new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
                 break;
             }
             else
             {
-                // Fire event for instruction recognized and executed
-                OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this, mem, instructionExecState));
+                // Fire event for instruction recognized and executed. The post-event
+                // EventArgs needs a per-instruction ExecState snapshot; only build it
+                // when a subscriber is present so the no-subscriber path stays free of
+                // both the EventArgs and the ExecState allocation.
+                var postHandler = InstructionExecuted;
+                if (postHandler != null)
+                {
+                    var instructionExecState = ExecState.ExecStateAfterInstruction(
+                        lastinstructionExecutionResult: instructionExecutionResult);
+                    postHandler(this, new CPUInstructionExecutedEventArgs(this, mem, instructionExecState));
+                }
             }
 
             ProcessInterrupts(mem);

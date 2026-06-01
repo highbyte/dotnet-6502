@@ -68,12 +68,59 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
-```
-### YYYY-MM-DD — short description (PR #NNN)
+### 2026-06-01 — hot-path Part 2 round 1: candidates 1, 4, 2, 6
 
-What changed and the new numbers. Example:
+Four optimizations landed together on `feature/hotpath-optimize` after the Part 2 analysis pass:
 
-| Method                              | Before  | After   | Δ        |
-|-------------------------------------|--------:|--------:|---------:|
-| ExecEvaluator_Check_NotTriggered    | 12.3 ns | 4.5 ns  | -63%     |
-```
+1. Cached `_anyStopConditionConfigured` flag in `LegacyExecEvaluator`.
+2. Cached `ExecuteUntilInstruction` byte and replaced
+   `ExecuteUntilInstructions.Contains` with a `bool[256]` bitmap.
+3. Replaced `InstructionList.Dictionary<byte, T>` lookups with parallel
+   byte-indexed arrays (`OpCode?[256]`, `Instruction?[256]`).
+4. Guarded EventArgs construction in `CPU.Execute` by handler-presence checks
+   and eliminated the per-instruction `ExecState.ExecStateAfterInstruction()`
+   allocation when no `InstructionExecuted` handler is attached.
+
+Also added two new benchmarks for the full `Execute` path:
+`CPU_Execute_NoSubscribers_1000Instructions` and
+`CPU_Execute_WithSubscribers_1000Instructions`.
+
+| Method                                       |       Baseline |          After |        Δ |
+|----------------------------------------------|---------------:|---------------:|---------:|
+| `ExecEvaluator_Check_NotTriggered`           |        1.82 ns |        0.41 ns | **−77%** |
+| `ExecEvaluator_Check_OneConditionConfigured` |        1.94 ns |        1.89 ns |      −3% |
+| `ExecEvaluator_Check_AllConditionsConfigured`|        2.66 ns |        1.97 ns | **−26%** |
+| `InstructionExecutor_OneStep`                |       10.86 ns |        9.35 ns | **−14%** |
+| `CPU_Run_1000Instructions`                   |       12.09 µs |        9.79 µs | **−19%** |
+| `CPU_Execute_NoSubscribers_1000Instructions` |     (new)      |       11.84 µs |        — |
+| `CPU_Execute_WithSubscribers_1000Instructions`|     (new)     |       24.56 µs |        — |
+
+Allocations (per 1000 instructions):
+
+| Method                                         | Baseline | After    | Δ           |
+|------------------------------------------------|---------:|---------:|------------:|
+| `CPU_Execute_NoSubscribers_1000Instructions`   |  136 KB* |    136 B | **−99.9%**  |
+| `CPU_Execute_WithSubscribers_1000Instructions` |  136 KB* |   136 KB | unchanged   |
+
+\* Pre-fix baseline for the new full-Execute benchmarks (measured against the
+post-#1+#4+#2 code, i.e. after the first three candidates landed and before
+candidate 6 was applied — both no-sub and with-sub paths allocated 136,136 B
+per 1000-instruction run).
+
+Notes:
+
+- The `OneStep` / `Run_1000` cumulative improvement (−14% / −19%) is real but
+  slightly smaller than the post-#4 intermediate (where `OneStep` measured
+  8.79 ns). Candidate 6 introduces a ~0.6 ns regression on the minimal path,
+  most likely because the larger `Execute` method body shifts the JIT's
+  inlining decisions for sibling methods (`ProcessInterrupts`) that the
+  minimal path also calls. Net effect is still a clear win across all
+  benchmarks.
+- `Check_OneCondition` improvement is small because the benchmark fixture only
+  configures `MaxNumberOfInstructions`, which the cached-flag and bitmap
+  changes don't directly touch; the value-add for that scenario shows up in
+  the `_AllConditions` row instead.
+- Confirmed allocation-free on all minimal-path benchmarks
+  (`MemoryDiagnoser` reports 0 B/op).
+- All 948 tests pass (715 in `Highbyte.DotNet6502.Tests` + 233 in
+  `Highbyte.DotNet6502.Systems.Tests`).

@@ -31,7 +31,10 @@ public class InstructionExecutor
 
         byte opCode = cpu.FetchInstruction(mem);
 
-        if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
+        // Single byte-indexed array lookup replaces ContainsKey + Dictionary[] -- a 3x
+        // dictionary-lookup hot spot on the per-instruction path.
+        var opCodeObject = cpu.InstructionList.TryGetOpCode(opCode);
+        if (opCodeObject is null)
         {
             // Guard the LogWarning behind IsEnabled. The unknown-opcode path is hit on every
             // emulated occurrence of an undocumented 6502 opcode (which real games and demos
@@ -43,7 +46,6 @@ public class InstructionExecutor
             return InstructionExecResult.UnknownInstructionResult(opCode, atPC);
         }
 
-        var opCodeObject = cpu.InstructionList.GetOpCode(opCode);
         var instruction = cpu.InstructionList.GetInstruction(opCodeObject);
 
         // Derive what the final value is going to be used with the instruction based on addressing mode.

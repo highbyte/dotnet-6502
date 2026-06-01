@@ -10,10 +10,22 @@ public class InstructionList
     public Dictionary<byte, OpCode> OpCodeDictionary { get; private set; }
     public Dictionary<byte, Instruction> InstructionDictionary { get; private set; }
 
+    // Byte-indexed dispatch arrays maintained in parallel with the dictionaries above.
+    // Used by InstructionExecutor.Execute on every CPU step -- avoids three
+    // Dictionary<byte, T> hashes per instruction in exchange for a fixed 4 KB of
+    // per-instance memory. Dictionaries are kept public for backward compat (tooling
+    // / monitor may enumerate them).
+    private readonly OpCode?[] _opCodeArray = new OpCode?[256];
+    private readonly Instruction?[] _instructionArray = new Instruction?[256];
+
     public InstructionList(Dictionary<byte, OpCode> opCodeDictionary, Dictionary<byte, Instruction> instructionDictionary)
     {
         OpCodeDictionary = opCodeDictionary;
         InstructionDictionary = instructionDictionary;
+        foreach (var kvp in opCodeDictionary)
+            _opCodeArray[kvp.Key] = kvp.Value;
+        foreach (var kvp in instructionDictionary)
+            _instructionArray[kvp.Key] = kvp.Value;
     }
 
     public InstructionList(List<Instruction> insList)
@@ -26,18 +38,22 @@ public class InstructionList
             {
                 OpCodeDictionary.Add(opCode.Code.ToByte(), opCode);
                 InstructionDictionary.Add(opCode.CodeRaw, instruction);
+                _opCodeArray[opCode.CodeRaw] = opCode;
+                _instructionArray[opCode.CodeRaw] = instruction;
             }
         }
     }
 
+    public OpCode? TryGetOpCode(byte opCode) => _opCodeArray[opCode];
+
     public OpCode GetOpCode(byte opCode)
     {
-        return OpCodeDictionary[opCode];
+        return _opCodeArray[opCode]!;
     }
 
     public Instruction GetInstruction(OpCode opCodeObject)
     {
-        return InstructionDictionary[opCodeObject.CodeRaw];
+        return _instructionArray[opCodeObject.CodeRaw]!;
     }
 
     public InstructionList Clone()

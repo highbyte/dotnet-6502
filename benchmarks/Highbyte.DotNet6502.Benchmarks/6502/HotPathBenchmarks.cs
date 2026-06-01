@@ -55,6 +55,14 @@ public class HotPathBenchmarks
     private Memory _memForStep = default!;
     private ushort _startAddress;
 
+    // --- Full Execute path fixtures -------------------------------------------------
+
+    private CPU _cpuForExecNoSub = default!;
+    private Memory _memForExecNoSub = default!;
+    private CPU _cpuForExecWithSub = default!;
+    private Memory _memForExecWithSub = default!;
+    private LegacyExecEvaluator _execLimitEvaluator = default!;
+
     // Number of instructions to run for the aggregate throughput benchmark. Kept as a
     // constant rather than a [Params] so the benchmark output stays compact; tune here
     // if you want a different sample size.
@@ -103,7 +111,28 @@ public class HotPathBenchmarks
         _startAddress = 0xC000;
         LoadStepProgram(_memForStep, _startAddress);
         _cpuForStep.PC = _startAddress;
+
+        // Full Execute path fixtures. One CPU with no event subscribers and one with
+        // no-op subscribers, so the benchmark can attribute event-dispatch and EventArgs
+        // construction cost separately. The same evaluator (instruction count limit)
+        // drives both, so the loop terminates deterministically.
+        _cpuForExecNoSub = new CPU();
+        _memForExecNoSub = new Memory();
+        LoadStepProgram(_memForExecNoSub, _startAddress);
+        _cpuForExecNoSub.PC = _startAddress;
+
+        _cpuForExecWithSub = new CPU();
+        _memForExecWithSub = new Memory();
+        LoadStepProgram(_memForExecWithSub, _startAddress);
+        _cpuForExecWithSub.PC = _startAddress;
+        _cpuForExecWithSub.InstructionToBeExecuted += NoOpInstructionToBeExecuted;
+        _cpuForExecWithSub.InstructionExecuted += NoOpInstructionExecuted;
+
+        _execLimitEvaluator = LegacyExecEvaluator.InstructionCountExecEvaluator(RunInstructionCount);
     }
+
+    private static void NoOpInstructionToBeExecuted(object? sender, CPUInstructionToBeExecutedEventArgs e) { }
+    private static void NoOpInstructionExecuted(object? sender, CPUInstructionExecutedEventArgs e) { }
 
     private static void LoadStepProgram(Memory mem, ushort startAddress)
     {
@@ -183,5 +212,31 @@ public class HotPathBenchmarks
         {
             _cpuForStep.ExecuteOneInstructionMinimal(_memForStep);
         }
+    }
+
+    /// <summary>
+    /// 1000-instruction run via the full <see cref="CPU.Execute"/> path with no event
+    /// subscribers. Exercises the per-iteration EventArgs construction and stats
+    /// bookkeeping that the minimal path skips. Use this baseline to validate
+    /// allocation-guard work on the full path.
+    /// </summary>
+    [Benchmark]
+    public void CPU_Execute_NoSubscribers_1000Instructions()
+    {
+        _cpuForExecNoSub.PC = _startAddress;
+        _cpuForExecNoSub.Execute(_memForExecNoSub, _execLimitEvaluator);
+    }
+
+    /// <summary>
+    /// 1000-instruction run via the full <see cref="CPU.Execute"/> path with no-op
+    /// handlers attached to both instruction events. Represents the "debugger /
+    /// monitor is watching" workload -- EventArgs are unavoidable; the delegate
+    /// dispatch cost is the irreducible floor.
+    /// </summary>
+    [Benchmark]
+    public void CPU_Execute_WithSubscribers_1000Instructions()
+    {
+        _cpuForExecWithSub.PC = _startAddress;
+        _cpuForExecWithSub.Execute(_memForExecWithSub, _execLimitEvaluator);
     }
 }
