@@ -12,6 +12,7 @@ public static class GenericComputerExampleConfigs
             throw new ArgumentException($"No example program with name '{exampleName}' exists in system config.");
         exampleConfig.ProgramBinaryFile = systemConfig.ExamplePrograms[exampleName] ?? string.Empty;
         exampleConfig.RenderProviderType = systemConfig.RenderProviderType;
+        exampleConfig.CpuCompatibilityProfile = systemConfig.CpuCompatibilityProfile;
         return exampleConfig;
     }
 
@@ -20,6 +21,7 @@ public static class GenericComputerExampleConfigs
         var exampleConfig = GetExampleConfigClone(exampleName);
         exampleConfig.ProgramBinary = prgBytes;
         exampleConfig.RenderProviderType = systemConfig.RenderProviderType;
+        exampleConfig.CpuCompatibilityProfile = systemConfig.CpuCompatibilityProfile;
         return exampleConfig;
     }
 
@@ -176,4 +178,3 @@ public static class GenericComputerExampleConfigs
 
     }
 }
-

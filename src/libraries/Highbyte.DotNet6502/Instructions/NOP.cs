@@ -24,7 +24,13 @@ public class NOP : Instruction, IInstructionUsesOnlyRegOrStatus
                     AddressingMode = AddrMode.Implied,
                     Size = 1,
                     MinimumCycles = 2,
-                }
+                },
+                new OpCode { Code = OpCodeId.NOP_ILL_1A, AddressingMode = AddrMode.Implied, Size = 1, MinimumCycles = 2 },
+                new OpCode { Code = OpCodeId.NOP_ILL_3A, AddressingMode = AddrMode.Implied, Size = 1, MinimumCycles = 2 },
+                new OpCode { Code = OpCodeId.NOP_ILL_5A, AddressingMode = AddrMode.Implied, Size = 1, MinimumCycles = 2 },
+                new OpCode { Code = OpCodeId.NOP_ILL_7A, AddressingMode = AddrMode.Implied, Size = 1, MinimumCycles = 2 },
+                new OpCode { Code = OpCodeId.NOP_ILL_DA, AddressingMode = AddrMode.Implied, Size = 1, MinimumCycles = 2 },
+                new OpCode { Code = OpCodeId.NOP_ILL_FA, AddressingMode = AddrMode.Implied, Size = 1, MinimumCycles = 2 },
         };
     }
 }

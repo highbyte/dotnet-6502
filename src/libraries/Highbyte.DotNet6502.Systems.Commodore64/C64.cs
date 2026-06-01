@@ -281,7 +281,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             InstrumentationEnabled = c64Config.InstrumentationEnabled
         };
 
-        var cpu = CreateC64CPU(loggerFactory);
+        var cpu = CreateC64CPU(loggerFactory, c64Config.CpuCompatibilityProfile);
         var vic2 = Vic2.BuildVic2(vic2Model, c64);
         var sid = Sid.BuildSid(c64);
 
@@ -425,9 +425,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         c64.ApplyCpuPortMemoryConfiguration();
     }
 
-    private static CPU CreateC64CPU(ILoggerFactory loggerFactory)
+    private static CPU CreateC64CPU(ILoggerFactory loggerFactory, CpuCompatibilityProfile compatibilityProfile)
     {
-        var cpu = new CPU(loggerFactory);
+        var cpu = new CPU(loggerFactory, compatibilityProfile);
         // The CPU execute method uses will not raise any events (like after instruction executed). Therefore advance VIC2 raster line etc needs to be manually called instead (see ExecuteOneFrame)
         //cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.InstructionExecState.CyclesConsumed);
         return cpu;

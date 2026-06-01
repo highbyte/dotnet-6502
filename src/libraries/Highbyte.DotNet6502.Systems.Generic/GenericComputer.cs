@@ -75,7 +75,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
         _genericComputerConfig = genericComputerConfig;
         Mem = new Memory();
-        CPU = new CPU(loggerFactory);
+        CPU = new CPU(loggerFactory, genericComputerConfig.CpuCompatibilityProfile);
         DefaultExecOptions = new ExecOptions();
 
         _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = CPUCyclesPerFrame });

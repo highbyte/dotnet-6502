@@ -99,8 +99,10 @@ public class CPU
     /// </summary>
     /// <value></value>
     public ExecState ExecState { get; private set; }
+    public bool IsHalted { get; private set; }
 
     public InstructionList InstructionList { get; private set; }
+    public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
     public event EventHandler<CPUInstructionExecutedEventArgs>? InstructionExecuted;
     protected virtual void OnInstructionExecuted(CPUInstructionExecutedEventArgs e)
@@ -126,18 +128,25 @@ public class CPU
 
     private ILogger _logger;
 
-    public CPU() : this(new ExecState(), new NullLoggerFactory()) { }
-    public CPU(ExecState execState) : this(execState, new NullLoggerFactory()) { }
-    public CPU(ILoggerFactory loggerFactory) : this(new ExecState(), loggerFactory) { }
+    public CPU() : this(new ExecState(), new NullLoggerFactory(), CpuCompatibilityProfile.ExperimentalUnofficial) { }
+    public CPU(ExecState execState) : this(execState, new NullLoggerFactory(), CpuCompatibilityProfile.ExperimentalUnofficial) { }
+    public CPU(ILoggerFactory loggerFactory) : this(new ExecState(), loggerFactory, CpuCompatibilityProfile.ExperimentalUnofficial) { }
+    public CPU(CpuCompatibilityProfile compatibilityProfile) : this(new ExecState(), new NullLoggerFactory(), compatibilityProfile) { }
+    public CPU(ILoggerFactory loggerFactory, CpuCompatibilityProfile compatibilityProfile)
+        : this(new ExecState(), loggerFactory, compatibilityProfile) { }
 
     public CPU(ExecState execState, ILoggerFactory loggerFactory)
+        : this(execState, loggerFactory, CpuCompatibilityProfile.ExperimentalUnofficial) { }
+
+    public CPU(ExecState execState, ILoggerFactory loggerFactory, CpuCompatibilityProfile compatibilityProfile)
     {
         _logger = loggerFactory.CreateLogger(typeof(CPU).Name);
 
         ProcessorStatus = new ProcessorStatus();
         ExecState = execState;
+        CompatibilityProfile = compatibilityProfile;
         // TODO: Inject instruction list?
-        InstructionList = InstructionList.GetAllInstructions();
+        InstructionList = InstructionList.GetAllInstructions(compatibilityProfile);
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor(loggerFactory);
     }
@@ -153,6 +162,8 @@ public class CPU
             Y = this.Y,
             ProcessorStatus = this.ProcessorStatus,
             ExecState = this.ExecState.Clone(),
+            IsHalted = this.IsHalted,
+            CompatibilityProfile = this.CompatibilityProfile,
             InstructionList = this.InstructionList.Clone(),
             _logger = this._logger
         };
@@ -169,11 +180,15 @@ public class CPU
     public InstructionExecResult ExecuteOneInstructionMinimal(
         Memory mem)
     {
+        if (IsHalted)
+            return InstructionExecResult.CpuAlreadyHaltedResult(PC);
+
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
         ExecState.UpdateTotal(instructionExecutionResult);
 
-        ProcessInterrupts(mem);
+        if (!instructionExecutionResult.HaltedCpu)
+            ProcessInterrupts(mem);
 
         return instructionExecutionResult;
     }
@@ -229,6 +244,9 @@ public class CPU
 
         while (true)
         {
+            if (IsHalted)
+                break;
+
             // Evaluate BEFORE executing the next instruction.
             // Checking pre-execution means breakpoints trigger at the correct address
             // (before the instruction at that address runs), and evaluators that count
@@ -268,6 +286,11 @@ public class CPU
                 OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
                 Debug.WriteLine($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}");
             }
+            else if (instructionExecutionResult.HaltedCpu)
+            {
+                OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
+                break;
+            }
             else
             {
                 // Fire event for instruction recognized and executed
@@ -283,6 +306,9 @@ public class CPU
 
     private void ProcessInterrupts(Memory mem)
     {
+        if (IsHalted)
+            return;
+
         if (CPUInterrupts.NMIPending)
         {
             ushort nmiVector = FetchWord(mem, CPU.NonMaskableIRQHandlerVector);
@@ -359,6 +385,12 @@ public class CPU
     {
         // Change PC to address found at BRK/IRQ handler vector
         PC = FetchWord(mem, CPU.ResetVector);
+        IsHalted = false;
+    }
+
+    internal void Halt()
+    {
+        IsHalted = true;
     }
 
     /// <summary>

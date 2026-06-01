@@ -8,8 +8,40 @@ Library: `Highbyte.DotNet6502`
 - Has no UI, meant to be integrated into other applications.
 - Emulation of a 6502 processor.
 - Supports all official 6502 opcodes.
+- Supports a compatibility-profile based subset of undocumented NMOS 6502 opcodes.
 - Can load an assembled 6502 program binary and execute it.
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests).
+
+## Opcode compatibility profiles
+
+The core CPU library exposes undocumented opcodes through `CpuCompatibilityProfile`.
+Higher profiles include everything from lower profiles.
+
+| Profile | Meaning |
+| ------- | ------- |
+| `OfficialOnly` | Only documented MOS 6502 opcodes are available. |
+| `StableUnofficial` | Also enables the more predictable undocumented NMOS opcodes commonly used on real 6502/6510 hardware. |
+| `ExperimentalUnofficial` | Also enables the currently implemented but less reliable undocumented opcodes used for targeted compatibility testing. |
+| `FullUnofficial` | Also enables halt-style unofficial opcodes such as `JAM` / `KIL` that can intentionally jam the CPU until reset. |
+
+Notes:
+
+- `new CPU()` and `InstructionList.GetAllInstructions()` currently use `ExperimentalUnofficial`.
+- `GenericComputer` defaults to `ExperimentalUnofficial`.
+- `C64` and `Vic20` default to `StableUnofficial`.
+- These profiles describe the currently implemented undocumented **NMOS** opcode set. They are not a claim of complete coverage for every unofficial opcode found on every 6502-family variant.
+- `JAM` / `KIL` behavior is modeled as the CPU entering a halted/jammed state until `Reset(...)` is called.
+
+Example:
+
+```c#
+using Highbyte.DotNet6502;
+
+var defaultCpu = new CPU();
+var officialCpu = new CPU(CpuCompatibilityProfile.OfficialOnly);
+var stableCpu = new CPU(CpuCompatibilityProfile.StableUnofficial);
+var fullCpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
+```
 
 ## Requirements
 

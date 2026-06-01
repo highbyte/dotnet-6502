@@ -57,6 +57,17 @@ public class Vic20SystemConfig : ISystemConfig
 
     public bool AudioEnabled { get; set; } = false;
 
+    private CpuCompatibilityProfile _cpuCompatibilityProfile = CpuCompatibilityProfile.StableUnofficial;
+    public CpuCompatibilityProfile CpuCompatibilityProfile
+    {
+        get => _cpuCompatibilityProfile;
+        set
+        {
+            _cpuCompatibilityProfile = value;
+            _isDirty = true;
+        }
+    }
+
     private string _romDirectory = string.Empty;
     public string ROMDirectory
     {

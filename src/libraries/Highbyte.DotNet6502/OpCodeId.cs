@@ -263,4 +263,146 @@ public enum OpCodeId: byte
     BRK = 0x00,
     RTI = 0x40,
     NOP = 0xEA,
+
+    // ── Illegal / undocumented opcodes ──────────────────────────────────────
+
+    // JAM / KIL / HLT — halts the CPU until reset
+    JAM_02 = 0x02,
+    JAM_12 = 0x12,
+    JAM_22 = 0x22,
+    JAM_32 = 0x32,
+    JAM_42 = 0x42,
+    JAM_52 = 0x52,
+    JAM_62 = 0x62,
+    JAM_72 = 0x72,
+    JAM_92 = 0x92,
+    JAM_B2 = 0xB2,
+    JAM_D2 = 0xD2,
+    JAM_F2 = 0xF2,
+
+    // Extra implied NOPs (do nothing, 2 cycles each)
+    NOP_ILL_1A = 0x1A,
+    NOP_ILL_3A = 0x3A,
+    NOP_ILL_5A = 0x5A,
+    NOP_ILL_7A = 0x7A,
+    NOP_ILL_DA = 0xDA,
+    NOP_ILL_FA = 0xFA,
+
+    // NOPs that read (and discard) a byte — immediate
+    NOP_ILL_IMM_80 = 0x80,
+    NOP_ILL_IMM_82 = 0x82,
+    NOP_ILL_IMM_89 = 0x89,
+    NOP_ILL_IMM_C2 = 0xC2,
+    NOP_ILL_IMM_E2 = 0xE2,
+
+    // NOPs that read a zero-page byte
+    NOP_ILL_ZP_04 = 0x04,
+    NOP_ILL_ZP_44 = 0x44,
+    NOP_ILL_ZP_64 = 0x64,
+
+    // NOPs that read a zero-page,X byte
+    NOP_ILL_ZP_X_14 = 0x14,
+    NOP_ILL_ZP_X_34 = 0x34,
+    NOP_ILL_ZP_X_54 = 0x54,
+    NOP_ILL_ZP_X_74 = 0x74,
+    NOP_ILL_ZP_X_D4 = 0xD4,
+    NOP_ILL_ZP_X_F4 = 0xF4,
+
+    // NOP that reads an absolute byte
+    NOP_ILL_ABS = 0x0C,
+
+    // NOPs that read an absolute,X byte (+1 cycle on page cross)
+    NOP_ILL_ABS_X_1C = 0x1C,
+    NOP_ILL_ABS_X_3C = 0x3C,
+    NOP_ILL_ABS_X_5C = 0x5C,
+    NOP_ILL_ABS_X_7C = 0x7C,
+    NOP_ILL_ABS_X_DC = 0xDC,
+    NOP_ILL_ABS_X_FC = 0xFC,
+
+    // LAX — load A and X from same address
+    LAX_IX_IND = 0xA3,
+    LAX_ZP     = 0xA7,
+    LAX_ABS    = 0xAF,
+    LAX_IND_IX = 0xB3,
+    LAX_ZP_Y   = 0xB7,
+    LAX_ABS_Y  = 0xBF,
+
+    // SAX — store A AND X
+    SAX_IX_IND = 0x83,
+    SAX_ZP     = 0x87,
+    SAX_ABS    = 0x8F,
+    SAX_ZP_Y   = 0x97,
+
+    // DCP — decrement memory then CMP with A
+    DCP_IX_IND = 0xC3,
+    DCP_ZP     = 0xC7,
+    DCP_ABS    = 0xCF,
+    DCP_IND_IX = 0xD3,
+    DCP_ZP_X   = 0xD7,
+    DCP_ABS_Y  = 0xDB,
+    DCP_ABS_X  = 0xDF,
+
+    // ISC — increment memory then SBC from A
+    ISC_IX_IND = 0xE3,
+    ISC_ZP     = 0xE7,
+    ISC_ABS    = 0xEF,
+    ISC_IND_IX = 0xF3,
+    ISC_ZP_X   = 0xF7,
+    ISC_ABS_Y  = 0xFB,
+    ISC_ABS_X  = 0xFF,
+
+    // SLO — ASL memory then ORA into A
+    SLO_IX_IND = 0x03,
+    SLO_ZP     = 0x07,
+    SLO_ABS    = 0x0F,
+    SLO_IND_IX = 0x13,
+    SLO_ZP_X   = 0x17,
+    SLO_ABS_Y  = 0x1B,
+    SLO_ABS_X  = 0x1F,
+
+    // SRE — LSR memory then EOR into A
+    SRE_IX_IND = 0x43,
+    SRE_ZP     = 0x47,
+    SRE_ABS    = 0x4F,
+    SRE_IND_IX = 0x53,
+    SRE_ZP_X   = 0x57,
+    SRE_ABS_Y  = 0x5B,
+    SRE_ABS_X  = 0x5F,
+
+    // RLA — ROL memory then AND into A
+    RLA_IX_IND = 0x23,
+    RLA_ZP     = 0x27,
+    RLA_ABS    = 0x2F,
+    RLA_IND_IX = 0x33,
+    RLA_ZP_X   = 0x37,
+    RLA_ABS_Y  = 0x3B,
+    RLA_ABS_X  = 0x3F,
+
+    // RRA — ROR memory then ADC into A
+    RRA_IX_IND = 0x63,
+    RRA_ZP     = 0x67,
+    RRA_ABS    = 0x6F,
+    RRA_IND_IX = 0x73,
+    RRA_ZP_X   = 0x77,
+    RRA_ABS_Y  = 0x7B,
+    RRA_ABS_X  = 0x7F,
+
+    // ANC — AND immediate, bit 7 of result → Carry
+    ANC_I_0B = 0x0B,
+    ANC_I_2B = 0x2B,
+
+    // ALR — AND immediate then LSR accumulator
+    ALR_I = 0x4B,
+
+    // ARR — AND immediate then ROR accumulator (unusual flags)
+    ARR_I = 0x6B,
+
+    // AXS — X = (A & X) − immediate  (CMP-style flags, no borrow input)
+    AXS_I = 0xCB,
+
+    // LAS — A = X = SP = memory & SP
+    LAS_ABS_Y = 0xBB,
+
+    // SBC duplicate (identical to SBC_I 0xE9)
+    SBC_I_EB = 0xEB,
 }

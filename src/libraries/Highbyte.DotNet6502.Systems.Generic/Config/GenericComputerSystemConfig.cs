@@ -37,6 +37,17 @@ public class GenericComputerSystemConfig : ISystemConfig
 
     public bool AudioEnabled { get; set; }
 
+    private CpuCompatibilityProfile _cpuCompatibilityProfile = CpuCompatibilityProfile.ExperimentalUnofficial;
+    public CpuCompatibilityProfile CpuCompatibilityProfile
+    {
+        get => _cpuCompatibilityProfile;
+        set
+        {
+            _cpuCompatibilityProfile = value;
+            _isDirty = true;
+        }
+    }
+
     public Dictionary<string, string?> ExamplePrograms
     {
         get

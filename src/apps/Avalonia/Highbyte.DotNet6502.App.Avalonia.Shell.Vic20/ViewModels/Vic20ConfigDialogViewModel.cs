@@ -37,6 +37,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     private RenderProviderOption? _selectedRenderProvider;
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
+    private CpuCompatibilityProfileOption? _selectedCpuCompatibilityProfile;
 
     public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
@@ -56,6 +57,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
 
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
         CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
+        _selectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
 
         InitializeRenderOptions();
         UpdateRomStatuses();
@@ -108,6 +110,8 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<Vic20RomStatusViewModel> RomStatuses { get; } = new();
     public ObservableCollection<RenderProviderOption> RenderProviders { get; } = new();
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
+    public ObservableCollection<CpuCompatibilityProfileOption> CpuCompatibilityProfiles { get; } =
+        new(CpuCompatibilityProfileOption.All);
 
     public bool IsRunningInWebAssembly { get; } = PlatformDetection.IsRunningInWebAssembly();
 
@@ -232,6 +236,25 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     public string SelectedRenderProviderHelpText => SelectedRenderProvider?.HelpText ?? string.Empty;
 
     public string SelectedRenderTargetHelpText => SelectedRenderTarget?.HelpText ?? string.Empty;
+
+    public CpuCompatibilityProfileOption? SelectedCpuCompatibilityProfile
+    {
+        get => _selectedCpuCompatibilityProfile;
+        set
+        {
+            if (ReferenceEquals(_selectedCpuCompatibilityProfile, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedCpuCompatibilityProfile, value);
+
+            if (value != null)
+                _workingConfig.SystemConfig.CpuCompatibilityProfile = value.Profile;
+
+            this.RaisePropertyChanged(nameof(SelectedCpuCompatibilityProfileHelpText));
+        }
+    }
+
+    public string SelectedCpuCompatibilityProfileHelpText => SelectedCpuCompatibilityProfile?.HelpText ?? string.Empty;
 
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
@@ -413,6 +436,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             _originalConfig.SystemConfig.ROMDirectory = _workingConfig.SystemConfig.ROMDirectory;
             _originalConfig.CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL;
             _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
+            _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
 
             if (_workingConfig.SystemConfig.RenderProviderType != null)
                 _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);
