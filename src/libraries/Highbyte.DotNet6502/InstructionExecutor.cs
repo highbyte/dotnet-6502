@@ -129,36 +129,7 @@ public class InstructionExecutor
         }
 
         // Execute the instruction-specific logic, with final value calculated in addrModeCalcResult.
-        ulong extraCyclesConsumed;
-        if (instruction is IInstructionUsesByte instructionUsesByte)
-        {
-            // Instruction expects a byte directly or via a relative or absolute (word) address
-            byte instructionValue;
-            if (addrModeCalcResult.InsAddress.HasValue)
-                instructionValue = cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
-            else
-                instructionValue = addrModeCalcResult.InsValue!.Value;
-
-            extraCyclesConsumed = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
-        }
-        else if (instruction is IInstructionUsesAddress instructionUseAddress && addrModeCalcResult.InsAddress.HasValue)
-        {
-            // Instruction expects a an address (to write to, or use to change program counter)
-            extraCyclesConsumed = instructionUseAddress.ExecuteWithWord(cpu, mem, addrModeCalcResult.InsAddress.Value, addrModeCalcResult);
-        }
-        else if (instruction is IInstructionUsesStack instructionUsesStack)
-        {
-            // Instruction is expected to push or pop stack
-            extraCyclesConsumed = instructionUsesStack.ExecuteWithStack(cpu, mem, addrModeCalcResult);
-        }
-        else if (instruction is IInstructionUsesOnlyRegOrStatus instructionUseNone)
-        {
-            extraCyclesConsumed = instructionUseNone.Execute(cpu, addrModeCalcResult);
-        }
-        else
-        {
-            throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}");
-        }
+        var extraCyclesConsumed = ExecuteInstruction(cpu, mem, instruction, addrModeCalcResult, opCode);
 
         var cyclesConsumed = opCodeObject.MinimumCycles + extraCyclesConsumed;
         if (cpu.IsHalted)
@@ -169,5 +140,40 @@ public class InstructionExecutor
         }
 
         return InstructionExecResult.KnownInstructionResult(opCode, atPC, cyclesConsumed);
+    }
+
+    private static ulong ExecuteInstruction(CPU cpu, Memory mem, Instruction instruction, AddrModeCalcResult addrModeCalcResult, byte opCode)
+    {
+        if (instruction is IInstructionUsesByte instructionUsesByte)
+        {
+            return instructionUsesByte.ExecuteWithByte(cpu, mem, GetInstructionValue(cpu, mem, addrModeCalcResult), addrModeCalcResult);
+        }
+
+        if (instruction is IInstructionUsesAddress instructionUseAddress && addrModeCalcResult.InsAddress.HasValue)
+        {
+            // Instruction expects an address to write to, or use to change program counter.
+            return instructionUseAddress.ExecuteWithWord(cpu, mem, addrModeCalcResult.InsAddress.Value, addrModeCalcResult);
+        }
+
+        if (instruction is IInstructionUsesStack instructionUsesStack)
+        {
+            return instructionUsesStack.ExecuteWithStack(cpu, mem, addrModeCalcResult);
+        }
+
+        if (instruction is IInstructionUsesOnlyRegOrStatus instructionUseNone)
+        {
+            return instructionUseNone.Execute(cpu, addrModeCalcResult);
+        }
+
+        throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}");
+    }
+
+    private static byte GetInstructionValue(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+    {
+        // Instruction expects a byte directly or via a relative or absolute (word) address.
+        if (addrModeCalcResult.InsAddress.HasValue)
+            return cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
+
+        return addrModeCalcResult.InsValue!.Value;
     }
 }
