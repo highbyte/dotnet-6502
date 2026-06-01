@@ -15,6 +15,7 @@ Core library: [`Highbyte.DotNet6502.Systems.Vic20`](../../libraries/system-speci
     - Auxiliary color via VIC-I register `$900E`.
     - Rasterizer path sources character glyphs from the active VIC-I character base address in ROM or RAM (`$9005`).
     - Rasterizer path supports per-cell multicolor rendering via color RAM bit 3.
+    - VIC-I display position registers `$9000` (horizontal) and `$9001` (vertical) decoded and used by the rasterizer to offset the character area within the TV canvas.
 - Two VIA 6522 chips
     - **VIA1** — keyboard matrix scanning, system timer (CA1 raster IRQ from VIC-I).
     - **VIA2** — user port, additional timer.
@@ -32,8 +33,8 @@ Core library: [`Highbyte.DotNet6502.Systems.Vic20`](../../libraries/system-speci
 - Joystick / game port input.
 - PAL variant (NTSC only at present).
 - RAM expansion (unexpanded memory map only).
-- VIC-I bitmap/graphics modes beyond character mode.
-- Dynamic host resizing for VIC-I geometry changes beyond the default 22&times;23 text layout.
+- Dynamic host resizing when a program changes column/row count or character height at runtime (the Avalonia canvas is a fixed size; only the rendered area adjusts).
+- Note: the VIC-I chip has no bitmap graphics mode — the VIC-20 supports character-mode display only.
 - Light pen support.
 
 ## Implementation libraries

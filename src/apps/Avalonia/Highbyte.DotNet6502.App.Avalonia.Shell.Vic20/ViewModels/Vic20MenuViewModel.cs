@@ -1,46 +1,127 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia.Vic20;
 using Highbyte.DotNet6502.Systems;
-using Vic20System = Highbyte.DotNet6502.Systems.Vic20.Vic20;
+using Highbyte.DotNet6502.Systems.Vic20.Utils;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
+using Vic20System = Highbyte.DotNet6502.Systems.Vic20.Vic20;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels;
 
 /// <summary>
 /// Menu view model for the VIC-20 shell plugin.
 /// </summary>
-public class Vic20MenuViewModel : ViewModelBase
+public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
 {
     private readonly AvaloniaHostApp _hostApp;
     private readonly ILogger _logger;
+    private readonly Assembly _examplesAssembly = typeof(AvaloniaHostApp).Assembly;
 
     public AvaloniaHostApp HostApp => _hostApp;
+    private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
 
+    public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
+    public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
+    public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
+    public ReactiveCommand<int, Unit> SetActiveJoystickCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleJoystickKeyboardCommand { get; }
+    public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
 
     public Vic20MenuViewModel(AvaloniaHostApp hostApp, ILoggerFactory loggerFactory)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _logger = loggerFactory.CreateLogger(typeof(Vic20MenuViewModel).Name);
 
+        InitializePlaceholderData();
+
         _hostApp
             .WhenAnyValue(x => x.EmulatorState)
-            .Subscribe(_ => this.RaisePropertyChanged(nameof(IsFileOperationEnabled)));
+            .Subscribe(_ =>
+            {
+                this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
+                this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
+                this.RaisePropertyChanged(nameof(IsVic20ConfigEnabled));
+            });
+
+        CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await CopyBasicSourceCodeAsync(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        PasteTextCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await PasteTextInternalAsync(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            RxSchedulers.MainThreadScheduler);
 
         LoadBasicFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBasicFileAsync(fileBuffer),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
+
+        LoadBinaryFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
+            async (fileBuffer) => await LoadAndStartBinaryAsync(fileBuffer, "Binary program"),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await LoadAssemblyExampleAsync(),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        LoadBasicExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await LoadBasicExampleAsync(),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleLoadSaveSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => ToggleSection(Vic20MenuSection.LoadSave),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleConfigSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => ToggleSection(Vic20MenuSection.Config),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        var placeholderCanExecute = this.WhenAnyValue(x => x.ArePlaceholderControlsEnabled);
+
+        SetActiveJoystickCommand = ReactiveCommandHelper.CreateSafeCommand<int>(
+            port => CurrentJoystick = port,
+            placeholderCanExecute,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleJoystickKeyboardCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => JoystickKeyboardEnabled = !JoystickKeyboardEnabled,
+            placeholderCanExecute,
+            RxSchedulers.MainThreadScheduler);
+
+        SetKeyboardJoystickCommand = ReactiveCommandHelper.CreateSafeCommand<int>(
+            port => KeyboardJoystick = port,
+            placeholderCanExecute,
+            RxSchedulers.MainThreadScheduler);
     }
 
+    public bool IsCopyPasteEnabled => _hostApp.EmulatorState == EmulatorState.Running;
     public bool IsFileOperationEnabled => _hostApp.EmulatorState != EmulatorState.Uninitialized;
+    public bool IsVic20ConfigEnabled => _hostApp.EmulatorState == EmulatorState.Uninitialized;
+    public bool ArePlaceholderControlsEnabled => false;
 
     public bool HasConfigValidationErrors
     {
@@ -50,6 +131,238 @@ public class Vic20MenuViewModel : ViewModelBase
                 return false;
 
             return !vic20HostConfig.IsValid(out _);
+        }
+    }
+
+    public ObservableCollection<KeyValuePair<string, string>> AssemblyExamples { get; } = new();
+    private string _selectedAssemblyExample = string.Empty;
+    public string SelectedAssemblyExample
+    {
+        get => _selectedAssemblyExample;
+        set => this.RaiseAndSetIfChanged(ref _selectedAssemblyExample, value);
+    }
+
+    public ObservableCollection<KeyValuePair<string, string>> BasicExamples { get; } = new();
+    private string _selectedBasicExample = string.Empty;
+    public string SelectedBasicExample
+    {
+        get => _selectedBasicExample;
+        set => this.RaiseAndSetIfChanged(ref _selectedBasicExample, value);
+    }
+
+    public ObservableCollection<int> AvailableJoysticks { get; } = new();
+
+    private int _currentJoystick = 1;
+    public int CurrentJoystick
+    {
+        get => _currentJoystick;
+        set => this.RaiseAndSetIfChanged(ref _currentJoystick, value);
+    }
+
+    private bool _joystickKeyboardEnabled;
+    public bool JoystickKeyboardEnabled
+    {
+        get => _joystickKeyboardEnabled;
+        set
+        {
+            if (_joystickKeyboardEnabled == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _joystickKeyboardEnabled, value);
+            this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
+        }
+    }
+
+    private int _keyboardJoystick = 1;
+    public int KeyboardJoystick
+    {
+        get => _keyboardJoystick;
+        set => this.RaiseAndSetIfChanged(ref _keyboardJoystick, value);
+    }
+
+    public bool IsKeyboardJoystickSelectionEnabled => ArePlaceholderControlsEnabled && JoystickKeyboardEnabled;
+
+    private bool _isLoadSaveSectionExpanded = true;
+    public bool IsLoadSaveSectionExpanded
+    {
+        get => _isLoadSaveSectionExpanded;
+        private set
+        {
+            if (_isLoadSaveSectionExpanded == value)
+                return;
+            _isLoadSaveSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsLoadSaveSectionExpanded));
+            this.RaisePropertyChanged(nameof(LoadSaveSectionHeaderText));
+        }
+    }
+
+    private bool _isConfigSectionExpanded;
+    public bool IsConfigSectionExpanded
+    {
+        get => _isConfigSectionExpanded;
+        private set
+        {
+            if (_isConfigSectionExpanded == value)
+                return;
+            _isConfigSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsConfigSectionExpanded));
+            this.RaisePropertyChanged(nameof(ConfigSectionHeaderText));
+        }
+    }
+
+    public string LoadSaveSectionHeaderText => "Load/Save";
+    public string ConfigSectionHeaderText => "Configuration";
+
+    private enum Vic20MenuSection { LoadSave, Config }
+
+    private void ToggleSection(Vic20MenuSection section)
+    {
+        bool newState = section switch
+        {
+            Vic20MenuSection.LoadSave => !IsLoadSaveSectionExpanded,
+            Vic20MenuSection.Config => !IsConfigSectionExpanded,
+            _ => false,
+        };
+
+        SetSectionExpanded(section, newState, collapseOthers: newState);
+    }
+
+    private void SetSectionExpanded(Vic20MenuSection section, bool expanded, bool collapseOthers)
+    {
+        switch (section)
+        {
+            case Vic20MenuSection.LoadSave:
+                IsLoadSaveSectionExpanded = expanded;
+                if (collapseOthers && expanded)
+                    IsConfigSectionExpanded = false;
+                break;
+            case Vic20MenuSection.Config:
+                IsConfigSectionExpanded = expanded;
+                if (collapseOthers && expanded)
+                    IsLoadSaveSectionExpanded = false;
+                break;
+        }
+    }
+
+    public void ExpandConfigSectionOnValidationError()
+    {
+        IsLoadSaveSectionExpanded = false;
+        IsConfigSectionExpanded = true;
+    }
+
+    public string MenuLabel => "VIC-20";
+
+    public IReadOnlyList<NativeMenuItemBase> GetNativeMenuItems()
+    {
+        const KeyModifiers macBase = KeyModifiers.Meta | KeyModifiers.Alt;
+        const KeyModifiers macShift = KeyModifiers.Meta | KeyModifiers.Alt | KeyModifiers.Shift;
+
+        return new NativeMenuItemBase[]
+        {
+            BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macShift), ToggleLoadSaveSectionCommand),
+            BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macShift), ToggleConfigSectionCommand),
+            new NativeMenuItemSeparator(),
+            BuildMenuItem("Active joystick: Port 1", new KeyGesture(Key.D1, macBase), SetActiveJoystickCommand, 1),
+            BuildMenuItem("Active joystick: Port 2", new KeyGesture(Key.D2, macBase), SetActiveJoystickCommand, 2),
+            new NativeMenuItemSeparator(),
+            BuildMenuItem("Toggle Joystick KB", new KeyGesture(Key.K, macBase), ToggleJoystickKeyboardCommand),
+            BuildMenuItem("Keyboard joystick: Port 1", new KeyGesture(Key.D1, macShift), SetKeyboardJoystickCommand, 1),
+            BuildMenuItem("Keyboard joystick: Port 2", new KeyGesture(Key.D2, macShift), SetKeyboardJoystickCommand, 2),
+        };
+    }
+
+    public IReadOnlyList<KeyBinding> GetKeyBindings()
+    {
+        const KeyModifiers nonMacBase = KeyModifiers.Control | KeyModifiers.Alt;
+        const KeyModifiers nonMacShift = KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift;
+
+        return new[]
+        {
+            BuildKeyBinding(new KeyGesture(Key.L, nonMacShift), ToggleLoadSaveSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.C, nonMacShift), ToggleConfigSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.D1, nonMacBase), SetActiveJoystickCommand, 1),
+            BuildKeyBinding(new KeyGesture(Key.D2, nonMacBase), SetActiveJoystickCommand, 2),
+            BuildKeyBinding(new KeyGesture(Key.K, nonMacBase), ToggleJoystickKeyboardCommand),
+            BuildKeyBinding(new KeyGesture(Key.D1, nonMacShift), SetKeyboardJoystickCommand, 1),
+            BuildKeyBinding(new KeyGesture(Key.D2, nonMacShift), SetKeyboardJoystickCommand, 2),
+        };
+    }
+
+    private static NativeMenuItem BuildMenuItem(string header, KeyGesture gesture, System.Windows.Input.ICommand command, object? parameter = null)
+    {
+        var item = new NativeMenuItem
+        {
+            Header = header,
+            Gesture = gesture,
+            Command = command,
+        };
+        if (parameter != null)
+            item.CommandParameter = parameter;
+        return item;
+    }
+
+    private static KeyBinding BuildKeyBinding(KeyGesture gesture, System.Windows.Input.ICommand command, object? parameter = null)
+    {
+        var binding = new KeyBinding
+        {
+            Gesture = gesture,
+            Command = command,
+        };
+        if (parameter != null)
+            binding.CommandParameter = parameter;
+        return binding;
+    }
+
+    private void InitializePlaceholderData()
+    {
+        AvailableJoysticks.Clear();
+        AvailableJoysticks.Add(1);
+        AvailableJoysticks.Add(2);
+
+        AssemblyExamples.Clear();
+        AssemblyExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select an example --"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.VIC20.color_cycle.prg", "ColorCycle"));
+
+        BasicExamples.Clear();
+        BasicExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select an example --"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.HelloWorld.prg", "HelloWorld"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.BorderBackgroundColors.prg", "BorderBackgroundColors"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.LowerCaseCharset.prg", "LowerCaseCharset"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.MulticolorChars.prg", "MulticolorChars"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.ReverseVideo.prg", "ReverseVideo"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.ScreenGeometry.prg", "ScreenGeometry"));
+    }
+
+    private async Task CopyBasicSourceCodeAsync()
+    {
+        if (_hostApp.EmulatorState != EmulatorState.Running || _hostApp.CurrentRunningSystem is not Vic20System vic20)
+            return;
+
+        try
+        {
+            var sourceCode = vic20.BasicTokenParser.GetBasicText();
+            await RequestClipboardCopyAsync(sourceCode.ToLower());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error copying BASIC source");
+        }
+    }
+
+    private async Task PasteTextInternalAsync()
+    {
+        if (_hostApp.EmulatorState != EmulatorState.Running || _hostApp.CurrentRunningSystem is not Vic20System vic20)
+            return;
+
+        try
+        {
+            var text = await RequestClipboardPasteAsync();
+            if (!string.IsNullOrEmpty(text))
+                vic20.TextPaste.Paste(text);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error pasting text");
         }
     }
 
@@ -89,5 +402,150 @@ public class Vic20MenuViewModel : ViewModelBase
             if (wasRunning)
                 await _hostApp.Start();
         }
+    }
+
+    private async Task LoadAssemblyExampleAsync()
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        string? file = SelectedAssemblyExample;
+        if (string.IsNullOrEmpty(file))
+            return;
+
+        try
+        {
+            byte[] prgBytes;
+            using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
+            {
+                if (resourceStream == null)
+                    throw new InvalidOperationException($"Cannot find embedded VIC-20 assembly example resource: {file}");
+
+                prgBytes = new byte[resourceStream.Length];
+                resourceStream.ReadExactly(prgBytes);
+            }
+
+            await LoadAndStartBinaryAsync(prgBytes, "Assembly example");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading VIC-20 assembly example");
+        }
+    }
+
+    private async Task LoadBasicExampleAsync()
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        string? file = SelectedBasicExample;
+        if (string.IsNullOrEmpty(file))
+            return;
+
+        try
+        {
+            byte[] prgBytes;
+            using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
+            {
+                if (resourceStream == null)
+                    throw new InvalidOperationException($"Cannot find embedded VIC-20 BASIC example resource: {file}");
+
+                prgBytes = new byte[resourceStream.Length];
+                resourceStream.ReadExactly(prgBytes);
+            }
+
+            await LoadBasicFileAsync(prgBytes);
+
+            if (_hostApp.CurrentRunningSystem is Vic20System vic20)
+                vic20.TextPaste.Paste("list\n");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading VIC-20 BASIC example");
+        }
+    }
+
+    private async Task LoadAndStartBinaryAsync(byte[] fileBuffer, string sourceLabel)
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        bool wasRunning = _hostApp.EmulatorState == EmulatorState.Running;
+        if (wasRunning)
+            _hostApp.Pause();
+
+        try
+        {
+            BinaryLoader.Load(
+                _hostApp.CurrentRunningSystem!.Mem,
+                fileBuffer,
+                out ushort loadedAtAddress,
+                out ushort fileLength);
+
+            _hostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+
+            _logger.LogInformation("{SourceLabel} loaded at {LoadedAtAddress}, length {FileLength}", sourceLabel, loadedAtAddress.ToHex(), fileLength.ToHex());
+            _logger.LogInformation("Program Counter set to {LoadedAtAddress}", loadedAtAddress.ToHex());
+
+            await _hostApp.Start();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading VIC-20 binary");
+        }
+        finally
+        {
+            if (wasRunning && _hostApp.EmulatorState != EmulatorState.Running)
+                await _hostApp.Start();
+        }
+    }
+
+    public async Task<byte[]> GetBasicProgramAsPrgFileBytesAsync()
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return Array.Empty<byte>();
+
+        bool wasRunning = _hostApp.EmulatorState == EmulatorState.Running;
+        if (wasRunning)
+            _hostApp.Pause();
+
+        try
+        {
+            if (_hostApp.CurrentRunningSystem is not Vic20System vic20)
+                return Array.Empty<byte>();
+
+            ushort startAddress = Vic20System.BASIC_LOAD_ADDRESS;
+            ushort endAddress = vic20.GetBasicProgramEndAddress();
+
+            return BinarySaver.BuildSaveData(
+                vic20.Mem,
+                startAddress,
+                endAddress,
+                addFileHeaderWithLoadAddress: true);
+        }
+        finally
+        {
+            if (wasRunning)
+                await _hostApp.Start();
+        }
+    }
+
+    public event EventHandler<string>? ClipboardCopyRequested;
+    public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
+
+    private async Task RequestClipboardCopyAsync(string text)
+    {
+        ClipboardCopyRequested?.Invoke(this, text);
+        await Task.CompletedTask;
+    }
+
+    private async Task<string?> RequestClipboardPasteAsync()
+    {
+        if (ClipboardPasteRequested == null)
+            return null;
+
+        var tcs = new TaskCompletionSource<string?>();
+        ClipboardPasteRequested.Invoke(this, tcs);
+        return await tcs.Task;
     }
 }

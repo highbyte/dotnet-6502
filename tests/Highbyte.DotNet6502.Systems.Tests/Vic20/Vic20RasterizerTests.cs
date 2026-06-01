@@ -8,9 +8,11 @@ namespace Highbyte.DotNet6502.Systems.Tests.Vic20;
 public class Vic20RasterizerTests
 {
     [Fact]
-    public void VideoLayoutDecodesAddressesAndGeometryFromVicRegisters()
+    public void VideoLayoutDecodesAddressesGeometryAndOriginFromVicRegisters()
     {
         var mem = new Memory();
+        mem[Vic20VideoLayout.RegisterHorizontalOrigin] = 0x05;
+        mem[Vic20VideoLayout.RegisterVerticalOrigin] = 0x19;
         mem[Vic20VideoLayout.RegisterColumns] = 0x96;
         mem[Vic20VideoLayout.RegisterRows] = 0x2E;
         mem[Vic20VideoLayout.RegisterAddress] = 0xF0;
@@ -25,6 +27,10 @@ public class Vic20RasterizerTests
         Assert.Equal(22, layout.Columns);
         Assert.Equal(23, layout.Rows);
         Assert.Equal(8, layout.CharacterHeight);
+        Assert.Equal(20, Vic20VideoLayout.DecodeHorizontalOriginPixels(0x05));
+        Assert.Equal(50, Vic20VideoLayout.DecodeVerticalOriginPixels(0x19));
+        Assert.Equal(5, layout.HorizontalOriginPixels);
+        Assert.Equal(-1, layout.VerticalOriginPixels);
         Assert.Equal(0x01, layout.BackgroundColor);
         Assert.Equal(0x03, layout.BorderColor);
         Assert.Equal(0x0A, layout.AuxiliaryColor);
@@ -41,6 +47,10 @@ public class Vic20RasterizerTests
         Assert.Equal(0x9600, config.ColorStartAddress);
         Assert.Equal(0x1E00, vic20.CurrentVideoLayout.ScreenStartAddress);
         Assert.Equal(0x9600, vic20.CurrentVideoLayout.ColorStartAddress);
+        Assert.Equal((byte)0x0C, vic20.Mem[Vic20VideoLayout.RegisterHorizontalOrigin]);
+        Assert.Equal((byte)0x26, vic20.Mem[Vic20VideoLayout.RegisterVerticalOrigin]);
+        Assert.Equal(33, vic20.CurrentVideoLayout.HorizontalOriginPixels);
+        Assert.Equal(25, vic20.CurrentVideoLayout.VerticalOriginPixels);
         Assert.Equal(Highbyte.DotNet6502.Systems.Vic20.Vic20.BASIC_LOAD_ADDRESS, (ushort)0x1001);
     }
 
@@ -74,14 +84,11 @@ public class Vic20RasterizerTests
         var rasterizer = new Vic20Rasterizer(vic20);
         rasterizer.OnEndFrame();
 
-        var cellWidth = 8 * Vic20Config.PixelScaleX;
-        var borderX = (rasterizer.NativeSize.Width - layout.Columns * cellWidth) / 2;
-        var borderY = (rasterizer.NativeSize.Height - layout.Rows * 8) / 2;
         var foreground = rasterizer.CurrentFrontLayerBuffers[1].Span;
         var foregroundArgb = Pack(ColorMaps.Vic20ColorMap[0x06]);
         // Bit 7 (MSB) of the glyph maps to source pixel 0, which spans buffer pixels [borderX, borderX+1] with 2x stretch.
         for (var x = 0; x < Vic20Config.PixelScaleX; x++)
-            Assert.Equal(foregroundArgb, foreground[borderY * rasterizer.NativeSize.Width + borderX + x]);
+            Assert.Equal(foregroundArgb, foreground[layout.VerticalOriginPixels * rasterizer.NativeSize.Width + layout.HorizontalOriginPixels + x]);
     }
 
     [Fact]
@@ -100,34 +107,35 @@ public class Vic20RasterizerTests
         var rasterizer = new Vic20Rasterizer(vic20);
         rasterizer.OnEndFrame();
 
-        var cellWidth = 8 * Vic20Config.PixelScaleX;
-        var borderX = (rasterizer.NativeSize.Width - layout.Columns * cellWidth) / 2;
-        var borderY = (rasterizer.NativeSize.Height - layout.Rows * 8) / 2;
         var foreground = rasterizer.CurrentFrontLayerBuffers[1].Span;
-        var rowOffset = borderY * rasterizer.NativeSize.Width;
+        var rowOffset = layout.VerticalOriginPixels * rasterizer.NativeSize.Width;
 
         // Each pair covers 2 source pixels × PixelScaleX = 4 buffer pixels.
         var pairBufferWidth = 2 * Vic20Config.PixelScaleX;
         // Pair 1 (bits 5-4 = 01) → border color (0x03)
         for (var x = 0; x < pairBufferWidth; x++)
-            Assert.Equal(Pack(ColorMaps.Vic20ColorMap[0x03]), foreground[rowOffset + borderX + pairBufferWidth + x]);
+            Assert.Equal(Pack(ColorMaps.Vic20ColorMap[0x03]), foreground[rowOffset + layout.HorizontalOriginPixels + pairBufferWidth + x]);
         // Pair 2 (bits 3-2 = 10) → foreground color (0x02)
         for (var x = 0; x < pairBufferWidth; x++)
-            Assert.Equal(Pack(ColorMaps.Vic20ColorMap[0x02]), foreground[rowOffset + borderX + 2 * pairBufferWidth + x]);
+            Assert.Equal(Pack(ColorMaps.Vic20ColorMap[0x02]), foreground[rowOffset + layout.HorizontalOriginPixels + 2 * pairBufferWidth + x]);
         // Pair 3 (bits 1-0 = 11) → auxiliary color (0x0B)
         for (var x = 0; x < pairBufferWidth; x++)
-            Assert.Equal(Pack(ColorMaps.Vic20ColorMap[0x0B]), foreground[rowOffset + borderX + 3 * pairBufferWidth + x]);
+            Assert.Equal(Pack(ColorMaps.Vic20ColorMap[0x0B]), foreground[rowOffset + layout.HorizontalOriginPixels + 3 * pairBufferWidth + x]);
     }
 
     [Fact]
-    public void RasterizerCentersCharacterAreaWhenColumnsIncrease()
+    public void RasterizerUsesConfiguredOriginInsteadOfCenteringCharacterArea()
     {
         var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(new Vic20Config(), NullLoggerFactory.Instance);
         vic20.Mem[Vic20VideoLayout.RegisterColumns] = Vic20VideoLayout.EncodeColumnsRegister(0x1000, 24);
         vic20.Mem[Vic20VideoLayout.RegisterAddress] = Vic20VideoLayout.EncodeAddressRegister(0x1000, 0x1400);
+        vic20.Mem[Vic20VideoLayout.RegisterHorizontalOrigin] = 0x10;
+        vic20.Mem[Vic20VideoLayout.RegisterVerticalOrigin] = 0x2A;
 
         var layout = vic20.CurrentVideoLayout;
         Assert.Equal(24, layout.Columns);
+        Assert.Equal(49, layout.HorizontalOriginPixels);
+        Assert.Equal(33, layout.VerticalOriginPixels);
 
         vic20.Mem[layout.ScreenStartAddress] = 0x01;
         vic20.Mem[layout.ColorStartAddress] = 0x06;
@@ -136,41 +144,9 @@ public class Vic20RasterizerTests
         var rasterizer = new Vic20Rasterizer(vic20);
         rasterizer.OnEndFrame();
 
-        var cellWidth = 8 * Vic20Config.PixelScaleX;
-        var borderX = (rasterizer.NativeSize.Width - layout.Columns * cellWidth) / 2;
-        Assert.True(borderX >= 0);
-
         var foreground = rasterizer.CurrentFrontLayerBuffers[1].Span;
         var foregroundArgb = Pack(ColorMaps.Vic20ColorMap[0x06]);
-        var borderY = (rasterizer.NativeSize.Height - layout.Rows * 8) / 2;
-        Assert.Equal(foregroundArgb, foreground[borderY * rasterizer.NativeSize.Width + borderX]);
-    }
-
-    [Fact]
-    public void RasterizerCentersCharacterAreaWhenColumnsDecrease()
-    {
-        var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(new Vic20Config(), NullLoggerFactory.Instance);
-        vic20.Mem[Vic20VideoLayout.RegisterColumns] = Vic20VideoLayout.EncodeColumnsRegister(0x1000, 16);
-        vic20.Mem[Vic20VideoLayout.RegisterAddress] = Vic20VideoLayout.EncodeAddressRegister(0x1000, 0x1400);
-
-        var layout = vic20.CurrentVideoLayout;
-        Assert.Equal(16, layout.Columns);
-
-        vic20.Mem[layout.ScreenStartAddress] = 0x01;
-        vic20.Mem[layout.ColorStartAddress] = 0x06;
-        vic20.Mem[0x1408] = 0b1000_0000;
-
-        var rasterizer = new Vic20Rasterizer(vic20);
-        rasterizer.OnEndFrame();
-
-        var cellWidth = 8 * Vic20Config.PixelScaleX;
-        var borderX = (rasterizer.NativeSize.Width - layout.Columns * cellWidth) / 2;
-        Assert.True(borderX > 0);
-
-        var foreground = rasterizer.CurrentFrontLayerBuffers[1].Span;
-        var foregroundArgb = Pack(ColorMaps.Vic20ColorMap[0x06]);
-        var borderY = (rasterizer.NativeSize.Height - layout.Rows * 8) / 2;
-        Assert.Equal(foregroundArgb, foreground[borderY * rasterizer.NativeSize.Width + borderX]);
+        Assert.Equal(foregroundArgb, foreground[layout.VerticalOriginPixels * rasterizer.NativeSize.Width + layout.HorizontalOriginPixels]);
     }
 
     [Fact]
@@ -205,6 +181,21 @@ public class Vic20RasterizerTests
         Assert.Equal(TvModel.Pal.MaxVisibleWidth, vic20.VisibleWidth);
         Assert.Equal(TvModel.Pal.MaxVisibleHeight, vic20.VisibleHeight);
         Assert.Equal(TvModel.Pal.RefreshFrequencyHz, vic20.Screen.RefreshFrequencyHz);
+        Assert.Equal((byte)0x0C, vic20.Mem[Vic20VideoLayout.RegisterHorizontalOrigin]);
+        Assert.Equal((byte)0x26, vic20.Mem[Vic20VideoLayout.RegisterVerticalOrigin]);
+        Assert.Equal(25, vic20.CurrentVideoLayout.HorizontalOriginPixels);
+        Assert.Equal(50, vic20.CurrentVideoLayout.VerticalOriginPixels);
+    }
+
+    [Fact]
+    public void RasterizerClipsWhenOriginMovesAboveViewport()
+    {
+        var vic20 = new Highbyte.DotNet6502.Systems.Vic20.Vic20(new Vic20Config(), NullLoggerFactory.Instance);
+        vic20.Mem[Vic20VideoLayout.RegisterHorizontalOrigin] = 0x05;
+        vic20.Mem[Vic20VideoLayout.RegisterVerticalOrigin] = 0x19;
+
+        var rasterizer = new Vic20Rasterizer(vic20);
+        rasterizer.OnEndFrame();
     }
 
     private static uint Pack(System.Drawing.Color color)

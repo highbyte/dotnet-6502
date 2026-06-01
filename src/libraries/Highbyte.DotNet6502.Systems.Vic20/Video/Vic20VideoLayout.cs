@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Vic20.Config;
 
 namespace Highbyte.DotNet6502.Systems.Vic20.Video;
@@ -9,11 +10,21 @@ public readonly record struct Vic20VideoLayout(
     int Columns,
     int Rows,
     int CharacterHeight,
+    int HorizontalOriginPixels,
+    int VerticalOriginPixels,
     byte BackgroundColor,
     byte BorderColor,
     byte AuxiliaryColor,
     bool ReverseScreen)
 {
+    // The current VIC-20 implementation uses KERNAL 901486-07 as its boot baseline.
+    // That ROM programs PAL-style picture origin values ($9000=$0C, $9001=$26)
+    // for the normal text screen, even when the host selects the NTSC TV viewport.
+    private const byte KernalBootHorizontalOriginRegister = 0x0C;
+    private const byte KernalBootVerticalOriginRegister = 0x26;
+
+    public const ushort RegisterHorizontalOrigin = 0x9000;
+    public const ushort RegisterVerticalOrigin = 0x9001;
     public const ushort RegisterColumns = 0x9002;
     public const ushort RegisterRows = 0x9003;
     public const ushort RegisterAddress = 0x9005;
@@ -22,11 +33,14 @@ public readonly record struct Vic20VideoLayout(
 
     public static Vic20VideoLayout FromMemory(Memory mem, Vic20Config config)
     {
+        var horizontalOriginRegister = mem[RegisterHorizontalOrigin];
+        var verticalOriginRegister = mem[RegisterVerticalOrigin];
         var columnsRegister = mem[RegisterColumns];
         var rowsRegister = mem[RegisterRows];
         var addressRegister = mem[RegisterAddress];
         var auxiliaryColorRegister = mem[RegisterAuxiliaryColor];
         var backgroundBorderRegister = mem[RegisterBackgroundBorderColor];
+        var tvModel = config.TvModel;
 
         var columns = columnsRegister & 0x7F;
         if (columns == 0)
@@ -45,10 +59,46 @@ public readonly record struct Vic20VideoLayout(
             Columns: columns,
             Rows: rows,
             CharacterHeight: characterHeight,
+            HorizontalOriginPixels: TranslateHorizontalOriginToViewport(horizontalOriginRegister, tvModel),
+            VerticalOriginPixels: TranslateVerticalOriginToViewport(verticalOriginRegister, tvModel),
             BackgroundColor: (byte)((backgroundBorderRegister >> 4) & 0x0F),
             BorderColor: (byte)(backgroundBorderRegister & 0x07),
             AuxiliaryColor: (byte)((auxiliaryColorRegister >> 4) & 0x0F),
             ReverseScreen: (backgroundBorderRegister & 0x08) == 0);
+    }
+
+    public static int DecodeHorizontalOriginPixels(byte horizontalOriginRegister)
+    {
+        return (horizontalOriginRegister & 0x7F) * 4;
+    }
+
+    public static int DecodeVerticalOriginPixels(byte verticalOriginRegister)
+    {
+        return verticalOriginRegister * 2;
+    }
+
+    public static byte GetDefaultHorizontalOriginRegister(TvModel tvModel)
+    {
+        return KernalBootHorizontalOriginRegister;
+    }
+
+    public static byte GetDefaultVerticalOriginRegister(TvModel tvModel)
+    {
+        return KernalBootVerticalOriginRegister;
+    }
+
+    public static int TranslateHorizontalOriginToViewport(byte horizontalOriginRegister, TvModel tvModel)
+    {
+        return GetDefaultViewportOriginX(tvModel)
+            + (DecodeHorizontalOriginPixels(horizontalOriginRegister)
+            - DecodeHorizontalOriginPixels(GetDefaultHorizontalOriginRegister(tvModel)));
+    }
+
+    public static int TranslateVerticalOriginToViewport(byte verticalOriginRegister, TvModel tvModel)
+    {
+        return GetDefaultViewportOriginY(tvModel)
+            + (DecodeVerticalOriginPixels(verticalOriginRegister)
+            - DecodeVerticalOriginPixels(GetDefaultVerticalOriginRegister(tvModel)));
     }
 
     public static ushort DecodeScreenStartAddress(byte columnsRegister, byte addressRegister)
@@ -104,5 +154,14 @@ public readonly record struct Vic20VideoLayout(
         var inBlock0 = characterStartAddress < 0x8000;
         var upperAddressBits = (characterStartAddress >> 10) & 0x07;
         return (byte)((inBlock0 ? 0x08 : 0x00) | upperAddressBits);
+    }
+    private static int GetDefaultViewportOriginX(TvModel tvModel)
+    {
+        return (tvModel.MaxVisibleWidth - Vic20Config.DrawableAreaWidth) / 2;
+    }
+
+    private static int GetDefaultViewportOriginY(TvModel tvModel)
+    {
+        return (tvModel.MaxVisibleHeight - Vic20Config.DrawableAreaHeight) / 2;
     }
 }

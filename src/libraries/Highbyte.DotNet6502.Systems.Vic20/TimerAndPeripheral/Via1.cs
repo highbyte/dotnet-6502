@@ -24,7 +24,7 @@ public class Via1 : ViaBase
     public Via1(Vic20 vic20, ILoggerFactory loggerFactory)
         : base(vic20, new ViaIRQ(useNMI: false))
     {
-        Keyboard = new Vic20Keyboard(loggerFactory);
+        Keyboard = new Vic20Keyboard(vic20, loggerFactory);
     }
 
     public override void MapIOLocations(Memory mem)

@@ -44,8 +44,8 @@ public class Vic20InputHandler : IInputConsumer
     {
         _inputState.UpdatePerFrame();
         var hostKeysDown = _inputState.KeysDown;
-        var vic20Keys = ResolveVic20Keys(hostKeysDown, out bool capsLockOn);
-        _vic20.Via1.Keyboard.SetKeysPressed(vic20Keys, capsLockOn);
+        var vic20Keys = ResolveVic20Keys(hostKeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+        _vic20.Via1.Keyboard.SetKeysPressed(vic20Keys, restoreKeyPressed, capsLockOn);
     }
 
     public void Cleanup() { }
@@ -54,8 +54,10 @@ public class Vic20InputHandler : IInputConsumer
 
     private List<Vic20Key> ResolveVic20Keys(
         IReadOnlySet<HostKey> keysDown,
+        out bool restoreKeyPressed,
         out bool capsLockOn)
     {
+        restoreKeyPressed = keysDown.Contains(HostKey.PageUp);
         capsLockOn = _inputState.CapsLockOn;
 
         // Find the most-specific matching entries (more host keys in the chord = wins).
