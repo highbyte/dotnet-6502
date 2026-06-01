@@ -26,6 +26,7 @@ public partial class C64MenuView : UserControl
 
     // Access ViewModel through DataContext
     private C64MenuViewModel? ViewModel => DataContext as C64MenuViewModel;
+    private C64MenuViewModel? _subscribedViewModel;
 
     // Parameterless constructor for XAML compatibility
     public C64MenuView()
@@ -35,21 +36,15 @@ public partial class C64MenuView : UserControl
         // Subscribe to ViewModel events for UI operations
         this.DataContextChanged += (s, e) =>
         {
-            if (ViewModel != null)
-            {
-                // Subscribe to clipboard and file operation requests
-                ViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
-                ViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
-                ViewModel.AttachDiskImageRequested += OnAttachDiskImageRequested;
+            UpdateViewModelSubscriptions(ViewModel);
 
-                // NOTE: Do NOT call UpdateSectionStatesIfNeeded() here.
-                // DataContextChanged fires before the view is in the visual tree. If
-                // AttachedToVisualTree fires shortly after (which it always does in the
-                // plugin architecture), a second StartButtonFlash call would capture the
-                // button's background while it's already orange, making both "on" and "off"
-                // states orange so the animation appears stuck. AttachedToVisualTree is
-                // the single, reliable trigger used below.
-            }
+            // NOTE: Do NOT call UpdateSectionStatesIfNeeded() here.
+            // DataContextChanged fires before the view is in the visual tree. If
+            // AttachedToVisualTree fires shortly after (which it always does in the
+            // plugin architecture), a second StartButtonFlash call would capture the
+            // button's background while it's already orange, making both "on" and "off"
+            // states orange so the animation appears stuck. AttachedToVisualTree is
+            // the single, reliable trigger used below.
         };
 
         // Subscribe to visibility property changes to update section states when view becomes visible.
@@ -79,6 +74,30 @@ public partial class C64MenuView : UserControl
             if (ViewModel != null)
                 UpdateSectionStatesIfNeeded();
         };
+
+        this.DetachedFromVisualTree += (s, e) => UpdateViewModelSubscriptions(null);
+    }
+
+    private void UpdateViewModelSubscriptions(C64MenuViewModel? newViewModel)
+    {
+        if (ReferenceEquals(_subscribedViewModel, newViewModel))
+            return;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested -= OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested -= OnClipboardPasteRequested;
+            _subscribedViewModel.AttachDiskImageRequested -= OnAttachDiskImageRequested;
+        }
+
+        _subscribedViewModel = newViewModel;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
+            _subscribedViewModel.AttachDiskImageRequested += OnAttachDiskImageRequested;
+        }
     }
 
     // Event handlers for ViewModel requests (pure UI operations)
@@ -99,11 +118,11 @@ public partial class C64MenuView : UserControl
             if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
             {
                 using var data = await clipboard.TryGetDataAsync();
-                tcs.SetResult(data is not null ? await data.TryGetTextAsync() : null);
+                tcs.TrySetResult(data is not null ? await data.TryGetTextAsync() : null);
             }
             else
             {
-                tcs.SetResult(null);
+                tcs.TrySetResult(null);
             }
         });
 
@@ -112,14 +131,14 @@ public partial class C64MenuView : UserControl
         {
             if (TopLevel.GetTopLevel(this) is not { } topLevel)
             {
-                tcs.SetResult(null);
+                tcs.TrySetResult(null);
                 return;
             }
 
             var storageProvider = topLevel.StorageProvider;
             if (!storageProvider.CanOpen)
             {
-                tcs.SetResult(null);
+                tcs.TrySetResult(null);
                 return;
             }
 
@@ -141,17 +160,17 @@ public partial class C64MenuView : UserControl
                     await using var stream = await files[0].OpenReadAsync();
                     var fileBuffer = new byte[stream.Length];
                     await stream.ReadExactlyAsync(fileBuffer);
-                    tcs.SetResult(fileBuffer);
+                    tcs.TrySetResult(fileBuffer);
                 }
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, "Error reading disk image file");
-                    tcs.SetResult(null);
+                    tcs.TrySetResult(null);
                 }
             }
             else
             {
-                tcs.SetResult(null);
+                tcs.TrySetResult(null);
             }
         });
 

@@ -27,13 +27,15 @@
                     AutomationProperties.AutomationId="CopyBasicButton"
                     AutomationProperties.Name="Copy BASIC source to clipboard"
                     Classes="small"
-                    IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                    Command="{Binding CopyBasicSourceCommand}"
+                    IsEnabled="{Binding IsCopyPasteEnabled}"/>
             <Button Grid.Column="1"
                     Content="Paste"
                     AutomationProperties.AutomationId="PasteTextButton"
                     AutomationProperties.Name="Paste text from clipboard"
                     Classes="small"
-                    IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                    Command="{Binding PasteTextCommand}"
+                    IsEnabled="{Binding IsCopyPasteEnabled}"/>
         </Grid>
 
         <StackPanel>
@@ -78,7 +80,8 @@
                         <Button Grid.Column="1"
                                 Content="Save Basic"
                                 AutomationProperties.AutomationId="SaveBasicButton"
-                                IsEnabled="{Binding ArePlaceholderControlsEnabled}"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="SaveBasicFile_Click"
                                 Classes="small"/>
                     </Grid>
 

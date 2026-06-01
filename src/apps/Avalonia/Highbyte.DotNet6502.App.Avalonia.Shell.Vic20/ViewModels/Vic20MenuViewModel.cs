@@ -11,6 +11,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia.Vic20;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Vic20.Utils;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
@@ -28,6 +29,8 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     public AvaloniaHostApp HostApp => _hostApp;
 
+    public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
+    public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
@@ -46,9 +49,20 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
             .WhenAnyValue(x => x.EmulatorState)
             .Subscribe(_ =>
             {
+                this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
                 this.RaisePropertyChanged(nameof(IsVic20ConfigEnabled));
             });
+
+        CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await CopyBasicSourceCodeAsync(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        PasteTextCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await PasteTextInternalAsync(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            RxSchedulers.MainThreadScheduler);
 
         LoadBasicFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBasicFileAsync(fileBuffer),
@@ -83,6 +97,7 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
             RxSchedulers.MainThreadScheduler);
     }
 
+    public bool IsCopyPasteEnabled => _hostApp.EmulatorState == EmulatorState.Running;
     public bool IsFileOperationEnabled => _hostApp.EmulatorState != EmulatorState.Uninitialized;
     public bool IsVic20ConfigEnabled => _hostApp.EmulatorState == EmulatorState.Uninitialized;
     public bool ArePlaceholderControlsEnabled => false;
@@ -290,6 +305,39 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
         BasicExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select an example --"));
     }
 
+    private async Task CopyBasicSourceCodeAsync()
+    {
+        if (_hostApp.EmulatorState != EmulatorState.Running || _hostApp.CurrentRunningSystem is not Vic20System vic20)
+            return;
+
+        try
+        {
+            var sourceCode = vic20.BasicTokenParser.GetBasicText();
+            await RequestClipboardCopyAsync(sourceCode.ToLower());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error copying BASIC source");
+        }
+    }
+
+    private async Task PasteTextInternalAsync()
+    {
+        if (_hostApp.EmulatorState != EmulatorState.Running || _hostApp.CurrentRunningSystem is not Vic20System vic20)
+            return;
+
+        try
+        {
+            var text = await RequestClipboardPasteAsync();
+            if (!string.IsNullOrEmpty(text))
+                vic20.TextPaste.Paste(text);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error pasting text");
+        }
+    }
+
     private async Task LoadBasicFileAsync(byte[] fileBuffer)
     {
         if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
@@ -326,5 +374,54 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
             if (wasRunning)
                 await _hostApp.Start();
         }
+    }
+
+    public async Task<byte[]> GetBasicProgramAsPrgFileBytesAsync()
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return Array.Empty<byte>();
+
+        bool wasRunning = _hostApp.EmulatorState == EmulatorState.Running;
+        if (wasRunning)
+            _hostApp.Pause();
+
+        try
+        {
+            if (_hostApp.CurrentRunningSystem is not Vic20System vic20)
+                return Array.Empty<byte>();
+
+            ushort startAddress = Vic20System.BASIC_LOAD_ADDRESS;
+            ushort endAddress = vic20.GetBasicProgramEndAddress();
+
+            return BinarySaver.BuildSaveData(
+                vic20.Mem,
+                startAddress,
+                endAddress,
+                addFileHeaderWithLoadAddress: true);
+        }
+        finally
+        {
+            if (wasRunning)
+                await _hostApp.Start();
+        }
+    }
+
+    public event EventHandler<string>? ClipboardCopyRequested;
+    public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
+
+    private async Task RequestClipboardCopyAsync(string text)
+    {
+        ClipboardCopyRequested?.Invoke(this, text);
+        await Task.CompletedTask;
+    }
+
+    private async Task<string?> RequestClipboardPasteAsync()
+    {
+        if (ClipboardPasteRequested == null)
+            return null;
+
+        var tcs = new TaskCompletionSource<string?>();
+        ClipboardPasteRequested.Invoke(this, tcs);
+        return await tcs.Task;
     }
 }

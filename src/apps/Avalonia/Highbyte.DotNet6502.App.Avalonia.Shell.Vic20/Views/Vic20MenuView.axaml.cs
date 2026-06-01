@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -22,20 +23,73 @@ public partial class Vic20MenuView : UserControl
     private ILogger? _logger;
     private ILogger Logger => _logger ??= AppLogger.CreateLogger(nameof(Vic20MenuView));
     private Vic20MenuViewModel? ViewModel => DataContext as Vic20MenuViewModel;
+    private Vic20MenuViewModel? _subscribedViewModel;
     private CancellationTokenSource? _buttonFlashCancellation;
 
     public Vic20MenuView()
     {
         InitializeComponent();
 
+        DataContextChanged += (_, _) =>
+        {
+            UpdateViewModelSubscriptions(ViewModel);
+        };
+
         AttachedToVisualTree += (_, _) =>
         {
             if (ViewModel != null)
                 UpdateSectionStatesIfNeeded();
         };
+
+        DetachedFromVisualTree += (_, _) => UpdateViewModelSubscriptions(null);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private void UpdateViewModelSubscriptions(Vic20MenuViewModel? newViewModel)
+    {
+        if (ReferenceEquals(_subscribedViewModel, newViewModel))
+            return;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested -= OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested -= OnClipboardPasteRequested;
+        }
+
+        _subscribedViewModel = newViewModel;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
+        }
+    }
+
+    private void OnClipboardCopyRequested(object? sender, string text)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
+            {
+                using var data = new DataTransfer();
+                data.Add(DataTransferItem.CreateText(text));
+                await clipboard.SetDataAsync(data);
+            }
+        });
+
+    private void OnClipboardPasteRequested(object? sender, TaskCompletionSource<string?> tcs)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
+            {
+                using var data = await clipboard.TryGetDataAsync();
+                tcs.TrySetResult(data is not null ? await data.TryGetTextAsync() : null);
+            }
+            else
+            {
+                tcs.TrySetResult(null);
+            }
+        });
 
     private void UpdateSectionStatesIfNeeded()
     {
@@ -164,6 +218,43 @@ public partial class Vic20MenuView : UserControl
                 {
                     Logger.LogError(ex, "Error loading Basic .prg");
                 }
+            }
+        });
+
+    private void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+            var storageProvider = topLevel.StorageProvider;
+            if (!storageProvider.CanSave)
+                return;
+
+            try
+            {
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Save Basic PRG File",
+                    SuggestedFileName = "program",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    }
+                });
+
+                if (file != null)
+                {
+                    var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytesAsync();
+
+                    await using var stream = await file.OpenWriteAsync();
+                    await stream.WriteAsync(saveData);
+                    Logger.LogInformation("Basic program saved to {FileName}", file.Name);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error saving Basic .prg");
             }
         });
 

@@ -217,6 +217,22 @@ public class Vic20Keyboard
         return rows;
     }
 
+    /// <summary>
+    /// Inserts a PETSCII character directly into the KERNAL keyboard buffer.
+    /// </summary>
+    public bool InsertPetsciiCharIntoBuffer(byte petsciiChar)
+    {
+        // Address $00C6: keyboard buffer index
+        // Address $0277-$0280: keyboard buffer contents
+        var bufferIndex = _vic20.Mem[0x00c6];
+        if (bufferIndex >= 10)
+            return false;
+
+        _vic20.Mem[0x00c6]++;
+        _vic20.Mem[(ushort)(0x0277 + bufferIndex)] = petsciiChar;
+        return true;
+    }
+
     public bool IsKeyPressed(Vic20Key key) => _pressedKeys.Contains(key);
 }
 

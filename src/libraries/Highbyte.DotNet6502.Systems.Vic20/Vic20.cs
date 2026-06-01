@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Vic20.Config;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
 using Highbyte.DotNet6502.Systems.Vic20.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Vic20.Utils;
 using Highbyte.DotNet6502.Systems.Vic20.Video;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
@@ -17,7 +18,7 @@ namespace Highbyte.DotNet6502.Systems.Vic20;
 /// Runs the 6502 CPU instruction-by-instruction (matching the C64 pattern) so that
 /// VIA chip timers are advanced in lock-step with the CPU cycle count.
 /// </summary>
-public class Vic20 : ISystem, ITextMode, IScreen
+public class Vic20 : ISystem, ITextMode, IScreen, ISystemState
 {
     public const string SystemName = "VIC-20";
 
@@ -56,6 +57,8 @@ public class Vic20 : ISystem, ITextMode, IScreen
     // VIA chips — created before memory mapping so MapIOLocations can wire callbacks.
     public Via1 Via1 { get; }
     public Via2 Via2 { get; }
+    public Vic20BasicTokenParser BasicTokenParser { get; }
+    public Vic20TextPaste TextPaste { get; }
 
     private IRenderProvider? _renderProvider;
     public IRenderProvider? RenderProvider => _renderProvider;
@@ -95,6 +98,8 @@ public class Vic20 : ISystem, ITextMode, IScreen
         // Create VIA chips before ROM mapping so they can register memory callbacks.
         Via1 = new Via1(this, loggerFactory);
         Via2 = new Via2(this, Via1);
+        BasicTokenParser = new Vic20BasicTokenParser(this, loggerFactory);
+        TextPaste = new Vic20TextPaste(this, loggerFactory);
 
         if (romData != null)
             MapROMs(romData);
@@ -226,6 +231,7 @@ public class Vic20 : ISystem, ITextMode, IScreen
         // that the KERNAL uses (with IER bit 1 = CA1 enabled) to run its IRQ handler,
         // which does keyboard scan, cursor blink, and other housekeeping.
         Via1.TriggerCA1(CPU);
+        TextPaste.InsertNextCharacterToKeyboardBuffer();
 
         _renderProviderPerFrameStat.Start();
         _renderProvider?.OnEndFrame();
@@ -290,4 +296,23 @@ public class Vic20 : ISystem, ITextMode, IScreen
         Mem.WriteWord(0x2f, varStartAddress);
         Mem.WriteWord(0x31, varStartAddress);
     }
+
+    /// <summary>
+    /// Returns the end address of the current BASIC program in memory.
+    /// </summary>
+    public ushort GetBasicProgramEndAddress()
+    {
+        return (ushort)(Mem.FetchWord(0x2d) - 1);
+    }
+
+    /// <summary>
+    /// Checks if VIC-20 BASIC has started and completed its initialization.
+    /// </summary>
+    public bool HasBasicStarted()
+    {
+        var txtabPointer = Mem.FetchWord(0x2B);
+        return txtabPointer == BASIC_LOAD_ADDRESS;
+    }
+
+    bool ISystemState.IsSystemReady() => HasBasicStarted();
 }
