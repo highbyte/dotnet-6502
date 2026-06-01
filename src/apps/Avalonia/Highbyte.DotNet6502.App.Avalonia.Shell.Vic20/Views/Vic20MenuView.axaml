@@ -88,7 +88,8 @@
                     <Button Content="Load &amp; start binary"
                             AutomationProperties.AutomationId="LoadBinaryButton"
                             Classes="primary small"
-                            IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                            IsEnabled="{Binding IsFileOperationEnabled}"
+                            Click="LoadBinaryFile_Click"/>
 
                     <TextBlock Text="Assembly example files"
                                Classes="small secondary-text"/>
@@ -104,7 +105,7 @@
                                   SelectedValue="{Binding SelectedAssemblyExample}"
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
-                                  IsEnabled="{Binding ArePlaceholderControlsEnabled}"
+                                  IsEnabled="{Binding IsFileOperationEnabled}"
                                   Classes="small"
                                   VerticalAlignment="Stretch"
                                   MinWidth="60"/>
@@ -113,7 +114,7 @@
                                 AutomationProperties.AutomationId="LoadAssemblyExampleButton"
                                 VerticalAlignment="Stretch"
                                 Classes="primary small"
-                                IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                                Command="{Binding LoadAssemblyExampleCommand}"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files"
@@ -130,7 +131,7 @@
                                   SelectedValue="{Binding SelectedBasicExample}"
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
-                                  IsEnabled="{Binding ArePlaceholderControlsEnabled}"
+                                  IsEnabled="{Binding IsFileOperationEnabled}"
                                   Classes="small"
                                   VerticalAlignment="Stretch"
                                   MinWidth="60"/>
@@ -139,7 +140,7 @@
                                 AutomationProperties.AutomationId="LoadBasicExampleButton"
                                 VerticalAlignment="Stretch"
                                 Classes="primary small"
-                                IsEnabled="{Binding ArePlaceholderControlsEnabled}"/>
+                                Command="{Binding LoadBasicExampleCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>

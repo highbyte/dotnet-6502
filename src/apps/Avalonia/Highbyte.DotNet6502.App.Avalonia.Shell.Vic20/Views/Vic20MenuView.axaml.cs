@@ -239,13 +239,13 @@ public partial class Vic20MenuView : UserControl
                     FileTypeChoices = new[]
                     {
                         new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                    }
-                });
+                                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                            }
+                        });
 
-                if (file != null)
-                {
-                    var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytesAsync();
+                        if (file != null)
+                        {
+                            var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytesAsync();
 
                     await using var stream = await file.OpenWriteAsync();
                     await stream.WriteAsync(saveData);
@@ -255,6 +255,43 @@ public partial class Vic20MenuView : UserControl
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error saving Basic .prg");
+            }
+        });
+
+    private void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+            var storageProvider = topLevel.StorageProvider;
+            if (!storageProvider.CanOpen)
+                return;
+
+            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Load & Start Binary PRG File",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                }
+            });
+
+            if (files.Count > 0)
+            {
+                try
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    var fileBuffer = new byte[stream.Length];
+                    await stream.ReadExactlyAsync(fileBuffer);
+
+                    _ = ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error loading binary .prg");
+                }
             }
         });
 

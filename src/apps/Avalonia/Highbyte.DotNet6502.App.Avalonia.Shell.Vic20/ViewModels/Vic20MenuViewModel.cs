@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -26,12 +27,17 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
 {
     private readonly AvaloniaHostApp _hostApp;
     private readonly ILogger _logger;
+    private readonly Assembly _examplesAssembly = typeof(AvaloniaHostApp).Assembly;
 
     public AvaloniaHostApp HostApp => _hostApp;
+    private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
 
     public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
     public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
+    public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
     public ReactiveCommand<int, Unit> SetActiveJoystickCommand { get; }
@@ -66,6 +72,21 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         LoadBasicFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBasicFileAsync(fileBuffer),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        LoadBinaryFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
+            async (fileBuffer) => await LoadAndStartBinaryAsync(fileBuffer, "Binary program"),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await LoadAssemblyExampleAsync(),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        LoadBasicExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await LoadBasicExampleAsync(),
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
 
@@ -300,9 +321,16 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         AssemblyExamples.Clear();
         AssemblyExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select an example --"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.VIC20.color_cycle.prg", "ColorCycle"));
 
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select an example --"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.HelloWorld.prg", "HelloWorld"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.BorderBackgroundColors.prg", "BorderBackgroundColors"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.LowerCaseCharset.prg", "LowerCaseCharset"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.MulticolorChars.prg", "MulticolorChars"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.ReverseVideo.prg", "ReverseVideo"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.VIC20.ScreenGeometry.prg", "ScreenGeometry"));
     }
 
     private async Task CopyBasicSourceCodeAsync()
@@ -372,6 +400,102 @@ public class Vic20MenuViewModel : ViewModelBase, ISystemMenuContributor
         finally
         {
             if (wasRunning)
+                await _hostApp.Start();
+        }
+    }
+
+    private async Task LoadAssemblyExampleAsync()
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        string? file = SelectedAssemblyExample;
+        if (string.IsNullOrEmpty(file))
+            return;
+
+        try
+        {
+            byte[] prgBytes;
+            using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
+            {
+                if (resourceStream == null)
+                    throw new InvalidOperationException($"Cannot find embedded VIC-20 assembly example resource: {file}");
+
+                prgBytes = new byte[resourceStream.Length];
+                resourceStream.ReadExactly(prgBytes);
+            }
+
+            await LoadAndStartBinaryAsync(prgBytes, "Assembly example");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading VIC-20 assembly example");
+        }
+    }
+
+    private async Task LoadBasicExampleAsync()
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        string? file = SelectedBasicExample;
+        if (string.IsNullOrEmpty(file))
+            return;
+
+        try
+        {
+            byte[] prgBytes;
+            using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
+            {
+                if (resourceStream == null)
+                    throw new InvalidOperationException($"Cannot find embedded VIC-20 BASIC example resource: {file}");
+
+                prgBytes = new byte[resourceStream.Length];
+                resourceStream.ReadExactly(prgBytes);
+            }
+
+            await LoadBasicFileAsync(prgBytes);
+
+            if (_hostApp.CurrentRunningSystem is Vic20System vic20)
+                vic20.TextPaste.Paste("list\n");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading VIC-20 BASIC example");
+        }
+    }
+
+    private async Task LoadAndStartBinaryAsync(byte[] fileBuffer, string sourceLabel)
+    {
+        if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        bool wasRunning = _hostApp.EmulatorState == EmulatorState.Running;
+        if (wasRunning)
+            _hostApp.Pause();
+
+        try
+        {
+            BinaryLoader.Load(
+                _hostApp.CurrentRunningSystem!.Mem,
+                fileBuffer,
+                out ushort loadedAtAddress,
+                out ushort fileLength);
+
+            _hostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+
+            _logger.LogInformation("{SourceLabel} loaded at {LoadedAtAddress}, length {FileLength}", sourceLabel, loadedAtAddress.ToHex(), fileLength.ToHex());
+            _logger.LogInformation("Program Counter set to {LoadedAtAddress}", loadedAtAddress.ToHex());
+
+            await _hostApp.Start();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading VIC-20 binary");
+        }
+        finally
+        {
+            if (wasRunning && _hostApp.EmulatorState != EmulatorState.Running)
                 await _hostApp.Start();
         }
     }
