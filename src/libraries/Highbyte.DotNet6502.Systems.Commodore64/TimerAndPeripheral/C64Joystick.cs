@@ -37,8 +37,8 @@ public class C64Joystick
         if (joystick != 1 && joystick != 2)
             throw new ArgumentException($"Joystick number {joystick} is not supported. Valid values are 1 and 2.");
 
-        if (joystickActions.Count > 0)
-            _logger.LogDebug($"C64 joystick {joystick} pressed: {string.Join(",", joystickActions)}");
+        if (joystickActions.Count > 0 && _logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("C64 joystick {Joystick} pressed: {Actions}", joystick, string.Join(",", joystickActions));
 
         if (overwrite)
         {

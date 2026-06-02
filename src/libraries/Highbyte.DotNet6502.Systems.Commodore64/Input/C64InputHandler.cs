@@ -28,6 +28,12 @@ public class C64InputHandler : IInputConsumer
     private readonly C64BasicCodingAssistant? _c64BasicCodingAssistant;
 
     private C64HostKeyboard _c64HostKeyboard = default!;
+    private readonly List<C64Key> _c64KeysDownBuffer = new();
+    private readonly List<HostKey[]> _foundHostKeyMappingsBuffer = new();
+    private readonly HashSet<C64JoystickAction> _c64JoystickActionsBuffer = new();
+    private readonly List<GamepadButton[]> _foundGamepadMappingsBuffer = new();
+    private readonly HashSet<HostKey> _swappedHostKeysBuffer = new();
+    private readonly HashSet<HostKey> _lastSwappedSourceKeysBuffer = new();
 
     /// <summary>
     /// True when the macOS ISO-keyboard <see cref="HostKey.Backquote"/> / <see cref="HostKey.IntlBackslash"/>
@@ -184,14 +190,34 @@ public class C64InputHandler : IInputConsumer
     // Returns a copy of the held host keys with HostKey.Backquote and HostKey.IntlBackslash
     // exchanged — the macOS ISO-keyboard correction (see Init). Returns the input unchanged when
     // neither key is held, to avoid allocating on every frame.
-    private static IReadOnlySet<HostKey> SwapBackquoteAndIntlBackslash(IReadOnlySet<HostKey> hostKeysDown)
+    private IReadOnlySet<HostKey> SwapBackquoteAndIntlBackslash(IReadOnlySet<HostKey> hostKeysDown)
     {
         bool hasBackquote = hostKeysDown.Contains(HostKey.Backquote);
         bool hasIntlBackslash = hostKeysDown.Contains(HostKey.IntlBackslash);
         if (!hasBackquote && !hasIntlBackslash)
             return hostKeysDown;
 
-        var swapped = new HashSet<HostKey>(hostKeysDown);
+        var swapped = _swappedHostKeysBuffer;
+        if (hostKeysDown is HashSet<HostKey> hostKeyHashSet)
+        {
+            if (_lastSwappedSourceKeysBuffer.SetEquals(hostKeyHashSet))
+                return swapped;
+
+            _lastSwappedSourceKeysBuffer.Clear();
+            _lastSwappedSourceKeysBuffer.UnionWith(hostKeyHashSet);
+            swapped.Clear();
+            swapped.UnionWith(hostKeyHashSet);
+        }
+        else
+        {
+            swapped.Clear();
+            _lastSwappedSourceKeysBuffer.Clear();
+            foreach (var key in hostKeysDown)
+            {
+                swapped.Add(key);
+                _lastSwappedSourceKeysBuffer.Add(key);
+            }
+        }
         swapped.Remove(HostKey.Backquote);
         swapped.Remove(HostKey.IntlBackslash);
         if (hasBackquote)
@@ -229,23 +255,19 @@ public class C64InputHandler : IInputConsumer
         restoreKeyPressed = keysDown.Contains(HostKey.PageUp);
         capsLockOn = _inputState.CapsLockOn;
 
-        var c64KeysDown = new List<C64Key>();
-        var foundMappings = new List<HostKey[]>();
+        var c64KeysDown = _c64KeysDownBuffer;
+        c64KeysDown.Clear();
+        var foundMappings = _foundHostKeyMappingsBuffer;
+        foundMappings.Clear();
         foreach (var mapKeys in _c64HostKeyboard.HostKeyToC64KeyMap.Keys)
         {
-            int matchCount = 0;
-            foreach (var mapKeysKey in mapKeys)
-            {
-                if (keysDown.Contains(mapKeysKey))
-                    matchCount++;
-            }
-            if (matchCount == mapKeys.Length)
+            if (MatchesAllKeys(keysDown, mapKeys))
             {
                 // Remove any other mappings found that contains any of the keys in this mapping.
                 for (int i = foundMappings.Count - 1; i >= 0; i--)
                 {
                     var currentlyFoundMapKeys = foundMappings[i];
-                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    if (MappingsShareAnyKey(currentlyFoundMapKeys, mapKeys))
                         foundMappings.RemoveAt(i);
                 }
                 foundMappings.Add(mapKeys);
@@ -274,24 +296,20 @@ public class C64InputHandler : IInputConsumer
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromGamepad(IReadOnlySet<GamepadButton> gamepadButtonsDown)
     {
-        var c64JoystickActions = new HashSet<C64JoystickAction>();
-        var foundMappings = new List<GamepadButton[]>();
+        var c64JoystickActions = _c64JoystickActionsBuffer;
+        c64JoystickActions.Clear();
+        var foundMappings = _foundGamepadMappingsBuffer;
+        foundMappings.Clear();
         var map = _inputConfig.GamePadToC64JoystickMap[_inputConfig.CurrentJoystick];
         foreach (var mapKeys in map.Keys)
         {
-            int matchCount = 0;
-            foreach (var mapKeysKey in mapKeys)
-            {
-                if (gamepadButtonsDown.Contains(mapKeysKey))
-                    matchCount++;
-            }
-            if (matchCount == mapKeys.Length)
+            if (MatchesAllKeys(gamepadButtonsDown, mapKeys))
             {
                 // Remove any other mappings found that contains any of the gamepad buttons in this mapping.
                 for (int i = foundMappings.Count - 1; i >= 0; i--)
                 {
                     var currentlyFoundMapKeys = foundMappings[i];
-                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    if (MappingsShareAnyKey(currentlyFoundMapKeys, mapKeys))
                         foundMappings.RemoveAt(i);
                 }
                 foundMappings.Add(mapKeys);
@@ -305,5 +323,31 @@ public class C64InputHandler : IInputConsumer
                 c64JoystickActions.Add(c64Action);
         }
         return c64JoystickActions;
+    }
+
+    private static bool MatchesAllKeys<T>(IReadOnlySet<T> pressedKeys, T[] mapKeys)
+    {
+        foreach (var mapKey in mapKeys)
+        {
+            if (!pressedKeys.Contains(mapKey))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool MappingsShareAnyKey<T>(T[] left, T[] right)
+    {
+        var comparer = EqualityComparer<T>.Default;
+        foreach (var leftKey in left)
+        {
+            foreach (var rightKey in right)
+            {
+                if (comparer.Equals(leftKey, rightKey))
+                    return true;
+            }
+        }
+
+        return false;
     }
 }
