@@ -135,6 +135,21 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
+### 2026-06-02 — rasterizer lookup tables use indexed caches
+
+The per-instruction text/bitmap rasterizer path used dictionary lookups for the
+precomputed border and 8-pixel pattern caches. Replacing those hot-path
+lookups with packed-index tables removes the hashing overhead while keeping the
+same cached pixel payloads and allocation-free behavior.
+
+Measured on Apple M5 / .NET 10.0.5 / ShortRun against the previous
+`sparse sprite row and byte skips` baseline:
+
+| Scenario | `None` before | `None` after | Δ | `MixedVisibleSprites` before | `MixedVisibleSprites` after | Δ | Allocated |
+|----------|--------------:|-------------:|--:|-----------------------------:|----------------------------:|--:|----------:|
+| `RenderOnly` | 289.1 us | 243.6 us | -16% | 278.9 us | 246.7 us | -12% | - / - |
+| `RenderAndAudio` | 456.6 us | 378.2 us | -17% | 461.5 us | 380.6 us | -18% | - / - |
+
 ### 2026-06-02 — sparse sprite row and byte skips
 
 The sprite-heavy frame path now caches which sprite rows actually contain
