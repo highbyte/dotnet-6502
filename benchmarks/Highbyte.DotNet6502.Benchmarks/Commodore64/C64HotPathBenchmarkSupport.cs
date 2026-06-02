@@ -22,6 +22,12 @@ public enum C64HotPathScenario
     RenderAndAudio,
 }
 
+public enum C64SpriteScenario
+{
+    None,
+    MixedVisibleSprites,
+}
+
 internal sealed class C64HotPathConfig : ManualConfig
 {
     public C64HotPathConfig()
@@ -41,7 +47,7 @@ internal static class C64HotPathBenchmarkSupport
 {
     public const ushort StartAddress = 0xC000;
 
-    public static C64 CreateScenario(C64HotPathScenario scenario)
+    public static C64 CreateScenario(C64HotPathScenario scenario, C64SpriteScenario spriteScenario = C64SpriteScenario.None)
     {
         var c64Config = new C64Config
         {
@@ -57,6 +63,7 @@ internal static class C64HotPathBenchmarkSupport
 
         var c64 = C64.BuildC64(c64Config, new NullLoggerFactory());
         SeedVisibleScreen(c64);
+        SeedSprites(c64, spriteScenario);
         LoadProgram(c64.Mem, StartAddress);
         ConfigureSampleAudio(c64);
         return c64;
@@ -89,6 +96,52 @@ internal static class C64HotPathBenchmarkSupport
                 c64.Mem[(ushort)(Vic2Addr.COLOR_RAM_START + offset)] = (byte)((offset % 15) + 1);
             }
         }
+    }
+
+    private static void SeedSprites(C64 c64, C64SpriteScenario spriteScenario)
+    {
+        if (spriteScenario == C64SpriteScenario.None)
+            return;
+
+        var spriteGenerator = new C64SpriteGenerator(c64);
+        var spriteManager = c64.Vic2.SpriteManager;
+
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0, 0x05);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1, 0x0D);
+
+        var spriteSpecs = new (int X, int Y, bool DoubleWidth, bool DoubleHeight, bool MultiColor, bool BehindForeground, byte Color, byte Pointer, Func<C64SpriteGenerator, byte[]> ShapeFactory)[]
+        {
+            (spriteManager.ScreenOffsetX + 0,   spriteManager.ScreenOffsetY + 0,   false, false, false, false, 0x01, 192, g => g.CreateTestSingleColorSpriteImage()),
+            (spriteManager.ScreenOffsetX + 24,  spriteManager.ScreenOffsetY + 8,   true,  false, false, true,  0x02, 193, g => g.CreateTestSingleColorSpriteImage2()),
+            (spriteManager.ScreenOffsetX + 56,  spriteManager.ScreenOffsetY + 18,  false, true,  false, false, 0x03, 194, g => g.CreateTestSingleColorSpriteImage()),
+            (spriteManager.ScreenOffsetX + 88,  spriteManager.ScreenOffsetY + 28,  true,  true,  false, true,  0x04, 195, g => g.CreateTestSingleColorSpriteImage2()),
+            (spriteManager.ScreenOffsetX + 124, spriteManager.ScreenOffsetY + 44,  false, false, true,  false, 0x06, 196, g => g.CreateTestMultiColorSpriteImage()),
+            (spriteManager.ScreenOffsetX + 156, spriteManager.ScreenOffsetY + 60,  true,  false, true,  true,  0x07, 197, g => g.CreateTestMultiColorSpriteImage()),
+            (spriteManager.ScreenOffsetX + 188, spriteManager.ScreenOffsetY + 84,  false, true,  true,  false, 0x08, 198, g => g.CreateTestMultiColorSpriteImage()),
+            (spriteManager.ScreenOffsetX + 216, spriteManager.ScreenOffsetY + 104, true,  true,  true,  true,  0x09, 199, g => g.CreateTestMultiColorSpriteImage()),
+        };
+
+        byte spriteForegroundPriority = 0;
+
+        for (int spriteNumber = 0; spriteNumber < spriteSpecs.Length; spriteNumber++)
+        {
+            var sprite = spriteSpecs[spriteNumber];
+            spriteGenerator.CreateSprite(
+                spriteNumber: spriteNumber,
+                x: (byte)sprite.X,
+                y: (byte)sprite.Y,
+                doubleWidth: sprite.DoubleWidth,
+                doubleHeight: sprite.DoubleHeight,
+                multiColor: sprite.MultiColor,
+                spriteShape: sprite.ShapeFactory(spriteGenerator),
+                spritePointer: sprite.Pointer);
+
+            c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_COLOR + spriteNumber), sprite.Color);
+            spriteForegroundPriority.ChangeBit(spriteNumber, sprite.BehindForeground);
+        }
+
+        c64.WriteIOStorage(Vic2Addr.SPRITE_FOREGROUND_PRIO, spriteForegroundPriority);
+        spriteManager.SetAllDirty();
     }
 
     private static void ConfigureSampleAudio(C64 c64)

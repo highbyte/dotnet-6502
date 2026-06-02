@@ -86,12 +86,23 @@ ShortRun / Apple M5 / .NET 10.0.5 / Arm64:
 
 ShortRun / Apple M5 / .NET 10.0.5 / Arm64:
 
+`SpriteScenario = None`
+
 | Scenario | 1 frame | Allocated |
 |----------|--------:|----------:|
 | `CoreOnly` | 130.2 us | - |
 | `RenderOnly` | 298.4 us | - |
 | `AudioOnly` | 231.9 us | - |
 | `RenderAndAudio` | 454.4 us | - |
+
+`SpriteScenario = MixedVisibleSprites`
+
+| Scenario | 1 frame | Allocated |
+|----------|--------:|----------:|
+| `CoreOnly` | 268.1 us | - |
+| `RenderOnly` | 440.8 us | - |
+| `AudioOnly` | 365.1 us | - |
+| `RenderAndAudio` | 627.2 us | - |
 
 Observations to carry into the next optimization pass:
 
@@ -100,6 +111,10 @@ Observations to carry into the next optimization pass:
 - The frame benchmark is now **allocation-free in all four scenarios** after
   removing a per-frame LINQ `OrderByDescending(...)` call from the rasterizer's
   sprite pass.
+- The frame benchmark now also has a visible-sprite workload, which exercises:
+  - sprite collision work in `C64.ExecuteOneFrame()`
+  - rasterizer sprite drawing in `Vic2RasterizerUintPixelGenerator.OnEndFrame()`
+  - sprite priority / multicolor / width-height expansion branches
 - On this machine, render cost is currently higher than sample-audio cost, and
   the combined scenario scales roughly additively, which makes the suite useful
   for validating future render/audio refactors independently.
@@ -134,6 +149,26 @@ the allocation entirely:
 |----------|-------:|------:|-----------------:|----------------:|
 | `RenderOnly` | 302.6 us | 298.4 us | 408 B | - |
 | `RenderAndAudio` | 458.1 us | 454.4 us | 408 B | - |
+
+### 2026-06-02 — C64 frame benchmark: add visible-sprite workload axis
+
+`C64ExecuteFrameBenchmark` now includes `SpriteScenario = MixedVisibleSprites`
+in addition to the previous no-sprite baseline. The mixed sprite setup enables 8
+visible sprites spanning:
+
+- standard + multicolor sprite modes
+- double-width and double-height expansion
+- priority-over-foreground and behind-foreground cases
+
+This extends the frame benchmark from “text/bitmap/background/border rasterizer
+cost” to also covering sprite drawing and sprite-collision work.
+
+| Scenario | None | MixedVisibleSprites | Δ | Allocated |
+|----------|-----:|--------------------:|--:|----------:|
+| `CoreOnly` | 133.4 us | 268.1 us | +101% | - / - |
+| `RenderOnly` | 306.9 us | 440.8 us | +44% | - / - |
+| `AudioOnly` | 234.7 us | 365.1 us | +56% | - / - |
+| `RenderAndAudio` | 469.4 us | 627.2 us | +34% | - / - |
 
 ### 2026-06-02 — `Memory_Read_TightLoop` / `Memory_Write_TightLoop` benchmarks added
 

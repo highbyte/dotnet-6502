@@ -15,13 +15,18 @@ public class C64ExecuteFrameBenchmark
         C64HotPathScenario.RenderAndAudio)]
     public C64HotPathScenario Scenario;
 
+    [Params(
+        C64SpriteScenario.None,
+        C64SpriteScenario.MixedVisibleSprites)]
+    public C64SpriteScenario SpriteScenario;
+
     [Params(1)]
     public int NumberOfFramesToExecute;
 
     [GlobalSetup]
     public void Setup()
     {
-        _c64 = C64HotPathBenchmarkSupport.CreateScenario(Scenario);
+        _c64 = C64HotPathBenchmarkSupport.CreateScenario(Scenario, SpriteScenario);
     }
 
     [Benchmark]
