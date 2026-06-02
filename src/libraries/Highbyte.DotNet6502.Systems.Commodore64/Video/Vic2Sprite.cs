@@ -43,6 +43,12 @@ public class Vic2Sprite
         }
     }
 
+    public bool ScreenLineHasVisiblePixels(int spriteScreenLine)
+    {
+        var spriteLine = DoubleHeight ? spriteScreenLine / 2 : spriteScreenLine;
+        return Data.RowHasPixels(spriteLine);
+    }
+
     public bool IsDirty => IsContentDirty || IsMetadataDirty;
     public bool IsContentDirty => _isContentDirty;
     public bool IsMetadataDirty => _isMetadataDirty;
@@ -63,15 +69,23 @@ public class Vic2Sprite
         var spritePointerAddress = (ushort)(spritePointer * 64);
 
         var bytesPerRow = DEFAULT_WIDTH / 8;
+        uint nonEmptyRowMask = 0;
         for (int row = 0; row < DEFAULT_HEIGTH; row++)
         {
+            bool rowHasPixels = false;
             for (int rowByte = 0; rowByte < bytesPerRow; rowByte++)
             {
                 var byteAddr = spritePointerAddress + (row * bytesPerRow) + rowByte;
                 var spriteRowByte = _vic2.Vic2Mem[(ushort)(byteAddr)];
                 _data.Rows[row].Bytes[rowByte] = spriteRowByte;
+                rowHasPixels |= spriteRowByte != 0;
             }
+
+            if (rowHasPixels)
+                nonEmptyRowMask |= 1u << row;
         }
+
+        _data.NonEmptyRowMask = nonEmptyRowMask;
     }
 
     public void HasChanged(Vic2SpriteChangeType spriteChangeType)
@@ -201,6 +215,7 @@ public class Vic2Sprite
     public class Vic2SpriteData
     {
         public Vic2SpriteRow[] Rows { get; set; } = new Vic2SpriteRow[DEFAULT_HEIGTH];
+        public uint NonEmptyRowMask { get; set; }
 
         public Vic2SpriteData()
         {
@@ -208,6 +223,11 @@ public class Vic2Sprite
             {
                 Rows[row] = new Vic2SpriteRow();
             }
+        }
+
+        public bool RowHasPixels(int row)
+        {
+            return (NonEmptyRowMask & (1u << row)) != 0;
         }
 
         public class Vic2SpriteRow

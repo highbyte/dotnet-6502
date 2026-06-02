@@ -31,6 +31,18 @@ public class Vic2SpriteManagerTests
         Assert.Equal(0b0000_0011, collision);
     }
 
+    [Fact]
+    public void GetSpriteToSpriteCollision_still_detects_overlap_after_empty_leading_rows()
+    {
+        var c64 = BuildC64();
+        CreateVisibleSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192, CreateSingleRowSprite(rowIndex: 1, firstRowFirstByte: 0xF0));
+        CreateVisibleSprite(c64, spriteNumber: 1, x: 10, y: 10, spritePointer: 193, CreateSingleRowSprite(rowIndex: 1, firstRowFirstByte: 0xF0));
+
+        var collision = c64.Vic2.SpriteManager.GetSpriteToSpriteCollision();
+
+        Assert.Equal(0b0000_0011, collision);
+    }
+
     private static C64 BuildC64()
     {
         return C64.BuildC64(new C64Config
@@ -43,6 +55,11 @@ public class Vic2SpriteManagerTests
 
     private static void CreateVisibleSolidSprite(C64 c64, int spriteNumber, byte x, byte y, byte spritePointer)
     {
+        CreateVisibleSprite(c64, spriteNumber, x, y, spritePointer, Enumerable.Repeat((byte)0xFF, 63).ToArray());
+    }
+
+    private static void CreateVisibleSprite(C64 c64, int spriteNumber, byte x, byte y, byte spritePointer, byte[] spriteShape)
+    {
         c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2), x);
         c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2), y);
 
@@ -54,9 +71,16 @@ public class Vic2SpriteManagerTests
         c64.Vic2.Vic2Mem[(ushort)(spriteManager.SpritePointerStartAddress + spriteNumber)] = spritePointer;
 
         var spriteDataAddress = (ushort)(spritePointer * 64);
-        for (ushort i = 0; i < 63; i++)
+        for (ushort i = 0; i < spriteShape.Length; i++)
         {
-            c64.Vic2.Vic2Mem[(ushort)(spriteDataAddress + i)] = 0xFF;
+            c64.Vic2.Vic2Mem[(ushort)(spriteDataAddress + i)] = spriteShape[i];
         }
+    }
+
+    private static byte[] CreateSingleRowSprite(int rowIndex, byte firstRowFirstByte)
+    {
+        var spriteShape = new byte[63];
+        spriteShape[rowIndex * 3] = firstRowFirstByte;
+        return spriteShape;
     }
 }

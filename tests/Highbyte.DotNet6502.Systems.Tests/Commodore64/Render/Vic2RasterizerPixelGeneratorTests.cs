@@ -32,6 +32,19 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.Equal(4, endX - startX + 1);
     }
 
+    [Fact]
+    public void DrawSprites_preserves_y_position_after_empty_leading_rows()
+    {
+        var c64 = BuildC64();
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0b1111_0000, rowIndex: 2), spritePointer: 192);
+        var foreground = RenderSprites(c64);
+        var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (row, _, _) = GetFirstRenderedSpan(foreground, c64.Screen.VisibleWidth);
+
+        Assert.Equal(visibleMainScreenArea.Screen.Start.Y + 2, row);
+    }
+
     private static C64 BuildC64()
     {
         return C64.BuildC64(new C64Config
@@ -127,10 +140,10 @@ public class Vic2RasterizerPixelGeneratorTests
         throw new Xunit.Sdk.XunitException("Expected rendered sprite pixels, but no non-zero pixels were found.");
     }
 
-    private static byte[] CreateSingleRowSprite(byte firstRowFirstByte)
+    private static byte[] CreateSingleRowSprite(byte firstRowFirstByte, int rowIndex = 0)
     {
         var spriteShape = new byte[63];
-        spriteShape[0] = firstRowFirstByte;
+        spriteShape[rowIndex * 3] = firstRowFirstByte;
         return spriteShape;
     }
 }

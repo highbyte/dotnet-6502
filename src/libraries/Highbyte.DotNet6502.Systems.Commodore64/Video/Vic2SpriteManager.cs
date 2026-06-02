@@ -129,6 +129,9 @@ public class Vic2SpriteManager : IVic2SpriteManager
             // Loop each sprite line
             for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
             {
+                if (!sprite.ScreenLineHasVisiblePixels(screenLine))
+                    continue;
+
                 // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded horizontally or not)
 #pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
                 Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];
@@ -185,6 +188,9 @@ public class Vic2SpriteManager : IVic2SpriteManager
         // Loop each sprite line
         for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
         {
+            if (!sprite.ScreenLineHasVisiblePixels(screenLine))
+                continue;
+
             // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded vertically or not)
 #pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
             Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];

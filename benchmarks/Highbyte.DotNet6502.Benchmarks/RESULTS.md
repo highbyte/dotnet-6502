@@ -135,6 +135,23 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
+### 2026-06-02 — sparse sprite row and byte skips
+
+The sprite-heavy frame path now caches which sprite rows actually contain
+pixels, then uses that information to skip empty rows in both collision
+detection and rasterizer sprite drawing. The rasterizer sprite loop also skips
+fully transparent sprite bytes before entering the per-pixel decode work.
+
+Measured on Apple M5 / .NET 10.0.5 / ShortRun against the last committed
+sprite-collision baseline:
+
+| Scenario | `MixedVisibleSprites` before | `MixedVisibleSprites` after | Δ | Allocated |
+|----------|-----------------------------:|----------------------------:|--:|----------:|
+| `CoreOnly` | 141.1 us | 131.4 us | -7% | - / - |
+| `RenderOnly` | 303.8 us | 278.9 us | -8% | - / - |
+| `AudioOnly` | 234.4 us | 225.1 us | -4% | - / - |
+| `RenderAndAudio` | 491.1 us | 461.5 us | -6% | - / - |
+
 ### 2026-06-02 — sprite collision prefilter and early exit
 
 `Vic2SpriteManager.GetSpriteToSpriteCollision()` now rejects sprite pairs whose
