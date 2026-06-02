@@ -669,7 +669,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     _setPixel(color, bitmapIndex, true); // true = foreground
                 }
             }
-            sprite.ClearDirty();
         }
 
         _spritesStat.Stop();

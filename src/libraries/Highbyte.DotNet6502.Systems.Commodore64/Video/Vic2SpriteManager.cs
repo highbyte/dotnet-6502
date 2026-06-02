@@ -50,9 +50,14 @@ public class Vic2SpriteManager : IVic2SpriteManager
 
     public void SetAllDirty()
     {
+        SetAllChanged(Vic2SpriteChangeType.All);
+    }
+
+    public void SetAllChanged(Vic2SpriteChangeType spriteChangeType)
+    {
         foreach (var sprite in Sprites)
         {
-            sprite.HasChanged(Vic2SpriteChangeType.All);
+            sprite.HasChanged(spriteChangeType);
         }
     }
 

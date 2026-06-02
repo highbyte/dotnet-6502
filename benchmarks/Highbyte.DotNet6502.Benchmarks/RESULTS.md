@@ -90,19 +90,19 @@ ShortRun / Apple M5 / .NET 10.0.5 / Arm64:
 
 | Scenario | 1 frame | Allocated |
 |----------|--------:|----------:|
-| `CoreOnly` | 130.2 us | - |
-| `RenderOnly` | 298.4 us | - |
-| `AudioOnly` | 231.9 us | - |
-| `RenderAndAudio` | 454.4 us | - |
+| `CoreOnly` | 132.4 us | - |
+| `RenderOnly` | 301.9 us | - |
+| `AudioOnly` | 240.2 us | - |
+| `RenderAndAudio` | 420.0 us | - |
 
 `SpriteScenario = MixedVisibleSprites`
 
 | Scenario | 1 frame | Allocated |
 |----------|--------:|----------:|
-| `CoreOnly` | 268.1 us | - |
-| `RenderOnly` | 440.8 us | - |
-| `AudioOnly` | 365.1 us | - |
-| `RenderAndAudio` | 627.2 us | - |
+| `CoreOnly` | 171.4 us | - |
+| `RenderOnly` | 335.3 us | - |
+| `AudioOnly` | 260.7 us | - |
+| `RenderAndAudio` | 527.4 us | - |
 
 Observations to carry into the next optimization pass:
 
@@ -169,6 +169,26 @@ cost” to also covering sprite drawing and sprite-collision work.
 | `RenderOnly` | 306.9 us | 440.8 us | +44% | - / - |
 | `AudioOnly` | 234.7 us | 365.1 us | +56% | - / - |
 | `RenderAndAudio` | 469.4 us | 627.2 us | +34% | - / - |
+
+### 2026-06-02 — sprite data cache behind dirty flag
+
+`Vic2Sprite.Data` previously rebuilt sprite row bytes on every access, even
+though the class already tracked sprite dirtiness. The sprite-heavy frame path
+hits `sprite.Data` from both collision detection and rasterizer sprite drawing,
+so this caused repeated redundant rebuilds.
+
+The fix adds a dedicated sprite-data cache flag: sprite bytes are rebuilt only
+when the pointer/data content changes, while the broader `IsDirty` flag keeps
+its existing meaning for other render providers.
+
+Measured on the Apple M5 / .NET 10.0.5 ShortRun benchmark:
+
+| Scenario | MixedVisibleSprites before | MixedVisibleSprites after | Δ | Allocated |
+|----------|---------------------------:|--------------------------:|--:|----------:|
+| `CoreOnly` | 268.1 us | 171.4 us | -36% | - / - |
+| `RenderOnly` | 440.8 us | 335.3 us | -24% | - / - |
+| `AudioOnly` | 365.1 us | 260.7 us | -29% | - / - |
+| `RenderAndAudio` | 627.2 us | 527.4 us | -16% | - / - |
 
 ### 2026-06-02 — `Memory_Read_TightLoop` / `Memory_Write_TightLoop` benchmarks added
 

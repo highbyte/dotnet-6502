@@ -30,11 +30,26 @@ public class Vic2Sprite
     public int HeightPixels => DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
 
     private readonly Vic2SpriteData _data = new Vic2SpriteData();
-    public Vic2SpriteData Data => BuildSpriteData();
+    public Vic2SpriteData Data
+    {
+        get
+        {
+            if (_isDataDirty)
+            {
+                BuildSpriteData();
+                _isDataDirty = false;
+            }
+            return _data;
+        }
+    }
 
-    public bool IsDirty => _isDirty;
+    public bool IsDirty => IsContentDirty || IsMetadataDirty;
+    public bool IsContentDirty => _isContentDirty;
+    public bool IsMetadataDirty => _isMetadataDirty;
 
-    private bool _isDirty = true;
+    private bool _isContentDirty = true;
+    private bool _isMetadataDirty = true;
+    private bool _isDataDirty = true;
 
     public Vic2Sprite(int spriteNumber, IVic2SpriteManager spriteManager)
     {
@@ -42,7 +57,7 @@ public class Vic2Sprite
         _spriteManager = spriteManager;
     }
 
-    private Vic2SpriteData BuildSpriteData()
+    private void BuildSpriteData()
     {
         var spritePointer = _vic2.Vic2Mem[(ushort)(_spriteManager.SpritePointerStartAddress + SpriteNumber)];
         var spritePointerAddress = (ushort)(spritePointer * 64);
@@ -57,8 +72,6 @@ public class Vic2Sprite
                 _data.Rows[row].Bytes[rowByte] = spriteRowByte;
             }
         }
-
-        return _data;
     }
 
     public void HasChanged(Vic2SpriteChangeType spriteChangeType)
@@ -66,36 +79,62 @@ public class Vic2Sprite
         switch (spriteChangeType)
         {
             case Vic2SpriteChangeType.Data:
-                SetDirty();
+                MarkContentDirty();
                 break;
             case Vic2SpriteChangeType.Color:
-                if (Multicolor)
-                    SetDirty();
+                MarkMetadataDirty();
                 break;
             case Vic2SpriteChangeType.MultiColor0:
                 if (Multicolor)
-                    SetDirty();
+                    MarkMetadataDirty();
                 break;
             case Vic2SpriteChangeType.MultiColor1:
                 if (Multicolor)
-                    SetDirty();
+                    MarkMetadataDirty();
+                break;
+            case Vic2SpriteChangeType.Metadata:
+                MarkMetadataDirty();
                 break;
             case Vic2SpriteChangeType.All:
-                SetDirty();
+                MarkAllDirty();
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(spriteChangeType), spriteChangeType, null);
         }
     }
 
-    private void SetDirty()
+    private void MarkContentDirty()
     {
-        _isDirty = true;
+        _isContentDirty = true;
+        _isDataDirty = true;
+    }
+
+    private void MarkMetadataDirty()
+    {
+        _isMetadataDirty = true;
+    }
+
+    private void MarkAllDirty()
+    {
+        _isContentDirty = true;
+        _isMetadataDirty = true;
+        _isDataDirty = true;
+    }
+
+    public void ClearContentDirty()
+    {
+        _isContentDirty = false;
+    }
+
+    public void ClearMetadataDirty()
+    {
+        _isMetadataDirty = false;
     }
 
     public void ClearDirty()
     {
-        _isDirty = false;
+        _isContentDirty = false;
+        _isMetadataDirty = false;
     }
 
     //private void CreateTestSpriteImage()
@@ -183,6 +222,7 @@ public class Vic2Sprite
         MultiColor0,
         MultiColor1,
         Data,
+        Metadata,
         All,
     }
 }

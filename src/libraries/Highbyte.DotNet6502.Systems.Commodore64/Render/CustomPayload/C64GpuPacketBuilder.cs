@@ -91,9 +91,10 @@ public static class C64GpuPacketBuilder
             spriteData[si].DoubleHeight = sprite.DoubleHeight ? 1u : 0u;
             spriteData[si].PriorityOverForeground = sprite.PriorityOverForeground ? 1u : 0u;
             spriteData[si].MultiColor = sprite.Multicolor ? 1u : 0u;
+            sprite.ClearMetadataDirty();
         }
 
-        var spriteContentDataIsDirty = _c64.Vic2.SpriteManager.Sprites.Any(s => s.IsDirty);
+        var spriteContentDataIsDirty = _c64.Vic2.SpriteManager.Sprites.Any(s => s.IsContentDirty);
         var spriteContentData = Array.Empty<SpriteContentData>();
         if (spriteContentDataIsDirty)
         {
@@ -113,8 +114,8 @@ public static class C64GpuPacketBuilder
                         };
                     }
                 }
-                if (sprite.IsDirty)
-                    sprite.ClearDirty();
+                if (sprite.IsContentDirty)
+                    sprite.ClearContentDirty();
             }
         }
 
