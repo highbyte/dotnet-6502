@@ -468,7 +468,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // Main screen, copy 8 pixels at a time
         _spritesStat.Start();
         var vic2 = _c64.Vic2;
-        var vic2Mem = vic2.Vic2Mem;
         var vic2Screen = vic2.Vic2Screen;
         var vic2ScreenLayouts = vic2.ScreenLayouts;
 
@@ -481,8 +480,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var visibleMainScreenAreaLineData = vic2ScreenLayouts.GetLayout(LayoutType.Visible);
 
         // Write sprites to a separate bitmap/pixel array
-        foreach (var sprite in vic2.SpriteManager.Sprites.OrderByDescending(s => s.SpriteNumber))
+        var sprites = vic2.SpriteManager.Sprites;
+        for (int spriteIndex = sprites.Length - 1; spriteIndex >= 0; spriteIndex--)
         {
+            var sprite = sprites[spriteIndex];
             if (!sprite.Visible)
                 continue;
 
@@ -668,7 +669,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     _setPixel(color, bitmapIndex, true); // true = foreground
                 }
             }
-
             sprite.ClearDirty();
         }
 

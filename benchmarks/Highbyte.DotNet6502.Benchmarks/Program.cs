@@ -21,6 +21,14 @@ BenchmarkSwitcher
 // Running for real:
 // dotnet run -c Release
 
+if (args.Length > 0)
+{
+    BenchmarkSwitcher
+        .FromAssembly(typeof(Program).Assembly)
+        .Run(args);
+    return;
+}
+
 // Use UI selection
 //BenchmarkSwitcher
 //    .FromAssembly(typeof(Program).Assembly)
@@ -52,4 +60,3 @@ var summary = BenchmarkRunner
 //    .Run<SidSampleCoreBenchmark>();
 
 #endif
-

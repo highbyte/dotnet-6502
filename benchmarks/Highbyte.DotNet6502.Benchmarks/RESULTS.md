@@ -52,6 +52,58 @@ Observations to carry into the Part 2 analysis pass:
   effective). `InstructionExecutor_OneStep` ≈ 10.9 ns, so the per-step fixed
   cost dominates over the small program's per-iteration variance.
 
+## C64 hot-path baseline — 2026-06-02 (feature/hotpath-optimize HEAD)
+
+These baselines cover the integrated C64 execution path with the four first-pass
+provider permutations:
+
+- `CoreOnly`
+- `RenderOnly` (`Vic2Rasterizer`)
+- `AudioOnly` (`C64SidSampleProvider`)
+- `RenderAndAudio` (`Vic2Rasterizer` + `C64SidSampleProvider`)
+
+Run them with:
+
+1. `dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks -- --filter '*C64ExecuteInstructionBenchmark*'`
+2. `dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks -- --filter '*C64ExecuteFrameBenchmark*'`
+
+The benchmark executable now keeps `HotPathBenchmarks` as the no-args default,
+but switches to `BenchmarkSwitcher` when args are supplied so filtered C64 runs
+work without editing `Program.cs`.
+
+### `C64ExecuteInstructionBenchmark`
+
+ShortRun / Apple M5 / .NET 10.0.5 / Arm64:
+
+| Scenario | 1 instruction | 100 instructions | 1000 instructions | Allocated |
+|----------|--------------:|-----------------:|------------------:|----------:|
+| `CoreOnly` | 13.64 ns | 1.596 us | 16.286 us | - |
+| `RenderOnly` | 29.97 ns | 3.609 us | 35.609 us | - |
+| `AudioOnly` | 23.88 ns | 2.850 us | 29.228 us | - |
+| `RenderAndAudio` | 48.56 ns | 5.742 us | 59.975 us | - |
+
+### `C64ExecuteFrameBenchmark`
+
+ShortRun / Apple M5 / .NET 10.0.5 / Arm64:
+
+| Scenario | 1 frame | Allocated |
+|----------|--------:|----------:|
+| `CoreOnly` | 130.2 us | - |
+| `RenderOnly` | 298.4 us | - |
+| `AudioOnly` | 231.9 us | - |
+| `RenderAndAudio` | 454.4 us | - |
+
+Observations to carry into the next optimization pass:
+
+- The benchmark matrix is now **allocation-free per instruction** in all four
+  scenarios.
+- The frame benchmark is now **allocation-free in all four scenarios** after
+  removing a per-frame LINQ `OrderByDescending(...)` call from the rasterizer's
+  sprite pass.
+- On this machine, render cost is currently higher than sample-audio cost, and
+  the combined scenario scales roughly additively, which makes the suite useful
+  for validating future render/audio refactors independently.
+
 ## Confirming `[AggressiveInlining]` folded the ExecEvaluator helpers
 
 The `LegacyExecEvaluator.Check` refactor split the original method into three
@@ -67,6 +119,21 @@ separate call sites in the disassembly of `Check`.
 
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
+
+### 2026-06-02 — C64 rasterizer frame path: remove per-frame LINQ allocation
+
+`Vic2RasterizerUintPixelGenerator.DrawSpritesToBitmapBackedByPixelArray()` used
+`vic2.SpriteManager.Sprites.OrderByDescending(s => s.SpriteNumber)` on every
+frame to draw sprites back-to-front. That LINQ sort allocated 408 B per frame in
+the `C64ExecuteFrameBenchmark` rasterizer-enabled scenarios.
+
+Replacing it with a simple reverse index loop preserves draw order and removes
+the allocation entirely:
+
+| Scenario | Before | After | Allocated before | Allocated after |
+|----------|-------:|------:|-----------------:|----------------:|
+| `RenderOnly` | 302.6 us | 298.4 us | 408 B | - |
+| `RenderAndAudio` | 458.1 us | 454.4 us | 408 B | - |
 
 ### 2026-06-02 — `Memory_Read_TightLoop` / `Memory_Write_TightLoop` benchmarks added
 
