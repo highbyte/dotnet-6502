@@ -135,6 +135,22 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
+### 2026-06-02 — standard-text background is prefilled once per line
+
+The rasterizer's standard-text path used to write the same background-color span
+once per character cell. It now fills the standard-text background once when a
+new line starts, then only writes per-cell foreground pixels. The same change
+also stops mutating the cached line-level character mode while handling
+multicolor-text fallback characters.
+
+Measured on Apple M5 / .NET 10.0.5 / ShortRun against the previous local
+rasterizer/audio baseline:
+
+| Scenario | `None` before | `None` after | Δ | `MixedVisibleSprites` before | `MixedVisibleSprites` after | Δ | Allocated |
+|----------|--------------:|-------------:|--:|-----------------------------:|----------------------------:|--:|----------:|
+| `RenderOnly` | 248.6 us | 228.2 us | -8% | 258.0 us | 232.2 us | -10% | - / - |
+| `RenderAndAudio` | 372.6 us | 340.7 us | -9% | 370.7 us | 348.3 us | -6% | - / - |
+
 ### 2026-06-02 — SID quiescent voices skip per-cycle ticking
 
 `SidSampleCore` now skips fully quiescent voices on the existing no-sync fast

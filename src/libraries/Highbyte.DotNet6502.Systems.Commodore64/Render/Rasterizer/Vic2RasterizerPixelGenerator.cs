@@ -292,6 +292,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
                 _screenStartXAdjusted = _leftBorderEndXAdjusted + 1;
 
+                if (_isTextMode && _characterMode == CharMode.Standard)
+                    PrefillStandardTextBackgroundLine(screenLine);
+
                 _lastScreenLineDataUpdate = screenLine;
             }
 
@@ -737,6 +740,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
     {
         var characterRow = drawLine / 8;
         var characterLine = (ushort)(drawLine % 8);
+        var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
 
         var characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + characterRow * _vic2ScreenTextCols + col);
         var colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + characterRow * _vic2ScreenTextCols + col);
@@ -749,12 +753,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
         uint[] eightPixels;
         if (_isTextMode)
         {
+            var characterMode = _characterMode;
             // Determine colors
             var fgColorCode = colorRamCode;
             int bgColorNumber;  // 0-3
-            if (_characterMode == CharMode.Standard)
+            if (characterMode == CharMode.Standard)
                 bgColorNumber = 0;
-            else if (_characterMode == CharMode.Extended)
+            else if (characterMode == CharMode.Extended)
             {
                 bgColorNumber = characterCode >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
                 characterCode = (byte)(characterCode & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
@@ -766,7 +771,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
                 if (fgColorCode <= 7)
                     // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
-                    _characterMode = CharMode.Standard;
+                    characterMode = CharMode.Standard;
                 else
                 {
                     // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
@@ -782,7 +787,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
             var lineData = c64.Vic2.Vic2Mem[characterSetLineAddress];
 
             // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
-            if (_characterMode == CharMode.Standard || _characterMode == CharMode.Extended)
+            if (characterMode == CharMode.Standard || characterMode == CharMode.Extended)
             {
                 switch (bgColorNumber)
                 {
@@ -845,11 +850,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
         }
 
         // Write the background color to the pixel array for background and border
-        //WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], PixelArray_BackgroundAndBorder, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
-        WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+        if (!backgroundIsPrefilled)
+            WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
 
         // Write the character to the pixel array for foreground (adjusted for fine scrolling)
-        //WriteToPixelArray(eightPixels, PixelArray_Foreground, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
         WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
 
 
@@ -917,6 +921,24 @@ public sealed class Vic2RasterizerUintPixelGenerator
             else
                 _setBackgroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
         }
+    }
+
+    private void PrefillStandardTextBackgroundLine(int screenLine)
+    {
+        var drawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
+        var ypos = _screenStartY + drawLine;
+        if (ypos <= _topBorderEndYAdjusted || ypos >= _bottomBorderStartYAdjusted)
+            return;
+
+        if (FlipY)
+            ypos = _height - ypos - 1;
+
+        var fillWidth = _rightBorderStartXAdjusted - _screenStartXAdjusted;
+        if (fillWidth <= 0)
+            return;
+
+        var lineStartIndex = ypos * _width + _screenStartXAdjusted;
+        _setBackgroundPixels(_oneLineSameColorPixels[_backgroundColor0], 0, lineStartIndex, fillWidth);
     }
 
 }
