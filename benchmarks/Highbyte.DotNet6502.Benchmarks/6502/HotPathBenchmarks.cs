@@ -63,6 +63,14 @@ public class HotPathBenchmarks
     private Memory _memForExecWithSub = default!;
     private LegacyExecEvaluator _execLimitEvaluator = default!;
 
+    // --- Direct memory access fixtures ----------------------------------------------
+
+    private Memory _memForRead = default!;
+    private Memory _memForWrite = default!;
+    // Number of byte reads/writes per benchmark op for the tight-loop memory benchmarks.
+    // Sized so each invocation is in the µs range, well above BDN's per-op overhead.
+    private const int MemoryAccessCount = 1024;
+
     // Number of instructions to run for the aggregate throughput benchmark. Kept as a
     // constant rather than a [Params] so the benchmark output stays compact; tune here
     // if you want a different sample size.
@@ -129,6 +137,15 @@ public class HotPathBenchmarks
         _cpuForExecWithSub.InstructionExecuted += NoOpInstructionExecuted;
 
         _execLimitEvaluator = LegacyExecEvaluator.InstructionCountExecEvaluator(RunInstructionCount);
+
+        // Direct memory fixtures -- pre-populated with non-zero data so the benchmark
+        // can't be "compiled away" by a JIT that proves the result is constant. Default
+        // Memory ctor calls MapRAM(0x0000, new byte[Size]) so every address is an
+        // array-backed RAM cell -- exactly the case the fast path targets.
+        _memForRead = new Memory();
+        _memForWrite = new Memory();
+        for (int i = 0; i < 65536; i++)
+            _memForRead.Write((ushort)i, (byte)(i & 0xFF));
     }
 
     private static void NoOpInstructionToBeExecuted(object? sender, CPUInstructionToBeExecutedEventArgs e) { }
@@ -238,5 +255,34 @@ public class HotPathBenchmarks
     {
         _cpuForExecWithSub.PC = _startAddress;
         _cpuForExecWithSub.Execute(_memForExecWithSub, _execLimitEvaluator);
+    }
+
+    /// <summary>
+    /// Tight loop of <see cref="MemoryAccessCount"/> byte reads through
+    /// <see cref="Memory.Read"/>. Every address is an array-backed RAM cell (the
+    /// default mapping). Sums the bytes into a returned value so the JIT cannot
+    /// fold the loop away. Use this benchmark to validate any change to the per-byte
+    /// dispatch path.
+    /// </summary>
+    [Benchmark]
+    public int Memory_Read_TightLoop()
+    {
+        int sum = 0;
+        for (int i = 0; i < MemoryAccessCount; i++)
+            sum += _memForRead.Read((ushort)i);
+        return sum;
+    }
+
+    /// <summary>
+    /// Tight loop of <see cref="MemoryAccessCount"/> byte writes through
+    /// <see cref="Memory.Write"/>. Mirror of <see cref="Memory_Read_TightLoop"/>;
+    /// targets RAM cells without pre-write intercepts so the write fast path (when
+    /// present) is exercised.
+    /// </summary>
+    [Benchmark]
+    public void Memory_Write_TightLoop()
+    {
+        for (int i = 0; i < MemoryAccessCount; i++)
+            _memForWrite.Write((ushort)i, (byte)i);
     }
 }

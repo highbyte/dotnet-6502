@@ -68,6 +68,26 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
+### 2026-06-02 — `Memory_Read_TightLoop` / `Memory_Write_TightLoop` benchmarks added
+
+Two new direct-memory benchmarks added as a permanent baseline for any future
+work on `Memory.Read` / `Memory.Write` dispatch. They exercise a tight loop
+of 1024 byte reads / writes through a default RAM mapping, summing into a
+returned value so the JIT cannot fold the loop away.
+
+| Method                                  |          Mean | Allocated |
+|-----------------------------------------|--------------:|----------:|
+| `Memory_Read_TightLoop` (1024 reads/op) |        901 ns |         - |
+| `Memory_Write_TightLoop` (1024 writes/op)|       832 ns |         - |
+
+Captured on Apple M5 / .NET 10.0.5 / Arm64. ~0.88 ns/read, ~0.81 ns/write.
+
+These rows are the **delegate-path baseline** that any future Memory dispatch
+optimization should compare against. A prototype "byte[]? fast path" was
+explored on 2026-06-02 and reverted — it hit the perf targets but added
+~50 MB of per-C64-instance allocation and significant `Memory` class
+complexity for only a −3% win on the realistic-workload benchmark.
+
 ### 2026-06-01 — hot-path Part 2 round 1: candidates 1, 4, 2, 6
 
 Four optimizations landed together on `feature/hotpath-optimize` after the Part 2 analysis pass:
