@@ -122,11 +122,18 @@ internal sealed partial class Program
     ///   </item>
     ///   <item>
     ///     <term><c>--loadPrg &lt;path&gt;</c></term>
-    ///     <description>Load a <c>.prg</c> file into memory. Requires <c>--start</c>.</description>
+    ///     <description>
+    ///       Load a <c>.prg</c> file into memory. Requires <c>--start</c>. For C64 BASIC-style
+    ///       programs, use <c>--waitForSystemReady</c> so the machine has finished booting before
+    ///       the PRG is loaded.
+    ///     </description>
     ///   </item>
     ///   <item>
     ///     <term><c>--runLoadedProgram</c></term>
-    ///     <description>Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>.</description>
+    ///     <description>
+    ///       Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>.
+    ///       For C64 BASIC-style programs, pair with <c>--waitForSystemReady</c>.
+    ///     </description>
     ///   </item>
     ///   <item>
     ///     <term><c>--stats-interval &lt;seconds&gt;</c></term>
@@ -172,11 +179,11 @@ internal sealed partial class Program
     /// # Start C64 and run a Lua script (script owns lifecycle)
     /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --script scripts/example_quit.lua
     ///
-    /// # Start C64 and load a .prg file via CLI (no script)
-    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadPrg game.prg --runLoadedProgram
+    /// # Start C64, wait for BASIC to be ready, then load and run a .prg file via CLI
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadPrg game.prg --runLoadedProgram
     ///
-    /// # Start C64, run a .prg, log stats every 5 seconds, and exit after 60 seconds
-    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadPrg game.prg --runLoadedProgram --stats-interval 5 --exit-after 60
+    /// # Start C64, wait for BASIC, run a .prg, log stats every 5 seconds, and exit after 60 seconds
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadPrg game.prg --runLoadedProgram --stats-interval 5 --exit-after 60
     /// </code>
     /// </remarks>
     /// <param name="args">Command line arguments.</param>

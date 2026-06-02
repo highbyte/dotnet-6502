@@ -48,4 +48,20 @@ public interface IAutomatedStartupParticipant
     Task OnSystemReadyAsync(
         IHostApp hostApp, AutomatedStartupRequest request, AutomatedStartupContext context)
         => Task.CompletedTask;
+
+    /// <summary>
+    /// Gives a system-specific participant a chance to start a freshly loaded PRG in a
+    /// system-appropriate way after automated startup has completed.
+    /// </summary>
+    /// <remarks>
+    /// Return <see langword="true"/> when the participant handled the launch (for example by
+    /// queueing a BASIC <c>run</c> command). Return <see langword="false"/> to let the generic
+    /// fallback decide how to start the program from <paramref name="loadAddress"/>.
+    /// </remarks>
+    Task<bool> TryRunLoadedProgramAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        ushort loadAddress)
+        => Task.FromResult(false);
 }

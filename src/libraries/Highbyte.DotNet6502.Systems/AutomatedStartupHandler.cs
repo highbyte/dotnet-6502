@@ -240,6 +240,8 @@ public static class AutomatedStartupHandler
             {
                 await invokeLifecycle(async () =>
                 {
+                    ushort? loadedProgramAddress = null;
+
                     // If external debugger is enabled and no PRG to load, block execution
                     // until the debugger connects. This allows debugging from the very
                     // first CPU instruction (e.g., C64 KERNAL boot sequence).
@@ -323,6 +325,7 @@ public static class AutomatedStartupHandler
                         }
 
                         logger.LogInformation($"Loaded {prgBytes.Length - 2} bytes at 0x{loadAddress:X4}");
+                        loadedProgramAddress = loadAddress;
 
                         logger.LogInformation("Automated startup complete.");
 
@@ -332,18 +335,6 @@ public static class AutomatedStartupHandler
                         // the program start — preventing any program instructions from executing.
                         onStartupComplete?.Invoke();
 
-                        // Run the loaded program if requested
-                        if (runLoadedProgram)
-                        {
-                            logger.LogInformation($"Setting PC to 0x{loadAddress:X4} to run loaded program");
-                            hostApp.CurrentRunningSystem.CPU.PC = loadAddress;
-                        }
-                        else if (!enableExternalDebug)
-                        {
-                            // No debugger — set PC to load address so execution starts at the program
-                            logger.LogInformation($"Setting PC to 0x{loadAddress:X4} (no external debugger)");
-                            hostApp.CurrentRunningSystem.CPU.PC = loadAddress;
-                        }
                     }
                     else
                     {
@@ -359,6 +350,25 @@ public static class AutomatedStartupHandler
                     if (startupParticipant is not null)
                         await startupParticipant.OnSystemReadyAsync(
                             hostApp, request, startupContext ?? new AutomatedStartupContext());
+
+                    if (runLoadedProgram && loadedProgramAddress.HasValue)
+                    {
+                        var loadedProgramHandled = false;
+                        if (startupParticipant is not null)
+                        {
+                            loadedProgramHandled = await startupParticipant.TryRunLoadedProgramAsync(
+                                hostApp,
+                                request,
+                                startupContext ?? new AutomatedStartupContext(),
+                                loadedProgramAddress.Value);
+                        }
+
+                        if (!loadedProgramHandled)
+                        {
+                            logger.LogInformation($"Setting PC to 0x{loadedProgramAddress.Value:X4} to run loaded program");
+                            hostApp.CurrentRunningSystem!.CPU.PC = loadedProgramAddress.Value;
+                        }
+                    }
                 });
             }
             else

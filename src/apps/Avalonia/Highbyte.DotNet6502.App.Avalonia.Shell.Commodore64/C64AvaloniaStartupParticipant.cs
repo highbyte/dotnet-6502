@@ -24,6 +24,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64;
 /// </remarks>
 public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
 {
+    private const ushort C64BasicProgramLoadAddress = 0x0801;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger _logger;
 
@@ -166,6 +167,33 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         _logger.LogInformation("Queueing C64 BASIC source ({LineCount} line(s), runBasic={RunBasic}).",
             CountNonEmptyLines(basicSource), runBasic);
         c64.TextPaste.Paste(pasteText);
+    }
+
+    public Task<bool> TryRunLoadedProgramAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        ushort loadAddress)
+    {
+        if (loadAddress != C64BasicProgramLoadAddress)
+            return Task.FromResult(false);
+
+        if (!request.WaitForSystemReady)
+        {
+            _logger.LogWarning(
+                "Running a loaded C64 BASIC program requires waitForSystemReady; falling back to generic PRG start.");
+            return Task.FromResult(false);
+        }
+
+        if (hostApp.CurrentRunningSystem is not C64 c64)
+        {
+            _logger.LogError("Running a loaded C64 BASIC program requires the running system to be C64.");
+            return Task.FromResult(false);
+        }
+
+        _logger.LogInformation("Queueing C64 BASIC RUN command for loaded PRG at 0x{LoadAddress:X4}.", loadAddress);
+        c64.TextPaste.Paste("run\n");
+        return Task.FromResult(true);
     }
 
     private static string? GetExtra(IReadOnlyDictionary<string, string> extras, string key)
