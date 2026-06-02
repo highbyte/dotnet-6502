@@ -29,6 +29,14 @@
             "launchConfigurationId": "TargetFramework=;AvaloniaDesktopC64AutostartTcpDebugServer"
         },
         {
+            "name": "Avalonia Desktop - Launch (C64 Autostart + Sample Basic PRG)",
+            "type": "dotnet",
+            "request": "launch",
+            "preLaunchTask": "build avalonia desktop app",
+            "projectPath": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj",
+            "launchConfigurationId": "TargetFramework=;AvaloniaDesktopC64AutostartSampleBasicPRG"
+        },
+        {
             "name": "Avalonia Browser - Launch",
             "type": "blazorwasm",
             "request": "launch",

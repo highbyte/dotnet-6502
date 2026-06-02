@@ -169,6 +169,47 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         c64.TextPaste.Paste(pasteText);
     }
 
+    public async Task BeforePrgLoadAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context)
+    {
+        if (!request.WaitForSystemReady || request.LoadPrgPath is null)
+            return;
+
+        if (hostApp.CurrentRunningSystem is not C64)
+            return;
+
+        // Match the existing D64 autorun flow: BASIC reports ready once TXTAB is initialized,
+        // but an extra moment is needed before direct PRG loads reliably stick.
+        _logger.LogInformation("Waiting 1 second for C64 BASIC to settle before automated PRG load.");
+        await Task.Delay(1000);
+    }
+
+    public Task OnPrgLoadedAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        ushort loadAddress,
+        ushort fileLength)
+    {
+        if (loadAddress != C64BasicProgramLoadAddress)
+            return Task.CompletedTask;
+
+        if (hostApp.CurrentRunningSystem is not C64 c64)
+        {
+            _logger.LogError("Loaded C64 BASIC PRG requires the running system to be C64.");
+            return Task.CompletedTask;
+        }
+
+        c64.InitBasicMemoryVariables(loadAddress, fileLength);
+        _logger.LogInformation(
+            "Initialized C64 BASIC memory variables for loaded PRG at 0x{LoadAddress:X4}, length {FileLength}.",
+            loadAddress,
+            fileLength);
+        return Task.CompletedTask;
+    }
+
     public Task<bool> TryRunLoadedProgramAsync(
         IHostApp hostApp,
         AutomatedStartupRequest request,

@@ -241,132 +241,167 @@ public static class AutomatedStartupHandler
                 await invokeLifecycle(async () =>
                 {
                     ushort? loadedProgramAddress = null;
+                    var pausedForPrgLoad = false;
 
-                    // If external debugger is enabled and no PRG to load, block execution
-                    // until the debugger connects. This allows debugging from the very
-                    // first CPU instruction (e.g., C64 KERNAL boot sequence).
-                    if (enableExternalDebug && loadPrgPath == null)
+                    try
                     {
-                        if (prepareForExternalDebuggerStart != null)
+                        // If external debugger is enabled and no PRG to load, block execution
+                        // until the debugger connects. This allows debugging from the very
+                        // first CPU instruction (e.g., C64 KERNAL boot sequence).
+                        if (enableExternalDebug && loadPrgPath == null)
                         {
-                            prepareForExternalDebuggerStart();
-                            logger.LogInformation("WaitForExternalDebugger set: CPU will not execute until debugger connects.");
-                        }
-                        else
-                        {
-                            logger.LogWarning("enableExternalDebug=true but no prepareForExternalDebuggerStart callback provided; CPU will not block on debugger.");
-                        }
-                    }
-
-                    logger.LogInformation("Starting system...");
-                    await hostApp.Start();
-
-                    // Wait for system to be ready if requested
-                    if (waitForSystemReady)
-                    {
-                        logger.LogInformation("Waiting for system to be ready...");
-                        await WaitForSystemReadyAsync(hostApp, logger);
-                    }
-
-                    // Load PRG if specified — either via async provider (Browser fetches over HTTP)
-                    // or local filesystem path (Desktop / Headless). Provider wins if both are set.
-                    if (loadPrgBytesProvider != null || loadPrgPath != null)
-                    {
-                        byte[] prgBytes;
-                        if (loadPrgBytesProvider != null)
-                        {
-                            logger.LogInformation("Loading PRG bytes via provider");
-                            try
+                            if (prepareForExternalDebuggerStart != null)
                             {
-                                prgBytes = await loadPrgBytesProvider();
+                                prepareForExternalDebuggerStart();
+                                logger.LogInformation("WaitForExternalDebugger set: CPU will not execute until debugger connects.");
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                logger.LogError(ex, "PRG bytes provider threw while fetching");
-                                fatalError();
-                                return;
-                            }
-                            if (prgBytes.Length < 2)
-                            {
-                                logger.LogError($"PRG content too small (must be at least 2 bytes): got {prgBytes.Length}");
-                                fatalError();
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            logger.LogInformation($"Loading PRG file: {loadPrgPath}");
-                            var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath!);
-                            if (!File.Exists(expandedPrgPath))
-                            {
-                                logger.LogError($"PRG file not found: {expandedPrgPath}");
-                                fatalError();
-                                return;
-                            }
-
-                            prgBytes = await File.ReadAllBytesAsync(expandedPrgPath);
-                            if (prgBytes.Length < 2)
-                            {
-                                logger.LogError($"PRG file too small (must be at least 2 bytes): {expandedPrgPath}");
-                                fatalError();
-                                return;
+                                logger.LogWarning("enableExternalDebug=true but no prepareForExternalDebuggerStart callback provided; CPU will not block on debugger.");
                             }
                         }
 
-                        // Read load address (first two bytes, little-endian)
-                        ushort loadAddress = (ushort)(prgBytes[0] | (prgBytes[1] << 8));
-                        logger.LogInformation($"PRG load address: 0x{loadAddress:X4}");
+                        logger.LogInformation("Starting system...");
+                        await hostApp.Start();
 
-                        // Load into memory
-                        var mem = hostApp.CurrentRunningSystem!.Mem;
-                        for (int i = 2; i < prgBytes.Length; i++)
+                        // Wait for system to be ready if requested
+                        if (waitForSystemReady)
                         {
-                            mem[(ushort)(loadAddress + (ushort)(i - 2))] = prgBytes[i];
+                            logger.LogInformation("Waiting for system to be ready...");
+                            await WaitForSystemReadyAsync(hostApp, logger);
                         }
 
-                        logger.LogInformation($"Loaded {prgBytes.Length - 2} bytes at 0x{loadAddress:X4}");
-                        loadedProgramAddress = loadAddress;
-
-                        logger.LogInformation("Automated startup complete.");
-
-                        // Signal debug adapters BEFORE setting CPU.PC.
-                        // When stopOnEntry is pending, NotifyProgramReady() sets IsStopped=true
-                        // synchronously so the run loop pauses BEFORE the PC is redirected to
-                        // the program start — preventing any program instructions from executing.
-                        onStartupComplete?.Invoke();
-
-                    }
-                    else
-                    {
-                        // No PRG to load (KERNAL boot debugging or plain emulator start).
-                        // Signal adapters now — KERNAL is ready and no PC redirect is needed.
-                        logger.LogInformation("Automated startup complete.");
-                        onStartupComplete?.Invoke();
-                    }
-
-                    // Post-ready hook: after the system is started (and, if requested, reported
-                    // ready) let the participant run a system-specific action — e.g. the C64
-                    // participant pastes BASIC source. See docs/automated-startup-seam2.md.
-                    if (startupParticipant is not null)
-                        await startupParticipant.OnSystemReadyAsync(
-                            hostApp, request, startupContext ?? new AutomatedStartupContext());
-
-                    if (runLoadedProgram && loadedProgramAddress.HasValue)
-                    {
-                        var loadedProgramHandled = false;
-                        if (startupParticipant is not null)
+                        if ((loadPrgBytesProvider != null || loadPrgPath != null) && startupParticipant is not null)
                         {
-                            loadedProgramHandled = await startupParticipant.TryRunLoadedProgramAsync(
+                            await startupParticipant.BeforePrgLoadAsync(
                                 hostApp,
                                 request,
-                                startupContext ?? new AutomatedStartupContext(),
-                                loadedProgramAddress.Value);
+                                startupContext ?? new AutomatedStartupContext());
                         }
 
-                        if (!loadedProgramHandled)
+                        // Load PRG if specified — either via async provider (Browser fetches over HTTP)
+                        // or local filesystem path (Desktop / Headless). Provider wins if both are set.
+                        if (loadPrgBytesProvider != null || loadPrgPath != null)
                         {
-                            logger.LogInformation($"Setting PC to 0x{loadedProgramAddress.Value:X4} to run loaded program");
-                            hostApp.CurrentRunningSystem!.CPU.PC = loadedProgramAddress.Value;
+                            byte[] prgBytes;
+                            if (loadPrgBytesProvider != null)
+                            {
+                                logger.LogInformation("Loading PRG bytes via provider");
+                                try
+                                {
+                                    prgBytes = await loadPrgBytesProvider();
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.LogError(ex, "PRG bytes provider threw while fetching");
+                                    fatalError();
+                                    return;
+                                }
+                                if (prgBytes.Length < 2)
+                                {
+                                    logger.LogError($"PRG content too small (must be at least 2 bytes): got {prgBytes.Length}");
+                                    fatalError();
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                logger.LogInformation($"Loading PRG file: {loadPrgPath}");
+                                var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath!);
+                                if (!File.Exists(expandedPrgPath))
+                                {
+                                    logger.LogError($"PRG file not found: {expandedPrgPath}");
+                                    fatalError();
+                                    return;
+                                }
+
+                                prgBytes = await File.ReadAllBytesAsync(expandedPrgPath);
+                                if (prgBytes.Length < 2)
+                                {
+                                    logger.LogError($"PRG file too small (must be at least 2 bytes): {expandedPrgPath}");
+                                    fatalError();
+                                    return;
+                                }
+                            }
+
+                            if (hostApp.EmulatorState == EmulatorState.Running)
+                            {
+                                logger.LogInformation("Pausing system before automated PRG load.");
+                                hostApp.Pause();
+                                pausedForPrgLoad = hostApp.EmulatorState == EmulatorState.Paused;
+                            }
+
+                            BinaryLoader.Load(
+                                hostApp.CurrentRunningSystem!.Mem,
+                                prgBytes,
+                                out ushort loadAddress,
+                                out ushort fileLength);
+
+                            logger.LogInformation($"PRG load address: 0x{loadAddress:X4}");
+                            logger.LogInformation($"Loaded {fileLength} bytes at 0x{loadAddress:X4}");
+                            loadedProgramAddress = loadAddress;
+
+                            if (startupParticipant is not null)
+                            {
+                                await startupParticipant.OnPrgLoadedAsync(
+                                    hostApp,
+                                    request,
+                                    startupContext ?? new AutomatedStartupContext(),
+                                    loadAddress,
+                                    fileLength);
+                            }
+
+                            logger.LogInformation("Automated startup complete.");
+
+                            // Signal debug adapters BEFORE setting CPU.PC.
+                            // When stopOnEntry is pending, NotifyProgramReady() sets IsStopped=true
+                            // synchronously so the run loop pauses BEFORE the PC is redirected to
+                            // the program start — preventing any program instructions from executing.
+                            onStartupComplete?.Invoke();
+
+                        }
+                        else
+                        {
+                            // No PRG to load (KERNAL boot debugging or plain emulator start).
+                            // Signal adapters now — KERNAL is ready and no PC redirect is needed.
+                            logger.LogInformation("Automated startup complete.");
+                            onStartupComplete?.Invoke();
+                        }
+
+                        // Post-ready hook: after the system is started (and, if requested, reported
+                        // ready) let the participant run a system-specific action — e.g. the C64
+                        // participant pastes BASIC source. See docs/automated-startup-seam2.md.
+                        if (startupParticipant is not null)
+                        {
+                            await startupParticipant.OnSystemReadyAsync(
+                                hostApp, request, startupContext ?? new AutomatedStartupContext());
+                        }
+
+                        if (runLoadedProgram && loadedProgramAddress.HasValue)
+                        {
+                            var loadedProgramHandled = false;
+                            if (startupParticipant is not null)
+                            {
+                                loadedProgramHandled = await startupParticipant.TryRunLoadedProgramAsync(
+                                    hostApp,
+                                    request,
+                                    startupContext ?? new AutomatedStartupContext(),
+                                    loadedProgramAddress.Value);
+                            }
+
+                            if (!loadedProgramHandled)
+                            {
+                                logger.LogInformation($"Setting PC to 0x{loadedProgramAddress.Value:X4} to run loaded program");
+                                hostApp.CurrentRunningSystem!.CPU.PC = loadedProgramAddress.Value;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        if (pausedForPrgLoad && hostApp.EmulatorState == EmulatorState.Paused)
+                        {
+                            logger.LogInformation("Resuming system after automated PRG load.");
+                            await hostApp.Start();
                         }
                     }
                 });

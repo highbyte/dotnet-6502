@@ -31,6 +31,9 @@ public class AutomatedStartupHandlerTests
         Assert.Equal((ushort)0x1234, hostApp.System.CPU.PC);
         Assert.Equal((byte)0xEA, hostApp.System.Mem[0x2000]);
         Assert.Equal((byte)0x60, hostApp.System.Mem[0x2001]);
+        Assert.Equal(1, hostApp.PauseCount);
+        Assert.Equal(2, hostApp.StartCount);
+        Assert.Equal(EmulatorState.Running, hostApp.EmulatorState);
     }
 
     [Fact]
@@ -58,8 +61,13 @@ public class AutomatedStartupHandlerTests
             startupParticipant: participant);
 
         Assert.True(participant.OnSystemReadyCalled);
+        Assert.Equal((ushort)0x2000, participant.LoadedAddress);
+        Assert.Equal((ushort)1, participant.LoadedFileLength);
         Assert.Equal((ushort)0x2000, participant.HandledLoadAddress);
         Assert.Equal((ushort)0x1234, hostApp.System.CPU.PC);
+        Assert.Equal(1, hostApp.PauseCount);
+        Assert.Equal(2, hostApp.StartCount);
+        Assert.Equal(EmulatorState.Running, hostApp.EmulatorState);
     }
 
     [Fact]
@@ -87,8 +95,13 @@ public class AutomatedStartupHandlerTests
             startupParticipant: participant);
 
         Assert.True(participant.OnSystemReadyCalled);
+        Assert.Equal((ushort)0x2000, participant.LoadedAddress);
+        Assert.Equal((ushort)1, participant.LoadedFileLength);
         Assert.Equal((ushort)0x2000, participant.HandledLoadAddress);
         Assert.Equal((ushort)0x2000, hostApp.System.CPU.PC);
+        Assert.Equal(1, hostApp.PauseCount);
+        Assert.Equal(2, hostApp.StartCount);
+        Assert.Equal(EmulatorState.Running, hostApp.EmulatorState);
     }
 
     private static byte[] CreatePrgBytes(ushort loadAddress, params byte[] data)
@@ -104,7 +117,21 @@ public class AutomatedStartupHandlerTests
     {
         public string SystemName => FakeHostApp.SystemName;
         public bool OnSystemReadyCalled { get; private set; }
+        public ushort? LoadedAddress { get; private set; }
+        public ushort? LoadedFileLength { get; private set; }
         public ushort? HandledLoadAddress { get; private set; }
+
+        public Task OnPrgLoadedAsync(
+            IHostApp hostApp,
+            AutomatedStartupRequest request,
+            AutomatedStartupContext context,
+            ushort loadAddress,
+            ushort fileLength)
+        {
+            LoadedAddress = loadAddress;
+            LoadedFileLength = fileLength;
+            return Task.CompletedTask;
+        }
 
         public Task OnSystemReadyAsync(
             IHostApp hostApp,
@@ -139,6 +166,8 @@ public class AutomatedStartupHandlerTests
         public ISystem? CurrentRunningSystem { get; private set; }
         public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
         public IHostSystemConfig CurrentHostSystemConfig { get; } = new FakeHostSystemConfig();
+        public int StartCount { get; private set; }
+        public int PauseCount { get; private set; }
 
         public Task SelectSystem(string systemName)
         {
@@ -154,12 +183,17 @@ public class AutomatedStartupHandlerTests
 
         public Task Start()
         {
+            StartCount++;
             CurrentRunningSystem = System;
             EmulatorState = EmulatorState.Running;
             return Task.CompletedTask;
         }
 
-        public void Pause() => EmulatorState = EmulatorState.Paused;
+        public void Pause()
+        {
+            PauseCount++;
+            EmulatorState = EmulatorState.Paused;
+        }
         public void Stop()
         {
             EmulatorState = EmulatorState.Uninitialized;
