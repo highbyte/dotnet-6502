@@ -135,6 +135,34 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
+### 2026-06-02 — sprite collision prefilter and early exit
+
+`Vic2SpriteManager.GetSpriteToSpriteCollision()` now rejects sprite pairs whose
+screen-space bounds do not overlap before entering the per-line collision work,
+and stops scanning additional lines once a colliding pair has already been
+found.
+
+This avoids unnecessary calls into the expensive row normalization and byte
+alignment helpers for the staggered visible-sprite benchmark workload, while
+keeping the path allocation-free.
+
+Measured on Apple M5 / .NET 10.0.5 / ShortRun:
+
+| Scenario | `MixedVisibleSprites` before | `MixedVisibleSprites` after | Δ | Allocated |
+|----------|-----------------------------:|----------------------------:|--:|----------:|
+| `CoreOnly` | 171.4 us | 141.1 us | -18% | - / - |
+| `RenderOnly` | 335.3 us | 303.8 us | -9% | - / - |
+| `AudioOnly` | 260.7 us | 234.4 us | -10% | - / - |
+| `RenderAndAudio` | 527.4 us | 491.1 us | -7% | - / - |
+
+The focused sprite-manager micro-benchmark also remains allocation-free after
+the change:
+
+| Method | Mean | Allocated |
+|--------|-----:|----------:|
+| `GetSpriteToSpriteCollissions` | 17.08 us | - |
+| `GetSpriteToBackgroundCollissions` | 13.36 us | - |
+
 ### 2026-06-02 — C64 rasterizer frame path: remove per-frame LINQ allocation
 
 `Vic2RasterizerUintPixelGenerator.DrawSpritesToBitmapBackedByPixelArray()` used

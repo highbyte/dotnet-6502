@@ -123,6 +123,9 @@ public class Vic2SpriteManager : IVic2SpriteManager
             if (!sprite.Visible || !otherSprite.Visible)
                 continue;
 
+            if (!SpriteBoundsOverlap(sprite, otherSprite))
+                continue;
+
             // Loop each sprite line
             for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
             {
@@ -146,7 +149,7 @@ public class Vic2SpriteManager : IVic2SpriteManager
                     // Set bit in collision byte for both sprites
                     collision |= (byte)(1 << sprite.SpriteNumber);
                     collision |= (byte)(1 << otherSprite.SpriteNumber);
-                    continue;
+                    break;
                 }
             }
         }
@@ -215,6 +218,14 @@ public class Vic2SpriteManager : IVic2SpriteManager
             }
         }
         return false;
+    }
+
+    private static bool SpriteBoundsOverlap(Vic2Sprite sprite, Vic2Sprite otherSprite)
+    {
+        return sprite.X < otherSprite.X + otherSprite.WidthPixels
+            && otherSprite.X < sprite.X + sprite.WidthPixels
+            && sprite.Y < otherSprite.Y + otherSprite.HeightPixels
+            && otherSprite.Y < sprite.Y + sprite.HeightPixels;
     }
 
     /// <summary>

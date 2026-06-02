@@ -16,6 +16,7 @@ public interface IVic2SpriteManager
     public bool SpriteToBackgroundCollisionIRQBlock { get; set; }
 
     public Vic2 Vic2 { get; }
+    public void SetAllDirty();
     public void SetAllChanged(Vic2Sprite.Vic2SpriteChangeType spriteChangeType);
 
     public void DetectChangesToSpriteData(ushort vic2Address, byte value);
