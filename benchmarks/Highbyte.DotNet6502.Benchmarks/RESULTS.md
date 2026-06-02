@@ -135,6 +135,29 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
+### 2026-06-02 — SID quiescent voices skip per-cycle ticking
+
+`SidSampleCore` now skips fully quiescent voices on the existing no-sync fast
+path instead of ticking all three voices every SID cycle. Voices still tick
+normally as soon as they have active ADSR state, TEST bit state, or a
+non-zero frequency.
+
+Measured on Apple M5 / .NET 10.0.5:
+
+`SidSampleCoreBenchmark` against a clean `HEAD` baseline:
+
+| Mode | `Simple` before | `Simple` after | Δ | `Complex` before | `Complex` after | Δ | Allocated |
+|------|----------------:|---------------:|--:|-----------------:|----------------:|--:|----------:|
+| `Auto` | 55.88 us | 53.30 us | -5% | 123.21 us | 115.79 us | -6% | - / - |
+| `Fast` | 56.11 us | 52.16 us | -7% | 88.77 us | 83.21 us | -6% | - / - |
+
+Integrated `C64ExecuteFrameBenchmark` audio-only scenarios against the previous
+local rasterizer baseline:
+
+| Scenario | `None` before | `None` after | Δ | `MixedVisibleSprites` before | `MixedVisibleSprites` after | Δ | Allocated |
+|----------|--------------:|-------------:|--:|-----------------------------:|----------------------------:|--:|----------:|
+| `AudioOnly` | 240.2 us | 215.2 us | -10% | 233.6 us | 222.8 us | -5% | - / - |
+
 ### 2026-06-02 — rasterizer lookup tables use indexed caches
 
 The per-instruction text/bitmap rasterizer path used dictionary lookups for the
