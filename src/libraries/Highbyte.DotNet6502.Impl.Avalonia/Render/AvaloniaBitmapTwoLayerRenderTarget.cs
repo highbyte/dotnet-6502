@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Utils;
 
@@ -8,12 +10,14 @@ namespace Highbyte.DotNet6502.Impl.Avalonia.Render;
 
 [DisplayName("Avalonia 2-layer Bitmap")]
 [HelpText("Renders two layers to a Avalonia Bitmap using CPU for compositing.\nIt uses two RenderFrames (byte arrays) provided by the render source.\nThe render source must provide exactly two layers: background and foreground.")]
-public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAvaloniaBitmapRenderTarget
+public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAvaloniaBitmapRenderTarget, IInstrumentationSource
 {
     private WriteableBitmap _writeableBitmap = null!;
     public WriteableBitmap Bitmap => _writeableBitmap;
+    public Instrumentations Instrumentations { get; } = new();
 
     private const uint TRANSPARENT_COLOR = 0x00000000; // Transparent black
+    private readonly ElapsedMillisecondsTimedStat _presentStat;
 
     public string Name => "AvaloniaBitmapTwoLayerRenderTarget";
 
@@ -26,6 +30,7 @@ public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAv
     public AvaloniaBitmapTwoLayerRenderTarget(RenderSize size)
     {
         TargetSize = size;
+        _presentStat = Instrumentations.Add("Present", new ElapsedMillisecondsTimedStat());
         InitWriteableBitmap(size);
     }
 
@@ -37,37 +42,47 @@ public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAv
 
     private ValueTask PresentAsyncAvaloniaBitmap(RenderFrame frame, CancellationToken ct = default)
     {
+        _presentStat.Start();
         if (!frame.IsMultiLayer || frame.LayerInfos.Count != 2 || frame.LayerPixels.Count != 2)
             throw new ArgumentException("SkiaCanvasTwoLayerRenderTarget expects exactly 2 layers (background, foreground).", nameof(frame));
 
-        if (_writeableBitmap == null) return ValueTask.CompletedTask;
-
-        var bgInfo = frame.LayerInfos[0];
-        var fgInfo = frame.LayerInfos[1];
-
-        // Copy pixel data to WriteableBitmap
-        using var frameBuffer = _writeableBitmap.Lock();
-
-        // Get source data spans (already uint[])
-        var bgPixels = frame.LayerPixels[0].Span;
-        var fgPixels = frame.LayerPixels[1].Span;
-
-        // Calculate dimensions and validate
-        var pixelCount = Math.Min(bgInfo.Size.Width * bgInfo.Size.Height, bgPixels.Length);
-        var bytesPerRow = TargetSize.Width * 4;
-
-        // Check if we can do a fast copy without row padding
-        if (frameBuffer.RowBytes == bytesPerRow)
+        if (_writeableBitmap == null)
         {
-            // Fast path: direct compositing to framebuffer without intermediate allocation
-            CompositeLayers(frameBuffer.Address, bgPixels, fgPixels, pixelCount);
-        }
-        else
-        {
-            // Slow path: row-by-row compositing due to row padding
-            CompositeLayersWithPadding(frameBuffer.Address, frameBuffer.RowBytes, bgPixels, fgPixels, TargetSize.Width, TargetSize.Height);
+            _presentStat.Stop();
+            return ValueTask.CompletedTask;
         }
 
+        try
+        {
+            var bgInfo = frame.LayerInfos[0];
+
+            // Copy pixel data to WriteableBitmap
+            using var frameBuffer = _writeableBitmap.Lock();
+
+            // Get source data spans (already uint[])
+            var bgPixels = frame.LayerPixels[0].Span;
+            var fgPixels = frame.LayerPixels[1].Span;
+
+            // Calculate dimensions and validate
+            var pixelCount = Math.Min(bgInfo.Size.Width * bgInfo.Size.Height, bgPixels.Length);
+            var bytesPerRow = TargetSize.Width * 4;
+
+            // Check if we can do a fast copy without row padding
+            if (frameBuffer.RowBytes == bytesPerRow)
+            {
+                // Fast path: direct compositing to framebuffer without intermediate allocation
+                CompositeLayers(frameBuffer.Address, bgPixels, fgPixels, pixelCount);
+            }
+            else
+            {
+                // Slow path: row-by-row compositing due to row padding
+                CompositeLayersWithPadding(frameBuffer.Address, frameBuffer.RowBytes, bgPixels, fgPixels, TargetSize.Width, TargetSize.Height);
+            }
+        }
+        finally
+        {
+            _presentStat.Stop();
+        }
         return ValueTask.CompletedTask;
     }
 

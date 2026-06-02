@@ -848,10 +848,14 @@ public class HostApp : IHostApp, IManualRenderingProvider
         // Sub-system stat: render
         if (_renderCoordinator != null)
             stats.AddRange(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{RenderStatName}-{x.Name}", x.Stat)));
+        if (_currentRenderTarget is IInstrumentationSource renderTargetInstrumentation)
+            stats.AddRange(renderTargetInstrumentation.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{RenderStatName}-Target-{x.Name}", x.Stat)));
 
         // Sub-system stat: audio
         if (_audioCoordinator != null)
             stats.AddRange(_audioCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-{x.Name}", x.Stat)));
+        if (_currentAudioTarget is IInstrumentationSource audioTargetInstrumentation)
+            stats.AddRange(audioTargetInstrumentation.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-Target-{x.Name}", x.Stat)));
 
         return stats;
     }

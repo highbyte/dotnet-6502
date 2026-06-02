@@ -1,4 +1,6 @@
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Utils;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
@@ -16,12 +18,15 @@ namespace Highbyte.DotNet6502.Impl.NAudio;
 /// </summary>
 [DisplayName("NAudio synth target")]
 [HelpText("Plays Synth-commands audio via an NAudio mixing/oscillator graph (desktop).")]
-public class NAudioCommandTarget : IAudioCommandTarget
+public class NAudioCommandTarget : IAudioCommandTarget, IInstrumentationSource
 {
     public string Name => "NAudioCommandTarget";
+    public Instrumentations Instrumentations { get; } = new();
 
     private readonly NAudioAudioHandlerContext _audioHandlerContext;
     private readonly ILogger _logger;
+    private readonly ElapsedMillisecondsTimedStat _executeCommandStat;
+    private readonly PerSecondTimedStat _commandsPerSecondStat;
 
     private MixingSampleProvider _mixer = default!;
     private VolumeSampleProvider _sidVolumeControl = default!;
@@ -33,6 +38,8 @@ public class NAudioCommandTarget : IAudioCommandTarget
     {
         _audioHandlerContext = audioHandlerContext;
         _logger = loggerFactory.CreateLogger(typeof(NAudioCommandTarget).Name);
+        _executeCommandStat = Instrumentations.Add("ExecuteCommand", new ElapsedMillisecondsTimedStat());
+        _commandsPerSecondStat = Instrumentations.Add("CommandsPerSecond", new PerSecondTimedStat());
     }
 
     public void Init(int voiceCount)
@@ -57,14 +64,23 @@ public class NAudioCommandTarget : IAudioCommandTarget
 
     public void Execute(IAudioCommand command)
     {
-        switch (command)
+        _commandsPerSecondStat.Update();
+        _executeCommandStat.Start();
+        try
         {
-            case SetVolumeAudioCommand changeVolume:
-                _sidVolumeControl.Volume = changeVolume.Gain;
-                break;
-            case VoiceAudioCommand voiceCommand:
-                PlayVoice(VoiceContexts[voiceCommand.Voice], voiceCommand.Parameter);
-                break;
+            switch (command)
+            {
+                case SetVolumeAudioCommand changeVolume:
+                    _sidVolumeControl.Volume = changeVolume.Gain;
+                    break;
+                case VoiceAudioCommand voiceCommand:
+                    PlayVoice(VoiceContexts[voiceCommand.Voice], voiceCommand.Parameter);
+                    break;
+            }
+        }
+        finally
+        {
+            _executeCommandStat.Stop();
         }
     }
 
