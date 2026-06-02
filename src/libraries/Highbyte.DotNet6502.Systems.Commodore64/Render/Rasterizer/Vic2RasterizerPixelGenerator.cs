@@ -509,6 +509,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
             var isDoubleWidth = sprite.DoubleWidth;
             var isDoubleHeight = sprite.DoubleHeight;
+            var spriteLinePartAdvance = isDoubleWidth ? 16 : 8;
+            var singleColorPixelAdvance = isDoubleWidth ? 2 : 1;
+            var multiColorPixelAdvance = isDoubleWidth ? 4 : 2;
+            var spriteLineAdvance = isDoubleHeight ? 2 : 1;
 
             uint spriteForegroundPixelColor;  // One color per sprite
             uint spriteMultiColor0PixelColor; // Shared between all sprites
@@ -545,6 +549,14 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 var x = 0;
                 foreach (var spriteLinePart in spriteRow.Bytes)
                 {
+                    // 0 means the whole 8-bit sprite chunk is transparent, so skip the per-pixel decode work
+                    // but still advance by the on-screen width that this sprite byte occupies.
+                    if (spriteLinePart == 0)
+                    {
+                        x += spriteLinePartAdvance;
+                        continue;
+                    }
+
                     if (isMultiColor)
                     {
                         var maskMultiColor0Mask = 0b01000000;
@@ -597,7 +609,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                             maskMultiColor1Mask = maskMultiColor1Mask >> 2;
                             maskSpriteColorMask = maskSpriteColorMask >> 2;
 
-                            x += isDoubleHeight ? 4 : 2;
+                            x += multiColorPixelAdvance;
                         }
                     }
                     else
@@ -622,11 +634,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
                             }
                             mask = mask >> 1;
 
-                            x += isDoubleHeight ? 2 : 1;
+                            x += singleColorPixelAdvance;
                         }
                     }
                 }
-                y += isDoubleHeight ? 2 : 1;
+                y += spriteLineAdvance;
             }
 
             void WriteSpritePixelWithAlphaPrio(int screenPosX, int screenPosY, uint color, bool priorityOverForground)
