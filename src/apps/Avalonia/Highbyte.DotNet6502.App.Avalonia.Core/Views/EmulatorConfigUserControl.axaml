@@ -4,8 +4,9 @@
         x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.EmulatorConfigUserControl"
         x:DataType="vm:EmulatorConfigViewModel">
   
-  <!-- Simplified layout for overlay dialog -->
-  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
+  <!-- Simplified layout for overlay dialog.
+       MaxWidth caps the dialog so the WrapPanel inside wraps to at most 3 columns of 400 px wide panels. -->
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8" MaxWidth="1240">
     <!-- Title Header -->
     <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
       <TextBlock Text="General Emulator Options"

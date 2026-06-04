@@ -11,6 +11,10 @@ on:
     paths:
       - 'src/apps/BlazorWASM/**'
       - 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/**'
+      # The Browser app transitively pulls in Avalonia.Core and every Shell.* via
+      # ProjectReference, so changes there also need to retrigger the smoke run.
+      - 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/**'
+      - 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.*/**'
       - 'src/libraries/**'
       - 'src/systems/**'
       - 'tests/wasm-smoke/**'

@@ -27,7 +27,14 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ShowGridLines="False">
+    <!--
+        Outer Grid wraps the main content so overlay dialogs (added by OverlayDialogHelper)
+        can use the full window size without being constrained by the inner content Grid's
+        fixed/auto column distribution. The inner Grid is named "MainContentGrid" so other
+        code (e.g. AvaloniaHostApp) can still locate it.
+    -->
+    <Grid>
+        <Grid Name="MainContentGrid" ShowGridLines="False">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -1101,5 +1108,6 @@
         <views:StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
                          HorizontalAlignment="Left"
                          Width="{Binding ElementName=CenterPanel, Path=Bounds.Right}"/>
+        </Grid>
     </Grid>
 </UserControl>
