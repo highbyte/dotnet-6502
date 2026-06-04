@@ -25,6 +25,7 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
     private readonly WebAudioWavePlayerSettings _settings;
     private readonly NAudioAudioHandlerContext _audioHandlerContext;
     private readonly ILogger _logger;
+    private readonly bool _requireAudioWorklet;
     private readonly ElapsedMillisecondsTimedStat _flushSamplesStat;
     private readonly PerSecondTimedStat _flushCallbacksPerSecondStat;
 
@@ -35,10 +36,12 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
     public WebAudioSampleTarget(
         WebAudioWavePlayerSettings settings,
         NAudioAudioHandlerContext audioHandlerContext,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        bool requireAudioWorklet = false)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _audioHandlerContext = audioHandlerContext;
+        _requireAudioWorklet = requireAudioWorklet;
         _logger = loggerFactory.CreateLogger(typeof(WebAudioSampleTarget).Name);
         _flushSamplesStat = Instrumentations.Add("FlushSamples", new ElapsedMillisecondsTimedStat());
         _flushCallbacksPerSecondStat = Instrumentations.Add("FlushCallbacksPerSecond", new PerSecondTimedStat());
@@ -69,14 +72,28 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
         var bufferSizeSamples = (int)(sampleRateHz * (desiredLatencyMs / 1000.0));
 
         JSInterop.RegisterLogCallback(WebAudioWavePlayer.OnLogMessage);
-        JSInterop.InitializeDirectWrite(
-            sampleRateHz,
-            channelCount,
-            bufferSizeSamples,
-            ringBufferCapacityMultiplier,
-            minBufferBeforePlayMultiplier,
-            scriptProcessorBufferSize,
-            _settings.StatsIntervalMs);
+        if (_requireAudioWorklet)
+        {
+            JSInterop.InitializeDirectWriteAudioWorklet(
+                sampleRateHz,
+                channelCount,
+                bufferSizeSamples,
+                ringBufferCapacityMultiplier,
+                minBufferBeforePlayMultiplier,
+                scriptProcessorBufferSize,
+                _settings.StatsIntervalMs);
+        }
+        else
+        {
+            JSInterop.InitializeDirectWrite(
+                sampleRateHz,
+                channelCount,
+                bufferSizeSamples,
+                ringBufferCapacityMultiplier,
+                minBufferBeforePlayMultiplier,
+                scriptProcessorBufferSize,
+                _settings.StatsIntervalMs);
+        }
 
         _isInitialized = true;
     }
@@ -177,6 +194,16 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
 
         [JSImport("WebAudioWavePlayer.initializeDirectWrite", "WebAudioWavePlayer")]
         public static partial void InitializeDirectWrite(
+            int sampleRate,
+            int channels,
+            int bufferSize,
+            double ringBufferCapacityMultiplier,
+            double minBufferBeforePlayMultiplier,
+            int scriptProcessorBufferSize,
+            int statsIntervalMs);
+
+        [JSImport("WebAudioWavePlayer.initializeDirectWriteAudioWorklet", "WebAudioWavePlayer")]
+        public static partial void InitializeDirectWriteAudioWorklet(
             int sampleRate,
             int channels,
             int bufferSize,

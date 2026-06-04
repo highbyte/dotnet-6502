@@ -135,14 +135,18 @@ export const WebAudioWavePlayer = (() => {
      * @param {number} statsIntMs - Stats logging interval in ms (0 to disable)
      */
     function initialize(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
-        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, false);
+        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, false, false);
     }
 
     function initializeDirectWrite(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
-        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, true);
+        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, true, false);
     }
 
-    function initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, preferSharedAudioWorklet) {
+    function initializeDirectWriteAudioWorklet(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
+        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, true, true);
+    }
+
+    function initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, preferSharedAudioWorklet, requireSharedAudioWorklet) {
         sampleRate = sRate;
         channels = numChannels;
         scriptProcessorBufferSize = scriptProcBufferSize;
@@ -220,10 +224,15 @@ export const WebAudioWavePlayer = (() => {
         logInfo(`  Stats interval: ${statsIntervalMs}ms${statsIntervalMs === 0 ? ' (disabled)' : ''}`);
 
         if (preferSharedAudioWorklet && canUseSharedAudioWorklet()) {
-            setupSharedAudioWorklet();
+            setupSharedAudioWorklet(requireSharedAudioWorklet);
         } else {
             if (preferSharedAudioWorklet) {
-                logWarning('SharedArrayBuffer AudioWorklet unavailable; falling back to ScriptProcessorNode');
+                const message = 'SharedArrayBuffer AudioWorklet unavailable';
+                if (requireSharedAudioWorklet) {
+                    logError(`${message}; DirectWriteAudioWorklet mode cannot start`);
+                    return;
+                }
+                logWarning(`${message}; falling back to ScriptProcessorNode`);
             }
             setupScriptProcessor();
         }
@@ -301,7 +310,7 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
 `;
     }
 
-    async function setupSharedAudioWorklet() {
+    async function setupSharedAudioWorklet(requireSharedAudioWorklet) {
         logDebug(`SetupSharedAudioWorklet start`);
 
         if (audioWorkletNode) {
@@ -342,11 +351,17 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
             logInfo(`AudioWorklet shared ring connected (~${renderQuantumMs}ms render quantum)`);
             startSharedAudioWorkletStats();
         } catch (error) {
-            logWarning(`AudioWorklet shared ring setup failed; falling back to ScriptProcessorNode: ${error?.message ?? error}`);
+            const message = `AudioWorklet shared ring setup failed: ${error?.message ?? error}`;
             sharedSampleBuffer = null;
             sharedStateBuffer = null;
             sharedSamples = null;
             sharedState = null;
+            useSharedAudioWorklet = false;
+            if (requireSharedAudioWorklet) {
+                logError(message);
+                return;
+            }
+            logWarning(`${message}; falling back to ScriptProcessorNode`);
             setupScriptProcessor();
         }
 
@@ -676,6 +691,7 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
     return {
         initialize,
         initializeDirectWrite,
+        initializeDirectWriteAudioWorklet,
         queueAudioData,
         resume,
         pause,

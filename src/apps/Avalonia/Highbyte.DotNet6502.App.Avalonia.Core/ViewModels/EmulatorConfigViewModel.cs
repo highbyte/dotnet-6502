@@ -26,7 +26,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private bool _showErrorDialog;
     private bool _showDebugTools;
     private WavePlayerSettingsProfile _selectedAudioSettingsProfile;
-    private bool _useBrowserDirectWriteSampleAudio;
+    private BrowserSampleAudioMode _selectedBrowserSampleAudioMode;
     private bool _stopAfterBRKInstruction;
     private bool _stopAfterUnknownInstruction;
     private bool _allowUrlScripts;
@@ -43,6 +43,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         // Initialize available options
         AvailableEmulators = new ObservableCollection<string> { "C64", "Generic" };
         AudioSettingsProfiles = new ObservableCollection<WavePlayerSettingsProfile>(Enum.GetValues<WavePlayerSettingsProfile>());
+        BrowserSampleAudioModes = new ObservableCollection<BrowserSampleAudioMode>(Enum.GetValues<BrowserSampleAudioMode>());
 
         // Initialize working copies from current config
         _selectedDefaultEmulator = _emulatorConfig.DefaultEmulator;
@@ -50,7 +51,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _showErrorDialog = _emulatorConfig.ShowErrorDialog;
         _showDebugTools = _emulatorConfig.ShowDebugTools;
         _selectedAudioSettingsProfile = _emulatorConfig.AudioSettingsProfile;
-        _useBrowserDirectWriteSampleAudio = _emulatorConfig.UseBrowserDirectWriteSampleAudio;
+        _selectedBrowserSampleAudioMode = _emulatorConfig.BrowserSampleAudioMode;
         _stopAfterBRKInstruction = _emulatorConfig.Monitor.StopAfterBRKInstruction;
         _stopAfterUnknownInstruction = _emulatorConfig.Monitor.StopAfterUnknownInstruction;
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
@@ -180,6 +181,7 @@ public class EmulatorConfigViewModel : ViewModelBase
 
     // Audio Settings
     public ObservableCollection<WavePlayerSettingsProfile> AudioSettingsProfiles { get; }
+    public ObservableCollection<BrowserSampleAudioMode> BrowserSampleAudioModes { get; }
 
     public WavePlayerSettingsProfile SelectedAudioSettingsProfile
     {
@@ -193,15 +195,15 @@ public class EmulatorConfigViewModel : ViewModelBase
         }
     }
 
-    public bool UseBrowserDirectWriteSampleAudio
+    public BrowserSampleAudioMode SelectedBrowserSampleAudioMode
     {
-        get => _useBrowserDirectWriteSampleAudio;
+        get => _selectedBrowserSampleAudioMode;
         set
         {
-            if (_useBrowserDirectWriteSampleAudio == value)
+            if (_selectedBrowserSampleAudioMode == value)
                 return;
 
-            this.RaiseAndSetIfChanged(ref _useBrowserDirectWriteSampleAudio, value);
+            this.RaiseAndSetIfChanged(ref _selectedBrowserSampleAudioMode, value);
         }
     }
 
@@ -280,7 +282,7 @@ public class EmulatorConfigViewModel : ViewModelBase
             _emulatorConfig.ShowErrorDialog = _showErrorDialog;
             _emulatorConfig.ShowDebugTools = _showDebugTools;
             _emulatorConfig.AudioSettingsProfile = _selectedAudioSettingsProfile;
-            _emulatorConfig.UseBrowserDirectWriteSampleAudio = _useBrowserDirectWriteSampleAudio;
+            _emulatorConfig.BrowserSampleAudioMode = _selectedBrowserSampleAudioMode;
             _emulatorConfig.Monitor.StopAfterBRKInstruction = _stopAfterBRKInstruction;
             _emulatorConfig.Monitor.StopAfterUnknownInstruction = _stopAfterUnknownInstruction;
 
