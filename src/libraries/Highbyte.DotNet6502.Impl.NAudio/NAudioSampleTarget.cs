@@ -17,10 +17,11 @@ namespace Highbyte.DotNet6502.Impl.NAudio;
 /// </summary>
 [DisplayName("NAudio PCM sample target")]
 [HelpText("Plays raw PCM samples through NAudio (desktop). Pairs with the SID sample emulation provider.")]
-public sealed class NAudioSampleTarget : IAudioSampleTarget, IInstrumentationSource
+public sealed class NAudioSampleTarget : IAudioSampleTarget, IAudioSampleTargetBufferPolicy, IInstrumentationSource
 {
     public string Name => "NAudioSampleTarget";
     public Instrumentations Instrumentations { get; } = new();
+    public int PrimeSilenceSamples { get; }
 
     private readonly NAudioAudioHandlerContext _audioHandlerContext;
     private readonly ILogger _logger;
@@ -29,9 +30,13 @@ public sealed class NAudioSampleTarget : IAudioSampleTarget, IInstrumentationSou
 
     private CallbackSampleProvider? _sampleProvider;
 
-    public NAudioSampleTarget(NAudioAudioHandlerContext audioHandlerContext, ILoggerFactory loggerFactory)
+    public NAudioSampleTarget(
+        NAudioAudioHandlerContext audioHandlerContext,
+        ILoggerFactory loggerFactory,
+        int primeSilenceSamples = AudioSampleCoordinator.DefaultPrimeSilenceSamples)
     {
         _audioHandlerContext = audioHandlerContext;
+        PrimeSilenceSamples = primeSilenceSamples;
         _logger = loggerFactory.CreateLogger(typeof(NAudioSampleTarget).Name);
         _readSamplesStat = Instrumentations.Add("ReadSamples", new ElapsedMillisecondsTimedStat());
         _readCallbacksPerSecondStat = Instrumentations.Add("CallbacksPerSecond", new PerSecondTimedStat());

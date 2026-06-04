@@ -13,6 +13,8 @@ export const WebAudioWavePlayer = (() => {
     let readPosition = 0;
     let bufferedSamples = 0;
     let bufferCapacity = 0;
+    let targetBufferedSamples = 0;
+    let highWatermarkSamples = 0;
 
     // Minimum samples needed before starting playback (to avoid immediate underrun)
     let minBufferBeforePlay = 0;
@@ -25,6 +27,7 @@ export const WebAudioWavePlayer = (() => {
     // Adaptive buffering: track underruns and increase buffer if needed
     let underrunCount = 0;
     let overflowCount = 0;
+    let consecutiveUnderruns = 0;
     let lastStatsTime = 0;
 
     let isPlaying = false;
@@ -78,6 +81,11 @@ export const WebAudioWavePlayer = (() => {
         }
     }
 
+    function getValidScriptProcessorBufferSize() {
+        const clampedSize = Math.min(16384, Math.max(256, scriptProcessorBufferSize));
+        return Math.pow(2, Math.round(Math.log2(clampedSize)));
+    }
+
     /**
      * Initialize WebAudio context and audio worklet
      * @param {number} sRate - Sample rate (e.g., 44100)
@@ -97,6 +105,7 @@ export const WebAudioWavePlayer = (() => {
         hasEnoughToStart = false;
         underrunCount = 0;
         overflowCount = 0;
+        consecutiveUnderruns = 0;
         lastStatsTime = performance.now();
 
         // Ring buffer capacity based on multiplier from C#
@@ -105,9 +114,17 @@ export const WebAudioWavePlayer = (() => {
         writePosition = 0;
         readPosition = 0;
         bufferedSamples = 0;
-        
+
         // Start playback threshold based on multiplier from C#
-        minBufferBeforePlay = Math.ceil(bufSize * channels * minBufferBeforePlayMultiplier);
+        const scriptProcessorSamples = getValidScriptProcessorBufferSize() * channels;
+        minBufferBeforePlay = Math.max(
+            Math.ceil(bufSize * channels * minBufferBeforePlayMultiplier),
+            scriptProcessorSamples * 2);
+        targetBufferedSamples = Math.min(
+            bufferCapacity,
+            Math.max(Math.ceil(bufSize * channels), minBufferBeforePlay));
+        highWatermarkSamples = Math.max(targetBufferedSamples, Math.floor(bufferCapacity * 0.95));
+
 
         // Close existing AudioContext if it exists (sample rate may have changed)
         if (audioContext) {
@@ -140,6 +157,7 @@ export const WebAudioWavePlayer = (() => {
         logInfo(`  Sample rate: ${sampleRate}Hz, Channels: ${channels}`);
         logInfo(`  C# buffer: ${bufSize} samples (~${desiredLatencyMs}ms)`);
         logInfo(`  Ring buffer: ${bufferCapacity} samples (~${bufferCapacityMs}ms) [${ringBufferCapacityMultiplier}x multiplier]`);
+        logInfo(`  Ring target/high-water: ${targetBufferedSamples}/${highWatermarkSamples} samples`);
         logInfo(`  Start threshold: ${minBufferBeforePlay} samples (~${minBufferMs}ms) [${minBufferBeforePlayMultiplier}x multiplier]`);
         logInfo(`  ScriptProcessor buffer: ${scriptProcessorBufferSize} samples`);
         logInfo(`  Stats interval: ${statsIntervalMs}ms${statsIntervalMs === 0 ? ' (disabled)' : ''}`);
@@ -182,10 +200,9 @@ export const WebAudioWavePlayer = (() => {
             logInfo('Existing ScriptProcessorNode disconnected');
         }
 
-        // Create ScriptProcessorNode - use the configured buffer size, clamped to valid range
-        // Buffer size must be power of 2 between 256 and 16384
-        const clampedSize = Math.min(16384, Math.max(256, scriptProcessorBufferSize));
-        const validBufferSize = Math.pow(2, Math.round(Math.log2(clampedSize)));
+        // Create ScriptProcessorNode - use the configured buffer size, clamped to valid range.
+        // Buffer size must be power of 2 between 256 and 16384.
+        const validBufferSize = getValidScriptProcessorBufferSize();
         
         audioWorkletNode = audioContext.createScriptProcessor(
             validBufferSize,
@@ -210,12 +227,19 @@ export const WebAudioWavePlayer = (() => {
 
             if (isPlaying && bufferedSamples >= samplesNeeded) {
                 copyFromRingBufferToOutput(outputBuffer, bufferLength, samplesNeeded);
+                consecutiveUnderruns = 0;
             } else {
                 fillOutputWithSilence(outputBuffer);
                 // Track underruns (but not when paused). hasEnoughToStart is already true here
                 // because we returned early above when it wasn't.
                 if (isPlaying) {
                     underrunCount++;
+                    consecutiveUnderruns++;
+                    if (consecutiveUnderruns > 3) {
+                        hasEnoughToStart = false;
+                        consecutiveUnderruns = 0;
+                        logWarning(`Re-buffering after repeated underruns; bufferedSamples=${bufferedSamples}`);
+                    }
                 }
             }
 
@@ -291,6 +315,7 @@ export const WebAudioWavePlayer = (() => {
         // Start playing once we have enough buffered samples
         if (!hasEnoughToStart && bufferedSamples >= minBufferBeforePlay) {
             hasEnoughToStart = true;
+            consecutiveUnderruns = 0;
             const bufferLevelMs = (bufferedSamples / channels / sampleRate * 1000).toFixed(1);
             logInfo(`Starting playback with ${bufferedSamples} samples (~${bufferLevelMs}ms) buffered`);
         }
@@ -337,6 +362,7 @@ export const WebAudioWavePlayer = (() => {
         bufferedSamples = 0;
         underrunCount = 0;
         overflowCount = 0;
+        consecutiveUnderruns = 0;
         if (sampleBuffer) {
             sampleBuffer.fill(0);
         }

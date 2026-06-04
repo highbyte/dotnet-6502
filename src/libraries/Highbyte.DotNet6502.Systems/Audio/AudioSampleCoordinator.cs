@@ -37,6 +37,7 @@ public sealed class AudioSampleCoordinator : IAudioCoordinator, IDisposable
     private readonly IAudioSampleProvider _provider;
     private readonly IAudioSampleTarget _target;
     private readonly AudioSampleRingBuffer _ringBuffer;
+    private readonly int _primeSilenceSamples;
 
     private readonly Instrumentations _instrumentations = new();
     public Instrumentations Instrumentations => _instrumentations;
@@ -50,10 +51,20 @@ public sealed class AudioSampleCoordinator : IAudioCoordinator, IDisposable
     }
 
     public AudioSampleCoordinator(IAudioSampleProvider provider, IAudioSampleTarget target, int ringBufferCapacitySamples)
+        : this(provider, target, ringBufferCapacitySamples, DefaultPrimeSilenceSamples)
+    {
+    }
+
+    public AudioSampleCoordinator(
+        IAudioSampleProvider provider,
+        IAudioSampleTarget target,
+        int ringBufferCapacitySamples,
+        int primeSilenceSamples)
     {
         _provider = provider;
         _target = target;
         _ringBuffer = new AudioSampleRingBuffer(ringBufferCapacitySamples);
+        _primeSilenceSamples = primeSilenceSamples;
     }
 
     public void Init()
@@ -65,7 +76,7 @@ public sealed class AudioSampleCoordinator : IAudioCoordinator, IDisposable
         // of samples inside their Init call, before the emulator has produced anything. Without
         // priming, that initial pull would underrun and the silence-fill at the consumer side
         // would create an audible click on the very first frame of real audio.
-        int primeCount = Math.Min(DefaultPrimeSilenceSamples, _ringBuffer.Capacity);
+        int primeCount = Math.Min(_primeSilenceSamples, _ringBuffer.Capacity);
         if (primeCount > 0)
         {
             var silence = new float[primeCount];

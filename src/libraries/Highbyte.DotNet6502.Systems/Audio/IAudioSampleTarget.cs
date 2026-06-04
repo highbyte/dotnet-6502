@@ -45,3 +45,14 @@ public interface IAudioSampleTarget : IAudioTarget
     /// <summary>Tears down the host audio backend.</summary>
     void Cleanup();
 }
+
+/// <summary>
+/// Optional buffering policy for PCM-sample targets.
+/// </summary>
+public interface IAudioSampleTargetBufferPolicy
+{
+    /// <summary>
+    /// Number of silent samples the coordinator should write before target initialization.
+    /// </summary>
+    int PrimeSilenceSamples { get; }
+}
