@@ -48,4 +48,46 @@ public interface IAutomatedStartupParticipant
     Task OnSystemReadyAsync(
         IHostApp hostApp, AutomatedStartupRequest request, AutomatedStartupContext context)
         => Task.CompletedTask;
+
+    /// <summary>
+    /// Gives a system-specific participant a chance to wait for additional post-ready settling
+    /// before an automated PRG load mutates the running machine state.
+    /// </summary>
+    Task BeforePrgLoadAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context)
+        => Task.CompletedTask;
+
+    /// <summary>
+    /// Gives a system-specific participant a chance to finalize PRG loading after the generic
+    /// loader has copied the program bytes into memory.
+    /// </summary>
+    /// <remarks>
+    /// Used for systems that need additional state updates after a direct memory load, such as
+    /// BASIC memory pointers that the normal machine LOAD command would have initialized.
+    /// </remarks>
+    Task OnPrgLoadedAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        ushort loadAddress,
+        ushort fileLength)
+        => Task.CompletedTask;
+
+    /// <summary>
+    /// Gives a system-specific participant a chance to start a freshly loaded PRG in a
+    /// system-appropriate way after automated startup has completed.
+    /// </summary>
+    /// <remarks>
+    /// Return <see langword="true"/> when the participant handled the launch (for example by
+    /// queueing a BASIC <c>run</c> command). Return <see langword="false"/> to let the generic
+    /// fallback decide how to start the program from <paramref name="loadAddress"/>.
+    /// </remarks>
+    Task<bool> TryRunLoadedProgramAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        ushort loadAddress)
+        => Task.FromResult(false);
 }

@@ -17,16 +17,20 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Highbyte.DotNet6502.Utils;
 using System.Diagnostics;
+using System.Globalization;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
 internal sealed partial class Program
 {
+    private static AutomatedRunController? s_automatedRunController;
+
     /// <summary>
     /// Application entry point.
     /// </summary>
@@ -118,11 +122,31 @@ internal sealed partial class Program
     ///   </item>
     ///   <item>
     ///     <term><c>--loadPrg &lt;path&gt;</c></term>
-    ///     <description>Load a <c>.prg</c> file into memory. Requires <c>--start</c>.</description>
+    ///     <description>
+    ///       Load a <c>.prg</c> file into memory. Requires <c>--start</c>. For C64 BASIC-style
+    ///       programs, use <c>--waitForSystemReady</c> so the machine has finished booting before
+    ///       the PRG is loaded.
+    ///     </description>
     ///   </item>
     ///   <item>
     ///     <term><c>--runLoadedProgram</c></term>
-    ///     <description>Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>.</description>
+    ///     <description>
+    ///       Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>.
+    ///       For C64 BASIC-style programs, pair with <c>--waitForSystemReady</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--stats-interval &lt;seconds&gt;</c></term>
+    ///     <description>
+    ///       Log a snapshot of the current instrumentation statistics once every N seconds after automated startup completes.
+    ///       Requires <c>--start</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--exit-after &lt;seconds&gt;</c></term>
+    ///     <description>
+    ///       Exit the desktop emulator N seconds after automated startup completes. Requires <c>--start</c>.
+    ///     </description>
     ///   </item>
     ///   <item>
     ///     <term><c>--script &lt;path&gt;</c></term>
@@ -155,8 +179,11 @@ internal sealed partial class Program
     /// # Start C64 and run a Lua script (script owns lifecycle)
     /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --script scripts/example_quit.lua
     ///
-    /// # Start C64 and load a .prg file via CLI (no script)
-    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadPrg game.prg --runLoadedProgram
+    /// # Start C64, wait for BASIC to be ready, then load and run a .prg file via CLI
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadPrg game.prg --runLoadedProgram
+    ///
+    /// # Start C64, wait for BASIC, run a .prg, log stats every 5 seconds, and exit after 60 seconds
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadPrg game.prg --runLoadedProgram --stats-interval 5 --exit-after 60
     /// </code>
     /// </remarks>
     /// <param name="args">Command line arguments.</param>
@@ -239,6 +266,12 @@ internal sealed partial class Program
         bool waitForSystemReady = args.Contains("--waitForSystemReady");
         string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrg");
         bool runLoadedProgram = args.Contains("--runLoadedProgram");
+        var statsInterval = ParseDurationSecondsArgument(args, "--stats-interval");
+        if (statsInterval == TimeSpan.MinValue)
+            return 1;
+        var exitAfter = ParseDurationSecondsArgument(args, "--exit-after");
+        if (exitAfter == TimeSpan.MinValue)
+            return 1;
 
         // Parse scripting override arguments
         List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
@@ -249,6 +282,11 @@ internal sealed partial class Program
         if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram, hasScripts))
         {
             return 1; // Exit with error code
+        }
+        if ((statsInterval.HasValue || exitAfter.HasValue) && !autoStart)
+        {
+            Console.Error.WriteLine("Error: --stats-interval and --exit-after require --start to be specified.");
+            return 1;
         }
 
         // Note: Don't call WriteBootstrapLog before AllocConsole() is called (Windows). Otherwise no logs will show in console.
@@ -396,6 +434,10 @@ internal sealed partial class Program
         Func<IHostApp, Task>? automatedStartupRunner = null;
         if (systemName != null)
         {
+            s_automatedRunController = (statsInterval.HasValue || exitAfter.HasValue)
+                ? new AutomatedRunController(loggerFactory, statsInterval, exitAfter)
+                : null;
+
             automatedStartupRunner = async _ =>
             {
                 var startupLogger = loggerFactory.CreateLogger(nameof(Program));
@@ -437,6 +479,9 @@ internal sealed partial class Program
                         ? () => debuggableHostApp.WaitForExternalDebugger = true
                         : null,
                     startupParticipant: startupParticipant);
+
+                if (hostApp is HostApp instrumentedHostApp)
+                    Dispatcher.UIThread.Post(() => s_automatedRunController?.Start(instrumentedHostApp));
             };
         }
         else if (scriptFilePaths.Count > 0 || scriptDirectoryOverride != null)
@@ -589,5 +634,98 @@ internal sealed partial class Program
             }
         }
         return null;
+    }
+
+    private static TimeSpan? ParseDurationSecondsArgument(string[] args, string argumentName)
+    {
+        var rawValue = AutomatedStartupHandler.ParseStringArgument(args, argumentName);
+        if (rawValue == null)
+            return null;
+
+        if (double.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0)
+            return TimeSpan.FromSeconds(seconds);
+
+        Console.Error.WriteLine($"Error: {argumentName} requires a positive number of seconds.");
+        return TimeSpan.MinValue;
+    }
+
+    private sealed class AutomatedRunController
+    {
+        private readonly ILogger _logger;
+        private readonly TimeSpan? _statsInterval;
+        private readonly TimeSpan? _exitAfter;
+        private DispatcherTimer? _statsTimer;
+        private DispatcherTimer? _exitTimer;
+        private HostApp? _hostApp;
+
+        public AutomatedRunController(ILoggerFactory loggerFactory, TimeSpan? statsInterval, TimeSpan? exitAfter)
+        {
+            _logger = loggerFactory.CreateLogger("AutomatedRunController");
+            _statsInterval = statsInterval;
+            _exitAfter = exitAfter;
+        }
+
+        public void Start(HostApp hostApp)
+        {
+            _hostApp = hostApp;
+
+            if (_statsInterval.HasValue)
+            {
+                _logger.LogInformation("Starting periodic instrumentation snapshots every {Seconds:0.##} seconds.", _statsInterval.Value.TotalSeconds);
+                _statsTimer = new DispatcherTimer
+                {
+                    Interval = _statsInterval.Value
+                };
+                _statsTimer.Tick += (_, _) => LogSnapshot("periodic");
+                _statsTimer.Start();
+                LogSnapshot("startup");
+            }
+
+            if (_exitAfter.HasValue)
+            {
+                _logger.LogInformation("The emulator will exit automatically after {Seconds:0.##} seconds.", _exitAfter.Value.TotalSeconds);
+                _exitTimer = new DispatcherTimer
+                {
+                    Interval = _exitAfter.Value
+                };
+                _exitTimer.Tick += OnExitTimerTick;
+                _exitTimer.Start();
+            }
+        }
+
+        private void OnExitTimerTick(object? sender, EventArgs e)
+        {
+            _exitTimer?.Stop();
+            _statsTimer?.Stop();
+            if (_statsTimer != null)
+                LogSnapshot("final");
+
+            _logger.LogInformation("Exit-after timer elapsed. Quitting application.");
+            _hostApp?.QuitApplication();
+        }
+
+        private void LogSnapshot(string reason)
+        {
+            if (_hostApp == null)
+                return;
+
+            var visibleStats = _hostApp.GetStats()
+                .Where(s => s.stat.ShouldShow())
+                .OrderBy(s => s.name, StringComparer.OrdinalIgnoreCase)
+                .Select(s => $"{s.name}={s.stat.GetDescription()}")
+                .ToList();
+
+            if (visibleStats.Count == 0)
+            {
+                _logger.LogInformation("Instrumentation snapshot ({Reason}): no visible stats yet.", reason);
+                return;
+            }
+
+            _logger.LogInformation(
+                "Instrumentation snapshot ({Reason}){NewLine}{Snapshot}",
+                reason,
+                Environment.NewLine,
+                string.Join(Environment.NewLine, visibleStats));
+        }
     }
 }

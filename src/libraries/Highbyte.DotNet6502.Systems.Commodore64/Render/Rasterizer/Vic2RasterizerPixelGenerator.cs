@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
@@ -15,7 +16,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
     //private readonly uint[] PixelArray_BackgroundAndBorder;
     //private readonly uint[] PixelArray_Foreground;
 
-    private Dictionary<byte, uint> _c64ToRenderColorMap;
+    private uint[] _c64ToRenderColorMap;
     private uint TransparentColor { get; }
     private bool FlipY { get; }
 
@@ -26,19 +27,19 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
 
     // Pre-calculated pixel arrays
-    private Dictionary<byte, uint[]> _oneLineSameColorPixels; // pixelArray
+    private uint[][] _oneLineSameColorPixels; // pixelArray
 
     // Text standard mode: 8-bit patterns mapped to 8 pixels (1 pixel = 1 uint rgba).
     // 1 maps to the color in the lookup table, and 0 maps to a predefined "background" color that will be replaced in shader.
-    private Dictionary<(byte eightPixels, byte color1), uint[]> _eightPixelsOneColorAndBackground;
+    private uint[][] _eightPixelsOneColorAndBackground;
 
     // Text extended and bitmap "Standard" (HiRes) mode: 8-bit patterns mapped to 8 pixels (1 pixel = 1 uint rgba).
     // 1 and 0 maps to the two colors in the lookup table.
-    private Dictionary<(byte eightPixels, byte color0, byte color1), uint[]> _eightPixelsTwoColors;
+    private uint[][] _eightPixelsTwoColors;
 
     // For text and bitmap mode "Multicolor": 8-bit patterns mapped to 4 width 2 pixels (1 pixel = 1 uint rgba).
     // 01, 10, and 11 maps to the colors in the lookup table, and 00 maps to a predefined "background" color that will be replaced in shader.
-    private Dictionary<(byte eightPixels, byte color1, byte color2, byte color3), uint[]> _eightPixelsThreeColorsAndBackground;
+    private uint[][] _eightPixelsThreeColorsAndBackground;
 
 
     // Line render state
@@ -152,10 +153,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
         nameof(_eightPixelsThreeColorsAndBackground))]
     private void Init()
     {
-        _c64ToRenderColorMap = new();
+        _c64ToRenderColorMap = new uint[16];
         foreach (byte c64Color in Enum.GetValues<C64Colors>())
         {
-            _c64ToRenderColorMap.Add(c64Color, (uint)GetSystemColor(c64Color, _c64.ColorMapName).ToArgb());
+            _c64ToRenderColorMap[c64Color] = (uint)GetSystemColor(c64Color, _c64.ColorMapName).ToArgb();
         }
 
         // Configure callback method for video generation after each instruction
@@ -291,6 +292,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
                 _screenStartXAdjusted = _leftBorderEndXAdjusted + 1;
 
+                if (_isTextMode && _characterMode == CharMode.Standard)
+                    PrefillStandardTextBackgroundLine(screenLine);
+
                 _lastScreenLineDataUpdate = screenLine;
             }
 
@@ -338,7 +342,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var width = vic2Screen.VisibleWidth;
 
         // A single line of the same color. Used for filling borders with various lengths.
-        _oneLineSameColorPixels = new Dictionary<byte, uint[]>();
+        _oneLineSameColorPixels = new uint[16][];
         for (byte colorCode = 0; colorCode < 16; colorCode++)
         {
             var colorVal = _c64ToRenderColorMap[colorCode];
@@ -352,7 +356,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         // Text (normal) & bitmap (standard "HiRes") mode with one foreground color with a single "transparent" color as background color
         // 8 bits => 8 pixels
-        _eightPixelsOneColorAndBackground = new();
+        _eightPixelsOneColorAndBackground = new uint[256 * 16][];
         for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
         {
             for (byte bitmapFgColorCode = 0; bitmapFgColorCode < 16; bitmapFgColorCode++)
@@ -370,13 +374,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     else
                         bitmapPixels[pixelPos] = transparentColorVal;
                 }
-                _eightPixelsOneColorAndBackground.Add(((byte)pixelPattern, bitmapFgColorCode), bitmapPixels);
+                _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex((byte)pixelPattern, bitmapFgColorCode)] = bitmapPixels;
             }
         }
 
         // Text extended & bitmap standard "HiRes" mode with one foreground color and a "background" color (non-transparent)
         // 8 bits => 8 pixels
-        _eightPixelsTwoColors = new();
+        _eightPixelsTwoColors = new uint[256 * 16 * 16][];
 
         for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
         {
@@ -399,7 +403,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                         else
                             bitmapPixels[pixelPos] = bitmapBgColorVal;
                     }
-                    _eightPixelsTwoColors.Add(((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode), bitmapPixels);
+                    _eightPixelsTwoColors[GetTwoColorsIndex((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode)] = bitmapPixels;
                 }
             }
         }
@@ -407,7 +411,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         // Text multicolor & bitmap multicolor mode with one foreground color, two other colors, with a single "transparent" color as background color
         // 8 bits => 4 pixels (with length 2)
-        _eightPixelsThreeColorsAndBackground = new();
+        _eightPixelsThreeColorsAndBackground = new uint[256 * 16 * 16 * 16][];
 
         for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
         {
@@ -455,7 +459,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                             bitmapMulicolorPixels[pixel * 2] = pairColorVal;
                             bitmapMulicolorPixels[pixel * 2 + 1] = pairColorVal;
                         }
-                        _eightPixelsThreeColorsAndBackground.Add(((byte)pixelPattern, color1, color2, color3), bitmapMulicolorPixels);
+                        _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex((byte)pixelPattern, color1, color2, color3)] = bitmapMulicolorPixels;
                     }
                 }
             }
@@ -463,12 +467,23 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int GetOneColorAndBackgroundIndex(byte eightPixels, byte color1)
+        => (eightPixels << 4) | color1;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int GetTwoColorsIndex(byte eightPixels, byte color0, byte color1)
+        => (eightPixels << 8) | (color0 << 4) | color1;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int GetThreeColorsIndex(byte eightPixels, byte color1, byte color2, byte color3)
+        => (eightPixels << 12) | (color1 << 8) | (color2 << 4) | color3;
+
     public void DrawSpritesToBitmapBackedByPixelArray()
     {
         // Main screen, copy 8 pixels at a time
         _spritesStat.Start();
         var vic2 = _c64.Vic2;
-        var vic2Mem = vic2.Vic2Mem;
         var vic2Screen = vic2.Vic2Screen;
         var vic2ScreenLayouts = vic2.ScreenLayouts;
 
@@ -481,8 +496,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var visibleMainScreenAreaLineData = vic2ScreenLayouts.GetLayout(LayoutType.Visible);
 
         // Write sprites to a separate bitmap/pixel array
-        foreach (var sprite in vic2.SpriteManager.Sprites.OrderByDescending(s => s.SpriteNumber))
+        var sprites = vic2.SpriteManager.Sprites;
+        for (int spriteIndex = sprites.Length - 1; spriteIndex >= 0; spriteIndex--)
         {
+            var sprite = sprites[spriteIndex];
             if (!sprite.Visible)
                 continue;
 
@@ -508,20 +525,35 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
             var isDoubleWidth = sprite.DoubleWidth;
             var isDoubleHeight = sprite.DoubleHeight;
+            var spriteLinePartAdvance = isDoubleWidth ? 16 : 8;
+            var singleColorPixelAdvance = isDoubleWidth ? 2 : 1;
+            var multiColorPixelAdvance = isDoubleWidth ? 4 : 2;
+            var spriteLineAdvance = isDoubleHeight ? 2 : 1;
 
             uint spriteForegroundPixelColor;  // One color per sprite
             uint spriteMultiColor0PixelColor; // Shared between all sprites
             uint spriteMultiColor1PixelColor; // Shared between all sprites
 
             // Loop each sprite line (21 lines)
+            var spriteData = sprite.Data;
             var y = 0;
-            foreach (var spriteRow in sprite.Data.Rows)
+            for (int rowIndex = 0; rowIndex < spriteData.Rows.Length; rowIndex++)
             {
+                if (!spriteData.RowHasPixels(rowIndex))
+                {
+                    y += spriteLineAdvance;
+                    continue;
+                }
+
+                var spriteRow = spriteData.Rows[rowIndex];
                 var lineDataKey = spriteScreenPosY + y + visibleMainScreenAreaLineData.TopBorder.Start.Y;
 
                 // Check if in total visible area, because c64ScreenLineIORegisterValues includes non-visible lines
                 if (lineDataKey < visibleMainScreenAreaLineData.TopBorder.Start.Y || lineDataKey > visibleMainScreenAreaLineData.BottomBorder.End.Y)
+                {
+                    y += spriteLineAdvance;
                     continue;
+                }
 
                 var screenLineIORegisters = vic2.ScreenLineIORegisterValues[lineDataKey];
                 var spriteColorValue = sprite.SpriteNumber switch
@@ -544,6 +576,14 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 var x = 0;
                 foreach (var spriteLinePart in spriteRow.Bytes)
                 {
+                    // 0 means the whole 8-bit sprite chunk is transparent, so skip the per-pixel decode work
+                    // but still advance by the on-screen width that this sprite byte occupies.
+                    if (spriteLinePart == 0)
+                    {
+                        x += spriteLinePartAdvance;
+                        continue;
+                    }
+
                     if (isMultiColor)
                     {
                         var maskMultiColor0Mask = 0b01000000;
@@ -596,7 +636,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                             maskMultiColor1Mask = maskMultiColor1Mask >> 2;
                             maskSpriteColorMask = maskSpriteColorMask >> 2;
 
-                            x += isDoubleHeight ? 4 : 2;
+                            x += multiColorPixelAdvance;
                         }
                     }
                     else
@@ -621,11 +661,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
                             }
                             mask = mask >> 1;
 
-                            x += isDoubleHeight ? 2 : 1;
+                            x += singleColorPixelAdvance;
                         }
                     }
                 }
-                y += isDoubleHeight ? 2 : 1;
+                y += spriteLineAdvance;
             }
 
             void WriteSpritePixelWithAlphaPrio(int screenPosX, int screenPosY, uint color, bool priorityOverForground)
@@ -668,8 +708,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     _setPixel(color, bitmapIndex, true); // true = foreground
                 }
             }
-
-            sprite.ClearDirty();
         }
 
         _spritesStat.Stop();
@@ -702,6 +740,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
     {
         var characterRow = drawLine / 8;
         var characterLine = (ushort)(drawLine % 8);
+        var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
 
         var characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + characterRow * _vic2ScreenTextCols + col);
         var colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + characterRow * _vic2ScreenTextCols + col);
@@ -714,12 +753,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
         uint[] eightPixels;
         if (_isTextMode)
         {
+            var characterMode = _characterMode;
             // Determine colors
             var fgColorCode = colorRamCode;
             int bgColorNumber;  // 0-3
-            if (_characterMode == CharMode.Standard)
+            if (characterMode == CharMode.Standard)
                 bgColorNumber = 0;
-            else if (_characterMode == CharMode.Extended)
+            else if (characterMode == CharMode.Extended)
             {
                 bgColorNumber = characterCode >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
                 characterCode = (byte)(characterCode & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
@@ -731,7 +771,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
                 if (fgColorCode <= 7)
                     // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
-                    _characterMode = CharMode.Standard;
+                    characterMode = CharMode.Standard;
                 else
                 {
                     // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
@@ -747,21 +787,21 @@ public sealed class Vic2RasterizerUintPixelGenerator
             var lineData = c64.Vic2.Vic2Mem[characterSetLineAddress];
 
             // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
-            if (_characterMode == CharMode.Standard || _characterMode == CharMode.Extended)
+            if (characterMode == CharMode.Standard || characterMode == CharMode.Extended)
             {
                 switch (bgColorNumber)
                 {
                     case 0:
-                        eightPixels = _eightPixelsOneColorAndBackground[(lineData, fgColorCode)];
+                        eightPixels = _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex(lineData, fgColorCode)];
                         break;
                     case 1:
-                        eightPixels = _eightPixelsTwoColors[(lineData, _backgroundColor1, fgColorCode)];
+                        eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(lineData, _backgroundColor1, fgColorCode)];
                         break;
                     case 2:
-                        eightPixels = _eightPixelsTwoColors[(lineData, _backgroundColor2, fgColorCode)];
+                        eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(lineData, _backgroundColor2, fgColorCode)];
                         break;
                     case 3:
-                        eightPixels = _eightPixelsTwoColors[(lineData, _backgroundColor3, fgColorCode)];
+                        eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(lineData, _backgroundColor3, fgColorCode)];
                         break;
                     default:
                         throw new DotNet6502Exception("Invalid background color number.");
@@ -776,7 +816,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 // fgColorCode            = the color of pixel-pair 11
 
                 // Get the corresponding array of uints representing the 8 pixels of the character
-                eightPixels = _eightPixelsThreeColorsAndBackground[(lineData, _backgroundColor1, _backgroundColor2, fgColorCode)];
+                eightPixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(lineData, _backgroundColor1, _backgroundColor2, fgColorCode)];
             }
         }
         else
@@ -796,7 +836,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 // ----------
                 // Pixel not set (bit = 0) => bitmap bg color (from text screen low 4 bits)
                 // Pixel set (bit = 1) => bitmap fg color
-                eightPixels = _eightPixelsTwoColors[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode)];
+                eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode)];
             else
             {
                 // Bitmap Multi color mode, 8 bits => 4 pixels
@@ -805,16 +845,15 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 // Pixel pattern 01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
                 // Pixel pattern 10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
                 // Pixel pattern 11 (multi color 3) => color RAM color (for corresponding position in text screen)
-                eightPixels = _eightPixelsThreeColorsAndBackground[(bitmapLineData, bitmapFgColorCode, bitmapBgColorCode, colorRamCode)];
+                eightPixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(bitmapLineData, bitmapFgColorCode, bitmapBgColorCode, colorRamCode)];
             }
         }
 
         // Write the background color to the pixel array for background and border
-        //WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], PixelArray_BackgroundAndBorder, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
-        WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+        if (!backgroundIsPrefilled)
+            WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
 
         // Write the character to the pixel array for foreground (adjusted for fine scrolling)
-        //WriteToPixelArray(eightPixels, PixelArray_Foreground, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
         WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
 
 
@@ -882,6 +921,24 @@ public sealed class Vic2RasterizerUintPixelGenerator
             else
                 _setBackgroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
         }
+    }
+
+    private void PrefillStandardTextBackgroundLine(int screenLine)
+    {
+        var drawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
+        var ypos = _screenStartY + drawLine;
+        if (ypos <= _topBorderEndYAdjusted || ypos >= _bottomBorderStartYAdjusted)
+            return;
+
+        if (FlipY)
+            ypos = _height - ypos - 1;
+
+        var fillWidth = _rightBorderStartXAdjusted - _screenStartXAdjusted;
+        if (fillWidth <= 0)
+            return;
+
+        var lineStartIndex = ypos * _width + _screenStartXAdjusted;
+        _setBackgroundPixels(_oneLineSameColorPixels[_backgroundColor0], 0, lineStartIndex, fillWidth);
     }
 
 }

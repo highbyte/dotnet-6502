@@ -13,6 +13,7 @@ public class C64Keyboard
     private readonly List<C64Key> _pressedKeys = new List<C64Key>();
     private readonly C64 _c64;
     private readonly List<int> _selectedMatrixRowBitPositions = new();
+    private readonly HashSet<C64JoystickAction> _keyboardJoystickActionsBuffer = new();
     private bool _capsLockOn;
     private bool _restorePressedLastFrame;
     private bool _runStopPressedLastFrame;
@@ -86,13 +87,13 @@ public class C64Keyboard
         _pressedKeys.Clear();
         foreach (var key in keys)
             _pressedKeys.Add(key);
-        if (keys.Count > 0)
-            _logger.LogTrace($"C64 keys pressed: {string.Join(",", keys)}");
+        if (keys.Count > 0 && _logger.IsEnabled(LogLevel.Trace))
+            _logger.LogTrace("C64 keys pressed: {Keys}", string.Join(",", keys));
 
         // Check for special key: Caps lock
         // Not connected to the C64 keyboard matrix, it's connected to the left shift key (keeping it pressed)
         if (capsLockOn != _capsLockOn)
-            _logger.LogTrace($"C64 caps lock changed to: {capsLockOn}");
+            _logger.LogTrace("C64 caps lock changed to: {CapsLockOn}", capsLockOn);
         _capsLockOn = capsLockOn;
         if (capsLockOn)
             _pressedKeys.Add(C64Key.LShift);
@@ -252,16 +253,16 @@ public class C64Keyboard
     private void HandleJoystickKeyboard(int joystick)
     {
         var joystickKeyboardMap = _c64.Cia1.Joystick.KeyboardJoystickMap.GetMap(joystick);
-        var joystickActions = new HashSet<C64JoystickAction>();
-        foreach (var c64Key in joystickKeyboardMap.Keys)
+        var joystickActions = _keyboardJoystickActionsBuffer;
+        joystickActions.Clear();
+        foreach (var keyMapping in joystickKeyboardMap)
         {
-            if (_pressedKeys.Contains(c64Key))
+            if (_pressedKeys.Remove(keyMapping.Key))
             {
-                joystickActions.Add(joystickKeyboardMap[c64Key]);
-                _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
+                joystickActions.Add(keyMapping.Value);
             }
         }
-        _c64.Cia1.Joystick.SetJoystickActions(joystick, joystickActions);
+        _c64.Cia1.Joystick.SetJoystickActions(joystick, joystickActions, overwrite: false);
     }
 }
 

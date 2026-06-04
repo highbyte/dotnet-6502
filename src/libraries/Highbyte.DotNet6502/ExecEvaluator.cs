@@ -15,6 +15,22 @@ public class LegacyExecEvaluator : IExecEvaluator
 
     private readonly ExecOptions _execOptions;
 
+    // Snapshot of whether any stop condition is configured. Captured at construction
+    // to let Check short-circuit the common "just run" case in one branch instead of
+    // walking all seven nullable HasValue checks. ExecOptions must not be mutated after
+    // the evaluator is constructed -- see the class XML doc on that requirement.
+    private readonly bool _anyStopConditionConfigured;
+
+    // Cached at construction: the byte value of ExecOptions.ExecuteUntilInstruction
+    // (avoids a Nullable<OpCodeId>.Value + enum-to-byte cast per Check call).
+    private readonly byte? _executeUntilInstructionByte;
+
+    // 256-bit bitmap mirror of ExecOptions.ExecuteUntilInstructions. Null when the
+    // list is empty/unset; populated to a 256-byte bool[] when one or more stop opcodes
+    // are configured. Replaces an O(n) List<byte>.Contains per Check call with a single
+    // bounds-checked array read.
+    private readonly bool[]? _executeUntilInstructionsBitmap;
+
     public readonly static LegacyExecEvaluator OneInstructionExecEvaluator = new LegacyExecEvaluator(new ExecOptions { MaxNumberOfInstructions = 1 });
     public readonly static LegacyExecEvaluator UntilBRKExecEvaluator = new LegacyExecEvaluator(new ExecOptions { BRKInstructionStopsExecution = true });
 
@@ -26,10 +42,34 @@ public class LegacyExecEvaluator : IExecEvaluator
     public LegacyExecEvaluator(ExecOptions execOptions)
     {
         _execOptions = execOptions;
+        _anyStopConditionConfigured =
+            execOptions.CyclesRequested.HasValue
+            || execOptions.MaxNumberOfInstructions.HasValue
+            || execOptions.ExecuteUntilPC.HasValue
+            || execOptions.ExecuteUntilExecutedInstructionAtPC.HasValue
+            || execOptions.ExecuteUntilInstruction.HasValue
+            || (execOptions.ExecuteUntilInstructions != null && execOptions.ExecuteUntilInstructions.Count > 0)
+            || execOptions.BRKInstructionStopsExecution;
+
+        if (execOptions.ExecuteUntilInstruction.HasValue)
+            _executeUntilInstructionByte = execOptions.ExecuteUntilInstruction.Value.ToByte();
+
+        if (execOptions.ExecuteUntilInstructions is { Count: > 0 } list)
+        {
+            _executeUntilInstructionsBitmap = new bool[256];
+            foreach (var b in list)
+                _executeUntilInstructionsBitmap[b] = true;
+        }
     }
 
     public ExecEvaluatorTriggerResult Check(ExecState execState, CPU cpu, Memory mem)
     {
+        // Fast path for the common "run until something external stops me" case: no
+        // stop conditions configured and no need to throw on unknown opcodes. Returns
+        // in one branch instead of walking the seven nullable checks below.
+        if (!_anyStopConditionConfigured && !ExecOptions.UnknownInstructionThrowsException)
+            return ExecEvaluatorTriggerResult.NotTriggered;
+
         var result = execState.LastInstructionExecResult;
 
         if (result.UnknownInstruction && ExecOptions.UnknownInstructionThrowsException)
@@ -63,9 +103,9 @@ public class LegacyExecEvaluator : IExecEvaluator
         string? description = null;
         if (result.IsBRKInstruction && ExecOptions.BRKInstructionStopsExecution)
             description = "BRK instruction was configured to stop execition";
-        if (result.IsValid && !result.UnknownInstruction && ExecOptions.ExecuteUntilInstruction.HasValue && result.OpCodeByte == ExecOptions.ExecuteUntilInstruction.Value.ToByte())
+        if (result.IsValid && !result.UnknownInstruction && _executeUntilInstructionByte.HasValue && result.OpCodeByte == _executeUntilInstructionByte.GetValueOrDefault())
             description = "Specified instruction encountered";
-        if (result.IsValid && ExecOptions.ExecuteUntilInstructions.Count > 0 && ExecOptions.ExecuteUntilInstructions.Contains(result.OpCodeByte))
+        if (result.IsValid && _executeUntilInstructionsBitmap is not null && _executeUntilInstructionsBitmap[result.OpCodeByte])
             description = "One of the specified instructions encountered";
         return description;
     }

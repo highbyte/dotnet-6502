@@ -378,7 +378,7 @@ public class Vic2
         for (int spriteNumber = 0; spriteNumber < 8; spriteNumber++)
         {
             if (originalValue.IsBitSet(spriteNumber) != value.IsBitSet(spriteNumber))
-                SpriteManager.Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.All);
+                SpriteManager.Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.Metadata);
         }
     }
     public byte SpriteMultiColorEnableLoad(ushort address)
@@ -442,7 +442,7 @@ public class Vic2
     public void SpriteMultiColor0Store(ushort address, byte value)
     {
         C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
-        SpriteManager.SetAllDirty();
+        SpriteManager.SetAllChanged(Vic2SpriteChangeType.MultiColor0);
     }
     public byte SpriteMultiColor0Load(ushort address)
     {
@@ -451,7 +451,7 @@ public class Vic2
     public void SpriteMultiColor1Store(ushort address, byte value)
     {
         C64.WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
-        SpriteManager.SetAllDirty();
+        SpriteManager.SetAllChanged(Vic2SpriteChangeType.MultiColor1);
     }
     public byte SpriteMultiColor1Load(ushort address)
     {
@@ -470,7 +470,6 @@ public class Vic2
     public void ScrollXStore(ushort address, byte value)
     {
         C64.WriteIOStorage(address, (byte)(value & 0b0011_1111)); // Only bits 0-5 are stored
-        SpriteManager.SetAllDirty();
     }
     public byte ScrollXLoad(ushort address)
     {
@@ -528,7 +527,7 @@ public class Vic2
         VideoMatrixBaseAddress = (ushort)(videoMatrixBaseAddressSetting * 0x400);
         if (oldVideoMatrixBaseAddress != VideoMatrixBaseAddress)
         {
-            SpriteManager.SetAllDirty();
+            SpriteManager.SetAllChanged(Vic2SpriteChangeType.Data);
         }
     }
 
@@ -577,7 +576,7 @@ public class Vic2
             Vic2Mem.SetMemoryConfiguration(CurrentVIC2Bank);
 
             CharsetManager.NotifyCharsetAddressChanged();
-            SpriteManager.SetAllDirty();
+            SpriteManager.SetAllChanged(Vic2SpriteChangeType.Data);
         }
     }
 

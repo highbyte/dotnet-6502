@@ -24,6 +24,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64;
 /// </remarks>
 public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
 {
+    private const ushort C64BasicProgramLoadAddress = 0x0801;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger _logger;
 
@@ -166,6 +167,74 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         _logger.LogInformation("Queueing C64 BASIC source ({LineCount} line(s), runBasic={RunBasic}).",
             CountNonEmptyLines(basicSource), runBasic);
         c64.TextPaste.Paste(pasteText);
+    }
+
+    public async Task BeforePrgLoadAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context)
+    {
+        if (!request.WaitForSystemReady || request.LoadPrgPath is null)
+            return;
+
+        if (hostApp.CurrentRunningSystem is not C64)
+            return;
+
+        // Match the existing D64 autorun flow: BASIC reports ready once TXTAB is initialized,
+        // but an extra moment is needed before direct PRG loads reliably stick.
+        _logger.LogInformation("Waiting 1 second for C64 BASIC to settle before automated PRG load.");
+        await Task.Delay(1000);
+    }
+
+    public Task OnPrgLoadedAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        ushort loadAddress,
+        ushort fileLength)
+    {
+        if (loadAddress != C64BasicProgramLoadAddress)
+            return Task.CompletedTask;
+
+        if (hostApp.CurrentRunningSystem is not C64 c64)
+        {
+            _logger.LogError("Loaded C64 BASIC PRG requires the running system to be C64.");
+            return Task.CompletedTask;
+        }
+
+        c64.InitBasicMemoryVariables(loadAddress, fileLength);
+        _logger.LogInformation(
+            "Initialized C64 BASIC memory variables for loaded PRG at 0x{LoadAddress:X4}, length {FileLength}.",
+            loadAddress,
+            fileLength);
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> TryRunLoadedProgramAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        ushort loadAddress)
+    {
+        if (loadAddress != C64BasicProgramLoadAddress)
+            return Task.FromResult(false);
+
+        if (!request.WaitForSystemReady)
+        {
+            _logger.LogWarning(
+                "Running a loaded C64 BASIC program requires waitForSystemReady; falling back to generic PRG start.");
+            return Task.FromResult(false);
+        }
+
+        if (hostApp.CurrentRunningSystem is not C64 c64)
+        {
+            _logger.LogError("Running a loaded C64 BASIC program requires the running system to be C64.");
+            return Task.FromResult(false);
+        }
+
+        _logger.LogInformation("Queueing C64 BASIC RUN command for loaded PRG at 0x{LoadAddress:X4}.", loadAddress);
+        c64.TextPaste.Paste("run\n");
+        return Task.FromResult(true);
     }
 
     private static string? GetExtra(IReadOnlyDictionary<string, string> extras, string key)

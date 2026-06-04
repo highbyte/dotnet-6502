@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 
 /// <summary>
@@ -404,11 +406,9 @@ public sealed class SidSampleCore
         // this path (it's resolved at sample-emit time in TriangleOutput, not during ticking).
         if (!_anyVoiceUsesSync)
         {
-            for (int i = 0; i < VoiceCount; i++)
-            {
-                TickPhaseAccumulator(i);
-                TickEnvelope(ref _voices[i]);
-            }
+            TickVoiceIfNeeded(0);
+            TickVoiceIfNeeded(1);
+            TickVoiceIfNeeded(2);
             return;
         }
 
@@ -434,6 +434,28 @@ public sealed class SidSampleCore
         for (int i = 0; i < VoiceCount; i++)
             TickEnvelope(ref _voices[i]);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void TickVoiceIfNeeded(int voiceIdx)
+    {
+        ref var v = ref _voices[voiceIdx];
+        if (IsQuiescent(ref v))
+        {
+            v.MsbJustRose = false;
+            return;
+        }
+
+        TickPhaseAccumulator(voiceIdx);
+        TickEnvelope(ref v);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsQuiescent(ref Voice v)
+        => v.Frequency == 0
+            && !v.TestBit
+            && !v.Gate
+            && !v.RingModEnabled
+            && v.AdsrPhase == AdsrPhase.Off;
 
     private void RefreshAggregateFlags()
     {

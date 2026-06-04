@@ -50,9 +50,14 @@ public class Vic2SpriteManager : IVic2SpriteManager
 
     public void SetAllDirty()
     {
+        SetAllChanged(Vic2SpriteChangeType.All);
+    }
+
+    public void SetAllChanged(Vic2SpriteChangeType spriteChangeType)
+    {
         foreach (var sprite in Sprites)
         {
-            sprite.HasChanged(Vic2SpriteChangeType.All);
+            sprite.HasChanged(spriteChangeType);
         }
     }
 
@@ -118,9 +123,15 @@ public class Vic2SpriteManager : IVic2SpriteManager
             if (!sprite.Visible || !otherSprite.Visible)
                 continue;
 
+            if (!SpriteBoundsOverlap(sprite, otherSprite))
+                continue;
+
             // Loop each sprite line
             for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
             {
+                if (!sprite.ScreenLineHasVisiblePixels(screenLine))
+                    continue;
+
                 // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded horizontally or not)
 #pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
                 Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];
@@ -141,7 +152,7 @@ public class Vic2SpriteManager : IVic2SpriteManager
                     // Set bit in collision byte for both sprites
                     collision |= (byte)(1 << sprite.SpriteNumber);
                     collision |= (byte)(1 << otherSprite.SpriteNumber);
-                    continue;
+                    break;
                 }
             }
         }
@@ -177,6 +188,9 @@ public class Vic2SpriteManager : IVic2SpriteManager
         // Loop each sprite line
         for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
         {
+            if (!sprite.ScreenLineHasVisiblePixels(screenLine))
+                continue;
+
             // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded vertically or not)
 #pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
             Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];
@@ -210,6 +224,14 @@ public class Vic2SpriteManager : IVic2SpriteManager
             }
         }
         return false;
+    }
+
+    private static bool SpriteBoundsOverlap(Vic2Sprite sprite, Vic2Sprite otherSprite)
+    {
+        return sprite.X < otherSprite.X + otherSprite.WidthPixels
+            && otherSprite.X < sprite.X + sprite.WidthPixels
+            && sprite.Y < otherSprite.Y + otherSprite.HeightPixels
+            && otherSprite.Y < sprite.Y + sprite.HeightPixels;
     }
 
     /// <summary>

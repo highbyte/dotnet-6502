@@ -1,4 +1,6 @@
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Utils;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
@@ -15,12 +17,15 @@ namespace Highbyte.DotNet6502.Impl.NAudio;
 /// </summary>
 [DisplayName("NAudio PCM sample target")]
 [HelpText("Plays raw PCM samples through NAudio (desktop). Pairs with the SID sample emulation provider.")]
-public sealed class NAudioSampleTarget : IAudioSampleTarget
+public sealed class NAudioSampleTarget : IAudioSampleTarget, IInstrumentationSource
 {
     public string Name => "NAudioSampleTarget";
+    public Instrumentations Instrumentations { get; } = new();
 
     private readonly NAudioAudioHandlerContext _audioHandlerContext;
     private readonly ILogger _logger;
+    private readonly ElapsedMillisecondsTimedStat _readSamplesStat;
+    private readonly PerSecondTimedStat _readCallbacksPerSecondStat;
 
     private CallbackSampleProvider? _sampleProvider;
 
@@ -28,12 +33,14 @@ public sealed class NAudioSampleTarget : IAudioSampleTarget
     {
         _audioHandlerContext = audioHandlerContext;
         _logger = loggerFactory.CreateLogger(typeof(NAudioSampleTarget).Name);
+        _readSamplesStat = Instrumentations.Add("ReadSamples", new ElapsedMillisecondsTimedStat());
+        _readCallbacksPerSecondStat = Instrumentations.Add("CallbacksPerSecond", new PerSecondTimedStat());
     }
 
     public void Init(int sampleRateHz, int channelCount, AudioSampleReadCallback readSamples)
     {
         var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRateHz, channelCount);
-        _sampleProvider = new CallbackSampleProvider(waveFormat, readSamples);
+        _sampleProvider = new CallbackSampleProvider(waveFormat, readSamples, _readSamplesStat, _readCallbacksPerSecondStat);
 
         _audioHandlerContext.ConfigureWavePlayer(_sampleProvider);
         _audioHandlerContext.StartWavePlayer();
@@ -68,18 +75,36 @@ public sealed class NAudioSampleTarget : IAudioSampleTarget
     private sealed class CallbackSampleProvider : ISampleProvider
     {
         private readonly AudioSampleReadCallback _readSamples;
+        private readonly ElapsedMillisecondsTimedStat _readSamplesStat;
+        private readonly PerSecondTimedStat _readCallbacksPerSecondStat;
         public WaveFormat WaveFormat { get; }
 
-        public CallbackSampleProvider(WaveFormat waveFormat, AudioSampleReadCallback readSamples)
+        public CallbackSampleProvider(
+            WaveFormat waveFormat,
+            AudioSampleReadCallback readSamples,
+            ElapsedMillisecondsTimedStat readSamplesStat,
+            PerSecondTimedStat readCallbacksPerSecondStat)
         {
             WaveFormat = waveFormat;
             _readSamples = readSamples;
+            _readSamplesStat = readSamplesStat;
+            _readCallbacksPerSecondStat = readCallbacksPerSecondStat;
         }
 
         public int Read(float[] buffer, int offset, int count)
         {
             var dest = buffer.AsSpan(offset, count);
-            int filled = _readSamples(dest);
+            _readCallbacksPerSecondStat.Update();
+            _readSamplesStat.Start();
+            int filled;
+            try
+            {
+                filled = _readSamples(dest);
+            }
+            finally
+            {
+                _readSamplesStat.Stop();
+            }
             if (filled < count)
                 dest.Slice(filled).Clear(); // underrun → silence
             return count;
