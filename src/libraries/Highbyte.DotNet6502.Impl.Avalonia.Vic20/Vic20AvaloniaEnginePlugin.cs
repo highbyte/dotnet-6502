@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Highbyte.DotNet6502.Systems.Vic20;
+using Highbyte.DotNet6502.Impl.Avalonia;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -25,7 +26,8 @@ public sealed class Vic20AvaloniaEnginePlugin : ISystemEnginePlugin
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var config = sp.GetRequiredService<IConfiguration>();
-            return new Vic20Setup(loggerFactory, config);
+            var persistence = sp.GetRequiredService<CustomConfigPersistence>();
+            return new Vic20Setup(loggerFactory, config, persistence.Save);
         });
     }
 }
