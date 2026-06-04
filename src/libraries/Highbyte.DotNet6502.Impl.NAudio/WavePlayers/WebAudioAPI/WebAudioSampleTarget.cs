@@ -45,6 +45,13 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
         _logger = loggerFactory.CreateLogger(typeof(WebAudioSampleTarget).Name);
         _flushSamplesStat = Instrumentations.Add("FlushSamples", new ElapsedMillisecondsTimedStat());
         _flushCallbacksPerSecondStat = Instrumentations.Add("FlushCallbacksPerSecond", new PerSecondTimedStat());
+        Instrumentations.Add("Diagnostics-Transport", new JsStringStat(JSInterop.GetTransportMode));
+        Instrumentations.Add("Diagnostics-Buffered", new JsMillisecondsStat(JSInterop.GetBufferedMilliseconds));
+        Instrumentations.Add("Diagnostics-StartThreshold", new JsMillisecondsStat(JSInterop.GetStartThresholdMilliseconds));
+        Instrumentations.Add("Diagnostics-Capacity", new JsMillisecondsStat(JSInterop.GetBufferCapacityMilliseconds));
+        Instrumentations.Add("Diagnostics-OutputLatency", new JsMillisecondsStat(JSInterop.GetEstimatedOutputLatencyMilliseconds));
+        Instrumentations.Add("Diagnostics-Underruns", new JsCountStat(JSInterop.GetTotalUnderruns));
+        Instrumentations.Add("Diagnostics-Overflows", new JsCountStat(JSInterop.GetTotalOverflows));
     }
 
     public void InitDirect(int sampleRateHz, int channelCount)
@@ -226,5 +233,79 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
 
         [JSImport("WebAudioWavePlayer.cleanup", "WebAudioWavePlayer")]
         public static partial void Cleanup();
+
+        [JSImport("WebAudioWavePlayer.getTransportMode", "WebAudioWavePlayer")]
+        public static partial string GetTransportMode();
+
+        [JSImport("WebAudioWavePlayer.getBufferedMilliseconds", "WebAudioWavePlayer")]
+        public static partial double GetBufferedMilliseconds();
+
+        [JSImport("WebAudioWavePlayer.getStartThresholdMilliseconds", "WebAudioWavePlayer")]
+        public static partial double GetStartThresholdMilliseconds();
+
+        [JSImport("WebAudioWavePlayer.getBufferCapacityMilliseconds", "WebAudioWavePlayer")]
+        public static partial double GetBufferCapacityMilliseconds();
+
+        [JSImport("WebAudioWavePlayer.getEstimatedOutputLatencyMilliseconds", "WebAudioWavePlayer")]
+        public static partial double GetEstimatedOutputLatencyMilliseconds();
+
+        [JSImport("WebAudioWavePlayer.getTotalUnderruns", "WebAudioWavePlayer")]
+        public static partial double GetTotalUnderruns();
+
+        [JSImport("WebAudioWavePlayer.getTotalOverflows", "WebAudioWavePlayer")]
+        public static partial double GetTotalOverflows();
+    }
+
+    private sealed class JsStringStat(Func<string> getValue) : IStat
+    {
+        public string GetDescription()
+        {
+            try
+            {
+                return getValue();
+            }
+            catch
+            {
+                return "n/a";
+            }
+        }
+
+        public bool ShouldShow() => true;
+    }
+
+    private sealed class JsMillisecondsStat(Func<double> getValue) : IStat
+    {
+        public string GetDescription()
+        {
+            try
+            {
+                var value = getValue();
+                return value >= 0 ? $"{Math.Round(value, 1):0.0}ms" : "n/a";
+            }
+            catch
+            {
+                return "n/a";
+            }
+        }
+
+        public bool ShouldShow() => true;
+    }
+
+    private sealed class JsCountStat(Func<double> getValue) : IStat
+    {
+        public string GetDescription()
+        {
+            try
+            {
+                var value = getValue();
+                return value >= 0 ? Math.Round(value).ToString("0") : "n/a";
+            }
+            catch
+            {
+                return "n/a";
+            }
+        }
+
+        public bool ShouldShow() => true;
     }
 }

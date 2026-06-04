@@ -44,6 +44,8 @@ export const WebAudioWavePlayer = (() => {
     // Adaptive buffering: track underruns and increase buffer if needed
     let underrunCount = 0;
     let overflowCount = 0;
+    let totalUnderrunCount = 0;
+    let totalOverflowCount = 0;
     let consecutiveUnderruns = 0;
     let lastStatsTime = 0;
 
@@ -156,6 +158,8 @@ export const WebAudioWavePlayer = (() => {
         useSharedAudioWorklet = false;
         underrunCount = 0;
         overflowCount = 0;
+        totalUnderrunCount = 0;
+        totalOverflowCount = 0;
         consecutiveUnderruns = 0;
         lastStatsTime = performance.now();
         sharedSampleBuffer = null;
@@ -172,8 +176,9 @@ export const WebAudioWavePlayer = (() => {
         bufferedSamples = 0;
 
         // Start playback threshold based on multiplier from C#. AudioWorklet always renders
-        // 128-frame quanta, while the fallback ScriptProcessor uses the configured callback size.
-        const callbackFrames = preferSharedAudioWorklet && canUseSharedAudioWorklet()
+        // 128-frame quanta. This check must not depend on audioContext yet because the threshold
+        // is calculated before the new context is created below.
+        const callbackFrames = preferSharedAudioWorklet && canUseSharedAudioWorkletEnvironment()
             ? 128
             : getValidScriptProcessorBufferSize();
         const callbackSamples = callbackFrames * channels;
@@ -242,9 +247,15 @@ export const WebAudioWavePlayer = (() => {
 
     function canUseSharedAudioWorklet() {
         return Boolean(
-            globalThis.crossOriginIsolated &&
-            typeof SharedArrayBuffer === 'function' &&
+            canUseSharedAudioWorkletEnvironment() &&
             audioContext?.audioWorklet
+        );
+    }
+
+    function canUseSharedAudioWorkletEnvironment() {
+        return Boolean(
+            globalThis.crossOriginIsolated &&
+            typeof SharedArrayBuffer === 'function'
         );
     }
 
@@ -381,6 +392,8 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
 
             const currentUnderruns = Atomics.exchange(sharedState, StateIndex.Underruns, 0);
             const currentOverflows = Atomics.exchange(sharedState, StateIndex.Overflows, 0);
+            totalUnderrunCount += currentUnderruns;
+            totalOverflowCount += currentOverflows;
             if (currentUnderruns > 0 || currentOverflows > 0) {
                 const currentBufferedSamples = Atomics.load(sharedState, StateIndex.BufferedSamples);
                 const bufferLevelMs = (currentBufferedSamples / channels / sampleRate * 1000).toFixed(1);
@@ -455,6 +468,7 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
                 // because we returned early above when it wasn't.
                 if (isPlaying) {
                     underrunCount++;
+                    totalUnderrunCount++;
                     consecutiveUnderruns++;
                     if (consecutiveUnderruns > 3) {
                         hasEnoughToStart = false;
@@ -506,11 +520,11 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
 
         if (sampleCount > availableSpace) {
             const samplesToDiscard = sampleCount - availableSpace;
-            const currentReadPosition = Atomics.load(sharedState, StateIndex.ReadPosition);
-            Atomics.store(sharedState, StateIndex.ReadPosition, (currentReadPosition + samplesToDiscard) % bufferCapacity);
-            Atomics.sub(sharedState, StateIndex.BufferedSamples, samplesToDiscard);
-            Atomics.add(sharedState, StateIndex.Overflows, 1);
-            currentBufferedSamples -= samplesToDiscard;
+            const discardedSamples = discardOldestSharedSamples(samplesToDiscard);
+            if (discardedSamples > 0) {
+                Atomics.add(sharedState, StateIndex.Overflows, 1);
+                currentBufferedSamples -= discardedSamples;
+            }
         }
 
         let writePosition = Atomics.load(sharedState, StateIndex.WritePosition);
@@ -523,7 +537,10 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
         currentBufferedSamples = Atomics.add(sharedState, StateIndex.BufferedSamples, sampleCount) + sampleCount;
 
         const workletIsPlaying = Atomics.load(sharedState, StateIndex.IsPlaying) === 1;
-        if ((!hasEnoughToStart || !workletIsPlaying) && currentBufferedSamples >= minBufferBeforePlay) {
+        const startThresholdSamples = hasEnoughToStart && !workletIsPlaying
+            ? targetBufferedSamples
+            : minBufferBeforePlay;
+        if ((!hasEnoughToStart || !workletIsPlaying) && currentBufferedSamples >= startThresholdSamples) {
             hasEnoughToStart = true;
             Atomics.store(sharedState, StateIndex.IsPlaying, 1);
             const bufferLevelMs = (currentBufferedSamples / channels / sampleRate * 1000).toFixed(1);
@@ -531,6 +548,27 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
         }
 
         return true;
+    }
+
+    function discardOldestSharedSamples(samplesToDiscard) {
+        if (samplesToDiscard <= 0 || !sharedState) {
+            return 0;
+        }
+
+        const buffered = Atomics.load(sharedState, StateIndex.BufferedSamples);
+        const discardCount = Math.min(samplesToDiscard, Math.max(0, buffered));
+        if (discardCount === 0) {
+            return 0;
+        }
+
+        const currentReadPosition = Atomics.load(sharedState, StateIndex.ReadPosition);
+        Atomics.store(sharedState, StateIndex.ReadPosition, (currentReadPosition + discardCount) % bufferCapacity);
+        const previousBuffered = Atomics.sub(sharedState, StateIndex.BufferedSamples, discardCount);
+        if (previousBuffered < discardCount) {
+            Atomics.store(sharedState, StateIndex.BufferedSamples, 0);
+            return previousBuffered;
+        }
+        return discardCount;
     }
 
     /**
@@ -568,6 +606,7 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
             readPosition = (readPosition + samplesToDiscard) % bufferCapacity;
             bufferedSamples -= samplesToDiscard;
             overflowCount++;
+            totalOverflowCount++;
         }
 
         // Write samples to ring buffer
@@ -639,6 +678,8 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
         bufferedSamples = 0;
         underrunCount = 0;
         overflowCount = 0;
+        totalUnderrunCount = 0;
+        totalOverflowCount = 0;
         consecutiveUnderruns = 0;
         if (sharedState) {
             sharedState.fill(0);
@@ -687,6 +728,70 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
         logInfo('Cleaned up');
     }
 
+    function getCurrentBufferedSamples() {
+        if (useSharedAudioWorklet && sharedState) {
+            return Atomics.load(sharedState, StateIndex.BufferedSamples);
+        }
+        return bufferedSamples;
+    }
+
+    function samplesToMilliseconds(samples) {
+        if (sampleRate <= 0 || channels <= 0) {
+            return -1;
+        }
+        return samples / channels / sampleRate * 1000;
+    }
+
+    function getTransportMode() {
+        if (useSharedAudioWorklet && sharedState) {
+            return 'AudioWorklet';
+        }
+        if (audioWorkletNode) {
+            return 'ScriptProcessor';
+        }
+        return 'Uninitialized';
+    }
+
+    function getBufferedMilliseconds() {
+        return samplesToMilliseconds(getCurrentBufferedSamples());
+    }
+
+    function getStartThresholdMilliseconds() {
+        return samplesToMilliseconds(minBufferBeforePlay);
+    }
+
+    function getBufferCapacityMilliseconds() {
+        return samplesToMilliseconds(bufferCapacity);
+    }
+
+    function getEstimatedOutputLatencyMilliseconds() {
+        if (!audioContext) {
+            return -1;
+        }
+
+        let latencySeconds = 0;
+        let hasLatency = false;
+        if (typeof audioContext.baseLatency === 'number') {
+            latencySeconds += audioContext.baseLatency;
+            hasLatency = true;
+        }
+        if (typeof audioContext.outputLatency === 'number') {
+            latencySeconds += audioContext.outputLatency;
+            hasLatency = true;
+        }
+        return hasLatency ? latencySeconds * 1000 : -1;
+    }
+
+    function getTotalUnderruns() {
+        const pendingUnderruns = useSharedAudioWorklet && sharedState ? Atomics.load(sharedState, StateIndex.Underruns) : 0;
+        return totalUnderrunCount + pendingUnderruns;
+    }
+
+    function getTotalOverflows() {
+        const pendingOverflows = useSharedAudioWorklet && sharedState ? Atomics.load(sharedState, StateIndex.Overflows) : 0;
+        return totalOverflowCount + pendingOverflows;
+    }
+
     // Public API
     return {
         initialize,
@@ -697,6 +802,13 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
         pause,
         stop,
         cleanup,
-        registerLogCallback
+        registerLogCallback,
+        getTransportMode,
+        getBufferedMilliseconds,
+        getStartThresholdMilliseconds,
+        getBufferCapacityMilliseconds,
+        getEstimatedOutputLatencyMilliseconds,
+        getTotalUnderruns,
+        getTotalOverflows
     };
 })();
