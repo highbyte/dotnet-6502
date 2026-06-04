@@ -26,6 +26,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private bool _showErrorDialog;
     private bool _showDebugTools;
     private WavePlayerSettingsProfile _selectedAudioSettingsProfile;
+    private bool _useBrowserDirectWriteSampleAudio;
     private bool _stopAfterBRKInstruction;
     private bool _stopAfterUnknownInstruction;
     private bool _allowUrlScripts;
@@ -49,6 +50,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _showErrorDialog = _emulatorConfig.ShowErrorDialog;
         _showDebugTools = _emulatorConfig.ShowDebugTools;
         _selectedAudioSettingsProfile = _emulatorConfig.AudioSettingsProfile;
+        _useBrowserDirectWriteSampleAudio = _emulatorConfig.UseBrowserDirectWriteSampleAudio;
         _stopAfterBRKInstruction = _emulatorConfig.Monitor.StopAfterBRKInstruction;
         _stopAfterUnknownInstruction = _emulatorConfig.Monitor.StopAfterUnknownInstruction;
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
@@ -191,6 +193,18 @@ public class EmulatorConfigViewModel : ViewModelBase
         }
     }
 
+    public bool UseBrowserDirectWriteSampleAudio
+    {
+        get => _useBrowserDirectWriteSampleAudio;
+        set
+        {
+            if (_useBrowserDirectWriteSampleAudio == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _useBrowserDirectWriteSampleAudio, value);
+        }
+    }
+
     // Monitor Settings
     public bool StopAfterBRKInstruction
     {
@@ -266,6 +280,7 @@ public class EmulatorConfigViewModel : ViewModelBase
             _emulatorConfig.ShowErrorDialog = _showErrorDialog;
             _emulatorConfig.ShowDebugTools = _showDebugTools;
             _emulatorConfig.AudioSettingsProfile = _selectedAudioSettingsProfile;
+            _emulatorConfig.UseBrowserDirectWriteSampleAudio = _useBrowserDirectWriteSampleAudio;
             _emulatorConfig.Monitor.StopAfterBRKInstruction = _stopAfterBRKInstruction;
             _emulatorConfig.Monitor.StopAfterUnknownInstruction = _stopAfterUnknownInstruction;
 

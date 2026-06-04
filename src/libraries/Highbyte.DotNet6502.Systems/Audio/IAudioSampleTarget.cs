@@ -47,6 +47,23 @@ public interface IAudioSampleTarget : IAudioTarget
 }
 
 /// <summary>
+/// Optional direct-write PCM target style for hosts where pushing samples from the emulator
+/// producer is preferable to a target-owned pull loop.
+/// </summary>
+public interface IAudioSampleDirectWriteTarget : IAudioSampleTarget
+{
+    /// <summary>
+    /// Initialize the target for direct PCM writes. Called once before playback.
+    /// </summary>
+    void InitDirect(int sampleRateHz, int channelCount);
+
+    /// <summary>
+    /// Push newly generated interleaved PCM samples to the target.
+    /// </summary>
+    int WriteSamples(ReadOnlySpan<float> samples);
+}
+
+/// <summary>
 /// Optional buffering policy for PCM-sample targets.
 /// </summary>
 public interface IAudioSampleTargetBufferPolicy

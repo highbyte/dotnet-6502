@@ -24,6 +24,7 @@ public class EmulatorConfig
     public bool LoadResourcesOverHttp { get; set; } = false;
 
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
+    public bool UseBrowserDirectWriteSampleAudio { get; set; } = false;
     public MonitorConfig Monitor { get; set; } = new();
 
     /// <summary>
@@ -77,6 +78,7 @@ public class EmulatorConfig
         configSection["ShowErrorDialog"] = ShowErrorDialog.ToString();
         configSection["ShowDebugTools"] = ShowDebugTools.ToString();
         configSection["AudioSettingsProfile"] = AudioSettingsProfile.ToString();
+        configSection["UseBrowserDirectWriteSampleAudio"] = UseBrowserDirectWriteSampleAudio.ToString();
 
         var monitorSection = configSection.GetSection("Monitor");
         monitorSection["StopAfterBRKInstruction"] = Monitor.StopAfterBRKInstruction.ToString();

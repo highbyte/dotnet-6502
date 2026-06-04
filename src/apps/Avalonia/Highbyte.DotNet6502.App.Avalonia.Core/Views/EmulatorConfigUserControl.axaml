@@ -130,7 +130,7 @@
               <TextBlock Text="Audio Settings"
                          Classes=""/>
               
-              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                            Text="Audio profile:" 
                            Classes="secondary-text"
@@ -147,6 +147,21 @@
                            Text="Controls the audio latency vs stability tradeoff. Lower latency may cause audio glitches."
                            Classes="small secondary-text"
                            TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+
+                <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                          AutomationProperties.AutomationId="BrowserDirectWriteAudioCheckBox"
+                          AutomationProperties.Name="Use browser direct-write sample audio"
+                          Content="Browser direct-write sample audio"
+                          IsChecked="{Binding UseBrowserDirectWriteSampleAudio}"
+                          IsVisible="{Binding IsRunningInWebAssembly}"
+                          Margin="0,8,0,0"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="Experimental lower-latency C64/VIC sample audio path for browser."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding IsRunningInWebAssembly}"
                            Margin="0,4,0,0"/>
               </Grid>
             </StackPanel>

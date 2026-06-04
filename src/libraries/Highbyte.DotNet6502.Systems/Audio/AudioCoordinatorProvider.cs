@@ -17,6 +17,11 @@ public class AudioCoordinatorProvider
 
         if (audioSource is IAudioSampleProvider sampleProvider && audioTarget is IAudioSampleTarget sampleTarget)
         {
+            if (sampleTarget is IAudioSampleDirectWriteTarget directWriteTarget)
+            {
+                return new AudioSampleDirectWriteCoordinator(sampleProvider, directWriteTarget);
+            }
+
             var primeSilenceSamples = audioTarget is IAudioSampleTargetBufferPolicy bufferPolicy
                 ? bufferPolicy.PrimeSilenceSamples
                 : AudioSampleCoordinator.DefaultPrimeSilenceSamples;

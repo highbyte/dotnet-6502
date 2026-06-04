@@ -235,6 +235,13 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
                 if (audioHandlerContext.IsInitialized)
                     audioHandlerContext.Cleanup();
                 audioHandlerContext.Init();
+                if (EmulatorConfig.UseBrowserDirectWriteSampleAudio
+                    && OperatingSystem.IsBrowser()
+                    && audioHandlerContext.WavePlayer is WebAudioWavePlayer webAudioWavePlayer)
+                {
+                    return new WebAudioSampleTarget(webAudioWavePlayer.Settings, audioHandlerContext, _loggerFactory);
+                }
+
                 var primeSilenceSamples = audioHandlerContext.WavePlayer is WebAudioWavePlayer
                     ? 0
                     : AudioSampleCoordinator.DefaultPrimeSilenceSamples;
