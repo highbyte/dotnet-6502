@@ -141,9 +141,9 @@ public class WebAudioWavePlayerSettings
         RingBufferCapacityMultiplier = 3.0,
         MinBufferBeforePlayMultiplier = 1.0,
         ScriptProcessorBufferSize = 2048,
-        DirectWriteFlushSamples = 256,
-        DirectWriteDesiredLatencyMs = 35,
-        DirectWriteRingBufferCapacityMultiplier = 2.5,
+        DirectWriteFlushSamples = 128,
+        DirectWriteDesiredLatencyMs = 25,
+        DirectWriteRingBufferCapacityMultiplier = 2.0,
         DirectWriteMinBufferBeforePlayMultiplier = 0.5,
         DirectWriteScriptProcessorBufferSize = 1024,
         StatsIntervalMs = 10000

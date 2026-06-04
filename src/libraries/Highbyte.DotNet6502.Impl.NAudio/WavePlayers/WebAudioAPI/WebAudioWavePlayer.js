@@ -15,6 +15,23 @@ export const WebAudioWavePlayer = (() => {
     let bufferCapacity = 0;
     let targetBufferedSamples = 0;
     let highWatermarkSamples = 0;
+    let sharedSampleBuffer = null;
+    let sharedStateBuffer = null;
+    let sharedSamples = null;
+    let sharedState = null;
+    let workletModuleUrl = null;
+    let statsTimerId = null;
+    let useSharedAudioWorklet = false;
+
+    const StateIndex = {
+        ReadPosition: 0,
+        WritePosition: 1,
+        BufferedSamples: 2,
+        IsPlaying: 3,
+        Underruns: 4,
+        Overflows: 5
+    };
+    const StateCount = 6;
 
     // Minimum samples needed before starting playback (to avoid immediate underrun)
     let minBufferBeforePlay = 0;
@@ -86,6 +103,27 @@ export const WebAudioWavePlayer = (() => {
         return Math.pow(2, Math.round(Math.log2(clampedSize)));
     }
 
+    function getAudioLatencyText() {
+        if (!audioContext) {
+            return 'n/a';
+        }
+
+        const baseLatency = typeof audioContext.baseLatency === 'number'
+            ? `${(audioContext.baseLatency * 1000).toFixed(1)}ms`
+            : 'n/a';
+        const outputLatency = typeof audioContext.outputLatency === 'number'
+            ? `${(audioContext.outputLatency * 1000).toFixed(1)}ms`
+            : 'n/a';
+        return `base=${baseLatency}, output=${outputLatency}`;
+    }
+
+    function clearStatsTimer() {
+        if (statsTimerId !== null) {
+            clearInterval(statsTimerId);
+            statsTimerId = null;
+        }
+    }
+
     /**
      * Initialize WebAudio context and audio worklet
      * @param {number} sRate - Sample rate (e.g., 44100)
@@ -97,16 +135,30 @@ export const WebAudioWavePlayer = (() => {
      * @param {number} statsIntMs - Stats logging interval in ms (0 to disable)
      */
     function initialize(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
+        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, false);
+    }
+
+    function initializeDirectWrite(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
+        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, true);
+    }
+
+    function initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, preferSharedAudioWorklet) {
         sampleRate = sRate;
         channels = numChannels;
         scriptProcessorBufferSize = scriptProcBufferSize;
         statsIntervalMs = statsIntMs;
         isPlaying = false;
         hasEnoughToStart = false;
+        useSharedAudioWorklet = false;
         underrunCount = 0;
         overflowCount = 0;
         consecutiveUnderruns = 0;
         lastStatsTime = performance.now();
+        sharedSampleBuffer = null;
+        sharedStateBuffer = null;
+        sharedSamples = null;
+        sharedState = null;
+        clearStatsTimer();
 
         // Ring buffer capacity based on multiplier from C#
         bufferCapacity = Math.ceil(bufSize * channels * ringBufferCapacityMultiplier);
@@ -115,11 +167,15 @@ export const WebAudioWavePlayer = (() => {
         readPosition = 0;
         bufferedSamples = 0;
 
-        // Start playback threshold based on multiplier from C#
-        const scriptProcessorSamples = getValidScriptProcessorBufferSize() * channels;
+        // Start playback threshold based on multiplier from C#. AudioWorklet always renders
+        // 128-frame quanta, while the fallback ScriptProcessor uses the configured callback size.
+        const callbackFrames = preferSharedAudioWorklet && canUseSharedAudioWorklet()
+            ? 128
+            : getValidScriptProcessorBufferSize();
+        const callbackSamples = callbackFrames * channels;
         minBufferBeforePlay = Math.max(
             Math.ceil(bufSize * channels * minBufferBeforePlayMultiplier),
-            scriptProcessorSamples * 2);
+            callbackSamples * 2);
         targetBufferedSamples = Math.min(
             bufferCapacity,
             Math.max(Math.ceil(bufSize * channels), minBufferBeforePlay));
@@ -143,6 +199,7 @@ export const WebAudioWavePlayer = (() => {
             latencyHint: 'interactive' // Low latency for real-time audio
         });
         logInfo(`AudioContext created with sample rate: ${audioContext.sampleRate}`);
+        logInfo(`AudioContext latency: ${getAudioLatencyText()}`);
 
         // Resume context if it was suspended (browser autoplay policy)
         if (audioContext.state === 'suspended') {
@@ -162,10 +219,159 @@ export const WebAudioWavePlayer = (() => {
         logInfo(`  ScriptProcessor buffer: ${scriptProcessorBufferSize} samples`);
         logInfo(`  Stats interval: ${statsIntervalMs}ms${statsIntervalMs === 0 ? ' (disabled)' : ''}`);
 
-        // Use ScriptProcessorNode as fallback (AudioWorklet requires separate file and HTTPS)
-        setupScriptProcessor();
+        if (preferSharedAudioWorklet && canUseSharedAudioWorklet()) {
+            setupSharedAudioWorklet();
+        } else {
+            if (preferSharedAudioWorklet) {
+                logWarning('SharedArrayBuffer AudioWorklet unavailable; falling back to ScriptProcessorNode');
+            }
+            setupScriptProcessor();
+        }
 
         logDebug(`Initialize exit`);
+    }
+
+    function canUseSharedAudioWorklet() {
+        return Boolean(
+            globalThis.crossOriginIsolated &&
+            typeof SharedArrayBuffer === 'function' &&
+            audioContext?.audioWorklet
+        );
+    }
+
+    function createWorkletProcessorSource() {
+        return `
+const StateIndex = {
+  ReadPosition: 0,
+  WritePosition: 1,
+  BufferedSamples: 2,
+  IsPlaying: 3,
+  Underruns: 4,
+  Overflows: 5
+};
+
+class DotNet6502SharedRingProcessor extends AudioWorkletProcessor {
+  constructor(options) {
+    super();
+    const processorOptions = options.processorOptions;
+    this.samples = new Float32Array(processorOptions.sampleBuffer);
+    this.state = new Int32Array(processorOptions.stateBuffer);
+    this.capacity = processorOptions.capacity;
+    this.channels = processorOptions.channels;
+  }
+
+  process(_inputs, outputs) {
+    const output = outputs[0];
+    if (!output || output.length === 0) {
+      return true;
+    }
+
+    const frameCount = output[0].length;
+    const samplesNeeded = frameCount * this.channels;
+    const playing = Atomics.load(this.state, StateIndex.IsPlaying) === 1;
+    const buffered = Atomics.load(this.state, StateIndex.BufferedSamples);
+
+    if (!playing || buffered < samplesNeeded) {
+      for (let channel = 0; channel < output.length; channel++) {
+        output[channel].fill(0);
+      }
+      if (playing) {
+        Atomics.add(this.state, StateIndex.Underruns, 1);
+        Atomics.store(this.state, StateIndex.IsPlaying, 0);
+      }
+      return true;
+    }
+
+    let readPosition = Atomics.load(this.state, StateIndex.ReadPosition);
+    for (let channel = 0; channel < output.length; channel++) {
+      const channelOutput = output[channel];
+      for (let frame = 0; frame < frameCount; frame++) {
+        channelOutput[frame] = this.samples[(readPosition + frame * this.channels + channel) % this.capacity];
+      }
+    }
+
+    readPosition = (readPosition + samplesNeeded) % this.capacity;
+    Atomics.store(this.state, StateIndex.ReadPosition, readPosition);
+    Atomics.sub(this.state, StateIndex.BufferedSamples, samplesNeeded);
+    return true;
+  }
+}
+
+registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProcessor);
+`;
+    }
+
+    async function setupSharedAudioWorklet() {
+        logDebug(`SetupSharedAudioWorklet start`);
+
+        if (audioWorkletNode) {
+            audioWorkletNode.disconnect();
+            audioWorkletNode = null;
+        }
+
+        sharedSampleBuffer = new SharedArrayBuffer(Float32Array.BYTES_PER_ELEMENT * bufferCapacity);
+        sharedStateBuffer = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * StateCount);
+        sharedSamples = new Float32Array(sharedSampleBuffer);
+        sharedState = new Int32Array(sharedStateBuffer);
+        sharedSamples.fill(0);
+        sharedState.fill(0);
+        useSharedAudioWorklet = true;
+
+        try {
+            if (!workletModuleUrl) {
+                const workletBlob = new Blob([createWorkletProcessorSource()], { type: 'text/javascript' });
+                workletModuleUrl = URL.createObjectURL(workletBlob);
+            }
+
+            await audioContext.audioWorklet.addModule(workletModuleUrl);
+            audioWorkletNode = new AudioWorkletNode(audioContext, 'dotnet6502-shared-ring-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [channels],
+                processorOptions: {
+                    sampleBuffer: sharedSampleBuffer,
+                    stateBuffer: sharedStateBuffer,
+                    capacity: bufferCapacity,
+                    channels
+                }
+            });
+
+            audioWorkletNode.connect(audioContext.destination);
+
+            const renderQuantumMs = (128 / sampleRate * 1000).toFixed(1);
+            logInfo(`AudioWorklet shared ring connected (~${renderQuantumMs}ms render quantum)`);
+            startSharedAudioWorkletStats();
+        } catch (error) {
+            logWarning(`AudioWorklet shared ring setup failed; falling back to ScriptProcessorNode: ${error?.message ?? error}`);
+            sharedSampleBuffer = null;
+            sharedStateBuffer = null;
+            sharedSamples = null;
+            sharedState = null;
+            setupScriptProcessor();
+        }
+
+        logDebug(`SetupSharedAudioWorklet exit`);
+    }
+
+    function startSharedAudioWorkletStats() {
+        clearStatsTimer();
+        if (statsIntervalMs <= 0) {
+            return;
+        }
+
+        statsTimerId = setInterval(() => {
+            if (!sharedState) {
+                return;
+            }
+
+            const currentUnderruns = Atomics.exchange(sharedState, StateIndex.Underruns, 0);
+            const currentOverflows = Atomics.exchange(sharedState, StateIndex.Overflows, 0);
+            if (currentUnderruns > 0 || currentOverflows > 0) {
+                const currentBufferedSamples = Atomics.load(sharedState, StateIndex.BufferedSamples);
+                const bufferLevelMs = (currentBufferedSamples / channels / sampleRate * 1000).toFixed(1);
+                logWarning(`Stats: underruns=${currentUnderruns}, overflows=${currentOverflows}, current buffer=${bufferLevelMs}ms`);
+            }
+        }, statsIntervalMs);
     }
 
     function fillOutputWithSilence(outputBuffer) {
@@ -275,6 +481,43 @@ export const WebAudioWavePlayer = (() => {
         }
     }
 
+    function queueAudioDataToSharedRing(floatArray, sampleCount) {
+        if (!sharedSamples || !sharedState) {
+            return false;
+        }
+
+        let currentBufferedSamples = Atomics.load(sharedState, StateIndex.BufferedSamples);
+        const availableSpace = bufferCapacity - currentBufferedSamples;
+
+        if (sampleCount > availableSpace) {
+            const samplesToDiscard = sampleCount - availableSpace;
+            const currentReadPosition = Atomics.load(sharedState, StateIndex.ReadPosition);
+            Atomics.store(sharedState, StateIndex.ReadPosition, (currentReadPosition + samplesToDiscard) % bufferCapacity);
+            Atomics.sub(sharedState, StateIndex.BufferedSamples, samplesToDiscard);
+            Atomics.add(sharedState, StateIndex.Overflows, 1);
+            currentBufferedSamples -= samplesToDiscard;
+        }
+
+        let writePosition = Atomics.load(sharedState, StateIndex.WritePosition);
+        for (let i = 0; i < sampleCount; i++) {
+            sharedSamples[(writePosition + i) % bufferCapacity] = floatArray[i];
+        }
+
+        writePosition = (writePosition + sampleCount) % bufferCapacity;
+        Atomics.store(sharedState, StateIndex.WritePosition, writePosition);
+        currentBufferedSamples = Atomics.add(sharedState, StateIndex.BufferedSamples, sampleCount) + sampleCount;
+
+        const workletIsPlaying = Atomics.load(sharedState, StateIndex.IsPlaying) === 1;
+        if ((!hasEnoughToStart || !workletIsPlaying) && currentBufferedSamples >= minBufferBeforePlay) {
+            hasEnoughToStart = true;
+            Atomics.store(sharedState, StateIndex.IsPlaying, 1);
+            const bufferLevelMs = (currentBufferedSamples / channels / sampleRate * 1000).toFixed(1);
+            logInfo(`Starting AudioWorklet playback with ${currentBufferedSamples} samples (~${bufferLevelMs}ms) buffered`);
+        }
+
+        return true;
+    }
+
     /**
      * Queue audio data for playback
      * @param {Uint8Array} audioDataBytes - Audio samples as byte array (little-endian float32)
@@ -288,6 +531,18 @@ export const WebAudioWavePlayer = (() => {
 
         // Convert byte array to Float32Array
         const floatArray = new Float32Array(audioDataBytes.buffer, audioDataBytes.byteOffset, sampleCount);
+
+        if (useSharedAudioWorklet && queueAudioDataToSharedRing(floatArray, sampleCount)) {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            if (!isPlaying) {
+                isPlaying = true;
+            }
+
+            return;
+        }
         
         // Check if we have room in the ring buffer
         const availableSpace = bufferCapacity - bufferedSamples;
@@ -338,6 +593,10 @@ export const WebAudioWavePlayer = (() => {
         if (audioWorkletNode && audioContext) {
             audioWorkletNode.connect(audioContext.destination);
         }
+
+        if (useSharedAudioWorklet && sharedState && hasEnoughToStart) {
+            Atomics.store(sharedState, StateIndex.IsPlaying, 1);
+        }
         
         isPlaying = true;
         logInfo('Resumed');
@@ -348,6 +607,9 @@ export const WebAudioWavePlayer = (() => {
      */
     function pause() {
         isPlaying = false;
+        if (useSharedAudioWorklet && sharedState) {
+            Atomics.store(sharedState, StateIndex.IsPlaying, 0);
+        }
         logInfo('Paused');
     }
 
@@ -363,6 +625,12 @@ export const WebAudioWavePlayer = (() => {
         underrunCount = 0;
         overflowCount = 0;
         consecutiveUnderruns = 0;
+        if (sharedState) {
+            sharedState.fill(0);
+        }
+        if (sharedSamples) {
+            sharedSamples.fill(0);
+        }
         if (sampleBuffer) {
             sampleBuffer.fill(0);
         }
@@ -381,6 +649,7 @@ export const WebAudioWavePlayer = (() => {
      */
     function cleanup() {
         stop();
+        clearStatsTimer();
         
         if (audioWorkletNode) {
             audioWorkletNode.disconnect();
@@ -393,6 +662,11 @@ export const WebAudioWavePlayer = (() => {
         }
         
         sampleBuffer = null;
+        sharedSampleBuffer = null;
+        sharedStateBuffer = null;
+        sharedSamples = null;
+        sharedState = null;
+        useSharedAudioWorklet = false;
         logCallback = null;
         
         logInfo('Cleaned up');
@@ -401,6 +675,7 @@ export const WebAudioWavePlayer = (() => {
     // Public API
     return {
         initialize,
+        initializeDirectWrite,
         queueAudioData,
         resume,
         pause,

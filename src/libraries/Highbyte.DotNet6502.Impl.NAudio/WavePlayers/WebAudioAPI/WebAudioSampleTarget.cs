@@ -69,7 +69,7 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
         var bufferSizeSamples = (int)(sampleRateHz * (desiredLatencyMs / 1000.0));
 
         JSInterop.RegisterLogCallback(WebAudioWavePlayer.OnLogMessage);
-        JSInterop.Initialize(
+        JSInterop.InitializeDirectWrite(
             sampleRateHz,
             channelCount,
             bufferSizeSamples,
@@ -175,8 +175,8 @@ public sealed partial class WebAudioSampleTarget : IAudioSampleDirectWriteTarget
         [JSImport("WebAudioWavePlayer.registerLogCallback", "WebAudioWavePlayer")]
         public static partial void RegisterLogCallback([JSMarshalAs<JSType.Function<JSType.Number, JSType.String>>] Action<int, string> callback);
 
-        [JSImport("WebAudioWavePlayer.initialize", "WebAudioWavePlayer")]
-        public static partial void Initialize(
+        [JSImport("WebAudioWavePlayer.initializeDirectWrite", "WebAudioWavePlayer")]
+        public static partial void InitializeDirectWrite(
             int sampleRate,
             int channels,
             int bufferSize,
