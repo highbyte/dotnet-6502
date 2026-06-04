@@ -18,7 +18,7 @@ public class Cia1 : CiaBase
     public C64Keyboard Keyboard { get; private set; }
     public C64Joystick Joystick { get; private set; }
 
-    public Cia1(C64 c64, Config.C64Config c64Config, ILoggerFactory loggerFactory) 
+    public Cia1(C64 c64, Config.C64Config c64Config, ILoggerFactory loggerFactory)
         : base(c64, new CiaIRQ(useNMI: false)) // Initialize CIA #1 timer with to raise IRQ instead of NMI
     {
         Keyboard = new C64Keyboard(c64, loggerFactory);
@@ -89,14 +89,15 @@ public class Cia1 : CiaBase
     public byte DataALoad(ushort _)
     {
         var inputValue = Keyboard.GetPortAInput(GetDrivenMask(_portB, _ddrb));
+        var result = ComposePortReadValue(_portA, _ddra, inputValue);
 
-        // Also set Joystick #2 bits
+        // Joystick port 2 pins are shared with Port A output pins. The joystick can pull a pin
+        // low regardless of the DDR direction, so bits are cleared on the composed result rather
+        // than on inputValue (which ComposePortReadValue ignores for output-configured bits).
         foreach (var action in Joystick.CurrentJoystickActions[2])
-        {
-            inputValue.ClearBit((int)action);
-        }
+            result.ClearBit((int)action);
 
-        return ComposePortReadValue(_portA, _ddra, inputValue);
+        return result;
     }
 
     /// <summary>
@@ -114,13 +115,14 @@ public class Cia1 : CiaBase
     public byte DataBLoad(ushort address)
     {
         var inputValue = Keyboard.GetPortBInput(GetDrivenMask(_portA, _ddra));
+        var result = ComposePortReadValue(_portB, _ddrb, inputValue);
 
-        // Also set Joystick #1 bits
+        // Joystick port 1 pins are shared with Port B. Same reasoning as DataALoad: joystick can
+        // pull a pin low regardless of DDR direction, so bits are cleared on the composed result.
         foreach (var action in Joystick.CurrentJoystickActions[1])
-        {
-            inputValue.ClearBit((int)action);
-        }
-        return ComposePortReadValue(_portB, _ddrb, inputValue);
+            result.ClearBit((int)action);
+
+        return result;
     }
 
     public void DataBStore(ushort address, byte value)
