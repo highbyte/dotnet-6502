@@ -618,7 +618,14 @@
         <TextBlock Text="{Binding StatusMessage}"
                     Foreground="{DynamicResource SuccessColor}"
                     TextWrapping="Wrap"
-                    IsVisible="{Binding HasStatusMessage}"/>
+                    IsVisible="{Binding HasNonErrorStatusMessage}"/>
+
+        <Border Classes="error-container-small"
+                IsVisible="{Binding HasErrorStatusMessage}">
+          <TextBlock Text="{Binding StatusMessage}"
+                     Classes="small"
+                     TextWrapping="Wrap"/>
+        </Border>
         
         <!-- Validation Error Messages with Border (similar to MainView) -->
         <Border Classes="error-container-small"
