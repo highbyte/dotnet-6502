@@ -5,8 +5,9 @@
         x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.Views.C64ConfigUserControl"
         x:DataType="vm:C64ConfigDialogViewModel">
   
-  <!-- Simplified layout for ContentDialog - no outer border needed -->
-  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
+  <!-- Simplified layout for ContentDialog - no outer border needed.
+       MaxWidth caps the dialog so the WrapPanel inside wraps to at most 3 columns of 368 px wide panels. -->
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8" MaxWidth="1140">
     <!-- Title Header -->
     <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
       <TextBlock Text="Commodore 64 Configuration"
@@ -18,7 +19,7 @@
       <WrapPanel Orientation="Horizontal"> 
       
         <!-- ROM Section -->
-        <StackPanel Width="460" Classes="wrap-item">
+        <StackPanel Width="368" Classes="wrap-item">
         <Border Classes="content-section">
             <StackPanel Classes="spacing-tight">
             <TextBlock Text="ROM Management"
@@ -78,7 +79,14 @@
             </StackPanel>
 
 
-            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+            <!-- WrapPanel so the row of ROM buttons reflows to a second row when the column is too narrow.
+                 WrapPanel has no Spacing property, so per-button Margin provides the gap. -->
+            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <WrapPanel.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="Margin" Value="0,0,6,6"/>
+                    </Style>
+                </WrapPanel.Styles>
                 <!-- Clear for WASM app to clear ROM byte arrays -->
                 <Button Content="Clear"
                         AutomationProperties.AutomationId="ClearRomsButton"
@@ -111,15 +119,15 @@
                         MinWidth="130"
                         Classes="primary extraWide"
                         IsVisible="{Binding !IsRunningInWebAssembly}"
-                        IsEnabled="{Binding IsNotBusy}"/>                    
-            </StackPanel>
+                        IsEnabled="{Binding IsNotBusy}"/>
+            </WrapPanel>
 
             </StackPanel>
         </Border>
         </StackPanel>
           
         <!-- CPU Section -->
-        <StackPanel Width="460" Classes="wrap-item">
+        <StackPanel Width="368" Classes="wrap-item">
             <Border Classes="content-section">
                 <StackPanel Classes="spacing-tight">
                 <TextBlock Text="CPU"
@@ -150,7 +158,7 @@
         </StackPanel>
 
         <!-- Render Section -->
-        <StackPanel Width="460" Classes="wrap-item">
+        <StackPanel Width="368" Classes="wrap-item">
             <Border Classes="content-section">
                 <StackPanel Classes="spacing-tight">
                 <TextBlock Text="Video"
@@ -199,7 +207,7 @@
         </StackPanel>
 
         <!-- Audio Section -->
-        <StackPanel Width="460" Classes="wrap-item">
+        <StackPanel Width="368" Classes="wrap-item">
             <Border Classes="content-section">
                 <StackPanel Classes="spacing-tight">
                     <TextBlock Text="Audio"
@@ -275,7 +283,7 @@
         </StackPanel>
 
         <!-- Input Section -->
-        <StackPanel Width="460" Classes="wrap-item">
+        <StackPanel Width="368" Classes="wrap-item">
         <Border Classes="content-section">
             <StackPanel Classes="spacing-tight">
             <TextBlock Text="Input &amp; Joystick"
@@ -351,7 +359,7 @@
         </StackPanel>
 
         <!-- SwiftLink Section -->
-        <StackPanel Width="460" Classes="wrap-item"
+        <StackPanel Width="368" Classes="wrap-item"
                     IsVisible="{Binding !IsRunningInWebAssembly}">
         <Border Classes="content-section">
             <StackPanel Classes="spacing-tight">
@@ -451,7 +459,7 @@
         </StackPanel>
 
         <!-- Network Section (browser only) -->
-        <StackPanel Width="460" Classes="wrap-item"
+        <StackPanel Width="368" Classes="wrap-item"
                     IsVisible="{Binding IsRunningInWebAssembly}">
             <Border Classes="content-section">
                 <StackPanel Classes="spacing-tight">
@@ -484,7 +492,7 @@
         </StackPanel>
 
         <!-- AI Coding Assistant Section -->
-        <StackPanel Width="460" Classes="wrap-item">
+        <StackPanel Width="368" Classes="wrap-item">
         <Border Classes="content-section">
             <StackPanel Classes="spacing-tight">
             <StackPanel Orientation="Horizontal" Classes="spacing-tight">

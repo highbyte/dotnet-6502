@@ -7,8 +7,8 @@
         AutomationProperties.AutomationId="C64ConfigDialog"
         AutomationProperties.Name="C64 configuration"
         Title="C64 Configuration"
-        Width="1020"
-        Height="650"
+        Width="1180"
+        Height="700"
         MinWidth="500"
         MinHeight="400"
 

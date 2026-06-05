@@ -522,9 +522,10 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         if (mainWindow.Content is not UserControl mainView)
             return false;
 
-        // MainView's content should be a Grid
-        if (mainView.Content is not Grid mainViewGrid)
+        // MainView's content is an outer overlay Grid; the inner content grid is named "MainContentGrid".
+        if (mainView.Content is not Grid mainViewOuterGrid)
             return false;
+        var mainViewGrid = mainViewOuterGrid.Children.OfType<Grid>().FirstOrDefault(g => g.Name == "MainContentGrid") ?? mainViewOuterGrid;
 
         // MainView grid structure (from MainView.axaml):
         // Columns: 0=Menu(200), 1=Emulator(*), 2=Stats(Auto)

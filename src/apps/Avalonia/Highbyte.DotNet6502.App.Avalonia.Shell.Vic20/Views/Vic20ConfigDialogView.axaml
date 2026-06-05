@@ -8,7 +8,8 @@
              AutomationProperties.Name="VIC-20 configuration panel"
              Focusable="False">
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
+    <!-- MaxWidth caps the dialog so the WrapPanel inside wraps to at most 3 columns of 368 px wide panels. -->
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8" MaxWidth="1140">
         <Border Grid.Row="0" CornerRadius="4" Classes="panel-container">
             <TextBlock Text="VIC-20 Configuration"
                        Classes="h-center h2"/>
@@ -16,7 +17,7 @@
 
         <ScrollViewer Grid.Row="1" Classes="vertical-only">
             <WrapPanel Orientation="Horizontal">
-                <StackPanel Width="460" Classes="wrap-item">
+                <StackPanel Width="368" Classes="wrap-item">
                     <Border Classes="content-section">
                         <StackPanel Classes="spacing-tight">
                             <TextBlock Text="ROM Management"/>
@@ -71,7 +72,13 @@
                                 </Grid>
                             </StackPanel>
 
-                            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+                            <!-- WrapPanel so the row of ROM buttons reflows to a second row when the column is too narrow. -->
+                            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <WrapPanel.Styles>
+                                    <Style Selector="Button">
+                                        <Setter Property="Margin" Value="0,0,6,6"/>
+                                    </Style>
+                                </WrapPanel.Styles>
                                 <Button Content="Clear"
                                         AutomationProperties.AutomationId="Vic20ClearRomsButton"
                                         Command="{Binding ClearRomsCommand}"
@@ -100,12 +107,12 @@
                                         Classes="primary extraWide"
                                         IsVisible="{Binding !IsRunningInWebAssembly}"
                                         IsEnabled="{Binding IsNotBusy}"/>
-                            </StackPanel>
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
-                <StackPanel Width="460" Classes="wrap-item">
+                <StackPanel Width="368" Classes="wrap-item">
                     <Border Classes="content-section">
                         <StackPanel Classes="spacing-tight">
                             <TextBlock Text="CPU"/>
@@ -133,7 +140,7 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel Width="460" Classes="wrap-item">
+                <StackPanel Width="368" Classes="wrap-item">
                     <Border Classes="content-section">
                         <StackPanel Classes="spacing-tight">
                             <TextBlock Text="Video"/>
@@ -179,7 +186,7 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel Width="460" Classes="wrap-item" IsVisible="{Binding IsRunningInWebAssembly}">
+                <StackPanel Width="368" Classes="wrap-item" IsVisible="{Binding IsRunningInWebAssembly}">
                     <Border Classes="content-section">
                         <StackPanel Classes="spacing-tight">
                             <TextBlock Text="Web Download"/>

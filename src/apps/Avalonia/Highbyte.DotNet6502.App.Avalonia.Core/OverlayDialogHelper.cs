@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -19,6 +20,8 @@ public class OverlayDialogHelper
 
     public Panel BuildOverlayDialogPanel(UserControl userControl)
     {
+        const double dialogMargin = 20.0;
+
         // Create a custom overlay with better modal behavior
         var overlay = new Panel
         {
@@ -40,13 +43,46 @@ public class OverlayDialogHelper
                 Blur = 25,
                 Color = Color.FromArgb(128, 0, 0, 0)
             }),
-            Margin = new Thickness(20), // Add margin from screen edges
+            Margin = new Thickness(dialogMargin), // Add margin from screen edges
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Child = userControl // Direct child, no ScrollViewer wrapper
         };
 
         overlay.Children.Add(dialogContainer);
+
+        // Cap dialog size to the visual root's client size so a tall/wide dialog cannot
+        // grow past the viewport. This lets the dialog's inner ScrollViewer engage and
+        // show a vertical scrollbar instead of pushing the OK/Cancel buttons off-screen.
+        TopLevel? attachedTopLevel = null;
+        EventHandler<SizeChangedEventArgs>? sizeHandler = null;
+
+        void ApplyTopLevelBounds()
+        {
+            if (attachedTopLevel == null)
+                return;
+            var size = attachedTopLevel.ClientSize;
+            dialogContainer.MaxWidth = Math.Max(0, size.Width - dialogMargin * 2);
+            dialogContainer.MaxHeight = Math.Max(0, size.Height - dialogMargin * 2);
+        }
+
+        overlay.AttachedToVisualTree += (_, _) =>
+        {
+            attachedTopLevel = TopLevel.GetTopLevel(overlay);
+            if (attachedTopLevel == null)
+                return;
+            sizeHandler = (_, _) => ApplyTopLevelBounds();
+            attachedTopLevel.SizeChanged += sizeHandler;
+            ApplyTopLevelBounds();
+        };
+
+        overlay.DetachedFromVisualTree += (_, _) =>
+        {
+            if (attachedTopLevel != null && sizeHandler != null)
+                attachedTopLevel.SizeChanged -= sizeHandler;
+            attachedTopLevel = null;
+            sizeHandler = null;
+        };
 
         return overlay;
     }
