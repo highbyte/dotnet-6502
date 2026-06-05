@@ -17,8 +17,10 @@ using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -233,7 +235,18 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
                 if (audioHandlerContext.IsInitialized)
                     audioHandlerContext.Cleanup();
                 audioHandlerContext.Init();
-                return new NAudioSampleTarget(audioHandlerContext, _loggerFactory);
+                if (EmulatorConfig.BrowserSampleAudioMode != BrowserSampleAudioMode.Stable
+                    && OperatingSystem.IsBrowser()
+                    && audioHandlerContext.WavePlayer is WebAudioWavePlayer webAudioWavePlayer)
+                {
+                    var requireAudioWorklet = EmulatorConfig.BrowserSampleAudioMode == BrowserSampleAudioMode.DirectWriteAudioWorklet;
+                    return new WebAudioSampleTarget(webAudioWavePlayer.Settings, audioHandlerContext, _loggerFactory, requireAudioWorklet);
+                }
+
+                var primeSilenceSamples = audioHandlerContext.WavePlayer is WebAudioWavePlayer
+                    ? 0
+                    : AudioSampleCoordinator.DefaultPrimeSilenceSamples;
+                return new NAudioSampleTarget(audioHandlerContext, _loggerFactory, primeSilenceSamples);
             });
         });
     }

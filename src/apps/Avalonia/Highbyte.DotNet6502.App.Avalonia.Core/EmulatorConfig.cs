@@ -24,6 +24,23 @@ public class EmulatorConfig
     public bool LoadResourcesOverHttp { get; set; } = false;
 
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
+    [JsonConverter(typeof(JsonStringEnumConverter<BrowserSampleAudioMode>))]
+    public BrowserSampleAudioMode BrowserSampleAudioMode { get; set; } = BrowserSampleAudioMode.Stable;
+
+    /// <summary>
+    /// Backwards-compatible persisted setting. Prefer <see cref="BrowserSampleAudioMode"/>.
+    /// </summary>
+    [JsonIgnore]
+    public bool UseBrowserDirectWriteSampleAudio
+    {
+        get => BrowserSampleAudioMode != BrowserSampleAudioMode.Stable;
+        set
+        {
+            if (value && BrowserSampleAudioMode == BrowserSampleAudioMode.Stable)
+                BrowserSampleAudioMode = BrowserSampleAudioMode.DirectWriteAuto;
+        }
+    }
+
     public MonitorConfig Monitor { get; set; } = new();
 
     /// <summary>
@@ -77,6 +94,7 @@ public class EmulatorConfig
         configSection["ShowErrorDialog"] = ShowErrorDialog.ToString();
         configSection["ShowDebugTools"] = ShowDebugTools.ToString();
         configSection["AudioSettingsProfile"] = AudioSettingsProfile.ToString();
+        configSection["BrowserSampleAudioMode"] = BrowserSampleAudioMode.ToString();
 
         var monitorSection = configSection.GetSection("Monitor");
         monitorSection["StopAfterBRKInstruction"] = Monitor.StopAfterBRKInstruction.ToString();

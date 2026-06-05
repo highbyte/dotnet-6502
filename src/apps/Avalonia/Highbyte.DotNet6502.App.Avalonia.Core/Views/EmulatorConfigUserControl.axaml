@@ -131,7 +131,7 @@
               <TextBlock Text="Audio Settings"
                          Classes=""/>
               
-              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                            Text="Audio profile:" 
                            Classes="secondary-text"
@@ -148,6 +148,29 @@
                            Text="Controls the audio latency vs stability tradeoff. Lower latency may cause audio glitches."
                            Classes="small secondary-text"
                            TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                           Text="Browser sample mode:"
+                           Classes="secondary-text"
+                           VerticalAlignment="Center"
+                           IsVisible="{Binding IsRunningInWebAssembly}"
+                           Margin="0,8,0,0"/>
+                <ComboBox Grid.Row="2" Grid.Column="1"
+                          AutomationProperties.AutomationId="BrowserSampleAudioModeComboBox"
+                          AutomationProperties.Name="Browser sample audio mode"
+                          ItemsSource="{Binding BrowserSampleAudioModes}"
+                          SelectedItem="{Binding SelectedBrowserSampleAudioMode}"
+                          Width="180"
+                          HorizontalAlignment="Left"
+                          IsVisible="{Binding IsRunningInWebAssembly}"
+                          Margin="0,8,0,0"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="Stable uses the default WebAudio path. DirectWriteAuto uses AudioWorklet when available and falls back otherwise. DirectWriteAudioWorklet requires SharedArrayBuffer."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding IsRunningInWebAssembly}"
                            Margin="0,4,0,0"/>
               </Grid>
             </StackPanel>

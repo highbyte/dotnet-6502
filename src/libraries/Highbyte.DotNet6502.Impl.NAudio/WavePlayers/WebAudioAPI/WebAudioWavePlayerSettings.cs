@@ -42,6 +42,38 @@ public class WebAudioWavePlayerSettings
     public int ScriptProcessorBufferSize { get; set; } = 2048;
 
     /// <summary>
+    /// Gets or sets the number of samples accumulated by the direct-write browser target before
+    /// flushing to JavaScript. Lower values reduce producer-side batch latency but increase JS
+    /// interop frequency.
+    /// Default: 512 samples (~11.6ms at 44100Hz)
+    /// </summary>
+    public int DirectWriteFlushSamples { get; set; } = 512;
+
+    /// <summary>
+    /// Gets or sets the desired latency used by the direct-write browser target.
+    /// Set to 0 to use <see cref="DesiredLatencyMs"/>.
+    /// </summary>
+    public int DirectWriteDesiredLatencyMs { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ring buffer capacity multiplier used by the direct-write browser target.
+    /// Set to 0 to use <see cref="RingBufferCapacityMultiplier"/>.
+    /// </summary>
+    public double DirectWriteRingBufferCapacityMultiplier { get; set; }
+
+    /// <summary>
+    /// Gets or sets the minimum buffer multiplier used by the direct-write browser target.
+    /// Set to 0 to use <see cref="MinBufferBeforePlayMultiplier"/>.
+    /// </summary>
+    public double DirectWriteMinBufferBeforePlayMultiplier { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ScriptProcessor buffer size used by the direct-write browser target.
+    /// Set to 0 to use <see cref="ScriptProcessorBufferSize"/>.
+    /// </summary>
+    public int DirectWriteScriptProcessorBufferSize { get; set; }
+
+    /// <summary>
     /// Gets or sets the interval in milliseconds between stats logging.
     /// Set to 0 to disable stats logging.
     /// Default: 10000 (10 seconds)
@@ -71,6 +103,11 @@ public class WebAudioWavePlayerSettings
         RingBufferCapacityMultiplier = 2.0,
         MinBufferBeforePlayMultiplier = 0.3,
         ScriptProcessorBufferSize = 512,
+        DirectWriteFlushSamples = 256,
+        DirectWriteDesiredLatencyMs = 15,
+        DirectWriteRingBufferCapacityMultiplier = 2.0,
+        DirectWriteMinBufferBeforePlayMultiplier = 0.3,
+        DirectWriteScriptProcessorBufferSize = 512,
         StatsIntervalMs = 10000
     };
 
@@ -85,6 +122,11 @@ public class WebAudioWavePlayerSettings
         RingBufferCapacityMultiplier = 2.5,
         MinBufferBeforePlayMultiplier = 0.5,
         ScriptProcessorBufferSize = 1024,
+        DirectWriteFlushSamples = 512,
+        DirectWriteDesiredLatencyMs = 25,
+        DirectWriteRingBufferCapacityMultiplier = 2.0,
+        DirectWriteMinBufferBeforePlayMultiplier = 0.5,
+        DirectWriteScriptProcessorBufferSize = 512,
         StatsIntervalMs = 10000
     };
 
@@ -99,6 +141,11 @@ public class WebAudioWavePlayerSettings
         RingBufferCapacityMultiplier = 3.0,
         MinBufferBeforePlayMultiplier = 1.0,
         ScriptProcessorBufferSize = 2048,
+        DirectWriteFlushSamples = 128,
+        DirectWriteDesiredLatencyMs = 25,
+        DirectWriteRingBufferCapacityMultiplier = 2.0,
+        DirectWriteMinBufferBeforePlayMultiplier = 0.5,
+        DirectWriteScriptProcessorBufferSize = 1024,
         StatsIntervalMs = 10000
     };
 
@@ -113,6 +160,11 @@ public class WebAudioWavePlayerSettings
         RingBufferCapacityMultiplier = 4.0,
         MinBufferBeforePlayMultiplier = 1.5,
         ScriptProcessorBufferSize = 4096,
+        DirectWriteFlushSamples = 1024,
+        DirectWriteDesiredLatencyMs = 60,
+        DirectWriteRingBufferCapacityMultiplier = 3.0,
+        DirectWriteMinBufferBeforePlayMultiplier = 1.0,
+        DirectWriteScriptProcessorBufferSize = 2048,
         StatsIntervalMs = 10000
     };
 
@@ -127,6 +179,11 @@ public class WebAudioWavePlayerSettings
         RingBufferCapacityMultiplier = 4.0,
         MinBufferBeforePlayMultiplier = 2.0,
         ScriptProcessorBufferSize = 4096,
+        DirectWriteFlushSamples = 2048,
+        DirectWriteDesiredLatencyMs = 100,
+        DirectWriteRingBufferCapacityMultiplier = 4.0,
+        DirectWriteMinBufferBeforePlayMultiplier = 1.5,
+        DirectWriteScriptProcessorBufferSize = 4096,
         StatsIntervalMs = 10000
     };
 }
