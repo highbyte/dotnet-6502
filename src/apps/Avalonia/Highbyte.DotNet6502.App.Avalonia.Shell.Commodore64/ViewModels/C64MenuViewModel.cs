@@ -50,8 +50,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
     };
-    private string _latestPreloadedDiskError = "";
-    private bool _isLoadingPreloadedDisk = false;
+    private string _latestPreloadedDiskError = string.Empty;
+    private bool _isLoadingPreloadedDisk;
     private D64AutoDownloadAndRun? _d64AutoDownloadAndRun;
 
     // --- ReactiveUI Commands ---
@@ -120,7 +120,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         LoadPreloadedDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await LoadPreloadedDiskImageAsync(),
-            Observable.Return(true),
+            this.WhenAnyValue(x => x.IsLoadingPreloadedDisk).Select(isLoading => !isLoading),
             RxSchedulers.MainThreadScheduler);
 
         LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -251,9 +251,32 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public string SelectedPreloadedDisk
     {
         get => _selectedPreloadedDisk;
-        set => this.RaiseAndSetIfChanged(ref _selectedPreloadedDisk, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedPreloadedDisk, value);
+            LatestPreloadedDiskError = string.Empty;
+        }
     }
-    public bool IsLoadingPreloadedDisk { get; private set; }
+    public bool IsLoadingPreloadedDisk
+    {
+        get => _isLoadingPreloadedDisk;
+        private set => this.RaiseAndSetIfChanged(ref _isLoadingPreloadedDisk, value);
+    }
+
+    public string LatestPreloadedDiskError
+    {
+        get => _latestPreloadedDiskError;
+        private set
+        {
+            if (_latestPreloadedDiskError == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _latestPreloadedDiskError, value);
+            this.RaisePropertyChanged(nameof(HasLatestPreloadedDiskError));
+        }
+    }
+
+    public bool HasLatestPreloadedDiskError => !string.IsNullOrEmpty(LatestPreloadedDiskError);
 
     // Assembly examples
     public ObservableCollection<KeyValuePair<string, string>> AssemblyExamples { get; } = new();
@@ -745,10 +768,10 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             return;
 
         var diskInfo = _preloadedD64Images[selectedPreloadedDisk];
-        _isLoadingPreloadedDisk = true;
-        _latestPreloadedDiskError = "";
+        IsLoadingPreloadedDisk = true;
+        LatestPreloadedDiskError = string.Empty;
 
-        _logger.LogInformation($"Starting to load preloaded disk: {diskInfo.DisplayName}");
+        _logger.LogInformation("Starting to load preloaded disk: {DisplayName}", diskInfo.DisplayName);
 
         try
         {
@@ -807,19 +830,25 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
         catch (Exception ex)
         {
-            _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
-            _logger.LogError($"LoadPreloadedDisk_Click error: {_latestPreloadedDiskError}");
+            LatestPreloadedDiskError = string.IsNullOrWhiteSpace(ex.Message)
+                ? $"Failed to download and run {diskInfo.DisplayName}."
+                : ex.Message;
+            _logger.LogError(
+                ex,
+                "LoadPreloadedDisk_Click error while loading {DisplayName}: {ErrorMessage}",
+                diskInfo.DisplayName,
+                LatestPreloadedDiskError);
         }
         finally
         {
             // Force binding refresh for all properties, config settings for keyboard/joystick may have changed
             RefreshAllBindings();
 
-            _isLoadingPreloadedDisk = false;
-            _logger.LogInformation($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
-            if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
+            IsLoadingPreloadedDisk = false;
+            _logger.LogInformation("Finished loading preloaded disk. Loading state: {IsLoadingPreloadedDisk}", IsLoadingPreloadedDisk);
+            if (!string.IsNullOrEmpty(LatestPreloadedDiskError))
             {
-                _logger.LogInformation($"Final error state: {_latestPreloadedDiskError}");
+                _logger.LogInformation("Final error state: {LatestPreloadedDiskError}", LatestPreloadedDiskError);
             }
         }
     }
