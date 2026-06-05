@@ -137,22 +137,52 @@ export const WebAudioWavePlayer = (() => {
      * @param {number} statsIntMs - Stats logging interval in ms (0 to disable)
      */
     function initialize(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
-        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, false, false);
+        initializeCore({
+            sampleRate: sRate,
+            channels: numChannels,
+            bufferSize: bufSize,
+            ringBufferCapacityMultiplier,
+            minBufferBeforePlayMultiplier,
+            scriptProcessorBufferSize: scriptProcBufferSize,
+            statsIntervalMs: statsIntMs,
+            preferSharedAudioWorklet: false,
+            requireSharedAudioWorklet: false
+        });
     }
 
     function initializeDirectWrite(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
-        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, true, false);
+        initializeCore({
+            sampleRate: sRate,
+            channels: numChannels,
+            bufferSize: bufSize,
+            ringBufferCapacityMultiplier,
+            minBufferBeforePlayMultiplier,
+            scriptProcessorBufferSize: scriptProcBufferSize,
+            statsIntervalMs: statsIntMs,
+            preferSharedAudioWorklet: true,
+            requireSharedAudioWorklet: false
+        });
     }
 
     function initializeDirectWriteAudioWorklet(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs) {
-        initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, true, true);
+        initializeCore({
+            sampleRate: sRate,
+            channels: numChannels,
+            bufferSize: bufSize,
+            ringBufferCapacityMultiplier,
+            minBufferBeforePlayMultiplier,
+            scriptProcessorBufferSize: scriptProcBufferSize,
+            statsIntervalMs: statsIntMs,
+            preferSharedAudioWorklet: true,
+            requireSharedAudioWorklet: true
+        });
     }
 
-    function initializeCore(sRate, numChannels, bufSize, ringBufferCapacityMultiplier, minBufferBeforePlayMultiplier, scriptProcBufferSize, statsIntMs, preferSharedAudioWorklet, requireSharedAudioWorklet) {
-        sampleRate = sRate;
-        channels = numChannels;
-        scriptProcessorBufferSize = scriptProcBufferSize;
-        statsIntervalMs = statsIntMs;
+    function initializeCore(options) {
+        sampleRate = options.sampleRate;
+        channels = options.channels;
+        scriptProcessorBufferSize = options.scriptProcessorBufferSize;
+        statsIntervalMs = options.statsIntervalMs;
         isPlaying = false;
         hasEnoughToStart = false;
         useSharedAudioWorklet = false;
@@ -169,7 +199,7 @@ export const WebAudioWavePlayer = (() => {
         clearStatsTimer();
 
         // Ring buffer capacity based on multiplier from C#
-        bufferCapacity = Math.ceil(bufSize * channels * ringBufferCapacityMultiplier);
+        bufferCapacity = Math.ceil(options.bufferSize * channels * options.ringBufferCapacityMultiplier);
         sampleBuffer = new Float32Array(bufferCapacity);
         writePosition = 0;
         readPosition = 0;
@@ -178,16 +208,16 @@ export const WebAudioWavePlayer = (() => {
         // Start playback threshold based on multiplier from C#. AudioWorklet always renders
         // 128-frame quanta. This check must not depend on audioContext yet because the threshold
         // is calculated before the new context is created below.
-        const callbackFrames = preferSharedAudioWorklet && canUseSharedAudioWorkletEnvironment()
+        const callbackFrames = options.preferSharedAudioWorklet && canUseSharedAudioWorkletEnvironment()
             ? 128
             : getValidScriptProcessorBufferSize();
         const callbackSamples = callbackFrames * channels;
         minBufferBeforePlay = Math.max(
-            Math.ceil(bufSize * channels * minBufferBeforePlayMultiplier),
+            Math.ceil(options.bufferSize * channels * options.minBufferBeforePlayMultiplier),
             callbackSamples * 2);
         targetBufferedSamples = Math.min(
             bufferCapacity,
-            Math.max(Math.ceil(bufSize * channels), minBufferBeforePlay));
+            Math.max(Math.ceil(options.bufferSize * channels), minBufferBeforePlay));
         highWatermarkSamples = Math.max(targetBufferedSamples, Math.floor(bufferCapacity * 0.95));
 
 
@@ -218,22 +248,22 @@ export const WebAudioWavePlayer = (() => {
 
         const bufferCapacityMs = (bufferCapacity / channels / sampleRate * 1000).toFixed(1);
         const minBufferMs = (minBufferBeforePlay / channels / sampleRate * 1000).toFixed(1);
-        const desiredLatencyMs = (bufSize / sampleRate * 1000).toFixed(1);
+        const desiredLatencyMs = (options.bufferSize / sampleRate * 1000).toFixed(1);
         logInfo(`Initialized:`);
         logInfo(`  Sample rate: ${sampleRate}Hz, Channels: ${channels}`);
-        logInfo(`  C# buffer: ${bufSize} samples (~${desiredLatencyMs}ms)`);
-        logInfo(`  Ring buffer: ${bufferCapacity} samples (~${bufferCapacityMs}ms) [${ringBufferCapacityMultiplier}x multiplier]`);
+        logInfo(`  C# buffer: ${options.bufferSize} samples (~${desiredLatencyMs}ms)`);
+        logInfo(`  Ring buffer: ${bufferCapacity} samples (~${bufferCapacityMs}ms) [${options.ringBufferCapacityMultiplier}x multiplier]`);
         logInfo(`  Ring target/high-water: ${targetBufferedSamples}/${highWatermarkSamples} samples`);
-        logInfo(`  Start threshold: ${minBufferBeforePlay} samples (~${minBufferMs}ms) [${minBufferBeforePlayMultiplier}x multiplier]`);
+        logInfo(`  Start threshold: ${minBufferBeforePlay} samples (~${minBufferMs}ms) [${options.minBufferBeforePlayMultiplier}x multiplier]`);
         logInfo(`  ScriptProcessor buffer: ${scriptProcessorBufferSize} samples`);
         logInfo(`  Stats interval: ${statsIntervalMs}ms${statsIntervalMs === 0 ? ' (disabled)' : ''}`);
 
-        if (preferSharedAudioWorklet && canUseSharedAudioWorklet()) {
-            setupSharedAudioWorklet(requireSharedAudioWorklet);
+        if (options.preferSharedAudioWorklet && canUseSharedAudioWorklet()) {
+            setupSharedAudioWorklet(options.requireSharedAudioWorklet);
         } else {
-            if (preferSharedAudioWorklet) {
+            if (options.preferSharedAudioWorklet) {
                 const message = 'SharedArrayBuffer AudioWorklet unavailable';
-                if (requireSharedAudioWorklet) {
+                if (options.requireSharedAudioWorklet) {
                     logError(`${message}; DirectWriteAudioWorklet mode cannot start`);
                     return;
                 }
@@ -288,8 +318,8 @@ class DotNet6502SharedRingProcessor extends AudioWorkletProcessor {
 
     const frameCount = output[0].length;
     const samplesNeeded = frameCount * this.channels;
-    const playing = Atomics.load(this.state, StateIndex.IsPlaying) === 1;
-    const buffered = Atomics.load(this.state, StateIndex.BufferedSamples);
+    const playing = Number(Atomics.load(this.state, StateIndex.IsPlaying)) === 1;
+    const buffered = Number(Atomics.load(this.state, StateIndex.BufferedSamples));
 
     if (!playing || buffered < samplesNeeded) {
       for (let channel = 0; channel < output.length; channel++) {
@@ -302,7 +332,7 @@ class DotNet6502SharedRingProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    let readPosition = Atomics.load(this.state, StateIndex.ReadPosition);
+    let readPosition = Number(Atomics.load(this.state, StateIndex.ReadPosition));
     for (let channel = 0; channel < output.length; channel++) {
       const channelOutput = output[channel];
       for (let frame = 0; frame < frameCount; frame++) {
@@ -390,12 +420,12 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
                 return;
             }
 
-            const currentUnderruns = Atomics.exchange(sharedState, StateIndex.Underruns, 0);
-            const currentOverflows = Atomics.exchange(sharedState, StateIndex.Overflows, 0);
+            const currentUnderruns = Number(Atomics.exchange(sharedState, StateIndex.Underruns, 0));
+            const currentOverflows = Number(Atomics.exchange(sharedState, StateIndex.Overflows, 0));
             totalUnderrunCount += currentUnderruns;
             totalOverflowCount += currentOverflows;
             if (currentUnderruns > 0 || currentOverflows > 0) {
-                const currentBufferedSamples = Atomics.load(sharedState, StateIndex.BufferedSamples);
+                const currentBufferedSamples = Number(Atomics.load(sharedState, StateIndex.BufferedSamples));
                 const bufferLevelMs = (currentBufferedSamples / channels / sampleRate * 1000).toFixed(1);
                 logWarning(`Stats: underruns=${currentUnderruns}, overflows=${currentOverflows}, current buffer=${bufferLevelMs}ms`);
             }
@@ -515,7 +545,7 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
             return false;
         }
 
-        let currentBufferedSamples = Atomics.load(sharedState, StateIndex.BufferedSamples);
+        let currentBufferedSamples = Number(Atomics.load(sharedState, StateIndex.BufferedSamples));
         const availableSpace = bufferCapacity - currentBufferedSamples;
 
         if (sampleCount > availableSpace) {
@@ -523,20 +553,19 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
             const discardedSamples = discardOldestSharedSamples(samplesToDiscard);
             if (discardedSamples > 0) {
                 Atomics.add(sharedState, StateIndex.Overflows, 1);
-                currentBufferedSamples -= discardedSamples;
             }
         }
 
-        let writePosition = Atomics.load(sharedState, StateIndex.WritePosition);
+        let writePosition = Number(Atomics.load(sharedState, StateIndex.WritePosition));
         for (let i = 0; i < sampleCount; i++) {
             sharedSamples[(writePosition + i) % bufferCapacity] = floatArray[i];
         }
 
         writePosition = (writePosition + sampleCount) % bufferCapacity;
         Atomics.store(sharedState, StateIndex.WritePosition, writePosition);
-        currentBufferedSamples = Atomics.add(sharedState, StateIndex.BufferedSamples, sampleCount) + sampleCount;
+        currentBufferedSamples = Number(Atomics.add(sharedState, StateIndex.BufferedSamples, sampleCount)) + sampleCount;
 
-        const workletIsPlaying = Atomics.load(sharedState, StateIndex.IsPlaying) === 1;
+        const workletIsPlaying = Number(Atomics.load(sharedState, StateIndex.IsPlaying)) === 1;
         const startThresholdSamples = hasEnoughToStart && !workletIsPlaying
             ? targetBufferedSamples
             : minBufferBeforePlay;
@@ -555,15 +584,15 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
             return 0;
         }
 
-        const buffered = Atomics.load(sharedState, StateIndex.BufferedSamples);
+        const buffered = Number(Atomics.load(sharedState, StateIndex.BufferedSamples));
         const discardCount = Math.min(samplesToDiscard, Math.max(0, buffered));
         if (discardCount === 0) {
             return 0;
         }
 
-        const currentReadPosition = Atomics.load(sharedState, StateIndex.ReadPosition);
+        const currentReadPosition = Number(Atomics.load(sharedState, StateIndex.ReadPosition));
         Atomics.store(sharedState, StateIndex.ReadPosition, (currentReadPosition + discardCount) % bufferCapacity);
-        const previousBuffered = Atomics.sub(sharedState, StateIndex.BufferedSamples, discardCount);
+        const previousBuffered = Number(Atomics.sub(sharedState, StateIndex.BufferedSamples, discardCount));
         if (previousBuffered < discardCount) {
             Atomics.store(sharedState, StateIndex.BufferedSamples, 0);
             return previousBuffered;
@@ -730,7 +759,7 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
 
     function getCurrentBufferedSamples() {
         if (useSharedAudioWorklet && sharedState) {
-            return Atomics.load(sharedState, StateIndex.BufferedSamples);
+            return Number(Atomics.load(sharedState, StateIndex.BufferedSamples));
         }
         return bufferedSamples;
     }
@@ -783,12 +812,12 @@ registerProcessor('dotnet6502-shared-ring-processor', DotNet6502SharedRingProces
     }
 
     function getTotalUnderruns() {
-        const pendingUnderruns = useSharedAudioWorklet && sharedState ? Atomics.load(sharedState, StateIndex.Underruns) : 0;
+        const pendingUnderruns = useSharedAudioWorklet && sharedState ? Number(Atomics.load(sharedState, StateIndex.Underruns)) : 0;
         return totalUnderrunCount + pendingUnderruns;
     }
 
     function getTotalOverflows() {
-        const pendingOverflows = useSharedAudioWorklet && sharedState ? Atomics.load(sharedState, StateIndex.Overflows) : 0;
+        const pendingOverflows = useSharedAudioWorklet && sharedState ? Number(Atomics.load(sharedState, StateIndex.Overflows)) : 0;
         return totalOverflowCount + pendingOverflows;
     }
 
