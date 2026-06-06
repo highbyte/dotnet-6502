@@ -84,23 +84,16 @@ public class C64Setup : C64SystemConfigurerCore
         => c64HostConfig.SwiftLinkTransportMode switch
         {
             C64SwiftLinkTransportMode.HayesModem => new HayesModemTransport(
-                (_, _) => CreateBrowserRawWebSocketTransport(c64HostConfig),
+                (_, _) => new WebSocketTransport(
+                    c64HostConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty,
+                    c64HostConfig.SwiftLinkSharedToken,
+                    LoggerFactory.CreateLogger(nameof(WebSocketTransport))),
                 LoggerFactory.CreateLogger(nameof(HayesModemTransport))),
-            _ => CreateBrowserRawWebSocketTransport(c64HostConfig)
+            _ => new WebSocketTransport(
+                c64HostConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty,
+                c64HostConfig.SwiftLinkSharedToken,
+                LoggerFactory.CreateLogger(nameof(WebSocketTransport)))
         };
-
-    private ISwiftLinkTransport CreateBrowserRawWebSocketTransport(C64HostConfig c64HostConfig)
-    {
-        var logger = LoggerFactory.CreateLogger(nameof(WebSocketTransport));
-        return BrowserWebSocketTransportFactory.Create?.Invoke(
-                   c64HostConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty,
-                   c64HostConfig.SwiftLinkSharedToken,
-                   logger)
-               ?? new WebSocketTransport(
-                   c64HostConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty,
-                   c64HostConfig.SwiftLinkSharedToken,
-                   logger);
-    }
 
     private static ulong GetCyclesPer1200BaudCharacter(C64 c64)
     {
