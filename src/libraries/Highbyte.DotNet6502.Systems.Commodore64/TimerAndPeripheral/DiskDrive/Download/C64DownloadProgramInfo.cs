@@ -10,6 +10,7 @@ public class C64DownloadProgramInfo
     public int KeyboardJoystickNumber { get; set; }
     public bool RequiresBitmap { get; set; }
     public bool AudioEnabled { get; set; }
+    public bool SwiftLinkEnabled { get; set; }
     public string? DirectLoadPRGName { get; set; }
     public string C64Variant { get; set; }
     public bool AvailableInBrowser { get; set; }
@@ -23,6 +24,7 @@ public class C64DownloadProgramInfo
         int keyboardJoystickNumber = 2,
         bool requiresBitmap = false,
         bool audioEnabled = false,
+        bool swiftLinkEnabled = false,
         string? directLoadPRGName = null,
         string c64Variant = "C64NTSC",
         bool availableInBrowser = true)
@@ -34,6 +36,7 @@ public class C64DownloadProgramInfo
         KeyboardJoystickNumber = keyboardJoystickNumber;
         RequiresBitmap = requiresBitmap;
         AudioEnabled = audioEnabled;
+        SwiftLinkEnabled = swiftLinkEnabled;
         DirectLoadPRGName = directLoadPRGName;
         C64Variant = c64Variant;
         AvailableInBrowser = availableInBrowser;

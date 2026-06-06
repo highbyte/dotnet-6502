@@ -181,14 +181,12 @@
     private readonly Dictionary<string, C64DownloadProgramInfo> _preloadedPrograms = new()
     {
         {"bubblebobble", new C64DownloadProgramInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
-        {"compunetreborn", new C64DownloadProgramInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.d64", c64Variant: "C64PAL", availableInBrowser: false)},
         {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*", c64Variant: "C64PAL")},
         {"lastninja", new C64DownloadProgramInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")},
         {"minizork", new C64DownloadProgramInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
         {"montezuma", new C64DownloadProgramInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
-        {"rallyspeedway", new C64DownloadProgramInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")},
-        {"smoothscrollerraster", new C64DownloadProgramInfo("Smooth Scroller and Raster (PRG)", "https://highbyte.se/dotnet-6502/app/6502binaries/C64/Assembler/smooth_scroller_and_raster.prg", downloadType: C64DownloadProgramType.Prg, availableInBrowser: true)}
+        {"rallyspeedway", new C64DownloadProgramInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
     };
     public string SelectedPreloadedDisk { get; set; } = default!;
 
@@ -750,6 +748,10 @@
                 // Apply audio enabled setting to config object while emulator is stopped
                 _logger.LogInformation($"Setting audio enabled in config to: {programInfo.AudioEnabled}");
                 _c64SystemConfig.AudioEnabled = programInfo.AudioEnabled;
+
+                // Apply SwiftLink setting to config object while emulator is stopped
+                _logger.LogInformation($"Setting SwiftLink enabled in config to: {programInfo.SwiftLinkEnabled}");
+                _c64SystemConfig.SwiftLink.Enabled = programInfo.SwiftLinkEnabled;
 
                 // Apply C64 variant setting to config object while emulator is stopped
                 _logger.LogInformation($"Setting C64 variant in config to: {programInfo.C64Variant}");

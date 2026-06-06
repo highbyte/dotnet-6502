@@ -35,4 +35,27 @@ public class C64DownloadProgramInfoTests
 
         Assert.Equal(new[] { "run" }, programInfo.RunCommands);
     }
+
+    [Fact]
+    public void Defaults_SwiftLinkEnabled_To_False()
+    {
+        var programInfo = new C64DownloadProgramInfo(
+            "Example PRG",
+            "https://example.com/example.prg",
+            downloadType: C64DownloadProgramType.Prg);
+
+        Assert.False(programInfo.SwiftLinkEnabled);
+    }
+
+    [Fact]
+    public void Allows_SwiftLinkEnabled_To_Be_Explicitly_True()
+    {
+        var programInfo = new C64DownloadProgramInfo(
+            "Compunet Reborn",
+            "https://example.com/compunet.prg",
+            downloadType: C64DownloadProgramType.Prg,
+            swiftLinkEnabled: true);
+
+        Assert.True(programInfo.SwiftLinkEnabled);
+    }
 }

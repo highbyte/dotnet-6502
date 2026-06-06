@@ -41,7 +41,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     private readonly Dictionary<string, C64DownloadProgramInfo> _preloadedPrograms = new()
     {
         {"bubblebobble", new C64DownloadProgramInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
-        {"compunetreborn", new C64DownloadProgramInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.prg", downloadType: C64DownloadProgramType.Prg, availableInBrowser: true, c64Variant: "C64PAL")},
+        {"compunetreborn", new C64DownloadProgramInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.prg", downloadType: C64DownloadProgramType.Prg, availableInBrowser: true, c64Variant: "C64PAL", swiftLinkEnabled: true)},
         {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
         {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
@@ -821,6 +821,9 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
                     // Apply audio enabled setting to config object while emulator is stopped
                     c64SystemConfig.AudioEnabled = programInfo.AudioEnabled;
+
+                    // Apply SwiftLink setting to config object while emulator is stopped
+                    c64SystemConfig.SwiftLink.Enabled = programInfo.SwiftLinkEnabled;
 
                     // Apply C64 variant setting to config object while emulator is stopped
                     await hostApp.SelectSystemConfigurationVariant(programInfo.C64Variant);
