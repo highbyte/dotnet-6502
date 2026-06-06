@@ -74,6 +74,40 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
         }
     }
 
+    private string? _swiftLinkBridgeTargetId;
+    /// <summary>
+    /// Optional logical target id appended to the browser WebSocket bridge URL as <c>?target=...</c>.
+    /// The Cloudflare Worker uses this to select an allowlisted TCP destination.
+    /// </summary>
+    public string? SwiftLinkBridgeTargetId
+    {
+        get => _swiftLinkBridgeTargetId;
+        set
+        {
+            _swiftLinkBridgeTargetId = value;
+            MarkDirty();
+        }
+    }
+
+    private List<string> _swiftLinkBridgeTargetIds = new()
+    {
+        "compunet-reborn",
+        "local-echo",
+    };
+    /// <summary>
+    /// Browser-visible logical target ids that can be selected for the SwiftLink WebSocket bridge.
+    /// These ids must match the Worker-side allowlist.
+    /// </summary>
+    public List<string> SwiftLinkBridgeTargetIds
+    {
+        get => _swiftLinkBridgeTargetIds;
+        set
+        {
+            _swiftLinkBridgeTargetIds = value ?? new List<string>();
+            MarkDirty();
+        }
+    }
+
     /// <summary>
     /// CORS proxy address override. If null/empty, the default CORS proxy URL is used when running
     /// in WebAssembly. When running on desktop, this setting is ignored and no CORS proxy is used.
@@ -119,6 +153,7 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
         clone.InputConfig = (C64InputConfig)InputConfig.Clone();
         clone._swiftLinkHost = SwiftLinkHost.Clone();
         clone._swiftLinkHost.SetDirtyCallback(clone.MarkDirty);
+        clone._swiftLinkBridgeTargetIds = new List<string>(SwiftLinkBridgeTargetIds);
         return clone;
     }
 

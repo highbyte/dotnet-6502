@@ -6,7 +6,7 @@ import {
 } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import worker from "../src";
-import { isAuthorized, normalizeBridgePath, validateConfig } from "../src";
+import { isAuthorized, normalizeBridgePath, resolveTarget, validateConfig } from "../src";
 
 describe("swiftlink bridge worker", () => {
 	it("normalizes bridge paths", () => {
@@ -19,19 +19,22 @@ describe("swiftlink bridge worker", () => {
 		expect(
 			validateConfig({
 				...env,
-				TARGET_HOST: "127.0.0.1",
-				TARGET_PORT: "9001",
+				TARGETS: {
+					local: {
+						host: "127.0.0.1",
+						port: 9001,
+						tls: false,
+					},
+				},
+				DEFAULT_TARGET_ID: "local",
 				BRIDGE_PATH: "/bridge",
-				TARGET_TLS: "false",
 				SHARED_TOKEN: "",
 			}),
 		).toMatchObject({
 			ok: true,
 			config: {
-				targetHost: "127.0.0.1",
-				targetPort: 9001,
 				bridgePath: "/bridge",
-				targetTls: false,
+				defaultTargetId: "local",
 			},
 		});
 
@@ -47,6 +50,43 @@ describe("swiftlink bridge worker", () => {
 		).toMatchObject({
 			ok: false,
 			error: "TARGET_PORT must be an integer between 1 and 65535.",
+		});
+	});
+
+	it("resolves allowlisted targets by logical target id", () => {
+		const configResult = validateConfig({
+			...env,
+			TARGETS: {
+				compunet: {
+					host: "vme.compunet.live",
+					port: 6400,
+					tls: false,
+				},
+				echo: {
+					host: "127.0.0.1",
+					port: 9001,
+					tls: false,
+				},
+			},
+			DEFAULT_TARGET_ID: "compunet",
+		});
+		expect(configResult.ok).toBe(true);
+		if (!configResult.ok)
+			return;
+
+		expect(resolveTarget(new Request("https://bridge.test/bridge?target=echo"), configResult.config)).toMatchObject({
+			ok: true,
+			target: {
+				id: "echo",
+				host: "127.0.0.1",
+				port: 9001,
+				tls: false,
+			},
+		});
+
+		expect(resolveTarget(new Request("https://bridge.test/bridge?target=unknown"), configResult.config)).toMatchObject({
+			ok: false,
+			status: 403,
 		});
 	});
 
@@ -76,9 +116,9 @@ describe("swiftlink bridge worker", () => {
 		expect(await response.json()).toMatchObject({
 			ok: true,
 			bridgePath: "/bridge",
-			targetHost: "127.0.0.1",
-			targetPort: 9001,
-			targetTls: false,
+			defaultTargetId: "local-echo",
+			targetIds: ["compunet-reborn", "local-echo"],
+			legacyTarget: null,
 			authRequired: false,
 		});
 	});
@@ -115,7 +155,7 @@ describe("swiftlink bridge worker", () => {
 	it("reports invalid bridge config on healthz", async () => {
 		const brokenEnv = {
 			...env,
-			TARGET_PORT: "70000",
+			DEFAULT_TARGET_ID: "missing",
 		};
 			const request = new Request<unknown, IncomingRequestCfProperties>(
 				"http://example.com/healthz",
@@ -127,7 +167,7 @@ describe("swiftlink bridge worker", () => {
 			expect(await response.json()).toMatchObject({
 				ok: false,
 				bridgePath: "/bridge",
-				error: "TARGET_PORT must be an integer between 1 and 65535.",
+				error: "DEFAULT_TARGET_ID must reference a configured target.",
 			});
 		});
 });

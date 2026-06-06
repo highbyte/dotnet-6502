@@ -22,9 +22,9 @@ public sealed class WebSocketTransport : Systems.Commodore64.Transport.ISwiftLin
     private int _sentByteLogCount;
     private int _receivedByteLogCount;
 
-    public WebSocketTransport(string bridgeUrl, string? sharedToken, ILogger logger)
+    public WebSocketTransport(string bridgeUrl, string? sharedToken, string? targetId, ILogger logger)
     {
-        _bridgeUri = BuildConnectionUri(bridgeUrl, sharedToken);
+        _bridgeUri = BuildConnectionUri(bridgeUrl, sharedToken, targetId);
         _sharedToken = string.IsNullOrWhiteSpace(sharedToken) ? null : sharedToken.Trim();
         _logger = logger;
     }
@@ -33,7 +33,7 @@ public sealed class WebSocketTransport : Systems.Commodore64.Transport.ISwiftLin
     public bool IsCarrierDetected => _isConnected;
     public bool IsDataSetReady => _isConnected;
 
-    public static Uri BuildConnectionUri(string bridgeUrl, string? sharedToken)
+    public static Uri BuildConnectionUri(string bridgeUrl, string? sharedToken, string? targetId)
     {
         if (!Uri.TryCreate(bridgeUrl?.Trim(), UriKind.Absolute, out var bridgeUri))
             throw new ArgumentException("Bridge URL must be an absolute URI.", nameof(bridgeUrl));
@@ -41,12 +41,15 @@ public sealed class WebSocketTransport : Systems.Commodore64.Transport.ISwiftLin
         if (bridgeUri.Scheme != Uri.UriSchemeWs && bridgeUri.Scheme != Uri.UriSchemeWss)
             throw new ArgumentException("Bridge URL must use ws:// or wss://.", nameof(bridgeUrl));
 
-        if (string.IsNullOrWhiteSpace(sharedToken))
+        if (string.IsNullOrWhiteSpace(sharedToken) && string.IsNullOrWhiteSpace(targetId))
             return bridgeUri;
 
         var builder = new UriBuilder(bridgeUri);
         var queryParameters = ParseQuery(builder.Query);
-        queryParameters["token"] = sharedToken.Trim();
+        if (!string.IsNullOrWhiteSpace(sharedToken))
+            queryParameters["token"] = sharedToken.Trim();
+        if (!string.IsNullOrWhiteSpace(targetId))
+            queryParameters["target"] = targetId.Trim();
         builder.Query = string.Join("&", queryParameters.Select(kvp =>
             $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}"));
         return builder.Uri;

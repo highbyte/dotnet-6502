@@ -9,18 +9,28 @@ public class AvaloniaC64HostConfigTests
     [Fact]
     public void WebSocketTransport_BuildConnectionUri_Appends_SharedToken_As_QueryParameter()
     {
-        var uri = WebSocketTransport.BuildConnectionUri("wss://bridge.example.com/bridge?mode=raw", "secret");
+        var uri = WebSocketTransport.BuildConnectionUri("wss://bridge.example.com/bridge?mode=raw", "secret", "compunet");
 
         Assert.Equal("wss", uri.Scheme);
         Assert.Contains("mode=raw", uri.Query);
         Assert.Contains("token=secret", uri.Query);
+        Assert.Contains("target=compunet", uri.Query);
+    }
+
+    [Fact]
+    public void WebSocketTransport_BuildConnectionUri_Appends_TargetId_Without_SharedToken()
+    {
+        var uri = WebSocketTransport.BuildConnectionUri("ws://127.0.0.1:8787/bridge", null, "compunet-reborn");
+
+        Assert.Equal("ws", uri.Scheme);
+        Assert.Contains("target=compunet-reborn", uri.Query);
     }
 
     [Fact]
     public void WebSocketTransport_BuildConnectionUri_Rejects_Http_Url()
     {
         Assert.Throws<ArgumentException>(() =>
-            WebSocketTransport.BuildConnectionUri("https://bridge.example.com/bridge", null));
+            WebSocketTransport.BuildConnectionUri("https://bridge.example.com/bridge", null, null));
     }
 
     [Fact]
@@ -43,5 +53,21 @@ public class AvaloniaC64HostConfigTests
         Assert.DoesNotContain(
             validationErrors,
             error => error.Contains(nameof(C64HostConfig.SwiftLinkWebSocketBridgeUrl), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Clone_Preserves_SwiftLinkBridgeTargetIds()
+    {
+        var config = new C64HostConfig
+        {
+            SwiftLinkBridgeTargetIds = new List<string> { "compunet-reborn", "local-echo" },
+            SwiftLinkBridgeTargetId = "compunet-reborn",
+        };
+
+        var clone = (C64HostConfig)config.Clone();
+
+        Assert.Equal(config.SwiftLinkBridgeTargetIds, clone.SwiftLinkBridgeTargetIds);
+        Assert.NotSame(config.SwiftLinkBridgeTargetIds, clone.SwiftLinkBridgeTargetIds);
+        Assert.Equal("compunet-reborn", clone.SwiftLinkBridgeTargetId);
     }
 }

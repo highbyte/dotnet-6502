@@ -48,11 +48,20 @@ bridges to the fixed TCP destination on the server side. For the Avalonia Browse
 the SwiftLink bridge URL to a `ws://` or `wss://` endpoint, such as the Cloudflare Worker bridge in
 `tools/cloudflare/swiftlink-bridge/`.
 
+The browser host can also append an optional logical `target` id to the bridge URL. The Worker then
+maps that id to an allowlisted `host` / `port` / `tls` destination in its own config.
+
+In the Avalonia Browser C64 config UI, that browser-side `target` is selected from a combo box fed
+by the host config's `SwiftLinkBridgeTargetIds` list. The current defaults include
+`compunet-reborn` for Compunet testing and `local-echo` for local bridge smoke tests.
+
 ## Config notes
 
 - `Connect automatically when emulator starts` is useful for `RawTcp` mode.
 - In the Avalonia Browser host, `RawTcp` means `WebSocket bridge to a fixed TCP target`, not a
   direct browser TCP socket.
+- In the Avalonia Browser host, the bridge can either use one default target or a logical target id
+  chosen by the client and resolved against a Worker-side allowlist.
 - In `HayesModem` mode, the C64 software is expected to dial using `ATDT...`, so auto-connect does
   not establish the remote session on its own.
 - In the Avalonia Browser host, `HayesModem` mode keeps modem command parsing in the emulator and

@@ -2,11 +2,22 @@ import { connect } from "cloudflare:sockets";
 
 type BridgeConfig = {
 	bridgePath: string;
-	targetHost: string;
-	targetPort: number;
-	targetTls: boolean;
 	sharedToken: string | null;
+	defaultTargetId: string | null;
+	targets: Record<string, BridgeTarget>;
+	legacyTarget: BridgeTarget | null;
 };
+
+type BridgeTarget = {
+	id: string;
+	host: string;
+	port: number;
+	tls: boolean;
+};
+
+type ResolvedTarget =
+	| { ok: true; target: BridgeTarget }
+	| { ok: false; status: number; error: string };
 
 type ConfigValidationResult =
 	| { ok: true; config: BridgeConfig }
@@ -44,31 +55,143 @@ export function isTruthyFlag(value: string | undefined): boolean {
 	}
 }
 
+function isValidTargetId(value: string): boolean {
+	return /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(value);
+}
+
+function parseTargetDefinition(id: string, value: unknown): BridgeTarget | null {
+	if (!value || typeof value !== "object") {
+		return null;
+	}
+
+	const candidate = value as Record<string, unknown>;
+	const host = typeof candidate.host === "string" ? candidate.host.trim() : "";
+	const port = Number(candidate.port);
+	if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
+		return null;
+	}
+
+	return {
+		id,
+		host,
+		port,
+		tls: Boolean(candidate.tls),
+	};
+}
+
+function parseTargetsValue(value: unknown): Record<string, BridgeTarget> | null {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return null;
+	}
+
+	const targets: Record<string, BridgeTarget> = {};
+	for (const [id, targetValue] of Object.entries(value)) {
+		if (!isValidTargetId(id)) {
+			return null;
+		}
+
+		const target = parseTargetDefinition(id, targetValue);
+		if (!target) {
+			return null;
+		}
+
+		targets[id] = target;
+	}
+
+	return targets;
+}
+
+function parseAllowedTargets(env: Env): Record<string, BridgeTarget> | null {
+	const envRecord = env as Record<string, unknown>;
+	const directTargets = parseTargetsValue(envRecord.TARGETS);
+	if (directTargets) {
+		return directTargets;
+	}
+
+	const rawTargetsJson = typeof envRecord.TARGETS_JSON === "string" ? envRecord.TARGETS_JSON.trim() : "";
+	if (!rawTargetsJson) {
+		return null;
+	}
+
+	try {
+		return parseTargetsValue(JSON.parse(rawTargetsJson));
+	} catch {
+		return null;
+	}
+}
+
 export function validateConfig(env: Env): ConfigValidationResult {
 	const bridgePath = normalizeBridgePath(env.BRIDGE_PATH);
-	const targetHost = env.TARGET_HOST?.trim();
-	if (!targetHost) {
-		return { ok: false, error: "TARGET_HOST is not configured.", bridgePath };
-	}
-
-	const rawTargetPort = String(env.TARGET_PORT ?? "").trim();
-	const targetPort = Number.parseInt(rawTargetPort, 10);
-	if (!Number.isInteger(targetPort) || targetPort < 1 || targetPort > 65535) {
-		return { ok: false, error: "TARGET_PORT must be an integer between 1 and 65535.", bridgePath };
-	}
-
 	const sharedToken = env.SHARED_TOKEN?.trim();
+	const targets = parseAllowedTargets(env);
+	const envRecord = env as Record<string, unknown>;
+	const defaultTargetId =
+		typeof envRecord.DEFAULT_TARGET_ID === "string" && envRecord.DEFAULT_TARGET_ID.trim()
+			? envRecord.DEFAULT_TARGET_ID.trim()
+			: null;
+
+	if (targets && defaultTargetId && !(defaultTargetId in targets)) {
+		return { ok: false, error: "DEFAULT_TARGET_ID must reference a configured target.", bridgePath };
+	}
+
+	let legacyTarget: BridgeTarget | null = null;
+	const targetHost = env.TARGET_HOST?.trim();
+	if (targetHost) {
+		const rawTargetPort = String(env.TARGET_PORT ?? "").trim();
+		const targetPort = Number.parseInt(rawTargetPort, 10);
+		if (!Number.isInteger(targetPort) || targetPort < 1 || targetPort > 65535) {
+			return { ok: false, error: "TARGET_PORT must be an integer between 1 and 65535.", bridgePath };
+		}
+
+		legacyTarget = {
+			id: "legacy",
+			host: targetHost,
+			port: targetPort,
+			tls: isTruthyFlag(env.TARGET_TLS),
+		};
+	}
+
+	if (!targets && !legacyTarget) {
+		return { ok: false, error: "Configure TARGETS/TARGETS_JSON or TARGET_HOST/TARGET_PORT.", bridgePath };
+	}
 
 	return {
 		ok: true,
 		config: {
 			bridgePath,
-			targetHost,
-			targetPort,
-			targetTls: isTruthyFlag(env.TARGET_TLS),
 			sharedToken: sharedToken ? sharedToken : null,
+			defaultTargetId,
+			targets: targets ?? {},
+			legacyTarget,
 		},
 	};
+}
+
+export function resolveTarget(request: Request, config: BridgeConfig): ResolvedTarget {
+	const url = new URL(request.url);
+	const requestedTargetId = url.searchParams.get("target")?.trim() ?? "";
+	if (requestedTargetId) {
+		if (!isValidTargetId(requestedTargetId)) {
+			return { ok: false, status: 400, error: "Invalid target id." };
+		}
+
+		const target = config.targets[requestedTargetId];
+		if (!target) {
+			return { ok: false, status: 403, error: "Requested target is not allowed." };
+		}
+
+		return { ok: true, target };
+	}
+
+	if (config.defaultTargetId) {
+		return { ok: true, target: config.targets[config.defaultTargetId] };
+	}
+
+	if (config.legacyTarget) {
+		return { ok: true, target: config.legacyTarget };
+	}
+
+	return { ok: false, status: 500, error: "No target is available for this bridge." };
 }
 
 export function isAuthorized(request: Request, sharedToken: string | null): boolean {
@@ -93,7 +216,12 @@ export function isAuthorized(request: Request, sharedToken: string | null): bool
 function createHtmlResponse(requestUrl: URL, configResult: ConfigValidationResult): Response {
 	const bridgePath = configResult.ok ? configResult.config.bridgePath : configResult.bridgePath;
 	const wsProtocol = requestUrl.protocol === "https:" ? "wss:" : "ws:";
-	const defaultUrl = `${wsProtocol}//${requestUrl.host}${bridgePath}`;
+	const defaultTargetId = configResult.ok ? configResult.config.defaultTargetId : null;
+	const defaultUrl = new URL(`${wsProtocol}//${requestUrl.host}${bridgePath}`);
+	if (defaultTargetId) {
+		defaultUrl.searchParams.set("target", defaultTargetId);
+	}
+	const availableTargets = configResult.ok ? Object.keys(configResult.config.targets).sort() : [];
 	const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -229,11 +357,18 @@ function createHtmlResponse(requestUrl: URL, configResult: ConfigValidationResul
         <div class="grid">
           <div>
             <label for="wsUrl">WebSocket URL</label>
-            <input id="wsUrl" value="${escapeHtml(defaultUrl)}" />
+            <input id="wsUrl" value="${escapeHtml(defaultUrl.toString())}" />
           </div>
           <div>
             <label for="token">Shared token</label>
             <input id="token" placeholder="Optional token appended as ?token=..." />
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label for="targetId">Target ID</label>
+            <input id="targetId" value="${escapeHtml(defaultTargetId ?? "")}" placeholder="Optional when default target exists" />
+            <small>Available targets: ${escapeHtml(availableTargets.join(", ") || "(legacy single-target mode)")}</small>
           </div>
         </div>
         <div class="grid">
@@ -264,9 +399,10 @@ function createHtmlResponse(requestUrl: URL, configResult: ConfigValidationResul
       const sendButton = document.getElementById("sendButton");
       const disconnectButton = document.getElementById("disconnectButton");
       const clearButton = document.getElementById("clearButton");
-      const wsUrlInput = document.getElementById("wsUrl");
-      const tokenInput = document.getElementById("token");
-      const hexPayloadInput = document.getElementById("hexPayload");
+	      const wsUrlInput = document.getElementById("wsUrl");
+	      const tokenInput = document.getElementById("token");
+	      const targetIdInput = document.getElementById("targetId");
+	      const hexPayloadInput = document.getElementById("hexPayload");
 
       let socket = null;
 
@@ -284,16 +420,22 @@ function createHtmlResponse(requestUrl: URL, configResult: ConfigValidationResul
       }
 
       function buildUrl() {
-        const rawUrl = wsUrlInput.value.trim();
-        const token = tokenInput.value.trim();
-        const url = new URL(rawUrl);
-        if (token) {
-          url.searchParams.set("token", token);
-        } else {
-          url.searchParams.delete("token");
-        }
-        return url.toString();
-      }
+	        const rawUrl = wsUrlInput.value.trim();
+	        const token = tokenInput.value.trim();
+	        const targetId = targetIdInput.value.trim();
+	        const url = new URL(rawUrl);
+	        if (token) {
+	          url.searchParams.set("token", token);
+	        } else {
+	          url.searchParams.delete("token");
+	        }
+	        if (targetId) {
+	          url.searchParams.set("target", targetId);
+	        } else {
+	          url.searchParams.delete("target");
+	        }
+	        return url.toString();
+	      }
 
       function parseHex(text) {
         const normalized = text.replace(/[^0-9a-f]/gi, "");
@@ -373,14 +515,21 @@ function createHtmlResponse(requestUrl: URL, configResult: ConfigValidationResul
 
 function createHealthResponse(configResult: ConfigValidationResult): Response {
 	const body = configResult.ok
-		? {
-				ok: true,
-				bridgePath: configResult.config.bridgePath,
-				targetHost: configResult.config.targetHost,
-				targetPort: configResult.config.targetPort,
-				targetTls: configResult.config.targetTls,
-				authRequired: configResult.config.sharedToken !== null,
-			}
+			? {
+					ok: true,
+					bridgePath: configResult.config.bridgePath,
+					defaultTargetId: configResult.config.defaultTargetId,
+					targetIds: Object.keys(configResult.config.targets).sort(),
+					legacyTarget:
+						configResult.config.legacyTarget === null
+							? null
+							: {
+									host: configResult.config.legacyTarget.host,
+									port: configResult.config.legacyTarget.port,
+									tls: configResult.config.legacyTarget.tls,
+								},
+					authRequired: configResult.config.sharedToken !== null,
+				}
 		: {
 				ok: false,
 				bridgePath: configResult.bridgePath,
@@ -423,7 +572,12 @@ async function toUint8Array(data: unknown): Promise<Uint8Array | null> {
 	return null;
 }
 
-async function handleSession(webSocket: WebSocket, config: BridgeConfig, sessionId: string): Promise<void> {
+async function handleSession(
+	webSocket: WebSocket,
+	config: BridgeConfig,
+	target: BridgeTarget,
+	sessionId: string,
+): Promise<void> {
 	webSocket.accept({ allowHalfOpen: true });
 	webSocket.binaryType = "arraybuffer";
 
@@ -532,8 +686,8 @@ async function handleSession(webSocket: WebSocket, config: BridgeConfig, session
 
 	try {
 		socket = connect(
-			{ hostname: config.targetHost, port: config.targetPort },
-			{ secureTransport: config.targetTls ? "on" : "off" },
+			{ hostname: target.host, port: target.port },
+			{ secureTransport: target.tls ? "on" : "off" },
 		);
 		const socketInfo = await socket.opened;
 		console.log(
@@ -611,11 +765,16 @@ export default {
 			return new Response("Unauthorized", { status: 401 });
 		}
 
+		const targetResult = resolveTarget(request, configResult.config);
+		if (!targetResult.ok) {
+			return new Response(targetResult.error, { status: targetResult.status });
+		}
+
 		const pair = new WebSocketPair();
 		const [client, server] = Object.values(pair);
 		const sessionId = crypto.randomUUID();
 
-		ctx.waitUntil(handleSession(server, configResult.config, sessionId));
+		ctx.waitUntil(handleSession(server, configResult.config, targetResult.target, sessionId));
 
 		return new Response(null, {
 			status: 101,

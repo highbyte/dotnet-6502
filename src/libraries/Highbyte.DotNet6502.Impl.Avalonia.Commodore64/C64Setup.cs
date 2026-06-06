@@ -87,11 +87,13 @@ public class C64Setup : C64SystemConfigurerCore
                 (_, _) => new WebSocketTransport(
                     c64HostConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty,
                     c64HostConfig.SwiftLinkSharedToken,
+                    c64HostConfig.SwiftLinkBridgeTargetId,
                     LoggerFactory.CreateLogger(nameof(WebSocketTransport))),
                 LoggerFactory.CreateLogger(nameof(HayesModemTransport))),
             _ => new WebSocketTransport(
                 c64HostConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty,
                 c64HostConfig.SwiftLinkSharedToken,
+                c64HostConfig.SwiftLinkBridgeTargetId,
                 LoggerFactory.CreateLogger(nameof(WebSocketTransport)))
         };
 

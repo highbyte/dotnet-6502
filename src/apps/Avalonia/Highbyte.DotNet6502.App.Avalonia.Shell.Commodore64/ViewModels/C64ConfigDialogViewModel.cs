@@ -34,6 +34,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     // Keyboard layout dropdown entry meaning "no explicit setting" -> null config -> auto-detect.
     private const string AutoKeyboardLayoutLabel = "Auto";
+    private const string DefaultSwiftLinkBridgeTargetLabel = "Worker default";
 
     private readonly AvaloniaHostApp _hostApp;
     private readonly IConfiguration _configuration;
@@ -66,6 +67,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private bool _swiftLinkConnectOnBoot;
     private string _swiftLinkBridgeWebSocketUrl = string.Empty;
     private string _swiftLinkSharedToken = string.Empty;
+    private string _swiftLinkBridgeTargetId = string.Empty;
+    private SwiftLinkBridgeTargetOption? _selectedSwiftLinkBridgeTarget;
     private string _romDirectory = string.Empty;
     private RenderProviderOption? _selectedRenderProvider;
     private RenderTargetOption? _selectedRenderTarget;
@@ -130,6 +133,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkHost.ConnectOnBoot;
         SwiftLinkBridgeWebSocketUrl = _workingConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty;
         SwiftLinkSharedToken = _workingConfig.SwiftLinkSharedToken ?? string.Empty;
+        SwiftLinkBridgeTargetId = _workingConfig.SwiftLinkBridgeTargetId ?? string.Empty;
+        InitializeSwiftLinkBridgeTargetOptions();
 
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         _selectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
@@ -215,6 +220,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         new(Enum.GetValues<C64SwiftLinkInterruptMode>());
     public ObservableCollection<C64SwiftLinkReceiveMode> AvailableSwiftLinkReceiveModes { get; } =
         new(Enum.GetValues<C64SwiftLinkReceiveMode>());
+    public ObservableCollection<SwiftLinkBridgeTargetOption> AvailableSwiftLinkBridgeTargets { get; } = new();
     // "Auto" (auto-detect) plus each explicit C64KeyboardLayout, as strings for the dropdown.
     public ObservableCollection<string> AvailableKeyboardLayouts { get; } =
         new(new[] { AutoKeyboardLayoutLabel }.Concat(Enum.GetNames<C64KeyboardLayout>()));
@@ -474,6 +480,33 @@ public class C64ConfigDialogViewModel : ViewModelBase
             this.RaiseAndSetIfChanged(ref _swiftLinkSharedToken, value);
             _workingConfig.SwiftLinkSharedToken = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
             UpdateValidationMessageFromConfig();
+        }
+    }
+
+    public string SwiftLinkBridgeTargetId
+    {
+        get => _swiftLinkBridgeTargetId;
+        set
+        {
+            if (_swiftLinkBridgeTargetId == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkBridgeTargetId, value);
+            _workingConfig.SwiftLinkBridgeTargetId = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            UpdateValidationMessageFromConfig();
+        }
+    }
+
+    public SwiftLinkBridgeTargetOption? SelectedSwiftLinkBridgeTarget
+    {
+        get => _selectedSwiftLinkBridgeTarget;
+        set
+        {
+            if (_selectedSwiftLinkBridgeTarget == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedSwiftLinkBridgeTarget, value);
+            SwiftLinkBridgeTargetId = value?.Value ?? string.Empty;
         }
     }
 
@@ -1617,6 +1650,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.SwiftLinkHost = _workingConfig.SwiftLinkHost.Clone();
         _originalConfig.SwiftLinkWebSocketBridgeUrl = _workingConfig.SwiftLinkWebSocketBridgeUrl;
         _originalConfig.SwiftLinkSharedToken = _workingConfig.SwiftLinkSharedToken;
+        _originalConfig.SwiftLinkBridgeTargetId = _workingConfig.SwiftLinkBridgeTargetId;
+        _originalConfig.SwiftLinkBridgeTargetIds = new List<string>(_workingConfig.SwiftLinkBridgeTargetIds);
 
         if (_workingConfig.SystemConfig.RenderProviderType != null)
             _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);
@@ -1668,6 +1703,31 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     // Add event for ROM license acknowledgement request
     public event EventHandler<RomLicenseAcknowledgementEventArgs>? RomLicenseAcknowledgementRequested;
+
+    private void InitializeSwiftLinkBridgeTargetOptions()
+    {
+        AvailableSwiftLinkBridgeTargets.Clear();
+        AvailableSwiftLinkBridgeTargets.Add(new SwiftLinkBridgeTargetOption(DefaultSwiftLinkBridgeTargetLabel, null));
+
+        foreach (var targetId in _workingConfig.SwiftLinkBridgeTargetIds
+                     .Where(targetId => !string.IsNullOrWhiteSpace(targetId))
+                     .Select(targetId => targetId.Trim())
+                     .Distinct(StringComparer.Ordinal))
+        {
+            AvailableSwiftLinkBridgeTargets.Add(new SwiftLinkBridgeTargetOption(targetId, targetId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(_workingConfig.SwiftLinkBridgeTargetId)
+            && AvailableSwiftLinkBridgeTargets.All(option => option.Value != _workingConfig.SwiftLinkBridgeTargetId))
+        {
+            var targetId = _workingConfig.SwiftLinkBridgeTargetId.Trim();
+            AvailableSwiftLinkBridgeTargets.Add(new SwiftLinkBridgeTargetOption(targetId, targetId));
+        }
+
+        SelectedSwiftLinkBridgeTarget = AvailableSwiftLinkBridgeTargets
+            .FirstOrDefault(option => option.Value == _workingConfig.SwiftLinkBridgeTargetId)
+            ?? AvailableSwiftLinkBridgeTargets.FirstOrDefault();
+    }
 }
 
 public class RomLicenseAcknowledgementEventArgs : EventArgs
@@ -1787,6 +1847,8 @@ public record SidEmulationModeOption(SidEmulationMode Mode, string DisplayName, 
 public record KeyMappingEntry(string Key, string Action);
 
 public record CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum Type, string DisplayName);
+
+public record SwiftLinkBridgeTargetOption(string Label, string? Value);
 
 internal readonly record struct RomStatusData(
     string Name,
