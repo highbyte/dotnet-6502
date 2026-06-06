@@ -7,7 +7,7 @@
 @using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
-@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
 @using Highbyte.DotNet6502.App.WASM.Pages;
 @using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
@@ -33,10 +33,10 @@
             <span>@_latestDiskFileError</span>
             <br />
             <br />
-            <label for="preloadedDiskSelector">Download & Run .D64 programs:</label>
+            <label for="preloadedDiskSelector">Download & Run programs:</label>
             <select id="preloadedDiskSelector" @onchange="OnPreloadedDiskChanged">
                 <option value="">-- Select a program --</option>
-                @foreach (var disk in _preloadedD64Images.Where(d => d.Value.AvailableInBrowser))
+                @foreach (var disk in _preloadedPrograms.Where(d => d.Value.AvailableInBrowser))
                 {
                     <option value="@disk.Key">@disk.Value.DisplayName</option>
                 }
@@ -47,7 +47,7 @@
                 <br />
                 @if (_isLoadingPreloadedDisk)
                 {
-                    <span>Loading disk image...</span>
+                    <span>Loading program...</span>
                 }
                 else
                 {
@@ -55,7 +55,7 @@
                 }
                 <br />
                 <span style="font-size: 0.9em; color: #666;">
-                    Download D64 disk image and auto-run the program on it.
+                    Download a D64 disk image or PRG file and auto-run it.
                 </span>
                 @if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
                 {
@@ -176,18 +176,19 @@
     private bool _isLoadingPreloadedDisk = false;
     private string SYSTEM_NAME = C64.SystemName;
    
-    private D64AutoDownloadAndRun _d64AutoDownloadAndRun = default!;
+    private C64AutoLoadAndRun _c64AutoLoadAndRun = default!;
 
-    private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
+    private readonly Dictionary<string, C64DownloadProgramInfo> _preloadedPrograms = new()
     {
-        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
-        {"compunetreborn", new D64DownloadDiskInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.d64", c64Variant: "C64PAL", availableInBrowser: false)},
-        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
-        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*", c64Variant: "C64PAL")},
-        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")},
-        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
-        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
-        {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
+        {"bubblebobble", new C64DownloadProgramInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
+        {"compunetreborn", new C64DownloadProgramInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.d64", c64Variant: "C64PAL", availableInBrowser: false)},
+        {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*", c64Variant: "C64PAL")},
+        {"lastninja", new C64DownloadProgramInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")},
+        {"minizork", new C64DownloadProgramInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
+        {"montezuma", new C64DownloadProgramInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"rallyspeedway", new C64DownloadProgramInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")},
+        {"smoothscrollerraster", new C64DownloadProgramInfo("Smooth Scroller and Raster (PRG)", "https://highbyte.se/dotnet-6502/app/6502binaries/C64/Assembler/smooth_scroller_and_raster.prg", downloadType: C64DownloadProgramType.Prg, availableInBrowser: true)}
     };
     public string SelectedPreloadedDisk { get; set; } = default!;
 
@@ -209,7 +210,7 @@
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
-        _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, _c64HostConfig.CorsProxyURL);
+        _c64AutoLoadAndRun = new C64AutoLoadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, _c64HostConfig.CorsProxyURL);
     }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e)
@@ -710,49 +711,49 @@
     }
 
     /// <summary>
-    /// Download and load a preloaded D64 disk image, then auto-load and run the specified program
+    /// Download and load a preloaded program, then auto-run it.
     /// </summary>
     /// <returns></returns>
     private async Task OnLoadPreloadedDisk()
     {
-        if (string.IsNullOrEmpty(SelectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(SelectedPreloadedDisk))
+        if (string.IsNullOrEmpty(SelectedPreloadedDisk) || !_preloadedPrograms.ContainsKey(SelectedPreloadedDisk))
             return;
 
-        var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
+        var programInfo = _preloadedPrograms[SelectedPreloadedDisk];
         _isLoadingPreloadedDisk = true;
         _latestPreloadedDiskError = "";
         StateHasChanged(); // Update UI to show loading state
 
         try
         {
-        await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
-            diskInfo,
+        await _c64AutoLoadAndRun.DownloadAndRunProgram(
+            programInfo,
             // stateHasChangedCallback: async () =>
             // {
             //     await Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
             // },
-            setConfigCallback: async (diskInfo) =>
+            setConfigCallback: async (programInfo) =>
             {
                 // Apply keyboard joystick settings to config object while emulator is stopped
-                _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
-                _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
-                _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
-                _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
-                _logger.LogInformation($"Setting joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
-                _c64HostConfig.InputConfig.CurrentJoystick = diskInfo.KeyboardJoystickNumber;
+                _logger.LogInformation($"Setting keyboard joystick enabled in config to: {programInfo.KeyboardJoystickEnabled}");
+                _c64SystemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
+                _logger.LogInformation($"Setting keyboard joystick number in config to: {programInfo.KeyboardJoystickNumber}");
+                _c64SystemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+                _logger.LogInformation($"Setting joystick number in config to: {programInfo.KeyboardJoystickNumber}");
+                _c64HostConfig.InputConfig.CurrentJoystick = programInfo.KeyboardJoystickNumber;
 
                 // Apply renderer setting to config object while emulator is stopped
-                Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64CustomRenderProvider);
+                Type rendererProviderType = programInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64CustomRenderProvider);
                 _logger.LogInformation($"Setting renderer provider in config to: {rendererProviderType}");
                 _c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
 
                 // Apply audio enabled setting to config object while emulator is stopped
-                _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");
-                _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
+                _logger.LogInformation($"Setting audio enabled in config to: {programInfo.AudioEnabled}");
+                _c64SystemConfig.AudioEnabled = programInfo.AudioEnabled;
 
                 // Apply C64 variant setting to config object while emulator is stopped
-                _logger.LogInformation($"Setting C64 variant in config to: {diskInfo.C64Variant}");
-                await Parent.WasmHost.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+                _logger.LogInformation($"Setting C64 variant in config to: {programInfo.C64Variant}");
+                await Parent.WasmHost.SelectSystemConfigurationVariant(programInfo.C64Variant);
 
                 Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
                 await Parent.UpdateCanvasSize();
@@ -760,7 +761,7 @@
         }
         catch (Exception ex)
         {
-            _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
+            _latestPreloadedDiskError = $"Error downloading or running program: {ex.Message}";
         }
         finally
         {
