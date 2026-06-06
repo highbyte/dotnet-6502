@@ -7,9 +7,11 @@ using Avalonia;
 using Avalonia.Browser;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Transport;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.Browser.Input;
+using Highbyte.DotNet6502.Impl.Browser.WebSocket;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
@@ -322,6 +324,14 @@ internal sealed partial class Program
         // Load custom JS module for gamepad input
         WriteBootstrapLog("Importing Gamepad JS module.");
         await BrowserGamepad.LoadJsModuleAsync();
+
+        // Load custom JS module for browser WebSocket transport and register it before any C64
+        // system is created so SwiftLink uses direct browser WebSocket interop instead of
+        // ClientWebSocket.
+        WriteBootstrapLog("Importing Browser WebSocket bridge JS module.");
+        await BrowserWebSocketTransport.LoadJsModuleAsync();
+        BrowserWebSocketTransportFactory.Create = (bridgeUrl, sharedToken, logger) =>
+            new BrowserWebSocketTransport(bridgeUrl, sharedToken, logger);
 
         // Create browser gamepad instance
         WriteBootstrapLog("Creating Gamepad implementation (Browser).");

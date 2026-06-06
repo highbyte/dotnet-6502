@@ -1,0 +1,23 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "swiftlink-bridge",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-10",
+	"vars": {
+		// Local-default bridge target for `wrangler dev --local`.
+		// The repo's `tests/swiftlink-smoke/tcp_echo_server.py` is a good first target.
+		"TARGET_HOST": "127.0.0.1",
+		"TARGET_PORT": "9001",
+		"TARGET_TLS": "false",
+		"BRIDGE_PATH": "/bridge"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"workers_dev": true
+}

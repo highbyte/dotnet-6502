@@ -1,0 +1,21 @@
+{
+  "name": "swiftlink-bridge",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --local",
+    "dev:remote": "wrangler dev --remote",
+    "start": "wrangler dev --local",
+    "smoke": "node ./scripts/ws-echo-smoke.mjs",
+    "test": "vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.4",
+    "@types/node": "^25.9.2",
+    "typescript": "^5.5.2",
+    "vitest": "~3.2.0",
+    "wrangler": "^4.98.0"
+  }
+}

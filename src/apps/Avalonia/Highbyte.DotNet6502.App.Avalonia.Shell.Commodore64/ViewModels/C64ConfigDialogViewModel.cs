@@ -64,6 +64,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private int _swiftLinkTcpPort;
     private string _swiftLinkTcpPortText = string.Empty;
     private bool _swiftLinkConnectOnBoot;
+    private string _swiftLinkBridgeWebSocketUrl = string.Empty;
+    private string _swiftLinkSharedToken = string.Empty;
     private string _romDirectory = string.Empty;
     private RenderProviderOption? _selectedRenderProvider;
     private RenderTargetOption? _selectedRenderTarget;
@@ -108,6 +110,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _workingConfig = (C64HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
+        foreach (var transportMode in Enum.GetValues<C64SwiftLinkTransportMode>())
+        {
+            AvailableSwiftLinkTransportModes.Add(transportMode);
+        }
+
         AvailableJoysticks = new ObservableCollection<int>(_workingConfig.InputConfig.AvailableJoysticks);
         KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
         SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
@@ -121,6 +128,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SwiftLinkTcpHost = _workingConfig.SwiftLinkHost.TcpHost;
         SwiftLinkTcpPort = _workingConfig.SwiftLinkHost.TcpPort;
         SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkHost.ConnectOnBoot;
+        SwiftLinkBridgeWebSocketUrl = _workingConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty;
+        SwiftLinkSharedToken = _workingConfig.SwiftLinkSharedToken ?? string.Empty;
 
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         _selectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
@@ -201,8 +210,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
     public ObservableCollection<C64CartridgeIOAddress> AvailableSwiftLinkCartridgeIOAddresses { get; } =
         new(Enum.GetValues<C64CartridgeIOAddress>());
-    public ObservableCollection<C64SwiftLinkTransportMode> AvailableSwiftLinkTransportModes { get; } =
-        new(Enum.GetValues<C64SwiftLinkTransportMode>());
+    public ObservableCollection<C64SwiftLinkTransportMode> AvailableSwiftLinkTransportModes { get; } = new();
     public ObservableCollection<C64SwiftLinkInterruptMode> AvailableSwiftLinkInterruptModes { get; } =
         new(Enum.GetValues<C64SwiftLinkInterruptMode>());
     public ObservableCollection<C64SwiftLinkReceiveMode> AvailableSwiftLinkReceiveModes { get; } =
@@ -352,6 +360,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _selectedSwiftLinkTransportMode, value);
             _workingConfig.SwiftLinkHost.TransportMode = value;
+            if (value != C64SwiftLinkTransportMode.RawTcp && _swiftLinkConnectOnBoot)
+            {
+                this.RaiseAndSetIfChanged(ref _swiftLinkConnectOnBoot, false, nameof(SwiftLinkConnectOnBoot));
+                _workingConfig.SwiftLinkHost.ConnectOnBoot = false;
+            }
             this.RaisePropertyChanged(nameof(IsSwiftLinkConnectOnBootAvailable));
             this.RaisePropertyChanged(nameof(SwiftLinkConnectOnBootToolTip));
             UpdateValidationMessageFromConfig();
@@ -363,8 +376,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     public string SwiftLinkConnectOnBootToolTip
         => IsSwiftLinkConnectOnBootAvailable
-            ? "Automatically opens the configured raw TCP SwiftLink connection when the emulator starts."
-            : "Only applies to Raw TCP mode. Hayes modem mode waits for the emulated C64 software to dial with an ATDT command.";
+            ? IsRunningInWebAssembly
+                ? "Automatically opens the configured WebSocket bridge when the emulator starts."
+                : "Automatically opens the configured raw TCP SwiftLink connection when the emulator starts."
+            : IsRunningInWebAssembly
+                ? "Hayes modem mode waits for the emulated C64 software to dial with an ATDT command, then connects through the fixed-target WebSocket bridge."
+                : "Hayes modem mode waits for the emulated C64 software to dial with an ATDT command.";
 
     public string SwiftLinkTcpHost
     {
@@ -431,6 +448,36 @@ public class C64ConfigDialogViewModel : ViewModelBase
             UpdateValidationMessageFromConfig();
         }
     }
+
+    public string SwiftLinkBridgeWebSocketUrl
+    {
+        get => _swiftLinkBridgeWebSocketUrl;
+        set
+        {
+            if (_swiftLinkBridgeWebSocketUrl == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkBridgeWebSocketUrl, value);
+            _workingConfig.SwiftLinkWebSocketBridgeUrl = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            UpdateValidationMessageFromConfig();
+        }
+    }
+
+    public string SwiftLinkSharedToken
+    {
+        get => _swiftLinkSharedToken;
+        set
+        {
+            if (_swiftLinkSharedToken == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _swiftLinkSharedToken, value);
+            _workingConfig.SwiftLinkSharedToken = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            UpdateValidationMessageFromConfig();
+        }
+    }
+
+    public static string SwiftLinkBridgeWebSocketUrlWatermark => "ws://127.0.0.1:8787/bridge";
 
     public bool AudioEnabled
     {
@@ -1543,6 +1590,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     private string? GetSwiftLinkPortInputValidationError()
     {
+        if (IsRunningInWebAssembly)
+            return null;
+
         if (string.IsNullOrWhiteSpace(SwiftLinkTcpPortText))
             return $"{nameof(C64HostConfig.SwiftLinkHost)}.{nameof(C64SwiftLinkHostConfig.TcpPort)} must be between 1 and 65535.";
 
@@ -1565,6 +1615,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.SwiftLink = _workingConfig.SystemConfig.SwiftLink.Clone();
         _originalConfig.SystemConfig.ColorMapName = _workingConfig.SystemConfig.ColorMapName;
         _originalConfig.SwiftLinkHost = _workingConfig.SwiftLinkHost.Clone();
+        _originalConfig.SwiftLinkWebSocketBridgeUrl = _workingConfig.SwiftLinkWebSocketBridgeUrl;
+        _originalConfig.SwiftLinkSharedToken = _workingConfig.SwiftLinkSharedToken;
 
         if (_workingConfig.SystemConfig.RenderProviderType != null)
             _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);
