@@ -70,4 +70,15 @@ public class AvaloniaC64HostConfigTests
         Assert.NotSame(config.SwiftLinkBridgeTargetIds, clone.SwiftLinkBridgeTargetIds);
         Assert.Equal("compunet-reborn", clone.SwiftLinkBridgeTargetId);
     }
+
+    [Fact]
+    public void Defaults_Use_Local_Bridge_And_Compunet_TargetId()
+    {
+        var config = new C64HostConfig();
+
+        Assert.Equal(C64HostConfig.DefaultSwiftLinkWebSocketBridgeUrl, config.SwiftLinkWebSocketBridgeUrl);
+        Assert.Equal(C64HostConfig.DefaultSwiftLinkBridgeTargetId, config.SwiftLinkBridgeTargetId);
+        Assert.Equal(C64SwiftLinkTransportMode.HayesModem, config.SwiftLinkHost.TransportMode);
+        Assert.Equal(C64SwiftLinkInterruptMode.NMI, config.SystemConfig.SwiftLink.InterruptMode);
+    }
 }

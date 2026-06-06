@@ -45,7 +45,10 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     [JsonIgnore]
     public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
-    private string? _swiftLinkWebSocketBridgeUrl;
+    public const string DefaultSwiftLinkWebSocketBridgeUrl = "ws://127.0.0.1:8787/bridge";
+    public const string DefaultSwiftLinkBridgeTargetId = "compunet-reborn";
+
+    private string? _swiftLinkWebSocketBridgeUrl = DefaultSwiftLinkWebSocketBridgeUrl;
     /// <summary>
     /// Browser-only WebSocket endpoint used to bridge SwiftLink traffic to a Cloudflare Worker.
     /// Ignored on desktop hosts, which use the native TCP host/port configuration instead.
@@ -74,7 +77,7 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
         }
     }
 
-    private string? _swiftLinkBridgeTargetId;
+    private string? _swiftLinkBridgeTargetId = DefaultSwiftLinkBridgeTargetId;
     /// <summary>
     /// Optional logical target id appended to the browser WebSocket bridge URL as <c>?target=...</c>.
     /// The Cloudflare Worker uses this to select an allowlisted TCP destination.
@@ -144,6 +147,8 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     {
         BasicAIAssistantDefaultEnabled = false;
         CodeSuggestionBackendType = CodeSuggestionBackendTypeEnum.CustomEndpoint;
+        SystemConfig.SwiftLink.InterruptMode = C64SwiftLinkInterruptMode.NMI;
+        _swiftLinkHost.TransportMode = C64SwiftLinkTransportMode.HayesModem;
         _swiftLinkHost.SetDirtyCallback(MarkDirty);
     }
 

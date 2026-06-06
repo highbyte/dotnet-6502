@@ -510,7 +510,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
-    public static string SwiftLinkBridgeWebSocketUrlWatermark => "ws://127.0.0.1:8787/bridge";
+    public static string SwiftLinkBridgeWebSocketUrlWatermark => C64HostConfig.DefaultSwiftLinkWebSocketBridgeUrl;
 
     public bool AudioEnabled
     {
