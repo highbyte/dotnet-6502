@@ -99,6 +99,26 @@ public sealed class WebSocketTransport : Systems.Commodore64.Transport.ISwiftLin
 
         receiveCts?.Cancel();
 
+        if (PlatformDetection.IsRunningInWebAssembly())
+        {
+            if (webSocket != null)
+            {
+                try
+                {
+                    webSocket.Abort();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Ignoring SwiftLink WebSocket abort failure on WebAssembly.");
+                }
+            }
+
+            receiveCts?.Dispose();
+            Reset();
+            _logger.LogInformation("Disconnected SwiftLink WebSocket transport from {BridgeUri}.", _bridgeUri);
+            return;
+        }
+
         if (webSocket != null)
         {
             try
@@ -188,7 +208,25 @@ public sealed class WebSocketTransport : Systems.Commodore64.Transport.ISwiftLin
 
     public void Dispose()
     {
+        if (PlatformDetection.IsRunningInWebAssembly())
+        {
+            DisposeAsyncOnBrowser();
+            return;
+        }
+
         DisconnectAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    private async void DisposeAsyncOnBrowser()
+    {
+        try
+        {
+            await DisconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ignoring SwiftLink WebSocket transport dispose failure on WebAssembly.");
+        }
     }
 
     private async Task ReceiveLoopAsync(ClientWebSocket webSocket, CancellationToken cancellationToken)

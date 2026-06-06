@@ -1,6 +1,6 @@
-# SwiftLink Cloudflare Bridge
+# WebSocket-to-TCP Bridge
 
-Cloudflare Worker that accepts a browser WebSocket connection and bridges it to one allowlisted outbound TCP target selected by logical target id. The intended consumer is the browser-hosted SwiftLink transport for `dotnet-6502`.
+Cloudflare Worker that accepts a browser WebSocket connection and bridges it to one allowlisted outbound TCP target selected by logical target id. The intended consumer in this repo is the browser-hosted SwiftLink transport for `dotnet-6502`, but the Worker itself is a generic byte-stream bridge.
 
 ## What it does
 
@@ -24,6 +24,9 @@ The committed `wrangler.jsonc` is set up for local-first testing:
 - `TARGETS.local-echo.port=9001`
 - `TARGETS.local-echo.tls=false`
 - `BRIDGE_PATH=/bridge`
+- deployed Worker name: `ws-tcp-bridge`
+
+### Run locally against the echo smoke target
 
 Start the repo's TCP echo server in one terminal:
 
@@ -50,6 +53,33 @@ For a terminal-only smoke test, with `wrangler dev` still running:
 ```sh
 npm run smoke -- 'ws://127.0.0.1:8787/bridge?target=local-echo' 41
 ```
+
+### Run locally against Compunet Reborn
+
+The checked-in local config already includes:
+
+- `TARGETS.compunet-reborn.host=vme.compunet.live`
+- `TARGETS.compunet-reborn.port=6400`
+- `TARGETS.compunet-reborn.tls=false`
+
+So the default `wrangler dev --local` command is enough:
+
+```sh
+npm run dev
+```
+
+Then use:
+
+```text
+ws://127.0.0.1:8787/bridge?target=compunet-reborn
+```
+
+For the Avalonia Browser C64 config, the local override settings are:
+
+- `Bridge URL`: `ws://127.0.0.1:8787/bridge`
+- `Target ID`: `compunet-reborn`
+- `Transport mode`: `HayesModem`
+- `Interrupt line`: `NMI`
 
 ## Target selection
 
@@ -113,6 +143,45 @@ SHARED_TOKEN=replace-me
 npm test
 npm run cf-typegen
 ```
+
+## Deploy to Cloudflare
+
+The checked-in Wrangler config is already set up to deploy this Worker as:
+
+```text
+https://ws-tcp-bridge.highbyte.workers.dev/
+```
+
+with the bridge endpoint:
+
+```text
+wss://ws-tcp-bridge.highbyte.workers.dev/bridge
+```
+
+Deploy from this directory:
+
+```sh
+npx wrangler login
+npx wrangler deploy
+```
+
+After deploy, verify:
+
+```sh
+curl https://ws-tcp-bridge.highbyte.workers.dev/healthz
+```
+
+The deployed health document should include:
+
+- `defaultTargetId: "local-echo"`
+- `targetIds: ["compunet-reborn", "local-echo"]`
+
+For the Avalonia Browser C64 config, the deployed-default settings are:
+
+- `Bridge URL`: `wss://ws-tcp-bridge.highbyte.workers.dev/bridge`
+- `Target ID`: `compunet-reborn`
+- `Transport mode`: `HayesModem`
+- `Interrupt line`: `NMI`
 
 ## Deployment notes
 

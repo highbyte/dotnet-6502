@@ -847,14 +847,14 @@ public class MainViewModel : ViewModelBase, IDisposable
             RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         PauseCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => _hostApp.Pause(),
+            () => _hostApp.Pause(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Running),
             RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         StopCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => _hostApp.Stop(),
+            () => _hostApp.Stop(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),

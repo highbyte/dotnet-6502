@@ -45,7 +45,7 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     [JsonIgnore]
     public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
-    public const string DefaultSwiftLinkWebSocketBridgeUrl = "ws://127.0.0.1:8787/bridge";
+    public const string DefaultSwiftLinkWebSocketBridgeUrl = "wss://ws-tcp-bridge.highbyte.workers.dev/bridge";
     public const string DefaultSwiftLinkBridgeTargetId = "compunet-reborn";
 
     private string? _swiftLinkWebSocketBridgeUrl = DefaultSwiftLinkWebSocketBridgeUrl;

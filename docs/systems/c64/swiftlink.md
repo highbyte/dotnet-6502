@@ -55,6 +55,18 @@ In the Avalonia Browser C64 config UI, that browser-side `target` is selected fr
 by the host config's `SwiftLinkBridgeTargetIds` list. The current defaults include
 `compunet-reborn` for Compunet testing and `local-echo` for local bridge smoke tests.
 
+Current Avalonia Browser defaults are chosen to work with the deployed Compunet bridge:
+
+- `Bridge URL`: `wss://ws-tcp-bridge.highbyte.workers.dev/bridge`
+- `Target ID`: `compunet-reborn`
+- `Transport mode`: `HayesModem`
+- `Interrupt line`: `NMI`
+
+For local bridge development with `wrangler dev`, temporarily override the browser config to:
+
+- `Bridge URL`: `ws://127.0.0.1:8787/bridge`
+- `Target ID`: `compunet-reborn` for real Compunet testing, or `local-echo` for echo smoke tests
+
 ## Config notes
 
 - `Connect automatically when emulator starts` is useful for `RawTcp` mode.
