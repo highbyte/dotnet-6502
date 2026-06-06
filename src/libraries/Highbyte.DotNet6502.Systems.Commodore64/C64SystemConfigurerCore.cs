@@ -2,6 +2,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -65,6 +66,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
     /// <see cref="IConfiguration"/> section. Hosts that store config elsewhere (e.g. browser
     /// local storage) override this.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Host config binding is limited to known application config models that are rooted by the host application.")]
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var hostConfig = _hostConfigFactory();
@@ -89,6 +91,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
         ApplyTypeKey(systemConfigSection, "AudioTargetType", systemConfig.SetAudioTargetType);
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "Configured type names are validated immediately and constrained to application-defined types.")]
     private static void ApplyTypeKey(IConfiguration section, string key, Action<Type?> setter)
     {
         var value = section[key];

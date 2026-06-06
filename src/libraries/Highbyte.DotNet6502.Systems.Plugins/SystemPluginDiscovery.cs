@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -37,7 +38,8 @@ public static class SystemPluginDiscovery
     /// <c>SystemName</c> property matches one of these (case-insensitive) are returned.
     /// Pass <c>null</c> to return all discovered plugins.</param>
     /// <param name="logger">Optional logger for skipped/failed plugins.</param>
-    public static IEnumerable<TPlugin> Discover<TPlugin>(
+    public static IEnumerable<TPlugin> Discover<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] TPlugin>(
         IEnumerable<string>? enabledSystemNames = null,
         ILogger? logger = null)
         where TPlugin : class
@@ -220,6 +222,7 @@ public static class SystemPluginDiscovery
         }
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Plugin discovery intentionally uses assembly metadata and reflective loading; browser publish roots plugin assemblies explicitly.")]
     private static void EnsureReferencedAssembliesLoaded(ILogger logger)
     {
         var loaded = new HashSet<string>(

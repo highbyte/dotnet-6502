@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reactive;
 using ReactiveUI;
 
@@ -41,6 +42,7 @@ public class ScriptEditorViewModel : ViewModelBase
 
     public event EventHandler? CloseRequested;
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveUI WhenAnyValue is used intentionally for ViewModel bindings; members are rooted by XAML and direct references.")]
     public ScriptEditorViewModel(bool isNew, string fileName = "", string content = "")
     {
         IsNew = isNew;

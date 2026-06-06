@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Http;
 using System.Reactive;
@@ -74,6 +75,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
     // --- End ReactiveUI Commands ---
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveUI WhenAnyValue is used intentionally for ViewModel bindings; members are rooted by XAML and direct references.")]
     public C64MenuViewModel(
         AvaloniaHostApp avaloniaHostApp,
         ILoggerFactory loggerFactory)

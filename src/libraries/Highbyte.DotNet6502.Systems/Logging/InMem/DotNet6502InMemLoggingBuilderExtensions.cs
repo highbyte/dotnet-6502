@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Configuration;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Highbyte.DotNet6502.Systems.Logging.InMem;
 
@@ -12,6 +13,7 @@ public static class DotNet6502InMemLoggingBuilderExtensions
         return builder.AddInMem(new DotNet6502InMemLoggerConfiguration(logStore));
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Logger provider options are application-owned configuration types and remain rooted by logging registration.")]
     public static ILoggingBuilder AddInMem(this ILoggingBuilder builder, DotNet6502InMemLoggerConfiguration config)
     {
         builder.AddConfiguration();

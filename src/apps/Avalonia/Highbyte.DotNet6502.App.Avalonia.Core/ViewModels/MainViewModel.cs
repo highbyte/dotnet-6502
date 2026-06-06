@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -592,6 +593,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public string OSVersion => RuntimeInformation.OSDescription;
 
     // Constructor with dependency injection - child ViewModels injected!
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveUI WhenAnyValue is used intentionally for ViewModel bindings; members are rooted by XAML and direct references.")]
     public MainViewModel(
         AvaloniaHostApp hostApp,
         EmulatorConfig emulatorConfig,

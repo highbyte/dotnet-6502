@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
@@ -30,7 +31,7 @@ public class C64SystemConfig : ISystemConfig
     public string? RenderProviderTypeName
     {
         get => RenderProviderType?.AssemblyQualifiedName;
-        set => SetRenderProviderType(value != null ? Type.GetType(value) : null);
+        set => SetRenderProviderType(ResolveConfiguredType(value));
     }
 
     [JsonIgnore]
@@ -43,7 +44,7 @@ public class C64SystemConfig : ISystemConfig
     public string? RenderTargetTypeTypeName
     {
         get => RenderTargetType?.AssemblyQualifiedName;
-        set => SetRenderTargetType(value != null ? Type.GetType(value) : null);
+        set => SetRenderTargetType(ResolveConfiguredType(value));
     }
 
 
@@ -98,7 +99,7 @@ public class C64SystemConfig : ISystemConfig
     public string? AudioProviderTypeName
     {
         get => AudioProviderType?.AssemblyQualifiedName;
-        set => SetAudioProviderType(value != null ? Type.GetType(value) : null);
+        set => SetAudioProviderType(ResolveConfiguredType(value));
     }
 
     [JsonIgnore]
@@ -111,8 +112,12 @@ public class C64SystemConfig : ISystemConfig
     public string? AudioTargetTypeName
     {
         get => AudioTargetType?.AssemblyQualifiedName;
-        set => SetAudioTargetType(value != null ? Type.GetType(value) : null);
+        set => SetAudioTargetType(ResolveConfiguredType(value));
     }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "Configured type names are persisted application types and are immediately validated by the receiving setters.")]
+    private static Type? ResolveConfiguredType(string? typeName)
+        => string.IsNullOrWhiteSpace(typeName) ? null : Type.GetType(typeName);
 
     public List<Type> GetSupportedAudioProviderTypes()
     {

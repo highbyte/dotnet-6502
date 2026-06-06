@@ -1,5 +1,7 @@
 // Based on https://github.com/dotnet/smartcomponents
 
+using System.Globalization;
+
 using Microsoft.Extensions.Configuration;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
@@ -39,13 +41,13 @@ public class ApiConfig
             SelfHosted = true;
 
             var configSection = config.GetSection(CONFIG_SECTION_SELF_HOSTED);
-            Endpoint = configSection.GetValue<Uri>("Endpoint", new Uri("http://localhost:11434/api"));
+            Endpoint = GetUriValue(configSection, "Endpoint") ?? new Uri("http://localhost:11434/api");
 
             // Ollama uses this, but other self-hosted backends might not, so it's optional.
-            DeploymentName = configSection.GetValue<string>("DeploymentName");
+            DeploymentName = configSection["DeploymentName"];
 
             // Ollama doesn't use this, but other self-hosted backends might do, so it's optional.
-            ApiKey = configSection.GetValue<string>("ApiKey");
+            ApiKey = configSection["ApiKey"];
         }
         else
         {
@@ -55,13 +57,25 @@ public class ApiConfig
             var configSection = config.GetSection(CONFIG_SECTION);
 
             // If set, we assume Azure OpenAI. If not, we assume OpenAI.
-            Endpoint = configSection.GetValue<Uri?>("Endpoint", null);
+            Endpoint = GetUriValue(configSection, "Endpoint");
 
             // For Azure OpenAI, it's your deployment name. For OpenAI, it's the model name.
-            DeploymentName = configSection.GetValue<string>("DeploymentName", "gpt-4o");
+            DeploymentName = configSection["DeploymentName"] ?? "gpt-4o";
 
-            ApiKey = configSection.GetValue<string>("ApiKey");
+            ApiKey = configSection["ApiKey"];
         }
+    }
+
+    private static Uri? GetUriValue(IConfiguration section, string key)
+    {
+        var value = section[key];
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            ? uri
+            : throw new FormatException(
+                string.Format(CultureInfo.InvariantCulture, "Configuration value '{0}' is not a valid absolute URI.", key));
     }
 
     public void WriteToConfiguration(IConfiguration config)

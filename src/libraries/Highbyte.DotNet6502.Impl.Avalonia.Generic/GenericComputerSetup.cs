@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Impl.Avalonia.Generic.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
@@ -48,6 +49,7 @@ public class GenericComputerSetup : GenericComputerSystemConfigurerCore
         return hostConfig;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Serialization targets the known GenericComputerHostConfig model that is part of the published application.")]
     public override async Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
         if (_saveCustomConfigJson == null)

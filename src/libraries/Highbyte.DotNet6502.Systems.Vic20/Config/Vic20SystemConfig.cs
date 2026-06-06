@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Utils;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
 
@@ -42,7 +43,7 @@ public class Vic20SystemConfig : ISystemConfig
     public string? RenderProviderTypeName
     {
         get => RenderProviderType?.AssemblyQualifiedName;
-        set => SetRenderProviderType(value != null ? Type.GetType(value) : null);
+        set => SetRenderProviderType(ResolveConfiguredType(value));
     }
 
     [JsonIgnore]
@@ -52,8 +53,12 @@ public class Vic20SystemConfig : ISystemConfig
     public string? RenderTargetTypeName
     {
         get => RenderTargetType?.AssemblyQualifiedName;
-        set => SetRenderTargetType(value != null ? Type.GetType(value) : null);
+        set => SetRenderTargetType(ResolveConfiguredType(value));
     }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "Configured type names are persisted application types and are immediately validated by the receiving setters.")]
+    private static Type? ResolveConfiguredType(string? typeName)
+        => string.IsNullOrWhiteSpace(typeName) ? null : Type.GetType(typeName);
 
     public bool AudioEnabled { get; set; } = false;
 

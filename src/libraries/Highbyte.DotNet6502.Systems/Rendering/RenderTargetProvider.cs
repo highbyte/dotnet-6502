@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Highbyte.DotNet6502.Systems.Rendering;
 
 /// <summary>
@@ -143,6 +145,7 @@ public class RenderTargetProvider
         return targetCreator();
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Render provider and target types are application-owned rooted types; interface inspection is intentional.")]
     private static bool ImplementsOpenGenericInterface(Type type, Type openGenericInterface)
     {
         if (!openGenericInterface.IsGenericTypeDefinition)
@@ -205,6 +208,7 @@ public class RenderTargetProvider
     /// <summary>
     /// Gets the generic type arguments from a specific interface implemented by the given type.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Render provider and target types are application-owned rooted types; interface inspection is intentional.")]
     private static Type[] GetGenericArgumentsFromInterface(Type implementingType, Type openGenericInterface)
     {
         if (!openGenericInterface.IsGenericTypeDefinition)
@@ -224,4 +228,3 @@ public class RenderTargetProvider
         return Array.Empty<Type>();
     }
 }
-
