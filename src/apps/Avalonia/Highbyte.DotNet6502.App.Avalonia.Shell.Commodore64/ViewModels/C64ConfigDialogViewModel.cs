@@ -47,6 +47,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     private bool _isBusy;
     private string? _statusMessage;
+    private bool _statusMessageIsError;
     private string? _validationMessage;
     private readonly ObservableCollection<string> _validationErrors = new();
     private bool _audioEnabled;
@@ -243,6 +244,20 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    public bool StatusMessageIsError
+    {
+        get => _statusMessageIsError;
+        private set
+        {
+            if (_statusMessageIsError == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _statusMessageIsError, value);
+            this.RaisePropertyChanged(nameof(HasNonErrorStatusMessage));
+            this.RaisePropertyChanged(nameof(HasErrorStatusMessage));
+        }
+    }
+
     public string? ValidationMessage
     {
         get => _validationMessage;
@@ -257,6 +272,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
     }
 
     public bool HasStatusMessage => !string.IsNullOrEmpty(StatusMessage);
+
+    public bool HasNonErrorStatusMessage => HasStatusMessage && !StatusMessageIsError;
+
+    public bool HasErrorStatusMessage => HasStatusMessage && StatusMessageIsError;
 
     public bool HasValidationMessage => !string.IsNullOrEmpty(ValidationMessage);
 
@@ -642,37 +661,79 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public Task AutoDownloadRomsToByteArrayAsync()
         => DownloadRomsToByteArrayAsync(requireAcknowledgement: true);
 
+    private void SetStatusMessage(string? message, bool isError = false)
+    {
+        StatusMessage = message;
+        StatusMessageIsError = !string.IsNullOrEmpty(message) && isError;
+    }
+
     public async Task<bool> DownloadRomsToByteArrayAsync(bool requireAcknowledgement)
     {
         if (requireAcknowledgement && !await RequestRomLicenseAcknowledgementAsync())
         {
-            StatusMessage = "ROM download cancelled.";
+            _logger.LogInformation("C64 ROM download to memory cancelled by user.");
+            SetStatusMessage("ROM download cancelled.");
             return false;
         }
 
         try
         {
+            _logger.LogInformation("Starting C64 ROM download to in-memory byte arrays.");
             IsBusy = true;
-            StatusMessage = "Downloading ROMs...";
+            SetStatusMessage("Downloading ROMs...");
             ValidationMessage = string.Empty;
 
             foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
             {
+                var romName = romDownload.Key;
+                var romUrl = romDownload.Value;
                 var proxyUrl = _workingConfig.GetCorsProxyURL();
                 var fullROMUrl = !string.IsNullOrEmpty(proxyUrl)
-                    ? $"{proxyUrl}{Uri.EscapeDataString(romDownload.Value)}"
-                    : romDownload.Value;
+                    ? $"{proxyUrl}{Uri.EscapeDataString(romUrl)}"
+                    : romUrl;
 
-                var romBytes = await _httpClient.GetByteArrayAsync(fullROMUrl);
-                _workingConfig.SystemConfig.SetROM(romDownload.Key, data: romBytes);
+                try
+                {
+                    _logger.LogInformation(
+                        "Downloading ROM {RomName} from {SourceUrl} using request URL {RequestUrl}",
+                        romName,
+                        romUrl,
+                        fullROMUrl);
+
+                    var romBytes = await _httpClient.GetByteArrayAsync(fullROMUrl);
+                    _workingConfig.SystemConfig.SetROM(romName, data: romBytes);
+                    _logger.LogInformation("Downloaded ROM {RomName}: {ByteCount} bytes", romName, romBytes.Length);
+                }
+                catch (Exception ex)
+                {
+                    var userMessage = DownloadErrorHelper.BuildDownloadFailureMessage(
+                        $"ROM '{romName}'",
+                        romUrl,
+                        fullROMUrl,
+                        ex);
+
+                    _logger.LogError(
+                        ex,
+                        "Failed to download ROM {RomName}. Source URL: {SourceUrl}. Request URL: {RequestUrl}. Details: {ErrorSummary}",
+                        romName,
+                        romUrl,
+                        fullROMUrl,
+                        DownloadErrorHelper.FlattenExceptionMessages(ex));
+
+                    throw new InvalidOperationException(userMessage, ex);
+                }
             }
 
-            StatusMessage = "ROMs downloaded successfully.";
+            SetStatusMessage("ROMs downloaded successfully.");
             return true;
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error downloading ROMs: {ex.Message}";
+            _logger.LogError(
+                ex,
+                "C64 ROM download to memory failed. Details: {ErrorSummary}",
+                DownloadErrorHelper.FlattenExceptionMessages(ex));
+            SetStatusMessage(ex.Message, isError: true);
             return false;
         }
         finally
@@ -689,14 +750,16 @@ public class C64ConfigDialogViewModel : ViewModelBase
         // Request acknowledgement before downloading
         if (!await RequestRomLicenseAcknowledgementAsync())
         {
-            StatusMessage = "";
+            _logger.LogInformation("C64 ROM download to files cancelled by user.");
+            SetStatusMessage(string.Empty);
             return;
         }
 
         try
         {
+            _logger.LogInformation("Starting C64 ROM download to files.");
             IsBusy = true;
-            StatusMessage = "Downloading ROMs...";
+            SetStatusMessage("Downloading ROMs...");
             ValidationMessage = string.Empty;
 
             var romFolder = PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.ROMDirectory);
@@ -717,6 +780,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 var dest = Path.Combine(romFolder, filename);
                 try
                 {
+                    _logger.LogInformation(
+                        "Downloading ROM {RomName} from {SourceUrl} to {Destination}",
+                        romName,
+                        romUrl,
+                        dest);
+
                     using var response = await _httpClient.GetAsync(romUrl);
                     if (!response.IsSuccessStatusCode)
                         throw new Exception($"Failed to get '{romUrl}' ({(int)response.StatusCode})");
@@ -731,16 +800,35 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 {
                     if (File.Exists(dest))
                         File.Delete(dest);
-                    throw new Exception($"Error downloading {romUrl}: {ex.Message}", ex);
+
+                    var userMessage = DownloadErrorHelper.BuildDownloadFailureMessage(
+                        $"ROM '{romName}'",
+                        romUrl,
+                        romUrl,
+                        ex);
+
+                    _logger.LogError(
+                        ex,
+                        "Failed to download ROM {RomName}. Source URL: {SourceUrl}. Destination: {Destination}. Details: {ErrorSummary}",
+                        romName,
+                        romUrl,
+                        dest,
+                        DownloadErrorHelper.FlattenExceptionMessages(ex));
+
+                    throw new InvalidOperationException(userMessage, ex);
                 }
             }
 
-            StatusMessage = "ROMs downloaded successfully.";
+            SetStatusMessage("ROMs downloaded successfully.");
 
         }
         catch (System.Exception ex)
         {
-            StatusMessage = $"Error downloading ROMs: {ex.Message}";
+            _logger.LogError(
+                ex,
+                "C64 ROM download to files failed. Details: {ErrorSummary}",
+                DownloadErrorHelper.FlattenExceptionMessages(ex));
+            SetStatusMessage(ex.Message, isError: true);
         }
         finally
         {
@@ -787,12 +875,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         if (errors.Count == 0)
         {
-            StatusMessage = "ROM files loaded.";
+            SetStatusMessage("ROM files loaded.");
             ValidationMessage = string.Empty;
         }
         else
         {
-            StatusMessage = errors.Count < romDataList.Count() ? "Some ROMs loaded with warnings." : null;
+            SetStatusMessage(errors.Count < romDataList.Count() ? "Some ROMs loaded with warnings." : null);
             ValidationMessage = string.Join(Environment.NewLine, errors);
         }
 
@@ -843,12 +931,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         if (errors.Count == 0)
         {
-            StatusMessage = "ROM files loaded.";
+            SetStatusMessage("ROM files loaded.");
             ValidationMessage = string.Empty;
         }
         else
         {
-            StatusMessage = errors.Count < filePaths.Count() ? "Some ROMs loaded with warnings." : null;
+            SetStatusMessage(errors.Count < filePaths.Count() ? "Some ROMs loaded with warnings." : null);
             ValidationMessage = string.Join(Environment.NewLine, errors);
         }
     }
@@ -858,7 +946,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _workingConfig.SystemConfig.ROMs = new List<ROM>();
         UpdateRomStatuses();
         UpdateValidationMessageFromConfig();
-        StatusMessage = "All ROMs cleared.";
+        SetStatusMessage("All ROMs cleared.");
     }
 
     public async Task<bool> TryApplyChangesAsync()
@@ -866,12 +954,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
         try
         {
             IsBusy = true;
-            StatusMessage = "Saving...";
+            SetStatusMessage("Saving...");
             ValidationMessage = string.Empty;
 
             if (!_workingConfig.IsValid(out var validationErrors))
             {
-                StatusMessage = null;
+                SetStatusMessage(null);
                 ValidationMessage = string.Join(Environment.NewLine, validationErrors); ;
                 return false;
             }
@@ -888,13 +976,14 @@ public class C64ConfigDialogViewModel : ViewModelBase
             await _hostApp.PersistConfigSectionAsync(ApiConfig.CONFIG_SECTION_SELF_HOSTED, openAISelfhostedConfigSection);
             await _hostApp.PersistConfigSectionAsync(CustomAIEndpointConfig.CONFIG_SECTION, customEndpointConfigSection);
 
-            StatusMessage = "Configuration saved.";
+            SetStatusMessage("Configuration saved.");
             return true;
 
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error saving config: {ex.Message}"; ;
+            _logger.LogError(ex, "Error while saving C64 configuration.");
+            SetStatusMessage($"Error saving config: {ex.Message}", isError: true);
             return false;
         }
         finally

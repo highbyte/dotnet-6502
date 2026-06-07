@@ -74,33 +74,42 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         // C64ConfigDialogViewModel / C64RomPromptService are registered transient — resolve them
         // on demand rather than capturing them in this singleton.
         var romPromptService = _serviceProvider.GetRequiredService<C64RomPromptService>();
-        if (!await romPromptService.ShowStartupDownloadPromptAsync())
-        {
-            _logger.LogInformation("User cancelled automated C64 ROM download prompt.");
-            return false;
-        }
-
         var configViewModel = _serviceProvider.GetRequiredService<C64ConfigDialogViewModel>();
-        if (!await configViewModel.DownloadRomsToByteArrayAsync(requireAcknowledgement: false))
-        {
-            _logger.LogError("Automatic C64 ROM download failed: {StatusMessage}",
-                configViewModel.StatusMessage ?? "Unknown error.");
-            return false;
-        }
+        if (!await romPromptService.RunStartupDownloadWorkflowAsync(
+            configViewModel,
+            async () =>
+            {
+                if (!await configViewModel.TryApplyChangesAsync())
+                {
+                    var failureMessage = string.Join(
+                        Environment.NewLine,
+                        new[]
+                        {
+                            configViewModel.StatusMessage,
+                            configViewModel.ValidationMessage
+                        }.Where(message => !string.IsNullOrWhiteSpace(message)));
+                    if (string.IsNullOrWhiteSpace(failureMessage))
+                        failureMessage = "The downloaded ROM configuration could not be saved.";
 
-        if (!await configViewModel.TryApplyChangesAsync())
-        {
-            _logger.LogError("Automatic C64 ROM download could not be saved: {StatusMessage} {ValidationMessage}",
-                configViewModel.StatusMessage ?? string.Empty,
-                configViewModel.ValidationMessage ?? string.Empty);
-            return false;
-        }
+                    _logger.LogError("Automatic C64 ROM download could not be saved: {StatusMessage} {ValidationMessage}",
+                        configViewModel.StatusMessage ?? string.Empty,
+                        configViewModel.ValidationMessage ?? string.Empty);
+                    return (false, "C64 ROM Configuration Failed", failureMessage);
+                }
 
-        var (isValidAfterDownload, errorsAfterDownload) = await hostApp.IsCurrentSystemConfigValid();
-        if (!isValidAfterDownload)
+                var (isValidAfterDownload, errorsAfterDownload) = await hostApp.IsCurrentSystemConfigValid();
+                if (!isValidAfterDownload)
+                {
+                    var failureMessage = string.Join(Environment.NewLine, errorsAfterDownload);
+                    _logger.LogError("C64 configuration is still invalid after automatic ROM download: {Errors}",
+                        string.Join(" | ", errorsAfterDownload));
+                    return (false, "C64 Configuration Still Invalid", failureMessage);
+                }
+
+                return (true, null, null);
+            }))
         {
-            _logger.LogError("C64 configuration is still invalid after automatic ROM download: {Errors}",
-                string.Join(" | ", errorsAfterDownload));
+            _logger.LogInformation("Automated C64 ROM download workflow was cancelled or failed.");
             return false;
         }
 

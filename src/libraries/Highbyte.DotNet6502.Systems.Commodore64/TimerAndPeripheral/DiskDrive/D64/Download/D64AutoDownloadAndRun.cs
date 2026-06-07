@@ -25,6 +25,8 @@ public class D64AutoDownloadAndRun
         D64DownloadDiskInfo diskInfo,
         Func<D64DownloadDiskInfo, Task> setConfigCallback)
     {
+        var shouldResumeEmulator = false;
+
         try
         {
             // First reset the C64 emulator
@@ -65,6 +67,7 @@ public class D64AutoDownloadAndRun
             // Pause before proceeding with disk operations
             _logger.LogInformation($"Pausing C64 emulator before disk operations. State before pause: {_hostApp.EmulatorState}");
             _hostApp.Pause();
+            shouldResumeEmulator = true;
 
             // Download and process the disk image (supports both .d64 and .zip files)
             var d64Bytes = await _d64Downloader.DownloadAndProcessDiskImage(diskInfo);
@@ -72,10 +75,28 @@ public class D64AutoDownloadAndRun
             await MountOrDirectLoadAndRunAsync(c64, d64Bytes, diskInfo, issueRunCommands: true, _logger);
 
             await _hostApp.Start();
+            shouldResumeEmulator = false;
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Load error: {ex.Message}");
+            if (shouldResumeEmulator)
+            {
+                try
+                {
+                    _logger.LogInformation("Resuming C64 emulator after disk auto-download failure. State before resume: {EmulatorState}", _hostApp.EmulatorState);
+                    await _hostApp.Start();
+                }
+                catch (Exception resumeEx)
+                {
+                    _logger.LogError(resumeEx, "Failed to resume C64 emulator after disk auto-download failure.");
+                }
+            }
+
+            _logger.LogError(
+                ex,
+                "Failed to download and run disk image {DisplayName}. Details: {ErrorSummary}",
+                diskInfo.DisplayName,
+                DownloadErrorHelper.FlattenExceptionMessages(ex));
             throw;
         }
     }

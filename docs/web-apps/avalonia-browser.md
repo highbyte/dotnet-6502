@@ -178,11 +178,35 @@ Open browser at <http://localhost:5000>.
 
 To serve the published build, the example below uses the .NET global tool `dotnet-serve`. Install with `dotnet tool install --global dotnet-serve`.
 
+If you want to test the lower-latency browser SID sample modes locally (`DirectWriteAuto` /
+`DirectWriteAudioWorklet`), the static host must return these headers on the app responses:
+
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Cross-Origin-Embedder-Policy: require-corp`
+
+Those headers let the page become `crossOriginIsolated`, which is required for
+`SharedArrayBuffer` and the AudioWorklet shared-ring path used by the low-latency mode.
+
+PowerShell:
+
 ```powershell
 cd ./src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser
 if(Test-Path ./bin/Publish/) { del ./bin/Publish/ -r -force }
 dotnet publish -c Release -o ./bin/Publish/
-dotnet serve -o:/ --directory ./bin/Publish/wwwroot/
+dotnet serve -p 5001 -o:/ --directory ./bin/Publish/wwwroot/ `
+  -h "Cross-Origin-Opener-Policy: same-origin" `
+  -h "Cross-Origin-Embedder-Policy: require-corp"
 ```
 
-A browser is automatically opened.
+macOS / Linux:
+
+```sh
+cd ./src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser
+rm -rf ./bin/Publish/
+dotnet publish -c Release -o ./bin/Publish/
+dotnet serve -p 5001 -o:/ --directory ./bin/Publish/wwwroot/ \
+  -h "Cross-Origin-Opener-Policy: same-origin" \
+  -h "Cross-Origin-Embedder-Policy: require-corp"
+```
+
+A browser is automatically opened at <http://localhost:5001>.

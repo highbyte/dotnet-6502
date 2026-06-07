@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.IO.Compression;
+using Highbyte.DotNet6502.Utils;
 
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
@@ -28,29 +29,54 @@ public class D64Downloader
     /// <returns>The .d64 file content as byte array</returns>
     public async Task<byte[]> DownloadAndProcessDiskImage(D64DownloadDiskInfo diskInfo)
     {
-        _logger.LogInformation($"Downloading disk image: {diskInfo.DisplayName} from {diskInfo.DownloadUrl}");
+        _logger.LogInformation(
+            "Downloading disk image {DisplayName} from source URL {SourceUrl}",
+            diskInfo.DisplayName,
+            diskInfo.DownloadUrl);
 
         // Use CORS proxy to bypass browser CORS restrictions
         var downloadUrl = _corsProxyUrl != null ?
             _corsProxyUrl + Uri.EscapeDataString(diskInfo.DownloadUrl)
             : diskInfo.DownloadUrl;
 
-        _logger.LogInformation($"Using download URL: {downloadUrl}");
+        _logger.LogInformation(
+            "Using request URL {RequestUrl} for disk image {DisplayName}",
+            downloadUrl,
+            diskInfo.DisplayName);
 
-        // Check the download type to determine download strategy
-        if (diskInfo.DownloadType == DownloadType.ZIP)
+        try
         {
-            _logger.LogInformation("Processing ZIP file to extract .d64");
-            return await DownloadAndExtractZipD64(downloadUrl);
-        }
-        else
-        {
+            // Check the download type to determine download strategy
+            if (diskInfo.DownloadType == DownloadType.ZIP)
+            {
+                _logger.LogInformation("Processing ZIP file to extract .d64");
+                return await DownloadAndExtractZipD64(downloadUrl);
+            }
+
             // Download direct .d64 file
             using var response = await _httpClient.GetAsync(downloadUrl);
             response.EnsureSuccessStatusCode();
             var d64Bytes = await response.Content.ReadAsByteArrayAsync();
-            _logger.LogInformation($"Downloaded .d64 file: {d64Bytes.Length} bytes");
+            _logger.LogInformation("Downloaded .d64 file: {ByteCount} bytes", d64Bytes.Length);
             return d64Bytes;
+        }
+        catch (Exception ex)
+        {
+            var userMessage = DownloadErrorHelper.BuildDownloadFailureMessage(
+                $"disk image '{diskInfo.DisplayName}'",
+                diskInfo.DownloadUrl,
+                downloadUrl,
+                ex);
+
+            _logger.LogError(
+                ex,
+                "Failed to download disk image {DisplayName}. Source URL: {SourceUrl}. Request URL: {RequestUrl}. Details: {ErrorSummary}",
+                diskInfo.DisplayName,
+                diskInfo.DownloadUrl,
+                downloadUrl,
+                DownloadErrorHelper.FlattenExceptionMessages(ex));
+
+            throw new InvalidOperationException(userMessage, ex);
         }
     }
 
@@ -72,7 +98,7 @@ public class D64Downloader
         var d64Entry = archive.Entries.FirstOrDefault(entry => entry.Name.EndsWith(".d64", StringComparison.OrdinalIgnoreCase))
                 ?? throw new InvalidOperationException("No .d64 file found in the ZIP archive");
 
-        _logger.LogInformation($"Found .d64 file in ZIP: {d64Entry.Name}, size: {d64Entry.Length} bytes");
+        _logger.LogInformation("Found .d64 file in ZIP: {EntryName}, size: {ByteCount} bytes", d64Entry.Name, d64Entry.Length);
 
         // Pre-allocate array with the exact size
         var d64Bytes = new byte[d64Entry.Length];
@@ -89,7 +115,7 @@ public class D64Downloader
             totalBytesRead += bytesRead;
         }
 
-        _logger.LogInformation($"Extracted .d64 file: {d64Bytes.Length} bytes");
+        _logger.LogInformation("Extracted .d64 file: {ByteCount} bytes", d64Bytes.Length);
         return d64Bytes;
     }
 }

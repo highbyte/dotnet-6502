@@ -136,10 +136,22 @@
                             Command="{Binding LoadPreloadedDiskCommand}"
                             IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
+                    <TextBlock Text="Downloading and starting disk image..."
+                               Classes="small secondary-text"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding IsLoadingPreloadedDisk}"/>
+
                     <TextBlock Text="Download D64 disk image and auto-run the program on it."
                                Classes="small secondary-text"
                                TextWrapping="Wrap"
                                IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <Border Classes="error-container-small"
+                            IsVisible="{Binding HasLatestPreloadedDiskError}">
+                        <TextBlock Text="{Binding LatestPreloadedDiskError}"
+                                   Classes="small"
+                                   TextWrapping="Wrap"/>
+                    </Border>
                 </StackPanel>
             </Border>
         </StackPanel>
