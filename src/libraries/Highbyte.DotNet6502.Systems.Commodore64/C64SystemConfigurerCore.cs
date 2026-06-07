@@ -141,7 +141,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             c64.SwiftLink.ReceivePacingCycles =
                 swiftLinkHostConfig.SwiftLinkTransportMode == C64SwiftLinkTransportMode.HayesModem
                 && c64.SwiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
-                    ? GetCyclesPer1200BaudCharacter(c64)
+                    ? GetReceivePacingCyclesPerCharacter(c64)
                     : 0;
 
             ISwiftLinkTransport transport = swiftLinkHostConfig.SwiftLinkTransportMode switch
@@ -165,11 +165,22 @@ public class C64SystemConfigurerCore : ISystemConfigurer
         return new SystemRunner(c64);
     }
 
-    private static ulong GetCyclesPer1200BaudCharacter(C64 c64)
+    // Paces received SwiftLink bytes for modem-style software (e.g. Compunet) in Compatible mode.
+    // Compunet programs the ACIA control register to 19200 baud (low nibble 0xF); a real CMD
+    // SwiftLink doubles that to 38400 via its 3.6864 MHz crystal (twice the standard 6551's
+    // 1.8432 MHz). The Compunet server paces its send rate to how fast the client drains the ACIA,
+    // so faster delivery directly speeds up screen downloads.
+    //
+    // We pace at the programmed 19200 (not the doubled 38400): at 38400 the per-byte receive NMI
+    // fires roughly every ~270 CPU cycles, which starves the client's foreground handshake in this
+    // emulator and makes it drop back to BASIC during connect. 19200 is the highest rate that stays
+    // stable here while bringing throughput close to VICE / real SwiftLink — about 6× the old flat
+    // 1200-baud pacing, which ran downloads at roughly half VICE's speed.
+    private static ulong GetReceivePacingCyclesPerCharacter(C64 c64)
     {
-        const double BitsPerCharacter = 10.0; // 8N1 framing
-        const double BaudRate = 1200.0;
-        return (ulong)Math.Ceiling(c64.CpuFrequencyHz * (BitsPerCharacter / BaudRate));
+        const double BitsPerCharacter = 10.0;      // 8N1 framing
+        const double EffectiveBaudRate = 19200.0;  // Compunet's programmed ACIA rate; highest stable receive pace in this emulator
+        return (ulong)Math.Ceiling(c64.CpuFrequencyHz * (BitsPerCharacter / EffectiveBaudRate));
     }
 
     /// <summary>
