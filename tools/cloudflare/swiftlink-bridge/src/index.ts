@@ -144,7 +144,10 @@ export function validateConfig(env: Env): ConfigValidationResult {
 	let legacyTarget: BridgeTarget | null = null;
 	const targetHost = typeof envRecord.TARGET_HOST === "string" ? envRecord.TARGET_HOST.trim() : "";
 	if (targetHost) {
-		const rawTargetPort = String(envRecord.TARGET_PORT ?? "").trim();
+		const rawTargetPort =
+			typeof envRecord.TARGET_PORT === "string" || typeof envRecord.TARGET_PORT === "number"
+				? String(envRecord.TARGET_PORT).trim()
+				: "";
 		const targetPort = Number.parseInt(rawTargetPort, 10);
 		if (!Number.isInteger(targetPort) || targetPort < 1 || targetPort > 65535) {
 			return { ok: false, error: "TARGET_PORT must be an integer between 1 and 65535.", bridgePath };
