@@ -43,6 +43,11 @@ cd tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType!=Integration
 ```
 
+```sh
+cd tests/Highbyte.DotNet6502.Tests
+dotnet test --filter 'TestType!=Integration'
+```
+
 ### Functional (integration) test
 
 There is a special XUnit test that runs the test code found here: [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_functional_test.a65).
@@ -58,7 +63,7 @@ Notes on the special functional/integration XUnit test:
 - This emulator is configured to stop executing when the program reaches a specific "success" address (where the program loops forever).
 - It currently requires a Windows machine to run due to the AS65 assembler. There may be a Java-version of it that could possibly be used instead.
 
-To run only the special functional/integration XUnit test:
+To run only the special functional/integration XUnit test on Windows:
 
 ```powershell
 cd tests/Highbyte.DotNet6502.Tests
@@ -90,6 +95,10 @@ The same flow runs automatically on pull requests (paths-filtered to WASM-releva
 Install report-generator global tool:
 
 ```powershell
+dotnet tool install -g dotnet-reportgenerator-globaltool
+```
+
+```sh
 dotnet tool install -g dotnet-reportgenerator-globaltool
 ```
 

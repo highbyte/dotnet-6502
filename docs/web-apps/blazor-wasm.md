@@ -101,11 +101,22 @@ Open browser at <http://localhost:5000>.
 
 To serve the published build the example below uses the .NET global tool `dotnet-serve`. Install with `dotnet tool install --global dotnet-serve`.
 
+PowerShell:
+
 ```powershell
 cd ./src/apps/Highbyte.DotNet6502.App.WASM
 if(Test-Path ./bin/Publish/) { del ./bin/Publish/ -r -force }
 dotnet publish -c Release -o ./bin/Publish/
-dotnet serve -o:/ --directory ./bin/Publish/wwwroot/
+dotnet serve -p 5001 -o:/ --directory ./bin/Publish/wwwroot/
 ```
 
-A browser is automatically opened.
+macOS / Linux:
+
+```sh
+cd ./src/apps/Highbyte.DotNet6502.App.WASM
+rm -rf ./bin/Publish/
+dotnet publish -c Release -o ./bin/Publish/
+dotnet serve -p 5001 -o:/ --directory ./bin/Publish/wwwroot/
+```
+
+A browser is automatically opened at <http://localhost:5001>.
