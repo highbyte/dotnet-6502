@@ -34,9 +34,16 @@ export function normalizeBridgePath(value: string | undefined): string {
 	}
 
 	const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-	return withLeadingSlash.length > 1
-		? withLeadingSlash.replace(/\/+$/, "")
-		: withLeadingSlash;
+	if (withLeadingSlash.length <= 1) {
+		return withLeadingSlash;
+	}
+
+	let endIndex = withLeadingSlash.length;
+	while (endIndex > 1 && withLeadingSlash[endIndex - 1] === "/") {
+		endIndex--;
+	}
+
+	return withLeadingSlash.slice(0, endIndex);
 }
 
 export function isTruthyFlag(value: string | undefined): boolean {
@@ -102,7 +109,7 @@ function parseTargetsValue(value: unknown): Record<string, BridgeTarget> | null 
 }
 
 function parseAllowedTargets(env: Env): Record<string, BridgeTarget> | null {
-	const envRecord = env as Record<string, unknown>;
+	const envRecord = env as unknown as Record<string, unknown>;
 	const directTargets = parseTargetsValue(envRecord.TARGETS);
 	if (directTargets) {
 		return directTargets;
@@ -121,10 +128,10 @@ function parseAllowedTargets(env: Env): Record<string, BridgeTarget> | null {
 }
 
 export function validateConfig(env: Env): ConfigValidationResult {
+	const envRecord = env as unknown as Record<string, unknown>;
 	const bridgePath = normalizeBridgePath(env.BRIDGE_PATH);
-	const sharedToken = env.SHARED_TOKEN?.trim();
+	const sharedToken = typeof envRecord.SHARED_TOKEN === "string" ? envRecord.SHARED_TOKEN.trim() : "";
 	const targets = parseAllowedTargets(env);
-	const envRecord = env as Record<string, unknown>;
 	const defaultTargetId =
 		typeof envRecord.DEFAULT_TARGET_ID === "string" && envRecord.DEFAULT_TARGET_ID.trim()
 			? envRecord.DEFAULT_TARGET_ID.trim()
@@ -135,9 +142,9 @@ export function validateConfig(env: Env): ConfigValidationResult {
 	}
 
 	let legacyTarget: BridgeTarget | null = null;
-	const targetHost = env.TARGET_HOST?.trim();
+	const targetHost = typeof envRecord.TARGET_HOST === "string" ? envRecord.TARGET_HOST.trim() : "";
 	if (targetHost) {
-		const rawTargetPort = String(env.TARGET_PORT ?? "").trim();
+		const rawTargetPort = String(envRecord.TARGET_PORT ?? "").trim();
 		const targetPort = Number.parseInt(rawTargetPort, 10);
 		if (!Number.isInteger(targetPort) || targetPort < 1 || targetPort > 65535) {
 			return { ok: false, error: "TARGET_PORT must be an integer between 1 and 65535.", bridgePath };
@@ -147,7 +154,7 @@ export function validateConfig(env: Env): ConfigValidationResult {
 			id: "legacy",
 			host: targetHost,
 			port: targetPort,
-			tls: isTruthyFlag(env.TARGET_TLS),
+			tls: typeof envRecord.TARGET_TLS === "string" ? isTruthyFlag(envRecord.TARGET_TLS) : false,
 		};
 	}
 
@@ -159,7 +166,7 @@ export function validateConfig(env: Env): ConfigValidationResult {
 		ok: true,
 		config: {
 			bridgePath,
-			sharedToken: sharedToken ? sharedToken : null,
+			sharedToken: sharedToken || null,
 			defaultTargetId,
 			targets: targets ?? {},
 			legacyTarget,
@@ -221,7 +228,9 @@ function createHtmlResponse(requestUrl: URL, configResult: ConfigValidationResul
 	if (defaultTargetId) {
 		defaultUrl.searchParams.set("target", defaultTargetId);
 	}
-	const availableTargets = configResult.ok ? Object.keys(configResult.config.targets).sort() : [];
+	const availableTargets = configResult.ok
+		? Object.keys(configResult.config.targets).sort((left, right) => left.localeCompare(right))
+		: [];
 	const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -519,7 +528,7 @@ function createHealthResponse(configResult: ConfigValidationResult): Response {
 					ok: true,
 					bridgePath: configResult.config.bridgePath,
 					defaultTargetId: configResult.config.defaultTargetId,
-					targetIds: Object.keys(configResult.config.targets).sort(),
+					targetIds: Object.keys(configResult.config.targets).sort((left, right) => left.localeCompare(right)),
 					legacyTarget:
 						configResult.config.legacyTarget === null
 							? null
@@ -684,11 +693,11 @@ async function handleSession(
 		void closeBoth(1011, "websocket error");
 	});
 
-	try {
-		socket = connect(
-			{ hostname: target.host, port: target.port },
-			{ secureTransport: target.tls ? "on" : "off" },
-		);
+		try {
+			socket = connect(
+				{ hostname: target.host, port: target.port },
+				{ secureTransport: target.tls ? "on" : "off", allowHalfOpen: false },
+			);
 		const socketInfo = await socket.opened;
 		console.log(
 			`[swiftlink-bridge:${sessionId}] tcp connected remote=${socketInfo.remoteAddress ?? "(unknown)"} local=${socketInfo.localAddress ?? "(unknown)"}`,
