@@ -12,8 +12,7 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.WASM";
 
-    // Note: For now, use a public visible key as default just to prevent at least some random users to access the endpoint...
-    public const string DefaultCorsProxyURL = "https://api.codetabs.com/v1/proxy?quest=";
+    public const string DefaultCorsProxyURL = BrowserServiceDefaults.DefaultCorsProxyUrl;
 
     public C64InputConfig InputConfig { get; set; } = new C64InputConfig();
 

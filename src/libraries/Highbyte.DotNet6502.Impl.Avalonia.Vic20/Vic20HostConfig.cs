@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Impl.Avalonia.Vic20;
 public class Vic20HostConfig : HostSystemConfigBase<Vic20SystemConfig>
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.Vic20.Avalonia";
-    public const string DefaultCorsProxyURL = "https://api.codetabs.com/v1/proxy?quest=";
+    public const string DefaultCorsProxyURL = BrowserServiceDefaults.DefaultCorsProxyUrl;
 
     public override bool AudioSupported => false;
 

@@ -1,0 +1,41 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "browser-fetch-proxy",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-10",
+	"vars": {
+		"PROXY_PATH": "/fetch",
+		"ALLOWED_ORIGINS": "https://highbyte.se",
+		"ALLOW_LOCALHOST_ORIGINS": "true",
+		"ALLOWED_TARGET_HOSTS": "www.zimmers.net,csdb.dk,compunet.live,highbyte.se",
+		"MAX_REDIRECTS": "5",
+		"MAX_RESPONSE_BYTES": "33554432"
+	},
+	"ratelimits": [
+		{
+			"name": "BURST_LIMITER",
+			"namespace_id": "2001",
+			"simple": {
+				"limit": 8,
+				"period": 10
+			}
+		},
+		{
+			"name": "SUSTAINED_LIMITER",
+			"namespace_id": "2002",
+			"simple": {
+				"limit": 20,
+				"period": 60
+			}
+		}
+	],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"workers_dev": true
+}

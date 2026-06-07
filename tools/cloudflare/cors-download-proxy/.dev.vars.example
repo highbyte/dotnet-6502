@@ -1,0 +1,3 @@
+# Optional shared token accepted as `?token=...` or `Authorization: Bearer ...`.
+# Leave unset to disable the extra token gate.
+SHARED_TOKEN=replace-me
