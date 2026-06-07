@@ -131,8 +131,56 @@ internal sealed partial class Program
     ///   <item>
     ///     <term><c>--runLoadedProgram</c></term>
     ///     <description>
-    ///       Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>.
-    ///       For C64 BASIC-style programs, pair with <c>--waitForSystemReady</c>.
+    ///       Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>
+    ///       (or <c>--loadD64</c>). For C64 BASIC-style programs, pair with <c>--waitForSystemReady</c>.
+    ///       In the <c>--loadD64</c> flow, controls whether the disk-info <c>RunCommands</c>
+    ///       (e.g. <c>LOAD"*",8,1</c> + <c>RUN</c>) are pasted after the load / mount.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--loadD64 &lt;path&gt;</c></term>
+    ///     <description>
+    ///       Load a C64 <c>.d64</c> disk image. Requires <c>--system C64</c>, <c>--start</c>,
+    ///       <c>--waitForSystemReady</c>, and exactly one of <c>--d64Program</c> or <c>--diskMount</c>.
+    ///       Mutually exclusive with <c>--loadPrg</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--d64Program &lt;name|*&gt;</c></term>
+    ///     <description>
+    ///       Extract the named PRG file from the <c>.d64</c> image and load it directly into memory
+    ///       (no disk mount). <c>*</c> selects the first directory entry. Mutually exclusive with
+    ///       <c>--diskMount</c>; requires <c>--loadD64</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--diskMount</c></term>
+    ///     <description>
+    ///       Mount the <c>.d64</c> image in drive 8 and prepare to issue <c>LOAD"*",8,1</c> +
+    ///       <c>RUN</c> via the keyboard buffer. Mutually exclusive with <c>--d64Program</c>;
+    ///       requires <c>--loadD64</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--keyboardJoystickEnabled</c></term>
+    ///     <description>
+    ///       Force-enable the C64 keyboard-emulated joystick before starting. Requires
+    ///       <c>--system C64</c>; applies for any C64 start path (plain <c>--start</c>,
+    ///       <c>--loadPrg</c>, <c>--loadD64</c>).
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--keyboardJoystickNumber &lt;1|2&gt;</c></term>
+    ///     <description>
+    ///       Which C64 joystick port the keyboard emulates (and also drives via the active gamepad
+    ///       port). Implies <c>--keyboardJoystickEnabled</c>. Requires <c>--system C64</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--audioEnabled &lt;true|false&gt;</c></term>
+    ///     <description>
+    ///       Override the C64 audio-enable config before starting. Omit to keep the existing
+    ///       value. Requires <c>--system C64</c>.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -184,7 +232,19 @@ internal sealed partial class Program
     ///
     /// # Start C64, wait for BASIC, run a .prg, log stats every 5 seconds, and exit after 60 seconds
     /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadPrg game.prg --runLoadedProgram --stats-interval 5 --exit-after 60
+    ///
+    /// # Start C64 (PAL), mount a .d64 in drive 8, paste LOAD"*",8,1 + RUN, set keyboard-joystick to port 2
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --systemVariant C64PAL --start --waitForSystemReady --loadD64 ~/Downloads/SomeGame.d64 --diskMount --runLoadedProgram --keyboardJoystickEnabled --keyboardJoystickNumber 2
+    ///
+    /// # Start C64, direct-load the first PRG from a .d64 image (no disk mount) and RUN it
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadD64 ~/Downloads/SomeGame.d64 --d64Program "*" --runLoadedProgram
     /// </code>
+    /// <para>
+    /// For multi-step workflows not covered by the discrete flags (e.g. mounting a disk and
+    /// issuing custom BASIC commands), use <c>--script</c> / <c>--scriptDir</c> with the
+    /// <c>c64.load_d64()</c> / <c>c64.print_text()</c> Lua API
+    /// (see <c>resources/scripts/shared/example_c64_load_d64.lua</c>).
+    /// </para>
     /// </remarks>
     /// <param name="args">Command line arguments.</param>
     [STAThread]
@@ -277,15 +337,37 @@ internal sealed partial class Program
         List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
         string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(args, "--scriptDir");
 
-        // Validate automated startup arguments
+        // Parse C64 .d64 startup arguments (handled by C64AvaloniaStartupParticipant via ExtraParameters)
+        string? loadD64Path = AutomatedStartupHandler.ParseStringArgument(args, "--loadD64");
+        string? d64Program = AutomatedStartupHandler.ParseStringArgument(args, "--d64Program");
+        bool diskMount = args.Contains("--diskMount");
+        string? keyboardJoystickNumberRaw = AutomatedStartupHandler.ParseStringArgument(args, "--keyboardJoystickNumber");
+        bool keyboardJoystickEnabledFlag = args.Contains("--keyboardJoystickEnabled");
+        string? audioEnabledRaw = AutomatedStartupHandler.ParseStringArgument(args, "--audioEnabled");
+
+        // Validate automated startup arguments.
+        // The handler validator predates --loadD64 and rejects --runLoadedProgram unless --loadPrg
+        // is set. When --loadD64 is supplied, suppress that one check by feeding the validator a
+        // sentinel path; the real request carries the original (null) loadPrgPath unchanged.
         bool hasScripts = scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
-        if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram, hasScripts))
+        var validatorLoadPrgPath = loadPrgPath ?? (loadD64Path != null ? "<loadD64>" : null);
+        if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, validatorLoadPrgPath, runLoadedProgram, hasScripts))
         {
             return 1; // Exit with error code
         }
         if ((statsInterval.HasValue || exitAfter.HasValue) && !autoStart)
         {
             Console.Error.WriteLine("Error: --stats-interval and --exit-after require --start to be specified.");
+            return 1;
+        }
+
+        // Validate .d64 startup arguments locally (handler stays system-agnostic).
+        if (!ValidateD64Arguments(
+                loadD64Path, d64Program, diskMount,
+                keyboardJoystickEnabledFlag, keyboardJoystickNumberRaw, audioEnabledRaw,
+                systemName, autoStart, waitForSystemReady, loadPrgPath,
+                out int parsedKeyboardJoystickNumber, out bool? parsedAudioEnabled))
+        {
             return 1;
         }
 
@@ -467,9 +549,19 @@ internal sealed partial class Program
                 var startupParticipant = Core.App.Current?.GetServiceProvider()
                     ?.GetKeyedService<IAutomatedStartupParticipant>(systemName);
 
+                var d64Extras = BuildD64Extras(
+                    loadD64Path,
+                    d64Program,
+                    diskMount,
+                    keyboardJoystickEnabledFlag,
+                    keyboardJoystickNumberRaw != null ? (int?)parsedKeyboardJoystickNumber : null,
+                    parsedAudioEnabled);
                 var startupRequest = new AutomatedStartupRequest(
                     systemName, systemVariant, autoStart, waitForSystemReady,
-                    loadPrgPath, runLoadedProgram, enableExternalDebug);
+                    loadPrgPath, runLoadedProgram, enableExternalDebug)
+                {
+                    ExtraParameters = d64Extras,
+                };
                 await AutomatedStartupHandler.ExecuteAsync(
                     hostApp,
                     startupRequest,
@@ -634,6 +726,142 @@ internal sealed partial class Program
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// Validates the .d64 startup CLI flags (Desktop). Returns false on hard errors (prints to
+    /// stderr and the caller exits 1). C64-only knobs supplied without <c>--loadD64</c> are
+    /// downgraded to a warning so users can keep them while iterating on a partial command line.
+    /// </summary>
+    private static bool ValidateD64Arguments(
+        string? loadD64Path,
+        string? d64Program,
+        bool diskMount,
+        bool keyboardJoystickEnabled,
+        string? keyboardJoystickNumberRaw,
+        string? audioEnabledRaw,
+        string? systemName,
+        bool autoStart,
+        bool waitForSystemReady,
+        string? loadPrgPath,
+        out int keyboardJoystickNumber,
+        out bool? audioEnabled)
+    {
+        keyboardJoystickNumber = 2;
+        audioEnabled = null;
+
+        if (keyboardJoystickNumberRaw != null)
+        {
+            if (!int.TryParse(keyboardJoystickNumberRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+                || (parsed != 1 && parsed != 2))
+            {
+                Console.Error.WriteLine("Error: --keyboardJoystickNumber must be 1 or 2.");
+                return false;
+            }
+            keyboardJoystickNumber = parsed;
+        }
+
+        if (audioEnabledRaw != null)
+        {
+            if (bool.TryParse(audioEnabledRaw, out var parsedAudio))
+            {
+                audioEnabled = parsedAudio;
+            }
+            else
+            {
+                Console.Error.WriteLine("Error: --audioEnabled must be 'true' or 'false'.");
+                return false;
+            }
+        }
+
+        // --d64Program / --diskMount only make sense with --loadD64.
+        if (loadD64Path == null && (d64Program != null || diskMount))
+        {
+            Console.Error.WriteLine("Warning: --d64Program / --diskMount have no effect without --loadD64; ignoring.");
+        }
+
+        // --keyboardJoystick* / --audioEnabled are general C64 runtime knobs. They only need
+        // --system C64 to apply (they take effect when the C64 starts, regardless of how it was
+        // started — plain --start, --loadPrg, --basicText, or --loadD64).
+        var hasRuntimeConfigKnobs = keyboardJoystickEnabled || keyboardJoystickNumberRaw != null || audioEnabledRaw != null;
+        if (hasRuntimeConfigKnobs
+            && !string.Equals(systemName, "C64", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine("Warning: --keyboardJoystick* / --audioEnabled require --system C64; ignoring.");
+        }
+
+        if (loadD64Path == null)
+            return true;
+
+        // --loadD64 is C64-only. Match string-literal style used elsewhere in this file for
+        // system selection — Desktop doesn't reference the C64 library directly.
+        if (!string.Equals(systemName, "C64", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine("Error: --loadD64 requires --system C64.");
+            return false;
+        }
+        if (!autoStart || !waitForSystemReady)
+        {
+            Console.Error.WriteLine("Error: --loadD64 requires --start and --waitForSystemReady.");
+            return false;
+        }
+        if (loadPrgPath != null)
+        {
+            Console.Error.WriteLine("Error: --loadD64 is mutually exclusive with --loadPrg.");
+            return false;
+        }
+        if (d64Program == null && !diskMount)
+        {
+            Console.Error.WriteLine("Error: --loadD64 requires exactly one of --d64Program or --diskMount.");
+            return false;
+        }
+        if (d64Program != null && diskMount)
+        {
+            Console.Error.WriteLine("Error: --d64Program and --diskMount are mutually exclusive.");
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Build the <see cref="AutomatedStartupRequest.ExtraParameters"/> dictionary the
+    /// C64 Avalonia startup participant reads. Empty / null entries are skipped so the
+    /// participant sees only what the user actually supplied.
+    /// </summary>
+    /// <summary>
+    /// Build the <see cref="AutomatedStartupRequest.ExtraParameters"/> dictionary the C64 Avalonia
+    /// startup participant reads. <c>.d64</c> keys (<c>loadD64Path</c>/<c>d64Program</c>/<c>diskMount</c>)
+    /// are only emitted when <c>--loadD64</c> is supplied; the C64 runtime knobs
+    /// (<c>keyboardJoystickEnabled</c>/<c>keyboardJoystickNumber</c>/<c>audioEnabled</c>) are
+    /// emitted whenever the user supplied them, since they apply for any C64 start path.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> BuildD64Extras(
+        string? loadD64Path,
+        string? d64Program,
+        bool diskMount,
+        bool keyboardJoystickEnabled,
+        int? keyboardJoystickNumber,
+        bool? audioEnabled)
+    {
+        var extras = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (loadD64Path != null)
+        {
+            extras["loadD64Path"] = loadD64Path;
+            if (d64Program != null)
+                extras["d64Program"] = d64Program;
+            if (diskMount)
+                extras["diskMount"] = "true";
+        }
+
+        if (keyboardJoystickEnabled)
+            extras["keyboardJoystickEnabled"] = "true";
+        if (keyboardJoystickNumber.HasValue)
+            extras["keyboardJoystickNumber"] = keyboardJoystickNumber.Value.ToString(CultureInfo.InvariantCulture);
+        if (audioEnabled.HasValue)
+            extras["audioEnabled"] = audioEnabled.Value ? "true" : "false";
+
+        return extras;
     }
 
     private static TimeSpan? ParseDurationSecondsArgument(string[] args, string argumentName)

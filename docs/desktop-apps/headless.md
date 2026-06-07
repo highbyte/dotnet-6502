@@ -59,6 +59,9 @@ The headless app is driven entirely from the command line.
 
 --8<-- "cli-arguments-reference.md"
 
+!!! note
+    The **C64 `.d64` startup parameters** (`--loadD64` / `--d64Program` / `--diskMount` / `--keyboardJoystick*` / `--audioEnabled`) are currently wired only in the Avalonia Desktop app. They are not parsed by the headless app — the headless app has no C64 shell plugin to apply C64-runtime config or run the disk-mount / direct-load flow. The shared `D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync` helper is host-agnostic, so adding equivalent flags to the headless app is possible but is out of scope for the initial release.
+
 ### Examples
 
 Examples below use `dotnet-6502-headless` as installed via Homebrew or Scoop.

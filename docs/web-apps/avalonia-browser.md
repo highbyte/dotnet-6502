@@ -69,6 +69,13 @@ Query parameter names are case-insensitive. Boolean flags treat an empty value, 
 | `basicText` | Paste inline C64 BASIC source text into the running C64. | Base64url-encoded UTF-8 text. Requires `system=C64`, `start`, and `waitForSystemReady`. Mutually exclusive with `loadPrgUrl` and `runLoadedProgram`. |
 | `basicUrl` | Fetch C64 BASIC source text over HTTP and paste it into the running C64. | Same semantics as `basicText`, but uses a text file URL instead of embedding the source in the query string. |
 | `runBasic` | Queue `RUN` after BASIC source has been pasted. | Requires `basicText` or `basicUrl`. |
+| `loadD64Url` | Fetch a C64 `.d64` disk image over HTTP. | Requires `system=C64`, `start`, `waitForSystemReady`, and exactly one of `d64Program` or `diskMount`. Mutually exclusive with `loadPrgUrl` / `basicText` / `basicUrl`. Browser equivalent of desktop `--loadD64`. Bytes are fetched **after** the C64 has booted to BASIC ready, so the user sees the live BASIC prompt during the download (no blank page). |
+| `d64Program` | Extract a PRG from the `.d64` image and direct-load it into memory (no disk mount). | `*` selects the first directory entry. URL-encode names with spaces. Requires `loadD64Url`. Mutually exclusive with `diskMount`. Mirrors desktop `--d64Program`. |
+| `diskMount` | Mount the `.d64` image in drive 8 and prepare to issue `LOAD"*",8,1` + `RUN`. | Requires `loadD64Url`. Mutually exclusive with `d64Program`. Mirrors desktop `--diskMount`. |
+| `runLoadedProgram` (with `loadD64Url`) | Paste the disk's `RunCommands` after load / mount. | `LOAD"*",8,1` + `RUN` for `diskMount`; just `RUN` for `d64Program`. |
+| `keyboardJoystickEnabled` | Force-enable the C64 keyboard-emulated joystick before the system starts. | Requires `system=C64`. Independent of `loadD64Url` — applies for any C64 start path (plain `start`, `loadPrgUrl`, BASIC paste, `loadD64Url`). |
+| `keyboardJoystickNumber` | C64 joystick port the keyboard emulates (and which gamepad port drives). | Must be `1` or `2`; implies `keyboardJoystickEnabled`. Requires `system=C64`. Independent of `loadD64Url`. |
+| `audioEnabled` | Override C64 audio enable before the system starts. | `true` / `false`. Requires `system=C64`. Independent of `loadD64Url`. |
 | `script` | Run an inline Lua script supplied as base64url-encoded UTF-8 text. | Browser only. Mutually exclusive with all system-driven parameters below. Disabled by default; gated by `Scripting.AllowUrlScripts`. |
 | `scriptUrl` | Fetch a Lua script from a relative or absolute URL and run it. | Same behavior as `script`, but avoids URL-length limits. Disabled by default; gated by `Scripting.AllowUrlScripts`. |
 
@@ -80,13 +87,18 @@ When a URL starts `system=C64` and the app does not yet have the required C64 RO
 2. `start` and `waitForSystemReady` require `system`.
 3. `waitForSystemReady` requires `start`.
 4. `loadPrgUrl` requires `system` and `start`.
-5. `runLoadedProgram` requires `loadPrgUrl`.
+5. `runLoadedProgram` requires `loadPrgUrl` **or** `loadD64Url`.
 6. `basicText` and `basicUrl` are mutually exclusive.
 7. `basicText` and `basicUrl` require `system=C64`, `start`, and `waitForSystemReady`.
 8. `basicText` and `basicUrl` are mutually exclusive with `loadPrgUrl` and `runLoadedProgram`.
 9. `runBasic` requires `basicText` or `basicUrl`.
-10. `script` and `scriptUrl` are mutually exclusive.
-11. `script` and `scriptUrl` are also mutually exclusive with `system`, `start`, `waitForSystemReady`, `loadPrgUrl`, `runLoadedProgram`, `basicText`, `basicUrl`, and `runBasic`.
+10. `loadD64Url` requires `system=C64`, `start`, `waitForSystemReady`, and exactly one of `d64Program` or `diskMount`.
+11. `loadD64Url` is mutually exclusive with `loadPrgUrl`, `basicText`, and `basicUrl`.
+12. `d64Program` and `diskMount` have no effect without `loadD64Url`.
+13. `keyboardJoystickEnabled`, `keyboardJoystickNumber`, and `audioEnabled` require `system=C64` but are independent of `loadD64Url` — they apply for any C64 start path.
+14. `keyboardJoystickNumber` must be `1` or `2`; `audioEnabled` must be `true` or `false`.
+15. `script` and `scriptUrl` are mutually exclusive.
+16. `script` and `scriptUrl` are also mutually exclusive with `system`, `start`, `waitForSystemReady`, `loadPrgUrl`, `runLoadedProgram`, `basicText`, `basicUrl`, `runBasic`, and `loadD64Url`.
 
 Examples:
 
@@ -102,6 +114,15 @@ Examples:
 
 # Paste the same BASIC source inline and run it
 ?system=C64&start=1&waitForSystemReady=1&basicText=MTAgYzE9NzpjMj0xNAoyMCBjPWMxCjMwIGlmIGM9YzEgdGhlbiBjPWMyIDogZ290byA1MAo0MCBpZiBjPWMyIHRoZW4gYz1jMQo1MCBwb2tlIDUzMjgwLGMKNjAgcHJpbnQgImhlbGxvIHdvcmxkISIKNzAgZm9yIGk9MSB0byAxNTA6bmV4dAo4MCBnb3RvIDMwCg&runBasic=1
+
+# Mount a .d64 in drive 8, paste LOAD"*",8,1 + RUN, keyboard-joystick on port 2
+?system=C64&systemVariant=C64PAL&start=1&waitForSystemReady=1&loadD64Url=d64%2Fgiana-sisters.d64&diskMount=1&runLoadedProgram=1&keyboardJoystickEnabled=1&keyboardJoystickNumber=2
+
+# Direct-load the first PRG from a .d64 (no disk mount) and RUN it
+?system=C64&start=1&waitForSystemReady=1&loadD64Url=d64%2Fgiana-sisters.d64&d64Program=*&runLoadedProgram=1
+
+# Start C64 with keyboard-joystick on port 2 and audio disabled (no .d64, no PRG)
+?system=C64&start=1&waitForSystemReady=1&keyboardJoystickEnabled=1&keyboardJoystickNumber=2&audioEnabled=false
 
 # Run an inline Lua script (base64url for: log.info('hello'))
 ?script=bG9nLmluZm8oJ2hlbGxvJyk
@@ -125,8 +146,9 @@ The browser app ships the `basicUrl` sample above as `basic/c64/hello-world.bas`
 
 Important differences from desktop automation:
 
-- `loadPrgUrl`, `basicUrl`, and `scriptUrl` use browser HTTP fetch semantics, so normal browser origin and CORS rules apply.
+- `loadPrgUrl`, `basicUrl`, `loadD64Url`, and `scriptUrl` use browser HTTP fetch semantics, so normal browser origin and CORS rules apply.
 - `basicText` and `basicUrl` are C64-only and use the normal keyboard paste path after BASIC is ready; `runBasic=1` simply appends `RUN` and Return after the pasted source.
+- `loadD64Url` is fetched **after** the C64 has booted to BASIC ready, so a slow remote `.d64` shows progress as a visible BASIC prompt rather than a blank Avalonia page. The desktop equivalent (`--loadD64 <path>`) reads from the local filesystem and is effectively instant.
 - URL-driven Lua is **disabled by default**. Enable **Allow URL-driven scripts (script / scriptUrl query params)** in the browser app's general settings, save, then reload the page.
 - URL-driven scripts do not behave exactly like desktop `--script`: the browser app still selects the configured default system first, then enables the injected script. The script can still take over by calling APIs such as `emu.select(...)` and `emu.start()`.
 
