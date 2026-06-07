@@ -65,7 +65,7 @@ public class C64Setup : C64SystemConfigurerCore
             c64.SwiftLink.ReceivePacingCycles =
                 c64HostConfig.SwiftLinkTransportMode == C64SwiftLinkTransportMode.HayesModem
                 && c64.SwiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
-                    ? GetCyclesPer1200BaudCharacter(c64)
+                    ? GetReceivePacingCyclesPerCharacter(c64)
                     : 0;
             c64.SwiftLink.Transport = transport;
 
@@ -97,10 +97,13 @@ public class C64Setup : C64SystemConfigurerCore
                 LoggerFactory.CreateLogger(nameof(WebSocketTransport)))
         };
 
-    private static ulong GetCyclesPer1200BaudCharacter(C64 c64)
+    // See C64SystemConfigurerCore.GetReceivePacingCyclesPerCharacter for the full rationale:
+    // pace at Compunet's programmed 19200 baud (the highest rate that stays stable here), not the
+    // SwiftLink-doubled 38400 which starves the client's handshake in this emulator.
+    private static ulong GetReceivePacingCyclesPerCharacter(C64 c64)
     {
-        const double BitsPerCharacter = 10.0; // 8N1 framing
-        const double BaudRate = 1200.0;
-        return (ulong)Math.Ceiling(c64.CpuFrequencyHz * (BitsPerCharacter / BaudRate));
+        const double BitsPerCharacter = 10.0;      // 8N1 framing
+        const double EffectiveBaudRate = 19200.0;  // Compunet's programmed ACIA rate; highest stable receive pace in this emulator
+        return (ulong)Math.Ceiling(c64.CpuFrequencyHz * (BitsPerCharacter / EffectiveBaudRate));
     }
 }
