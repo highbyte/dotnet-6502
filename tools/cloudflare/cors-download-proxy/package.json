@@ -1,0 +1,20 @@
+{
+  "name": "cors-download-proxy",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --local --ip 127.0.0.1 --port 8788",
+    "dev:remote": "wrangler dev --remote --ip 127.0.0.1 --port 8788",
+    "start": "wrangler dev --local --ip 127.0.0.1 --port 8788",
+    "test": "vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.4",
+    "@types/node": "^25.9.2",
+    "typescript": "^5.5.2",
+    "vitest": "~3.2.0",
+    "wrangler": "^4.98.0"
+  }
+}

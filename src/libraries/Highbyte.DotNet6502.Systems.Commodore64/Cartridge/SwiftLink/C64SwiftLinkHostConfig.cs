@@ -19,7 +19,7 @@ public class C64SwiftLinkHostConfig
         }
     }
 
-    private string _tcpHost = "127.0.0.1";
+    private string _tcpHost = "vme.compunet.live";
     public string TcpHost
     {
         get => _tcpHost;
@@ -30,7 +30,7 @@ public class C64SwiftLinkHostConfig
         }
     }
 
-    private int _tcpPort = 5000;
+    private int _tcpPort = 6400;
     public int TcpPort
     {
         get => _tcpPort;
@@ -41,7 +41,7 @@ public class C64SwiftLinkHostConfig
         }
     }
 
-    private bool _connectOnBoot;
+    private bool _connectOnBoot = false;
     public bool ConnectOnBoot
     {
         get => _connectOnBoot;

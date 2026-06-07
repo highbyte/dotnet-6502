@@ -24,7 +24,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
 
     private readonly AvaloniaHostApp _hostApp;
     private readonly Vic20HostConfig _originalConfig;
-    private readonly Vic20HostConfig _workingConfig;
+    private Vic20HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
     private readonly HttpClient _httpClient;
     private readonly ObservableCollection<string> _validationErrors = new();
@@ -43,6 +43,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearRomsCommand { get; }
     public ReactiveCommand<Unit, Unit> ResetCorsProxyOverrideURLCommand { get; }
+    public ReactiveCommand<Unit, Unit> ResetToDefaultsCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
 
@@ -55,13 +56,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         _workingConfig = (Vic20HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
-        RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
-        CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
-        _selectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
-
-        InitializeRenderOptions();
-        UpdateRomStatuses();
-        UpdateValidationMessageFromConfig();
+        LoadFromWorkingConfig();
 
         DownloadRomsToByteArrayCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadRomsToByteArrayAsync,
@@ -83,6 +78,14 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             () =>
             {
                 CorsProxyOverrideURL = string.Empty;
+                return Task.CompletedTask;
+            },
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        ResetToDefaultsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                ResetToDefaults();
                 return Task.CompletedTask;
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
@@ -459,6 +462,40 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Populates all bound view-model properties from the current <see cref="_workingConfig"/>.
+    /// Called from the constructor and after <see cref="ResetToDefaults"/> swaps the working config.
+    /// </summary>
+    private void LoadFromWorkingConfig()
+    {
+        RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
+        CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
+        SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
+
+        InitializeRenderOptions();
+        UpdateRomStatuses();
+        UpdateValidationMessageFromConfig();
+    }
+
+    /// <summary>
+    /// Resets all settings to application defaults, while preserving the user's loaded ROMs and ROM
+    /// directory (so they don't have to re-download or re-point ROM files). Nothing is persisted until
+    /// the user clicks Save.
+    /// </summary>
+    private void ResetToDefaults()
+    {
+        var preservedRoms = ROM.Clone(_workingConfig.SystemConfig.ROMs);
+        var preservedRomDirectory = _workingConfig.SystemConfig.ROMDirectory;
+
+        _workingConfig = new Vic20HostConfig();
+        _workingConfig.SystemConfig.ROMs = preservedRoms;
+        _workingConfig.SystemConfig.ROMDirectory = preservedRomDirectory;
+
+        LoadFromWorkingConfig();
+
+        StatusMessage = "Settings reset to defaults. Click Save to apply.";
     }
 
     private void InitializeRenderOptions()

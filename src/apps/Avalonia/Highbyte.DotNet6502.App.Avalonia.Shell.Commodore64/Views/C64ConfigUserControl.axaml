@@ -217,7 +217,7 @@
                         <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                 AutomationProperties.AutomationId="SidAudioCheckBox"
                                 AutomationProperties.Name="Enable SID audio"
-                                Content="Enable SID audio (experimental)"
+                                Content="Enable SID audio"
                                 IsChecked="{Binding AudioEnabled}"
                                 Classes=""/>
 
@@ -744,17 +744,23 @@
     </StackPanel>
 
     <!-- Button Section in separate row -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-wide">
-      <ProgressBar Grid.Column="0"
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" Classes="spacing-wide">
+      <Button Grid.Column="0"
+              AutomationProperties.AutomationId="ResetToDefaultsButton"
+              AutomationProperties.Name="Reset to defaults"
+              Content="Reset to defaults"
+              IsEnabled="{Binding IsNotBusy}"
+              Command="{Binding ResetToDefaultsCommand}"/>
+      <ProgressBar Grid.Column="1"
                    IsVisible="{Binding IsBusy}"
                    IsIndeterminate="True"/>
-      <Button Grid.Column="1"
+      <Button Grid.Column="2"
               AutomationProperties.AutomationId="CancelButton"
               AutomationProperties.Name="Cancel"
               Content="Cancel"
               Classes="cancel"
               Command="{Binding CancelCommand}"/>
-      <Button Grid.Column="2"
+      <Button Grid.Column="3"
               AutomationProperties.AutomationId="OkButton"
               AutomationProperties.Name="Save configuration"
               Content="{Binding OkButtonText}"

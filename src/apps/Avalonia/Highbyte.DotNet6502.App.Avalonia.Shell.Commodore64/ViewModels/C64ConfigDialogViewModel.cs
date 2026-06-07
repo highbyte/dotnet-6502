@@ -41,7 +41,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
     private readonly C64HostConfig _originalConfig;
-    private readonly C64HostConfig _workingConfig;
+    private C64HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
     private readonly List<(Type audioProviderType, Type audioTargetType)> _audioCombinations;
     private readonly HttpClient _httpClient;
@@ -95,6 +95,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> ClearRomsCommand { get; }
     public ReactiveCommand<Unit, Unit> TestAIBackendCommand { get; }
     public ReactiveCommand<Unit, Unit> ResetCorsProxyOverrideURLCommand { get; }
+    public ReactiveCommand<Unit, Unit> ResetToDefaultsCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
 
@@ -119,39 +120,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
 
         AvailableJoysticks = new ObservableCollection<int>(_workingConfig.InputConfig.AvailableJoysticks);
-        KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
-        SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
-        SelectedHostJoystick = _workingConfig.InputConfig.CurrentJoystick;
-        SelectedKeyboardLayout = _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;
-        SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLink.Enabled;
-        SelectedSwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLink.CartridgeIOAddress;
-        SelectedSwiftLinkTransportMode = _workingConfig.SwiftLinkHost.TransportMode;
-        SelectedSwiftLinkInterruptMode = _workingConfig.SystemConfig.SwiftLink.InterruptMode;
-        SelectedSwiftLinkReceiveMode = _workingConfig.SystemConfig.SwiftLink.ReceiveMode;
-        SwiftLinkTcpHost = _workingConfig.SwiftLinkHost.TcpHost;
-        SwiftLinkTcpPort = _workingConfig.SwiftLinkHost.TcpPort;
-        SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkHost.ConnectOnBoot;
-        SwiftLinkBridgeWebSocketUrl = _workingConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty;
-        SwiftLinkSharedToken = _workingConfig.SwiftLinkSharedToken ?? string.Empty;
-        SwiftLinkBridgeTargetId = _workingConfig.SwiftLinkBridgeTargetId ?? string.Empty;
-        InitializeSwiftLinkBridgeTargetOptions();
 
-        AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
-        _selectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
-
-        RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
-        CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
-
-        // Initialize AI Coding Assistant properties
-        SelectedAIBackendType = _workingConfig.CodeSuggestionBackendType;
-        LoadAIConfiguration();
-
-        InitializeRenderOptions();
-        InitializeAudioOptions();
-        InitializeSidEmulationModeOptions();
-        UpdateRomStatuses();
-        UpdateKeyboardMappings();
-        UpdateValidationMessageFromConfig();
+        LoadFromWorkingConfig();
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         DownloadRomsToByteArrayCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -178,6 +148,14 @@ public class C64ConfigDialogViewModel : ViewModelBase
             () =>
             {
                 CorsProxyOverrideURL = string.Empty;
+                return Task.CompletedTask;
+            },
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        ResetToDefaultsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                ResetToDefaults();
                 return Task.CompletedTask;
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
@@ -1675,6 +1653,68 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.CodeSuggestionBackendType = _workingConfig.CodeSuggestionBackendType;
         _originalConfig.BasicAIAssistantDefaultEnabled = _workingConfig.BasicAIAssistantDefaultEnabled;
         WriteAIConfiguration();
+    }
+
+    /// <summary>
+    /// Populates all bound view-model properties from the current <see cref="_workingConfig"/>.
+    /// Called from the constructor and after <see cref="ResetToDefaults"/> swaps the working config.
+    /// </summary>
+    private void LoadFromWorkingConfig()
+    {
+        KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
+        SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
+        SelectedHostJoystick = _workingConfig.InputConfig.CurrentJoystick;
+        SelectedKeyboardLayout = _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;
+        SwiftLinkEnabled = _workingConfig.SystemConfig.SwiftLink.Enabled;
+        SelectedSwiftLinkCartridgeIOAddress = _workingConfig.SystemConfig.SwiftLink.CartridgeIOAddress;
+        SelectedSwiftLinkTransportMode = _workingConfig.SwiftLinkHost.TransportMode;
+        SelectedSwiftLinkInterruptMode = _workingConfig.SystemConfig.SwiftLink.InterruptMode;
+        SelectedSwiftLinkReceiveMode = _workingConfig.SystemConfig.SwiftLink.ReceiveMode;
+        SwiftLinkTcpHost = _workingConfig.SwiftLinkHost.TcpHost;
+        SwiftLinkTcpPort = _workingConfig.SwiftLinkHost.TcpPort;
+        SwiftLinkConnectOnBoot = _workingConfig.SwiftLinkHost.ConnectOnBoot;
+        SwiftLinkBridgeWebSocketUrl = _workingConfig.SwiftLinkWebSocketBridgeUrl ?? string.Empty;
+        SwiftLinkSharedToken = _workingConfig.SwiftLinkSharedToken ?? string.Empty;
+        SwiftLinkBridgeTargetId = _workingConfig.SwiftLinkBridgeTargetId ?? string.Empty;
+        InitializeSwiftLinkBridgeTargetOptions();
+
+        AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+        SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
+
+        RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
+        CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
+
+        // Initialize AI Coding Assistant properties
+        SelectedAIBackendType = _workingConfig.CodeSuggestionBackendType;
+        LoadAIConfiguration();
+
+        InitializeRenderOptions();
+        InitializeAudioOptions();
+        InitializeSidEmulationModeOptions();
+        UpdateRomStatuses();
+        UpdateKeyboardMappings();
+        UpdateValidationMessageFromConfig();
+    }
+
+    /// <summary>
+    /// Resets all settings to application defaults, while preserving the user's loaded ROMs and ROM
+    /// directory (so they don't have to re-download or re-point ROM files). Separately stored AI
+    /// assistant API keys are also preserved (they live in their own config sections and are reloaded
+    /// by <see cref="LoadFromWorkingConfig"/> -> <see cref="LoadAIConfiguration"/>). Nothing is
+    /// persisted until the user clicks Save.
+    /// </summary>
+    private void ResetToDefaults()
+    {
+        var preservedRoms = ROM.Clone(_workingConfig.SystemConfig.ROMs);
+        var preservedRomDirectory = _workingConfig.SystemConfig.ROMDirectory;
+
+        _workingConfig = new C64HostConfig();
+        _workingConfig.SystemConfig.ROMs = preservedRoms;
+        _workingConfig.SystemConfig.ROMDirectory = preservedRomDirectory;
+
+        LoadFromWorkingConfig();
+
+        SetStatusMessage("Settings reset to defaults. Click Save to apply.");
     }
 
     private static string? DetectRomName(string fileName)

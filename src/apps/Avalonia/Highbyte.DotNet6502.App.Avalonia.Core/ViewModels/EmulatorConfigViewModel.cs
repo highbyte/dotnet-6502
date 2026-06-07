@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Reactive;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
@@ -33,6 +34,7 @@ public class EmulatorConfigViewModel : ViewModelBase
 
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
+    public ReactiveCommand<Unit, Unit> ResetToDefaultsCommand { get; }
 
     public EmulatorConfigViewModel(AvaloniaHostApp hostApp, IConfiguration configuration)
     {
@@ -40,8 +42,10 @@ public class EmulatorConfigViewModel : ViewModelBase
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _emulatorConfig = hostApp.EmulatorConfig;
 
-        // Initialize available options
-        AvailableEmulators = new ObservableCollection<string> { "C64", "Generic" };
+        // Initialize available options. The list of selectable systems comes dynamically from the
+        // systems registered with the emulator (e.g. C64, Vic20, Generic), sorted for stable display.
+        AvailableEmulators = new ObservableCollection<string>(
+            _hostApp.AvailableSystemNames.OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
         AudioSettingsProfiles = new ObservableCollection<WavePlayerSettingsProfile>(Enum.GetValues<WavePlayerSettingsProfile>());
         BrowserSampleAudioModes = new ObservableCollection<BrowserSampleAudioMode>(Enum.GetValues<BrowserSampleAudioMode>());
 
@@ -72,6 +76,14 @@ public class EmulatorConfigViewModel : ViewModelBase
             () =>
             {
                 ConfigurationChanged?.Invoke(this, false);
+                return Task.CompletedTask;
+            },
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        ResetToDefaultsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                ResetToDefaults();
                 return Task.CompletedTask;
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
@@ -265,6 +277,29 @@ public class EmulatorConfigViewModel : ViewModelBase
 
         this.RaisePropertyChanged(nameof(HasValidationErrors));
         this.RaisePropertyChanged(nameof(CanSave));
+    }
+
+    /// <summary>
+    /// Resets all options to application defaults in the working copies. Nothing is persisted until
+    /// the user clicks Save. The live <see cref="_emulatorConfig"/> is left untouched here.
+    /// </summary>
+    private void ResetToDefaults()
+    {
+        var defaults = new EmulatorConfig();
+
+        SelectedDefaultEmulator = defaults.DefaultEmulator;
+        DefaultDrawScale = defaults.DefaultDrawScale;
+        ShowErrorDialog = defaults.ShowErrorDialog;
+        ShowDebugTools = defaults.ShowDebugTools;
+        SelectedAudioSettingsProfile = defaults.AudioSettingsProfile;
+        SelectedBrowserSampleAudioMode = defaults.BrowserSampleAudioMode;
+        StopAfterBRKInstruction = defaults.Monitor.StopAfterBRKInstruction;
+        StopAfterUnknownInstruction = defaults.Monitor.StopAfterUnknownInstruction;
+        // Browser-only knob; defaults to disabled.
+        AllowUrlScripts = false;
+
+        UpdateValidation();
+        StatusMessage = "Settings reset to defaults. Click Save to apply.";
     }
 
     private async Task<bool> TryApplyChangesAsync()

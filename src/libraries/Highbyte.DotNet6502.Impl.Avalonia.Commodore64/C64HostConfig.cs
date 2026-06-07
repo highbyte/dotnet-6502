@@ -13,7 +13,7 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.Avalonia";
 
-    public const string DefaultCorsProxyURL = "https://api.codetabs.com/v1/proxy?quest=";
+    public const string DefaultCorsProxyURL = BrowserServiceDefaults.DefaultCorsProxyUrl;
 
     [JsonIgnore]
     public override bool AudioSupported =>
@@ -45,7 +45,7 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     [JsonIgnore]
     public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
-    public const string DefaultSwiftLinkWebSocketBridgeUrl = "wss://ws-tcp-bridge.highbyte.workers.dev/bridge";
+    public const string DefaultSwiftLinkWebSocketBridgeUrl = BrowserServiceDefaults.DefaultSwiftLinkWebSocketBridgeUrl;
     public const string DefaultSwiftLinkBridgeTargetId = "compunet-reborn";
 
     private string? _swiftLinkWebSocketBridgeUrl = DefaultSwiftLinkWebSocketBridgeUrl;
