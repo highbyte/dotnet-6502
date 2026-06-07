@@ -22,8 +22,18 @@ public class C64D64ContentLoader : IC64AutoLoadContentLoader
     public async Task LoadAsync(C64DownloadProgramInfo programInfo, C64 c64)
     {
         var d64Bytes = await _d64Downloader.DownloadAndProcessDiskImage(programInfo);
+        await LoadBytesAsync(c64, d64Bytes, programInfo, issueRunCommands: false, _logger);
+    }
+
+    public static async Task LoadBytesAsync(
+        C64 c64,
+        byte[] d64Bytes,
+        C64DownloadProgramInfo programInfo,
+        bool issueRunCommands,
+        ILogger logger)
+    {
         var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
-        _logger.LogInformation("Parsed D64 disk image: {DiskName}", d64DiskImage.DiskName);
+        logger.LogInformation("Parsed D64 disk image: {DiskName}", d64DiskImage.DiskName);
 
         if (!string.IsNullOrEmpty(programInfo.DirectLoadPRGName))
         {
@@ -40,7 +50,7 @@ public class C64D64ContentLoader : IC64AutoLoadContentLoader
                     out ushort loadedAtAddress,
                     out ushort fileLength);
 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Direct loaded {DirectLoadPRGName} from D64 image at address {LoadedAtAddress:X4}, length {FileLength} bytes",
                     programInfo.DirectLoadPRGName,
                     loadedAtAddress,
@@ -48,20 +58,34 @@ public class C64D64ContentLoader : IC64AutoLoadContentLoader
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to direct load PRG file {DirectLoadPRGName}", programInfo.DirectLoadPRGName);
+                logger.LogError(ex, "Failed to direct load PRG file {DirectLoadPRGName}", programInfo.DirectLoadPRGName);
                 throw new InvalidOperationException(
                     $"Failed to direct load PRG file {programInfo.DirectLoadPRGName}: {ex.Message}",
                     ex);
             }
+        }
+        else
+        {
+            var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
+            if (diskDrive == null)
+                throw new InvalidOperationException("No DiskDrive1541 found in the running C64 system.");
 
-            return;
+            diskDrive.SetD64DiskImage(d64DiskImage);
+            logger.LogInformation("Disk image loaded and set: {DiskName}", d64DiskImage.DiskName);
         }
 
-        var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
-        if (diskDrive == null)
-            throw new InvalidOperationException("No DiskDrive1541 found in the running C64 system.");
+        if (issueRunCommands && programInfo.RunCommands.Count > 0)
+        {
+            logger.LogInformation("Auto-loading and running program with {CommandCount} commands", programInfo.RunCommands.Count);
 
-        diskDrive.SetD64DiskImage(d64DiskImage);
-        _logger.LogInformation("Disk image loaded and set: {DiskName}", d64DiskImage.DiskName);
+            foreach (var command in programInfo.RunCommands)
+            {
+                logger.LogInformation("Executing command: {Command}", command);
+                c64.TextPaste.Paste($"{command}\n");
+
+                if (command != programInfo.RunCommands.Last())
+                    await Task.Delay(1000);
+            }
+        }
     }
 }

@@ -22,14 +22,21 @@ There are two **mutually exclusive** modes:
 | `--start` | Auto-start the emulator after selection. |
 | `--waitForSystemReady` | Wait until the system reports ready before continuing. Requires `--start`. |
 | `--loadPrg <path>` | Load a `.prg` file into memory. Requires `--start`. |
-| `--runLoadedProgram` | Run the loaded program after loading. Requires `--start` and one of `--loadPrg` / `--loadD64`. |
+| `--runLoadedProgram` | Run the loaded program after loading. Requires `--start` and a host-supported load source. In the common flow that means `--loadPrg`; Avalonia Desktop also extends this to `--loadD64` for C64. |
 
-### C64 runtime config *(Avalonia Desktop only)*
+These are the **common**, system-agnostic automated-startup flags handled by the shared startup
+pipeline. Host- or system-specific extensions build on top of them.
+
+### C64 startup parameters *(Avalonia Desktop only)*
+
+These parameters extend the common automated-startup flow above. They are parsed by the Avalonia
+Desktop entry point and applied by the C64 Avalonia shell plugin, so they are **not available in
+the Headless app today**.
+
+#### C64 runtime config
 
 These flags override the C64 host config before the system starts. They apply for **any** C64
-start path — plain `--start`, `--loadPrg`, BASIC paste, or `--loadD64`. They are parsed by the
-Avalonia Desktop entry point and applied by the C64 Avalonia shell plugin, so they are not
-available in the Headless app today.
+start path — plain `--start`, `--loadPrg`, BASIC paste, or `--loadD64`.
 
 | Argument | Description |
 |---|---|
@@ -37,13 +44,10 @@ available in the Headless app today.
 | `--keyboardJoystickNumber <1\|2>` | C64 joystick port the keyboard emulates (and which gamepad port drives). Implies `--keyboardJoystickEnabled`. Requires `--system C64`. |
 | `--audioEnabled <true\|false>` | Override the C64 audio-enable config before the system starts. Omit to keep the existing value. Requires `--system C64`. |
 
-### C64 `.d64` startup parameters *(Avalonia Desktop only)*
+#### C64 automated startup extensions
 
-These flags load a `.d64` disk image at startup. Like the runtime-config flags above, they are
-parsed by the Avalonia Desktop entry point and applied by the C64 Avalonia shell plugin, so they
-are **not available in the Headless app today**. (Other hosts can adopt them by adding the
-equivalent CLI parsing in their own entry point and registering an `IAutomatedStartupParticipant`
-that uses the shared `D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync` helper.)
+These flags add C64-specific startup behavior on top of the common automated-startup parameters.
+They still depend on the common flags such as `--system`, `--start`, and `--waitForSystemReady`.
 
 | Argument | Description |
 |---|---|
@@ -51,9 +55,11 @@ that uses the shared `D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync` helper
 | `--d64Program <name\|*>` | Extract the named PRG from the disk image and direct-load it into memory (no disk mount). `*` selects the first directory entry. Mutually exclusive with `--diskMount`. |
 | `--diskMount` | Mount the disk image in drive 8 and prepare to issue `LOAD"*",8,1` + `RUN` via the keyboard buffer. Mutually exclusive with `--d64Program`. |
 
-`--runLoadedProgram` in the `--loadD64` flow controls whether the disk's `RunCommands`
-(`LOAD"*",8,1` + `RUN` for `--diskMount`, just `RUN` for `--d64Program`) are pasted after the
-load / mount.
+When used together with `--loadD64`, the common `--runLoadedProgram` flag controls whether the
+disk's `RunCommands` are pasted after the load / mount:
+
+- `--diskMount`: `LOAD"*",8,1` + `RUN`
+- `--d64Program`: `RUN`
 
 ### Logging
 

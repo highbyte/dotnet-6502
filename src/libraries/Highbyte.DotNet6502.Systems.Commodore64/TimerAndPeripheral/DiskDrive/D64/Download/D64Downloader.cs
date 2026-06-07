@@ -26,14 +26,6 @@ public class D64Downloader
     /// <summary>
     /// Downloads and processes a disk image file (supports both .d64 and .zip files)
     /// </summary>
-    /// <param name="diskInfo">Information about the disk to download</param>
-    /// <returns>The .d64 file content as byte array</returns>
-    public Task<byte[]> DownloadAndProcessDiskImage(D64DownloadDiskInfo diskInfo)
-        => DownloadAndProcessDiskImage(diskInfo.ToC64DownloadProgramInfo());
-
-    /// <summary>
-    /// Downloads and processes a disk image file (supports both .d64 and .zip files)
-    /// </summary>
     /// <param name="diskInfo">Information about the program to download</param>
     /// <returns>The .d64 file content as byte array</returns>
     public async Task<byte[]> DownloadAndProcessDiskImage(C64DownloadProgramInfo diskInfo)
@@ -127,67 +119,4 @@ public class D64Downloader
         _logger.LogInformation("Extracted .d64 file: {ByteCount} bytes", d64Bytes.Length);
         return d64Bytes;
     }
-}
-
-public class D64DownloadDiskInfo
-{
-    public string DisplayName { get; set; }
-    public string DownloadUrl { get; set; }
-    public List<string> RunCommands { get; set; }
-    public DownloadType DownloadType { get; set; }
-    public bool KeyboardJoystickEnabled { get; set; }
-    public int KeyboardJoystickNumber { get; set; }
-    public bool RequiresBitmap { get; set; }
-    public bool AudioEnabled { get; set; }
-    public string? DirectLoadPRGName { get; set; }
-    public string C64Variant { get; set; }
-    public bool AvailableInBrowser { get; set; }
-
-    public D64DownloadDiskInfo(
-        string displayName,
-        string downloadUrl,
-        List<string>? runCommands = null,
-        DownloadType downloadType = DownloadType.D64,
-        bool keyboardJoystickEnabled = false,
-        int keyboardJoystickNumber = 2,
-        bool requiresBitmap = false,
-        bool audioEnabled = false,
-        string? directLoadPRGName = null,
-        string c64Variant = "C64NTSC",
-        bool availableInBrowser = true)
-    {
-        DisplayName = displayName;
-        DownloadUrl = downloadUrl;
-        DownloadType = downloadType;
-        KeyboardJoystickEnabled = keyboardJoystickEnabled;
-        KeyboardJoystickNumber = keyboardJoystickNumber;
-        RequiresBitmap = requiresBitmap;
-        AudioEnabled = audioEnabled;
-        DirectLoadPRGName = directLoadPRGName;
-        C64Variant = c64Variant;
-        AvailableInBrowser = availableInBrowser;
-        RunCommands = runCommands ?? (string.IsNullOrEmpty(directLoadPRGName)
-            ? new List<string> { "load\"*\",8,1", "run" }
-            : new List<string> { "run" });
-    }
-
-    public C64DownloadProgramInfo ToC64DownloadProgramInfo()
-        => new(
-            displayName: DisplayName,
-            downloadUrl: DownloadUrl,
-            runCommands: RunCommands,
-            downloadType: DownloadType == DownloadType.ZIP ? C64DownloadProgramType.D64Zip : C64DownloadProgramType.D64,
-            keyboardJoystickEnabled: KeyboardJoystickEnabled,
-            keyboardJoystickNumber: KeyboardJoystickNumber,
-            requiresBitmap: RequiresBitmap,
-            audioEnabled: AudioEnabled,
-            directLoadPRGName: DirectLoadPRGName,
-            c64Variant: C64Variant,
-            availableInBrowser: AvailableInBrowser);
-}
-
-public enum DownloadType
-{
-    D64,
-    ZIP,
 }
