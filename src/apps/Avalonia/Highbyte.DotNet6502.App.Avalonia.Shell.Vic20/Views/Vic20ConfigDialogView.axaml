@@ -217,18 +217,24 @@
                    Classes="small"
                    IsVisible="{Binding HasValidationMessage}"/>
 
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-normal">
-            <TextBlock Grid.Column="0"
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" Classes="spacing-normal">
+            <Button Grid.Column="0"
+                    Content="Reset to defaults"
+                    AutomationProperties.AutomationId="Vic20ConfigResetToDefaultsButton"
+                    AutomationProperties.Name="Reset to defaults"
+                    Command="{Binding ResetToDefaultsCommand}"
+                    IsEnabled="{Binding IsNotBusy}"/>
+            <TextBlock Grid.Column="1"
                        Text="{Binding StatusMessage}"
                        Classes="small secondary-text"
                        IsVisible="{Binding HasStatusMessage}"/>
-            <Button Grid.Column="1"
+            <Button Grid.Column="2"
                     Content="Cancel"
                     AutomationProperties.AutomationId="Vic20ConfigCancelButton"
                     Command="{Binding CancelCommand}"
                     Classes="cancel"
                     IsEnabled="{Binding IsNotBusy}"/>
-            <Button Grid.Column="2"
+            <Button Grid.Column="3"
                     Content="{Binding OkButtonText}"
                     AutomationProperties.AutomationId="Vic20ConfigOkButton"
                     Command="{Binding SaveCommand}"
