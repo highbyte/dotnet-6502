@@ -217,7 +217,7 @@
                         <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                 AutomationProperties.AutomationId="SidAudioCheckBox"
                                 AutomationProperties.Name="Enable SID audio"
-                                Content="Enable SID audio (experimental)"
+                                Content="Enable SID audio"
                                 IsChecked="{Binding AudioEnabled}"
                                 Classes=""/>
 

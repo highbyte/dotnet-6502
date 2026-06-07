@@ -231,7 +231,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow, ISilkNetMenuHost
             ImGui.PushItemWidth(40);
             if (_silkNetHostApp.IsAudioSupported().Result)
             {
-                if (ImGui.Checkbox("Audio enabled (experimental)", ref _audioEnabled))
+                if (ImGui.Checkbox("Audio enabled", ref _audioEnabled))
                 {
                     _silkNetHostApp.SetAudioEnabled(_audioEnabled).Wait();
                 }
