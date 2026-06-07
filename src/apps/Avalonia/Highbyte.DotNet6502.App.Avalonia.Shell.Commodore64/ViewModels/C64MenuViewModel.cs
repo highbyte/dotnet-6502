@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Http;
 using System.Reactive;
@@ -18,7 +19,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
@@ -36,29 +37,29 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     private readonly Assembly _examplesAssembly = typeof(AvaloniaHostApp).Assembly;
     private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
 
-    // Fields for preloaded disk loading functionality
+    // Fields for preloaded program loading functionality
     private readonly HttpClient _httpClient = new();
-    private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
+    private readonly Dictionary<string, C64DownloadProgramInfo> _preloadedPrograms = new()
     {
-        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
-        {"compunetreborn", new D64DownloadDiskInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.d64", c64Variant: "C64PAL", availableInBrowser: false)},
-        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
-        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
-        {"gianasisters", new D64DownloadDiskInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
-        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
-        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
-        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
-        {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
+        {"bubblebobble", new C64DownloadProgramInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
+        {"compunetreborn", new C64DownloadProgramInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.prg", downloadType: C64DownloadProgramType.Prg, availableInBrowser: true, c64Variant: "C64PAL", swiftLinkEnabled: true)},
+        {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
+        {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
+        {"lastninja", new C64DownloadProgramInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
+        {"minizork", new C64DownloadProgramInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
+        {"montezuma", new C64DownloadProgramInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"rallyspeedway", new C64DownloadProgramInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")},
     };
-    private string _latestPreloadedDiskError = string.Empty;
-    private bool _isLoadingPreloadedDisk;
-    private D64AutoDownloadAndRun? _d64AutoDownloadAndRun;
+    private string _latestPreloadedProgramError = string.Empty;
+    private bool _isLoadingPreloadedProgram;
+    private C64AutoLoadAndRun? _c64AutoLoadAndRun;
 
     // --- ReactiveUI Commands ---
     public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
     public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDiskImageCommand { get; }
-    public ReactiveCommand<Unit, Unit> LoadPreloadedDiskCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadPreloadedProgramCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
@@ -74,6 +75,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
     // --- End ReactiveUI Commands ---
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveUI WhenAnyValue is used intentionally for ViewModel bindings; members are rooted by XAML and direct references.")]
     public C64MenuViewModel(
         AvaloniaHostApp avaloniaHostApp,
         ILoggerFactory loggerFactory)
@@ -118,9 +120,9 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             this.WhenAnyValue(x => x.CanToggleDisk),
             RxSchedulers.MainThreadScheduler);
 
-        LoadPreloadedDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => await LoadPreloadedDiskImageAsync(),
-            this.WhenAnyValue(x => x.IsLoadingPreloadedDisk).Select(isLoading => !isLoading),
+        LoadPreloadedProgramCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await LoadPreloadedProgramAsync(),
+            this.WhenAnyValue(x => x.IsLoadingPreloadedProgram).Select(isLoading => !isLoading),
             RxSchedulers.MainThreadScheduler);
 
         LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -245,8 +247,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     public string DiskToggleButtonText => IsDiskImageAttached ? "Detach .d64 disk image" : "Attach .d64 disk image";
 
-    // Preloaded D64 programs
-    public ObservableCollection<KeyValuePair<string, string>> PreloadedD64Programs { get; } = new();
+    // Preloaded downloadable programs
+    public ObservableCollection<KeyValuePair<string, string>> PreloadedPrograms { get; } = new();
     private string _selectedPreloadedDisk = "";
     public string SelectedPreloadedDisk
     {
@@ -254,29 +256,29 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         set
         {
             this.RaiseAndSetIfChanged(ref _selectedPreloadedDisk, value);
-            LatestPreloadedDiskError = string.Empty;
+            LatestPreloadedProgramError = string.Empty;
         }
     }
-    public bool IsLoadingPreloadedDisk
+    public bool IsLoadingPreloadedProgram
     {
-        get => _isLoadingPreloadedDisk;
-        private set => this.RaiseAndSetIfChanged(ref _isLoadingPreloadedDisk, value);
+        get => _isLoadingPreloadedProgram;
+        private set => this.RaiseAndSetIfChanged(ref _isLoadingPreloadedProgram, value);
     }
 
-    public string LatestPreloadedDiskError
+    public string LatestPreloadedProgramError
     {
-        get => _latestPreloadedDiskError;
+        get => _latestPreloadedProgramError;
         private set
         {
-            if (_latestPreloadedDiskError == value)
+            if (_latestPreloadedProgramError == value)
                 return;
 
-            this.RaiseAndSetIfChanged(ref _latestPreloadedDiskError, value);
-            this.RaisePropertyChanged(nameof(HasLatestPreloadedDiskError));
+            this.RaiseAndSetIfChanged(ref _latestPreloadedProgramError, value);
+            this.RaisePropertyChanged(nameof(HasLatestPreloadedProgramError));
         }
     }
 
-    public bool HasLatestPreloadedDiskError => !string.IsNullOrEmpty(LatestPreloadedDiskError);
+    public bool HasLatestPreloadedProgramError => !string.IsNullOrEmpty(LatestPreloadedProgramError);
 
     // Assembly examples
     public ObservableCollection<KeyValuePair<string, string>> AssemblyExamples { get; } = new();
@@ -590,15 +592,15 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         AvailableJoysticks.Add(1);
         AvailableJoysticks.Add(2);
 
-        // Initialize preloaded D64 programs
-        PreloadedD64Programs.Clear();
-        PreloadedD64Programs.Add(new KeyValuePair<string, string>("", "-- Select a program --"));
-        var preloadedDisks = PlatformDetection.IsRunningInWebAssembly()
-            ? _preloadedD64Images.Where(d => d.Value.AvailableInBrowser)
-            : _preloadedD64Images.AsEnumerable();
-        foreach (var disk in preloadedDisks.OrderBy(d => d.Value.DisplayName))
+        // Initialize preloaded downloadable programs
+        PreloadedPrograms.Clear();
+        PreloadedPrograms.Add(new KeyValuePair<string, string>("", "-- Select a program --"));
+        var preloadedPrograms = PlatformDetection.IsRunningInWebAssembly()
+            ? _preloadedPrograms.Where(d => d.Value.AvailableInBrowser)
+            : _preloadedPrograms.AsEnumerable();
+        foreach (var disk in preloadedPrograms.OrderBy(d => d.Value.DisplayName))
         {
-            PreloadedD64Programs.Add(new KeyValuePair<string, string>(disk.Key, disk.Value.DisplayName));
+            PreloadedPrograms.Add(new KeyValuePair<string, string>(disk.Key, disk.Value.DisplayName));
         }
 
         // Debug: List all embedded resource names
@@ -757,42 +759,42 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
-    private async Task LoadPreloadedDiskImageAsync()
+    private async Task LoadPreloadedProgramAsync()
     {
         var hostApp = HostApp;
         if (hostApp == null)
             return;
 
         string selectedPreloadedDisk = SelectedPreloadedDisk;
-        if (string.IsNullOrEmpty(selectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(selectedPreloadedDisk))
+        if (string.IsNullOrEmpty(selectedPreloadedDisk) || !_preloadedPrograms.ContainsKey(selectedPreloadedDisk))
             return;
 
-        var diskInfo = _preloadedD64Images[selectedPreloadedDisk];
-        IsLoadingPreloadedDisk = true;
-        LatestPreloadedDiskError = string.Empty;
+        var programInfo = _preloadedPrograms[selectedPreloadedDisk];
+        IsLoadingPreloadedProgram = true;
+        LatestPreloadedProgramError = string.Empty;
 
-        _logger.LogInformation("Starting to load preloaded disk: {DisplayName}", diskInfo.DisplayName);
+        _logger.LogInformation("Starting to load preloaded program: {DisplayName}", programInfo.DisplayName);
 
         try
         {
-            // Initialize D64AutoDownloadAndRun if not already done
-            if (_d64AutoDownloadAndRun == null)
+            // Initialize C64AutoLoadAndRun if not already done
+            if (_c64AutoLoadAndRun == null)
             {
                 _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
                 if (hostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
                     return;
 
-                _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
+                _c64AutoLoadAndRun = new C64AutoLoadAndRun(
                    _loggerFactory,
                    _httpClient,
                    hostApp,
                    corsProxyUrl: c64HostConfig.GetCorsProxyURL());
             }
 
-            await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
-                diskInfo,
-                setConfigCallback: async (diskInfo) =>
+            await _c64AutoLoadAndRun.DownloadAndRunProgram(
+                programInfo,
+                setConfigCallback: async (programInfo) =>
                 {
                     if (hostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
                         return;
@@ -800,11 +802,11 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                     var c64SystemConfig = c64HostConfig.SystemConfig;
 
                     // Apply keyboard joystick settings to config object while emulator is stopped
-                    c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
-                    c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
+                    c64SystemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
+                    c64SystemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
 
                     // Apply keyboard settings to config object while emulator is stopped (assume joystick should use same as keyboard joystick number)
-                    c64HostConfig.InputConfig.CurrentJoystick = diskInfo.KeyboardJoystickNumber;
+                    c64HostConfig.InputConfig.CurrentJoystick = programInfo.KeyboardJoystickNumber;
 
                     // Apply renderer setting to config object while emulator is stopped
                     // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
@@ -820,35 +822,38 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                     c64HostConfig.SystemConfig.SetRenderTargetType(compatibleRenderTargetType);
 
                     // Apply audio enabled setting to config object while emulator is stopped
-                    c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
+                    c64SystemConfig.AudioEnabled = programInfo.AudioEnabled;
+
+                    // Apply SwiftLink setting to config object while emulator is stopped
+                    c64SystemConfig.SwiftLink.Enabled = programInfo.SwiftLinkEnabled;
 
                     // Apply C64 variant setting to config object while emulator is stopped
-                    await hostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+                    await hostApp.SelectSystemConfigurationVariant(programInfo.C64Variant);
 
                     hostApp.UpdateHostSystemConfig(c64HostConfig);
                 });
         }
         catch (Exception ex)
         {
-            LatestPreloadedDiskError = string.IsNullOrWhiteSpace(ex.Message)
-                ? $"Failed to download and run {diskInfo.DisplayName}."
+            LatestPreloadedProgramError = string.IsNullOrWhiteSpace(ex.Message)
+                ? $"Failed to download and run {programInfo.DisplayName}."
                 : ex.Message;
             _logger.LogError(
                 ex,
-                "LoadPreloadedDisk_Click error while loading {DisplayName}: {ErrorMessage}",
-                diskInfo.DisplayName,
-                LatestPreloadedDiskError);
+                "LoadPreloadedProgram error while loading {DisplayName}: {ErrorMessage}",
+                programInfo.DisplayName,
+                LatestPreloadedProgramError);
         }
         finally
         {
             // Force binding refresh for all properties, config settings for keyboard/joystick may have changed
             RefreshAllBindings();
 
-            IsLoadingPreloadedDisk = false;
-            _logger.LogInformation("Finished loading preloaded disk. Loading state: {IsLoadingPreloadedDisk}", IsLoadingPreloadedDisk);
-            if (!string.IsNullOrEmpty(LatestPreloadedDiskError))
+            IsLoadingPreloadedProgram = false;
+            _logger.LogInformation("Finished loading preloaded program. Loading state: {IsLoadingPreloadedProgram}", IsLoadingPreloadedProgram);
+            if (!string.IsNullOrEmpty(LatestPreloadedProgramError))
             {
-                _logger.LogInformation("Final error state: {LatestPreloadedDiskError}", LatestPreloadedDiskError);
+                _logger.LogInformation("Final error state: {LatestPreloadedProgramError}", LatestPreloadedProgramError);
             }
         }
     }

@@ -1,17 +1,17 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 
 /// <summary>
-/// Tests for the refactored <see cref="D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync"/>
+/// Tests for the shared <see cref="C64D64ContentLoader.LoadBytesAsync"/>
 /// helper that is shared by the menu's download-and-run flow and the Avalonia automated-startup
 /// participant. Verifies both branches (mount + direct-load) using a synthetic minimal D64 image.
 /// </summary>
-public class D64AutoDownloadAndRunTests
+public class C64D64ContentLoaderTests
 {
     // PRG payload (load address 0x0800 + NOP/NOP/RTS body). The first two bytes are the standard
     // PRG load-address header consumed by BinaryLoader.Load; the rest is the program body that
@@ -26,11 +26,11 @@ public class D64AutoDownloadAndRunTests
     private const string TestFileName = "TEST";
 
     [Fact]
-    public async Task MountOrDirectLoadAndRunAsync_DirectLoad_LoadsPrgBodyIntoMemory()
+    public async Task LoadBytesAsync_DirectLoad_LoadsPrgBodyIntoMemory()
     {
         var c64 = BuildC64();
         var d64Bytes = BuildSyntheticD64();
-        var diskInfo = new D64DownloadDiskInfo(
+        var programInfo = new C64DownloadProgramInfo(
             displayName: "synthetic",
             downloadUrl: string.Empty,
             directLoadPRGName: TestFileName,
@@ -38,8 +38,8 @@ public class D64AutoDownloadAndRunTests
             // verify memory mutation here).
             runCommands: new List<string>());
 
-        await D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync(
-            c64, d64Bytes, diskInfo, issueRunCommands: true, NullLogger.Instance);
+        await C64D64ContentLoader.LoadBytesAsync(
+            c64, d64Bytes, programInfo, issueRunCommands: true, NullLogger.Instance);
 
         Assert.Equal(0xEA, c64.Mem[PrgLoadAddress]);
         Assert.Equal(0xEA, c64.Mem[PrgLoadAddress + 1]);
@@ -51,19 +51,19 @@ public class D64AutoDownloadAndRunTests
     }
 
     [Fact]
-    public async Task MountOrDirectLoadAndRunAsync_DiskMount_AttachesDiskImageToDrive()
+    public async Task LoadBytesAsync_DiskMount_AttachesDiskImageToDrive()
     {
         var c64 = BuildC64();
         var d64Bytes = BuildSyntheticD64();
         // DirectLoadPRGName=null → mount branch.
-        var diskInfo = new D64DownloadDiskInfo(
+        var programInfo = new C64DownloadProgramInfo(
             displayName: "synthetic",
             downloadUrl: string.Empty,
             directLoadPRGName: null,
             runCommands: new List<string>());
 
-        await D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync(
-            c64, d64Bytes, diskInfo, issueRunCommands: false, NullLogger.Instance);
+        await C64D64ContentLoader.LoadBytesAsync(
+            c64, d64Bytes, programInfo, issueRunCommands: false, NullLogger.Instance);
 
         var diskDrive = c64.IECBus.Devices.OfType<DiskDrive1541>().Single();
         Assert.True(diskDrive.IsDisketteInserted);

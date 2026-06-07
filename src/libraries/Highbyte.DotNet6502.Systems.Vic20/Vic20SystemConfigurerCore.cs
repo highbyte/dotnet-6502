@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Vic20.Config;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -41,6 +42,7 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
     public virtual Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
         => Task.FromResult(new List<string> { VariantNtsc, VariantPal });
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Host config binding is limited to known application config models that are rooted by the host application.")]
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var hostConfig = _hostConfigFactory();

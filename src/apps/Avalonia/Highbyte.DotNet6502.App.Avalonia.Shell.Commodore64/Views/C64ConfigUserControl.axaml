@@ -358,6 +358,103 @@
         </Border>
         </StackPanel>
 
+        <!-- SwiftLink Section (browser only) -->
+        <StackPanel Width="368" Classes="wrap-item"
+                    IsVisible="{Binding IsRunningInWebAssembly}">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+            <TextBlock Text="SwiftLink"/>
+            <TextBlock Text="Expose a SwiftLink-compatible ACIA in the browser and bridge its byte stream through a WebSocket endpoint, typically backed by the Cloudflare Worker. Raw TCP and fixed-target Hayes modem modes are both supported."
+                        Classes="small secondary-text"/>
+
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Classes="spacing-tight">
+                <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                        Content="Enable SwiftLink cartridge"
+                        IsChecked="{Binding SwiftLinkEnabled}"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                            Text="Base address:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="1" Grid.Column="1"
+                        ItemsSource="{Binding AvailableSwiftLinkCartridgeIOAddresses}"
+                        SelectedItem="{Binding SelectedSwiftLinkCartridgeIOAddress}"
+                        Classes="small"
+                        MinWidth="100"
+                        MaxDropDownHeight="100"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                            Text="Transport mode:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="2" Grid.Column="1"
+                        ItemsSource="{Binding AvailableSwiftLinkTransportModes}"
+                        SelectedItem="{Binding SelectedSwiftLinkTransportMode}"
+                        Classes="small"
+                        MinWidth="140"
+                        MaxDropDownHeight="100"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0"
+                            Text="Interrupt line:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="3" Grid.Column="1"
+                        ItemsSource="{Binding AvailableSwiftLinkInterruptModes}"
+                        SelectedItem="{Binding SelectedSwiftLinkInterruptMode}"
+                        Classes="small"
+                        MinWidth="100"
+                        MaxDropDownHeight="100"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0"
+                            Text="Receive mode:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="4" Grid.Column="1"
+                        ItemsSource="{Binding AvailableSwiftLinkReceiveModes}"
+                        SelectedItem="{Binding SelectedSwiftLinkReceiveMode}"
+                        Classes="small"
+                        MinWidth="140"
+                        MaxDropDownHeight="100"/>
+
+                <TextBlock Grid.Row="5" Grid.Column="0"
+                            Text="Bridge URL:"
+                            Classes="secondary-text"/>
+                <TextBox Grid.Row="5" Grid.Column="1"
+                        Text="{Binding SwiftLinkBridgeWebSocketUrl}"
+                        PlaceholderText="{x:Static vm:C64ConfigDialogViewModel.SwiftLinkBridgeWebSocketUrlWatermark}"
+                        Classes="field-aligned"/>
+
+                <TextBlock Grid.Row="6" Grid.Column="0"
+                            Text="Shared token:"
+                            Classes="secondary-text"/>
+                <TextBox Grid.Row="6" Grid.Column="1"
+                        Text="{Binding SwiftLinkSharedToken}"
+                        PlaceholderText="Optional"
+                        Classes="field-aligned"/>
+
+                <TextBlock Grid.Row="7" Grid.Column="0"
+                            Text="Target ID:"
+                            Classes="secondary-text"/>
+                <ComboBox Grid.Row="7" Grid.Column="1"
+                        AutomationProperties.AutomationId="SwiftLinkBridgeTargetComboBox"
+                        ItemsSource="{Binding AvailableSwiftLinkBridgeTargets}"
+                        SelectedItem="{Binding SelectedSwiftLinkBridgeTarget}"
+                        Classes="small field-aligned"
+                        MinWidth="160"
+                        MaxDropDownHeight="120">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SwiftLinkBridgeTargetOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <CheckBox Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
+                        Content="Connect automatically when the emulator starts"
+                        IsChecked="{Binding SwiftLinkConnectOnBoot}"
+                        IsEnabled="{Binding IsSwiftLinkConnectOnBootAvailable}"
+                        ToolTip.Tip="{Binding SwiftLinkConnectOnBootToolTip}"/>
+            </Grid>
+            </StackPanel>
+        </Border>
+        </StackPanel>
+
         <!-- SwiftLink Section -->
         <StackPanel Width="368" Classes="wrap-item"
                     IsVisible="{Binding !IsRunningInWebAssembly}">

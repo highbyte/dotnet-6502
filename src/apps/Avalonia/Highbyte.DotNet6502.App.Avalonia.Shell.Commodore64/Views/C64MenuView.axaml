@@ -105,7 +105,7 @@
                                 Click="OpenDiskInfo_Click"/>
                     </Grid>
 
-                    <TextBlock Text="Download &amp; Run .D64 programs"
+                    <TextBlock Text="Download &amp; Run programs"
                                Classes="small secondary-text"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -114,8 +114,8 @@
                         </Grid.ColumnDefinitions>
                         <ComboBox Grid.Column="0"
                                   AutomationProperties.AutomationId="PreloadedDiskComboBox"
-                                  AutomationProperties.Name="Preloaded D64 program"
-                                  ItemsSource="{Binding PreloadedD64Programs}"
+                                  AutomationProperties.Name="Preloaded downloadable program"
+                                  ItemsSource="{Binding PreloadedPrograms}"
                                   SelectedValue="{Binding SelectedPreloadedDisk}"
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
@@ -125,7 +125,7 @@
                         <Button Grid.Column="1"
                                 Content="i"
                                 AutomationProperties.AutomationId="PreloadedDiskInfoButton"
-                                AutomationProperties.Name="About preloaded D64 programs"
+                                AutomationProperties.Name="About preloaded downloadable programs"
                                 Classes="info"
                                 Click="OpenDiskInfo_Click"/>
                     </Grid>
@@ -133,22 +133,22 @@
                     <Button Content="Download &amp; Run"
                             AutomationProperties.AutomationId="DownloadAndRunDiskButton"
                             Classes="primary small"
-                            Command="{Binding LoadPreloadedDiskCommand}"
+                            Command="{Binding LoadPreloadedProgramCommand}"
                             IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-                    <TextBlock Text="Downloading and starting disk image..."
+                    <TextBlock Text="Downloading and starting program..."
                                Classes="small secondary-text"
                                TextWrapping="Wrap"
-                               IsVisible="{Binding IsLoadingPreloadedDisk}"/>
+                               IsVisible="{Binding IsLoadingPreloadedProgram}"/>
 
-                    <TextBlock Text="Download D64 disk image and auto-run the program on it."
+                    <TextBlock Text="Download a D64 disk image or PRG file and auto-run it."
                                Classes="small secondary-text"
                                TextWrapping="Wrap"
                                IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                     <Border Classes="error-container-small"
-                            IsVisible="{Binding HasLatestPreloadedDiskError}">
-                        <TextBlock Text="{Binding LatestPreloadedDiskError}"
+                            IsVisible="{Binding HasLatestPreloadedProgramError}">
+                        <TextBlock Text="{Binding LatestPreloadedProgramError}"
                                    Classes="small"
                                    TextWrapping="Wrap"/>
                     </Border>

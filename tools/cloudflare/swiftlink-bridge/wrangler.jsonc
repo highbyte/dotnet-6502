@@ -1,0 +1,33 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ws-tcp-bridge",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-10",
+	"vars": {
+		// Local-default bridge target for `wrangler dev --local`.
+		// The repo's `tests/swiftlink-smoke/tcp_echo_server.py` is a good first target.
+		"DEFAULT_TARGET_ID": "local-echo",
+		"TARGETS": {
+			"compunet-reborn": {
+				"host": "vme.compunet.live",
+				"port": 6400,
+				"tls": false
+			},
+			"local-echo": {
+				"host": "127.0.0.1",
+				"port": 9001,
+				"tls": false
+			}
+		},
+		"BRIDGE_PATH": "/bridge"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"workers_dev": true
+}

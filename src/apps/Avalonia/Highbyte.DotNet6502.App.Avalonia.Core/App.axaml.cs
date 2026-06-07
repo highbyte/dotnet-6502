@@ -327,7 +327,15 @@ public partial class App : Application
 
         // Discover and register shell plug-ins. Each plug-in adds its own VMs / configurer.
         // EnabledSystems gates which plug-ins activate; absent config = all discovered plug-ins.
-        var enabledSystems = _configuration.GetSection("EnabledSystems").Get<string[]>();
+        var enabledSystems = _configuration
+            .GetSection("EnabledSystems")
+            .GetChildren()
+            .Select(child => child.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
+        if (enabledSystems.Length == 0)
+            enabledSystems = null;
         var pluginLogger = _loggerFactory.CreateLogger<App>();
         var shellPlugins = SystemPluginDiscovery
             .Discover<ISystemShellPlugin>(enabledSystems, pluginLogger)

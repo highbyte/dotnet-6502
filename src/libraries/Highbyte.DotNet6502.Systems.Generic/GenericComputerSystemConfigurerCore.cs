@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -59,6 +60,7 @@ public class GenericComputerSystemConfigurerCore : ISystemConfigurer
     /// <see cref="IConfiguration"/> section. Hosts that store config elsewhere (e.g. browser
     /// local storage) override this.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Host config binding is limited to known application config models that are rooted by the host application.")]
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var hostConfig = _hostConfigFactory();

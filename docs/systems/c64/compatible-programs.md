@@ -32,4 +32,4 @@ For advanced use, see [Useful tools](useful-tools.md) for how to extract PRG fil
 
 | Program | Media | SwiftLink requirement | Comment |
 | --- | --- | --- | --- |
-| Compunet Reborn | `compunet-reborn-live.d64` or `compunet-reborn-live.prg` | SwiftLink at `$DE00`, `NMI`, `HayesModem` mode recommended | Reaches the login prompt reliably on native hosts. Not available in browser-hosted builds. |
+| Compunet Reborn | `compunet-reborn-live.d64` or `compunet-reborn-live.prg` | SwiftLink at `$DE00`, `NMI`, `HayesModem` mode recommended | Reaches the login prompt reliably on native hosts and is now the primary browser SwiftLink target through the fixed-target WebSocket bridge. |

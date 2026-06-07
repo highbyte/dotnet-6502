@@ -2,6 +2,7 @@ using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Rendering.Custom;
 using Highbyte.DotNet6502.Systems.Rendering.VideoCommands;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Highbyte.DotNet6502.Systems.Rendering;
@@ -56,6 +57,7 @@ public class RenderCoordinatorProvider
 
     // Attempts to find a matching generic argument T where renderSource implements IPayloadProvider<T>
     // and renderTarget implements ICustomRenderTarget<T> (same T). Returns true and the payload type if found.
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Render providers and targets are application-owned rooted types; interface inspection is intentional.")]
     private static bool TryMatchCustomPayload(IRenderSource renderSource, IRenderTarget renderTarget, out Type payloadType)
     {
         payloadType = null!;
@@ -93,4 +95,3 @@ public class RenderCoordinatorProvider
         return coordinator;
     }
 }
-

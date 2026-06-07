@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -592,6 +593,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public string OSVersion => RuntimeInformation.OSDescription;
 
     // Constructor with dependency injection - child ViewModels injected!
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveUI WhenAnyValue is used intentionally for ViewModel bindings; members are rooted by XAML and direct references.")]
     public MainViewModel(
         AvaloniaHostApp hostApp,
         EmulatorConfig emulatorConfig,
@@ -847,14 +849,14 @@ public class MainViewModel : ViewModelBase, IDisposable
             RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         PauseCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => _hostApp.Pause(),
+            () => _hostApp.Pause(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Running),
             RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         StopCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => _hostApp.Stop(),
+            () => _hostApp.Stop(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),

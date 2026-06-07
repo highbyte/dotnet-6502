@@ -9,7 +9,7 @@ using Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -295,11 +295,11 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
 
         try
         {
-            var diskInfo = BuildDiskInfo(extras, d64Program, loadD64Path);
-            await D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync(
+            var programInfo = BuildProgramInfo(extras, d64Program, loadD64Path);
+            await C64D64ContentLoader.LoadBytesAsync(
                 c64,
                 d64Bytes,
-                diskInfo,
+                programInfo,
                 issueRunCommands: request.RunLoadedProgram,
                 _logger);
         }
@@ -325,7 +325,7 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         return await File.ReadAllBytesAsync(expanded);
     }
 
-    private static D64DownloadDiskInfo BuildDiskInfo(
+    private static C64DownloadProgramInfo BuildProgramInfo(
         IReadOnlyDictionary<string, string> extras,
         string? d64Program,
         string? loadD64Path)
@@ -350,7 +350,7 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         // Direct-load when --d64Program supplied (incl. "*"); otherwise mount the disk.
         // DownloadUrl is unused on the startup path (bytes are already in hand) but the DTO
         // requires a non-null string.
-        return new D64DownloadDiskInfo(
+        return new C64DownloadProgramInfo(
             displayName: displayName,
             downloadUrl: loadD64Path ?? string.Empty,
             keyboardJoystickEnabled: keyboardJoystickEnabled,

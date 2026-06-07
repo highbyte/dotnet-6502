@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -8,6 +9,9 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
 public class ViewLocator : IDataTemplate
 {
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "View lookup is intentionally reflection-based and the browser publish roots the relevant assemblies explicitly.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "View names are derived from rooted ViewModel types and resolved from explicitly rooted assemblies.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "Resolved view types are application-owned controls with public parameterless constructors.")]
     public Control? Build(object? param)
     {
         if (param is null)

@@ -1,0 +1,6 @@
+#
+# Copy to `.dev.vars` for local-only overrides.
+# Keep secrets out of `wrangler.jsonc`.
+#
+# Optional shared secret accepted as either `?token=...` or `Authorization: Bearer ...`.
+# SHARED_TOKEN=replace-me

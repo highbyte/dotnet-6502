@@ -45,6 +45,72 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     [JsonIgnore]
     public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
+    public const string DefaultSwiftLinkWebSocketBridgeUrl = "wss://ws-tcp-bridge.highbyte.workers.dev/bridge";
+    public const string DefaultSwiftLinkBridgeTargetId = "compunet-reborn";
+
+    private string? _swiftLinkWebSocketBridgeUrl = DefaultSwiftLinkWebSocketBridgeUrl;
+    /// <summary>
+    /// Browser-only WebSocket endpoint used to bridge SwiftLink traffic to a Cloudflare Worker.
+    /// Ignored on desktop hosts, which use the native TCP host/port configuration instead.
+    /// </summary>
+    public string? SwiftLinkWebSocketBridgeUrl
+    {
+        get => _swiftLinkWebSocketBridgeUrl;
+        set
+        {
+            _swiftLinkWebSocketBridgeUrl = value;
+            MarkDirty();
+        }
+    }
+
+    private string? _swiftLinkSharedToken;
+    /// <summary>
+    /// Optional shared token appended to the browser WebSocket bridge URL as <c>?token=...</c>.
+    /// </summary>
+    public string? SwiftLinkSharedToken
+    {
+        get => _swiftLinkSharedToken;
+        set
+        {
+            _swiftLinkSharedToken = value;
+            MarkDirty();
+        }
+    }
+
+    private string? _swiftLinkBridgeTargetId = DefaultSwiftLinkBridgeTargetId;
+    /// <summary>
+    /// Optional logical target id appended to the browser WebSocket bridge URL as <c>?target=...</c>.
+    /// The Cloudflare Worker uses this to select an allowlisted TCP destination.
+    /// </summary>
+    public string? SwiftLinkBridgeTargetId
+    {
+        get => _swiftLinkBridgeTargetId;
+        set
+        {
+            _swiftLinkBridgeTargetId = value;
+            MarkDirty();
+        }
+    }
+
+    private List<string> _swiftLinkBridgeTargetIds = new()
+    {
+        "compunet-reborn",
+        "local-echo",
+    };
+    /// <summary>
+    /// Browser-visible logical target ids that can be selected for the SwiftLink WebSocket bridge.
+    /// These ids must match the Worker-side allowlist.
+    /// </summary>
+    public List<string> SwiftLinkBridgeTargetIds
+    {
+        get => _swiftLinkBridgeTargetIds;
+        set
+        {
+            _swiftLinkBridgeTargetIds = value ?? new List<string>();
+            MarkDirty();
+        }
+    }
+
     /// <summary>
     /// CORS proxy address override. If null/empty, the default CORS proxy URL is used when running
     /// in WebAssembly. When running on desktop, this setting is ignored and no CORS proxy is used.
@@ -81,6 +147,8 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     {
         BasicAIAssistantDefaultEnabled = false;
         CodeSuggestionBackendType = CodeSuggestionBackendTypeEnum.CustomEndpoint;
+        SystemConfig.SwiftLink.InterruptMode = C64SwiftLinkInterruptMode.NMI;
+        _swiftLinkHost.TransportMode = C64SwiftLinkTransportMode.HayesModem;
         _swiftLinkHost.SetDirtyCallback(MarkDirty);
     }
 
@@ -90,6 +158,7 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
         clone.InputConfig = (C64InputConfig)InputConfig.Clone();
         clone._swiftLinkHost = SwiftLinkHost.Clone();
         clone._swiftLinkHost.SetDirtyCallback(clone.MarkDirty);
+        clone._swiftLinkBridgeTargetIds = new List<string>(SwiftLinkBridgeTargetIds);
         return clone;
     }
 
@@ -98,6 +167,26 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
         var isValid = base.IsValid(out validationErrors);
         if (!SwiftLinkHost.IsValid(out var swiftLinkHostValidationErrors, nameof(SwiftLinkHost)))
             validationErrors.AddRange(swiftLinkHostValidationErrors);
+
+        if (PlatformDetection.IsRunningInWebAssembly() && SystemConfig.SwiftLink.Enabled)
+        {
+            if (SwiftLinkHost.TransportMode is not (C64SwiftLinkTransportMode.RawTcp or C64SwiftLinkTransportMode.HayesModem))
+            {
+                validationErrors.Add(
+                    $"{nameof(SwiftLinkHost)}.{nameof(C64SwiftLinkHostConfig.TransportMode)} must be RawTcp or HayesModem when running in WebAssembly.");
+            }
+
+            if (string.IsNullOrWhiteSpace(SwiftLinkWebSocketBridgeUrl))
+            {
+                validationErrors.Add($"{nameof(SwiftLinkWebSocketBridgeUrl)} must be set when SwiftLink is enabled in WebAssembly.");
+            }
+            else if (!Uri.TryCreate(SwiftLinkWebSocketBridgeUrl.Trim(), UriKind.Absolute, out var bridgeUri)
+                     || (bridgeUri.Scheme != Uri.UriSchemeWs && bridgeUri.Scheme != Uri.UriSchemeWss))
+            {
+                validationErrors.Add($"{nameof(SwiftLinkWebSocketBridgeUrl)} must be an absolute ws:// or wss:// URL.");
+            }
+        }
+
         return isValid && validationErrors.Count == 0;
     }
 }

@@ -40,9 +40,14 @@ To self-host, see [Run from command line](#run-from-command-line) below.
   Defaults to the sample-based SID provider; switch to the command-stream provider in the
   C64 config dialog if you need lower CPU. The SID emulation mode (`Auto` / `Fast`) is
   selectable in the same dialog.
-- SwiftLink is **not currently available** in the browser build. Browser-hosted WebAssembly does
-  not expose the native TCP socket behavior used by the desktop/headless SwiftLink transports. See
-  [Systems / C64 / SwiftLink support](../systems/c64/swiftlink.md).
+- SwiftLink is available in the browser build through a WebSocket bridge endpoint. This supports
+  both direct raw-byte bridging and a fixed-target Hayes modem workflow for software such as
+  Compunet Reborn. See [Systems / C64 / SwiftLink support](../systems/c64/swiftlink.md).
+- The browser C64 defaults are configured for the deployed Cloudflare bridge:
+  `wss://ws-tcp-bridge.highbyte.workers.dev/bridge`, target id `compunet-reborn`,
+  transport mode `HayesModem`, interrupt line `NMI`.
+  When developing the bridge locally with `wrangler dev`, temporarily change the bridge URL to
+  `ws://127.0.0.1:8787/bridge`.
 
 ### System: Generic computer
 

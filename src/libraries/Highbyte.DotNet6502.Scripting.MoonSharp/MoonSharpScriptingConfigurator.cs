@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 
@@ -11,6 +12,7 @@ namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 /// </summary>
 public static class MoonSharpScriptingConfigurator
 {
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Configuration binding targets the known ScriptingConfig model used directly by the application.")]
     public static IScriptingEngine Create(
         IConfiguration configuration,
         ILoggerFactory loggerFactory,

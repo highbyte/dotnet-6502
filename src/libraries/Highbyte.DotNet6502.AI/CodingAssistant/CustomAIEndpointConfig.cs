@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant;
@@ -23,8 +24,8 @@ public partial class CustomAIEndpointCodeSuggestion
         public CustomAIEndpointConfig(IConfiguration config)
         {
             var configSection = config.GetSection(CONFIG_SECTION);
-            Endpoint = configSection.GetValue<Uri>("Endpoint");
-            ApiKey = configSection.GetValue<string>("ApiKey");
+            Endpoint = GetUriValue(configSection, "Endpoint");
+            ApiKey = configSection["ApiKey"];
         }
 
         public void WriteToConfiguration(IConfiguration config)
@@ -37,6 +38,18 @@ public partial class CustomAIEndpointCodeSuggestion
         public IConfigurationSection GetConfigurationSection(IConfiguration config)
         {
             return config.GetSection(CONFIG_SECTION);
+        }
+
+        private static Uri? GetUriValue(IConfiguration section, string key)
+        {
+            var value = section[key];
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            return Uri.TryCreate(value, UriKind.Absolute, out var uri)
+                ? uri
+                : throw new FormatException(
+                    string.Format(CultureInfo.InvariantCulture, "Configuration value '{0}' is not a valid absolute URI.", key));
         }
     }
 }

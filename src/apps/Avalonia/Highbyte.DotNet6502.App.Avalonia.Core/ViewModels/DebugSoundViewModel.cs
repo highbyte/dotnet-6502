@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
@@ -56,6 +57,7 @@ public class DebugSoundViewModel : ViewModelBase
     private VolumeSampleProvider? _volumeSampleProvider;
 
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveUI WhenAnyValue is used intentionally for ViewModel bindings; members are rooted by XAML and direct references.")]
     public DebugSoundViewModel(
         AvaloniaHostApp hostApp,
         IConfiguration configuration,
