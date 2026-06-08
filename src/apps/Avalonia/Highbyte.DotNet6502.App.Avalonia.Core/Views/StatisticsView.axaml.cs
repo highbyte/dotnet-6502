@@ -45,6 +45,22 @@ public partial class StatisticsView : UserControl
         ViewModel?.ResetStats();
     }
 
+    // Pause the periodic refresh while the pointer is over the panel, so values (and the layout)
+    // don't change under the cursor — which would otherwise dismiss a tooltip being read.
+    protected override void OnPointerEntered(PointerEventArgs e)
+    {
+        base.OnPointerEntered(e);
+        if (ViewModel != null)
+            ViewModel.UpdatesPaused = true;
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        if (ViewModel != null)
+            ViewModel.UpdatesPaused = false;
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);

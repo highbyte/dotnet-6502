@@ -43,16 +43,19 @@
             <ItemsControl ItemsSource="{Binding Sections}" Classes="h-left">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel>
+                        <StackPanel Margin="{Binding GroupMargin}">
                             <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
-                                       Classes="accent bold small"/>
+                                       Classes="accent bold small"
+                                       ToolTip.Tip="{Binding Tooltip}"/>
                             <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Classes="">
+                                        <Grid Classes=""
+                                              Background="Transparent"
+                                              ToolTip.Tip="{Binding Tooltip}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"
-                                                                  MinWidth="120"
+                                                                  MinWidth="108"
                                                                   SharedSizeGroup="StatName"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
