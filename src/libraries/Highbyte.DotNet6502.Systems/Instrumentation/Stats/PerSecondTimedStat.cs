@@ -56,6 +56,12 @@ public class PerSecondTimedStat : IStat
 
     public bool ShouldShow() => Value.HasValue;
 
+    public void ResetAverage()
+    {
+        _emaElapsedMs = null;
+        _sw.Reset();
+    }
+
     // For unit testing
     public void SetFakeFPSValue(double fps)
     {

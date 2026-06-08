@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -21,6 +23,26 @@ public partial class StatisticsView : UserControl
     private void OnDataContextChanged(object? sender, System.EventArgs e)
     {
         // ViewModel is now available through DataContext binding
+    }
+
+    private void OnCopyClick(object? sender, RoutedEventArgs e)
+    {
+        var text = ViewModel?.GetStatsText();
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard == null)
+            return;
+
+        var dataTransfer = new DataTransfer();
+        dataTransfer.Add(DataTransferItem.CreateText(text));
+        SafeAsyncHelper.Execute(() => clipboard.SetDataAsync(dataTransfer));
+    }
+
+    private void OnResetClick(object? sender, RoutedEventArgs e)
+    {
+        ViewModel?.ResetStats();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

@@ -114,6 +114,55 @@ public class StatisticsViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Builds a plain-text representation of the currently displayed statistics,
+    /// suitable for copying to the clipboard.
+    /// Each stat name is padded to a fixed width so the value column lines up in a
+    /// monospaced text editor, while a single tab before the value keeps the output
+    /// tab-delimited (two columns) for pasting/importing into a spreadsheet.
+    /// </summary>
+    public string GetStatsText()
+    {
+        // Widest stat name across all sections, so every row pads to the same width.
+        // Padding all names to the same width means the tab always starts at the same
+        // column, which makes the value column align in monospaced text too.
+        var nameWidth = 0;
+        foreach (var section in Sections)
+            foreach (var item in section.Items)
+                nameWidth = Math.Max(nameWidth, item.Name.Length);
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var section in Sections)
+        {
+            sb.AppendLine($"{section.Title}:");
+            foreach (var item in section.Items)
+                sb.AppendLine($"  {item.Name.PadRight(nameWidth)}\t{item.Value}");
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Clears the accumulated/averaged values of all stats so they start fresh.
+    /// </summary>
+    public void ResetStats()
+    {
+        if (_disposed || _hostApp == null)
+            return;
+
+        try
+        {
+            foreach ((_, IStat stat) in _hostApp.GetStats())
+                stat.ResetAverage();
+
+            // Refresh the displayed values immediately instead of waiting for the next timer tick.
+            UpdateStats(this, EventArgs.Empty);
+        }
+        catch (Exception)
+        {
+            // Handle any exceptions gracefully to prevent UI crashes
+        }
+    }
+
     public void Dispose()
     {
         if (!_disposed)

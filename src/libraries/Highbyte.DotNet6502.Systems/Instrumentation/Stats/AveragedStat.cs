@@ -19,4 +19,6 @@ public abstract class AveragedStat : IStat
     public abstract string GetDescription();
 
     public bool ShouldShow() => Value.HasValue;
+
+    public void ResetAverage() => Value = null;
 }
