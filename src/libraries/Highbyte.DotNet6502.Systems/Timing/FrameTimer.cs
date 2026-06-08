@@ -83,11 +83,15 @@ public class FrameTimer : IScriptingTickTimer, IAsyncDisposable
             while (!ct.IsCancellationRequested)
             {
                 long now;
-                while ((now = Stopwatch.GetTimestamp()) < nextDeadline)
+                while ((now = Stopwatch.GetTimestamp()) < nextDeadline && !ct.IsCancellationRequested)
                 {
                     var remainingMs = (nextDeadline - now) * 1000.0 / Stopwatch.Frequency;
                     if (remainingMs > 2.0)
-                        await Task.Delay(1, ct).ConfigureAwait(false);
+                        // No cancellation token passed to Task.Delay on purpose: cancelling a
+                        // short delay throws TaskCanceledException, which under a debugger spams
+                        // first-chance exceptions on every pause/stop. The IsCancellationRequested
+                        // checks in both while-loops end the loop within ~1ms instead.
+                        await Task.Delay(1).ConfigureAwait(false);
                     else
                         Thread.SpinWait(50);
                 }
@@ -120,14 +124,17 @@ public class FrameTimer : IScriptingTickTimer, IAsyncDisposable
             while (!ct.IsCancellationRequested)
             {
                 long now;
-                while ((now = Stopwatch.GetTimestamp()) < nextDeadlineTicks)
+                while ((now = Stopwatch.GetTimestamp()) < nextDeadlineTicks && !ct.IsCancellationRequested)
                 {
                     var remainingMs = (nextDeadlineTicks - now) * 1000.0 / Stopwatch.Frequency;
                     // Deliberately undershoot Task.Delay by 2ms - it can return slightly early
                     // or late, and browsers clamp small values. Then a Task.Yield loop drains
                     // the final ~2ms with ms-or-better precision.
+                    // No cancellation token passed to Task.Delay on purpose: cancelling it throws
+                    // TaskCanceledException (first-chance exception spam on every pause/stop). The
+                    // IsCancellationRequested checks in both while-loops end the loop instead.
                     if (remainingMs >= 4.0)
-                        await Task.Delay((int)remainingMs - 2, ct).ConfigureAwait(true);
+                        await Task.Delay((int)remainingMs - 2).ConfigureAwait(true);
                     else
                         await Task.Yield();
                 }
