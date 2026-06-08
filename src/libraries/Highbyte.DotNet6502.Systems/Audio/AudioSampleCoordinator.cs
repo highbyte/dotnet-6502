@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.Systems.Audio;
 
@@ -65,6 +66,17 @@ public sealed class AudioSampleCoordinator : IAudioCoordinator, IDisposable
         _target = target;
         _ringBuffer = new AudioSampleRingBuffer(ringBufferCapacitySamples);
         _primeSilenceSamples = primeSilenceSamples;
+
+        // Live diagnostics for the producer/consumer ring buffer. BufferFill trending toward 0%
+        // signals imminent underruns (audible glitches); near 100% signals high latency / dropped
+        // samples. The overrun/underrun counters tally how often that has actually happened.
+        _instrumentations.Add("BufferFill", new ValueStat(
+            () => _ringBuffer.Capacity > 0 ? 100.0 * _ringBuffer.Count / _ringBuffer.Capacity : null,
+            unit: "%"));
+        _instrumentations.Add("Overruns", new ValueStat(
+            () => _ringBuffer.OverrunCount, resetAction: _ringBuffer.ResetCounters));
+        _instrumentations.Add("Underruns", new ValueStat(
+            () => _ringBuffer.UnderrunCount, resetAction: _ringBuffer.ResetCounters));
     }
 
     public void Init()

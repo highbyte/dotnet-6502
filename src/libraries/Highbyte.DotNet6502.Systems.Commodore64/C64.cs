@@ -84,7 +84,10 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "Custom";
     private readonly ElapsedMillisecondsTimedStatSystem _spriteCollisionStat;
+
+    private const string StatsCategoryAudioProvider = "AudioProvider";
     private readonly ElapsedMillisecondsTimedStatSystem _audioProviderPerInstructionStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _audioProviderPerFrameStat;
 
     private const string StatsCategoryRenderProvider = "RenderProvider";
     private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerInstructionStat;
@@ -146,6 +149,14 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         _spriteCollisionStat.Start();
         Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
         _spriteCollisionStat.Stop();
+
+        // Audio generation at end of frame
+        if (_audioProvider != null)
+        {
+            _audioProviderPerFrameStat.Start();
+            _audioProvider.OnEndFrame();
+            _audioProviderPerFrameStat.Stop();
+        }
 
         // New render pipeline
         _renderProviderPerFrameStat.Start();
@@ -232,7 +243,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     {
         _logger = logger;
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
-        _audioProviderPerInstructionStat = Instrumentations.Add($"{StatsCategory}-AudioInstruction", new ElapsedMillisecondsTimedStatSystem(this));
+
+        _audioProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryAudioProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
+        _audioProviderPerFrameStat = Instrumentations.Add($"{StatsCategoryAudioProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));
 
         _renderProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
         _renderProviderPerFrameStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));

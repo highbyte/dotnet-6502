@@ -12,22 +12,50 @@
     <StackPanel Classes="spacing-large"
                 Grid.IsSharedSizeScope="True">
         <!-- Performance Stats -->
-        <TextBlock Text="Stats"
-                   Classes="h2"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Stats"
+                       VerticalAlignment="Center"
+                       Classes="h2"/>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        Classes="spacing-tight"
+                        VerticalAlignment="Center">
+                <Button Content="Copy"
+                        Classes="small"
+                        Click="OnCopyClick"
+                        AutomationProperties.AutomationId="StatsCopyButton"
+                        AutomationProperties.Name="Copy statistics to clipboard"
+                        ToolTip.Tip="Copy statistics to clipboard"/>
+                <Button Content="Reset"
+                        Classes="small"
+                        Click="OnResetClick"
+                        AutomationProperties.AutomationId="StatsResetButton"
+                        AutomationProperties.Name="Reset statistics"
+                        ToolTip.Tip="Reset accumulated statistics"/>
+            </StackPanel>
+        </Grid>
 
         <Border Classes="stats-container">
             <ItemsControl ItemsSource="{Binding Sections}" Classes="h-left">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel>
+                        <StackPanel Margin="{Binding GroupMargin}">
                             <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
-                                       Classes="accent bold small"/>
+                                       Classes="accent bold small"
+                                       ToolTip.Tip="{Binding Tooltip}"/>
                             <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Classes="">
+                                        <Grid Classes=""
+                                              Background="Transparent"
+                                              ToolTip.Tip="{Binding Tooltip}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"
+                                                                  MinWidth="108"
                                                                   SharedSizeGroup="StatName"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>

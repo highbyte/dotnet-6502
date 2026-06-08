@@ -126,7 +126,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     private const string SystemTimeStatName = "SystemTime";
     private const string RenderStatName = "Render";
     private const string InputTimeStatName = "InputTime";
-    private const string AudioTimeStatName = "AudioTime";
+    private const string AudioStatName = "Audio";
     private const string ScriptTimeStatName = "ScriptTime";
     private readonly Instrumentations _systemInstrumentations = new();
     private ElapsedMillisecondsTimedStatSystem? _systemTime;
@@ -826,7 +826,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         _systemTime = _systemInstrumentations.Add($"{_statsPrefix}{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         _inputTime = _systemInstrumentations.Add($"{_statsPrefix}{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         _scriptTime = _systemInstrumentations.Add($"{_statsPrefix}{ScriptTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
-        //_audioTime = InstrumentationBag.Add($"{_statsPrefix}{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        //_audioTime = InstrumentationBag.Add($"{_statsPrefix}{AudioStatName}", new ElapsedMillisecondsTimedStatSystem(system));
     }
 
     public List<(string name, IStat stat)> GetStats()
@@ -853,9 +853,9 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
         // Sub-system stat: audio
         if (_audioCoordinator != null)
-            stats.AddRange(_audioCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-{x.Name}", x.Stat)));
+            stats.AddRange(_audioCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioStatName}-{x.Name}", x.Stat)));
         if (_currentAudioTarget is IInstrumentationSource audioTargetInstrumentation)
-            stats.AddRange(audioTargetInstrumentation.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-Target-{x.Name}", x.Stat)));
+            stats.AddRange(audioTargetInstrumentation.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}Audio-Target-{x.Name}", x.Stat)));
 
         return stats;
     }
