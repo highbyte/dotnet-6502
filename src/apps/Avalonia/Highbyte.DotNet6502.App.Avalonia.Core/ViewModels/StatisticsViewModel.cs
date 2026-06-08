@@ -11,12 +11,18 @@ public class StatisticItem
 {
     public string Name { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;
+
+    // UI-only display order within its group. Lower is shown first; ties fall back to Name.
+    public int SortOrder { get; set; } = int.MaxValue;
 }
 
 public class StatisticSection
 {
     public string Title { get; set; } = string.Empty;
     public ObservableCollection<StatisticItem> Items { get; } = new();
+
+    // UI-only display order of the group. Lower is shown first; ties fall back to Title.
+    public int SortOrder { get; set; } = int.MaxValue;
 }
 
 public class StatisticsViewModel : ViewModelBase, IDisposable
@@ -27,6 +33,49 @@ public class StatisticsViewModel : ViewModelBase, IDisposable
 
     // Dynamic Statistics Collection grouped by section
     public ObservableCollection<StatisticSection> Sections { get; } = new();
+
+    // ----------------------------------------------------------------------------------
+    // UI-only display ordering.
+    // Groups are shown in the order listed here; stat names within a group are shown in
+    // the order listed in StatOrder. Anything not listed is appended after the listed
+    // ones, alphabetically. Edit these lists to change the display order.
+    // ----------------------------------------------------------------------------------
+    private static readonly string[] GroupOrder =
+    {
+        "Main",
+        "SystemTime",
+        "SystemTime-Custom",
+        "SystemTime-RenderProvider",
+        "SystemTime-AudioProvider",
+        "Render",
+        "Render-Target",
+        "Audio",
+        "Audio-Target"
+    };
+
+    private static readonly Dictionary<string, string[]> StatOrder = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Main"] = new[] { "SystemTime", "InputTime", "ScriptTime", "OnUpdateFPS" },
+        ["Render"] = new[] { "FPS", "FlushIfDirty" },
+        ["Audio"] = new[] { "CommandsPerSecond", "Execute", "BufferFill", "Underruns", "Overruns" },
+    };
+
+    private static int GroupSortOrderOf(string group)
+    {
+        var index = Array.FindIndex(GroupOrder, g => string.Equals(g, group, StringComparison.OrdinalIgnoreCase));
+        return index >= 0 ? index : int.MaxValue;
+    }
+
+    private static int StatSortOrderOf(string group, string name)
+    {
+        if (StatOrder.TryGetValue(group, out var names))
+        {
+            var index = Array.FindIndex(names, n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+                return index;
+        }
+        return int.MaxValue;
+    }
 
     public StatisticsViewModel(AvaloniaHostApp hostApp)
     {
@@ -66,7 +115,7 @@ public class StatisticsViewModel : ViewModelBase, IDisposable
 
         var groupedStats = new Dictionary<string, List<StatisticItem>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach ((string name, IStat stat) in stats.OrderBy(i => i.name, StringComparer.OrdinalIgnoreCase))
+        foreach ((string name, IStat stat) in stats)
         {
             if (!stat.ShouldShow())
                 continue;
@@ -91,26 +140,33 @@ public class StatisticsViewModel : ViewModelBase, IDisposable
             items.Add(new StatisticItem
             {
                 Name = displayName,
-                Value = description
+                Value = description,
+                SortOrder = StatSortOrderOf(sectionName, displayName)
             });
         }
 
-        foreach (var section in groupedStats
-                     .OrderBy(kvp => kvp.Key.Equals("Root", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-                     .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
+        // Sort groups by their UI sort order, then alphabetically for any not explicitly ordered.
+        var orderedGroups = groupedStats
+            .OrderBy(kvp => GroupSortOrderOf(kvp.Key))
+            .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in orderedGroups)
         {
-            var statisticSection = new StatisticSection
+            var section = new StatisticSection
             {
-                Title = section.Key
+                Title = group.Key,
+                SortOrder = GroupSortOrderOf(group.Key)
             };
 
-            foreach (var item in section.Value
-                         .OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase))
+            // Sort stats within the group by their UI sort order, then alphabetically.
+            foreach (var item in group.Value
+                         .OrderBy(i => i.SortOrder)
+                         .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase))
             {
-                statisticSection.Items.Add(item);
+                section.Items.Add(item);
             }
 
-            Sections.Add(statisticSection);
+            Sections.Add(section);
         }
     }
 

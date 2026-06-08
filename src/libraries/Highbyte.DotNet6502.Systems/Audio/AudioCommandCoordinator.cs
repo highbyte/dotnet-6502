@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.Systems.Audio;
 
@@ -19,14 +20,27 @@ public sealed class AudioCommandCoordinator : IAudioCoordinator, IDisposable
     private readonly Instrumentations _instrumentations = new();
     public Instrumentations Instrumentations => _instrumentations;
 
+    // Audio counterpart of the render coordinator's FPS + FlushIfDirty: CommandsPerSecond is the
+    // rate of audio commands forwarded to the host backend; Execute is the time spent applying one.
+    private readonly PerSecondTimedStat _commandsPerSecond;
+    private readonly ElapsedMillisecondsTimedStat _executeStat;
+
     public AudioCommandCoordinator(IAudioCommandStream stream, IAudioCommandTarget target)
     {
         _stream = stream;
         _target = target;
+        _commandsPerSecond = _instrumentations.Add("CommandsPerSecond", new PerSecondTimedStat());
+        _executeStat = _instrumentations.Add("Execute", new ElapsedMillisecondsTimedStat());
         _stream.CommandEmitted += OnCommandEmitted;
     }
 
-    private void OnCommandEmitted(IAudioCommand command) => _target.Execute(command);
+    private void OnCommandEmitted(IAudioCommand command)
+    {
+        _commandsPerSecond.Update();
+        _executeStat.Start();
+        _target.Execute(command);
+        _executeStat.Stop();
+    }
 
     public void Init() => _target.Init(_stream.VoiceCount);
 

@@ -18,6 +18,12 @@ public sealed class AudioSampleRingBuffer
     private int _writePos;
     private int _readPos;
 
+    // Diagnostics counters. Each counter has a single writer thread (overruns: the producer in
+    // TryWrite; underruns: the consumer in TryRead), so plain increments are safe. Reads (and the
+    // diagnostic Reset) go through Volatile for cross-thread visibility.
+    private long _overrunCount;
+    private long _underrunCount;
+
     /// <summary>Construct a ring buffer holding up to <paramref name="capacitySamples"/> samples.</summary>
     public AudioSampleRingBuffer(int capacitySamples)
     {
@@ -28,6 +34,19 @@ public sealed class AudioSampleRingBuffer
 
     /// <summary>Total sample capacity (excluding the one disambiguating slot).</summary>
     public int Capacity => _buffer.Length - 1;
+
+    /// <summary>Number of producer writes that had to drop one or more samples because the buffer was full.</summary>
+    public long OverrunCount => Volatile.Read(ref _overrunCount);
+
+    /// <summary>Number of consumer reads that were starved (fewer samples available than requested).</summary>
+    public long UnderrunCount => Volatile.Read(ref _underrunCount);
+
+    /// <summary>Resets the overrun/underrun diagnostic counters to zero.</summary>
+    public void ResetCounters()
+    {
+        Volatile.Write(ref _overrunCount, 0);
+        Volatile.Write(ref _underrunCount, 0);
+    }
 
     /// <summary>Samples currently in the buffer (snapshot; may change immediately on a live system).</summary>
     public int Count
@@ -57,6 +76,8 @@ public sealed class AudioSampleRingBuffer
             free += _buffer.Length;
 
         int toWrite = Math.Min(samples.Length, free);
+        if (toWrite < samples.Length)
+            _overrunCount++; // Buffer full: one or more samples dropped (producer outran consumer).
         if (toWrite == 0)
             return 0;
 
@@ -88,6 +109,8 @@ public sealed class AudioSampleRingBuffer
             available += _buffer.Length;
 
         int toRead = Math.Min(destination.Length, available);
+        if (toRead < destination.Length)
+            _underrunCount++; // Buffer starved: consumer wanted more than available (tail is silence).
         if (toRead == 0)
             return 0;
 
