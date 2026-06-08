@@ -1098,6 +1098,7 @@
 
         <!-- Info and Stats Panel (Right) -->
         <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" Classes="panel-container"
+            Width="200"
             IsVisible="{Binding IsStatisticsPanelVisible}">
             <ScrollViewer Classes="h-stretch">
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
