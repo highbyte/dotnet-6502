@@ -855,7 +855,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         if (_audioCoordinator != null)
             stats.AddRange(_audioCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-{x.Name}", x.Stat)));
         if (_currentAudioTarget is IInstrumentationSource audioTargetInstrumentation)
-            stats.AddRange(audioTargetInstrumentation.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-Target-{x.Name}", x.Stat)));
+            stats.AddRange(audioTargetInstrumentation.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}Audio-Target-{x.Name}", x.Stat)));
 
         return stats;
     }
