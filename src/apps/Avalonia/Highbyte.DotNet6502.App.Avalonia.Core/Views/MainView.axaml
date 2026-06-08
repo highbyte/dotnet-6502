@@ -44,7 +44,10 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
             <ColumnDefinition Width="Auto" />
-            <ColumnDefinition MaxWidth="200" />
+            <!-- Stats column: fixed width, always reserved. The Stats button toggles only the stats
+                 *content* inside this column (not the column itself), so the window width never changes
+                 when Stats is shown/hidden — which avoids the SizeToContent resize flicker. -->
+            <ColumnDefinition Width="200" />
         </Grid.ColumnDefinitions>
 
         <!-- Menu and Controls Panel (Left) -->
@@ -263,11 +266,16 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
+                <!-- Fixed to the selected system/variant display size (× Scale) so Start/Stop don't
+                     resize the window. Both the running emulator and the placeholder sit inside this
+                     stable container; it only changes on system/variant or Scale changes. -->
                 <Grid Grid.Row="0"
                     Name="EmulatorDisplayGrid"
                     HorizontalAlignment="Left"
-                    VerticalAlignment="Top">
-                    
+                    VerticalAlignment="Top"
+                    Width="{Binding EmulatorDisplayWidth}"
+                    Height="{Binding EmulatorDisplayHeight}">
+
                     <!-- Emulator Display Control -->
                     <views:EmulatorView Name="EmulatorView"
                         DataContext="{Binding EmulatorViewModel}"
@@ -1096,18 +1104,21 @@
             </Grid>
         </Border>
 
-        <!-- Info and Stats Panel (Right) -->
-        <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" Classes="panel-container"
-            IsVisible="{Binding IsStatisticsPanelVisible}">
-            <ScrollViewer Classes="h-stretch">
+        <!-- Info and Stats Panel (Right) — column is always present (see ColumnDefinition above).
+             Only the stats content toggles via IsStatisticsPanelVisible, so toggling Stats does not
+             resize the window. -->
+        <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" Classes="panel-container">
+            <ScrollViewer Classes="h-stretch"
+                IsVisible="{Binding IsStatisticsPanelVisible}">
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>
         </Border>
 
-        <!-- Status Bar (Bottom; always present) -->
+        <!-- Status Bar (Bottom; always present). Spans the full width of all three columns (the stats
+             column is now always present), so it stretches edge-to-edge rather than stopping at the
+             end of the emulator column. -->
         <views:StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
-                         HorizontalAlignment="Left"
-                         Width="{Binding ElementName=CenterPanel, Path=Bounds.Right}"/>
+                         HorizontalAlignment="Stretch"/>
         </Grid>
     </Grid>
 </UserControl>

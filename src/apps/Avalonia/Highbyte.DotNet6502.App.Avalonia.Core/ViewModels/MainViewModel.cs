@@ -123,6 +123,17 @@ public class MainViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Pixel size of the emulator display area for the currently selected system/variant
+    /// (screen Visible size × <see cref="Scale"/>). The emulator display container is bound to this,
+    /// so its size — and therefore the window size — only changes when the selected system/variant or
+    /// the Scale changes, NOT when the emulator is started/stopped. This keeps Start/Stop from
+    /// briefly resizing the window (the running render surface is created at a default size before
+    /// being sized to the real screen, which otherwise causes a shrink/expand flicker).
+    /// </summary>
+    public double EmulatorDisplayWidth => (_hostApp.CurrentSystemScreenInfo?.VisibleWidth ?? 320) * Scale;
+    public double EmulatorDisplayHeight => (_hostApp.CurrentSystemScreenInfo?.VisibleHeight ?? 200) * Scale;
+
+    /// <summary>
     /// Currently-active system menu contributor (supplies macOS native menu + keyboard shortcuts).
     /// Swaps when <see cref="SelectedSystemName"/> changes; null when no system is selected.
     /// </summary>
@@ -668,7 +679,24 @@ public class MainViewModel : ViewModelBase, IDisposable
               });
 
         this.WhenAnyValue(x => x.SelectedSystemName, x => x.SelectedSystemVariant)
-            .Subscribe(_ => this.RaisePropertyChanged(nameof(StatusSystemText)));
+            .Subscribe(_ =>
+            {
+                this.RaisePropertyChanged(nameof(StatusSystemText));
+                // The selected system/variant determines the emulator display size; refresh it so the
+                // display container (and window) resizes here — and only here (plus Scale changes).
+                this.RaisePropertyChanged(nameof(EmulatorDisplayWidth));
+                this.RaisePropertyChanged(nameof(EmulatorDisplayHeight));
+            });
+
+        // Scale also changes the emulator display size (the only other case the window should resize).
+        // Observe the HostApp's Scale source directly — the VM's own Scale getter reads _scale, which
+        // is not assigned until later in this constructor.
+        _hostApp.WhenAnyValue(x => x.Scale)
+            .Subscribe(_ =>
+            {
+                this.RaisePropertyChanged(nameof(EmulatorDisplayWidth));
+                this.RaisePropertyChanged(nameof(EmulatorDisplayHeight));
+            });
 
         _statusFpsTimer = new global::Avalonia.Threading.DispatcherTimer
         {
