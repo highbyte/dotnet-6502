@@ -192,7 +192,7 @@ public sealed class WebSocketTransport : Systems.Commodore64.Transport.ISwiftLin
         if (_sentByteLogCount < 32)
         {
             _sentByteLogCount++;
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "SwiftLink WebSocket transport sent byte 0x{Value:X2} to {BridgeUri}.",
                 value,
                 _bridgeUri);
@@ -270,7 +270,7 @@ public sealed class WebSocketTransport : Systems.Commodore64.Transport.ISwiftLin
                 if (_receivedByteLogCount < 32)
                 {
                     _receivedByteLogCount++;
-                    _logger.LogInformation(
+                    _logger.LogDebug(
                         "SwiftLink WebSocket transport received byte 0x{Value:X2} from {BridgeUri}.",
                         buffer[i],
                         _bridgeUri);
