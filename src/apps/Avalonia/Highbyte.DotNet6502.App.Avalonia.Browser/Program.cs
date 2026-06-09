@@ -198,7 +198,7 @@ internal sealed partial class Program
     /// </para>
     /// <code>
     /// # System-driven: select C64 (PAL), start, wait for BASIC ready
-    /// ?system=C64&amp;systemVariant=PAL&amp;start=1&amp;waitForSystemReady=1
+    /// ?system=C64&amp;systemVariant=C64PAL&amp;start=1&amp;waitForSystemReady=1
     ///
     /// # Load and run a bundled PRG (same-origin URL)
     /// ?system=C64&amp;start=1&amp;waitForSystemReady=1&amp;loadPrgUrl=prg/c64/smooth_scroller_and_raster.prg&amp;runLoadedProgram=1

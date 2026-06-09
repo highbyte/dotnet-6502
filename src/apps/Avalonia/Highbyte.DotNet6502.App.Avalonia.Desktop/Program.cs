@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Input;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Highbyte.DotNet6502.Utils;
@@ -58,10 +59,19 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--enableExternalDebug</c></term>
+    ///     <description>
+    ///       Start the TCP debug adapter server for VSCode debugging. This is the flag that actually
+    ///       enables the server; <c>--debug-port</c> / <c>--debug-bind-address</c> / <c>--debug-wait</c>
+    ///       only configure it. The server listens on <c>--debug-port</c> (default <c>6502</c>) bound
+    ///       to <c>--debug-bind-address</c> (default <c>127.0.0.1</c>).
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--debug-port &lt;port&gt;</c></term>
     ///     <description>
-    ///       Enable TCP debug adapter server on the specified port for VSCode debugging.
-    ///       Port must be between 1 and 65535.
+    ///       Port the TCP debug adapter server listens on. Defaults to <c>6502</c>. Port must be
+    ///       between 1 and 65535. Only has effect together with <c>--enableExternalDebug</c>.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -69,14 +79,14 @@ internal sealed partial class Program
     ///     <description>
     ///       IP address the debug adapter server binds to. Defaults to <c>127.0.0.1</c> (loopback only).
     ///       Use <c>0.0.0.0</c> to accept connections from any network interface (note: the debug adapter is unauthenticated
-    ///       and exposes emulator debugging control; only expose to trusted networks). Only has effect together with <c>--debug-port</c>.
+    ///       and exposes emulator debugging control; only expose to trusted networks). Only has effect together with <c>--enableExternalDebug</c>.
     ///     </description>
     ///   </item>
     ///   <item>
     ///     <term><c>--debug-wait</c></term>
     ///     <description>
     ///       Wait for debug client to connect before starting the application.
-    ///       Only effective when used with <c>--debug-port</c>. Times out after 30 seconds.
+    ///       Only effective when used with <c>--enableExternalDebug</c>. Times out after 30 seconds.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -129,10 +139,20 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--loadPrgUrl &lt;url&gt;</c></term>
+    ///     <description>
+    ///       Fetch a <c>.prg</c> file from an absolute <c>http</c>/<c>https</c> URL and load it into
+    ///       memory. Same semantics as <c>--loadPrg</c> but the bytes are downloaded instead of read
+    ///       from the local filesystem. Requires <c>--start</c>; mutually exclusive with
+    ///       <c>--loadPrg</c>, <c>--loadD64</c>, and <c>--loadD64Url</c>. For C64 BASIC-style
+    ///       programs, use <c>--waitForSystemReady</c>. Browser-equivalent of <c>loadPrgUrl</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--runLoadedProgram</c></term>
     ///     <description>
-    ///       Run the loaded program after loading. Requires <c>--start</c> and <c>--loadPrg</c>
-    ///       (or <c>--loadD64</c>). For C64 BASIC-style programs, pair with <c>--waitForSystemReady</c>.
+    ///       Run the loaded program after loading. Requires <c>--start</c> and one of <c>--loadPrg</c>,
+    ///       <c>--loadPrgUrl</c>, <c>--loadD64</c>, or <c>--loadD64Url</c>. For C64 BASIC-style programs, pair with <c>--waitForSystemReady</c>.
     ///       In the <c>--loadD64</c> flow, controls whether the disk-info <c>RunCommands</c>
     ///       (e.g. <c>LOAD"*",8,1</c> + <c>RUN</c>) are pasted after the load / mount.
     ///     </description>
@@ -142,7 +162,16 @@ internal sealed partial class Program
     ///     <description>
     ///       Load a C64 <c>.d64</c> disk image. Requires <c>--system C64</c>, <c>--start</c>,
     ///       <c>--waitForSystemReady</c>, and exactly one of <c>--d64Program</c> or <c>--diskMount</c>.
-    ///       Mutually exclusive with <c>--loadPrg</c>.
+    ///       Mutually exclusive with <c>--loadPrg</c>, <c>--loadPrgUrl</c>, and <c>--loadD64Url</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--loadD64Url &lt;url&gt;</c></term>
+    ///     <description>
+    ///       Fetch a C64 <c>.d64</c> disk image from an absolute <c>http</c>/<c>https</c> URL. Same
+    ///       semantics and requirements as <c>--loadD64</c> but the bytes are downloaded instead of
+    ///       read from the local filesystem. Mutually exclusive with <c>--loadD64</c>,
+    ///       <c>--loadPrg</c>, and <c>--loadPrgUrl</c>. Browser-equivalent of <c>loadD64Url</c>.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -238,6 +267,12 @@ internal sealed partial class Program
     ///
     /// # Start C64, direct-load the first PRG from a .d64 image (no disk mount) and RUN it
     /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadD64 ~/Downloads/SomeGame.d64 --d64Program "*" --runLoadedProgram
+    ///
+    /// # Start C64, fetch a .prg over HTTP and run it
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadPrgUrl https://example.com/game.prg --runLoadedProgram
+    ///
+    /// # Start C64, fetch a .d64 over HTTP, direct-load the first PRG (no disk mount) and RUN it
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadD64Url https://example.com/game.d64 --d64Program "*" --runLoadedProgram
     /// </code>
     /// <para>
     /// For multi-step workflows not covered by the discrete flags (e.g. mounting a disk and
@@ -325,6 +360,7 @@ internal sealed partial class Program
         bool autoStart = args.Contains("--start");
         bool waitForSystemReady = args.Contains("--waitForSystemReady");
         string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrg");
+        string? loadPrgUrl = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrgUrl");
         bool runLoadedProgram = args.Contains("--runLoadedProgram");
         var statsInterval = ParseDurationSecondsArgument(args, "--stats-interval");
         if (statsInterval == TimeSpan.MinValue)
@@ -339,6 +375,7 @@ internal sealed partial class Program
 
         // Parse C64 .d64 startup arguments (handled by C64AvaloniaStartupParticipant via ExtraParameters)
         string? loadD64Path = AutomatedStartupHandler.ParseStringArgument(args, "--loadD64");
+        string? loadD64Url = AutomatedStartupHandler.ParseStringArgument(args, "--loadD64Url");
         string? d64Program = AutomatedStartupHandler.ParseStringArgument(args, "--d64Program");
         bool diskMount = args.Contains("--diskMount");
         string? keyboardJoystickNumberRaw = AutomatedStartupHandler.ParseStringArgument(args, "--keyboardJoystickNumber");
@@ -350,7 +387,31 @@ internal sealed partial class Program
         // is set. When --loadD64 is supplied, suppress that one check by feeding the validator a
         // sentinel path; the real request carries the original (null) loadPrgPath unchanged.
         bool hasScripts = scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
-        var validatorLoadPrgPath = loadPrgPath ?? (loadD64Path != null ? "<loadD64>" : null);
+
+        // --loadPrg and --loadPrgUrl are two sources for the same PRG load; only one may be given.
+        if (loadPrgPath != null && loadPrgUrl != null)
+        {
+            Console.Error.WriteLine("Error: --loadPrg and --loadPrgUrl are mutually exclusive.");
+            return 1;
+        }
+        // Same for the two .d64 sources.
+        if (loadD64Path != null && loadD64Url != null)
+        {
+            Console.Error.WriteLine("Error: --loadD64 and --loadD64Url are mutually exclusive.");
+            return 1;
+        }
+        // Validate any supplied load URL is an absolute http/https URL (desktop fetches over HTTP).
+        if (!ValidateAbsoluteHttpUrl(loadPrgUrl, "--loadPrgUrl") || !ValidateAbsoluteHttpUrl(loadD64Url, "--loadD64Url"))
+        {
+            return 1;
+        }
+
+        // The shared validator predates the URL variants and the .d64 flow: it only knows
+        // --loadPrg. Feed it the effective PRG source (local path or URL), or a sentinel when a
+        // .d64 (path or URL) is the load source, so its "--start required" / "--runLoadedProgram
+        // requires a load" rules apply uniformly.
+        var effectiveLoadPrg = loadPrgPath ?? loadPrgUrl;
+        var validatorLoadPrgPath = effectiveLoadPrg ?? ((loadD64Path != null || loadD64Url != null) ? "<loadD64>" : null);
         if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, validatorLoadPrgPath, runLoadedProgram, hasScripts))
         {
             return 1; // Exit with error code
@@ -361,11 +422,14 @@ internal sealed partial class Program
             return 1;
         }
 
-        // Validate .d64 startup arguments locally (handler stays system-agnostic).
+        // Validate .d64 startup arguments locally (handler stays system-agnostic). The validator is
+        // source-agnostic: it takes the effective .d64 load (local path or URL) and the effective
+        // PRG load (local path or URL) so the same rules apply regardless of where the bytes come from.
+        var effectiveLoadD64 = loadD64Path ?? loadD64Url;
         if (!ValidateD64Arguments(
-                loadD64Path, d64Program, diskMount,
+                effectiveLoadD64, d64Program, diskMount,
                 keyboardJoystickEnabledFlag, keyboardJoystickNumberRaw, audioEnabledRaw,
-                systemName, autoStart, waitForSystemReady, loadPrgPath,
+                systemName, autoStart, waitForSystemReady, effectiveLoadPrg,
                 out int parsedKeyboardJoystickNumber, out bool? parsedAudioEnabled))
         {
             return 1;
@@ -504,8 +568,51 @@ internal sealed partial class Program
         // ----------
         // Initialize Lua scripting engine
         // ----------
-        bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram;
+        bool automatedStartupMode = autoStart || waitForSystemReady || effectiveLoadPrg != null || loadD64Url != null || runLoadedProgram;
         var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "desktop");
+
+        // HTTP-backed load sources for the URL variants (--loadPrgUrl / --loadD64Url). Desktop
+        // downloads the bytes itself; the Browser host does the equivalent. Both stay null in the
+        // local-file path so the existing filesystem load path is unchanged.
+        Func<Task<byte[]>>? loadPrgBytesProvider = null;
+        if (loadPrgUrl != null)
+        {
+            var prgUrl = loadPrgUrl;
+            loadPrgBytesProvider = async () =>
+            {
+                using var http = new HttpClient();
+                WriteBootstrapLog($"Fetching PRG from '{prgUrl}'...");
+                var bytes = await http.GetByteArrayAsync(prgUrl);
+                WriteBootstrapLog($"Fetched {bytes.Length} bytes from '{prgUrl}'.");
+                return bytes;
+            };
+        }
+
+        // When a .d64 URL is supplied, give the C64 startup participant a binary-resource fetcher so
+        // it can download the image after BASIC reports ready (mirrors the Browser host). A text
+        // fetcher is included too so any future text-based participant automation works the same way.
+        AutomatedStartupContext? automatedStartupContext = null;
+        if (loadD64Url != null)
+        {
+            automatedStartupContext = new AutomatedStartupContext
+            {
+                FetchBinaryResource = async url =>
+                {
+                    using var http = new HttpClient();
+                    WriteBootstrapLog($"Fetching binary resource from '{url}'...");
+                    var bytes = await http.GetByteArrayAsync(url);
+                    WriteBootstrapLog($"Fetched {bytes.Length} bytes from '{url}'.");
+                    return bytes;
+                },
+                FetchTextResource = async url =>
+                {
+                    using var http = new HttpClient();
+                    var bytes = await http.GetByteArrayAsync(url);
+                    var text = System.Text.Encoding.UTF8.GetString(bytes);
+                    return text.Length > 0 && text[0] == '\uFEFF' ? text[1..] : text;
+                },
+            };
+        }
 
         // Build an automated-startup runner that MainViewModel.InitializeAsync invokes from
         // MainView.OnViewLoaded. When non-null, it suppresses the UI's default system selection.
@@ -551,14 +658,19 @@ internal sealed partial class Program
 
                 var d64Extras = BuildD64Extras(
                     loadD64Path,
+                    loadD64Url,
                     d64Program,
                     diskMount,
                     keyboardJoystickEnabledFlag,
                     keyboardJoystickNumberRaw != null ? (int?)parsedKeyboardJoystickNumber : null,
                     parsedAudioEnabled);
+                // Pass the effective PRG source (local path or URL) as LoadPrgPath: the handler uses
+                // loadPrgBytesProvider for the bytes when it is set (URL case), but a non-null
+                // LoadPrgPath is what tells the C64 participant a PRG load is pending so it applies
+                // the BASIC-settle wait — matching the local-file behaviour.
                 var startupRequest = new AutomatedStartupRequest(
                     systemName, systemVariant, autoStart, waitForSystemReady,
-                    loadPrgPath, runLoadedProgram, enableExternalDebug)
+                    effectiveLoadPrg, runLoadedProgram, enableExternalDebug)
                 {
                     ExtraParameters = d64Extras,
                 };
@@ -570,7 +682,9 @@ internal sealed partial class Program
                     prepareForExternalDebuggerStart: debuggableHostApp != null
                         ? () => debuggableHostApp.WaitForExternalDebugger = true
                         : null,
-                    startupParticipant: startupParticipant);
+                    loadPrgBytesProvider: loadPrgBytesProvider,
+                    startupParticipant: startupParticipant,
+                    startupContext: automatedStartupContext);
 
                 if (hostApp is HostApp instrumentedHostApp)
                     Dispatcher.UIThread.Post(() => s_automatedRunController?.Start(instrumentedHostApp));
@@ -729,6 +843,25 @@ internal sealed partial class Program
     }
 
     /// <summary>
+    /// Validates that a supplied load URL (<c>--loadPrgUrl</c> / <c>--loadD64Url</c>) is an absolute
+    /// <c>http</c>/<c>https</c> URL. Null (flag absent) passes. Prints to stderr and returns false on
+    /// a malformed or non-HTTP URL so the caller exits 1.
+    /// </summary>
+    private static bool ValidateAbsoluteHttpUrl(string? url, string argumentName)
+    {
+        if (url == null)
+            return true;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            Console.Error.WriteLine($"Error: {argumentName} must be an absolute http/https URL.");
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Validates the .d64 startup CLI flags (Desktop). Returns false on hard errors (prints to
     /// stderr and the caller exits 1). C64-only knobs supplied without <c>--loadD64</c> are
     /// downgraded to a warning so users can keep them while iterating on a partial command line.
@@ -782,7 +915,7 @@ internal sealed partial class Program
 
         // --keyboardJoystick* / --audioEnabled are general C64 runtime knobs. They only need
         // --system C64 to apply (they take effect when the C64 starts, regardless of how it was
-        // started — plain --start, --loadPrg, --basicText, or --loadD64).
+        // started — plain --start, --loadPrg / --loadPrgUrl, or --loadD64 / --loadD64Url).
         var hasRuntimeConfigKnobs = keyboardJoystickEnabled || keyboardJoystickNumberRaw != null || audioEnabledRaw != null;
         if (hasRuntimeConfigKnobs
             && !string.Equals(systemName, "C64", StringComparison.OrdinalIgnoreCase))
@@ -797,22 +930,22 @@ internal sealed partial class Program
         // system selection — Desktop doesn't reference the C64 library directly.
         if (!string.Equals(systemName, "C64", StringComparison.OrdinalIgnoreCase))
         {
-            Console.Error.WriteLine("Error: --loadD64 requires --system C64.");
+            Console.Error.WriteLine("Error: --loadD64/--loadD64Url requires --system C64.");
             return false;
         }
         if (!autoStart || !waitForSystemReady)
         {
-            Console.Error.WriteLine("Error: --loadD64 requires --start and --waitForSystemReady.");
+            Console.Error.WriteLine("Error: --loadD64/--loadD64Url requires --start and --waitForSystemReady.");
             return false;
         }
         if (loadPrgPath != null)
         {
-            Console.Error.WriteLine("Error: --loadD64 is mutually exclusive with --loadPrg.");
+            Console.Error.WriteLine("Error: --loadD64/--loadD64Url is mutually exclusive with --loadPrg/--loadPrgUrl.");
             return false;
         }
         if (d64Program == null && !diskMount)
         {
-            Console.Error.WriteLine("Error: --loadD64 requires exactly one of --d64Program or --diskMount.");
+            Console.Error.WriteLine("Error: --loadD64/--loadD64Url requires exactly one of --d64Program or --diskMount.");
             return false;
         }
         if (d64Program != null && diskMount)
@@ -824,19 +957,17 @@ internal sealed partial class Program
     }
 
     /// <summary>
-    /// Build the <see cref="AutomatedStartupRequest.ExtraParameters"/> dictionary the
-    /// C64 Avalonia startup participant reads. Empty / null entries are skipped so the
-    /// participant sees only what the user actually supplied.
-    /// </summary>
-    /// <summary>
     /// Build the <see cref="AutomatedStartupRequest.ExtraParameters"/> dictionary the C64 Avalonia
-    /// startup participant reads. <c>.d64</c> keys (<c>loadD64Path</c>/<c>d64Program</c>/<c>diskMount</c>)
-    /// are only emitted when <c>--loadD64</c> is supplied; the C64 runtime knobs
+    /// startup participant reads. <c>.d64</c> keys
+    /// (<c>loadD64Path</c> or <c>loadD64Url</c>, plus <c>d64Program</c>/<c>diskMount</c>) are only
+    /// emitted when <c>--loadD64</c> or <c>--loadD64Url</c> is supplied; the C64 runtime knobs
     /// (<c>keyboardJoystickEnabled</c>/<c>keyboardJoystickNumber</c>/<c>audioEnabled</c>) are
     /// emitted whenever the user supplied them, since they apply for any C64 start path.
+    /// Empty / null entries are skipped so the participant sees only what the user actually supplied.
     /// </summary>
     private static IReadOnlyDictionary<string, string> BuildD64Extras(
         string? loadD64Path,
+        string? loadD64Url,
         string? d64Program,
         bool diskMount,
         bool keyboardJoystickEnabled,
@@ -845,9 +976,14 @@ internal sealed partial class Program
     {
         var extras = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        if (loadD64Path != null)
+        if (loadD64Path != null || loadD64Url != null)
         {
-            extras["loadD64Path"] = loadD64Path;
+            // The participant resolves the bytes from whichever key is present: 'loadD64Path' reads
+            // the local file, 'loadD64Url' downloads via AutomatedStartupContext.FetchBinaryResource.
+            if (loadD64Path != null)
+                extras["loadD64Path"] = loadD64Path;
+            if (loadD64Url != null)
+                extras["loadD64Url"] = loadD64Url;
             if (d64Program != null)
                 extras["d64Program"] = d64Program;
             if (diskMount)
