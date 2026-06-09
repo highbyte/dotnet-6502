@@ -13,6 +13,12 @@ public class EmulatorViewModel : ViewModelBase
     public event EventHandler? RequestFocus;
     public event EventHandler<RenderConfigurationEventArgs>? RequestRenderConfiguration;
 
+    /// <summary>
+    /// Raised when the emulator has stopped, so the view can clear the (now stale) render control.
+    /// Prevents the previous system's last frame from briefly showing when a new system is started.
+    /// </summary>
+    public event EventHandler? RequestClearDisplay;
+
     public EmulatorViewModel(AvaloniaHostApp hostApp)
     {
         _hostApp = hostApp;
@@ -39,6 +45,12 @@ public class EmulatorViewModel : ViewModelBase
 
                 // Also make sure the view has focus to receive keyboard input
                 RequestFocus?.Invoke(this, EventArgs.Empty);
+            }
+            else if (_hostApp.EmulatorState == EmulatorState.Uninitialized)
+            {
+                // Emulator stopped: drop the stale render control so its last frame isn't shown
+                // when the view becomes visible again on the next start.
+                RequestClearDisplay?.Invoke(this, EventArgs.Empty);
             }
         }
     }

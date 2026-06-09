@@ -130,8 +130,12 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// briefly resizing the window (the running render surface is created at a default size before
     /// being sized to the real screen, which otherwise causes a shrink/expand flicker).
     /// </summary>
-    public double EmulatorDisplayWidth => (_hostApp.CurrentSystemScreenInfo?.VisibleWidth ?? 320) * Scale;
-    public double EmulatorDisplayHeight => (_hostApp.CurrentSystemScreenInfo?.VisibleHeight ?? 200) * Scale;
+    // Read the Scale from _hostApp directly rather than via the VM's Scale property (an OAPH).
+    // When _hostApp.Scale changes, the subscription that raises PropertyChanged for these properties
+    // fires before the Scale OAPH updates, so reading the OAPH here would yield the previous scale and
+    // leave the display container lagging one step behind the render control.
+    public double EmulatorDisplayWidth => (_hostApp.CurrentSystemScreenInfo?.VisibleWidth ?? 320) * _hostApp.Scale;
+    public double EmulatorDisplayHeight => (_hostApp.CurrentSystemScreenInfo?.VisibleHeight ?? 200) * _hostApp.Scale;
 
     /// <summary>
     /// Currently-active system menu contributor (supplies macOS native menu + keyboard shortcuts).

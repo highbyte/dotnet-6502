@@ -82,6 +82,7 @@ public partial class EmulatorView : UserControl
             //_subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _subscribedViewModel.RequestFocus -= OnRequestFocus;
             _subscribedViewModel.RequestRenderConfiguration -= OnRequestRenderConfiguration;
+            _subscribedViewModel.RequestClearDisplay -= OnRequestClearDisplay;
         }
 
         // Subscribe to new ViewModel's events and property changes
@@ -91,6 +92,7 @@ public partial class EmulatorView : UserControl
             //_subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
             _subscribedViewModel.RequestFocus += OnRequestFocus;
             _subscribedViewModel.RequestRenderConfiguration += OnRequestRenderConfiguration;
+            _subscribedViewModel.RequestClearDisplay += OnRequestClearDisplay;
 
             // Note: We don't register the render control here because it's null at this point.
             // Registration happens in OnRequestRenderConfiguration after the control is created.
@@ -129,6 +131,21 @@ public partial class EmulatorView : UserControl
             if (HostApp != null && _renderControl != null)
             {
                 HostApp.RegisterRenderControl(_renderControl);
+            }
+        }, DispatcherPriority.Background);
+    }
+
+    private void OnRequestClearDisplay(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            // Remove the stale render control (and its last-frame bitmap) when the emulator stops.
+            // Otherwise it would briefly be shown when the view becomes visible again on the next start,
+            // before OnRequestRenderConfiguration creates the new control.
+            if (_renderControl != null)
+            {
+                RenderingControlContainer.Content = null;
+                _renderControl = null;
             }
         }, DispatcherPriority.Background);
     }
