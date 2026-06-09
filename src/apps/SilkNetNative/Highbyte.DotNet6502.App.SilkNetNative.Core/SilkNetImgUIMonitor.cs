@@ -66,20 +66,6 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
         //ImGui.SetWindowPos(new Vector2(POS_X, POS_Y));
         //ImGui.SetWindowSize(new Vector2(WIDTH, HEIGHT));
 
-        if (!_hasBeenInitializedOnce)
-        {
-            // Init monitor list of history commands with blanks
-            for (int i = 0; i < SilkNetNativeMonitor.MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
-                _silkNetNativeMonitor.WriteOutput("");
-
-            // Show description and general help text first time
-            _silkNetNativeMonitor.ShowDescription();
-            _silkNetNativeMonitor.WriteOutput("");
-            _silkNetNativeMonitor.ShowHelp();
-
-            _hasBeenInitializedOnce = true;
-        }
-
         ImGui.Begin($"6502 Monitor: {_silkNetNativeMonitor.System.Name}", ImGuiWindowFlags.NoScrollbar);
 
         if (ImGui.IsWindowFocused())
@@ -178,12 +164,29 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
         Quit = false;
         Visible = true;
         _setFocusOnInput = true;
-        _silkNetNativeMonitor.Reset();   // Reset monitor working variables (like last disassembly location)
+        _silkNetNativeMonitor.Reset();   // Reset monitor working variables (re-anchor disassembly to PC)
+
+        if (!_hasBeenInitializedOnce)
+        {
+            // Init monitor list of history commands with blanks
+            for (int i = 0; i < SilkNetNativeMonitor.MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
+                _silkNetNativeMonitor.WriteOutput("");
+
+            // Show description and general help text first time. Done here (before the current
+            // instruction below) rather than during render, so the first-entry instruction line
+            // isn't pushed above the help text and out of view.
+            _silkNetNativeMonitor.ShowDescription();
+            _silkNetNativeMonitor.WriteOutput("");
+            _silkNetNativeMonitor.ShowHelp();
+
+            _hasBeenInitializedOnce = true;
+        }
 
         if (execEvaluatorTriggerResult != null)
             _silkNetNativeMonitor.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
-        //else
-        //    WriteOutput($"Monitor enabled manually.", MessageSeverity.Information);
+
+        _silkNetNativeMonitor.ShowCurrentInstruction();
+
         OnMonitorStateChange(true);
     }
 

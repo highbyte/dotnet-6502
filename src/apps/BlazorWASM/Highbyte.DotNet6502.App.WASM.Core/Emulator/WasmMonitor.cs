@@ -35,6 +35,8 @@ public class WasmMonitor : MonitorBase
 
     public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
+        Reset();   // Reset monitor working variables (re-anchor disassembly to PC)
+
         if (!_hasBeenInitializedOnce)
         {
             // Show description and general help text first time
@@ -47,8 +49,8 @@ public class WasmMonitor : MonitorBase
 
         if (execEvaluatorTriggerResult != null)
             ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
-        //else
-        //    WriteOutput("Monitor enabled manually.");
+
+        ShowCurrentInstruction();
 
         DisplayStatus();
 

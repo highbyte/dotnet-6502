@@ -148,10 +148,28 @@ internal class MonitorConsole : Console
     public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
         var monitor = GetMonitorOrThrow();
-        monitor.Reset();   // Reset monitor working variables (like last disassembly location)
+        monitor.Reset();   // Reset monitor working variables (re-anchor disassembly to PC)
+
+        // Print the entry info (optional break-trigger reason + current instruction at PC) with the
+        // keyboard handler detached. Printing while it's attached advances the cursor below its
+        // CursorLastY without updating it, so the next Enter reads a span of empty cells and splits
+        // them into many empty tokens (a flood of "Unrecognized command or argument ''"). Detaching
+        // and re-adding the handler re-runs OnAdded -> PrintPrompt, which re-syncs CursorLastY.
+        if (SadComponents.Contains(_keyboardHandlerObject))
+            SadComponents.Remove(_keyboardHandlerObject);
+
+        // Overwrite the existing "> " prompt line so the output isn't glued to it.
+        Cursor.CarriageReturn();
 
         if (execEvaluatorTriggerResult != null)
             monitor.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+
+        monitor.ShowCurrentInstruction();
+
+        // Printing may have scrolled the surface; reset before re-adding so the handler's
+        // CursorLastY tracking starts clean.
+        Surface.TimesShiftedUp = 0;
+        SadComponents.Add(_keyboardHandlerObject);
 
         IsVisible = true;
         IsFocused = true;

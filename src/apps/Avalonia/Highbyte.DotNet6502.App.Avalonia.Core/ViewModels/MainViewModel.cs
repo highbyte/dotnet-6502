@@ -742,6 +742,13 @@ public class MainViewModel : ViewModelBase, IDisposable
 
                 _currentMonitor = monitor;
 
+                // Invalidate any cached MonitorViewModel: it holds a reference to the previous
+                // AvaloniaMonitor instance. On Stop/Start a brand new monitor is created, so the
+                // cached view model would otherwise drive a dead monitor (g/close button and
+                // auto-close stop working, and the emulator never resumes). The getter lazily
+                // recreates it against the current monitor when needed.
+                MonitorViewModel = null;
+
                 // Update visibility when monitor changes (e.g., on Stop, Monitor becomes null)
                 IsMonitorVisible = monitor?.IsVisible ?? false;
 
