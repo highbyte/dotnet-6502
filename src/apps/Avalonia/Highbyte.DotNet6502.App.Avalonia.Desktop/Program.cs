@@ -191,6 +191,39 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--basicText &lt;text&gt;</c></term>
+    ///     <description>
+    ///       Inline C64 BASIC source text (plain text) to paste into the running C64 after BASIC is
+    ///       ready. Requires <c>--system C64</c>, <c>--start</c>, and <c>--waitForSystemReady</c>.
+    ///       Mutually exclusive with <c>--basicFile</c>, <c>--basicUrl</c>, and any PRG / <c>.d64</c>
+    ///       load flag. Browser-equivalent of <c>basicText</c> (the browser value is base64url-encoded
+    ///       because it travels in a URL; the desktop flag takes plain text).
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--basicFile &lt;path&gt;</c></term>
+    ///     <description>
+    ///       Load C64 BASIC source text from a local file and paste it after BASIC is ready. Same
+    ///       requirements and exclusivity as <c>--basicText</c>. The desktop-natural equivalent of the
+    ///       browser <c>basicUrl</c> parameter (local file vs URL).
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--basicUrl &lt;url&gt;</c></term>
+    ///     <description>
+    ///       Fetch C64 BASIC source text from an absolute <c>http</c>/<c>https</c> URL and paste it
+    ///       after BASIC is ready. Same requirements and exclusivity as <c>--basicText</c>.
+    ///       Browser-equivalent of <c>basicUrl</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--runBasic</c></term>
+    ///     <description>
+    ///       After the BASIC source has been pasted, queue <c>run</c> + Return. Requires one of
+    ///       <c>--basicText</c>, <c>--basicFile</c>, or <c>--basicUrl</c>. Mirrors browser <c>runBasic</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--keyboardJoystickEnabled</c></term>
     ///     <description>
     ///       Force-enable the C64 keyboard-emulated joystick before starting. Requires
@@ -273,6 +306,9 @@ internal sealed partial class Program
     ///
     /// # Start C64, fetch a .d64 over HTTP, direct-load the first PRG (no disk mount) and RUN it
     /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadD64Url https://example.com/game.d64 --d64Program "*" --runLoadedProgram
+    ///
+    /// # Start C64, paste BASIC source from a local .bas file and run it
+    /// ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --basicFile hello.bas --runBasic
     /// </code>
     /// <para>
     /// For multi-step workflows not covered by the discrete flags (e.g. mounting a disk and
@@ -382,6 +418,15 @@ internal sealed partial class Program
         bool keyboardJoystickEnabledFlag = args.Contains("--keyboardJoystickEnabled");
         string? audioEnabledRaw = AutomatedStartupHandler.ParseStringArgument(args, "--audioEnabled");
 
+        // Parse C64 BASIC-paste startup arguments (also handled by C64AvaloniaStartupParticipant).
+        // Three mutually exclusive sources for the same BASIC text: inline (--basicText), local file
+        // (--basicFile), or HTTP (--basicUrl). The participant reads a base64url 'basicText' extra or
+        // a 'basicUrl' extra, so --basicText / --basicFile are encoded into the 'basicText' extra below.
+        string? basicTextArg = AutomatedStartupHandler.ParseStringArgument(args, "--basicText");
+        string? basicFileArg = AutomatedStartupHandler.ParseStringArgument(args, "--basicFile");
+        string? basicUrl = AutomatedStartupHandler.ParseStringArgument(args, "--basicUrl");
+        bool runBasic = args.Contains("--runBasic");
+
         // Validate automated startup arguments.
         // The handler validator predates --loadD64 and rejects --runLoadedProgram unless --loadPrg
         // is set. When --loadD64 is supplied, suppress that one check by feeding the validator a
@@ -431,6 +476,17 @@ internal sealed partial class Program
                 keyboardJoystickEnabledFlag, keyboardJoystickNumberRaw, audioEnabledRaw,
                 systemName, autoStart, waitForSystemReady, effectiveLoadPrg,
                 out int parsedKeyboardJoystickNumber, out bool? parsedAudioEnabled))
+        {
+            return 1;
+        }
+
+        // Validate the C64 BASIC-paste flags and resolve the inline / file sources into a base64url
+        // 'basicText' value (the participant always base64url-decodes that extra). On error: exit 1.
+        if (!ValidateBasicArguments(
+                basicTextArg, basicFileArg, basicUrl, runBasic,
+                systemName, autoStart, waitForSystemReady,
+                effectiveLoadPrg, effectiveLoadD64,
+                out string? basicTextEncoded))
         {
             return 1;
         }
@@ -568,7 +624,7 @@ internal sealed partial class Program
         // ----------
         // Initialize Lua scripting engine
         // ----------
-        bool automatedStartupMode = autoStart || waitForSystemReady || effectiveLoadPrg != null || loadD64Url != null || runLoadedProgram;
+        bool automatedStartupMode = autoStart || waitForSystemReady || effectiveLoadPrg != null || loadD64Url != null || runLoadedProgram || basicTextEncoded != null || basicUrl != null;
         var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "desktop");
 
         // HTTP-backed load sources for the URL variants (--loadPrgUrl / --loadD64Url). Desktop
@@ -588,11 +644,11 @@ internal sealed partial class Program
             };
         }
 
-        // When a .d64 URL is supplied, give the C64 startup participant a binary-resource fetcher so
-        // it can download the image after BASIC reports ready (mirrors the Browser host). A text
-        // fetcher is included too so any future text-based participant automation works the same way.
+        // When a .d64 URL or a --basicUrl is supplied, give the C64 startup participant resource
+        // fetchers so it can download the image / BASIC text after BASIC reports ready (mirrors the
+        // Browser host). FetchBinaryResource serves --loadD64Url; FetchTextResource serves --basicUrl.
         AutomatedStartupContext? automatedStartupContext = null;
-        if (loadD64Url != null)
+        if (loadD64Url != null || basicUrl != null)
         {
             automatedStartupContext = new AutomatedStartupContext
             {
@@ -656,14 +712,25 @@ internal sealed partial class Program
                 var startupParticipant = Core.App.Current?.GetServiceProvider()
                     ?.GetKeyedService<IAutomatedStartupParticipant>(systemName);
 
-                var d64Extras = BuildD64Extras(
-                    loadD64Path,
-                    loadD64Url,
-                    d64Program,
-                    diskMount,
-                    keyboardJoystickEnabledFlag,
-                    keyboardJoystickNumberRaw != null ? (int?)parsedKeyboardJoystickNumber : null,
-                    parsedAudioEnabled);
+                var startupExtras = new Dictionary<string, string>(
+                    BuildD64Extras(
+                        loadD64Path,
+                        loadD64Url,
+                        d64Program,
+                        diskMount,
+                        keyboardJoystickEnabledFlag,
+                        keyboardJoystickNumberRaw != null ? (int?)parsedKeyboardJoystickNumber : null,
+                        parsedAudioEnabled),
+                    StringComparer.OrdinalIgnoreCase);
+                // Add the C64 BASIC-paste extras (mutually exclusive with the .d64 / PRG load flows,
+                // validated above). 'basicText' carries the base64url the participant decodes; 'basicUrl'
+                // is fetched via AutomatedStartupContext.FetchTextResource.
+                if (basicTextEncoded != null)
+                    startupExtras["basicText"] = basicTextEncoded;
+                if (basicUrl != null)
+                    startupExtras["basicUrl"] = basicUrl;
+                if (runBasic)
+                    startupExtras["runBasic"] = "true";
                 // Pass the effective PRG source (local path or URL) as LoadPrgPath: the handler uses
                 // loadPrgBytesProvider for the bytes when it is set (URL case), but a non-null
                 // LoadPrgPath is what tells the C64 participant a PRG load is pending so it applies
@@ -672,7 +739,7 @@ internal sealed partial class Program
                     systemName, systemVariant, autoStart, waitForSystemReady,
                     effectiveLoadPrg, runLoadedProgram, enableExternalDebug)
                 {
-                    ExtraParameters = d64Extras,
+                    ExtraParameters = startupExtras,
                 };
                 await AutomatedStartupHandler.ExecuteAsync(
                     hostApp,
@@ -955,6 +1022,105 @@ internal sealed partial class Program
         }
         return true;
     }
+
+    /// <summary>
+    /// Validates the C64 BASIC-paste CLI flags (<c>--basicText</c> / <c>--basicFile</c> /
+    /// <c>--basicUrl</c> / <c>--runBasic</c>) and resolves the inline / file sources into the
+    /// base64url value the C64 participant decodes from its <c>basicText</c> extra. Returns false on
+    /// a hard error (prints to stderr and the caller exits 1). <paramref name="basicTextEncoded"/>
+    /// is set only for the inline / file sources; <c>--basicUrl</c> is forwarded verbatim and fetched
+    /// later by the participant.
+    /// </summary>
+    private static bool ValidateBasicArguments(
+        string? basicTextArg,
+        string? basicFileArg,
+        string? basicUrl,
+        bool runBasic,
+        string? systemName,
+        bool autoStart,
+        bool waitForSystemReady,
+        string? effectiveLoadPrg,
+        string? effectiveLoadD64,
+        out string? basicTextEncoded)
+    {
+        basicTextEncoded = null;
+
+        var sourceCount = (basicTextArg != null ? 1 : 0) + (basicFileArg != null ? 1 : 0) + (basicUrl != null ? 1 : 0);
+        var hasBasic = sourceCount > 0;
+
+        if (runBasic && !hasBasic)
+        {
+            Console.Error.WriteLine("Error: --runBasic requires one of --basicText, --basicFile, or --basicUrl.");
+            return false;
+        }
+        if (!hasBasic)
+            return true;
+
+        if (sourceCount > 1)
+        {
+            Console.Error.WriteLine("Error: --basicText, --basicFile, and --basicUrl are mutually exclusive.");
+            return false;
+        }
+        // BASIC paste uses the C64 keyboard buffer after BASIC reports ready.
+        if (!string.Equals(systemName, "C64", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine("Error: --basicText/--basicFile/--basicUrl require --system C64.");
+            return false;
+        }
+        if (!autoStart || !waitForSystemReady)
+        {
+            Console.Error.WriteLine("Error: --basicText/--basicFile/--basicUrl require --start and --waitForSystemReady.");
+            return false;
+        }
+        if (effectiveLoadPrg != null || effectiveLoadD64 != null)
+        {
+            Console.Error.WriteLine("Error: --basicText/--basicFile/--basicUrl are mutually exclusive with --loadPrg/--loadPrgUrl and --loadD64/--loadD64Url.");
+            return false;
+        }
+        if (!ValidateAbsoluteHttpUrl(basicUrl, "--basicUrl"))
+            return false;
+
+        // Resolve the inline text or local file into the base64url 'basicText' extra. The participant
+        // always base64url-decodes that extra, so encode here (desktop takes plain text — unlike the
+        // browser query parameter, which must be base64url because it travels in a URL).
+        string? rawText = null;
+        if (basicTextArg != null)
+        {
+            rawText = basicTextArg;
+        }
+        else if (basicFileArg != null)
+        {
+            var expanded = PathHelper.ExpandOSEnvironmentVariables(basicFileArg);
+            if (!File.Exists(expanded))
+            {
+                Console.Error.WriteLine($"Error: --basicFile not found: {expanded}");
+                return false;
+            }
+            rawText = File.ReadAllText(expanded);
+        }
+
+        if (rawText != null)
+        {
+            if (string.IsNullOrWhiteSpace(rawText))
+            {
+                Console.Error.WriteLine("Error: --basicText/--basicFile content is empty.");
+                return false;
+            }
+            basicTextEncoded = ToBase64Url(rawText);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Encodes a UTF-8 string as base64url (RFC 4648 §5: '+'→'-', '/'→'_', padding stripped). The
+    /// C64 participant accepts unpadded base64url.
+    /// </summary>
+    private static string ToBase64Url(string text)
+        => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
 
     /// <summary>
     /// Build the <see cref="AutomatedStartupRequest.ExtraParameters"/> dictionary the C64 Avalonia
