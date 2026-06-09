@@ -70,6 +70,8 @@ public class AvaloniaMonitor : MonitorBase, INotifyPropertyChanged
         if (execEvaluatorTriggerResult != null)
             ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
 
+        ShowCurrentInstruction();
+
         RefreshStatus();
         ResetHistoryNavigation();
         IsVisible = true;

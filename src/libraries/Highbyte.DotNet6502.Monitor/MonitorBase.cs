@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Monitor;
 public abstract class MonitorBase
 {
     public MonitorConfig Options { get; private set; }
-    private MonitorVariables _variables;
+    private readonly MonitorVariables _variables;
 
     private readonly SystemRunner _systemRunner;
     public SystemRunner SystemRunner => _systemRunner;
@@ -64,7 +64,10 @@ public abstract class MonitorBase
 
     public void Reset()
     {
-        _variables = new MonitorVariables();
+        // Mutate the existing instance instead of reallocating: the command handlers
+        // captured this MonitorVariables reference when the command line app was built,
+        // so a reassignment here would not be observed by them.
+        _variables.ResetDisassemblyAnchor();
 
         // If there are system-specific monitor commands, issue reset there too
         if (SystemRunner.System is ISystemMonitor systemWithMonitor)
@@ -103,8 +106,16 @@ public abstract class MonitorBase
             default:
                 throw new DotNet6502Exception($"Internal error. Unknown ExecEvaluatorTriggerReasonType: {execEvaluatorTriggerResult.TriggerType}");
         }
+    }
 
-        // Show disassembly of next instruction
+    /// <summary>
+    /// Writes a single disassembled instruction at the current PC to the monitor output.
+    /// Shown each time the monitor is entered (manually or via a break trigger), mirroring how
+    /// VICE prints the current instruction on entry. Does not advance the 'd' command disassembly
+    /// anchor, so a following argument-less 'd' still starts at PC.
+    /// </summary>
+    public void ShowCurrentInstruction()
+    {
         WriteOutput($"{OutputGen.GetNextInstructionDisassembly(Cpu, Mem)}");
     }
     public void ShowDescription()

@@ -554,11 +554,14 @@ public partial class Index : IWasmHostView
     public async Task SetMonitorState(bool visible)
     {
         _monitorVisible = visible;
+        // Render first so the monitor input element is present and visible in the DOM before
+        // focusing it. While the monitor is hidden the element is display:none (see
+        // SetElementVisibleState), and a hidden element can't receive focus.
+        await this.StateHasChangedCustom();
         if (visible)
             await FocusMonitor();
         else
             await FocusEmulator();
-        await this.StateHasChangedCustom();
     }
 
     //private void BeforeUnload_BeforeUnloadHandler(object? sender, blazejewicz.Blazor.BeforeUnload.BeforeUnloadArgs e)
@@ -752,8 +755,7 @@ public partial class Index : IWasmHostView
 
     private async Task FocusMonitor()
     {
-        await Task.Run(async () => await _monitorInputRef.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
-        //await _monitorInputRef.FocusAsync();
+        await Js!.InvokeVoidAsync("focusId", "monitor-input", 100);  // Hack: Delay of x ms for focus to work (element just became visible). Mirrors FocusEmulator.
     }
 
     /// <summary>
