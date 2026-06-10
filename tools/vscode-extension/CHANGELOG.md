@@ -3,6 +3,8 @@
 All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension will be documented here.
 
 ## [Unreleased]
+
+## [0.3.2] - 2026-06-10
 Bump Node module dependencies to fix security advisories.
 
 ## [0.3.1] - 2026-06-10
