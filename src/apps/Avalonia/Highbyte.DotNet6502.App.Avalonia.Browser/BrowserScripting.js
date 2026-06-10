@@ -59,8 +59,8 @@ export function unlockAudio() {
             return;
         const ctx = new Ctx();
         if (ctx.state === "suspended")
-            ctx.resume();
-        setTimeout(() => { try { ctx.close(); } catch { /* best-effort */ } }, 1000);
+            ctx.resume()?.catch(() => { /* best-effort: rejected resume just leaves audio locked */ });
+        setTimeout(() => { ctx.close()?.catch(() => { /* best-effort */ }); }, 1000);
     } catch {
         // Best-effort: if the Web Audio API is unavailable the emulator simply stays silent until
         // the user interacts, which is the pre-existing behaviour.
