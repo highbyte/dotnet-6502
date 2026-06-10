@@ -16,6 +16,21 @@ public class EmulatorConfig
     public double CurrentDrawScale { get; set; }
     public required MonitorConfig Monitor { get; set; }
 
+    /// <summary>
+    /// CORS proxy prefix used to route cross-origin HTTP fetches (system / ROM downloads). General
+    /// browser setting shared by all systems, no longer per-system. Defaults to
+    /// <see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/>. See <see cref="GetCorsProxyUrl"/>.
+    /// </summary>
+    public string CorsProxyUrl { get; set; } = BrowserServiceDefaults.DefaultCorsProxyUrl;
+
+    /// <summary>
+    /// The effective CORS proxy URL: the configured <see cref="CorsProxyUrl"/>, falling back to
+    /// <see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/> when blank. (The browser app always
+    /// runs in WebAssembly, so a proxy is always used.)
+    /// </summary>
+    public string GetCorsProxyUrl()
+        => string.IsNullOrEmpty(CorsProxyUrl) ? BrowserServiceDefaults.DefaultCorsProxyUrl : CorsProxyUrl;
+
     public EmulatorConfig()
     {
         DefaultDrawScale = 2.0;

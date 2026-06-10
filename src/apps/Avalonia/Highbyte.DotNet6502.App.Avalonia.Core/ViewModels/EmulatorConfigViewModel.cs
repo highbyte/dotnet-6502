@@ -31,6 +31,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private bool _stopAfterBRKInstruction;
     private bool _stopAfterUnknownInstruction;
     private bool _allowUrlScripts;
+    private string _corsProxyUrl;
 
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
@@ -59,6 +60,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _stopAfterBRKInstruction = _emulatorConfig.Monitor.StopAfterBRKInstruction;
         _stopAfterUnknownInstruction = _emulatorConfig.Monitor.StopAfterUnknownInstruction;
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
+        _corsProxyUrl = _emulatorConfig.CorsProxyUrl;
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -266,6 +268,26 @@ public class EmulatorConfigViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Browser-only: CORS proxy prefix used to fetch cross-origin resources — system downloads
+    /// (games / ROMs) and URL-driven startup (<c>loadPrgUrl</c> / <c>loadD64Url</c> / <c>basicUrl</c>
+    /// / <c>scriptUrl</c>). Blank falls back to the built-in default
+    /// (<see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/>). Ignored on desktop.
+    /// </summary>
+    public string CorsProxyUrl
+    {
+        get => _corsProxyUrl;
+        set
+        {
+            if (_corsProxyUrl == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _corsProxyUrl, value);
+        }
+    }
+
+    public static string CorsProxyUrlWatermark => BrowserServiceDefaults.DefaultCorsProxyUrl;
+
     private void UpdateValidation()
     {
         _validationErrors.Clear();
@@ -297,6 +319,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         StopAfterUnknownInstruction = defaults.Monitor.StopAfterUnknownInstruction;
         // Browser-only knob; defaults to disabled.
         AllowUrlScripts = false;
+        CorsProxyUrl = defaults.CorsProxyUrl;
 
         UpdateValidation();
         StatusMessage = "Settings reset to defaults. Click Save to apply.";
@@ -320,6 +343,7 @@ public class EmulatorConfigViewModel : ViewModelBase
             _emulatorConfig.BrowserSampleAudioMode = _selectedBrowserSampleAudioMode;
             _emulatorConfig.Monitor.StopAfterBRKInstruction = _stopAfterBRKInstruction;
             _emulatorConfig.Monitor.StopAfterUnknownInstruction = _stopAfterUnknownInstruction;
+            _emulatorConfig.CorsProxyUrl = _corsProxyUrl;
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
             await _hostApp.PersistEmulatorConfigAsync();

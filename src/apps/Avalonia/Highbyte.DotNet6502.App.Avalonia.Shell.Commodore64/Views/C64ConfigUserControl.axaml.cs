@@ -92,35 +92,6 @@ public partial class C64ConfigUserControl : UserControl
             e.SetResult(result);
         });
 
-    // In Avalonia WASM on macOS, TextBox default key bindings only include Ctrl+C/V, not Meta (CMD).
-    // This handler explicitly handles CMD+C/V/X/A so copy/paste works in the browser.
-    private void CorsProxyTextBox_KeyDown(object? sender, KeyEventArgs e)
-    {
-        if (sender is not TextBox textBox) return;
-        if ((e.KeyModifiers & (KeyModifiers.Meta | KeyModifiers.Control)) == 0) return;
-
-        if (e.Key == Key.C)
-        {
-            textBox.Copy();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.V)
-        {
-            textBox.Paste();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.X)
-        {
-            textBox.Cut();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.A)
-        {
-            textBox.SelectAll();
-            e.Handled = true;
-        }
-    }
-
     private void OnDigitsOnlyTextInput(object? sender, TextInputEventArgs e)
     {
         if (!string.IsNullOrEmpty(e.Text) && e.Text.Any(ch => !char.IsDigit(ch)))

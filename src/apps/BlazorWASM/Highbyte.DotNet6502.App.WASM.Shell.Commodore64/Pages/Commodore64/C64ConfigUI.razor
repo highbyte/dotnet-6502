@@ -399,6 +399,8 @@
     [Parameter] public string SelectedSystemConfigurationVariant { get; set; } = default!;
     [Parameter] public List<(Type renderProviderType, Type renderTargetType)> AvailableRendererProviderAndRenderTargetTypeCombinations { get; set; } = default!;
     [Parameter] public List<(Type audioProviderType, Type audioTargetType)> AvailableAudioProviderAndAudioTargetTypeCombinations { get; set; } = new();
+    // General browser CORS proxy (no longer per-system), supplied by the host for cross-origin ROM downloads.
+    [Parameter] public string? CorsProxyUrl { get; set; }
 
 
     public C64HostConfig C64HostConfig => (C64HostConfig)HostSystemConfig;
@@ -528,7 +530,7 @@
                 var filename = Path.GetFileName(new Uri(romUrl).LocalPath);
 
                 byte[] fileBuffer;
-                var fullROMUrl = !string.IsNullOrEmpty(C64HostConfig.CorsProxyURL) ? $"{C64HostConfig.CorsProxyURL}{Uri.EscapeDataString(romUrl)}" : romUrl;
+                var fullROMUrl = !string.IsNullOrEmpty(CorsProxyUrl) ? $"{CorsProxyUrl}{Uri.EscapeDataString(romUrl)}" : romUrl;
                 try
                 {
                     fileBuffer = await HttpClient.GetByteArrayAsync(fullROMUrl);

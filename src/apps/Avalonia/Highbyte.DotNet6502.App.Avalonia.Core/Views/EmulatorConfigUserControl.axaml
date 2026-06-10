@@ -274,6 +274,25 @@
           </Border>
         </StackPanel>
 
+        <!-- Network Section (browser only) -->
+        <StackPanel Width="400" Classes="wrap-item"
+                    IsVisible="{Binding IsRunningInWebAssembly}">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Network" Classes=""/>
+
+              <TextBlock Text="CORS proxy:" Classes="secondary-text"/>
+              <TextBox AutomationProperties.AutomationId="CorsProxyTextBox"
+                       AutomationProperties.Name="CORS proxy URL"
+                       Text="{Binding CorsProxyUrl, Mode=TwoWay}"
+                       PlaceholderText="{Binding CorsProxyUrlWatermark}"/>
+              <TextBlock Text="Cross-origin resources (system downloads, and URL-driven startup such as loadPrgUrl / loadD64Url / basicUrl / scriptUrl) are fetched through this CORS proxy. Leave blank to use the built-in default. Browser only — ignored on desktop."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
       </WrapPanel>
     </ScrollViewer>
 

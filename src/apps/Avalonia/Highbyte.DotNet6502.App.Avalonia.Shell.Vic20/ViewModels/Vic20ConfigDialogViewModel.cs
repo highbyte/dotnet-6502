@@ -33,7 +33,6 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     private string? _statusMessage;
     private string? _validationMessage;
     private string _romDirectory = string.Empty;
-    private string _corsProxyOverrideURL = string.Empty;
     private RenderProviderOption? _selectedRenderProvider;
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
@@ -42,7 +41,6 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearRomsCommand { get; }
-    public ReactiveCommand<Unit, Unit> ResetCorsProxyOverrideURLCommand { get; }
     public ReactiveCommand<Unit, Unit> ResetToDefaultsCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
@@ -74,13 +72,6 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
-        ResetCorsProxyOverrideURLCommand = ReactiveCommandHelper.CreateSafeCommand(
-            () =>
-            {
-                CorsProxyOverrideURL = string.Empty;
-                return Task.CompletedTask;
-            },
-            outputScheduler: RxSchedulers.MainThreadScheduler);
 
         ResetToDefaultsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -184,20 +175,6 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         }
     }
 
-    public string CorsProxyOverrideURL
-    {
-        get => _corsProxyOverrideURL;
-        set
-        {
-            if (_corsProxyOverrideURL == value)
-                return;
-
-            this.RaiseAndSetIfChanged(ref _corsProxyOverrideURL, value);
-            _workingConfig.CorsProxyOverrideURL = string.IsNullOrEmpty(value) ? null : value;
-        }
-    }
-
-    public static string CorsProxyOverrideURLWatermark => Vic20HostConfig.DefaultCorsProxyURL;
 
     public RenderProviderOption? SelectedRenderProvider
     {
@@ -280,7 +257,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
 
             foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
             {
-                var proxyUrl = _workingConfig.GetCorsProxyURL();
+                var proxyUrl = _hostApp.GetCorsProxyUrl();
                 var fullROMUrl = !string.IsNullOrEmpty(proxyUrl)
                     ? $"{proxyUrl}{Uri.EscapeDataString(romDownload.Value)}"
                     : romDownload.Value;
@@ -437,7 +414,6 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             }
 
             _originalConfig.SystemConfig.ROMDirectory = _workingConfig.SystemConfig.ROMDirectory;
-            _originalConfig.CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL;
             _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
             _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
 
@@ -471,7 +447,6 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     private void LoadFromWorkingConfig()
     {
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
-        CorsProxyOverrideURL = _workingConfig.CorsProxyOverrideURL ?? string.Empty;
         SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
 
         InitializeRenderOptions();

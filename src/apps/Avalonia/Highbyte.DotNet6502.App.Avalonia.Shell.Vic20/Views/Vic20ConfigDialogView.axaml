@@ -186,27 +186,6 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel Width="368" Classes="wrap-item" IsVisible="{Binding IsRunningInWebAssembly}">
-                    <Border Classes="content-section">
-                        <StackPanel Classes="spacing-tight">
-                            <TextBlock Text="Web Download"/>
-                            <TextBlock Text="Override CORS proxy"
-                                       Classes="small secondary-text"/>
-                            <TextBox AutomationProperties.AutomationId="Vic20CorsProxyTextBox"
-                                     AutomationProperties.Name="VIC-20 CORS proxy URL"
-                                     Text="{Binding CorsProxyOverrideURL}"
-                                     PlaceholderText="{Binding CorsProxyOverrideURLWatermark}"
-                                     Classes="field-aligned"
-                                     KeyDown="CorsProxyTextBox_KeyDown"/>
-                            <Button Content="Reset"
-                                    AutomationProperties.AutomationId="Vic20ResetCorsProxyButton"
-                                    Command="{Binding ResetCorsProxyOverrideURLCommand}"
-                                    Classes="small"
-                                    HorizontalAlignment="Left"
-                                    IsEnabled="{Binding IsNotBusy}"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
             </WrapPanel>
         </ScrollViewer>
 

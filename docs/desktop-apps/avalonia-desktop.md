@@ -70,7 +70,9 @@ A toggleable stats window by pressing F11.
 
 ## CLI arguments
 
-The desktop app can be launched from the command line with arguments to control logging, scripting, debug adapter, and remote control.
+The desktop app can be launched from the command line with arguments for automated startup (system
+selection, program / disk loading, C64 BASIC paste), scripting, logging, the debug adapter, and
+remote control.
 
 --8<-- "cli-arguments-reference.md"
 
@@ -80,14 +82,23 @@ The desktop app can be launched from the command line with arguments to control 
 # Run a Lua script (script owns all setup and lifecycle)
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --script scripts/example_c64_basic_readwrite.lua
 
-# Start C64 and load a .prg file via CLI (no script)
+# Start C64 and load a local .prg file via CLI (no script)
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadPrg game.prg --runLoadedProgram
+
+# Start C64, fetch a .prg over HTTP, and run it
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadPrgUrl https://example.com/game.prg --runLoadedProgram
+
+# Start C64, paste BASIC source from a local file and run it
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --basicFile hello.bas --runBasic
 
 # Start C64 PAL, mount a .d64, paste LOAD"*",8,1 + RUN, set keyboard-joystick to port 2
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --systemVariant C64PAL --start --waitForSystemReady --loadD64 "/path/to/SomeGame.d64" --diskMount --runLoadedProgram --keyboardJoystickEnabled --keyboardJoystickNumber 2
 
 # Start C64, direct-load the first PRG from a .d64 image (no disk mount) and RUN it
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadD64 "/path/to/SomeGame.d64" --d64Program "*" --runLoadedProgram
+
+# Start C64, fetch a .d64 over HTTP, direct-load the first PRG (no disk mount) and RUN it
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadD64Url https://example.com/game.d64 --d64Program "*" --runLoadedProgram
 
 # Start with debug adapter for VS Code, waiting for client
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait

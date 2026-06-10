@@ -60,7 +60,20 @@ The headless app is driven entirely from the command line.
 --8<-- "cli-arguments-reference.md"
 
 !!! note
-    The **C64 `.d64` startup parameters** (`--loadD64` / `--d64Program` / `--diskMount` / `--keyboardJoystick*` / `--audioEnabled`) are currently wired only in the Avalonia Desktop app. They are not parsed by the headless app — the headless app has no C64 shell plugin to apply C64-runtime config or run the disk-mount / direct-load flow. The shared `D64AutoDownloadAndRun.MountOrDirectLoadAndRunAsync` helper is host-agnostic, so adding equivalent flags to the headless app is possible but is out of scope for the initial release.
+    Several automated-startup parameters are currently wired **only in the Avalonia Desktop app** and
+    are ignored by the headless app (each is marked *(Avalonia Desktop only)* in the table above):
+
+    - **URL load sources**: `--loadPrgUrl` and `--loadD64Url` (the headless app loads only a local
+      `--loadPrg`).
+    - **C64 BASIC paste**: `--basicText` / `--basicFile` / `--basicUrl` / `--runBasic`.
+    - **C64 `.d64` startup**: `--loadD64` / `--d64Program` / `--diskMount`.
+    - **C64 runtime config**: `--keyboardJoystickEnabled` / `--keyboardJoystickNumber` / `--audioEnabled`.
+    - **Diagnostics & auto-exit**: `--stats-interval` / `--exit-after`.
+
+    The C64-specific flows need a C64 shell plugin (to apply C64-runtime config and run the
+    disk-mount / direct-load / BASIC-paste flow), which the headless app does not host. The shared
+    helpers are host-agnostic, so adding equivalent flags to the headless app is possible but is out
+    of scope for the initial release.
 
 ### Examples
 
