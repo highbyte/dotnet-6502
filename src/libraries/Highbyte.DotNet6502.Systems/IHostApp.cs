@@ -28,6 +28,14 @@ public interface IHostApp
     public void RunEmulatorOneFrame();
 
     public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid();
+
+    /// <summary>
+    /// Validates the configuration of a named system without selecting it as the current system.
+    /// Used by automated startup to detect, before any system is selected, whether a system's
+    /// prerequisites are met (e.g. C64 ROMs present) so a pre-selection prompt can act on it while
+    /// still being able to abort to a pristine (no system selected) state.
+    /// </summary>
+    public Task<(bool IsValid, List<string> Errors)> IsSystemConfigValid(string systemName);
     public Task<bool> IsAudioSupported();
     public Task<bool> IsAudioEnabled();
     public Task<ISystem?> GetSelectedSystem();

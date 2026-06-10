@@ -30,7 +30,7 @@ public sealed class C64AvaloniaShellPlugin : ISystemShellPlugin, IAvaloniaNative
         services.AddTransient<C64MenuViewModel>();
         services.AddTransient<C64InfoViewModel>();
         services.AddTransient<C64ConfigDialogViewModel>();
-        services.AddTransient<C64RomPromptService>();
+        services.AddTransient<C64AcknowledgmentService>();
 
         // Automated-startup participant — resolved by the host (keyed by system name) and invoked
         // by AutomatedStartupHandler before Start(). See docs/automated-startup-abstraction.md.

@@ -180,6 +180,10 @@ public partial class MainView : UserControl
         }
     }
 
+    // True while the Config status tab was auto-selected because of validation errors, so it can be
+    // switched back to Information once the errors are resolved (e.g. C64 ROMs downloaded at startup).
+    private bool _configStatusTabAutoSelected;
+
     private void CheckAndSelectValidationErrorsTab()
     {
         if (_subscribedViewModel == null)
@@ -187,18 +191,34 @@ public partial class MainView : UserControl
 
         // Check the actual ValidationErrors collection instead of IsSystemConfigValid
         // to avoid timing issues with reactive property updates
-        if (_subscribedViewModel.ValidationErrors == null ||
-            _subscribedViewModel.ValidationErrors.Count == 0)
-            return;
+        var hasValidationErrors = _subscribedViewModel.ValidationErrors is { Count: > 0 };
 
         // Use Dispatcher to ensure the control is properly initialized
         Dispatcher.UIThread.Post(() =>
         {
-            if (this.FindControl<TabItem>("ConfigStatusTabItem") is TabItem configErrorsTab)
+            if (this.FindControl<TabControl>("InformationTabControl") is not TabControl tabControl)
+                return;
+
+            if (hasValidationErrors)
             {
-                if (this.FindControl<TabControl>("InformationTabControl") is TabControl tabControl)
+                // Surface the errors by activating the Config status tab.
+                if (this.FindControl<TabItem>("ConfigStatusTabItem") is TabItem configErrorsTab)
                 {
                     tabControl.SelectedItem = configErrorsTab;
+                    _configStatusTabAutoSelected = true;
+                }
+            }
+            else if (_configStatusTabAutoSelected)
+            {
+                // Errors resolved (e.g. missing C64 ROMs were downloaded via the startup
+                // acknowledgement dialog). Return to the Information tab — but only if Config status
+                // is still the active tab, so a user who navigated elsewhere isn't yanked away.
+                _configStatusTabAutoSelected = false;
+                if (this.FindControl<TabItem>("ConfigStatusTabItem") is TabItem configErrorsTab
+                    && ReferenceEquals(tabControl.SelectedItem, configErrorsTab)
+                    && this.FindControl<TabItem>("InformationTabItem") is TabItem informationTab)
+                {
+                    tabControl.SelectedItem = informationTab;
                 }
             }
         });

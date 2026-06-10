@@ -192,6 +192,22 @@ public static class AutomatedStartupHandler
                 return;
             }
 
+            // Pre-selection acknowledgement gate: before selecting the system, let its optional
+            // participant show what this (often shared) startup link is about to do and confirm /
+            // cancel. A false result aborts here — no system selected, nothing started, pristine
+            // state — so it is a graceful abort (onFatalError, host falls back to its normal UI),
+            // not a process-terminating fatalError().
+            if (autoStart && startupParticipant is not null)
+            {
+                if (!await startupParticipant.AcknowledgeStartupAsync(
+                        hostApp, request, startupContext ?? new AutomatedStartupContext()))
+                {
+                    logger.LogInformation($"Automated startup cancelled by user before selecting system '{systemName}'.");
+                    onFatalError?.Invoke();
+                    return;
+                }
+            }
+
             await hostApp.SelectSystem(systemName);
 
             // Select the system variant if specified

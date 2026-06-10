@@ -521,12 +521,14 @@ internal sealed partial class Program
             // AutomatedStartupContext.FetchBinaryResource after the C64 reports BASIC ready, so the
             // user sees the live BASIC prompt during the .d64 download (a pre-fetch here would
             // block the Avalonia app from starting and leave the page blank).
-            var startupExtras = automation.LoadD64Url != null
-                ? (IReadOnlyDictionary<string, string>)new Dictionary<string, string>(automation.ExtraParameters, StringComparer.OrdinalIgnoreCase)
-                {
-                    ["loadD64Url"] = automation.LoadD64Url,
-                }
-                : automation.ExtraParameters;
+            // Copy the extras and surface the load-source URLs so the C64 participant can both fetch
+            // (.d64) and *display* them in the pre-selection startup acknowledgement dialog. The .prg
+            // URL is otherwise only captured in the prgBytesProvider closure below.
+            var startupExtras = new Dictionary<string, string>(automation.ExtraParameters, StringComparer.OrdinalIgnoreCase);
+            if (automation.LoadD64Url != null)
+                startupExtras["loadD64Url"] = automation.LoadD64Url;
+            if (automation.LoadPrgUrl != null)
+                startupExtras["loadPrgUrl"] = automation.LoadPrgUrl;
 
             automatedStartupRunner = async hostApp =>
             {
@@ -577,6 +579,14 @@ internal sealed partial class Program
                         startupLogger.LogInformation($"Fetched {bytes.Length} bytes from '{url}'.");
                         return bytes;
                     },
+                    // Invoked from the startup acknowledgement dialog's confirm click (a real user
+                    // gesture) to satisfy the browser audio-autoplay policy before the emulator
+                    // produces sound.
+                    UnlockAudio = () =>
+                    {
+                        JSInterop.UnlockAudio();
+                        return Task.CompletedTask;
+                    },
                 };
 
                 try
@@ -598,7 +608,31 @@ internal sealed partial class Program
                         onStartupComplete: null,
                         loggerFactory: loggerFactory,
                         prepareForExternalDebuggerStart: null,
-                        onFatalError: () => startupLogger.LogError("Automated startup aborted; falling back to default UI."),
+                        onFatalError: () =>
+                        {
+                            startupLogger.LogError("Automated startup aborted; falling back to default system selection.");
+
+                            // A graceful abort before selection (e.g. the user cancelled the startup
+                            // acknowledgement dialog) leaves no system selected. Select the configured
+                            // default system — the same as a normal startup with no 'system' query
+                            // parameter — so the app is usable rather than sitting with nothing selected.
+                            var defaultSystem = emulatorConfig.DefaultEmulator;
+                            if (string.IsNullOrEmpty(defaultSystem))
+                                return;
+                            Dispatcher.UIThread.Post(
+                                () =>
+                                {
+                                    var task = hostApp.SelectSystem(defaultSystem);
+                                    _ = task.ContinueWith(
+                                        t =>
+                                        {
+                                            if (t.IsFaulted && t.Exception != null)
+                                                startupLogger.LogError(t.Exception, "Failed to select default system after aborted automated startup.");
+                                        },
+                                        TaskScheduler.Default);
+                                },
+                                DispatcherPriority.Background);
+                        },
                         lifecycleInvoker: lifecycle =>
                         {
                             startupLogger.LogInformation("Deferring auto-start lifecycle to UI dispatcher Background priority");
@@ -1057,6 +1091,12 @@ internal sealed partial class Program
 
         [JSImport("getNavigatorPlatform", "BrowserScripting")]
         public static partial string GetNavigatorPlatform();
+
+        // Unlocks browser audio autoplay from within a user gesture (the startup acknowledgement
+        // dialog's confirm click). Creates and resumes a short-lived Web Audio context so the
+        // emulator's later audio output is allowed to play.
+        [JSImport("unlockAudio", "BrowserScripting")]
+        public static partial void UnlockAudio();
     }
 
     private static async Task SeedExampleScriptsAsync(Action<string, string> saveScript)

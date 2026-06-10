@@ -17,6 +17,26 @@ public interface IAutomatedStartupParticipant
     string SystemName { get; }
 
     /// <summary>
+    /// Pre-selection acknowledgement gate. Invoked by <see cref="AutomatedStartupHandler"/> at the
+    /// very start of automated startup — <em>before</em> the system is selected — so the user can be
+    /// shown what the (often shared) startup link is about to do (start a program, download ROMs)
+    /// and either confirm or cancel. Returning <see langword="false"/> aborts before any system is
+    /// selected, leaving the app in its pristine state. May be interactive and asynchronous.
+    /// </summary>
+    /// <remarks>
+    /// Runs only when the system will actually be started (<c>autoStart</c>). Use
+    /// <see cref="IHostApp.IsSystemConfigValid(string)"/> for any pre-selection prerequisite checks
+    /// (e.g. whether ROMs are present), and <see cref="AutomatedStartupContext.UnlockAudio"/> to
+    /// satisfy the browser audio-autoplay policy from the confirming gesture. The default
+    /// implementation acknowledges immediately. Distinct from
+    /// <see cref="EnsureReadyForStartAsync"/>, which runs <em>after</em> selection and may make the
+    /// configuration valid (e.g. perform the ROM download the user just consented to here).
+    /// </remarks>
+    Task<bool> AcknowledgeStartupAsync(
+        IHostApp hostApp, AutomatedStartupRequest request, AutomatedStartupContext context)
+        => Task.FromResult(true);
+
+    /// <summary>
     /// Pre-start gate. Invoked by <see cref="AutomatedStartupHandler"/> after the system and
     /// variant have been selected, but before the system is started. May be interactive (show
     /// prompts / dialogs) and asynchronous.

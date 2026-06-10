@@ -22,4 +22,13 @@ public sealed class AutomatedStartupContext
     /// BASIC prompt is shown, so the user sees the boot instead of a blank page).
     /// </summary>
     public Func<string, Task<byte[]>>? FetchBinaryResource { get; init; }
+
+    /// <summary>
+    /// Unlocks browser audio autoplay from within a user gesture. Host-supplied (browser only:
+    /// creates/resumes a Web Audio context). <see langword="null"/> on hosts with no autoplay
+    /// restriction (e.g. desktop). Invoked by a participant's pre-selection acknowledgement prompt
+    /// when the user confirms, so a program that plays audio on autostart is not left silent until
+    /// the user later interacts with the page.
+    /// </summary>
+    public Func<Task>? UnlockAudio { get; init; }
 }

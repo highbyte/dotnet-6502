@@ -299,6 +299,12 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     public override void OnAfterHostSystemConfigUpdated()
     {
         OnPropertyChanged(nameof(CurrentHostSystemConfig));
+
+        // A host-config update can flip config validity — e.g. ROMs downloaded during automated
+        // startup turn a previously invalid C64 config valid. Re-run validation so the config-status
+        // UI clears the now-resolved errors; without this the validation stays stale (it otherwise
+        // only refreshes when the selected system changes, not when its config is updated in place).
+        SafeAsyncHelper.Execute(ValidateConfigAsync);
     }
 
     public override void OnAfterSelectedSystemChanged()

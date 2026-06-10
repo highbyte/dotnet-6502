@@ -212,6 +212,9 @@ public class AutomatedStartupHandlerTests
         public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid()
             => Task.FromResult<(bool, List<string>)>((true, []));
 
+        public Task<(bool IsValid, List<string> Errors)> IsSystemConfigValid(string systemName)
+            => Task.FromResult<(bool, List<string>)>((true, []));
+
         public Task<bool> IsAudioSupported() => Task.FromResult(false);
         public Task<bool> IsAudioEnabled() => Task.FromResult(false);
         public Task<ISystem?> GetSelectedSystem() => Task.FromResult<ISystem?>(System);
