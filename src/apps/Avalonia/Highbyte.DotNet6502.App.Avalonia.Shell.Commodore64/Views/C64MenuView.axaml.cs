@@ -408,8 +408,45 @@ public partial class C64MenuView : UserControl
         }
     }
 
-    private void OpenBasicAssistantInfo_Click(object? sender, RoutedEventArgs e)
-        => SafeAsyncHelper.Execute(() => LaunchUriIfAvailableAsync("https://highbyte.github.io/dotnet-6502/docs/systems/c64/code-completion/"));
+    private void OpenShare_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(ShowShareOverlayAsync);
+
+    private async Task ShowShareOverlayAsync()
+    {
+        if (ViewModel == null)
+            return;
+
+        var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            Logger.LogError("Could not get service provider");
+            return;
+        }
+
+        // Rebuild the link from current state before showing it.
+        ViewModel.RefreshShareLink();
+
+        var shareControl = new C64ShareUserControl
+        {
+            DataContext = ViewModel
+        };
+
+        var taskCompletionSource = new TaskCompletionSource();
+        shareControl.CloseRequested += (_, _) => taskCompletionSource.TrySetResult();
+
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(shareControl);
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
+
+        try
+        {
+            await taskCompletionSource.Task;
+        }
+        finally
+        {
+            mainGrid.Children.Remove(overlayPanel);
+        }
+    }
 
     private void OpenDiskInfo_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(() => LaunchUriIfAvailableAsync("https://highbyte.github.io/dotnet-6502/docs/systems/c64/compatible-programs/"));

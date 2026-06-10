@@ -1,4 +1,4 @@
-The Avalonia Browser app supports URL-driven startup automation. This is the browser counterpart to the Avalonia Desktop app's [CLI arguments](../desktop-apps/avalonia-desktop.md#cli-arguments): instead of passing `--system` or `--script`, you encode the request in the page URL query string. The parameters and groups below mirror the desktop reference one-to-one where the platforms overlap.
+The Avalonia Browser app supports URL-driven startup automation. This is the browser counterpart to the Avalonia Desktop app's [CLI arguments](../../host-apps/avalonia/desktop.md#cli-arguments): instead of passing `--system` or `--script`, you encode the request in the page URL query string. The parameters and groups below mirror the desktop reference one-to-one where the platforms overlap.
 
 Parameters are grouped below into **General parameters** (system-agnostic — valid for any system) and one group per **system** (interpreted by that system's plugin; currently only **C64**).
 

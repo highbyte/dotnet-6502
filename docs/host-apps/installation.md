@@ -8,10 +8,10 @@ The emulator has front-ends written with different technologies, with somewhat s
 
 | Frontend application | Description |
 |----------------------|-------------|
-| **Avalonia** | Cross-platform app using Avalonia UI for rendering. See details on the [Avalonia Desktop app](avalonia-desktop.md) page. |
-| **SadConsole** | Cross-platform desktop console-style app using SadConsole library. See details on the [SadConsole app](sadconsole.md) page. |
-| **SilkNetNative** | Cross-platform desktop app using Silk.NET + SkiaSharp + shaders for rendering. See details on the [SilkNetNative app](silknet-native.md) page. |
-| **Headless** | Cross-platform console app — no UI, driven by CLI / Lua scripts. See details on the [Headless app](headless.md) page. Install instructions in the [Headless](#headless) section below. |
+| **Avalonia** | Cross-platform app using Avalonia UI for rendering. See details on the [Avalonia Desktop app](avalonia/desktop.md) page. |
+| **SadConsole** | Cross-platform desktop console-style app using SadConsole library. See details on the [SadConsole app](sadconsole/overview.md) page. |
+| **SilkNetNative** | Cross-platform desktop app using Silk.NET + SkiaSharp + shaders for rendering. See details on the [SilkNetNative app](silknet-native/overview.md) page. |
+| **Headless** | Cross-platform console app — no UI, driven by CLI / Lua scripts. See details on the [Headless app](headless/overview.md) page. Install instructions in the [Headless](#headless) section below. |
 
 ## Install via Package Manager
 
@@ -200,15 +200,15 @@ Compare the output with the corresponding entry in the `checksums-*.sha256` file
 
 ## Prerequisites, compatibility, and troubleshooting
 
-- [Avalonia Desktop app troubleshooting](avalonia-desktop-troubleshooting.md)
-- [SilkNetNative app troubleshooting](silknet-native-troubleshooting.md)
-- [SadConsole troubleshooting](sadconsole-troubleshooting.md)
+- [Avalonia Desktop app troubleshooting](avalonia/troubleshooting.md)
+- [SilkNetNative app troubleshooting](silknet-native/troubleshooting.md)
+- [SadConsole troubleshooting](sadconsole/troubleshooting.md)
 
 ---
 
 ## Headless
 
-Pre-built binaries of the Headless console app are available for Windows, Linux, and macOS. See [Headless app](headless.md) for an overview, CLI arguments, and Lua scripting.
+Pre-built binaries of the Headless console app are available for Windows, Linux, and macOS. See [Headless app](headless/overview.md) for an overview, CLI arguments, and Lua scripting.
 
 ### Install via Package Manager
 

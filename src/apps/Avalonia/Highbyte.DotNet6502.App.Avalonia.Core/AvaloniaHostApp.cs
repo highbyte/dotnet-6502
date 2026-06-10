@@ -162,6 +162,13 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// </summary>
     public string? GetCorsProxyUrl() => _emulatorConfig.GetCorsProxyUrl();
 
+    /// <summary>
+    /// The app's base URL (origin + path) used to prefix generated shareable startup links, or null
+    /// when sharing isn't available (desktop). Browser-only; set by the host at startup. Exposed so
+    /// per-system shell view models can build share links without access to the internal config.
+    /// </summary>
+    public string? GetShareBaseUrl() => _emulatorConfig.ShareBaseUrl;
+
     // Expose InputHandlerContext for debug views
     internal AvaloniaInputHandlerContext InputHandlerContext => _inputHandlerContext;
 

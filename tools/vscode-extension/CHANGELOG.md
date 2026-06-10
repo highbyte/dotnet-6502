@@ -3,6 +3,7 @@
 All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension will be documented here.
 
 ## [Unreleased]
+Update documentation links to the reorganized documentation site.
 
 ## [0.3.0] - 2026-05-23
 Grouped all commands under a `DotNet 6502 Debugger` category in the Command Palette, and disambiguated the two previously identical `Generate Launch Config for C64 emulator` entries into `… from .asm source` and `… from .prg binary` variants.

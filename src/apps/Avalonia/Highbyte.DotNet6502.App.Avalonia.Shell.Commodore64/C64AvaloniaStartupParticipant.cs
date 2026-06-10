@@ -9,6 +9,7 @@ using Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.DependencyInjection;
@@ -274,6 +275,19 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         if (d64Bytes.Length == 0)
         {
             _logger.LogWarning(".d64 bytes resolved to an empty buffer; skipping .d64 startup.");
+            return;
+        }
+
+        // The fetched bytes may be a raw .d64 or a ZIP archive containing one (a shared link
+        // points at the program's original download URL, which is often a .zip). The query
+        // contract carries no download-type hint, so content-sniff and extract if needed.
+        try
+        {
+            d64Bytes = D64ZipExtractor.EnsureD64Bytes(d64Bytes, _logger);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to extract .d64 from the downloaded ZIP archive; skipping .d64 startup.");
             return;
         }
 

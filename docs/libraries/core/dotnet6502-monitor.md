@@ -6,7 +6,7 @@ Library: `Highbyte.DotNet6502.Monitor`
 
 A library that provides a base for common built-in machine code monitor functionality for the [`Highbyte.DotNet6502`](dotnet6502.md) CPU library.
 
-The library needs to be implemented for a specific UI technology — see the different host applications under [Desktop apps](../../desktop-apps/overview.md) and [Web apps](../../web-apps/overview.md).
+The library needs to be implemented for a specific UI technology — see the different host applications under [Desktop apps](../../host-apps/overview.md) and [Web apps](../../host-apps/overview.md).
 
 Specific emulated *Systems* (computers) can also implement additional commands that are specific to that system — for example, see [C64 monitor commands](../../systems/c64/overview.md#monitor-commands).
 

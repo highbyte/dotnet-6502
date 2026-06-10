@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.Views.C64ShareUserControl"
+             x:DataType="vm:C64MenuViewModel">
+
+    <!-- Sized to fit content; the overlay host centers and caps it to the viewport. -->
+    <StackPanel Width="520" Margin="16" Classes="spacing-tight">
+        <TextBlock Text="Share link" FontWeight="Bold"/>
+        <TextBlock Text="Generate a link that opens the emulator and reproduces this."
+                   Classes="small secondary-text"
+                   TextWrapping="Wrap"/>
+
+        <!-- What to share -->
+        <RadioButton GroupName="ShareMode"
+                     Content="Current BASIC program"
+                     AutomationProperties.AutomationId="ShareModeCurrentBasicRadio"
+                     IsChecked="{Binding IsShareModeCurrentBasic}"/>
+        <RadioButton GroupName="ShareMode"
+                     Content="Selected 'Download &amp; Run' program"
+                     AutomationProperties.AutomationId="ShareModeDownloadProgramRadio"
+                     IsChecked="{Binding IsShareModeDownloadProgram}"/>
+
+        <!-- Options -->
+        <CheckBox Content="Auto-RUN after start"
+                  AutomationProperties.AutomationId="ShareAutoRunCheckBox"
+                  IsChecked="{Binding ShareAutoRun}"/>
+        <CheckBox Content="Include current settings"
+                  AutomationProperties.AutomationId="ShareIncludeSettingsCheckBox"
+                  IsChecked="{Binding ShareIncludeSettings}"/>
+
+        <!-- Why the link can't be generated right now -->
+        <TextBlock Text="{Binding ShareUnavailableReason}"
+                   Classes="small secondary-text"
+                   TextWrapping="Wrap"
+                   IsVisible="{Binding HasShareUnavailableReason}"/>
+
+        <!-- Generated link. Not Classes="small" — that style forces a fixed 24px height. -->
+        <TextBox Text="{Binding GeneratedShareUrl, Mode=OneWay}"
+                 AutomationProperties.AutomationId="ShareLinkTextBox"
+                 AutomationProperties.Name="Generated share link"
+                 IsReadOnly="True"
+                 TextWrapping="Wrap"
+                 AcceptsReturn="True"
+                 FontSize="11"
+                 MinHeight="120"
+                 MaxHeight="240"
+                 VerticalContentAlignment="Top"
+                 VerticalAlignment="Top"
+                 IsVisible="{Binding !HasShareUnavailableReason}"/>
+
+        <Border Classes="error-container-small"
+                IsVisible="{Binding HasShareWarning}">
+            <TextBlock Text="{Binding ShareWarning}"
+                       Classes="small"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- Actions -->
+        <Grid ColumnDefinitions="*,Auto" Classes="spacing-tight">
+            <Button Grid.Column="0"
+                    Content="Copy link"
+                    AutomationProperties.AutomationId="CopyShareLinkButton"
+                    AutomationProperties.Name="Copy share link to clipboard"
+                    Classes="primary small"
+                    Command="{Binding CopyShareLinkCommand}"/>
+            <Button Grid.Column="1"
+                    Content="Close"
+                    AutomationProperties.AutomationId="CloseShareButton"
+                    AutomationProperties.Name="Close share dialog"
+                    Classes="small"
+                    Click="Close_Click"/>
+        </Grid>
+    </StackPanel>
+</UserControl>

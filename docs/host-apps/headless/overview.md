@@ -12,13 +12,13 @@ Technologies:
 
 ## Installation
 
-See [Desktop apps installation](installation.md#headless) for package manager and manual download instructions.
+See [Desktop apps installation](../installation.md#headless) for package manager and manual download instructions.
 
 ## Features
 
 ### Systems
 
-- **C64** — requires ROM files (Kernal, Basic, Chargen). See [Systems / C64 / ROMs](../systems/c64/roms.md).
+- **C64** — requires ROM files (Kernal, Basic, Chargen). See [Systems / C64 / ROMs](../../systems/c64/roms.md).
 - **Generic computer** — built-in example 6502 programs (Snake, Scroll, HelloWorld).
 
 ### Lua scripting
@@ -43,15 +43,15 @@ The same Lua scripting API available in the Avalonia apps is fully supported her
 | `example_store.lua` | Persist data between script runs using the key-value store. |
 | `example_quit.lua` | Quit the emulator from a script. |
 
-For the full Lua API reference, see [Tools / Scripting / Lua API](../tools/scripting/lua-api.md).
+For the full Lua API reference, see [Tools / Scripting / Lua API](../../tools/scripting/lua-api.md).
 
 ### External debug adapter
 
-The headless app supports the [Debug Adapter Protocol (DAP)](https://microsoft.github.io/debug-adapter-protocol/) over TCP, allowing VS Code to attach a debugger while the emulator runs headless. See [Tools / VSCode debugger / Debugging](../tools/vscode-debugger/debugging.md) for the user guide.
+The headless app supports the [Debug Adapter Protocol (DAP)](https://microsoft.github.io/debug-adapter-protocol/) over TCP, allowing VS Code to attach a debugger while the emulator runs headless. See [Tools / VSCode debugger / Debugging](../../tools/vscode-debugger/debugging.md) for the user guide.
 
 ### Remote control
 
-The headless app can expose a TCP remote control endpoint that lets external processes drive the running emulator. See [Tools / Remote control](../tools/remote-control/overview.md).
+The headless app can expose a TCP remote control endpoint that lets external processes drive the running emulator. See [Tools / Remote control](../../tools/remote-control/overview.md).
 
 ## CLI arguments
 
@@ -161,7 +161,7 @@ Edit `appsettings.json` in the app directory to configure ROM paths and scriptin
 
 ## How to run locally for development
 
-For development system requirements, see [Development](../home/development.md).
+For development system requirements, see [Development](../../home/development.md).
 
 ### Visual Studio (Windows)
 

@@ -2,18 +2,18 @@
 
 ## Overview
 
-Cross-platform browser app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Desktop app](../desktop-apps/avalonia-desktop.md).
+Cross-platform browser app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Desktop app](../../host-apps/avalonia/desktop.md).
 
-![Avalonia Browser WebAssembly app, C64 Basic](../assets/screenshots/AvaloniaBrowser_C64_Basic.png){ width="33%" }
-![Avalonia Browser WebAssembly app, C64 Montezuma's Revenge](../assets/screenshots/AvaloniaBrowser_C64_Montezuma.png){ width="33%" }
-![Avalonia Browser WebAssembly app, C64 monitor](../assets/screenshots/AvaloniaBrowser_C64_Monitor.png){ width="33%" }
+![Avalonia Browser WebAssembly app, C64 Basic](../../assets/screenshots/AvaloniaBrowser_C64_Basic.png){ width="33%" }
+![Avalonia Browser WebAssembly app, C64 Montezuma's Revenge](../../assets/screenshots/AvaloniaBrowser_C64_Montezuma.png){ width="33%" }
+![Avalonia Browser WebAssembly app, C64 monitor](../../assets/screenshots/AvaloniaBrowser_C64_Monitor.png){ width="33%" }
 
 Technologies:
 
 - UI: `Avalonia` UI controls.
-- Rendering: [`Highbyte.DotNet6502.Impl.Avalonia`](../libraries/implementation/avalonia.md).
-- Input: [`Highbyte.DotNet6502.Impl.Avalonia`](../libraries/implementation/avalonia.md) + [`Highbyte.DotNet6502.Impl.Browser`](../libraries/implementation/browser.md) (gamepad).
-- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md), playback via WebAudio JS interop. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../systems/c64/libraries.md#audio).
+- Rendering: [`Highbyte.DotNet6502.Impl.Avalonia`](../../libraries/implementation/avalonia.md).
+- Input: [`Highbyte.DotNet6502.Impl.Avalonia`](../../libraries/implementation/avalonia.md) + [`Highbyte.DotNet6502.Impl.Browser`](../../libraries/implementation/browser.md) (gamepad).
+- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../../libraries/implementation/naudio.md), playback via WebAudio JS interop. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../../systems/c64/libraries.md#audio).
 
 Live version: <https://highbyte.se/dotnet-6502/app2>
 
@@ -25,37 +25,17 @@ To self-host, see [Run from command line](#run-from-command-line) below.
 
 ## Features
 
-### System: C64
+System-specific features (ROMs, display, input, audio, SwiftLink, the C64 menu, and the
+browser-only **share link**) are documented on the per-system pages — shared with the
+[Avalonia Desktop app](../../host-apps/avalonia/desktop.md), with browser-specific differences
+called out inline:
 
-- Via the C64 config UI you have to upload binaries for the ROMs that a C64 uses (Kernal, Basic, Chargen). Or use the convenient auto-download functionality (with a license notice). For details on ROM files, see [Systems / C64 / ROMs](../systems/c64/roms.md).
-
---8<-- "avalonia-c64-renderers.md"
-
-- Input using `Avalonia`. Keyboard uses `Avalonia.Input.PhysicalKey` (W3C `code`), so both `US`
-  and `Swedish` C64 keyboard layouts work; in Chromium browsers the layout is auto-detected via
-  `navigator.keyboard.getLayoutMap()` (other browsers fall through to OS culture, then US).
-  Layout can be overridden in the C64 config dialog. See
-  [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
-- Audio via [NAudio](https://github.com/naudio/NAudio) over a WebAudio JS interop wave player.
-  Defaults to the sample-based SID provider; switch to the command-stream provider in the
-  C64 config dialog if you need lower CPU. The SID emulation mode (`Auto` / `Fast`) is
-  selectable in the same dialog.
-- SwiftLink is available in the browser build through a WebSocket bridge endpoint. This supports
-  both direct raw-byte bridging and a fixed-target Hayes modem workflow for software such as
-  Compunet Reborn. See [Systems / C64 / SwiftLink support](../systems/c64/swiftlink.md).
-- The browser C64 defaults are configured for the deployed Cloudflare bridge:
-  `wss://ws-tcp-bridge.highbyte.workers.dev/bridge`, target id `compunet-reborn`,
-  transport mode `HayesModem`, interrupt line `NMI`.
-  When developing the bridge locally with `wrangler dev`, temporarily change the bridge URL to
-  `ws://127.0.0.1:8787/bridge`.
-
-### System: Generic computer
-
---8<-- "avalonia-generic-computer.md"
+- [C64 in the Avalonia apps](c64.md)
+- [Generic computer in the Avalonia apps](generic.md)
 
 ### Lua scripting
 
-The browser app supports the same Lua scripting API as the Avalonia Desktop app, except for filesystem and TCP access (the browser sandbox does not allow them; the key/value store falls back to `localStorage`). For the full guide, see [Tools / Scripting](../tools/scripting/overview.md).
+The browser app supports the same Lua scripting API as the Avalonia Desktop app, except for filesystem and TCP access (the browser sandbox does not allow them; the key/value store falls back to `localStorage`). For the full guide, see [Tools / Scripting](../../tools/scripting/overview.md).
 
 ## URL query parameters
 
@@ -122,7 +102,7 @@ The browser app ships the `basicUrl` sample above as `basic/c64/hello-world.bas`
 
 ## How to run locally for development
 
-For development system requirements, see [Development](../home/development.md).
+For development system requirements, see [Development](../../home/development.md).
 
 ### Visual Studio (Windows)
 

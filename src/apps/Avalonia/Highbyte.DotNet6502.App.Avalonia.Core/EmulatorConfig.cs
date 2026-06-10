@@ -71,6 +71,14 @@ public class EmulatorConfig
     [JsonIgnore]
     public string LuaStorePrefix { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Runtime-only: the app's own base URL (origin + path, trailing slash) in the browser, used as
+    /// the prefix for generated shareable startup links. Set by the browser host at startup; null on
+    /// desktop where sharing links is not offered. Not persisted. See <see cref="GetShareBaseUrl"/>.
+    /// </summary>
+    [JsonIgnore]
+    public string? ShareBaseUrl { get; set; }
+
     private Func<HttpClient>? _getAppUrlHttpClient = null;
     public EmulatorConfig()
     {

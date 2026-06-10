@@ -8,7 +8,7 @@ Key design points:
 
 - **Persistent TCP connection** — one client at a time; the server accepts a new client after the previous one disconnects.
 - **Newline-delimited JSON** — every request is a single JSON object terminated by `\n`; every response is a single JSON object terminated by `\n`.
-- **Platform-agnostic** — the same protocol works against both the [Avalonia Desktop app](../../desktop-apps/avalonia-desktop.md) and the [Headless app](../../desktop-apps/headless.md).
+- **Platform-agnostic** — the same protocol works against both the [Avalonia Desktop app](../../host-apps/avalonia/desktop.md) and the [Headless app](../../host-apps/headless/overview.md).
 - **Non-exclusive** — user input from keyboard/joystick and remote input coexist; neither locks the other out.
 - **Frame-synchronized input** — joystick, keyboard, and memory-write commands are queued and executed at the next frame boundary so they do not race with the CPU.
 

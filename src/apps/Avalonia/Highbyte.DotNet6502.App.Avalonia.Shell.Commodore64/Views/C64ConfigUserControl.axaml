@@ -570,6 +570,11 @@
                         Click="OpenAIHelpUrl_Click"/>
             </StackPanel>
 
+            <CheckBox Content="Enable (F9 toggles while running)"
+                      AutomationProperties.AutomationId="AiBasicEnabledCheckBox"
+                      AutomationProperties.Name="Enable BASIC AI coding assistant by default"
+                      IsChecked="{Binding BasicAIAssistantEnabled}"/>
+
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="AI backend type:" 

@@ -107,7 +107,7 @@ remaps the three MonoGame `Keys` whose layout-bound names diverge from W3C posit
 
 The shared SV map then handles them correctly. Combined with the existing SV map entries, most
 Swedish punctuation works on SadConsole — see the
-[Swedish layout quick reference](../systems/c64/keyboard.md#swedish-layout-quick-reference)
+[Swedish layout quick reference](../../systems/c64/keyboard.md#swedish-layout-quick-reference)
 in the C64 keyboard doc for the chord table.
 
 Two SadConsole-specific notes:
@@ -140,6 +140,6 @@ Only US and Swedish are wired today. Adding a new layout means:
 (3) adding any MonoGame-`Keys` overrides for SadConsole if that layout reports keys at different
 W3C positions than US (same pattern as the Swedish table above).
 
-See [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the user-facing C64
+See [Systems / C64 / Keyboard mapping](../../systems/c64/keyboard.md) for the user-facing C64
 keyboard reference (including the per-host capability matrix), and
 `docs/keyboard-layout-mapping-fix.md` for the internal design.

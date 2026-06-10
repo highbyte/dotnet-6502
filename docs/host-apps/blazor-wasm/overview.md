@@ -4,16 +4,16 @@
 
 Web app written with [Blazor WebAssembly](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor).
 
-![Blazor WebAssembly app, C64 Basic](../assets/screenshots/BlazorWASM_C64_Basic.png){ width="25%" }
-![Blazor WebAssembly app, C64 Last Ninja](../assets/screenshots/BlazorWASM_C64_LastNinja.png){ width="25%" }
-![Blazor WebAssembly app, C64 monitor](../assets/screenshots/BlazorWASM_C64_Monitor.png){ width="36%" }
+![Blazor WebAssembly app, C64 Basic](../../assets/screenshots/BlazorWASM_C64_Basic.png){ width="25%" }
+![Blazor WebAssembly app, C64 Last Ninja](../../assets/screenshots/BlazorWASM_C64_LastNinja.png){ width="25%" }
+![Blazor WebAssembly app, C64 monitor](../../assets/screenshots/BlazorWASM_C64_Monitor.png){ width="36%" }
 
 Technologies:
 
 - UI: `Blazor` UI controls.
-- Rendering: [`Highbyte.DotNet6502.Impl.Skia`](../libraries/implementation/skia.md). Using [`SkiaSharp.Views.Blazor`](https://www.nuget.org/packages/SkiaSharp.Views.Blazor) library to provide a Canvas for drawing on with [`SkiaSharp`](https://www.nuget.org/packages/SkiaSharp).
-- Input: [`Highbyte.DotNet6502.Impl.AspNet`](../libraries/implementation/aspnet.md).
-- Audio: [`Highbyte.DotNet6502.Impl.AspNet`](../libraries/implementation/aspnet.md). Custom `WebAudio JS interop` for synthesizer and playback. Only the legacy command-stream C64 audio provider is wired up here; the more accurate sample-based provider is currently available on the desktop hosts and on the Avalonia Browser app. See [C64 audio](../systems/c64/libraries.md#audio).
+- Rendering: [`Highbyte.DotNet6502.Impl.Skia`](../../libraries/implementation/skia.md). Using [`SkiaSharp.Views.Blazor`](https://www.nuget.org/packages/SkiaSharp.Views.Blazor) library to provide a Canvas for drawing on with [`SkiaSharp`](https://www.nuget.org/packages/SkiaSharp).
+- Input: [`Highbyte.DotNet6502.Impl.AspNet`](../../libraries/implementation/aspnet.md).
+- Audio: [`Highbyte.DotNet6502.Impl.AspNet`](../../libraries/implementation/aspnet.md). Custom `WebAudio JS interop` for synthesizer and playback. Only the legacy command-stream C64 audio provider is wired up here; the more accurate sample-based provider is currently available on the desktop hosts and on the Avalonia Browser app. See [C64 audio](../../systems/c64/libraries.md#audio).
 
 Live version: <https://highbyte.se/dotnet-6502/app>
 
@@ -48,7 +48,7 @@ Live version: <https://highbyte.se/dotnet-6502/app>
   `Swedish` C64 keyboard layouts work; in Chromium browsers the layout is auto-detected via
   `navigator.keyboard.getLayoutMap()` (other browsers fall through to OS culture, then US).
   Layout can be overridden in the C64 config UI. See
-  [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
+  [Systems / C64 / Keyboard mapping](../../systems/c64/keyboard.md) for the full host-agnostic mapping.
 
 - Audio via `WebAudio` synthesizer using .NET → JavaScript interop. Only the legacy
   command-stream C64 audio provider runs here (not very accurate); the more accurate
@@ -68,7 +68,7 @@ Configuration options of selected system.
 
 #### Monitor
 
-A Blazor WASM implementation of the [machine code monitor](../libraries/core/dotnet6502-monitor.md) is available by pressing F12.
+A Blazor WASM implementation of the [machine code monitor](../../libraries/core/dotnet6502-monitor.md) is available by pressing F12.
 
 #### Stats
 
@@ -76,7 +76,7 @@ A toggleable stats window by pressing F11.
 
 ## How to run locally for development
 
-For development system requirements, see details under [Development](../home/development.md).
+For development system requirements, see details under [Development](../../home/development.md).
 
 ### Visual Studio (Windows)
 

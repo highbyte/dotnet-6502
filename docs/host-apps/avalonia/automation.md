@@ -311,7 +311,7 @@ The JSON path shapes above are illustrative — adjust with your peekaboo versio
 
 ## See also
 
-- [Avalonia Desktop app](avalonia-desktop.md) — general app overview
+- [Avalonia Desktop app](desktop.md) — general app overview
 - [Avalonia Accessibility docs](https://docs.avaloniaui.net/docs/concepts/accessibility)
 - [NSAccessibility Programming Guide](https://developer.apple.com/documentation/appkit/accessibility_for_appkit)
 - [peekaboo](https://peekaboo.dev) — macOS UI automation CLI used for the verification in this doc

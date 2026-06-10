@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using System.IO.Compression;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 using Highbyte.DotNet6502.Utils;
 
@@ -82,7 +81,7 @@ public class D64Downloader
     }
 
     /// <summary>
-    /// Downloads a ZIP file and extracts the first .d64 file in a memory-efficient way
+    /// Downloads a ZIP file and extracts the first .d64 file in it.
     /// </summary>
     /// <param name="url">The URL to download the ZIP from</param>
     /// <returns>The .d64 file content as byte array</returns>
@@ -90,33 +89,7 @@ public class D64Downloader
     {
         using var response = await _httpClient.GetAsync(url);
         response.EnsureSuccessStatusCode();
-
-        // Use the response stream directly instead of loading everything into memory
         using var responseStream = await response.Content.ReadAsStreamAsync();
-        using var archive = new ZipArchive(responseStream, ZipArchiveMode.Read);
-
-        // Find the first .d64 file in the archive
-        var d64Entry = archive.Entries.FirstOrDefault(entry => entry.Name.EndsWith(".d64", StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidOperationException("No .d64 file found in the ZIP archive");
-
-        _logger.LogInformation("Found .d64 file in ZIP: {EntryName}, size: {ByteCount} bytes", d64Entry.Name, d64Entry.Length);
-
-        // Pre-allocate array with the exact size
-        var d64Bytes = new byte[d64Entry.Length];
-
-        // Extract the .d64 file content directly
-        using var entryStream = d64Entry.Open();
-        int totalBytesRead = 0;
-        int bytesRead;
-
-        // Read in chunks to be memory-efficient
-        while (totalBytesRead < d64Bytes.Length &&
-               (bytesRead = await entryStream.ReadAsync(d64Bytes, totalBytesRead, d64Bytes.Length - totalBytesRead)) > 0)
-        {
-            totalBytesRead += bytesRead;
-        }
-
-        _logger.LogInformation("Extracted .d64 file: {ByteCount} bytes", d64Bytes.Length);
-        return d64Bytes;
+        return D64ZipExtractor.ExtractFirstD64FromZip(responseStream, _logger);
     }
 }

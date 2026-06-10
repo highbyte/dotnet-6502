@@ -52,6 +52,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private string? _validationMessage;
     private readonly ObservableCollection<string> _validationErrors = new();
     private bool _audioEnabled;
+    private bool _basicAIAssistantEnabled;
     private bool _keyboardJoystickEnabled;
     private int _selectedKeyboardJoystick;
     private int _selectedHostJoystick;
@@ -490,6 +491,24 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _audioEnabled, value);
             _workingConfig.SystemConfig.AudioEnabled = value;
+        }
+    }
+
+    /// <summary>
+    /// Whether the BASIC AI coding assistant is enabled by default when the C64 starts. The F9 key
+    /// still toggles it live while running. (Moved here from the C64 menu to keep it with the other
+    /// AI assistant settings.)
+    /// </summary>
+    public bool BasicAIAssistantEnabled
+    {
+        get => _basicAIAssistantEnabled;
+        set
+        {
+            if (_basicAIAssistantEnabled == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _basicAIAssistantEnabled, value);
+            _workingConfig.BasicAIAssistantDefaultEnabled = value;
         }
     }
 
@@ -1658,6 +1677,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
 
         // Initialize AI Coding Assistant properties
+        BasicAIAssistantEnabled = _workingConfig.BasicAIAssistantDefaultEnabled;
         SelectedAIBackendType = _workingConfig.CodeSuggestionBackendType;
         LoadAIConfiguration();
 

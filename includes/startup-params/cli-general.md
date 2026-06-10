@@ -42,7 +42,7 @@ group.
 
 #### Debug adapter
 
-For the user guide on attaching VS Code, see [Tools / VSCode debugger / Debugging](../tools/vscode-debugger/debugging.md).
+For the user guide on attaching VS Code, see [Tools / VSCode debugger / Debugging](../../tools/vscode-debugger/debugging.md).
 
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
@@ -53,7 +53,7 @@ For the user guide on attaching VS Code, see [Tools / VSCode debugger / Debuggin
 
 #### Remote control
 
-For protocol and command list, see [Tools / Remote control](../tools/remote-control/overview.md).
+For protocol and command list, see [Tools / Remote control](../../tools/remote-control/overview.md).
 
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|

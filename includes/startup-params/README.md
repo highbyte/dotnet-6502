@@ -19,8 +19,8 @@ Naming convention
     <system> — one file per system, e.g. `c64`, future `vic20`
                (one "### <System> parameters" group)
 
-Each consumer page (docs/desktop-apps/avalonia-desktop.md, .../headless.md,
-docs/web-apps/avalonia-browser.md) is a thin assembler that includes the intro,
+Each consumer page (docs/host-apps/avalonia/desktop.md, .../headless.md,
+docs/host-apps/avalonia/browser.md) is a thin assembler that includes the intro,
 the general file, then one `--8<--` line per system file.
 
 Heading levels
