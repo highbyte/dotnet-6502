@@ -469,6 +469,9 @@ public class HostApp : IHostApp, IManualRenderingProvider
     public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid() =>
         _systemList.IsValidConfigWithDetails(_selectedSystemName);
 
+    public Task<(bool IsValid, List<string> Errors)> IsSystemConfigValid(string systemName) =>
+        _systemList.IsValidConfigWithDetails(systemName);
+
     public async Task Start()
     {
         if (EmulatorState == EmulatorState.Running)

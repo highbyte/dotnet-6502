@@ -791,6 +791,19 @@ public class MainViewModel : ViewModelBase, IDisposable
             .Select(config => GetAudioToolTip(config))
             .ToProperty(this, x => x.AudioTooltip);
 
+        // A host-config update can rebuild the selected system's temporary instance and thereby
+        // change its screen dimensions (e.g. ROMs downloaded during automated startup make the C64
+        // buildable, so CurrentSystemScreenInfo goes from the default fallback to the real size).
+        // The system/variant identity does not change in that case, so refresh the emulator display
+        // size here too — otherwise the display container keeps the default 320x200 size.
+        _hostApp
+            .WhenAnyValue(x => x.CurrentHostSystemConfig)
+            .Subscribe(_ =>
+            {
+                this.RaisePropertyChanged(nameof(EmulatorDisplayWidth));
+                this.RaisePropertyChanged(nameof(EmulatorDisplayHeight));
+            });
+
         // External debug server (Desktop only — null on Browser)
         _externalDebugController = App.Current?.ExternalDebugController;
         if (_externalDebugController != null)

@@ -54,6 +54,71 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
 
     public string SystemName => C64.SystemName;
 
+    /// <summary>
+    /// Pre-selection acknowledgement for a URL-driven (shared) C64 startup. Shows what is about to
+    /// run and — when the C64 ROMs are missing — the ROM-license consent, in one themed dialog,
+    /// before any system is selected. Cancelling here leaves the app pristine (no system selected).
+    /// On confirmation the browser audio-autoplay policy is unlocked via the host gesture callback,
+    /// so a program that plays audio on autostart is not left silent. Browser-only — on desktop the
+    /// CLI is explicit and the normal config UI handles missing ROMs (unchanged).
+    /// </summary>
+    public async Task<bool> AcknowledgeStartupAsync(
+        IHostApp hostApp, AutomatedStartupRequest request, AutomatedStartupContext context)
+    {
+        if (!OperatingSystem.IsBrowser())
+            return true;
+
+        // Detect missing ROMs without selecting the system, so a cancel can abort to a pristine
+        // (no system selected) state. The download itself runs later (after selection) in
+        // EnsureReadyForStartAsync, by which point this consent has already been given.
+        var (isValid, errors) = await hostApp.IsSystemConfigValid(C64.SystemName);
+        var romsNeeded = !isValid && HasOnlyMissingC64RomErrors(errors);
+
+        var programInfo = BuildStartupProgramInfo(request.ExtraParameters);
+
+        var acknowledgmentService = _serviceProvider.GetRequiredService<C64AcknowledgmentService>();
+        var acknowledged = await acknowledgmentService.RunStartupAcknowledgmentAsync(
+            programInfo, romsNeeded, context.UnlockAudio);
+
+        if (!acknowledged)
+        {
+            _logger.LogInformation("C64 startup acknowledgement cancelled by user.");
+            return false;
+        }
+
+        _logger.LogInformation("C64 startup acknowledged (romsNeeded={RomsNeeded}).", romsNeeded);
+        return true;
+    }
+
+    /// <summary>
+    /// Builds the program-description shown in the startup acknowledgement dialog from the automation
+    /// extras. Mirrors the URL-query precedence in the browser host's <c>ParseAutomationQuery</c>.
+    /// </summary>
+    private static C64StartupProgramInfo BuildStartupProgramInfo(IReadOnlyDictionary<string, string> extras)
+    {
+        var audioEnabled = !extras.TryGetValue(ExtraKeyAudioEnabled, out var ae) || IsTruthy(ae);
+
+        if (GetExtra(extras, "basicText") != null || GetExtra(extras, "basicUrl") != null)
+            return new C64StartupProgramInfo("C64 BASIC program", Url: null, audioEnabled);
+
+        var loadPrgUrl = GetExtra(extras, "loadPrgUrl");
+        if (loadPrgUrl != null)
+            return new C64StartupProgramInfo(".prg program", loadPrgUrl, audioEnabled);
+
+        var loadD64Url = GetExtra(extras, ExtraKeyLoadD64Url);
+        if (loadD64Url != null)
+        {
+            var kind = ".d64 disk image";
+            if (extras.TryGetValue(ExtraKeyDiskMount, out var dm) && IsTruthy(dm))
+                kind += " (mounted in drive 8)";
+            else if (GetExtra(extras, ExtraKeyD64Program) is { } prg)
+                kind += $" (file: {prg})";
+            return new C64StartupProgramInfo(kind, loadD64Url, audioEnabled);
+        }
+
+        return new C64StartupProgramInfo("C64 (no program)", Url: null, audioEnabled);
+    }
+
     public async Task<bool> EnsureReadyForStartAsync(IHostApp hostApp, AutomatedStartupRequest request)
     {
         // Apply any C64-runtime config supplied via extras (joystick / audio) onto the live
@@ -72,11 +137,13 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         if (isValid || !HasOnlyMissingC64RomErrors(errors))
             return true;
 
-        // C64ConfigDialogViewModel / C64RomPromptService are registered transient — resolve them
-        // on demand rather than capturing them in this singleton.
-        var romPromptService = _serviceProvider.GetRequiredService<C64RomPromptService>();
+        // C64ConfigDialogViewModel / C64AcknowledgmentService are registered transient — resolve
+        // them on demand rather than capturing them in this singleton. The ROM-license consent was
+        // already given in AcknowledgeStartupAsync (before selection), so this only downloads with
+        // progress — no second prompt.
+        var acknowledgmentService = _serviceProvider.GetRequiredService<C64AcknowledgmentService>();
         var configViewModel = _serviceProvider.GetRequiredService<C64ConfigDialogViewModel>();
-        if (!await romPromptService.RunStartupDownloadWorkflowAsync(
+        if (!await acknowledgmentService.RunRomDownloadAsync(
             configViewModel,
             async () =>
             {

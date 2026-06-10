@@ -46,3 +46,23 @@ export async function getKeyboardLayoutId() {
 export function getNavigatorPlatform() {
     return navigator.userAgentData?.platform ?? navigator.platform ?? "";
 }
+
+// Unlocks audio autoplay. Browsers keep an AudioContext suspended until a real user gesture, so a
+// program that plays audio on autostart stays silent until the user interacts. Called synchronously
+// from the startup acknowledgement dialog's confirm click (a trusted gesture): creating and
+// resuming an AudioContext here marks the page as activated, so the emulator's own (later) audio
+// context is allowed to play. The scratch context is short-lived and then closed.
+export function unlockAudio() {
+    try {
+        const Ctx = globalThis.AudioContext || globalThis.webkitAudioContext;
+        if (!Ctx)
+            return;
+        const ctx = new Ctx();
+        if (ctx.state === "suspended")
+            ctx.resume()?.catch(() => { /* best-effort: rejected resume just leaves audio locked */ });
+        setTimeout(() => { ctx.close()?.catch(() => { /* best-effort */ }); }, 1000);
+    } catch {
+        // Best-effort: if the Web Audio API is unavailable the emulator simply stays silent until
+        // the user interacts, which is the pre-existing behaviour.
+    }
+}

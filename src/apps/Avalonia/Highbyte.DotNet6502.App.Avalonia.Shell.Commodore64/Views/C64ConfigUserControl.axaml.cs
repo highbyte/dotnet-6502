@@ -87,8 +87,8 @@ public partial class C64ConfigUserControl : UserControl
                 return;
             }
 
-            var romPromptService = serviceProvider.GetRequiredService<C64RomPromptService>();
-            var result = await romPromptService.ShowConfigDownloadAcknowledgementAsync(this);
+            var acknowledgmentService = serviceProvider.GetRequiredService<C64AcknowledgmentService>();
+            var result = await acknowledgmentService.ShowRomLicenseConsentAsync(this);
             e.SetResult(result);
         });
 
