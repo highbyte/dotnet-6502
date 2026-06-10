@@ -154,6 +154,14 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     internal SystemList SystemList => _systemList;
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
+    /// <summary>
+    /// The effective CORS proxy URL for cross-origin HTTP fetches (browser only; null on desktop).
+    /// General browser setting from <see cref="EmulatorConfig.CorsProxyUrl"/>, used by the system
+    /// download flows and URL-driven startup. Exposed publicly so the per-system shell view models
+    /// can read it without access to the internal <see cref="EmulatorConfig"/>.
+    /// </summary>
+    public string? GetCorsProxyUrl() => _emulatorConfig.GetCorsProxyUrl();
+
     // Expose InputHandlerContext for debug views
     internal AvaloniaInputHandlerContext InputHandlerContext => _inputHandlerContext;
 

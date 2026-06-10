@@ -198,7 +198,7 @@ internal sealed partial class Program
     /// </para>
     /// <code>
     /// # System-driven: select C64 (PAL), start, wait for BASIC ready
-    /// ?system=C64&amp;systemVariant=PAL&amp;start=1&amp;waitForSystemReady=1
+    /// ?system=C64&amp;systemVariant=C64PAL&amp;start=1&amp;waitForSystemReady=1
     ///
     /// # Load and run a bundled PRG (same-origin URL)
     /// ?system=C64&amp;start=1&amp;waitForSystemReady=1&amp;loadPrgUrl=prg/c64/smooth_scroller_and_raster.prg&amp;runLoadedProgram=1
@@ -314,6 +314,13 @@ internal sealed partial class Program
         // Set the Lua store prefix for display in the settings UI (browser only)
         emulatorConfig.LuaStorePrefix = LOCAL_STORAGE_STORE_PREFIX;
 
+        // CORS proxy for URL-driven startup fetches (loadPrgUrl / loadD64Url / basicUrl / scriptUrl).
+        // A user-supplied cross-origin URL usually lacks CORS headers and can't be fetched directly
+        // from WebAssembly, so route it through the configured proxy. Same-origin (bundled) and
+        // already-proxied URLs are left unwrapped. See CorsProxyHelper.
+        var corsProxyUrl = emulatorConfig.GetCorsProxyUrl();
+        var appBaseUrl = GetCurrentAppBaseUrl();
+
         // Load custom JS module that WebAudioWavePlayer requires for interacting with WebAudio API.
         WriteBootstrapLog("Importing WebAudio WavePlayer JS module.");
         var jsModuleUri = WebAudioWavePlayerResources.GetJavaScriptModuleDataUri();
@@ -397,7 +404,8 @@ internal sealed partial class Program
                 try
                 {
                     using var http = GetAppUrlHttpClient();
-                    urlScriptContent = await GetUtf8TextAsync(http, automation.ScriptUrl);
+                    var scriptFetchUrl = CorsProxyHelper.ApplyCorsProxyIfNeeded(automation.ScriptUrl, corsProxyUrl, appBaseUrl);
+                    urlScriptContent = await GetUtf8TextAsync(http, scriptFetchUrl);
                     startupLogger.LogInformation("Fetched 'scriptUrl' from {ScriptUrl} ({Length} chars).",
                         automation.ScriptUrl,
                         urlScriptContent.Length);
@@ -533,7 +541,7 @@ internal sealed partial class Program
                 Func<Task<byte[]>>? prgBytesProvider = null;
                 if (automation.LoadPrgUrl != null)
                 {
-                    var prgUrl = automation.LoadPrgUrl;
+                    var prgUrl = CorsProxyHelper.ApplyCorsProxyIfNeeded(automation.LoadPrgUrl, corsProxyUrl, appBaseUrl);
                     prgBytesProvider = async () =>
                     {
                         using var http = GetAppUrlHttpClient();
@@ -553,13 +561,15 @@ internal sealed partial class Program
                     FetchTextResource = async url =>
                     {
                         using var http = GetAppUrlHttpClient();
-                        return await GetUtf8TextAsync(http, url);
+                        var fetchUrl = CorsProxyHelper.ApplyCorsProxyIfNeeded(url, corsProxyUrl, appBaseUrl);
+                        return await GetUtf8TextAsync(http, fetchUrl);
                     },
                     FetchBinaryResource = async url =>
                     {
                         using var http = GetAppUrlHttpClient();
+                        var fetchUrl = CorsProxyHelper.ApplyCorsProxyIfNeeded(url, corsProxyUrl, appBaseUrl);
                         startupLogger.LogInformation($"Fetching binary resource from '{url}'...");
-                        var bytes = await http.GetByteArrayAsync(url);
+                        var bytes = await http.GetByteArrayAsync(fetchUrl);
                         startupLogger.LogInformation($"Fetched {bytes.Length} bytes from '{url}'.");
                         return bytes;
                     },

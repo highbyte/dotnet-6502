@@ -83,33 +83,6 @@ public partial class Vic20ConfigDialogView : UserControl
             e.SetResult(result);
         });
 
-    private void CorsProxyTextBox_KeyDown(object? sender, KeyEventArgs e)
-    {
-        if (sender is not TextBox textBox) return;
-        if ((e.KeyModifiers & (KeyModifiers.Meta | KeyModifiers.Control)) == 0) return;
-
-        if (e.Key == Key.C)
-        {
-            textBox.Copy();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.V)
-        {
-            textBox.Paste();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.X)
-        {
-            textBox.Cut();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.A)
-        {
-            textBox.SelectAll();
-            e.Handled = true;
-        }
-    }
-
     private void LoadRoms_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(LoadRomsAsync);
 

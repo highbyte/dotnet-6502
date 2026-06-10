@@ -782,14 +782,14 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             {
                 _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-                if (hostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+                if (hostApp.CurrentHostSystemConfig is not C64HostConfig _)
                     return;
 
                 _c64AutoLoadAndRun = new C64AutoLoadAndRun(
                    _loggerFactory,
                    _httpClient,
                    hostApp,
-                   corsProxyUrl: c64HostConfig.GetCorsProxyURL());
+                   corsProxyUrl: _avaloniaHostApp.GetCorsProxyUrl());
             }
 
             await _c64AutoLoadAndRun.DownloadAndRunProgram(

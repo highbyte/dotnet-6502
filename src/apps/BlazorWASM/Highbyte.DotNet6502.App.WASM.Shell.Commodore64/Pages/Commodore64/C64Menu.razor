@@ -208,7 +208,7 @@
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
-        _c64AutoLoadAndRun = new C64AutoLoadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, _c64HostConfig.CorsProxyURL);
+        _c64AutoLoadAndRun = new C64AutoLoadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, Parent.WasmHost.EmulatorConfig.GetCorsProxyUrl());
     }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e)

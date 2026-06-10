@@ -13,8 +13,6 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.Avalonia";
 
-    public const string DefaultCorsProxyURL = BrowserServiceDefaults.DefaultCorsProxyUrl;
-
     [JsonIgnore]
     public override bool AudioSupported =>
         PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly();
@@ -111,22 +109,8 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
         }
     }
 
-    /// <summary>
-    /// CORS proxy address override. If null/empty, the default CORS proxy URL is used when running
-    /// in WebAssembly. When running on desktop, this setting is ignored and no CORS proxy is used.
-    /// </summary>
-    public string? CorsProxyOverrideURL { get; set; } = null;
-
-    /// <summary>
-    /// The current CORS proxy URL to use. In WebAssembly: <see cref="CorsProxyOverrideURL"/> if set,
-    /// else <see cref="DefaultCorsProxyURL"/>. On desktop: null (no proxy).
-    /// </summary>
-    public string GetCorsProxyURL()
-    {
-        if (!PlatformDetection.IsRunningInWebAssembly())
-            return null!;
-        return string.IsNullOrEmpty(CorsProxyOverrideURL) ? DefaultCorsProxyURL : CorsProxyOverrideURL;
-    }
+    // The CORS proxy is now a general browser setting (EmulatorConfig.CorsProxyUrl), no longer
+    // per-system. See AvaloniaHostApp.GetCorsProxyUrl().
 
     private bool _basicAIAssistantDefaultEnabled;
     [JsonIgnore]

@@ -446,6 +446,12 @@ public partial class Index : IWasmHostView
             parameters.Add("AvailableAudioProviderAndAudioTargetTypeCombinations", _wasmHost.GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations());
         }
 
+        if (_activeConfigContribution.UsesCorsProxy)
+        {
+            // General browser CORS proxy (no longer per-system) for cross-origin downloads in the config UI.
+            parameters.Add("CorsProxyUrl", _emulatorConfig.GetCorsProxyUrl());
+        }
+
         var result = await Modal.Show(_activeConfigContribution.ComponentType, "Config", parameters).Result;
 
         if (result.Cancelled)

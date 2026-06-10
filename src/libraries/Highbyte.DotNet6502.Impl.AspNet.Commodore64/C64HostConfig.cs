@@ -12,8 +12,6 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.WASM";
 
-    public const string DefaultCorsProxyURL = BrowserServiceDefaults.DefaultCorsProxyUrl;
-
     public C64InputConfig InputConfig { get; set; } = new C64InputConfig();
 
     private C64SwiftLinkHostConfig _swiftLinkHost = new();
@@ -40,7 +38,8 @@ public class C64HostConfig : HostSystemConfigBase<C64SystemConfig>, IC64SwiftLin
     [JsonIgnore]
     public bool SwiftLinkConnectOnBoot => SwiftLinkHost.ConnectOnBoot;
 
-    public string CorsProxyURL { get; set; } = DefaultCorsProxyURL;
+    // The CORS proxy is now a general browser setting (EmulatorConfig.CorsProxyUrl), no longer
+    // per-system. See SkiaWASMHostApp.EmulatorConfig / EmulatorConfig.GetCorsProxyUrl().
 
     private bool _basicAIAssistantDefaultEnabled;
     [JsonIgnore]

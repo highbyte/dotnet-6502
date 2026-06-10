@@ -242,6 +242,42 @@ Once the no-op system appears, add real behaviour incrementally — each layer i
     Omitting these entries makes the system work in a Debug run but silently disappear from a
     published (trimmed/AOT) browser build.
 
+## Documenting startup parameters
+
+If your system adds its own automated-startup parameters — CLI flags for the Avalonia Desktop /
+Headless apps, or URL query parameters for the Avalonia Browser app — document them as a separate
+**snippet fragment per system**, so the app pages stay a thin assembly of *general* parameters
+followed by one group per system. There is no glob include in MkDocs, so each fragment is wired
+into the app page with an explicit `--8<--` line.
+
+The fragments live in `includes/startup-params/` and follow a `{frontend}-{scope}.md` naming
+convention (see that folder's `README.md` for the full rules):
+
+| File pattern | Purpose |
+| --- | --- |
+| `cli-<system>.md` | Your system's CLI flags (shared by the Avalonia Desktop and Headless apps). |
+| `browser-<system>.md` | Your system's URL query parameters (Avalonia Browser app). |
+
+`cli-general.md` / `browser-general.md` hold the system-agnostic parameters and are **not**
+touched when adding a system. The existing C64 fragments (`cli-c64.md`, `browser-c64.md`) are the
+templates to copy.
+
+To add docs for e.g. a VIC-20:
+
+1. Create `includes/startup-params/cli-vic20.md` starting with a
+   `### VIC-20 parameters *(system-specific)*` group heading and `####` sub-sections, each with a
+   `Parameter | Description | Depends on | Example` table. Copy the structure from `cli-c64.md`.
+2. Create `includes/startup-params/browser-vic20.md` the same way (copy `browser-c64.md`), using
+   the query-parameter syntax (`name=value`) and noting the desktop equivalents per group.
+3. Add one include line to each app page, after the existing system fragments:
+   - `docs/desktop-apps/avalonia-desktop.md` and `docs/desktop-apps/headless.md`:
+     `--8<-- "startup-params/cli-vic20.md"`
+   - `docs/web-apps/avalonia-browser.md`: `--8<-- "startup-params/browser-vic20.md"`
+
+Keep group headings at `###` and sub-sections at `####` so the page TOC stays two levels deep.
+Run `mkdocs build --strict` (see [BUILD_DOCS.md](https://github.com/highbyte/dotnet-6502/blob/master/BUILD_DOCS.md))
+to confirm the snippets resolve; the CI **Docs check** workflow runs the same strict build.
+
 ## See also
 
 - [dotnet6502-systems.md](./../libraries/core/dotnet6502-systems.md) — the abstractions you implement.

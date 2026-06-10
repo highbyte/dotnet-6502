@@ -23,6 +23,27 @@ public class EmulatorConfig
     public bool ShowDebugTools { get; set; } = false;
     public bool LoadResourcesOverHttp { get; set; } = false;
 
+    /// <summary>
+    /// CORS proxy prefix used to route cross-origin HTTP fetches when running in the browser
+    /// (WebAssembly). General browser setting shared by all systems and by URL-driven startup
+    /// (<c>loadPrgUrl</c> / <c>loadD64Url</c> / <c>basicUrl</c> / <c>scriptUrl</c>). Defaults to
+    /// <see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/>; ignored on desktop (no proxy). See
+    /// <see cref="GetCorsProxyUrl"/>.
+    /// </summary>
+    public string CorsProxyUrl { get; set; } = BrowserServiceDefaults.DefaultCorsProxyUrl;
+
+    /// <summary>
+    /// The effective CORS proxy URL to use: the configured <see cref="CorsProxyUrl"/> (falling back
+    /// to <see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/> when blank) in the browser, or
+    /// <see langword="null"/> on desktop where cross-origin fetches are unrestricted.
+    /// </summary>
+    public string? GetCorsProxyUrl()
+    {
+        if (!OperatingSystem.IsBrowser())
+            return null;
+        return string.IsNullOrEmpty(CorsProxyUrl) ? BrowserServiceDefaults.DefaultCorsProxyUrl : CorsProxyUrl;
+    }
+
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
     [JsonConverter(typeof(JsonStringEnumConverter<BrowserSampleAudioMode>))]
     public BrowserSampleAudioMode BrowserSampleAudioMode { get; set; } = BrowserSampleAudioMode.Stable;

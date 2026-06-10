@@ -31,5 +31,6 @@ public sealed class C64WasmShellPlugin : ISystemShellPlugin
     public object? CreateConfigDialogContribution(IServiceProvider serviceProvider) => new WasmConfigDialogContribution(
         typeof(C64ConfigUI),
         UseRenderProviderAndRenderTargetTypeCombinations: true,
-        UseAudioProviderAndAudioTargetTypeCombinations: true);
+        UseAudioProviderAndAudioTargetTypeCombinations: true,
+        UsesCorsProxy: true);
 }
