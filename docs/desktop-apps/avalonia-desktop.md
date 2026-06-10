@@ -74,7 +74,11 @@ The desktop app can be launched from the command line with arguments for automat
 selection, program / disk loading, C64 BASIC paste), scripting, logging, the debug adapter, and
 remote control.
 
---8<-- "cli-arguments-reference.md"
+--8<-- "startup-params/cli-intro.md"
+
+--8<-- "startup-params/cli-general.md"
+
+--8<-- "startup-params/cli-c64.md"
 
 ### Examples
 

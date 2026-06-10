@@ -57,7 +57,11 @@ The headless app can expose a TCP remote control endpoint that lets external pro
 
 The headless app is driven entirely from the command line.
 
---8<-- "cli-arguments-reference.md"
+--8<-- "startup-params/cli-intro.md"
+
+--8<-- "startup-params/cli-general.md"
+
+--8<-- "startup-params/cli-c64.md"
 
 !!! note
     Several automated-startup parameters are currently wired **only in the Avalonia Desktop app** and
