@@ -321,6 +321,10 @@ internal sealed partial class Program
         var corsProxyUrl = emulatorConfig.GetCorsProxyUrl();
         var appBaseUrl = GetCurrentAppBaseUrl();
 
+        // Base URL for generated shareable startup links (origin + path, trailing slash). Browser
+        // only; consumed by the C64 shell's "Share link" UI via AvaloniaHostApp.GetShareBaseUrl().
+        emulatorConfig.ShareBaseUrl = appBaseUrl;
+
         // Load custom JS module that WebAudioWavePlayer requires for interacting with WebAudio API.
         WriteBootstrapLog("Importing WebAudio WavePlayer JS module.");
         var jsModuleUri = WebAudioWavePlayerResources.GetJavaScriptModuleDataUri();

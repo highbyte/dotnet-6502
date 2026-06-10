@@ -19,6 +19,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
+using Highbyte.DotNet6502.Systems.Commodore64.Sharing;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
@@ -70,6 +71,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<Unit, Unit> ToggleDiskSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> CopyShareLinkCommand { get; }
     public ReactiveCommand<int, Unit> SetActiveJoystickCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleJoystickKeyboardCommand { get; }
     public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
@@ -98,6 +100,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantAvailable));
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
+                RecomputeShareLink();
             });
 
         // Subscribe to KeyDown events from AvaloniaHostApp
@@ -163,6 +166,11 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         ToggleConfigSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
             () => ToggleSection(C64MenuSection.Config),
             null,
+            RxSchedulers.MainThreadScheduler);
+
+        CopyShareLinkCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await CopyShareLinkAsync(),
+            this.WhenAnyValue(x => x.CanCopyShareLink),
             RxSchedulers.MainThreadScheduler);
 
         SetActiveJoystickCommand = ReactiveCommandHelper.CreateSafeCommand<int>(
@@ -257,6 +265,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         {
             this.RaiseAndSetIfChanged(ref _selectedPreloadedDisk, value);
             LatestPreloadedProgramError = string.Empty;
+            RecomputeShareLink();
         }
     }
     public bool IsLoadingPreloadedProgram
@@ -507,6 +516,245 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         IsDiskSectionExpanded = false;
         IsLoadSaveSectionExpanded = false;
         IsConfigSectionExpanded = true;
+    }
+
+    // ===== Share link =====
+    // URL-length thresholds (total generated URL chars). The binding limit is the host/CDN that
+    // serves the app, not the browser; ~8 KB is universally safe, past ~16 KB refuse. See the
+    // 'avalonia-browser-share-startup-link' design doc.
+    public const int ShareUrlWarnThreshold = 8000;
+    public const int ShareUrlRefuseThreshold = 16000;
+
+    /// <summary>Rebuilds the share link from current state. Call before showing the share overlay.</summary>
+    public void RefreshShareLink() => RecomputeShareLink();
+
+    /// <summary>Sharing is browser-only and needs the app's base URL (set by the browser host).</summary>
+    public bool IsShareFeatureAvailable =>
+        PlatformDetection.IsRunningInWebAssembly() && !string.IsNullOrEmpty(_avaloniaHostApp.GetShareBaseUrl());
+
+    private C64ShareMode _shareMode = C64ShareMode.CurrentBasic;
+    public bool IsShareModeCurrentBasic
+    {
+        get => _shareMode == C64ShareMode.CurrentBasic;
+        set
+        {
+            if (!value || _shareMode == C64ShareMode.CurrentBasic)
+                return;
+            _shareMode = C64ShareMode.CurrentBasic;
+            this.RaisePropertyChanged(nameof(IsShareModeCurrentBasic));
+            this.RaisePropertyChanged(nameof(IsShareModeDownloadProgram));
+            RecomputeShareLink();
+        }
+    }
+    public bool IsShareModeDownloadProgram
+    {
+        get => _shareMode == C64ShareMode.DownloadProgram;
+        set
+        {
+            if (!value || _shareMode == C64ShareMode.DownloadProgram)
+                return;
+            _shareMode = C64ShareMode.DownloadProgram;
+            this.RaisePropertyChanged(nameof(IsShareModeCurrentBasic));
+            this.RaisePropertyChanged(nameof(IsShareModeDownloadProgram));
+            RecomputeShareLink();
+        }
+    }
+
+    private bool _shareAutoRun = true;
+    public bool ShareAutoRun
+    {
+        get => _shareAutoRun;
+        set { this.RaiseAndSetIfChanged(ref _shareAutoRun, value); RecomputeShareLink(); }
+    }
+
+    private bool _shareIncludeSettings = true;
+    public bool ShareIncludeSettings
+    {
+        get => _shareIncludeSettings;
+        set { this.RaiseAndSetIfChanged(ref _shareIncludeSettings, value); RecomputeShareLink(); }
+    }
+
+    private string _generatedShareUrl = string.Empty;
+    public string GeneratedShareUrl
+    {
+        get => _generatedShareUrl;
+        private set => this.RaiseAndSetIfChanged(ref _generatedShareUrl, value);
+    }
+
+    private string _shareUnavailableReason = string.Empty;
+    public string ShareUnavailableReason
+    {
+        get => _shareUnavailableReason;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _shareUnavailableReason, value);
+            this.RaisePropertyChanged(nameof(HasShareUnavailableReason));
+        }
+    }
+    public bool HasShareUnavailableReason => !string.IsNullOrEmpty(ShareUnavailableReason);
+
+    private string _shareWarning = string.Empty;
+    public string ShareWarning
+    {
+        get => _shareWarning;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _shareWarning, value);
+            this.RaisePropertyChanged(nameof(HasShareWarning));
+        }
+    }
+    public bool HasShareWarning => !string.IsNullOrEmpty(ShareWarning);
+
+    private bool _isShareUrlTooLong;
+    public bool IsShareUrlTooLong
+    {
+        get => _isShareUrlTooLong;
+        private set => this.RaiseAndSetIfChanged(ref _isShareUrlTooLong, value);
+    }
+
+    private bool _canCopyShareLink;
+    public bool CanCopyShareLink
+    {
+        get => _canCopyShareLink;
+        private set => this.RaiseAndSetIfChanged(ref _canCopyShareLink, value);
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="GeneratedShareUrl"/> (and the warning/availability flags) from the current
+    /// mode, options and live emulator state. Safe to call on desktop (no-op via the availability guard).
+    /// </summary>
+    private void RecomputeShareLink()
+    {
+        if (!IsShareFeatureAvailable)
+        {
+            ApplyShareUnavailable(reason: string.Empty);
+            return;
+        }
+
+        var (request, unavailableReason) = BuildShareRequest();
+        if (request is null)
+        {
+            ApplyShareUnavailable(unavailableReason ?? string.Empty);
+            return;
+        }
+
+        string url;
+        try
+        {
+            url = C64ShareLinkBuilder.Build(_avaloniaHostApp.GetShareBaseUrl()!, request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to build C64 share link.");
+            ApplyShareUnavailable("Could not generate a share link from the current state.");
+            return;
+        }
+
+        ShareUnavailableReason = string.Empty;
+        GeneratedShareUrl = url;
+
+        var length = url.Length;
+        if (length > ShareUrlRefuseThreshold)
+        {
+            IsShareUrlTooLong = true;
+            ShareWarning = $"This link is too long to share reliably ({length:N0} characters). Try a shorter BASIC program.";
+            CanCopyShareLink = false;
+        }
+        else if (length > ShareUrlWarnThreshold)
+        {
+            IsShareUrlTooLong = false;
+            ShareWarning = $"This link is long ({length:N0} characters) and may not open on some hosts.";
+            CanCopyShareLink = true;
+        }
+        else
+        {
+            IsShareUrlTooLong = false;
+            ShareWarning = string.Empty;
+            CanCopyShareLink = true;
+        }
+    }
+
+    private void ApplyShareUnavailable(string reason)
+    {
+        GeneratedShareUrl = string.Empty;
+        ShareUnavailableReason = reason;
+        ShareWarning = string.Empty;
+        IsShareUrlTooLong = false;
+        CanCopyShareLink = false;
+    }
+
+    private (C64ShareLinkRequest? request, string? unavailableReason) BuildShareRequest()
+        => _shareMode switch
+        {
+            C64ShareMode.CurrentBasic => BuildCurrentBasicShareRequest(),
+            C64ShareMode.DownloadProgram => BuildDownloadProgramShareRequest(),
+            _ => (null, null),
+        };
+
+    private (C64ShareLinkRequest?, string?) BuildCurrentBasicShareRequest()
+    {
+        if (EmulatorState != EmulatorState.Running || !IsC64System())
+            return (null, "Start the C64 to share its current BASIC program.");
+
+        string basicText;
+        try
+        {
+            var c64 = (C64)_avaloniaHostApp.CurrentRunningSystem!;
+            basicText = c64.BasicTokenParser.GetBasicText().ToLower();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read C64 BASIC source for share link.");
+            return (null, "Could not read the current BASIC program.");
+        }
+
+        if (string.IsNullOrWhiteSpace(basicText))
+            return (null, "There is no BASIC program to share.");
+
+        var c64HostConfig = C64HostConfig;
+        return (new C64ShareLinkRequest
+        {
+            Mode = C64ShareMode.CurrentBasic,
+            SystemVariant = _avaloniaHostApp.SelectedSystemConfigurationVariant,
+            AutoRun = ShareAutoRun,
+            BasicText = basicText,
+            IncludeSettings = ShareIncludeSettings,
+            AudioEnabled = c64HostConfig?.SystemConfig?.AudioEnabled ?? false,
+            KeyboardJoystickEnabled = c64HostConfig?.SystemConfig?.KeyboardJoystickEnabled ?? false,
+            KeyboardJoystickNumber = c64HostConfig?.SystemConfig?.KeyboardJoystick ?? 2,
+        }, null);
+    }
+
+    private (C64ShareLinkRequest?, string?) BuildDownloadProgramShareRequest()
+    {
+        var key = SelectedPreloadedDisk;
+        if (string.IsNullOrEmpty(key) || !_preloadedPrograms.TryGetValue(key, out var info))
+            return (null, "Select a program under 'Disk Drive & .D64 images → Download & Run' to share it.");
+
+        // A downloadable program carries its own recommended variant/settings (applied by the
+        // Download & Run flow), so the shared link uses those rather than the current live config.
+        return (new C64ShareLinkRequest
+        {
+            Mode = C64ShareMode.DownloadProgram,
+            SystemVariant = string.IsNullOrEmpty(info.C64Variant)
+                ? _avaloniaHostApp.SelectedSystemConfigurationVariant
+                : info.C64Variant,
+            AutoRun = ShareAutoRun,
+            DownloadUrl = info.DownloadUrl,
+            DownloadType = info.DownloadType,
+            DirectLoadPRGName = info.DirectLoadPRGName,
+            IncludeSettings = ShareIncludeSettings,
+            AudioEnabled = info.AudioEnabled,
+            KeyboardJoystickEnabled = info.KeyboardJoystickEnabled,
+            KeyboardJoystickNumber = info.KeyboardJoystickNumber,
+        }, null);
+    }
+
+    private async Task CopyShareLinkAsync()
+    {
+        if (!CanCopyShareLink || string.IsNullOrEmpty(GeneratedShareUrl))
+            return;
+        await RequestClipboardCopyAsync(GeneratedShareUrl);
     }
 
     // --- ISystemMenuContributor ---

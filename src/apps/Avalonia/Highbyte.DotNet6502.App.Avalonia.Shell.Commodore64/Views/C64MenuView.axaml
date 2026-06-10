@@ -38,26 +38,13 @@
                     Classes="small"/>
         </Grid>
 
-        <!-- AI Basic coding assistant -->
-        <Grid Classes="spacing-tight">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <CheckBox Grid.Column="0"
-                      Content="AI Basic (F9)"
-                      AutomationProperties.AutomationId="AiBasicCheckBox"
-                      Classes=""
-                      IsChecked="{Binding BasicCodingAssistantEnabled}"
-                      IsEnabled="{Binding BasicCodingAssistantAvailable}"/>
-            <Button Grid.Column="2"
-                    Content="i"
-                    AutomationProperties.AutomationId="AiBasicInfoButton"
-                    AutomationProperties.Name="About AI BASIC coding assistant"
-                    Classes="info"
-                    Click="OpenBasicAssistantInfo_Click"/>
-        </Grid>
+        <!-- Share link (browser only) -->
+        <Button Content="Share link…"
+                AutomationProperties.AutomationId="ShareLinkButton"
+                AutomationProperties.Name="Generate a shareable startup link"
+                Classes="small"
+                IsVisible="{Binding IsShareFeatureAvailable}"
+                Click="OpenShare_Click"/>
 
         <!-- Disk Drive & D64 images -->
         <StackPanel>

@@ -143,6 +143,21 @@
         <Setter Property="FontSize" Value="14"/>
     </Style>
 
+    <!-- Default RadioButton style — matches the default CheckBox sizing so the two line up. -->
+    <Style Selector="RadioButton">
+        <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="RadioButton.small">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Margin" Value="0,3,0,0"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
     <!-- ========================================== -->
     <!-- NUMERIC UPDOWN STYLES                      -->
     <!-- ========================================== -->
