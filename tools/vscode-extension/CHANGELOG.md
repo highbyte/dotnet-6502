@@ -3,6 +3,8 @@
 All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension will be documented here.
 
 ## [Unreleased]
+
+## [0.3.1] - 2026-06-10
 Update documentation links to the reorganized documentation site.
 
 ## [0.3.0] - 2026-05-23
