@@ -29,8 +29,8 @@
 
 ## Per-app limitations
 
-- **Avalonia Desktop** — platform compatibility varies; see [Avalonia Desktop app troubleshooting](../desktop-apps/avalonia-desktop-troubleshooting.md).
+- **Avalonia Desktop** — platform compatibility varies; see [Avalonia Desktop app troubleshooting](../host-apps/avalonia/troubleshooting.md).
 - **Avalonia Browser** — Lua TCP client and filesystem APIs are not available (browser sandbox). The Lua key/value store falls back to `localStorage`.
-- **SilkNetNative** — requires a GPU with OpenGL drivers. ARM64 (Linux / Windows) is not currently supported. See [SilkNetNative troubleshooting](../desktop-apps/silknet-native-troubleshooting.md).
-- **SadConsole** — ARM64 (Linux / Windows) is not currently supported. See [SadConsole troubleshooting](../desktop-apps/sadconsole-troubleshooting.md).
+- **SilkNetNative** — requires a GPU with OpenGL drivers. ARM64 (Linux / Windows) is not currently supported. See [SilkNetNative troubleshooting](../host-apps/silknet-native/troubleshooting.md).
+- **SadConsole** — ARM64 (Linux / Windows) is not currently supported. See [SadConsole troubleshooting](../host-apps/sadconsole/troubleshooting.md).
 - **Headless** — no rendering or audio (by design); the `screenshot` remote-control command returns an error.

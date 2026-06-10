@@ -122,7 +122,7 @@ in how well their UI framework supports this; the table summarises the current s
 | **Avalonia Browser** | `Avalonia.Input.PhysicalKey` (W3C `code`) | ✅ both | `navigator.keyboard.getLayoutMap()` via `[JSImport]` | Chromium browsers only; other browsers fall through to culture. |
 | **SilkNet Native** | Silk.NET / GLFW positional `Key` | ✅ both | Win32 KLID (Windows) / `TIS*` (macOS) | GLFW already delivers positional keys. See [macOS quirk](#macos-keyboard-notes) about `<` / `§`. |
 | **Blazor WASM** | `KeyboardEventArgs.Code` (W3C `code`) | ✅ both | `navigator.keyboard.getLayoutMap()` via JS interop | Chromium browsers only. |
-| **SadConsole** | MonoGame `Keys` (layout-dependent) | ✅ US / ⚠️ Swedish (mostly — see [troubleshooting](../../desktop-apps/sadconsole-troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)) | Win32 KLID (Windows) / `TIS*` (macOS) — for the SadConsole-side layout override only | Most Swedish punctuation now works via a SadConsole-specific MonoGame-Keys-to-`HostKey` override. The `§` key remains unrecoverable — MonoGame returns `Keys.None` for it on macOS SDL. |
+| **SadConsole** | MonoGame `Keys` (layout-dependent) | ✅ US / ⚠️ Swedish (mostly — see [troubleshooting](../../host-apps/sadconsole/troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)) | Win32 KLID (Windows) / `TIS*` (macOS) — for the SadConsole-side layout override only | Most Swedish punctuation now works via a SadConsole-specific MonoGame-Keys-to-`HostKey` override. The `§` key remains unrecoverable — MonoGame returns `Keys.None` for it on macOS SDL. |
 
 ### Hosts that fully support physical keys
 
@@ -144,7 +144,7 @@ W3C-positional `HostKey` values Avalonia/SilkNet would have produced (`Slash`, `
 
 Remaining gap: the **`§` key (left of `1`)** — MonoGame returns `Keys.None` for it on macOS SDL,
 so SadConsole has no way to see that key was pressed. See the
-[SadConsole troubleshooting note](../../desktop-apps/sadconsole-troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)
+[SadConsole troubleshooting note](../../host-apps/sadconsole/troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)
 for the upstream context and a possible future fix via MonoGame's `Window.TextInput` event.
 
 ## macOS keyboard notes
@@ -193,4 +193,4 @@ A connected gamepad maps its D-pad to direction and the `A` button to fire.
 
 ## See also
 
-- [SadConsole troubleshooting — non-US keyboard layouts](../../desktop-apps/sadconsole-troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)
+- [SadConsole troubleshooting — non-US keyboard layouts](../../host-apps/sadconsole/troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)

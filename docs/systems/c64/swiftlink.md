@@ -86,5 +86,5 @@ For local bridge development with `wrangler dev`, temporarily override the brows
 
 - [overview.md](./overview.md)
 - [compatible-programs.md](./compatible-programs.md)
-- [avalonia-desktop.md](./../../desktop-apps/avalonia-desktop.md)
-- [avalonia-browser.md](./../../web-apps/avalonia-browser.md)
+- [avalonia-desktop.md](./../../host-apps/avalonia/desktop.md)
+- [avalonia-browser.md](./../../host-apps/avalonia/browser.md)

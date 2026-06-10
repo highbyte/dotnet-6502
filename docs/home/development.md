@@ -160,9 +160,9 @@ Set `SONAR_INCLUDE_PREEXISTING=1` to disable the "new code period" filter for a 
 
 ## Workaround / compatibility
 
-- [Avalonia Desktop app troubleshooting](../desktop-apps/avalonia-desktop-troubleshooting.md)
-- [SilkNetNative app troubleshooting](../desktop-apps/silknet-native-troubleshooting.md)
-- [SadConsole troubleshooting](../desktop-apps/sadconsole-troubleshooting.md)
+- [Avalonia Desktop app troubleshooting](../host-apps/avalonia/troubleshooting.md)
+- [SilkNetNative app troubleshooting](../host-apps/silknet-native/troubleshooting.md)
+- [SadConsole troubleshooting](../host-apps/sadconsole/troubleshooting.md)
 
 ## Using other emulators to verify correct behavior
 

@@ -7,8 +7,8 @@
 
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://highbyte.github.io/dotnet-6502/docs/home/development/)
 [![language](https://img.shields.io/badge/language-C%23-239120)](https://highbyte.github.io/dotnet-6502/docs/home/development/)
-[![OS](https://img.shields.io/badge/OS-windows%2C%20macOS%2C%20linux-0078D4)](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/installation/)
-[![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](https://highbyte.github.io/dotnet-6502/docs/web-apps/overview/)
+[![OS](https://img.shields.io/badge/OS-windows%2C%20macOS%2C%20linux-0078D4)](https://highbyte.github.io/dotnet-6502/docs/host-apps/installation/)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](https://highbyte.github.io/dotnet-6502/docs/host-apps/overview/)
 [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502)
 [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502)
 [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY)
@@ -42,8 +42,8 @@ Full documentation lives at **<https://highbyte.github.io/dotnet-6502/docs/>** �
 
 ## Other apps and features
 
-- **Desktop apps** for Windows, Linux, and macOS — Avalonia, SadConsole, and SilkNet variants. See [Desktop apps](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/installation/).
-- **Headless app** for automation, scripting, and CI workflows — no UI, controlled via CLI and Lua. See [Headless](https://highbyte.github.io/dotnet-6502/docs/desktop-apps/headless/).
+- **Desktop apps** for Windows, Linux, and macOS — Avalonia, SadConsole, and SilkNet variants. See [Desktop apps](https://highbyte.github.io/dotnet-6502/docs/host-apps/installation/).
+- **Headless app** for automation, scripting, and CI workflows — no UI, controlled via CLI and Lua. See [Headless](https://highbyte.github.io/dotnet-6502/docs/host-apps/headless/overview/).
 - **VS Code debugger extension** for source and disassembly debugging of 6502 code. See [VSCode debugger](https://highbyte.github.io/dotnet-6502/docs/tools/vscode-debugger/debugging/).
 - **Lua scripting** for driving the emulator — selecting systems, controlling emulation, reading/writing memory, injecting input. See [Scripting](https://highbyte.github.io/dotnet-6502/docs/tools/scripting/overview/).
 - **TCP remote control** lets external processes inspect and drive a running emulator over a newline-delimited JSON protocol. See [Remote control](https://highbyte.github.io/dotnet-6502/docs/tools/remote-control/overview/).

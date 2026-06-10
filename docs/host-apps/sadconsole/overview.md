@@ -2,19 +2,19 @@
 
 Cross-platform desktop app written with [`SadConsole`](https://github.com/Thraka/SadConsole) terminal/ascii/console/game engine.
 
-![SadConsole native app, C64 Basic](../assets/screenshots/SadConsole_C64_Basic.png){ width="25%" }
-![SadConsole native app, C64 Monitor](../assets/screenshots/SadConsole_C64_Monitor.png){ width="38%" }
+![SadConsole native app, C64 Basic](../../assets/screenshots/SadConsole_C64_Basic.png){ width="25%" }
+![SadConsole native app, C64 Monitor](../../assets/screenshots/SadConsole_C64_Monitor.png){ width="38%" }
 
 Technologies:
 
 - UI: `SadConsole` UI controls.
-- Rendering: [`Highbyte.DotNet6502.Impl.SadConsole`](../libraries/implementation/sadconsole.md).
-- Input: [`Highbyte.DotNet6502.Impl.SadConsole`](../libraries/implementation/sadconsole.md).
-- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md), playback via `OpenAL`. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../systems/c64/libraries.md#audio).
+- Rendering: [`Highbyte.DotNet6502.Impl.SadConsole`](../../libraries/implementation/sadconsole.md).
+- Input: [`Highbyte.DotNet6502.Impl.SadConsole`](../../libraries/implementation/sadconsole.md).
+- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../../libraries/implementation/naudio.md), playback via `OpenAL`. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../../systems/c64/libraries.md#audio).
 
 ## Installation
 
-Manual download, see section in [installation.md](installation.md)
+Manual download, see section in [installation.md](../installation.md)
 
 ## Features
 
@@ -30,8 +30,8 @@ Manual download, see section in [installation.md](installation.md)
   on non-US keyboard layouts is unreliable** — MonoGame's `Keys` enum is layout-dependent and the
   C64 `KeyboardLayout` config setting has no effect here. Prefer the Avalonia, SilkNet or Blazor
   WASM hosts for non-US keyboards. See
-  [SadConsole troubleshooting — non-US keyboard layouts](sadconsole-troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)
-  and [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md#per-host-keyboard-support).
+  [SadConsole troubleshooting — non-US keyboard layouts](troubleshooting.md#non-us-keyboard-layouts-punctuation-keys)
+  and [Systems / C64 / Keyboard mapping](../../systems/c64/keyboard.md#per-host-keyboard-support).
 
 - Audio via [NAudio](https://github.com/naudio/NAudio). Defaults to the sample-based SID
   provider; switch to the command-stream provider in the C64 config dialog if you need
@@ -51,11 +51,11 @@ Press button or toggle with F11.
 
 ## How to run locally for development
 
-For development system requirements, see details under [Development](../home/development.md).
+For development system requirements, see details under [Development](../../home/development.md).
 
 ### Prerequisites, compatibility, and troubleshooting
 
-See [SadConsole troubleshooting](sadconsole-troubleshooting.md).
+See [SadConsole troubleshooting](troubleshooting.md).
 
 ### Visual Studio 2026 or 2022 (Windows)
 

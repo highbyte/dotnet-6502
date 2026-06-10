@@ -98,28 +98,64 @@ nav:
       - Limitations: home/limitations.md
       - Development: home/development.md
       - References: home/references.md
+  - Host apps:
+      - Overview: host-apps/overview.md
+      - Installation: host-apps/installation.md
+      - Avalonia (browser + desktop):
+        - Overview: host-apps/avalonia/overview.md
+        - Browser: host-apps/avalonia/browser.md
+        - Desktop: host-apps/avalonia/desktop.md
+        - C64 features: host-apps/avalonia/c64.md
+        - Generic features: host-apps/avalonia/generic.md
+        - Desktop automation: host-apps/avalonia/automation.md
+        - Desktop troubleshooting: host-apps/avalonia/troubleshooting.md
+      - Blazor WebAssembly (browser):
+        - Overview: host-apps/blazor-wasm/overview.md
+      - SadConsole (desktop):
+        - Overview: host-apps/sadconsole/overview.md
+        - Troubleshooting: host-apps/sadconsole/troubleshooting.md
+      - SilkNetNative (desktop):
+        - Overview: host-apps/silknet-native/overview.md
+        - Troubleshooting: host-apps/silknet-native/troubleshooting.md
+      - Console Monitor (desktop):
+        - Overview: host-apps/console-monitor/overview.md
+      - Headless (desktop):
+        - Overview: host-apps/headless/overview.md
+  - Systems:
+      - Overview: systems/overview.md
+      - Adding a new system: systems/adding-a-system.md
+      - C64:
+          - Overview: systems/c64/overview.md
+          - Libraries: systems/c64/libraries.md
+          - Keyboard mapping: systems/c64/keyboard.md
+          - ROMs: systems/c64/roms.md
+          - SwiftLink support: systems/c64/swiftlink.md
+          - Basic code completion: systems/c64/code-completion.md
+          - Compatible programs: systems/c64/compatible-programs.md
+          - Useful tools: systems/c64/useful-tools.md
+      - Generic:
+          - Overview: systems/generic/overview.md
+          - Libraries: systems/generic/libraries.md
+      - VIC-20:
+          - Overview: systems/vic20/overview.md
+          - Libraries: systems/vic20/libraries.md
+          - ROMs: systems/vic20/roms.md
+  - Tools:
+      - Overview: tools/overview.md
+      - VSCode debugger extension:
+          - Debugging: tools/vscode-debugger/debugging.md
+          - Development: tools/vscode-debugger/development.md
+      - Remote control:
+          - Overview: tools/remote-control/overview.md
+          - TCP protocol: tools/remote-control/tcp-protocol.md
+          - Examples: tools/remote-control/examples.md
+          - Remote Client console app: tools/remote-control/remote-client.md
+      - Scripting:
+          - Overview: tools/scripting/overview.md
+          - Configuration: tools/scripting/configuration.md
+          - Lua API: tools/scripting/lua-api.md
+          - Examples: tools/scripting/examples.md
   - Architecture: architecture.md
-  - Web apps:
-      - Overview: web-apps/overview.md
-      - Avalonia Browser app: web-apps/avalonia-browser.md
-      - Blazor Web Assembly app: web-apps/blazor-wasm.md
-  - Desktop apps:
-      - Overview: desktop-apps/overview.md
-      - Installation: desktop-apps/installation.md
-      - Avalonia Desktop: 
-        - App: desktop-apps/avalonia-desktop.md
-        - Automation: desktop-apps/avalonia-desktop-automation.md
-        - Troubleshooting: desktop-apps/avalonia-desktop-troubleshooting.md
-      - SadConsole: 
-        - App: desktop-apps/sadconsole.md
-        - Troubleshooting: desktop-apps/sadconsole-troubleshooting.md
-      - SilkNetNative: 
-        - App: desktop-apps/silknet-native.md
-        - Troubleshooting: desktop-apps/silknet-native-troubleshooting.md
-      - Console Monitor: 
-        - App: desktop-apps/console-monitor.md
-      - Headless:
-        - App: desktop-apps/headless.md
   - Libraries:
       - Overview: libraries/overview.md
       - Core libraries:
@@ -146,37 +182,3 @@ nav:
           - SilkNet: libraries/implementation/silknet.md
           - SilkNet.SDL: libraries/implementation/silknet-sdl.md
           - Skia: libraries/implementation/skia.md
-  - Tools:
-      - Overview: tools/overview.md
-      - VSCode debugger extension:
-          - Debugging: tools/vscode-debugger/debugging.md
-          - Development: tools/vscode-debugger/development.md
-      - Remote control:
-          - Overview: tools/remote-control/overview.md
-          - TCP protocol: tools/remote-control/tcp-protocol.md
-          - Examples: tools/remote-control/examples.md
-          - Remote Client console app: tools/remote-control/remote-client.md
-      - Scripting:
-          - Overview: tools/scripting/overview.md
-          - Configuration: tools/scripting/configuration.md
-          - Lua API: tools/scripting/lua-api.md
-          - Examples: tools/scripting/examples.md
-  - Systems:
-      - Overview: systems/overview.md
-      - Adding a new system: systems/adding-a-system.md
-      - C64:
-          - Overview: systems/c64/overview.md
-          - Libraries: systems/c64/libraries.md
-          - Keyboard mapping: systems/c64/keyboard.md
-          - ROMs: systems/c64/roms.md
-          - SwiftLink support: systems/c64/swiftlink.md
-          - Basic code completion: systems/c64/code-completion.md
-          - Compatible programs: systems/c64/compatible-programs.md
-          - Useful tools: systems/c64/useful-tools.md
-      - Generic:
-          - Overview: systems/generic/overview.md
-          - Libraries: systems/generic/libraries.md
-      - VIC-20:
-          - Overview: systems/vic20/overview.md
-          - Libraries: systems/vic20/libraries.md
-          - ROMs: systems/vic20/roms.md

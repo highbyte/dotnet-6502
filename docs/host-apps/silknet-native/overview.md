@@ -2,20 +2,20 @@
 
 Cross-platform desktop app written in .NET using [Silk.NET](https://github.com/dotnet/Silk.NET).
 
-![SilkNet native app, C64 Basic](../assets/screenshots/SilkNetNative_C64_Basic.png){ width="25%" }
-![SilkNet native app, C64 raster and scroll](../assets/screenshots/SilkNetNative_C64_raster_scroll.png){ width="25%" }
-![SilkNet native app, C64 monitor](../assets/screenshots/SilkNetNative_Monitor.png){ width="25%" }
+![SilkNet native app, C64 Basic](../../assets/screenshots/SilkNetNative_C64_Basic.png){ width="25%" }
+![SilkNet native app, C64 raster and scroll](../../assets/screenshots/SilkNetNative_C64_raster_scroll.png){ width="25%" }
+![SilkNet native app, C64 monitor](../../assets/screenshots/SilkNetNative_Monitor.png){ width="25%" }
 
 Technologies:
 
 - UI: `Silk.NET` [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.Extensions.ImGui/).
-- Rendering: [`Highbyte.DotNet6502.Impl.Skia`](../libraries/implementation/skia.md) or [`Highbyte.DotNet6502.Impl.SilkNet`](../libraries/implementation/silknet.md) (OpenGL) on a `Silk.NET` window.
-- Input: [`Highbyte.DotNet6502.Impl.SilkNet`](../libraries/implementation/silknet.md).
-- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../libraries/implementation/naudio.md), playback via `OpenAL`. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../systems/c64/libraries.md#audio).
+- Rendering: [`Highbyte.DotNet6502.Impl.Skia`](../../libraries/implementation/skia.md) or [`Highbyte.DotNet6502.Impl.SilkNet`](../../libraries/implementation/silknet.md) (OpenGL) on a `Silk.NET` window.
+- Input: [`Highbyte.DotNet6502.Impl.SilkNet`](../../libraries/implementation/silknet.md).
+- Audio: [`Highbyte.DotNet6502.Impl.NAudio`](../../libraries/implementation/naudio.md), playback via `OpenAL`. Two C64 audio providers available: a sample-based one (good but not perfect accuracy — the default) and a command-stream synthesizer one (low CPU but inaccurate). See [C64 audio](../../systems/c64/libraries.md#audio).
 
 ## Installation
 
-Manual download, see section in [installation.md](installation.md)
+Manual download, see section in [installation.md](../installation.md)
 
 ## Features
 
@@ -59,7 +59,7 @@ Manual download, see section in [installation.md](installation.md)
 - Input using `SilkNet`. Keyboard uses GLFW's positional keys, so both `US` and `Swedish` C64
   keyboard layouts work; layout is auto-detected from the host (Win32 KLID / macOS `TIS*`) and can
   be overridden from the in-app C64 config UI. See
-  [Systems / C64 / Keyboard mapping](../systems/c64/keyboard.md) for the full host-agnostic mapping.
+  [Systems / C64 / Keyboard mapping](../../systems/c64/keyboard.md) for the full host-agnostic mapping.
 
 - Audio via [NAudio](https://github.com/naudio/NAudio). Defaults to the sample-based SID
   provider; switch to the command-stream provider in the in-app C64 config UI if you need
@@ -89,11 +89,11 @@ A toggleable stats window by pressing F11.
 
 ## How to run locally for development
 
-For development system requirements, see details under [Development](../home/development.md).
+For development system requirements, see details under [Development](../../home/development.md).
 
 ### Prerequisites, compatibility, and troubleshooting
 
-See [SilkNetNative troubleshooting](silknet-native-troubleshooting.md).
+See [SilkNetNative troubleshooting](troubleshooting.md).
 
 ### Visual Studio 2026 or 2022 (Windows)
 

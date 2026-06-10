@@ -2,7 +2,7 @@
 
 `dotnet-6502-remote` is a thin CLI wrapper that hides the JSON framing, handles connection setup, and formats output for human or pipeline consumption.
 
-Pre-built binaries are available for Windows, Linux, and macOS. The remote client connects to a running [Avalonia Desktop](../../desktop-apps/avalonia-desktop.md) or [Headless](../../desktop-apps/headless.md) emulator via its TCP remote control endpoint. See [TCP protocol](tcp-protocol.md) for the protocol, available commands, and full reference.
+Pre-built binaries are available for Windows, Linux, and macOS. The remote client connects to a running [Avalonia Desktop](../../host-apps/avalonia/desktop.md) or [Headless](../../host-apps/headless/overview.md) emulator via its TCP remote control endpoint. See [TCP protocol](tcp-protocol.md) for the protocol, available commands, and full reference.
 
 ## Global options
 

@@ -270,9 +270,9 @@ To add docs for e.g. a VIC-20:
 2. Create `includes/startup-params/browser-vic20.md` the same way (copy `browser-c64.md`), using
    the query-parameter syntax (`name=value`) and noting the desktop equivalents per group.
 3. Add one include line to each app page, after the existing system fragments:
-   - `docs/desktop-apps/avalonia-desktop.md` and `docs/desktop-apps/headless.md`:
+   - `docs/host-apps/avalonia/desktop.md` and `docs/host-apps/headless/overview.md`:
      `--8<-- "startup-params/cli-vic20.md"`
-   - `docs/web-apps/avalonia-browser.md`: `--8<-- "startup-params/browser-vic20.md"`
+   - `docs/host-apps/avalonia/browser.md`: `--8<-- "startup-params/browser-vic20.md"`
 
 Keep group headings at `###` and sub-sections at `####` so the page TOC stays two levels deep.
 Run `mkdocs build --strict` (see [BUILD_DOCS.md](https://github.com/highbyte/dotnet-6502/blob/master/BUILD_DOCS.md))
