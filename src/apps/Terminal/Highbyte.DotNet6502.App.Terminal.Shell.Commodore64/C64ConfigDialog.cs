@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using Highbyte.DotNet6502.App.Terminal;
 using Highbyte.DotNet6502.Impl.Terminal.Commodore64;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
@@ -20,9 +22,10 @@ namespace Highbyte.DotNet6502.App.Terminal.Shell.Commodore64;
 /// <summary>
 /// Modal C64 configuration dialog for the terminal host, opened from the C64 menu's "Config" button.
 /// Lets the user auto-download or pick the ROM directory and the kernal/basic/chargen ROM files
-/// (with file pickers), shows live validation errors, and on OK applies the edited config to the
-/// host. Modelled on the SadConsole <c>C64ConfigUIConsole</c>, trimmed to the parts that apply to the
-/// terminal host (ROM selection only — no audio or AI assistant).
+/// (with file pickers), configure the SwiftLink (TCP/Hayes modem) cartridge, shows live validation
+/// errors, and on OK applies the edited config to the host. Modelled on the SadConsole
+/// <c>C64ConfigUIConsole</c> and the Avalonia desktop config dialog, trimmed to the parts that apply
+/// to the terminal host (ROM selection + SwiftLink — no audio or AI assistant).
 /// </summary>
 internal static class C64ConfigDialog
 {
@@ -38,12 +41,14 @@ internal static class C64ConfigDialog
         // Edit a clone; only commit to the host on OK.
         var hostConfig = (C64TerminalHostConfig)host.CurrentHostSystemConfig.Clone();
         var cfg = hostConfig.SystemConfig;
+        var swiftLink = cfg.SwiftLink;          // system-side cartridge config
+        var swiftLinkHost = hostConfig.SwiftLinkHost;  // host-side transport config
 
         var dialog = new Dialog
         {
             Title = "C64 Config  (Esc to cancel)",
-            Width = 80,
-            Height = 20,
+            Width = 84,
+            Height = 24,
         };
         // Use the host's main UI scheme so the dialog matches the main panels (dark background, light
         // text, readable focus) instead of Terminal.Gui's low-contrast default dialog theme.
@@ -55,15 +60,16 @@ internal static class C64ConfigDialog
         var downloadStatusLabel = new Label { X = 1, Y = 1, Width = Dim.Fill(2), Text = "" };
         dialog.Add(autoDownloadButton, manualDownloadButton, downloadStatusLabel);
 
+        // ----- ROM files -----
+        dialog.Add(new Label { X = 1, Y = 2, Text = "ROM files:" });
         var dirField = AddRow(host, dialog, 3, "ROM dir:", cfg.ROMDirectory, isDirectory: true, cfg);
-        var kernalField = AddRow(host, dialog, 5, "Kernal:", RomFile(cfg, C64SystemConfig.KERNAL_ROM_NAME), isDirectory: false, cfg);
-        var basicField = AddRow(host, dialog, 7, "Basic:", RomFile(cfg, C64SystemConfig.BASIC_ROM_NAME), isDirectory: false, cfg);
-        var chargenField = AddRow(host, dialog, 9, "Chargen:", RomFile(cfg, C64SystemConfig.CHARGEN_ROM_NAME), isDirectory: false, cfg);
+        var kernalField = AddRow(host, dialog, 4, "Kernal:", RomFile(cfg, C64SystemConfig.KERNAL_ROM_NAME), isDirectory: false, cfg);
+        var basicField = AddRow(host, dialog, 5, "Basic:", RomFile(cfg, C64SystemConfig.BASIC_ROM_NAME), isDirectory: false, cfg);
+        var chargenField = AddRow(host, dialog, 6, "Chargen:", RomFile(cfg, C64SystemConfig.CHARGEN_ROM_NAME), isDirectory: false, cfg);
 
-        var validationLabel = new Label { X = 1, Y = 11, Text = "Validation errors:" };
-        var validationList = new ListView { X = 1, Y = 12, Width = Dim.Fill(2), Height = 3 };
+        var validationLabel = new Label { X = 1, Y = 17, Text = "Validation errors:" };
+        var validationList = new ListView { X = 1, Y = 18, Width = Dim.Fill(2), Height = 3 };
         validationList.VerticalScrollBar.VisibilityMode = ScrollBarVisibilityMode.Auto;
-        dialog.Add(validationLabel, validationList);
 
         var okButton = new Button { Text = "OK", IsDefault = true, ShadowStyle = ShadowStyles.None };
         var cancelButton = new Button { Text = "Cancel", ShadowStyle = ShadowStyles.None };
@@ -80,7 +86,8 @@ internal static class C64ConfigDialog
         void Validate()
         {
             Sync();
-            var isValid = cfg.IsValid(out var errors);
+            // Validate the whole host config so SwiftLink (system + transport) errors surface too.
+            var isValid = hostConfig.IsValid(out var errors);
             validationList.SetSource(new ObservableCollection<string>(
                 isValid ? new List<string> { "(none)" } : errors));
             validationLabel.Visible = !isValid;
@@ -93,6 +100,84 @@ internal static class C64ConfigDialog
         kernalField.TextChanged += (_, _) => Validate();
         basicField.TextChanged += (_, _) => Validate();
         chargenField.TextChanged += (_, _) => Validate();
+
+        // ----- SwiftLink -----
+        dialog.Add(new Label { X = 1, Y = 8, Text = "SwiftLink (TCP / Hayes modem cartridge):" });
+
+        var enableCheck = new CheckBox
+        {
+            X = 1,
+            Y = 9,
+            Text = "Enable SwiftLink cartridge",
+            Value = swiftLink.Enabled ? CheckState.Checked : CheckState.UnChecked,
+        };
+        enableCheck.ValueChanged += (_, e) =>
+        {
+            swiftLink.Enabled = e.NewValue == CheckState.Checked;
+            Validate();
+        };
+        dialog.Add(enableCheck);
+
+        // Row of system-side cartridge options (base address, interrupt line, receive mode).
+        var baseLabel = new Label { X = 1, Y = 10, Text = "Base:" };
+        var baseButton = CycleButton(() => swiftLink.CartridgeIOAddress, v => swiftLink.CartridgeIOAddress = v, Validate);
+        baseButton.X = Pos.Right(baseLabel) + 1; baseButton.Y = 10;
+
+        var interruptLabel = new Label { X = Pos.Right(baseButton) + 2, Y = 10, Text = "Int:" };
+        var interruptButton = CycleButton(() => swiftLink.InterruptMode, v => swiftLink.InterruptMode = v, Validate);
+        interruptButton.X = Pos.Right(interruptLabel) + 1; interruptButton.Y = 10;
+
+        var receiveLabel = new Label { X = Pos.Right(interruptButton) + 2, Y = 10, Text = "Recv:" };
+        var receiveButton = CycleButton(() => swiftLink.ReceiveMode, v => swiftLink.ReceiveMode = v, Validate);
+        receiveButton.X = Pos.Right(receiveLabel) + 1; receiveButton.Y = 10;
+
+        dialog.Add(baseLabel, baseButton, interruptLabel, interruptButton, receiveLabel, receiveButton);
+
+        // Row of host-side transport options (transport mode, TCP host, TCP port).
+        var connectOnBoot = new CheckBox
+        {
+            X = 1,
+            Y = 12,
+            Text = "Connect automatically on start (RawTcp only)",
+            Value = swiftLinkHost.ConnectOnBoot ? CheckState.Checked : CheckState.UnChecked,
+        };
+
+        var transportLabel = new Label { X = 1, Y = 11, Text = "Transport:" };
+        var transportButton = CycleButton(() => swiftLinkHost.TransportMode, v =>
+        {
+            swiftLinkHost.TransportMode = v;
+            // ConnectOnBoot only applies to RawTcp; mirror the Avalonia dialog's gating.
+            var rawTcp = v == C64SwiftLinkTransportMode.RawTcp;
+            connectOnBoot.Enabled = rawTcp;
+            if (!rawTcp && connectOnBoot.Value == CheckState.Checked)
+                connectOnBoot.Value = CheckState.UnChecked;
+        }, Validate);
+        transportButton.X = Pos.Right(transportLabel) + 1; transportButton.Y = 11;
+
+        var hostLabel = new Label { X = Pos.Right(transportButton) + 2, Y = 11, Text = "Host:" };
+        var hostField = new TextField { X = Pos.Right(hostLabel) + 1, Y = 11, Width = 22, Text = swiftLinkHost.TcpHost };
+        hostField.TextChanged += (_, _) => { swiftLinkHost.TcpHost = hostField.Text; Validate(); };
+
+        var portLabel = new Label { X = Pos.Right(hostField) + 2, Y = 11, Text = "Port:" };
+        var portField = new TextField { X = Pos.Right(portLabel) + 1, Y = 11, Width = 7, Text = swiftLinkHost.TcpPort.ToString(CultureInfo.InvariantCulture) };
+        portField.TextChanged += (_, _) =>
+        {
+            // 0 when unparseable so validation flags "must be between 1 and 65535".
+            swiftLinkHost.TcpPort = int.TryParse(portField.Text, NumberStyles.None, CultureInfo.InvariantCulture, out var p) ? p : 0;
+            Validate();
+        };
+
+        dialog.Add(transportLabel, transportButton, hostLabel, hostField, portLabel, portField);
+
+        connectOnBoot.Enabled = swiftLinkHost.TransportMode == C64SwiftLinkTransportMode.RawTcp;
+        connectOnBoot.ValueChanged += (_, e) =>
+        {
+            swiftLinkHost.ConnectOnBoot = e.NewValue == CheckState.Checked;
+            Validate();
+        };
+        dialog.Add(connectOnBoot);
+
+        dialog.Add(validationLabel, validationList);
 
         // Auto-download: fetch each ROM into the configured directory, then reflect the downloaded
         // filenames in the fields and re-validate. Runs async so the UI stays responsive; UI updates
@@ -148,7 +233,7 @@ internal static class C64ConfigDialog
         {
             e.Handled = true;
             Sync();
-            if (!cfg.IsValid(out List<string> _))
+            if (!hostConfig.IsValid(out List<string> _))
             {
                 Validate();
                 return;
@@ -178,6 +263,27 @@ internal static class C64ConfigDialog
 
         try { Application.Run(dialog); }
         finally { dialog.Dispose(); }
+    }
+
+    /// <summary>
+    /// A compact button that cycles a two-or-more-value enum config option on each press, showing the
+    /// current value as its text. Suited to the narrow terminal dialog (no dropdown needed).
+    /// </summary>
+    private static Button CycleButton<TEnum>(Func<TEnum> get, Action<TEnum> set, Action onChanged)
+        where TEnum : struct, Enum
+    {
+        var values = Enum.GetValues<TEnum>();
+        var button = new Button { Text = get().ToString(), ShadowStyle = ShadowStyles.None };
+        button.Accepting += (_, e) =>
+        {
+            e.Handled = true;
+            var idx = Array.IndexOf(values, get());
+            var next = values[(idx + 1) % values.Length];
+            set(next);
+            button.Text = next.ToString();
+            onChanged();
+        };
+        return button;
     }
 
     private static string RomFile(C64SystemConfig cfg, string romName)

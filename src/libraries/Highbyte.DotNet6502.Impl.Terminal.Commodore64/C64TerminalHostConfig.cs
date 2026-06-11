@@ -34,6 +34,12 @@ public class C64TerminalHostConfig : HostSystemConfigBase<C64SystemConfig>, IC64
 
     public C64TerminalHostConfig()
     {
+        // SwiftLink defaults compatible with Compunet Reborn (mirrors the Avalonia C64HostConfig):
+        // NMI interrupts, and a Hayes modem transport layer so the program can dial out (ATDT) to
+        // open the TCP connection itself. Raw TCP would require a connect-on-boot to a fixed host and
+        // can't be dialled, so it would not work out of the box for Compunet.
+        SystemConfig.SwiftLink.InterruptMode = C64SwiftLinkInterruptMode.NMI;
+        _swiftLinkHost.TransportMode = C64SwiftLinkTransportMode.HayesModem;
         _swiftLinkHost.SetDirtyCallback(MarkDirty);
     }
 
