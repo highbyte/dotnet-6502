@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PackageId>Highbyte.DotNet6502.Impl.Terminal.Vic20</PackageId>
+    <Authors>Highbyte</Authors>
+    <PackageDescription>VIC-20 engine plugin for the Highbyte.DotNet6502 Terminal (TUI) host. Registers the VIC-20 system configurer so the terminal host can run the VIC-20 without a compile-time reference to it.</PackageDescription>
+    <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
+    <!-- Version will be overridden when built by GitHub action (dotnet pack -p:PackageVersion=x.y.run_number)-->
+    <Version>0.3.0-alpha</Version>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Vic20\Highbyte.DotNet6502.Systems.Vic20.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Impl.Terminal\Highbyte.DotNet6502.Impl.Terminal.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Vic20SystemConfigurerCore binds the host config section from appsettings.json. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

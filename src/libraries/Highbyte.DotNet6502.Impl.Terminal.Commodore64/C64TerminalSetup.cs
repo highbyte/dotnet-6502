@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.Terminal;
+namespace Highbyte.DotNet6502.Impl.Terminal.Commodore64;
 
 /// <summary>
 /// C64 system configurer for the Terminal (TUI) host. Reuses the host-agnostic

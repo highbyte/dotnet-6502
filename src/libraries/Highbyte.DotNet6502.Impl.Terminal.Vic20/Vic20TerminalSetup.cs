@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Vic20System = Highbyte.DotNet6502.Systems.Vic20.Vic20;
 
-namespace Highbyte.DotNet6502.App.Terminal;
+namespace Highbyte.DotNet6502.Impl.Terminal.Vic20;
 
 /// <summary>
 /// VIC-20 system configurer for the Terminal (TUI) host. Reuses the host-agnostic

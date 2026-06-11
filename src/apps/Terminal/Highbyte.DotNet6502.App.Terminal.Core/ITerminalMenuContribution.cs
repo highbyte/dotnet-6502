@@ -1,0 +1,22 @@
+using Terminal.Gui.ViewBase;
+
+namespace Highbyte.DotNet6502.App.Terminal;
+
+/// <summary>
+/// Optional per-system menu control contributed by a shell plugin (<c>ISystemShellPlugin</c>).
+/// When a discovered system provides one, the terminal host shows <see cref="View"/> in the controls
+/// column below the standard controls (see <see cref="TuiHostApp"/>). UI-framework-specific to the
+/// terminal host (Terminal.Gui); the plugin contract itself stays UI-agnostic by returning
+/// <see cref="object"/> and letting the host cast to this type.
+/// </summary>
+public interface ITerminalMenuContribution
+{
+    /// <summary>Short heading shown above the control (e.g. the system name).</summary>
+    string MenuTitle { get; }
+
+    /// <summary>Number of rows the control needs in the controls column (excluding the border).</summary>
+    int MenuRowCount { get; }
+
+    /// <summary>The Terminal.Gui view hosting the system-specific controls.</summary>
+    View View { get; }
+}

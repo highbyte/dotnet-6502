@@ -15,6 +15,9 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
     private readonly C64 _c64;
 
     private readonly Queue<IVideoCommand> _commands = new();
+    // Some hosts run emulation on a background thread and render on the UI thread. Protect the
+    // command queue so OnEndFrame production cannot interleave with DequeueAll consumption.
+    private readonly object _commandsLock = new();
 
     private readonly Dictionary<byte, uint> _c64ToRenderColorMap;
 
@@ -35,8 +38,12 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
 
     public IEnumerable<IVideoCommand> DequeueAll()
     {
-        while (_commands.Count > 0)
-            yield return _commands.Dequeue();
+        lock (_commandsLock)
+        {
+            var commands = _commands.ToArray();
+            _commands.Clear();
+            return commands;
+        }
     }
 
     public void OnAfterInstruction()
@@ -45,7 +52,8 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
 
     public void OnEndFrame()
     {
-        GenerateCommands();
+        lock (_commandsLock)
+            GenerateCommands();
         FrameCompleted?.Invoke(this, EventArgs.Empty);
     }
 

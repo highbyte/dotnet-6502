@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text;
 using Highbyte.DotNet6502.Impl.Terminal;
 using Highbyte.DotNet6502.Systems;
@@ -31,6 +32,18 @@ public class TuiHostApp : HostApp
     private readonly EmulatorConfig _emulatorConfig;
     private readonly DotNet6502InMemLogStore _logStore;
 
+    // Resolves the optional per-system menu control (contributed by a shell plugin) for a given
+    // system name. Returns null for systems with no contribution. Results are cached per system.
+    private readonly Func<string, ITerminalMenuContribution?> _resolveMenuContribution;
+    private readonly Dictionary<string, ITerminalMenuContribution?> _menuContributionCache = new(StringComparer.OrdinalIgnoreCase);
+    private FrameView _systemMenuFrame = default!;     // container in the controls column for the active contribution
+    private ITerminalMenuContribution? _activeMenuContribution;
+
+    // Resolves the optional per-system info panel (contributed by a shell plugin); shown in the Info tab.
+    private readonly Func<string, ITerminalInfoContribution?> _resolveInfoContribution;
+    private readonly Dictionary<string, ITerminalInfoContribution?> _infoContributionCache = new(StringComparer.OrdinalIgnoreCase);
+    private ITerminalInfoContribution? _activeInfoContribution;
+
     private TerminalInputHandlerContext _inputContext = default!;
     private TerminalRenderLoop? _renderLoop;
 
@@ -48,14 +61,17 @@ public class TuiHostApp : HostApp
     private Label _leftStatusLabel = default!;   // "Status: <state>" in the controls column
     private Label _statsLabel = default!;         // instrumentation list in the right "Stats" box
 
-    // Tabbed area (Logs | Config | Info) below the Stats box.
-    private enum InfoTab { Logs, Config, Info }
-    private InfoTab _activeInfoTab = InfoTab.Logs;
+    // Tabbed area (Info | Config | Logs) below the Stats box.
+    // Enum order must match the TabStripView label order (the strip maps tab index <-> InfoTab).
+    private enum InfoTab { Info, Config, Logs }
+    private InfoTab _activeInfoTab = InfoTab.Info;
+    private Scheme? _uiScheme;                     // main UI scheme, reused by dialogs for a consistent look
+    private FrameView _tabsFrame = default!;       // container for the tab strip + per-tab content
     private TabStripView _infoTabStrip = default!;
     private ListView _logsListView = default!;    // scrollable log list (like the other host apps)
     private List<string> _logRows = new();        // backing rows for the log list (for the detail popup)
     private Label _configLabel = default!;
-    private Label _infoLabel = default!;
+    private Label _infoLabel = default!;           // Info-tab fallback shown when the system has no info panel
     private Button _startButton = default!;
     private Button _pauseButton = default!;
     private Button _stopButton = default!;
@@ -66,8 +82,13 @@ public class TuiHostApp : HostApp
     // Whether the right "Stats" box shows instrumentation (toggled by the Stats button / F11).
     private bool _statsEnabled;
 
+    // Emulator loop runs off the Terminal.Gui UI thread so emulation can stay at native refresh
+    // while terminal repaint remains independently throttled.
+    private readonly object _emulatorLoopSync = new();
+    private CancellationTokenSource? _emulatorLoopCts;
+    private Task? _emulatorLoopTask;
+
     // Timers (Terminal.Gui timeout tokens)
-    private object? _emulatorTimerToken;
     private object? _displayTimerToken;
     private object? _statusTimerToken;
 
@@ -81,13 +102,17 @@ public class TuiHostApp : HostApp
         SystemList systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
-        DotNet6502InMemLogStore logStore)
+        DotNet6502InMemLogStore logStore,
+        Func<string, ITerminalMenuContribution?>? resolveMenuContribution = null,
+        Func<string, ITerminalInfoContribution?>? resolveInfoContribution = null)
         : base("Terminal", systemList, loggerFactory, useStatsNamePrefix: false)
     {
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(nameof(TuiHostApp));
         _emulatorConfig = emulatorConfig;
         _logStore = logStore;
+        _resolveMenuContribution = resolveMenuContribution ?? (_ => null);
+        _resolveInfoContribution = resolveInfoContribution ?? (_ => null);
     }
 
     public void Run()
@@ -133,8 +158,11 @@ public class TuiHostApp : HostApp
             UpdateStatsBox();
             RefreshLogs();
             UpdateButtonStates();
-            PopulateInfoView();
-            SelectInfoTab(InfoTab.Logs);
+            RefreshSystemMenu();
+            RefreshSystemInfo();
+            // Default to the Info tab, but surface a bad config immediately by opening the Config
+            // tab when the startup config is invalid.
+            SelectInfoTab(IsCurrentConfigValid() ? InfoTab.Info : InfoTab.Config);
 
             // Display refresh timer (throttled, independent of emulator frame rate).
             var displayIntervalMs = Math.Max(1000.0 / Math.Max(_emulatorConfig.DisplayRefreshHz, 1), 1);
@@ -155,7 +183,7 @@ public class TuiHostApp : HostApp
         finally
         {
             Application.KeyDown -= OnGlobalKeyDown;
-            RemoveTimer(ref _emulatorTimerToken);
+            StopEmulatorLoop();
             RemoveTimer(ref _displayTimerToken);
             RemoveTimer(ref _statusTimerToken);
             Application.Shutdown();
@@ -283,6 +311,21 @@ public class TuiHostApp : HostApp
             _systemButton, _variantButton, _leftStatusLabel,
             _startButton, _pauseButton, _resetButton, _stopButton, _monitorButton, _statsButton);
 
+        // Per-system menu area (below the standard controls). A discovered system plugin may
+        // contribute a system-specific control here (see ITerminalMenuContribution); systems without
+        // one leave this frame hidden. Filled/cleared by RefreshSystemMenu on system change.
+        _systemMenuFrame = new FrameView
+        {
+            Title = string.Empty,
+            X = 0,
+            Y = 8, // below the Monitor/Stats button row (Y=6)
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            BorderStyle = LineStyle.Single,
+            Visible = false,
+        };
+        controlsFrame.Add(_systemMenuFrame);
+
         // --- Emulator screen (middle) ---
         // Width/Height are resized to fit the running system's frame (see ResizeScreenFrameToFit),
         // so the bordered box hugs the screen for any system (C64 ~52, VIC-20 ~32 wide) and the
@@ -324,7 +367,7 @@ public class TuiHostApp : HostApp
         // Terminal.Gui 2.4.5 has no TabView, so this is a small hand-rolled tab strip (TabStripView):
         // all titles fit on one line (Y=0), with a content area (Y=1+) where only the active tab's
         // view is visible. The narrow side column can't fit stock Buttons' chrome for 3+ tabs.
-        var tabsFrame = new FrameView
+        _tabsFrame = new FrameView
         {
             Title = string.Empty,
             X = Pos.Right(_screenFrame),
@@ -334,7 +377,7 @@ public class TuiHostApp : HostApp
             BorderStyle = LineStyle.Single,
         };
 
-        _infoTabStrip = new TabStripView("Logs", "Config", "Info") { X = 0, Y = 0 };
+        _infoTabStrip = new TabStripView("Info", "Config", "Logs") { X = 0, Y = 0 };
         _infoTabStrip.TabSelected += index => SelectInfoTab((InfoTab)index);
 
         // Logs: a scrollable ListView (one row per message), like the other host apps' log list.
@@ -344,10 +387,16 @@ public class TuiHostApp : HostApp
         // Enter on a log row opens a popup with the full (word-wrapped) entry — the narrow pane clips
         // long lines, and a detail popup is the common TUI way to read the whole entry.
         _logsListView.Accepting += (_, e) => { e.Handled = true; ShowSelectedLogEntry(); };
-        // Config / Info: short read-only text — Labels (which inherit the surrounding scheme, like Stats).
+        // Config: short read-only text — Label (inherits the surrounding scheme, like Stats).
         _configLabel = new Label { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill(), Text = "", Visible = false };
-        _infoLabel = new Label { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill(), Text = "", Visible = false };
-        tabsFrame.Add(_infoTabStrip, _logsListView, _configLabel, _infoLabel);
+        // Info: the active system's info panel is shown here (added/removed by RefreshSystemInfo).
+        // This label is only the fallback for systems that contribute no info panel.
+        _infoLabel = new Label
+        {
+            X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill(),
+            Text = "No system-specific info.", Visible = false,
+        };
+        _tabsFrame.Add(_infoTabStrip, _logsListView, _configLabel, _infoLabel);
 
         // --- Bottom hint line ---
         var hintLabel = new Label
@@ -358,7 +407,7 @@ public class TuiHostApp : HostApp
             Text = " 9 System  0 Variant   F9 Start/Stop  F10 Quit  F11 Stats  F12 Monitor   Tab Focus",
         };
 
-        _window.Add(controlsFrame, _screenFrame, statsFrame, tabsFrame, hintLabel);
+        _window.Add(controlsFrame, _screenFrame, statsFrame, _tabsFrame, hintLabel);
 
         // Make focus/hover indication a background change (keeping text readable) instead of the
         // theme default, which flips button text to near-black — unreadable on the dark window.
@@ -370,22 +419,40 @@ public class TuiHostApp : HostApp
     /// Derive a scheme from <paramref name="view"/>'s current one where the focus/hover/active roles
     /// indicate selection with a distinct background and bright text, rather than the theme default
     /// that renders focused/hovered button text near-black (illegible on the dark window background).
+    /// Caches the derived scheme in <see cref="_uiScheme"/> so dialogs can reuse the same look.
     /// </summary>
-    private static void ApplyReadableFocusScheme(View view)
+    private void ApplyReadableFocusScheme(View view)
     {
         var baseScheme = view.GetScheme();
         if (baseScheme is null)
             return;
 
         var selected = new global::Terminal.Gui.Drawing.Attribute(new Color(0xFF, 0xFF, 0xFF), new Color(0x2C, 0x5A, 0xA0));
-        view.SetScheme(baseScheme with
+        // Editable text fields (e.g. the ROM directory/file inputs in the C64 config dialog) default
+        // to a light-gray background with white text — poor contrast. Use a dark-gray background with
+        // light text instead, in keeping with the dark UI.
+        var editable = new global::Terminal.Gui.Drawing.Attribute(new Color(0xE6, 0xE6, 0xE6), new Color(0x3A, 0x3A, 0x3A));
+        _uiScheme = baseScheme with
         {
             Focus = selected,
             HotFocus = selected,
             Active = selected,
             HotActive = selected,
             Highlight = selected,
-        });
+            Editable = editable,
+            ReadOnly = editable,
+        };
+        view.SetScheme(_uiScheme);
+    }
+
+    /// <summary>
+    /// Apply the main UI scheme (dark panels, light text, readable focus) to a view — used so modal
+    /// dialogs match the main window instead of Terminal.Gui's low-contrast default "Dialog" theme.
+    /// </summary>
+    public void ApplyUiScheme(View view)
+    {
+        if (_uiScheme != null)
+            view.SetScheme(_uiScheme);
     }
 
     // ----------------------------------------------------------------------
@@ -439,6 +506,8 @@ public class TuiHostApp : HostApp
 
         UpdateSystemSelectors();
         UpdateButtonStates();
+        RefreshSystemMenu();
+        RefreshSystemInfo();
     });
 
     private void CycleVariant(int direction) => Safe(() =>
@@ -536,19 +605,39 @@ public class TuiHostApp : HostApp
         }
 
         ApplyInstrumentationEnabled();
-        StartEmulatorTimer();
         UpdateLeftStatus();
     }
 
-    public override void OnAfterPause() => RemoveTimer(ref _emulatorTimerToken);
+    public override void OnAfterEmulatorStateChange()
+    {
+        if (_selfTestMode)
+            return;
+        if (EmulatorState == EmulatorState.Running)
+            StartEmulatorLoop();
+    }
+
+    public override void OnAfterPause() => StopEmulatorLoop();
 
     public override void OnAfterStop()
     {
-        RemoveTimer(ref _emulatorTimerToken);
+        StopEmulatorLoop();
         _screenView?.SetRenderTarget(null);
         if (!_selfTestMode)
             ResetScreenFrameSize();
     }
+
+    /// <summary>
+    /// The host config changed (e.g. the C64 config dialog applied new ROM paths). Re-evaluate the
+    /// Start button (now enabled/disabled by config validity) and refresh the Config tab.
+    /// </summary>
+    public override void OnAfterHostSystemConfigUpdated() => Safe(() =>
+    {
+        if (_selfTestMode)
+            return;
+        UpdateButtonStates();
+        if (_activeInfoTab == InfoTab.Config)
+            UpdateConfigView();
+    });
 
     public override void QuitApplication()
     {
@@ -557,28 +646,95 @@ public class TuiHostApp : HostApp
     }
 
     // ----------------------------------------------------------------------
-    // Timers (all callbacks run on the Terminal.Gui main loop / UI thread)
+    // Emulator loop + UI timers. Display/status callbacks run on the Terminal.Gui main loop;
+    // emulation runs on a background fixed-rate loop.
     // ----------------------------------------------------------------------
 
-    private void StartEmulatorTimer()
+    private void StartEmulatorLoop()
     {
-        RemoveTimer(ref _emulatorTimerToken);
+        StopEmulatorLoop();
+
         var hz = CurrentRunningSystem?.Screen.RefreshFrequencyHz ?? 50.0;
-        var intervalMs = Math.Max(1000.0 / hz, 1);
-        _emulatorTimerToken = Application.AddTimeout(TimeSpan.FromMilliseconds(intervalMs), OnEmulatorTick);
+        var cts = new CancellationTokenSource();
+        var task = Task.Run(() => RunEmulatorLoopAsync(hz, cts.Token));
+
+        lock (_emulatorLoopSync)
+        {
+            _emulatorLoopCts = cts;
+            _emulatorLoopTask = task;
+        }
     }
 
-    private bool OnEmulatorTick()
+    private void StopEmulatorLoop()
     {
+        CancellationTokenSource? cts;
+        Task? task;
+        lock (_emulatorLoopSync)
+        {
+            cts = _emulatorLoopCts;
+            task = _emulatorLoopTask;
+            _emulatorLoopCts = null;
+            _emulatorLoopTask = null;
+        }
+
+        if (cts == null)
+            return;
+
+        cts.Cancel();
         try
         {
-            RunEmulatorOneFrame();
+            if (task != null && !task.Wait(TimeSpan.FromSeconds(1)))
+                _logger.LogWarning("Timed out waiting for terminal emulator loop to stop.");
         }
-        catch (Exception ex)
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
         {
-            _logger.LogError(ex, "Exception running emulator frame.");
         }
-        return true; // keep the timer
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            cts.Dispose();
+        }
+    }
+
+    private async Task RunEmulatorLoopAsync(double refreshHz, CancellationToken ct)
+    {
+        var intervalTicks = Math.Max(1L, (long)Math.Round(Stopwatch.Frequency / refreshHz));
+        var nextFrameTicks = Stopwatch.GetTimestamp();
+
+        while (!ct.IsCancellationRequested)
+        {
+            var now = Stopwatch.GetTimestamp();
+            var ticksUntilNextFrame = nextFrameTicks - now;
+            if (ticksUntilNextFrame > 0)
+            {
+                var delay = TimeSpan.FromSeconds(ticksUntilNextFrame / (double)Stopwatch.Frequency);
+                await Task.Delay(delay, ct);
+                continue;
+            }
+
+            try
+            {
+                RunEmulatorOneFrame();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception running emulator frame.");
+            }
+
+            nextFrameTicks += intervalTicks;
+
+            // If the host falls more than one frame behind, skip catch-up frames rather than running
+            // a long burst that would make input and UI refresh feel stalled.
+            var behindTicks = Stopwatch.GetTimestamp() - nextFrameTicks;
+            if (behindTicks > intervalTicks)
+                nextFrameTicks = Stopwatch.GetTimestamp() + intervalTicks;
+        }
     }
 
     private bool OnDisplayTick()
@@ -667,13 +823,19 @@ public class TuiHostApp : HostApp
         _systemButton.Enabled = uninitialized && AvailableSystemNames.Count > 1;
         _variantButton.Enabled = uninitialized && AllSelectedSystemConfigurationVariants.Count > 1;
 
-        _startButton.Enabled = !running;       // Start (resume) when not already running
+        // Start (or resume) when not already running — but never when the current config is invalid
+        // (e.g. ROM files missing): the system can't be built, so disable Start and surface why in
+        // the Config tab.
+        _startButton.Enabled = !running && IsCurrentConfigValid();
         _pauseButton.Enabled = running;
         _stopButton.Enabled = !uninitialized;
         _resetButton.Enabled = !uninitialized;
         // Monitor stays disabled for now (planned feature).
         _statsButton.Text = _statsEnabled ? "Stats*" : "Stats";
     }
+
+    /// <summary>True if the selected system's current host config is valid (so it can be started).</summary>
+    private bool IsCurrentConfigValid() => CurrentHostSystemConfig?.IsValid(out List<string> _) ?? false;
 
     /// <summary>Updates the "Status: &lt;state&gt;" line in the controls column.</summary>
     private void UpdateLeftStatus()
@@ -731,6 +893,59 @@ public class TuiHostApp : HostApp
     }
 
     // ----------------------------------------------------------------------
+    // Per-system menu contribution (controls column, below the standard controls)
+    // ----------------------------------------------------------------------
+
+    /// <summary>Resolve (and cache) the menu contribution for a system; null if it has none.</summary>
+    private ITerminalMenuContribution? GetMenuContribution(string systemName)
+    {
+        if (!_menuContributionCache.TryGetValue(systemName, out var contribution))
+        {
+            contribution = _resolveMenuContribution(systemName);
+            _menuContributionCache[systemName] = contribution;
+        }
+        return contribution;
+    }
+
+    /// <summary>
+    /// Show the selected system's menu contribution (if any) in the controls column, or hide the
+    /// area when the system contributes none. Called at startup and whenever the system changes.
+    /// </summary>
+    private void RefreshSystemMenu() => Safe(() =>
+    {
+        if (_systemMenuFrame == null)
+            return;
+
+        var next = GetMenuContribution(SelectedSystemName);
+        if (ReferenceEquals(next, _activeMenuContribution))
+            return;
+
+        if (_activeMenuContribution != null)
+            _systemMenuFrame.Remove(_activeMenuContribution.View);
+
+        _activeMenuContribution = next;
+
+        if (next != null)
+        {
+            next.View.X = 0;
+            next.View.Y = 0;
+            next.View.Width = Dim.Fill();
+            next.View.Height = Dim.Fill();
+            _systemMenuFrame.Add(next.View);
+            _systemMenuFrame.Title = next.MenuTitle;
+            _systemMenuFrame.Height = next.MenuRowCount + 2; // + top/bottom border
+            _systemMenuFrame.Visible = true;
+        }
+        else
+        {
+            _systemMenuFrame.Title = string.Empty;
+            _systemMenuFrame.Visible = false;
+        }
+
+        _window.SetNeedsLayout();
+    });
+
+    // ----------------------------------------------------------------------
     // Tabbed area (Logs | Config | Info)
     // ----------------------------------------------------------------------
 
@@ -740,7 +955,12 @@ public class TuiHostApp : HostApp
 
         _logsListView.Visible = tab == InfoTab.Logs;
         _configLabel.Visible = tab == InfoTab.Config;
-        _infoLabel.Visible = tab == InfoTab.Info;
+
+        // Info tab: show the active system's info panel if it has one, otherwise the fallback label.
+        var infoActive = tab == InfoTab.Info;
+        if (_activeInfoContribution != null)
+            _activeInfoContribution.View.Visible = infoActive;
+        _infoLabel.Visible = infoActive && _activeInfoContribution == null;
 
         // Keep the strip's highlighted tab in sync (no-op when already active, e.g. when the strip
         // itself raised the change).
@@ -752,61 +972,73 @@ public class TuiHostApp : HostApp
         _window.SetNeedsLayout();
     });
 
-    /// <summary>Config-status tab — current system/variant, audio, render provider, config validity.</summary>
+    /// <summary>Resolve (and cache) the info panel for a system; null if it has none.</summary>
+    private ITerminalInfoContribution? GetInfoContribution(string systemName)
+    {
+        if (!_infoContributionCache.TryGetValue(systemName, out var contribution))
+        {
+            contribution = _resolveInfoContribution(systemName);
+            _infoContributionCache[systemName] = contribution;
+        }
+        return contribution;
+    }
+
+    /// <summary>
+    /// Swap the Info-tab content to the selected system's info panel (a shell-plugin contribution),
+    /// or fall back to a generic label when the system contributes none. Called at startup and on
+    /// system change.
+    /// </summary>
+    private void RefreshSystemInfo() => Safe(() =>
+    {
+        if (_tabsFrame == null)
+            return;
+
+        var next = GetInfoContribution(SelectedSystemName);
+        if (ReferenceEquals(next, _activeInfoContribution))
+            return;
+
+        if (_activeInfoContribution != null)
+            _tabsFrame.Remove(_activeInfoContribution.View);
+
+        _activeInfoContribution = next;
+
+        if (next != null)
+        {
+            next.View.X = 0;
+            next.View.Y = 1; // below the tab strip
+            next.View.Width = Dim.Fill();
+            next.View.Height = Dim.Fill();
+            _tabsFrame.Add(next.View);
+        }
+
+        // Re-apply visibility for the currently active tab.
+        SelectInfoTab(_activeInfoTab);
+    });
+
+    /// <summary>Config-status tab — config validity and the list of validation errors (if any).</summary>
     private void UpdateConfigView()
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"System : {SelectedSystemName}");
-        sb.AppendLine($"Variant: {SelectedSystemConfigurationVariant}");
-        sb.AppendLine($"State  : {EmulatorState}");
 
         var hostConfig = CurrentHostSystemConfig;
-        if (hostConfig != null)
+        if (hostConfig == null)
         {
-            sb.AppendLine($"Audio  : {(hostConfig.AudioSupported ? "supported" : "none")}");
-            sb.AppendLine($"Render : {hostConfig.SystemConfig.RenderProviderType?.Name ?? "-"}");
+            sb.AppendLine("Config: (no system)");
+        }
+        else
+        {
             var valid = hostConfig.IsValid(out var errors);
-            sb.AppendLine($"Config : {(valid ? "valid" : "invalid")}");
-            foreach (var error in errors)
-                sb.AppendLine($"  - {error}");
+            sb.AppendLine($"Config: {(valid ? "valid" : "invalid")}");
+            if (!valid)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Validation errors:");
+                foreach (var error in errors)
+                    sb.AppendLine($"  - {error}");
+            }
         }
 
         _configLabel.Text = sb.ToString();
-    }
-
-    /// <summary>General-info tab — static app/system/key overview.</summary>
-    private void PopulateInfoView()
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("DotNet 6502 — Terminal Host");
-        sb.AppendLine();
-        sb.AppendLine("Systems:");
-        foreach (var name in AvailableSystemNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
-            sb.AppendLine($"  - {name}");
-        sb.AppendLine();
-        sb.AppendLine("Text mode only; no audio.");
-        sb.AppendLine();
-        sb.AppendLine("When stopped:");
-        sb.AppendLine(" 9     cycle system");
-        sb.AppendLine(" 0     cycle variant");
-        sb.AppendLine();
-        sb.AppendLine("Keys (global):");
-        sb.AppendLine(" F9    start / stop");
-        sb.AppendLine(" F10   quit");
-        sb.AppendLine(" F11   stats");
-        sb.AppendLine(" F12   monitor");
-        sb.AppendLine(" Tab   move focus");
-        sb.AppendLine();
-        sb.AppendLine("F1-F8 go to the emulator.");
-        sb.AppendLine("Pause / Reset: buttons.");
-        sb.AppendLine();
-        sb.AppendLine("Logs: Enter on a row");
-        sb.AppendLine("  shows the full entry.");
-        sb.AppendLine();
-        sb.AppendLine("Tabs: focus strip, then");
-        sb.AppendLine("  Left/Right to switch.");
-
-        _infoLabel.Text = sb.ToString();
     }
 
     // ----------------------------------------------------------------------
@@ -835,6 +1067,7 @@ public class TuiHostApp : HostApp
             Width = dialogWidth,
             Height = dialogHeight,
         };
+        ApplyUiScheme(dialog); // match the main UI instead of the low-contrast default dialog theme
 
         // Word-wrapped lines in a scrollable list (vertical scroll only; no TextView).
         var list = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(1) };

@@ -1,7 +1,7 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Vic20.Config;
 
-namespace Highbyte.DotNet6502.App.Terminal;
+namespace Highbyte.DotNet6502.Impl.Terminal.Vic20;
 
 /// <summary>VIC-20 host config for the Terminal (TUI) host — no audio, no host-tech display settings.</summary>
 public class Vic20TerminalHostConfig : HostSystemConfigBase<Vic20SystemConfig>

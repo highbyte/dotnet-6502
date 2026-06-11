@@ -11,21 +11,49 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Terminal.Gui" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
+  <!--
+    Thin entry exe (composition root): only Program.cs. The host-app library, UI and host-tech
+    (terminal render/input) live in App.Terminal.Core. The per-system engine plug-ins
+    (Impl.Terminal.<System>) and shell plug-ins (App.Terminal.Shell.<System>) are referenced here
+    only so their DLL closure is deployed for SystemPluginDiscovery — the entry exe holds no code
+    reference to any specific system. Convention globs: adding a new system needs no edit here.
+  -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Terminal\Highbyte.DotNet6502.Impl.Terminal.csproj" />
-    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
-    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
-    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Vic20\Highbyte.DotNet6502.Systems.Vic20.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.App.Terminal.Core\Highbyte.DotNet6502.App.Terminal.Core.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\..\libraries\Highbyte.DotNet6502.Impl.Terminal.*\*.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Highbyte.DotNet6502.App.Terminal.Shell.*\*.csproj" />
   </ItemGroup>
+
+  <!--
+    Plug-in discovery manifest. SystemPluginDiscovery loads plug-in assemblies by (a) a transitive
+    reference walk from the entry assembly, (b) a scan of the output directory, and (c) an
+    assembly-metadata manifest. The entry exe holds no static reference to any per-system plug-in
+    type, so the C# compiler prunes those ProjectReferences and (a) finds nothing. This target emits
+    one [assembly: AssemblyMetadata("Highbyte.DotNet6502.PluginAssembly", "<name>")] per
+    Highbyte.DotNet6502.* assembly in the resolved reference closure, which discovery reads and
+    Assembly.Loads by name. Convention-based: adding a new system needs no edit here.
+  -->
+  <Target Name="EmitPluginAssemblyManifest"
+          DependsOnTargets="ResolveReferences"
+          BeforeTargets="GetAssemblyAttributes">
+    <ItemGroup>
+      <AssemblyMetadata Include="Highbyte.DotNet6502.PluginAssembly"
+                        Value="%(ReferencePath.FileName)"
+                        Condition="$([System.String]::Copy('%(ReferencePath.FileName)').StartsWith('Highbyte.DotNet6502.'))" />
+      <AssemblyMetadata Include="Highbyte.DotNet6502.PluginAssembly"
+                        Value="%(ReferenceDependencyPaths.FileName)"
+                        Condition="$([System.String]::Copy('%(ReferenceDependencyPaths.FileName)').StartsWith('Highbyte.DotNet6502.'))" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <None Update="appsettings.json">

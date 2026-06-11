@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-namespace Highbyte.DotNet6502.App.Terminal;
+namespace Highbyte.DotNet6502.Impl.Terminal.Commodore64;
 
 /// <summary>
 /// C64 host config for the Terminal (TUI) host — no audio (terminals have no sound output),
