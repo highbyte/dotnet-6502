@@ -14,8 +14,8 @@ namespace Highbyte.DotNet6502.Impl.Terminal.Vic20;
 /// <see cref="ISystemConfigurer"/> (<see cref="Vic20TerminalSetup"/>) into the host's DI container,
 /// so the terminal host can run the VIC-20 without holding any compile-time reference to it.
 ///
-/// The VIC-20 ships no shell plugin (no system-specific menu) — the host shows only the standard
-/// controls for it, demonstrating a system without a menu contribution.
+/// The VIC-20's UI (menu + info panel) ships separately in the shell plugin
+/// <c>Vic20TerminalShellPlugin</c> (App.Terminal.Shell.Vic20).
 /// </summary>
 public sealed class Vic20TerminalEnginePlugin : ISystemEnginePlugin
 {

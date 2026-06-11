@@ -467,6 +467,12 @@ public class TuiHostApp : HostApp
     /// </summary>
     private void OnGlobalKeyDown(object? sender, Key key)
     {
+        // While a modal dialog (or any other top-level) is the running top, host hotkeys must not
+        // fire — every key has to reach the dialog so its fields and buttons work (e.g. typing the
+        // digits 9/0 into a config text field, or Esc/F10 closing only the dialog).
+        if (!ReferenceEquals(Application.TopRunnableView, _window))
+            return;
+
         var code = key.KeyCode & ~(KeyCode.ShiftMask | KeyCode.CtrlMask | KeyCode.AltMask);
         var stopped = EmulatorState == EmulatorState.Uninitialized;
 
@@ -487,9 +493,10 @@ public class TuiHostApp : HostApp
             case KeyCode.F12: DoMonitor(); break;
 
             // System/Variant cycling: only meaningful while stopped, so we intercept 9/0 only then
-            // (chosen for being next to F9). While running, 9/0 fall through to the emulator.
-            case KeyCode.D9 when stopped: CycleSystem(+1); break;
-            case KeyCode.D0 when stopped: CycleVariant(+1); break;
+            // (chosen for being next to F9). While running, 9/0 fall through to the emulator. They are
+            // also left alone when a text-input control is focused, so digits can be typed there.
+            case KeyCode.D9 when stopped && !IsTextInputFocused(): CycleSystem(+1); break;
+            case KeyCode.D0 when stopped && !IsTextInputFocused(): CycleVariant(+1); break;
 
             default: return; // not a host hotkey — let it reach the focused view (e.g. the emulator)
         }
@@ -498,6 +505,11 @@ public class TuiHostApp : HostApp
 
     private bool IsEmulatorScreenFocused()
         => ReferenceEquals(Application.Navigation?.GetFocused(), _screenView);
+
+    // True when a text-entry control has focus, so character keys (e.g. the 9/0 hotkeys) are left to
+    // it rather than being treated as host hotkeys.
+    private static bool IsTextInputFocused()
+        => Application.Navigation?.GetFocused() is TextField or TextView;
 
     private static bool IsEmulatorGlobalInputKey(Key key, KeyCode code)
         // Tab is otherwise used by Terminal.Gui focus navigation before the screen view sees it.
