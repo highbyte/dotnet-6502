@@ -247,7 +247,7 @@ internal static class TerminalKeyMap
     private static bool IsShiftedSwedishRune(Rune rune)
     {
         var v = rune.Value;
-        return v is '"' or '&' or '/' or '(' or ')' or '=' or '?' or '*' or ';' or ':' or '>';
+        return v is '"' or '&' or '/' or '(' or ')' or '=' or '?' or '*' or ';' or ':' or '>' or '$';
     }
 
     // offset 0 == 'A'

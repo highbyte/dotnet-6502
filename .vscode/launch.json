@@ -70,22 +70,6 @@
             //"browser": "chrome"
         },
         {
-            "name": "Headless - Launch",
-            "type": "dotnet",
-            "request": "launch",
-            "preLaunchTask": "build headless app",
-            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.Headless/Highbyte.DotNet6502.App.Headless.csproj",
-            "launchConfigurationId": "TargetFramework=;Headless"
-        },
-        {
-            "name": "Console Monitor - Launch",
-            "type": "dotnet",
-            "request": "launch",
-            "preLaunchTask": "build console monitor app",
-            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
-            "launchConfigurationId": "TargetFramework=;ConsoleMonitor"
-        },
-        {
             // Interactive TUI: needs a real terminal, so run in the integrated terminal (not the debug console).
             "name": "Terminal (TUI) - Launch",
             "type": "coreclr",
@@ -107,6 +91,22 @@
             "cwd": "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal",
             "console": "integratedTerminal",
             "stopAtEntry": false
+        },
+        {
+            "name": "Console Monitor - Launch",
+            "type": "dotnet",
+            "request": "launch",
+            "preLaunchTask": "build console monitor app",
+            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
+            "launchConfigurationId": "TargetFramework=;ConsoleMonitor"
+        },
+        {
+            "name": "Headless - Launch",
+            "type": "dotnet",
+            "request": "launch",
+            "preLaunchTask": "build headless app",
+            "projectPath": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.Headless/Highbyte.DotNet6502.App.Headless.csproj",
+            "launchConfigurationId": "TargetFramework=;Headless"
         },
         {
             "name": "Avalonia Desktop - Attach",

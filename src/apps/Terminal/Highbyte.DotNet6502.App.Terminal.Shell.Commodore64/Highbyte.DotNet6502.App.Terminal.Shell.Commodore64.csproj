@@ -10,6 +10,7 @@
     <PackageReference Include="Terminal.Gui" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="TextCopy" />
   </ItemGroup>
 
   <ItemGroup>

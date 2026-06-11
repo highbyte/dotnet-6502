@@ -1,12 +1,18 @@
+using System.Collections.ObjectModel;
 using Highbyte.DotNet6502.App.Terminal;
+using Highbyte.DotNet6502.Impl.Terminal.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using TextCopy;
 
 // The terminal host keeps the static Application API (Run for the modal file dialog); it is obsolete
 // in Terminal.Gui 2.4.5 but fully functional. See TuiHostApp for the same suppression.
@@ -21,28 +27,238 @@ namespace Highbyte.DotNet6502.App.Terminal.Shell.Commodore64;
 /// </summary>
 public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
 {
+    private static readonly IReadOnlyDictionary<string, C64DownloadProgramInfo> PreloadedPrograms =
+        new Dictionary<string, C64DownloadProgramInfo>
+        {
+            ["Compunet Reborn"] = new(
+                "Compunet Reborn",
+                "https://compunet.live/static/compunet-reborn-live.prg",
+                downloadType: C64DownloadProgramType.Prg,
+                availableInBrowser: true,
+                c64Variant: "C64PAL",
+                swiftLinkEnabled: true),
+            ["Mini Zork"] = new(
+                "Mini Zork",
+                "https://csdb.dk/release/download.php?id=42919",
+                audioEnabled: false,
+                directLoadPRGName: "*"),
+        };
+
     private readonly TuiHostApp _host;
     private readonly ILogger _logger;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly HttpClient _httpClient = new();
+    private readonly DropDownList _programDropDown;
+    private readonly Button _d64Button;
+    private C64AutoLoadAndRun? _c64AutoLoadAndRun;
+    private bool _isLoadingPreloadedProgram;
 
     public string MenuTitle => "C64";
 
-    public int MenuRowCount => 2;
+    public int MenuRowCount => 5;
 
     public View View => this;
 
     public C64TerminalMenuView(TuiHostApp host, ILoggerFactory loggerFactory)
     {
         _host = host;
+        _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(nameof(C64TerminalMenuView));
 
-        var loadButton = new Button { X = 0, Y = 0, Text = "Load .prg…", ShadowStyle = ShadowStyles.None };
+        var copyButton = new Button { X = 0, Y = 0, Text = "Copy", ShadowStyle = ShadowStyles.None };
+        copyButton.Accepting += (_, e) => { e.Handled = true; CopyBasicSourceCode(); };
+
+        var pasteButton = new Button { X = 12, Y = 0, Text = "Paste", ShadowStyle = ShadowStyles.None };
+        pasteButton.Accepting += (_, e) => { e.Handled = true; PasteText(); };
+
+        _d64Button = new Button { X = 0, Y = 1, Text = "Attach .D64", ShadowStyle = ShadowStyles.None };
+        _d64Button.Accepting += (_, e) => { e.Handled = true; ToggleD64Image(); };
+
+        _programDropDown = new DropDownList
+        {
+            X = 0,
+            Y = 2,
+            Width = 17,
+            Source = new ListWrapper<string>(new ObservableCollection<string>(PreloadedPrograms.Keys.OrderBy(x => x))),
+            ReadOnly = true,
+            Text = PreloadedPrograms.Keys.OrderBy(x => x).First(),
+        };
+
+        var loadProgramButton = new Button { X = 18, Y = 2, Text = "Load", ShadowStyle = ShadowStyles.None };
+        loadProgramButton.Accepting += async (_, e) =>
+        {
+            e.Handled = true;
+            await LoadSelectedProgram();
+        };
+
+        var loadButton = new Button { X = 0, Y = 3, Text = "Load .prg…", ShadowStyle = ShadowStyles.None };
         loadButton.Accepting += (_, e) => { e.Handled = true; LoadBasicPrg(); };
 
-        var configButton = new Button { X = 0, Y = 1, Text = "Config…", ShadowStyle = ShadowStyles.None };
+        var configButton = new Button { X = 0, Y = 4, Text = "Config…", ShadowStyle = ShadowStyles.None };
         configButton.Accepting += (_, e) => { e.Handled = true; C64ConfigDialog.Show(_host, _logger); };
 
-        Add(loadButton, configButton);
+        Add(copyButton, pasteButton, _d64Button, _programDropDown, loadProgramButton, loadButton, configButton);
+        UpdateD64ButtonText();
     }
+
+    private void CopyBasicSourceCode()
+    {
+        if (_host.CurrentRunningSystem is not C64 c64 || _host.EmulatorState == EmulatorState.Uninitialized)
+        {
+            _logger.LogInformation("Start the C64 before copying BASIC source.");
+            return;
+        }
+
+        try
+        {
+            var basicSourceCode = c64.BasicTokenParser.GetBasicText();
+            ClipboardService.SetText(basicSourceCode.ToLower());
+            _logger.LogInformation("Copied BASIC source to clipboard.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error copying BASIC source: {Message}", ex.Message);
+        }
+    }
+
+    private void PasteText()
+    {
+        if (_host.CurrentRunningSystem is not C64 c64 || _host.EmulatorState == EmulatorState.Uninitialized)
+        {
+            _logger.LogInformation("Start the C64 before pasting text.");
+            return;
+        }
+
+        try
+        {
+            var text = ClipboardService.GetText();
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            c64.TextPaste.Paste(text);
+            _logger.LogInformation("Queued clipboard text for C64 paste.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error pasting text: {Message}", ex.Message);
+        }
+    }
+
+    private void ToggleD64Image()
+    {
+        if (_host.CurrentRunningSystem is not C64 c64 || _host.EmulatorState == EmulatorState.Uninitialized)
+        {
+            _logger.LogInformation("Start the C64 before attaching a .D64 image.");
+            return;
+        }
+
+        try
+        {
+            var diskDrive = GetDiskDrive(c64);
+            if (diskDrive == null)
+            {
+                _logger.LogError("DiskDrive1541 not found on IEC bus.");
+                return;
+            }
+
+            if (diskDrive.IsDisketteInserted)
+            {
+                diskDrive.RemoveD64DiskImage();
+                _logger.LogInformation("D64 disk image detached.");
+                UpdateD64ButtonText();
+                return;
+            }
+
+            using var dialog = new OpenDialog
+            {
+                Title = "Attach .D64 image",
+                AllowsMultipleSelection = false,
+            };
+            Application.Run(dialog);
+
+            if (dialog.Canceled || dialog.FilePaths.Count == 0)
+                return;
+
+            var path = dialog.FilePaths[0];
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return;
+
+            var d64DiskImage = D64Parser.ParseD64File(path);
+            diskDrive.SetD64DiskImage(d64DiskImage);
+            _logger.LogInformation("Attached D64 disk image: {File}", Path.GetFileName(path));
+            UpdateD64ButtonText();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error toggling D64 disk image: {Message}", ex.Message);
+        }
+    }
+
+    private async Task LoadSelectedProgram()
+    {
+        if (_isLoadingPreloadedProgram)
+            return;
+
+        var selectedProgram = _programDropDown.Text.ToString() ?? string.Empty;
+        if (!PreloadedPrograms.TryGetValue(selectedProgram, out var programInfo))
+            return;
+
+        _isLoadingPreloadedProgram = true;
+        _logger.LogInformation("Loading {DisplayName}.", programInfo.DisplayName);
+
+        try
+        {
+            _c64AutoLoadAndRun ??= CreateAutoLoadAndRun();
+            await _c64AutoLoadAndRun.DownloadAndRunProgram(programInfo, ApplyPreloadedProgramConfig);
+            UpdateD64ButtonText();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading {DisplayName}: {Message}", programInfo.DisplayName, ex.Message);
+        }
+        finally
+        {
+            _isLoadingPreloadedProgram = false;
+        }
+    }
+
+    private C64AutoLoadAndRun CreateAutoLoadAndRun()
+    {
+        _httpClient.DefaultRequestHeaders.UserAgent.Clear();
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        return new C64AutoLoadAndRun(_loggerFactory, _httpClient, _host);
+    }
+
+    private async Task ApplyPreloadedProgramConfig(C64DownloadProgramInfo programInfo)
+    {
+        if (_host.CurrentHostSystemConfig is not C64TerminalHostConfig currentConfig)
+            return;
+
+        var hostConfig = (C64TerminalHostConfig)currentConfig.Clone();
+        var systemConfig = hostConfig.SystemConfig;
+
+        systemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
+        systemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+        systemConfig.AudioEnabled = false; // Terminal host has no audio output.
+        systemConfig.SwiftLink.Enabled = programInfo.SwiftLinkEnabled;
+
+        await _host.SelectSystemConfigurationVariant(programInfo.C64Variant);
+        _host.UpdateHostSystemConfig(hostConfig);
+    }
+
+    private void UpdateD64ButtonText()
+    {
+        if (_host.CurrentRunningSystem is C64 c64 && GetDiskDrive(c64)?.IsDisketteInserted == true)
+            _d64Button.Text = "Detach D64";
+        else
+            _d64Button.Text = "Attach .D64";
+    }
+
+    private static DiskDrive1541? GetDiskDrive(C64 c64)
+        => c64.IECBus.GetDeviceByNumber(8) as DiskDrive1541;
 
     /// <summary>
     /// Open a file picker and load the selected BASIC <c>.prg</c> into the running C64's memory,
