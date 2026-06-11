@@ -13,9 +13,10 @@ namespace Highbyte.DotNet6502.App.Terminal;
 /// one rune per cell with TrueColor foreground/background — the only non-stock-widget part of the
 /// TUI.
 ///
-/// Key presses while this view is focused are forwarded to the host (for the emulator's keyboard),
-/// except a small set of global hotkeys which are left unhandled so the surrounding window can act
-/// on them.
+/// While this view is focused, key presses are forwarded to the host (for the emulator's keyboard),
+/// so the emulated system receives all keys including F1–F8 (which the C64 uses). Host hotkeys are
+/// handled globally (F9–F12) at the application level, not here, so they never steal emulator keys.
+/// Tab/BackTab are left unhandled so focus can still move out of the screen.
 /// </summary>
 public sealed class EmulatorScreenView : View
 {
@@ -26,19 +27,8 @@ public sealed class EmulatorScreenView : View
 
     private static readonly Attribute s_emptyAttribute = new(new Color(0, 0, 0), new Color(0, 0, 0));
 
-    /// <summary>Global hotkeys that must reach the window even when the screen has focus.</summary>
-    private static readonly HashSet<KeyCode> s_passThroughKeys = new()
-    {
-        KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4, KeyCode.F5,
-        KeyCode.F6, KeyCode.F7, KeyCode.F8, KeyCode.F9, KeyCode.F10,
-        KeyCode.F11, KeyCode.F12,
-    };
-
     /// <summary>Raised (on the UI thread) when the user presses a key while the screen is focused.</summary>
     public event Action<Key>? EmulatorKeyPressed;
-
-    /// <summary>Raised (on the UI thread) when the user presses a global hotkey (F1–F12).</summary>
-    public event Action<Key>? HotkeyPressed;
 
     public EmulatorScreenView()
     {
@@ -77,15 +67,13 @@ public sealed class EmulatorScreenView : View
     private void OnScreenKeyDown(object? sender, Key key)
     {
         var baseCode = key.KeyCode & ~(KeyCode.ShiftMask | KeyCode.CtrlMask | KeyCode.AltMask);
-        if (s_passThroughKeys.Contains(baseCode))
-        {
-            HotkeyPressed?.Invoke(key);
-            key.Handled = true;
+
+        // Leave Tab/BackTab unhandled so the user can move focus out of the emulator screen.
+        if (baseCode is KeyCode.Tab)
             return;
-        }
 
         EmulatorKeyPressed?.Invoke(key);
-        key.Handled = true; // consume so Terminal.Gui does not use it for focus navigation etc.
+        key.Handled = true; // consume so the emulator receives it (incl. F1–F8) and Terminal.Gui doesn't.
     }
 
     protected override bool OnDrawingContent(DrawContext? context)
