@@ -79,11 +79,11 @@ public sealed class TerminalRenderTarget : ICommandTarget
                 }
 
             case DrawGlyphArgb(var gx, var gy, var glyph, var foreArgb, var backArgb):
-                SetCell(gx, gy, GetRune(glyph), GetColor(foreArgb), GetColor(backArgb));
+                SetGlyphCell(gx, gy, glyph, GetColor(foreArgb), GetColor(backArgb));
                 break;
 
             case DrawGlyph(var gx, var gy, var glyph, SystemDrawingColor fore, SystemDrawingColor back):
-                SetCell(gx, gy, GetRune(glyph), GetColor(fore), GetColor(back));
+                SetGlyphCell(gx, gy, glyph, GetColor(fore), GetColor(back));
                 break;
 
             default:
@@ -136,6 +136,23 @@ public sealed class TerminalRenderTarget : ICommandTarget
         if (y > _frameMaxY) _frameMaxY = y;
     }
 
+    private void SetGlyphCell(int x, int y, int glyphId, Color fg, Color bg)
+    {
+        var id = (byte)glyphId;
+        if (IsCommodoreReverseScreenCode(id))
+        {
+            // The C64/VIC-20 command streams pass raw screen codes as glyph ids. Codes with the
+            // high bit set are reverse-video variants. Desktop hosts can render those with a C64
+            // font; terminals cannot. Render them as terminal reverse video instead: base glyph,
+            // swapped foreground/background. For a reversed space this naturally becomes a solid
+            // cursor block.
+            SetCell(x, y, GetRune(GetCommodoreBaseScreenCode(id)), bg, fg);
+            return;
+        }
+
+        SetCell(x, y, GetRune(id), fg, bg);
+    }
+
     private Rune GetRune(int glyphId)
     {
         var id = (byte)glyphId;
@@ -157,6 +174,11 @@ public sealed class TerminalRenderTarget : ICommandTarget
         _glyphCache[id] = rune;
         return rune;
     }
+
+    private static bool IsCommodoreReverseScreenCode(byte glyphId) => glyphId >= 0x80;
+
+    private static byte GetCommodoreBaseScreenCode(byte glyphId)
+        => glyphId is 0xA0 or 0xE0 ? (byte)0x20 : (byte)(glyphId - 0x80);
 
     private static Rune FirstRune(string s)
     {
