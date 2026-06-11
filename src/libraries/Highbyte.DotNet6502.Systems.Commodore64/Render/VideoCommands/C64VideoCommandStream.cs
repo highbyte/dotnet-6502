@@ -79,6 +79,19 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
         try
         {
             string representAsString;
+
+            // Best-effort Unicode for PETSCII block-graphics glyphs (lines, blocks, suits, etc.) so
+            // hosts without a C64 font (e.g. a terminal) show something similar instead of garbage.
+            // Only valid for the built-in uppercase/graphics ROM charset (VIC charset base 0x1000, the
+            // power-on default), where screen codes 0x40–0x7F are graphics. In the lowercase ROM
+            // charset those codes are letters, and a custom RAM charset is arbitrary, so skip the map
+            // there and fall through to the normal text mapping below.
+            if (_c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank == 0x1000
+                && C64GraphicsCharset.TryGetUnicode(c64ScreenCode, out var graphic))
+            {
+                return graphic;
+            }
+
             switch (c64ScreenCode)
             {
                 case 0xa0:  //160, C64 inverted space

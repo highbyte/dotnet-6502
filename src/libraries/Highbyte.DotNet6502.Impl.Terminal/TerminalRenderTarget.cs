@@ -67,6 +67,11 @@ public sealed class TerminalRenderTarget : ICommandTarget
         {
             case SetConfig(var glyphToUnicodeConverter):
                 _glyphToUnicode = glyphToUnicodeConverter;
+                // The converter's output for a screen code can change at runtime (e.g. the C64
+                // switching between the uppercase/graphics and lowercase charsets), so drop the
+                // cached glyphs. SetConfig is emitted once per frame, so within a frame repeated
+                // screen codes are still cached.
+                _glyphCache.Clear();
                 break;
 
             case FillRect(var x, var y, var w, var h, var colorArgb):

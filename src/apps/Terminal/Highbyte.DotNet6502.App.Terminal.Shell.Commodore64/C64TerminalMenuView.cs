@@ -30,6 +30,13 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
     private static readonly IReadOnlyDictionary<string, C64DownloadProgramInfo> PreloadedPrograms =
         new Dictionary<string, C64DownloadProgramInfo>
         {
+            ["Digiloi"] = new(
+                "Digiloi",
+                "https://csdb.dk/release/download.php?id=213381",
+                keyboardJoystickEnabled: true,
+                keyboardJoystickNumber: 2,
+                directLoadPRGName: "*"),
+
             ["Compunet Reborn"] = new(
                 "Compunet Reborn",
                 "https://compunet.live/static/compunet-reborn-live.prg",
