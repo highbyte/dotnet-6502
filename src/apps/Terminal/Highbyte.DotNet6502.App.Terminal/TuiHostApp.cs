@@ -51,9 +51,7 @@ public class TuiHostApp : HostApp
     // Tabbed area (Logs | Config | Info) below the Stats box.
     private enum InfoTab { Logs, Config, Info }
     private InfoTab _activeInfoTab = InfoTab.Logs;
-    private Button _logsTabButton = default!;
-    private Button _configTabButton = default!;
-    private Button _infoTabButton = default!;
+    private TabStripView _infoTabStrip = default!;
     private ListView _logsListView = default!;    // scrollable log list (like the other host apps)
     private List<string> _logRows = new();        // backing rows for the log list (for the detail popup)
     private Label _configLabel = default!;
@@ -112,6 +110,10 @@ public class TuiHostApp : HostApp
         InitInputHandlerContext();
 
         Application.Init();
+        // Terminal.Gui binds Esc → Quit at the application level by default. We don't want Esc to
+        // quit the host (F10 is the only quit key), and the emulator maps Esc to RUN/STOP, so remove
+        // that binding. The log-entry popup still closes on Esc via its own key handler.
+        Application.KeyBindings.Remove(Key.Esc);
         // Global hotkeys (F9–F12): handled app-wide so they work regardless of which control has
         // focus. Kept off F1–F8, which the emulated systems (e.g. the C64) use.
         Application.KeyDown += OnGlobalKeyDown;
@@ -319,8 +321,9 @@ public class TuiHostApp : HostApp
         statsFrame.Add(_statsLabel);
 
         // --- Tabbed area below Stats: Logs | Config | Info ---
-        // Terminal.Gui 2.4.5 has no TabView, so this is a small hand-rolled tab strip: a row of tab
-        // buttons (Y=0) over a content area (Y=1+) where only the active tab's view is visible.
+        // Terminal.Gui 2.4.5 has no TabView, so this is a small hand-rolled tab strip (TabStripView):
+        // all titles fit on one line (Y=0), with a content area (Y=1+) where only the active tab's
+        // view is visible. The narrow side column can't fit stock Buttons' chrome for 3+ tabs.
         var tabsFrame = new FrameView
         {
             Title = string.Empty,
@@ -331,12 +334,8 @@ public class TuiHostApp : HostApp
             BorderStyle = LineStyle.Single,
         };
 
-        _logsTabButton = new Button { X = 0, Y = 0, Text = "Logs", ShadowStyle = ShadowStyles.None };
-        _configTabButton = new Button { X = Pos.Right(_logsTabButton), Y = 0, Text = "Config", ShadowStyle = ShadowStyles.None };
-        _infoTabButton = new Button { X = Pos.Right(_configTabButton), Y = 0, Text = "Info", ShadowStyle = ShadowStyles.None };
-        _logsTabButton.Accepting += (_, e) => { e.Handled = true; SelectInfoTab(InfoTab.Logs); };
-        _configTabButton.Accepting += (_, e) => { e.Handled = true; SelectInfoTab(InfoTab.Config); };
-        _infoTabButton.Accepting += (_, e) => { e.Handled = true; SelectInfoTab(InfoTab.Info); };
+        _infoTabStrip = new TabStripView("Logs", "Config", "Info") { X = 0, Y = 0 };
+        _infoTabStrip.TabSelected += index => SelectInfoTab((InfoTab)index);
 
         // Logs: a scrollable ListView (one row per message), like the other host apps' log list.
         // (ListView is lighter than TextView for frequently-rebuilt logs and inherits the UI scheme.)
@@ -348,7 +347,7 @@ public class TuiHostApp : HostApp
         // Config / Info: short read-only text — Labels (which inherit the surrounding scheme, like Stats).
         _configLabel = new Label { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill(), Text = "", Visible = false };
         _infoLabel = new Label { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill(), Text = "", Visible = false };
-        tabsFrame.Add(_logsTabButton, _configTabButton, _infoTabButton, _logsListView, _configLabel, _infoLabel);
+        tabsFrame.Add(_infoTabStrip, _logsListView, _configLabel, _infoLabel);
 
         // --- Bottom hint line ---
         var hintLabel = new Label
@@ -360,6 +359,33 @@ public class TuiHostApp : HostApp
         };
 
         _window.Add(controlsFrame, _screenFrame, statsFrame, tabsFrame, hintLabel);
+
+        // Make focus/hover indication a background change (keeping text readable) instead of the
+        // theme default, which flips button text to near-black — unreadable on the dark window.
+        // Applied window-wide so buttons and the tab strip stay consistent (children inherit it).
+        ApplyReadableFocusScheme(_window);
+    }
+
+    /// <summary>
+    /// Derive a scheme from <paramref name="view"/>'s current one where the focus/hover/active roles
+    /// indicate selection with a distinct background and bright text, rather than the theme default
+    /// that renders focused/hovered button text near-black (illegible on the dark window background).
+    /// </summary>
+    private static void ApplyReadableFocusScheme(View view)
+    {
+        var baseScheme = view.GetScheme();
+        if (baseScheme is null)
+            return;
+
+        var selected = new global::Terminal.Gui.Drawing.Attribute(new Color(0xFF, 0xFF, 0xFF), new Color(0x2C, 0x5A, 0xA0));
+        view.SetScheme(baseScheme with
+        {
+            Focus = selected,
+            HotFocus = selected,
+            Active = selected,
+            HotActive = selected,
+            Highlight = selected,
+        });
     }
 
     // ----------------------------------------------------------------------
@@ -716,10 +742,9 @@ public class TuiHostApp : HostApp
         _configLabel.Visible = tab == InfoTab.Config;
         _infoLabel.Visible = tab == InfoTab.Info;
 
-        // Mark the active tab (consistent with the Stats* marker).
-        _logsTabButton.Text = tab == InfoTab.Logs ? "Logs*" : "Logs";
-        _configTabButton.Text = tab == InfoTab.Config ? "Config*" : "Config";
-        _infoTabButton.Text = tab == InfoTab.Info ? "Info*" : "Info";
+        // Keep the strip's highlighted tab in sync (no-op when already active, e.g. when the strip
+        // itself raised the change).
+        _infoTabStrip.SetActive((int)tab);
 
         if (tab == InfoTab.Config)
             UpdateConfigView();
@@ -777,6 +802,9 @@ public class TuiHostApp : HostApp
         sb.AppendLine();
         sb.AppendLine("Logs: Enter on a row");
         sb.AppendLine("  shows the full entry.");
+        sb.AppendLine();
+        sb.AppendLine("Tabs: focus strip, then");
+        sb.AppendLine("  Left/Right to switch.");
 
         _infoLabel.Text = sb.ToString();
     }
