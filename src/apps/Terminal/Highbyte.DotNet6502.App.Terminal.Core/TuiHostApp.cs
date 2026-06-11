@@ -404,7 +404,7 @@ public class TuiHostApp : HostApp
             X = 0,
             Y = Pos.AnchorEnd(1),
             Width = Dim.Fill(),
-            Text = " 9 System  0 Variant   F9 Start/Stop  F10 Quit  F11 Stats  F12 Monitor   Tab Focus",
+            Text = " 9 System  0 Variant   F9 Start/Stop  F10 Quit  F11 Stats  F12 Monitor   Tab C64 Ctrl",
         };
 
         _window.Add(controlsFrame, _screenFrame, statsFrame, _tabsFrame, hintLabel);
@@ -469,6 +469,14 @@ public class TuiHostApp : HostApp
     {
         var code = key.KeyCode & ~(KeyCode.ShiftMask | KeyCode.CtrlMask | KeyCode.AltMask);
         var stopped = EmulatorState == EmulatorState.Uninitialized;
+
+        if (!stopped && IsEmulatorScreenFocused() && IsEmulatorGlobalInputKey(key, code))
+        {
+            _inputContext.OnKeyDown(key);
+            key.Handled = true;
+            return;
+        }
+
         switch (code)
         {
             // Running-time actions: only plain F9–F12 are conflict-free while the emulator runs
@@ -487,6 +495,15 @@ public class TuiHostApp : HostApp
         }
         key.Handled = true;
     }
+
+    private bool IsEmulatorScreenFocused()
+        => ReferenceEquals(Application.Navigation?.GetFocused(), _screenView);
+
+    private static bool IsEmulatorGlobalInputKey(Key key, KeyCode code)
+        // Tab is otherwise used by Terminal.Gui focus navigation before the screen view sees it.
+        // Ctrl/Alt/Shift chords are also forwarded here so Terminal.Gui command bindings do not
+        // consume emulator combinations that terminals are able to report.
+        => code == KeyCode.Tab || key.IsCtrl || key.IsAlt || key.IsShift;
 
     private void CycleSystem(int direction) => Safe(() =>
     {

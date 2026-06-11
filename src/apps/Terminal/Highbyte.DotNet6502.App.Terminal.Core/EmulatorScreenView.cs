@@ -16,7 +16,7 @@ namespace Highbyte.DotNet6502.App.Terminal;
 /// While this view is focused, key presses are forwarded to the host (for the emulator's keyboard),
 /// so the emulated system receives all keys including F1–F8 (which the C64 uses). Host hotkeys are
 /// handled globally (F9–F12) at the application level, not here, so they never steal emulator keys.
-/// Tab/BackTab are left unhandled so focus can still move out of the screen.
+/// Tab is forwarded too because the C64 uses it as Ctrl for color-key chords (Tab+1..8).
 /// </summary>
 public sealed class EmulatorScreenView : View
 {
@@ -66,12 +66,6 @@ public sealed class EmulatorScreenView : View
 
     private void OnScreenKeyDown(object? sender, Key key)
     {
-        var baseCode = key.KeyCode & ~(KeyCode.ShiftMask | KeyCode.CtrlMask | KeyCode.AltMask);
-
-        // Leave Tab/BackTab unhandled so the user can move focus out of the emulator screen.
-        if (baseCode is KeyCode.Tab)
-            return;
-
         EmulatorKeyPressed?.Invoke(key);
         key.Handled = true; // consume so the emulator receives it (incl. F1–F8) and Terminal.Gui doesn't.
     }

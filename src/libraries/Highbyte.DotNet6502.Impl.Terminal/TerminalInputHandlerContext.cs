@@ -19,6 +19,8 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
 {
     /// <summary>How long a pressed key is reported as held (covers several emulator frames).</summary>
     public const long KeyHoldMilliseconds = 130;
+    private const long ModifierKeyHoldMilliseconds = 350;
+    private const long TabLatchMilliseconds = 450;
 
     private readonly ILogger _logger;
     private readonly object _lock = new();
@@ -26,6 +28,7 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
     // HostKey -> Stopwatch-timestamp (ms) when it should stop being reported as down.
     private readonly Dictionary<HostKey, long> _keyExpiry = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private long _tabLatchExpireAt;
 
     public bool IsInitialized { get; private set; }
 
@@ -48,21 +51,55 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
     /// </summary>
     public void OnKeyDown(Key key)
     {
-        var expireAt = _clock.ElapsedMilliseconds + KeyHoldMilliseconds;
+        var now = _clock.ElapsedMilliseconds;
+        var expireAt = now + KeyHoldMilliseconds;
+        var modifierExpireAt = now + ModifierKeyHoldMilliseconds;
         lock (_lock)
         {
-            // A printable key with Shift held also presses the Shift modifier so the C64 input
-            // handler can produce shifted glyphs/symbols.
-            if (key.IsShift)
-                _keyExpiry[HostKey.ShiftLeft] = expireAt;
-
             var hostKey = TerminalKeyMap.MapToHostKey(key);
+            var altColorDigit = key.IsAlt && IsC64ColorDigit(hostKey);
+
+            // Terminal key events represent a chord as one event. Record modifier keys alongside
+            // the physical key so mappings such as Ctrl+1 (C64 Commodore+1) and Shift+digit work.
+            if (key.IsShift)
+                _keyExpiry[HostKey.ShiftLeft] = modifierExpireAt;
+            if (key.IsCtrl)
+                _keyExpiry[HostKey.ControlLeft] = modifierExpireAt;
+            if (key.IsAlt && !altColorDigit)
+                _keyExpiry[HostKey.AltLeft] = modifierExpireAt;
+
             if (hostKey != HostKey.None)
-                _keyExpiry[hostKey] = expireAt;
+            {
+                if (altColorDigit)
+                    _keyExpiry[HostKey.ControlLeft] = modifierExpireAt;
+
+                if (hostKey == HostKey.Tab)
+                    _tabLatchExpireAt = now + TabLatchMilliseconds;
+                else if (_tabLatchExpireAt >= now && IsC64ColorDigit(hostKey))
+                {
+                    // Terminals do not report Tab as a held modifier. Treat a recent Tab press as
+                    // a rolling C64 Ctrl latch so holding Tab and pressing multiple digits still
+                    // works even though the terminal usually sends only one Tab event.
+                    _keyExpiry[HostKey.Tab] = modifierExpireAt;
+                    _tabLatchExpireAt = now + TabLatchMilliseconds;
+                }
+                else
+                {
+                    _tabLatchExpireAt = 0;
+                }
+
+                var isEmulatorModifier = hostKey is HostKey.Tab or HostKey.ControlLeft or HostKey.ControlRight
+                    or HostKey.AltLeft or HostKey.AltRight or HostKey.ShiftLeft or HostKey.ShiftRight;
+                _keyExpiry[hostKey] = isEmulatorModifier ? modifierExpireAt : expireAt;
+            }
             else if (_logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug("Unmapped terminal key: KeyCode={KeyCode} Rune={Rune}", key.KeyCode, key.AsRune);
         }
     }
+
+    private static bool IsC64ColorDigit(HostKey hostKey)
+        => hostKey is HostKey.Digit1 or HostKey.Digit2 or HostKey.Digit3 or HostKey.Digit4
+            or HostKey.Digit5 or HostKey.Digit6 or HostKey.Digit7 or HostKey.Digit8;
 
     // ----------------------------------------------------------------------
     // IHostInputState

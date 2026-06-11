@@ -23,6 +23,10 @@ internal static class TerminalKeyMap
         if (special != HostKey.None)
             return special;
 
+        var physical = MapPhysicalKeyCode(code);
+        if (physical != HostKey.None)
+            return physical;
+
         // Printable: map from the rune the key produced.
         var rune = key.AsRune;
         if (rune != default)
@@ -60,6 +64,47 @@ internal static class TerminalKeyMap
         KeyCode.F10 => HostKey.F10,
         KeyCode.F11 => HostKey.F11,
         KeyCode.F12 => HostKey.F12,
+        _ => HostKey.None,
+    };
+
+    private static HostKey MapPhysicalKeyCode(KeyCode code) => code switch
+    {
+        KeyCode.D0 => HostKey.Digit0,
+        KeyCode.D1 => HostKey.Digit1,
+        KeyCode.D2 => HostKey.Digit2,
+        KeyCode.D3 => HostKey.Digit3,
+        KeyCode.D4 => HostKey.Digit4,
+        KeyCode.D5 => HostKey.Digit5,
+        KeyCode.D6 => HostKey.Digit6,
+        KeyCode.D7 => HostKey.Digit7,
+        KeyCode.D8 => HostKey.Digit8,
+        KeyCode.D9 => HostKey.Digit9,
+        KeyCode.A => HostKey.KeyA,
+        KeyCode.B => HostKey.KeyB,
+        KeyCode.C => HostKey.KeyC,
+        KeyCode.D => HostKey.KeyD,
+        KeyCode.E => HostKey.KeyE,
+        KeyCode.F => HostKey.KeyF,
+        KeyCode.G => HostKey.KeyG,
+        KeyCode.H => HostKey.KeyH,
+        KeyCode.I => HostKey.KeyI,
+        KeyCode.J => HostKey.KeyJ,
+        KeyCode.K => HostKey.KeyK,
+        KeyCode.L => HostKey.KeyL,
+        KeyCode.M => HostKey.KeyM,
+        KeyCode.N => HostKey.KeyN,
+        KeyCode.O => HostKey.KeyO,
+        KeyCode.P => HostKey.KeyP,
+        KeyCode.Q => HostKey.KeyQ,
+        KeyCode.R => HostKey.KeyR,
+        KeyCode.S => HostKey.KeyS,
+        KeyCode.T => HostKey.KeyT,
+        KeyCode.U => HostKey.KeyU,
+        KeyCode.V => HostKey.KeyV,
+        KeyCode.W => HostKey.KeyW,
+        KeyCode.X => HostKey.KeyX,
+        KeyCode.Y => HostKey.KeyY,
+        KeyCode.Z => HostKey.KeyZ,
         _ => HostKey.None,
     };
 
