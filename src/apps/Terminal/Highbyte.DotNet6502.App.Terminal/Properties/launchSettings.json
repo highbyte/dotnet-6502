@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Terminal": {
+      "commandName": "Project"
+    },
+    "Terminal (self-test)": {
+      "commandName": "Project",
+      "commandLineArgs": "--selftest --frames 250"
+    }
+  }
+}

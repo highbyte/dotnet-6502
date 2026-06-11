@@ -86,6 +86,29 @@
             "launchConfigurationId": "TargetFramework=;ConsoleMonitor"
         },
         {
+            // Interactive TUI: needs a real terminal, so run in the integrated terminal (not the debug console).
+            "name": "Terminal (TUI) - Launch",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build terminal app",
+            "program": "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal/bin/Debug/net10.0/Highbyte.DotNet6502.App.Terminal.dll",
+            "cwd": "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal",
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        },
+        {
+            // Headless self-test: boots the C64 and prints the rendered screen as text (no TTY needed).
+            "name": "Terminal (TUI) - Launch (Self-test)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build terminal app",
+            "program": "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal/bin/Debug/net10.0/Highbyte.DotNet6502.App.Terminal.dll",
+            "args": ["--selftest", "--frames", "250"],
+            "cwd": "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
             "name": "Avalonia Desktop - Attach",
             "type": "coreclr",
             "request": "attach",

@@ -114,6 +114,22 @@
             }
         },
         {
+            "label": "build terminal app",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal/Highbyte.DotNet6502.App.Terminal.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
             "label": "build simple debug adapter console host",
             "command": "dotnet",
             "type": "process",
