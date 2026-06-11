@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Highbyte.DotNet6502.Systems.Input;
 using Microsoft.Extensions.Logging;
 
@@ -24,6 +25,7 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
 
     private readonly ILogger _logger;
     private readonly object _lock = new();
+    private readonly TerminalKeyboardLayout _keyboardLayout;
 
     // HostKey -> Stopwatch-timestamp (ms) when it should stop being reported as down.
     private readonly Dictionary<HostKey, long> _keyExpiry = new();
@@ -35,6 +37,8 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
     public TerminalInputHandlerContext(ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger(nameof(TerminalInputHandlerContext));
+        _keyboardLayout = DetectTerminalKeyboardLayout();
+        _logger.LogInformation($"Terminal keyboard layout: {_keyboardLayout}.");
     }
 
     public void Init() => IsInitialized = true;
@@ -56,16 +60,21 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
         var modifierExpireAt = now + ModifierKeyHoldMilliseconds;
         lock (_lock)
         {
-            var hostKey = TerminalKeyMap.MapToHostKey(key);
-            var altColorDigit = key.IsAlt && IsC64ColorDigit(hostKey);
+            var hostKey = TerminalKeyMap.MapToHostKey(key, _keyboardLayout);
+            var layoutAltGraphText = TerminalKeyMap.RequiresAltGraph(key, _keyboardLayout);
+            var altColorDigit = key.IsAlt && IsC64ColorDigit(hostKey) && !layoutAltGraphText;
 
             // Terminal key events represent a chord as one event. Record modifier keys alongside
             // the physical key so mappings such as Ctrl+1 (C64 Commodore+1) and Shift+digit work.
-            if (key.IsShift)
-                _keyExpiry[HostKey.ShiftLeft] = modifierExpireAt;
+            if (key.IsShift || TerminalKeyMap.RequiresShift(key, _keyboardLayout))
+            {
+                // Terminal input cannot distinguish left/right Shift. Use ShiftRight because the
+                // shared C64 layout-specific punctuation maps are keyed on ShiftRight.
+                _keyExpiry[HostKey.ShiftRight] = modifierExpireAt;
+            }
             if (key.IsCtrl)
                 _keyExpiry[HostKey.ControlLeft] = modifierExpireAt;
-            if (key.IsAlt && !altColorDigit)
+            if ((key.IsAlt && !altColorDigit) || layoutAltGraphText)
                 _keyExpiry[HostKey.AltLeft] = modifierExpireAt;
 
             if (hostKey != HostKey.None)
@@ -101,6 +110,36 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
         => hostKey is HostKey.Digit1 or HostKey.Digit2 or HostKey.Digit3 or HostKey.Digit4
             or HostKey.Digit5 or HostKey.Digit6 or HostKey.Digit7 or HostKey.Digit8;
 
+    private static TerminalKeyboardLayout DetectTerminalKeyboardLayout()
+    {
+        var nativeLayoutId = KeyboardLayoutDetector.DetectNativeLayoutId();
+        if (IsSwedishNativeLayout(nativeLayoutId))
+            return TerminalKeyboardLayout.Swedish;
+        if (IsUsNativeLayout(nativeLayoutId))
+            return TerminalKeyboardLayout.US;
+
+        return CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("sv", StringComparison.OrdinalIgnoreCase)
+            ? TerminalKeyboardLayout.Swedish
+            : TerminalKeyboardLayout.US;
+    }
+
+    private static bool IsSwedishNativeLayout(string? nativeLayoutId)
+    {
+        if (string.IsNullOrWhiteSpace(nativeLayoutId))
+            return false;
+        return nativeLayoutId.Contains("Swedish", StringComparison.OrdinalIgnoreCase)
+            || nativeLayoutId.EndsWith("041D", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsUsNativeLayout(string? nativeLayoutId)
+    {
+        if (string.IsNullOrWhiteSpace(nativeLayoutId))
+            return false;
+        return nativeLayoutId.EndsWith("0409", StringComparison.OrdinalIgnoreCase)
+            || nativeLayoutId.Contains(".US", StringComparison.OrdinalIgnoreCase)
+            || nativeLayoutId.Contains(".ABC", StringComparison.OrdinalIgnoreCase);
+    }
+
     // ----------------------------------------------------------------------
     // IHostInputState
     // ----------------------------------------------------------------------
@@ -126,6 +165,10 @@ public sealed class TerminalInputHandlerContext : IInputHandlerContext, IHostInp
     public IReadOnlySet<GamepadButton> GamepadButtonsDown { get; } = new HashSet<GamepadButton>();
 
     public bool CapsLockOn => false;
+
+    // Terminal input is already cooked through the OS keyboard layout, then reverse-mapped here.
+    // The C64 macOS ISO physical-key swap is only for native physical-key APIs.
+    public bool IsRunningOnMacOS => false;
 
     public void UpdatePerFrame()
     {

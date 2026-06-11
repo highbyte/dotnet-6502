@@ -3,6 +3,12 @@ using Highbyte.DotNet6502.Systems.Input;
 
 namespace Highbyte.DotNet6502.Impl.Terminal;
 
+internal enum TerminalKeyboardLayout
+{
+    US,
+    Swedish,
+}
+
 /// <summary>
 /// Maps Terminal.Gui <see cref="Key"/> values to the neutral physical <see cref="HostKey"/>
 /// abstraction. Special/navigation keys are mapped from <see cref="KeyCode"/>; printable keys are
@@ -14,7 +20,7 @@ namespace Highbyte.DotNet6502.Impl.Terminal;
 /// </summary>
 internal static class TerminalKeyMap
 {
-    public static HostKey MapToHostKey(Key key)
+    public static HostKey MapToHostKey(Key key, TerminalKeyboardLayout keyboardLayout)
     {
         // Strip modifier mask bits to get the base key code.
         var code = key.KeyCode & ~(KeyCode.ShiftMask | KeyCode.CtrlMask | KeyCode.AltMask);
@@ -30,9 +36,36 @@ internal static class TerminalKeyMap
         // Printable: map from the rune the key produced.
         var rune = key.AsRune;
         if (rune != default)
-            return MapRune(rune);
+        {
+            return keyboardLayout == TerminalKeyboardLayout.Swedish
+                ? MapRuneSwedish(rune)
+                : MapRuneUS(rune);
+        }
 
         return HostKey.None;
+    }
+
+    public static bool RequiresShift(Key key, TerminalKeyboardLayout keyboardLayout)
+    {
+        var rune = key.AsRune;
+        if (rune == default)
+            return false;
+
+        return keyboardLayout == TerminalKeyboardLayout.Swedish
+            ? IsShiftedSwedishRune(rune)
+            : IsShiftedUsRune(rune);
+    }
+
+    public static bool RequiresAltGraph(Key key, TerminalKeyboardLayout keyboardLayout)
+    {
+        if (keyboardLayout != TerminalKeyboardLayout.Swedish)
+            return false;
+
+        var rune = key.AsRune;
+        if (rune == default)
+            return false;
+
+        return rune.Value is '[' or ']';
     }
 
     private static HostKey MapSpecial(KeyCode code) => code switch
@@ -108,7 +141,21 @@ internal static class TerminalKeyMap
         _ => HostKey.None,
     };
 
-    private static HostKey MapRune(Rune rune)
+    private static HostKey MapRuneUS(Rune rune)
+        => MapRuneCommon(rune) switch
+        {
+            HostKey.None => MapRuneUsPunctuation(rune),
+            var hostKey => hostKey,
+        };
+
+    private static HostKey MapRuneSwedish(Rune rune)
+        => MapRuneCommon(rune) switch
+        {
+            HostKey.None => MapRuneSwedishPunctuation(rune),
+            var hostKey => hostKey,
+        };
+
+    private static HostKey MapRuneCommon(Rune rune)
     {
         var v = rune.Value;
         // Letters (map upper- and lower-case to the same physical key).
@@ -120,9 +167,14 @@ internal static class TerminalKeyMap
         if (v is >= '0' and <= '9')
             return (HostKey)((int)HostKey.Digit0 + (v - '0'));
 
+        return v == ' ' ? HostKey.Space : HostKey.None;
+    }
+
+    private static HostKey MapRuneUsPunctuation(Rune rune)
+    {
+        var v = rune.Value;
         return v switch
         {
-            ' ' => HostKey.Space,
             '`' or '~' => HostKey.Backquote,
             '-' or '_' => HostKey.Minus,
             '=' or '+' => HostKey.Equal,
@@ -147,6 +199,55 @@ internal static class TerminalKeyMap
             ')' => HostKey.Digit0,
             _ => HostKey.None,
         };
+    }
+
+    private static HostKey MapRuneSwedishPunctuation(Rune rune)
+    {
+        var v = rune.Value;
+
+        // Swedish terminal input is delivered as characters, not physical positions. Reverse-map
+        // the printable characters that differ from US so the shared C64 Swedish physical-key map
+        // can still resolve combinations such as Shift+2 -> '"' and Shift+' -> '*'.
+        return v switch
+        {
+            '"' => HostKey.Digit2,
+            '&' => HostKey.Digit6,
+            '/' => HostKey.Digit7,
+            '(' => HostKey.Digit8,
+            ')' => HostKey.Digit9,
+            '=' => HostKey.Digit0,
+            '+' or '?' => HostKey.Minus,
+            '`' or '@' => HostKey.Equal,
+            '[' => HostKey.Digit8,
+            ']' => HostKey.Digit9,
+            '{' => HostKey.BracketLeft,
+            '}' => HostKey.BracketRight,
+            ';' or ':' => HostKey.Comma,
+            '\'' or '*' => HostKey.Quote,
+            ',' => HostKey.Comma,
+            '.' => HostKey.Period,
+            '<' or '>' => HostKey.IntlBackslash,
+            '-' or '_' => HostKey.Slash,
+            '\\' or '|' => HostKey.Backslash,
+            '!' => HostKey.Digit1,
+            '#' => HostKey.Digit3,
+            '$' => HostKey.Digit4,
+            '%' => HostKey.Digit5,
+            _ => MapRuneUsPunctuation(rune),
+        };
+    }
+
+    private static bool IsShiftedUsRune(Rune rune)
+    {
+        var v = rune.Value;
+        return v is '~' or '_' or '+' or '{' or '}' or '|' or ':' or '"' or '<' or '>' or '?'
+            or '!' or '@' or '#' or '$' or '%' or '^' or '&' or '*' or '(' or ')';
+    }
+
+    private static bool IsShiftedSwedishRune(Rune rune)
+    {
+        var v = rune.Value;
+        return v is '"' or '&' or '/' or '(' or ')' or '=' or '?' or '*' or ';' or ':' or '>';
     }
 
     // offset 0 == 'A'
