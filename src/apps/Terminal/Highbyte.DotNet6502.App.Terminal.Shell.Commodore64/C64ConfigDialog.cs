@@ -177,6 +177,45 @@ internal static class C64ConfigDialog
         };
         dialog.Add(connectOnBoot);
 
+        // ----- Keyboard joystick -----
+        // Lets the host keyboard act as a joystick in C64 control port 1 or 2.
+        var joyEnableCheck = new CheckBox
+        {
+            X = 1,
+            Y = 14,
+            Text = "Keyboard joystick",
+            Value = cfg.KeyboardJoystickEnabled ? CheckState.Checked : CheckState.UnChecked,
+        };
+
+        // Port selector (1 or 2). Normalise an unset/invalid value to port 2 (the common default).
+        var joyPort = cfg.KeyboardJoystick == 1 ? 1 : 2;
+        cfg.KeyboardJoystick = joyPort;
+        var joyPortLabel = new Label { X = Pos.Right(joyEnableCheck) + 3, Y = 14, Text = "Port:" };
+        var joyPortButton = new Button
+        {
+            X = Pos.Right(joyPortLabel) + 1,
+            Y = 14,
+            Text = joyPort.ToString(CultureInfo.InvariantCulture),
+            ShadowStyle = ShadowStyles.None,
+            Enabled = cfg.KeyboardJoystickEnabled,
+        };
+        joyPortButton.Accepting += (_, e) =>
+        {
+            e.Handled = true;
+            joyPort = joyPort == 1 ? 2 : 1;
+            cfg.KeyboardJoystick = joyPort;
+            joyPortButton.Text = joyPort.ToString(CultureInfo.InvariantCulture);
+            Validate();
+        };
+
+        joyEnableCheck.ValueChanged += (_, e) =>
+        {
+            cfg.KeyboardJoystickEnabled = e.NewValue == CheckState.Checked;
+            joyPortButton.Enabled = cfg.KeyboardJoystickEnabled;
+            Validate();
+        };
+        dialog.Add(joyEnableCheck, joyPortLabel, joyPortButton);
+
         dialog.Add(validationLabel, validationList);
 
         // Auto-download: fetch each ROM into the configured directory, then reflect the downloaded

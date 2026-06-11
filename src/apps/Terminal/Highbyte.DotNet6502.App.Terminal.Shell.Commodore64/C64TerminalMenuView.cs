@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.App.Terminal;
 using Highbyte.DotNet6502.Impl.Terminal.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
@@ -57,12 +58,14 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
     private readonly HttpClient _httpClient = new();
     private readonly DropDownList _programDropDown;
     private readonly Button _d64Button;
+    private readonly CheckBox _joystickCheck;
+    private readonly Button _joyPortButton;
     private C64AutoLoadAndRun? _c64AutoLoadAndRun;
     private bool _isLoadingPreloadedProgram;
 
     public string MenuTitle => "C64";
 
-    public int MenuRowCount => 5;
+    public int MenuRowCount => 6;
 
     public View View => this;
 
@@ -102,10 +105,85 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
         loadButton.Accepting += (_, e) => { e.Handled = true; LoadBasicPrg(); };
 
         var configButton = new Button { X = 0, Y = 4, Text = "Config…", ShadowStyle = ShadowStyles.None };
-        configButton.Accepting += (_, e) => { e.Handled = true; C64ConfigDialog.Show(_host, _logger); };
+        configButton.Accepting += (_, e) =>
+        {
+            e.Handled = true;
+            C64ConfigDialog.Show(_host, _logger);
+            // The dialog (modal) may have changed the keyboard joystick config on OK; reflect it here.
+            SyncJoystickControls();
+        };
 
-        Add(copyButton, pasteButton, _d64Button, _programDropDown, loadProgramButton, loadButton, configButton);
+        // Keyboard joystick toggle + port selector. Mirrors the C64 Config dialog, but applies live to
+        // the running C64 (and updates the config so the next (re)build keeps the setting).
+        var joyEnabled = CurrentC64Config?.KeyboardJoystickEnabled ?? false;
+        var joyPort = CurrentC64Config?.KeyboardJoystick == 1 ? 1 : 2;
+        _joystickCheck = new CheckBox
+        {
+            X = 0,
+            Y = 5,
+            Text = "Joystick",
+            Value = joyEnabled ? CheckState.Checked : CheckState.UnChecked,
+        };
+        _joyPortButton = new Button
+        {
+            X = Pos.Right(_joystickCheck) + 1,
+            Y = 5,
+            Text = $"Port {joyPort}",
+            ShadowStyle = ShadowStyles.None,
+            Enabled = joyEnabled,
+        };
+        _joystickCheck.ValueChanged += (_, e) => SetKeyboardJoystickEnabled(e.NewValue == CheckState.Checked);
+        _joyPortButton.Accepting += (_, e) =>
+        {
+            e.Handled = true;
+            var current = CurrentC64Config?.KeyboardJoystick == 1 ? 1 : 2;
+            SetKeyboardJoystickPort(current == 1 ? 2 : 1);
+        };
+
+        Add(copyButton, pasteButton, _d64Button, _programDropDown, loadProgramButton, loadButton, configButton,
+            _joystickCheck, _joyPortButton);
         UpdateD64ButtonText();
+    }
+
+    private C64SystemConfig? CurrentC64Config =>
+        (_host.CurrentHostSystemConfig as C64TerminalHostConfig)?.SystemConfig;
+
+    /// <summary>
+    /// Enable/disable the keyboard joystick. Applies live to a running C64; otherwise updates the
+    /// stored config so it takes effect on the next start.
+    /// </summary>
+    private void SetKeyboardJoystickEnabled(bool enabled)
+    {
+        if (_host.CurrentHostSystemConfig is not C64TerminalHostConfig hostConfig)
+            return;
+
+        hostConfig.SystemConfig.KeyboardJoystickEnabled = enabled;
+        if (_host.EmulatorState != EmulatorState.Uninitialized && _host.CurrentRunningSystem is C64 c64)
+            c64.Cia1.Joystick.KeyboardJoystickEnabled = enabled;
+        else
+            _host.UpdateHostSystemConfig(hostConfig);
+
+        _joyPortButton.Enabled = enabled;
+        _logger.LogInformation("Keyboard joystick {State}.", enabled ? "enabled" : "disabled");
+    }
+
+    /// <summary>
+    /// Select the keyboard joystick port (1 or 2). Applies live to a running C64; otherwise updates
+    /// the stored config so it takes effect on the next start.
+    /// </summary>
+    private void SetKeyboardJoystickPort(int port)
+    {
+        if (_host.CurrentHostSystemConfig is not C64TerminalHostConfig hostConfig)
+            return;
+
+        hostConfig.SystemConfig.KeyboardJoystick = port;
+        if (_host.EmulatorState != EmulatorState.Uninitialized && _host.CurrentRunningSystem is C64 c64)
+            c64.Cia1.Joystick.KeyboardJoystick = port;
+        else
+            _host.UpdateHostSystemConfig(hostConfig);
+
+        _joyPortButton.Text = $"Port {port}";
+        _logger.LogInformation("Keyboard joystick port {Port}.", port);
     }
 
     private void CopyBasicSourceCode()
@@ -218,6 +296,7 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
             _c64AutoLoadAndRun ??= CreateAutoLoadAndRun();
             await _c64AutoLoadAndRun.DownloadAndRunProgram(programInfo, ApplyPreloadedProgramConfig);
             UpdateD64ButtonText();
+            SyncJoystickControls(); // a preloaded program may have changed the keyboard joystick config
         }
         catch (Exception ex)
         {
@@ -254,6 +333,18 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
 
         await _host.SelectSystemConfigurationVariant(programInfo.C64Variant);
         _host.UpdateHostSystemConfig(hostConfig);
+    }
+
+    /// <summary>Refresh the joystick checkbox/port button from the current config (e.g. after a
+    /// preloaded program changed it).</summary>
+    private void SyncJoystickControls()
+    {
+        var cfg = CurrentC64Config;
+        if (cfg == null)
+            return;
+        _joystickCheck.Value = cfg.KeyboardJoystickEnabled ? CheckState.Checked : CheckState.UnChecked;
+        _joyPortButton.Text = $"Port {(cfg.KeyboardJoystick == 1 ? 1 : 2)}";
+        _joyPortButton.Enabled = cfg.KeyboardJoystickEnabled;
     }
 
     private void UpdateD64ButtonText()
