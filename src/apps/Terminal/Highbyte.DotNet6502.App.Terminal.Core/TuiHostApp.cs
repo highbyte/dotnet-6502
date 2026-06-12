@@ -367,7 +367,10 @@ public class TuiHostApp : HostApp
             Title = "Stats",
             X = Pos.Right(_screenFrame),
             Y = 0,
-            Width = SideColumnWidth,
+            // Fill the remaining width up to the window's right border (anchored at the screen frame's
+            // right edge). The screen frame is resized to hug the running system, so this column soaks
+            // up whatever horizontal space is left instead of leaving a fixed-width gap.
+            Width = Dim.Fill(),
             Height = 12,
             BorderStyle = LineStyle.Single,
         };
@@ -383,7 +386,7 @@ public class TuiHostApp : HostApp
             Title = string.Empty,
             X = Pos.Right(_screenFrame),
             Y = Pos.Bottom(statsFrame),
-            Width = SideColumnWidth,
+            Width = Dim.Fill(), // fill to the window's right border, like the Stats box above
             Height = Dim.Fill(1),
             BorderStyle = LineStyle.Single,
         };
@@ -415,7 +418,7 @@ public class TuiHostApp : HostApp
             X = 0,
             Y = Pos.AnchorEnd(1),
             Width = Dim.Fill(),
-            Text = " 9 System  0 Variant   F9 Start/Stop  F10 Quit  F11 Stats  F12 Monitor   Tab C64 Ctrl",
+            Text = " 9 System  0 Variant   F9 Start/Stop  F10 Quit  F11 Stats  F12 Monitor",
         };
 
         _window.Add(controlsFrame, _screenFrame, statsFrame, _tabsFrame, hintLabel);
