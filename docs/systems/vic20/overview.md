@@ -24,7 +24,7 @@ Core library: [`Highbyte.DotNet6502.Systems.Vic20`](../../libraries/system-speci
 - Host-agnostic command-stream render path (`Vic20VideoCommandStream`) for lightweight glyph rendering.
 - PETSCII screen code rendering with glyph-to-Unicode conversion.
 - Host-agnostic input handling (VIA-based keyboard matrix).
-- Avalonia Desktop and Avalonia Browser (WASM) UI.
+- Avalonia Desktop, Avalonia Browser (WASM), and Terminal (TUI) UI.
 
 ## Not yet implemented
 

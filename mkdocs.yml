@@ -117,6 +117,8 @@ nav:
       - SilkNetNative (desktop):
         - Overview: host-apps/silknet-native/overview.md
         - Troubleshooting: host-apps/silknet-native/troubleshooting.md
+      - Terminal (TUI) (desktop):
+        - Overview: host-apps/terminal/overview.md
       - Console Monitor (desktop):
         - Overview: host-apps/console-monitor/overview.md
       - Headless (desktop):
@@ -182,3 +184,4 @@ nav:
           - SilkNet: libraries/implementation/silknet.md
           - SilkNet.SDL: libraries/implementation/silknet-sdl.md
           - Skia: libraries/implementation/skia.md
+          - Terminal: libraries/implementation/terminal.md

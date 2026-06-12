@@ -40,6 +40,8 @@ SwiftLink support depends on the host app exposing a usable TCP transport.
 
 - **Avalonia Desktop**: supported
 - **Headless**: supported
+- **Terminal (TUI)**: supported (`RawTcp` and `HayesModem` transports). Defaults match the Avalonia
+  Desktop host — `HayesModem` transport with `NMI` interrupt — so Compunet Reborn works out of the box.
 - **Avalonia Browser**: supported via a WebSocket bridge endpoint
 - **Blazor WASM**: not supported
 

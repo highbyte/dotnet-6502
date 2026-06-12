@@ -116,8 +116,8 @@ For the per-method contract and the full discovery flow, see
   dialog) for one system.
 - **Host technology** ("host tech") — a UI / rendering / input / audio stack:
   *Avalonia* (Desktop and Browser), *SilkNet* (Native), *SadConsole*, *Blazor WASM*,
-  *Headless*. Each host tech has an `Impl.<Tech>` glue library and an `App.<Tech>`
-  entry exe.
+  *Terminal* (TUI), *Headless*. Each host tech has an `Impl.<Tech>` glue library and an
+  `App.<Tech>` entry exe.
 - **Entry exe** — the `App.<Tech>` (or `App.<Tech>.Core`) project that boots the host
   app. Holds the convention `ProjectReference` glob that picks up shell plugins, and
   the `EmitPluginAssemblyManifest` MSBuild target that emits the discovery manifest.

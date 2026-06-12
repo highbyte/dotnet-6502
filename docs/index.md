@@ -29,6 +29,10 @@ A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NE
 
 See [Desktop apps installation](host-apps/installation.md) for download links and instructions for Windows, Linux, and macOS.
 
+## Terminal (TUI) app
+
+[Terminal (TUI) app](host-apps/terminal/overview.md) — runs the emulator interactively inside a real terminal, rendering the emulated text-mode screen as colored Unicode cells via [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Works over SSH and in `tmux`/`screen`. Supports the C64 and VIC-20 in character mode (no audio, no bitmap/sprite graphics), and includes the built-in machine code monitor.
+
 ## Headless app
 
 [Headless app](host-apps/headless/overview.md) — runs the emulator without any UI, rendering, audio, or user input. Controlled entirely via CLI arguments and Lua scripts. Useful for automation, scripting, and CI workflows.
