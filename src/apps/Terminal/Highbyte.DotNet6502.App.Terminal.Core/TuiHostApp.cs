@@ -439,8 +439,20 @@ public class TuiHostApp : HostApp
         // to a light-gray background with white text — poor contrast. Use a dark-gray background with
         // light text instead, in keeping with the dark UI.
         var editable = new global::Terminal.Gui.Drawing.Attribute(new Color(0xE6, 0xE6, 0xE6), new Color(0x3A, 0x3A, 0x3A));
+        // Panel/window background. The default theme's Normal role uses a *named* ANSI color, which
+        // each terminal resolves through its own 16-color palette: macOS Terminal renders it as the
+        // intended dark grey/blue, but Windows Terminal's default palette maps it to (near-)black.
+        // Pin it to explicit RGB (like the emulator screen cells) so panels look identical on every
+        // terminal regardless of palette. HotNormal keeps the same background with an accent text
+        // colour for hotkey letters; Disabled dims the text on the same background.
+        var normal = new global::Terminal.Gui.Drawing.Attribute(new Color(0xCC, 0xCC, 0xCC), new Color(0x1E, 0x24, 0x33));
+        var hotNormal = new global::Terminal.Gui.Drawing.Attribute(new Color(0x6F, 0xA8, 0xFF), new Color(0x1E, 0x24, 0x33));
+        var disabled = new global::Terminal.Gui.Drawing.Attribute(new Color(0x77, 0x7C, 0x88), new Color(0x1E, 0x24, 0x33));
         _uiScheme = baseScheme with
         {
+            Normal = normal,
+            HotNormal = hotNormal,
+            Disabled = disabled,
             Focus = selected,
             HotFocus = selected,
             Active = selected,
