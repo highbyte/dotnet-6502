@@ -21,6 +21,28 @@ the system, and shell plugins (`App.Terminal.Shell.<System>`) contribute the per
 panel, and config dialog. See [Architecture](../../architecture.md) and
 [Systems.Plugins](../../libraries/core/dotnet6502-systems-plugins.md).
 
+## Terminal requirements
+
+The app drives the terminal with modern features, so it needs a reasonably capable terminal
+emulator — older or minimal terminals may render incorrectly:
+
+- **24-bit "true color"** — every emulated screen cell and the UI chrome use explicit RGB colors. On
+  a 16/256-color terminal the driver approximates them, so colors look wrong. On Windows, use a
+  modern terminal such as Windows Terminal; the legacy `conhost` console does not render true color
+  reliably.
+- **Unicode (UTF-8) and a capable font** — PETSCII screen codes are mapped to Unicode box-drawing,
+  block, and shade glyphs, so the terminal font must include those (most modern monospace fonts do).
+- **Size** — large enough for the three-column layout: about **30 rows** tall and a wide window
+  (~100 columns) shows everything without the panes clipping. Smaller still runs, but content is
+  truncated.
+- **Mouse (optional)** — buttons, the per-system menu, and the Info/Config/Logs tabs are clickable
+  when the terminal reports mouse events, but every action also has a keyboard hotkey, so a mouse is
+  not required.
+- **Modifier-key reporting** — some C64 colour-key chords use Alt/Ctrl; whether they reach the
+  emulator depends on the terminal forwarding those modifiers (see the in-app Info panel).
+
+It works over SSH and inside `tmux`/`screen` as long as the outer terminal meets the above.
+
 ## Supported systems
 
 - **C64** (`Impl.Terminal.Commodore64` + `App.Terminal.Shell.Commodore64`) — character mode only.
@@ -110,15 +132,17 @@ dotnet run --project src/apps/Terminal/Highbyte.DotNet6502.App.Terminal -- --sel
 
 ### VS Code
 
-Use the **Terminal (TUI) - Launch** configuration (runs in the integrated terminal so a real TTY is
-available). **Terminal (TUI) - Launch (Self-test)** runs the headless self-test.
+Use the **Terminal (TUI) - Launch** configuration. It runs in an external terminal window — a real
+TTY, and better suited to a full-screen TUI than the integrated terminal (and unlike the VS Code
+Debug Console, which redirects I/O and has no TTY at all). **Terminal (TUI) - Launch (Self-test)**
+runs the headless self-test (in the integrated terminal, since it needs no TTY).
 
 ## Limitations
 
 - Text (character) mode only — no bitmap, multicolor, or sprite graphics are rendered.
 - No audio.
-- Requires a terminal with Unicode and 24-bit ("true color") support for correct glyphs and colors.
 - PETSCII graphics are approximated with the nearest common Unicode glyphs, so they will not match
   the C64 exactly.
 
-For general project limitations, see [Limitations](../../home/limitations.md).
+See [Terminal requirements](#terminal-requirements) for the terminal capabilities the app needs, and
+[Limitations](../../home/limitations.md) for general project limitations.
