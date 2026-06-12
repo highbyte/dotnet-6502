@@ -21,6 +21,7 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Terminal\Highbyte.DotNet6502.Impl.Terminal.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
   </ItemGroup>

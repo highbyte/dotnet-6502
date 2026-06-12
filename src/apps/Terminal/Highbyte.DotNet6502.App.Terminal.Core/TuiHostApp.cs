@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Impl.Terminal;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
@@ -81,6 +82,12 @@ public class TuiHostApp : HostApp
 
     // Whether the right "Stats" box shows instrumentation (toggled by the Stats button / F11).
     private bool _statsEnabled;
+
+    // Machine-code monitor: created lazily on first F12 while a system runs (bound to the current
+    // SystemRunner) and discarded on stop. While the monitor dialog is open, _monitorActive halts the
+    // background emulator loop so the monitor has exclusive access to the CPU/memory.
+    private TuiMonitor? _monitor;
+    private volatile bool _monitorActive;
 
     // Emulator loop runs off the Terminal.Gui UI thread so emulation can stay at native refresh
     // while terminal repaint remains independently throttled.
@@ -293,7 +300,7 @@ public class TuiHostApp : HostApp
         _stopButton.Accepting += (_, e) => { e.Handled = true; DoStop(); };
         _resetButton.Accepting += (_, e) => { e.Handled = true; DoReset(); };
         _statsButton.Accepting += (_, e) => { e.Handled = true; ToggleStats(); };
-        // Monitor button is disabled for now (placeholder); F12 / this button call DoMonitor.
+        // Monitor button and F12 both open the machine-code monitor (enabled once a system is running).
         _monitorButton.Accepting += (_, e) => { e.Handled = true; DoMonitor(); };
 
         // Disable Terminal.Gui's default button drop-shadow: in this dense column the shadows of
@@ -584,8 +591,98 @@ public class TuiHostApp : HostApp
     }
 
 
-    /// <summary>Monitor (F12) — placeholder; the machine-code monitor is not implemented yet.</summary>
-    private void DoMonitor() => _logger.LogInformation("Monitor is not implemented yet.");
+    /// <summary>
+    /// Monitor (F12 / Monitor button): open the machine-code monitor against the running (or paused)
+    /// system. Needs a built SystemRunner, so it is unavailable while the emulator is uninitialized.
+    /// </summary>
+    private void DoMonitor() => Safe(() =>
+    {
+        if (EmulatorState == EmulatorState.Uninitialized)
+        {
+            _logger.LogInformation("Start a system before opening the monitor.");
+            return;
+        }
+
+        EnsureMonitor();
+        OpenMonitor(null);
+    });
+
+    /// <summary>Create the monitor (bound to the current SystemRunner) on first use, with a help banner.</summary>
+    private void EnsureMonitor()
+    {
+        if (_monitor != null)
+            return;
+
+        var runner = CurrentSystemRunner;
+        if (runner == null)
+            return;
+
+        // Resolve relative load/save paths against the app directory unless configured otherwise.
+        _emulatorConfig.Monitor.DefaultDirectory ??= Environment.CurrentDirectory;
+
+        _monitor = new TuiMonitor(runner, _emulatorConfig.Monitor, PickMonitorFile);
+        _monitor.ShowDescription();
+        _monitor.WriteOutput("");
+        _monitor.WriteOutput("Type '?' for help, or '<command> -?' for help on a command.");
+        _monitor.WriteOutput("Examples:  d   d c000   m c000   r   z   g");
+        _monitor.WriteOutput("");
+    }
+
+    /// <summary>
+    /// Show the monitor dialog (optionally with a break-trigger reason). Halts emulation while open,
+    /// then resumes the previous run state on close (a 'g' command continues; Esc/F12 leaves it paused
+    /// in effect until the dialog reopens — the background loop simply resumes where it left off).
+    /// </summary>
+    private void OpenMonitor(ExecEvaluatorTriggerResult? trigger)
+    {
+        if (_monitor == null)
+            return;
+
+        _monitor.Reset(); // re-anchor disassembly to PC
+        if (trigger != null)
+            _monitor.ShowInfoAfterBreakTriggerEnabled(trigger);
+        _monitor.ShowCurrentInstruction();
+
+        _monitorActive = true; // pause the background emulator loop while the dialog is open
+        UpdateButtonStates();
+        try
+        {
+            MonitorDialog.Show(this, _monitor);
+        }
+        finally
+        {
+            _monitorActive = false;
+            UpdateButtonStates();
+            if (EmulatorState != EmulatorState.Uninitialized)
+                _screenView.SetFocus();
+        }
+    }
+
+    /// <summary>
+    /// Open a modal file picker for the monitor's picker-based load commands ('l' / 'lb'), rooted at
+    /// the monitor's default directory. Returns the chosen path, or null if cancelled. Runs nested
+    /// inside the monitor window's run loop (the picker becomes the running top while open).
+    /// </summary>
+    private string? PickMonitorFile(string title)
+    {
+        using var picker = new OpenDialog
+        {
+            Title = title,
+            OpenMode = OpenMode.File,
+            AllowsMultipleSelection = false,
+        };
+        ApplyUiScheme(picker);
+
+        var startDir = PathHelper.ExpandOSEnvironmentVariables(_emulatorConfig.Monitor.DefaultDirectory ?? string.Empty);
+        if (Directory.Exists(startDir))
+            picker.Path = startDir.EndsWith(Path.DirectorySeparatorChar) ? startDir : startDir + Path.DirectorySeparatorChar;
+
+        Application.Run(picker);
+
+        if (picker.Canceled || picker.FilePaths.Count == 0)
+            return null;
+        return picker.FilePaths[0];
+    }
 
     private void DoStop() => Safe(() =>
     {
@@ -651,8 +748,37 @@ public class TuiHostApp : HostApp
     {
         StopEmulatorLoop();
         _screenView?.SetRenderTarget(null);
+        // The monitor is bound to the now-discarded SystemRunner; drop it so the next run rebuilds it.
+        _monitor = null;
+        _monitorActive = false;
         if (!_selfTestMode)
             ResetScreenFrameSize();
+    }
+
+    /// <summary>
+    /// Halt emulation while the monitor dialog owns the CPU. The background emulator loop calls this at
+    /// the start of every frame; returning shouldRun=false makes it idle (still timing frames) until
+    /// the monitor closes, so the monitor's step/go commands run without a racing emulation thread.
+    /// </summary>
+    public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
+    {
+        shouldRun = !_monitorActive;
+        shouldReceiveInput = !_monitorActive;
+    }
+
+    /// <summary>
+    /// After each emulated frame, open the monitor if execution hit a breakpoint or other break
+    /// trigger (mirrors the other host apps). Runs on the background emulator thread, so the actual
+    /// dialog open is marshalled to the Terminal.Gui UI thread.
+    /// </summary>
+    public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
+    {
+        if (_selfTestMode || _monitorActive || !execEvaluatorTriggerResult.Triggered)
+            return;
+
+        // Stop the loop immediately (this thread), then open the dialog on the UI thread.
+        _monitorActive = true;
+        Application.Invoke(() => OpenMonitor(execEvaluatorTriggerResult));
     }
 
     /// <summary>
@@ -859,7 +985,8 @@ public class TuiHostApp : HostApp
         _pauseButton.Enabled = running;
         _stopButton.Enabled = !uninitialized;
         _resetButton.Enabled = !uninitialized;
-        // Monitor stays disabled for now (planned feature).
+        // Monitor needs a built SystemRunner, so it is available whenever a system is running/paused.
+        _monitorButton.Enabled = !uninitialized;
         _statsButton.Text = _statsEnabled ? "Stats*" : "Stats";
     }
 

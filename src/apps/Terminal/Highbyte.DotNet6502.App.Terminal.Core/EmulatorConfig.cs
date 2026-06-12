@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Monitor;
+
 namespace Highbyte.DotNet6502.App.Terminal;
 
 /// <summary>Top-level Terminal host configuration (bound from appsettings.json).</summary>
@@ -13,4 +15,7 @@ public class EmulatorConfig
     /// stay smooth on slower terminals; the emulator itself still runs at its native frame rate.
     /// </summary>
     public int DisplayRefreshHz { get; set; } = 30;
+
+    /// <summary>Machine-code monitor options (shared with the other host apps' monitor).</summary>
+    public MonitorConfig Monitor { get; set; } = new();
 }
