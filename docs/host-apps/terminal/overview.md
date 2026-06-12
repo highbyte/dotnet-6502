@@ -27,7 +27,11 @@ panel, and config dialog. See [Architecture](../../architecture.md) and
 - **VIC-20** (`Impl.Terminal.Vic20` + `App.Terminal.Shell.Vic20`) — character mode only.
 
 The screen pane resizes automatically to fit the running system's frame (C64 ≈ 40 columns,
-VIC-20 ≈ 22 columns), and the status/logs column reflows around it.
+VIC-20 ≈ 22 columns), and the status/logs column reflows around it. The emulated screen is drawn
+without an extra framing box — each system renders its own coloured screen border — and one cell of
+that border is cropped from the top and bottom so a C64 (29 cells tall including its border) fits a
+default ~30-row terminal without the user having to enlarge the window. The crop is configurable via
+`ScreenBorderTrim` in `appsettings.json` (set it to `0` to show the full emulated border).
 
 ## Layout and controls
 

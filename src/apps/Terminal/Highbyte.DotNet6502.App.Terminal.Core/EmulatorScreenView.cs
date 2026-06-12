@@ -36,11 +36,25 @@ public sealed class EmulatorScreenView : View
         KeyDown += OnScreenKeyDown;
     }
 
+    /// <summary>
+    /// Number of cosmetic border cells to crop from the top and bottom of the emulated frame when
+    /// painting (and when reporting <see cref="FrameHeight"/>). Lets the bordered C64/VIC-20 screen
+    /// fit a default terminal without losing the border entirely. See EmulatorConfig.ScreenBorderTrim.
+    /// </summary>
+    public int VerticalBorderTrim { get; set; }
+
     /// <summary>Cell width of the most recently snapshotted frame (0 until the first frame).</summary>
     public int FrameWidth => _frameWidth;
 
-    /// <summary>Cell height of the most recently snapshotted frame (0 until the first frame).</summary>
-    public int FrameHeight => _frameHeight;
+    /// <summary>
+    /// Cell height of the most recently snapshotted frame, with <see cref="VerticalBorderTrim"/>
+    /// removed from each side (0 until the first frame). This is the height actually painted, so the
+    /// host sizes the screen box to it.
+    /// </summary>
+    public int FrameHeight => Math.Max(0, _frameHeight - EffectiveTrim * 2);
+
+    /// <summary>The trim actually applied, clamped so it never crops away the whole frame.</summary>
+    private int EffectiveTrim => _frameHeight > 2 ? Math.Min(VerticalBorderTrim, (_frameHeight - 1) / 2) : 0;
 
     public void SetRenderTarget(TerminalRenderTarget? target)
     {
@@ -74,7 +88,10 @@ public sealed class EmulatorScreenView : View
     {
         var viewport = Viewport;
 
-        var drawHeight = Math.Min(_frameHeight, viewport.Height);
+        // Skip the top (and, by reduced height, bottom) cosmetic border cells so a bordered system
+        // screen fits a default terminal while still showing a border.
+        var trim = EffectiveTrim;
+        var drawHeight = Math.Min(_frameHeight - trim * 2, viewport.Height);
         var drawWidth = Math.Min(_frameWidth, viewport.Width);
 
         // Clear the whole viewport first (in case the emulator frame is smaller than the view).
@@ -90,7 +107,7 @@ public sealed class EmulatorScreenView : View
         {
             for (var x = 0; x < drawWidth; x++)
             {
-                var cell = _buffer[y, x];
+                var cell = _buffer[y + trim, x];
                 SetAttribute(new Attribute(cell.Foreground, cell.Background));
                 Move(x, y);
                 AddRune(cell.Rune);

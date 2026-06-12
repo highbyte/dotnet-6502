@@ -16,6 +16,17 @@ public class EmulatorConfig
     /// </summary>
     public int DisplayRefreshHz { get; set; } = 30;
 
+    /// <summary>
+    /// How many cosmetic border cells to crop from the top and bottom of the emulated screen when
+    /// painting it in the terminal. The emulated systems render their own (solid-colour) screen
+    /// border, which for the C64/VIC-20 is 2–3 cells tall — taller than needed in a terminal where
+    /// every row is precious. Cropping 1 cell on each side lets a C64 (29 cells tall incl. border)
+    /// fit a default 30-row terminal without the user resizing the window, while still showing a
+    /// border. 0 disables cropping (shows the full emulated border). Only affects the terminal view;
+    /// the shared render command stream (and other hosts) are unaffected.
+    /// </summary>
+    public int ScreenBorderTrim { get; set; } = 1;
+
     /// <summary>Machine-code monitor options (shared with the other host apps' monitor).</summary>
     public MonitorConfig Monitor { get; set; } = new();
 }

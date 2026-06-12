@@ -49,7 +49,7 @@ public class TuiHostApp : HostApp
     private TerminalRenderLoop? _renderLoop;
 
     // UI
-    private const int DefaultScreenFrameWidth = 52; // until a system frame size is known (fits a C64)
+    private const int DefaultScreenFrameWidth = 52; // until a system frame size is known (fits a C64, border included)
     private const int SideColumnWidth = 30;         // controls column (left) and status/logs column (right)
     private Window _window = default!;
     private FrameView _screenFrame = default!;
@@ -334,17 +334,20 @@ public class TuiHostApp : HostApp
         controlsFrame.Add(_systemMenuFrame);
 
         // --- Emulator screen (middle) ---
-        // Width/Height are resized to fit the running system's frame (see ResizeScreenFrameToFit),
-        // so the bordered box hugs the screen for any system (C64 ~52, VIC-20 ~32 wide) and the
-        // status/logs column (anchored to its right) follows.
+        // Width/Height are resized to fit the running system's frame (see ResizeScreenFrameToFit), so
+        // the box hugs the screen for any system (C64 ~52, VIC-20 ~32 wide) and the status/logs column
+        // (anchored to its right) follows. The container is intentionally borderless: the emulated
+        // systems draw their own coloured screen border, so a titled FrameView box around it would be
+        // a redundant second border — and dropping it reclaims 2 rows so the C64 fits a default
+        // terminal (see ScreenBorderTrim for the other 2).
         _screenFrame = new FrameView
         {
-            Title = "Screen",
+            Title = string.Empty,
             X = Pos.Right(controlsFrame),
             Y = 0,
             Width = DefaultScreenFrameWidth,
             Height = Dim.Fill(1),
-            BorderStyle = LineStyle.Single,
+            BorderStyle = LineStyle.None,
         };
         _screenView = new EmulatorScreenView
         {
@@ -352,6 +355,7 @@ public class TuiHostApp : HostApp
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
+            VerticalBorderTrim = _emulatorConfig.ScreenBorderTrim,
         };
         _screenView.EmulatorKeyPressed += key => _inputContext.OnKeyDown(key);
         _screenFrame.Add(_screenView);
@@ -939,17 +943,18 @@ public class TuiHostApp : HostApp
     // ----------------------------------------------------------------------
 
     /// <summary>
-    /// Resizes the bordered "Screen" box to fit the running system's rendered frame, so it hugs the
-    /// emulator screen (no dead space) for any system/variant. The status/logs panes anchored to its
-    /// right reflow automatically. A 1-cell FrameView border on each side is added to the cell size.
+    /// Resizes the (borderless) "Screen" box to fit the running system's rendered frame, so it hugs
+    /// the emulator screen (no dead space) for any system/variant. The status/logs panes anchored to
+    /// its right reflow automatically. The box is borderless, so its size equals the painted cell size
+    /// (which already has <see cref="EmulatorScreenView.VerticalBorderTrim"/> applied to the height).
     /// </summary>
     private void ResizeScreenFrameToFit(int frameCellWidth, int frameCellHeight)
     {
         if (frameCellWidth <= 0 || frameCellHeight <= 0)
             return;
 
-        var targetWidth = frameCellWidth + 2;
-        var targetHeight = frameCellHeight + 2;
+        var targetWidth = frameCellWidth;
+        var targetHeight = frameCellHeight;
         if (targetWidth == _appliedFrameWidth && targetHeight == _appliedFrameHeight)
             return;
 
