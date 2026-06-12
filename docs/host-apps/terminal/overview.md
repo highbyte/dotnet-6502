@@ -36,8 +36,8 @@ emulator — older or minimal terminals may render incorrectly:
   (~100 columns) shows everything without the panes clipping. Smaller still runs, but content is
   truncated.
 - **Mouse (optional)** — buttons, the per-system menu, and the Info/Config/Logs tabs are clickable
-  when the terminal reports mouse events, but every action also has a keyboard hotkey, so a mouse is
-  not required.
+  when the terminal reports mouse events, but every action also has a keyboard command (via the
+  leader key, see below), so a mouse is not required.
 - **Modifier-key reporting** — some C64 colour-key chords use Alt/Ctrl; whether they reach the
   emulator depends on the terminal forwarding those modifiers (see the in-app Info panel).
 
@@ -65,21 +65,66 @@ The window has a **Controls** column (left), the **Screen** in the middle, and a
 a tabbed **Info / Config / Logs** pane on the right. A per-system menu (contributed by the shell
 plugin) appears below the standard controls.
 
-Hotkeys (shown in the bottom hint line):
+### Host commands (leader key)
 
-| Key | Action |
-|-----|--------|
-| `9` | Cycle the selected **System** (only while stopped) |
-| `0` | Cycle the selected **Variant** (only while stopped) |
-| `F9` | Start / Stop toggle |
-| `F10` | Quit the app |
-| `F11` | Toggle the **Stats** (instrumentation) box |
-| `F12` | Toggle the **Monitor** |
-| `Tab` | Move focus to the emulator screen (so typing reaches the running system) |
+A running emulator claims almost every key, and terminals/window managers reserve the rest (`F10` =
+menu, `F11` = fullscreen, `Ctrl`/`Alt`/`Shift` = emulator modifiers), so there is no room for a row
+of direct host hotkeys. Instead, host commands hang off a single **leader key** — press it to arm
+*host mode*, then press one command key:
 
-Hotkeys are suppressed while a modal dialog (config, file picker, monitor) is open, so keys —
-including the digits `9`/`0` — reach the dialog's fields normally. `F1`–`F8` are reserved for the
-emulated systems (e.g. the C64 function keys).
+| Press `F9`, then… | Action |
+|-------------------|--------|
+| `S` | Start / Stop toggle |
+| `M` | Toggle the **Monitor** |
+| `T` | Toggle the **Stats** (instrumentation) box |
+| `Q` | Quit the app |
+| `Y` | Cycle the selected **System** (only while stopped) |
+| `V` | Cycle the selected **Variant** (only while stopped) |
+| `Tab` | Toggle focus between the emulator screen and the host UI (see below) |
+| `Esc` (or any other key) | Cancel host mode |
+
+The bottom line shows just the leader-key reminder (e.g. `[UI NAV]  F9 Menu`) normally, so it is
+obvious when host mode is *not* active; it expands to the full command menu only while host mode is
+armed. Every command also has a button in the **Controls** column — including a **Quit** button — so a
+mouse works without the keyboard. (Terminals offer no clickable window close control, and `Esc` is
+reserved for the emulator's RUN/STOP, so quitting is via the **Quit** button or `F9` `Q`.)
+
+The leader key defaults to `F9` because it is reliable across terminals (unlike `F10`/`F11`). If your
+terminal grabs `F9`, rebind it with the `LeaderKey` setting in `appsettings.json` (any `KeyCode` name,
+e.g. `"F12"`). Host mode is suppressed while a modal dialog (config, file picker, monitor) is open, so
+keys reach the dialog's fields normally. `F1`–`F8` are reserved for the emulated systems (e.g. the C64
+function keys).
+
+### Keyboard navigation (focus modes)
+
+There are two focus modes; `F9` `Tab` (or `F9` `F6`) toggles between them, and the bottom-line
+indicator (`[EMULATOR]` / `[UI NAV]`) shows which is active:
+
+- **Emulator mode** — the emulator screen has focus, so every key (except the leader key) goes to the
+  emulated machine. The host-UI panels are **dimmed** to signal they're inactive. Start/Resume enters
+  this mode automatically.
+- **UI mode** — focus is on the host controls, so the keyboard navigates every control with no
+  per-control shortcuts. Stopping or pausing the emulator returns to this mode automatically.
+
+While the emulator is running it owns every key, so plain `Tab`/`F6` reach the machine, not the host.
+The leader key is the way out: press **`F9` then `Tab`** (or `F9` `F6`) to hand the keyboard back to
+the host UI. The same `F9` `Tab` gives it back to the emulator. (The emulator screen is also kept out
+of the `Tab`/`F6` rings, so once in UI mode navigation never falls back into it by accident.)
+
+In UI mode the controls are organised into **areas**, each a Terminal.Gui *tab group*: the **Controls
+column**, the **per-system menu** (e.g. the C64 menu), and the **Info/Config/Logs pane**. Focus is
+scoped per area — `Tab` stays within one area and `F6` moves between them:
+
+| Key | Moves focus |
+|-----|-------------|
+| `Tab` / `Shift+Tab` | Next / previous control **within** the current area |
+| `F6` / `Shift+F6` | Next / previous **area** (Controls → per-system menu → tabbed pane) |
+| `↑` `↓` `←` `→` | Within a control (tab strip, log list, radio group, …) |
+| `Enter` / `Space` | Activate the focused button / toggle |
+
+So to reach the C64 menu buttons, press `F6` to step into the C64 menu area, then `Tab` to cycle its
+buttons. The emulator screen is deliberately left out of these rings; enter it with Start/Resume or
+`F9` `Tab`.
 
 ## Config dialog
 
@@ -96,11 +141,11 @@ and [Systems / C64 / SwiftLink](../../systems/c64/swiftlink.md).
 
 ## Monitor
 
-Press the **Monitor** button or `F12` (while a system is running or paused) to open the built-in
+Press the **Monitor** button or `F9` `M` (while a system is running or paused) to open the built-in
 6502 machine-code monitor — the same command set as the other host apps' monitor (type `?` for
 help). It opens full-screen over the UI, shows the accumulated output plus the current CPU/system
 status, and has a command input line. While the monitor is open, emulation is halted so the
-monitor has exclusive access to the CPU and memory; closing it (`Esc` / `F12`) or a `g` (go) command
+monitor has exclusive access to the CPU and memory; closing it (`Esc`) or a `g` (go) command
 resumes. Breakpoints and other break triggers open the monitor automatically.
 
 Load/save commands that take no filename (`l`, and the C64 `lb`) open a terminal file picker;
@@ -109,7 +154,7 @@ the `ll <file>` / `llb <file>` variants take an explicit path. See
 
 ## Stats
 
-Press the **Stats** button or `F11` to show host instrumentation (FPS, per-frame timings, …) in the
+Press the **Stats** button or `F9` `T` to show host instrumentation (FPS, per-frame timings, …) in the
 right-hand box while a system runs.
 
 ## How to run locally for development
