@@ -80,20 +80,51 @@ of direct host hotkeys. Instead, host commands hang off a single **leader key** 
 | `Q` | Quit the app |
 | `Y` | Cycle the selected **System** (only while stopped) |
 | `V` | Cycle the selected **Variant** (only while stopped) |
+| `Tab` | Toggle focus between the emulator screen and the host UI (see below) |
 | `Esc` (or any other key) | Cancel host mode |
 
-The bottom line shows just the leader-key reminder (e.g. `F9 Menu`) normally, so it is obvious when
-host mode is *not* active; it expands to the full command menu only while host mode is armed. Every
-command also has a button in the **Controls** column — including a **Quit** button — so a mouse (or
-`Tab` + `Enter`) works without the keyboard. (Terminals offer no clickable window close control, and
-`Esc` is reserved for the emulator's RUN/STOP, so quitting is via the **Quit** button or `F9` `Q`.)
-`Tab` moves focus to the emulator screen so typing reaches the running system.
+The bottom line shows just the leader-key reminder (e.g. `[UI NAV]  F9 Menu`) normally, so it is
+obvious when host mode is *not* active; it expands to the full command menu only while host mode is
+armed. Every command also has a button in the **Controls** column — including a **Quit** button — so a
+mouse works without the keyboard. (Terminals offer no clickable window close control, and `Esc` is
+reserved for the emulator's RUN/STOP, so quitting is via the **Quit** button or `F9` `Q`.)
 
 The leader key defaults to `F9` because it is reliable across terminals (unlike `F10`/`F11`). If your
 terminal grabs `F9`, rebind it with the `LeaderKey` setting in `appsettings.json` (any `KeyCode` name,
 e.g. `"F12"`). Host mode is suppressed while a modal dialog (config, file picker, monitor) is open, so
 keys reach the dialog's fields normally. `F1`–`F8` are reserved for the emulated systems (e.g. the C64
 function keys).
+
+### Keyboard navigation (focus modes)
+
+There are two focus modes; `F9` `Tab` (or `F9` `F6`) toggles between them, and the bottom-line
+indicator (`[EMULATOR]` / `[UI NAV]`) shows which is active:
+
+- **Emulator mode** — the emulator screen has focus, so every key (except the leader key) goes to the
+  emulated machine. The host-UI panels are **dimmed** to signal they're inactive. Start/Resume enters
+  this mode automatically.
+- **UI mode** — focus is on the host controls, so the keyboard navigates every control with no
+  per-control shortcuts. Stopping or pausing the emulator returns to this mode automatically.
+
+While the emulator is running it owns every key, so plain `Tab`/`F6` reach the machine, not the host.
+The leader key is the way out: press **`F9` then `Tab`** (or `F9` `F6`) to hand the keyboard back to
+the host UI. The same `F9` `Tab` gives it back to the emulator. (The emulator screen is also kept out
+of the `Tab`/`F6` rings, so once in UI mode navigation never falls back into it by accident.)
+
+In UI mode the controls are organised into **areas**, each a Terminal.Gui *tab group*: the **Controls
+column**, the **per-system menu** (e.g. the C64 menu), and the **Info/Config/Logs pane**. Focus is
+scoped per area — `Tab` stays within one area and `F6` moves between them:
+
+| Key | Moves focus |
+|-----|-------------|
+| `Tab` / `Shift+Tab` | Next / previous control **within** the current area |
+| `F6` / `Shift+F6` | Next / previous **area** (Controls → per-system menu → tabbed pane) |
+| `↑` `↓` `←` `→` | Within a control (tab strip, log list, radio group, …) |
+| `Enter` / `Space` | Activate the focused button / toggle |
+
+So to reach the C64 menu buttons, press `F6` to step into the C64 menu area, then `Tab` to cycle its
+buttons. The emulator screen is deliberately left out of these rings; enter it with Start/Resume or
+`F9` `Tab`.
 
 ## Config dialog
 

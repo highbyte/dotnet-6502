@@ -37,6 +37,7 @@ public class TuiHostApp : HostApp
     // system name. Returns null for systems with no contribution. Results are cached per system.
     private readonly Func<string, ITerminalMenuContribution?> _resolveMenuContribution;
     private readonly Dictionary<string, ITerminalMenuContribution?> _menuContributionCache = new(StringComparer.OrdinalIgnoreCase);
+    private FrameView _controlsFrame = default!;       // left controls column (focus target when entering UI mode)
     private FrameView _systemMenuFrame = default!;     // container in the controls column for the active contribution
     private ITerminalMenuContribution? _activeMenuContribution;
 
@@ -92,6 +93,14 @@ public class TuiHostApp : HostApp
     // free for the emulated system.
     private KeyCode _leaderKeyCode = KeyCode.F9;
     private bool _hostModeActive;
+
+    // Focus modes. While the emulator screen has focus ("Emulator mode") every key goes to the
+    // machine and Terminal.Gui's Tab/arrow navigation is unavailable; moving focus to any host control
+    // ("UI mode") restores native keyboard navigation across all controls. The leader key (F9, then
+    // Tab) toggles between the two, since it is the one key that reaches the host even while running.
+    // The current mode is shown in the hint line and by dimming the host-UI borders in Emulator mode.
+    private Scheme? _dimBorderScheme;               // greyed panel scheme (incl. border) shown in Emulator mode
+    private readonly List<View> _uiPanels = new();  // host-UI frames whose scheme recolors by focus mode
 
     // Machine-code monitor: created lazily on first open while a system runs (bound to the current
     // SystemRunner) and discarded on stop. While the monitor dialog is open, _monitorActive halts the
@@ -281,6 +290,7 @@ public class TuiHostApp : HostApp
             Height = Dim.Fill(1),
             BorderStyle = LineStyle.Single,
         };
+        _controlsFrame = controlsFrame;
 
         // Layout (mirrors the other host apps' menu column):
         //   System: <name>
@@ -378,6 +388,14 @@ public class TuiHostApp : HostApp
             HorizontalBorderColumns = _emulatorConfig.HorizontalBorderColumns,
         };
         _screenView.EmulatorKeyPressed += key => _inputContext.OnKeyDown(key);
+        // Keep the emulator screen out of the Tab ring: in UI mode, Tab then cycles only the host
+        // controls and never lands back on the screen and re-traps the keyboard. Focusing the screen
+        // ("Emulator mode") stays an explicit action (Start/Resume, or the F9-Tab toggle). The screen
+        // can still be focused via SetFocus()/mouse — NoStop only removes it from Tab navigation.
+        _screenView.TabStop = TabBehavior.NoStop;
+        // Recompute the mode indicator + border colours whenever focus enters or leaves the screen
+        // (covers the F9-Tab toggle, Start/Resume forcing focus, and mouse clicks).
+        _screenView.HasFocusChanged += (_, _) => UpdateFocusModeVisuals();
         _screenFrame.Add(_screenView);
 
         // --- Stats / Logs column (right), same width as the controls column ---
@@ -445,10 +463,38 @@ public class TuiHostApp : HostApp
 
         _window.Add(controlsFrame, _screenFrame, statsFrame, _tabsFrame, _hintLabel);
 
+        // Host-UI panels whose scheme (border + contents) reflects the focus mode: dimmed in Emulator
+        // mode (keyboard goes to the machine), normal in UI mode. The screen frame is excluded — it is
+        // the active area in Emulator mode and is borderless anyway.
+        _uiPanels.AddRange(new View[] { controlsFrame, _systemMenuFrame, statsFrame, _tabsFrame });
+
+        // Tab-group structure for keyboard navigation. Terminal.Gui scopes focus per frame: Tab cannot
+        // cross from one frame into another (verified empirically), so each area is a TabGroup and
+        // F6/Shift-F6 (NextTabGroup/PrevTabGroup) move *between* areas while Tab/Shift-Tab cycle the
+        // controls *within* the focused area. The areas: the Controls column, the per-system menu (e.g.
+        // the C64 menu), and the tabbed pane.
+        controlsFrame.TabStop = TabBehavior.TabGroup;
+        _tabsFrame.TabStop = TabBehavior.TabGroup;
+        // The per-system menu is a sub-frame of the Controls column but a *separate* focus area (Tab
+        // can't reach it from the Controls buttons — only F6 can). Keep it a TabGroup so F6 includes it.
+        // Its contribution view also needs CanFocus=true (set in RefreshSystemMenu) so F6 lands on the
+        // first button rather than the empty frame title.
+        _systemMenuFrame.CanFocus = true;
+        _systemMenuFrame.TabStop = TabBehavior.TabGroup;
+        // Stats holds no focusable controls — keep it out of the F6 ring so it isn't an empty stop.
+        statsFrame.TabStop = TabBehavior.NoStop;
+        // Exclude the emulator screen (and its borderless frame) from F6: it is entered deliberately via
+        // Start/Resume or F9-Tab, not by cycling areas. Without this, F6 dumps focus onto the screen and
+        // strands the keyboard (no UI element focused, so F6 can't get back).
+        _screenFrame.TabStop = TabBehavior.NoStop;
+
         // Make focus/hover indication a background change (keeping text readable) instead of the
         // theme default, which flips button text to near-black — unreadable on the dark window.
         // Applied window-wide so buttons and the tab strip stay consistent (children inherit it).
         ApplyReadableFocusScheme(_window);
+
+        // Apply the initial mode visuals (UI mode at startup: nothing has forced focus to the screen).
+        UpdateFocusModeVisuals();
     }
 
     /// <summary>
@@ -490,6 +536,11 @@ public class TuiHostApp : HostApp
             Editable = editable,
             ReadOnly = editable,
         };
+        // Dimmed variant for host-UI panels while in Emulator mode: border line, title and panel text
+        // use the grey "disabled" attribute so the panels read as inactive (keyboard goes to the
+        // emulator). Terminal.Gui 2.4.5 ties the border colour to the panel's own scheme (the rendering
+        // BorderView is internal), so this dims the whole panel rather than the border lines alone.
+        _dimBorderScheme = _uiScheme with { Normal = disabled, HotNormal = disabled };
         view.SetScheme(_uiScheme);
     }
 
@@ -570,6 +621,12 @@ public class TuiHostApp : HostApp
             case KeyCode.M: DoMonitor(); break;
             case KeyCode.T: ToggleStats(); break;
             case KeyCode.Q: Application.RequestStop(_window); break;
+            // Tab and F6 both toggle the keyboard between the emulator and the host UI. F6 is accepted
+            // because it is the "move between areas" key in the UI, so reaching for it to leave the
+            // running emulator is a natural instinct (it can't be used directly there — while the screen
+            // is focused F6 goes to the emulated machine, so the leader key is the way out).
+            case KeyCode.Tab:
+            case KeyCode.F6: ToggleFocusMode(); break;
 
             // System/Variant cycling is only meaningful while the emulator is stopped.
             case KeyCode.Y when stopped: CycleSystem(+1); break;
@@ -580,19 +637,67 @@ public class TuiHostApp : HostApp
     }
 
     /// <summary>
-    /// Bottom hint line: shows the leader-key reminder normally, and the command menu while host mode
-    /// is armed (so the user can see the available commands after pressing the leader key).
+    /// Toggle between Emulator mode (screen focused, keys go to the machine) and UI mode (focus on the
+    /// host controls, so native Tab/arrow navigation works). The leader-key Tab command, plus a focus
+    /// change, are the only ways to switch; the resulting focus change drives <see
+    /// cref="UpdateFocusModeVisuals"/> via the screen's HasFocusChanged hook.
+    /// </summary>
+    private void ToggleFocusMode()
+    {
+        if (_screenView.HasFocus)
+            FocusHostUi();
+        else
+            _screenView.SetFocus();
+    }
+
+    /// <summary>
+    /// Move focus to the host UI's Controls column. Focuses the *frame* (not a specific button) so
+    /// Terminal.Gui lands on the first enabled control: focusing a fixed button fails silently when
+    /// that button is disabled for the current state (e.g. System/Start are disabled while running),
+    /// which previously made F9-Tab do nothing mid-run. From here Tab/F6/arrows reach every control.
+    /// </summary>
+    private void FocusHostUi() => _controlsFrame.SetFocus();
+
+    /// <summary>True while the emulator screen holds focus (keys go to the emulated machine).</summary>
+    private bool InEmulatorMode => _screenView is not null && _screenView.HasFocus;
+
+    /// <summary>
+    /// Reflect the current focus mode: update the hint-line indicator and dim the host-UI panels in
+    /// Emulator mode (so it is obvious the keyboard is going to the machine, not the UI).
+    /// </summary>
+    private void UpdateFocusModeVisuals()
+    {
+        var panelScheme = InEmulatorMode ? _dimBorderScheme : _uiScheme;
+        if (panelScheme is not null)
+        {
+            foreach (var panel in _uiPanels)
+            {
+                panel.SetScheme(panelScheme);
+                panel.SetNeedsDraw();
+            }
+        }
+        UpdateHintLine();
+    }
+
+    /// <summary>
+    /// Bottom hint line: shows the focus-mode indicator plus the leader-key reminder normally, and the
+    /// command menu while host mode is armed (so the available commands are visible after the leader key).
     /// </summary>
     private void UpdateHintLine()
     {
         if (_hintLabel is null)
             return;
 
-        // Normal: a single short reminder so it's obvious host mode is *not* active. The full command
-        // list appears only once the leader key arms host mode.
-        _hintLabel.Text = _hostModeActive
-            ? $" HOST: S Start/Stop  M Monitor  T Stats  Q Quit  Y System  V Variant   (Esc cancels)"
-            : $" {LeaderKeyName} Menu";
+        // Normal: a mode indicator + a short reminder, so it's obvious which mode is active and that
+        // host mode is *not* armed. The full command list appears only once the leader key arms it.
+        // In UI mode also advertise the navigation keys (Tab within an area, F6 between areas).
+        if (_hostModeActive)
+            _hintLabel.Text =
+                $" HOST: S Start/Stop  M Monitor  T Stats  Q Quit  Y System  V Variant  Tab/F6 Emu⇄UI   (Esc cancels)";
+        else if (InEmulatorMode)
+            _hintLabel.Text = $" [EMULATOR]  {LeaderKeyName} Menu";
+        else
+            _hintLabel.Text = $" [UI NAV]  {LeaderKeyName} Menu   Tab move · F6 area";
     }
 
     /// <summary>Display name of the configured leader key (e.g. "F9").</summary>
@@ -681,6 +786,9 @@ public class TuiHostApp : HostApp
         Pause();
         UpdateButtonStates();
         UpdateLeftStatus();
+        // The machine isn't consuming input while paused — hand the keyboard back to the host UI
+        // (switches to UI mode: panels un-dim and Tab/arrow navigation works).
+        FocusHostUi();
     });
 
     /// <summary>The Start/Stop command toggles between Start/Resume and Stop depending on the current state.</summary>
@@ -792,6 +900,8 @@ public class TuiHostApp : HostApp
         UpdateButtonStates();
         UpdateLeftStatus();
         UpdateStatsBox();
+        // Emulator no longer running — return focus to the host UI (UI mode: panels un-dim, Tab works).
+        FocusHostUi();
     });
 
     private void DoReset() => Safe(() =>
@@ -1217,6 +1327,12 @@ public class TuiHostApp : HostApp
             next.View.Y = 0;
             next.View.Width = Dim.Fill();
             next.View.Height = Dim.Fill();
+            // A contribution's root is a plain View (CanFocus defaults to false), which blocks focus
+            // from descending to its buttons — so Tab would never reach the per-system menu. Make it
+            // focus-permeable (CanFocus) but not a stop itself (NoStop), so its buttons join the
+            // Controls column's tab ring and Tab cycles through them with the standard host buttons.
+            next.View.CanFocus = true;
+            next.View.TabStop = TabBehavior.NoStop;
             _systemMenuFrame.Add(next.View);
             _systemMenuFrame.Title = next.MenuTitle;
             _systemMenuFrame.Height = next.MenuRowCount + 2; // + top/bottom border
