@@ -11,6 +11,15 @@ public class EmulatorConfig
     public string DefaultEmulator { get; set; } = "C64";
 
     /// <summary>
+    /// The host-command "leader" key. Pressing it arms host mode; the next keystroke selects a command
+    /// (Start/Stop, Monitor, Stats, Quit, cycle System/Variant). A single leader key keeps every other
+    /// key free for the emulated system, and avoids keys terminals reserve (F10 = menu, F11 =
+    /// fullscreen). Accepts a <c>KeyCode</c> name such as "F9" (default) or "F12"; an unrecognised
+    /// value falls back to F9.
+    /// </summary>
+    public string LeaderKey { get; set; } = "F9";
+
+    /// <summary>
     /// How often the terminal screen is repainted, in Hz. Kept below the emulator frame rate to
     /// stay smooth on slower terminals; the emulator itself still runs at its native frame rate.
     /// </summary>

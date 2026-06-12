@@ -79,11 +79,21 @@ public class TuiHostApp : HostApp
     private Button _resetButton = default!;
     private Button _monitorButton = default!;
     private Button _statsButton = default!;
+    private Button _quitButton = default!;
+    private Label _hintLabel = default!;           // bottom hint line; flips to a command menu in host mode
 
-    // Whether the right "Stats" box shows instrumentation (toggled by the Stats button / F11).
+    // Whether the right "Stats" box shows instrumentation (toggled by the Stats button / host menu).
     private bool _statsEnabled;
 
-    // Machine-code monitor: created lazily on first F12 while a system runs (bound to the current
+    // Host-command "leader key" support. Terminals/window managers grab most keys (F10 = menu,
+    // F11 = fullscreen, Ctrl/Alt/Shift = emulator), so host actions hang off a single reliable
+    // leader key (default F9, configurable via EmulatorConfig.LeaderKey). Pressing it enters host
+    // mode; the next keystroke selects a command (see OnGlobalKeyDown). This keeps every other key
+    // free for the emulated system.
+    private KeyCode _leaderKeyCode = KeyCode.F9;
+    private bool _hostModeActive;
+
+    // Machine-code monitor: created lazily on first open while a system runs (bound to the current
     // SystemRunner) and discarded on stop. While the monitor dialog is open, _monitorActive halts the
     // background emulator loop so the monitor has exclusive access to the CPU/memory.
     private TuiMonitor? _monitor;
@@ -143,11 +153,13 @@ public class TuiHostApp : HostApp
 
         Application.Init();
         // Terminal.Gui binds Esc → Quit at the application level by default. We don't want Esc to
-        // quit the host (F10 is the only quit key), and the emulator maps Esc to RUN/STOP, so remove
+        // quit the host (Quit is a leader-key command), and the emulator maps Esc to RUN/STOP, so remove
         // that binding. The log-entry popup still closes on Esc via its own key handler.
         Application.KeyBindings.Remove(Key.Esc);
-        // Global hotkeys (F9–F12): handled app-wide so they work regardless of which control has
-        // focus. Kept off F1–F8, which the emulated systems (e.g. the C64) use.
+        // Host commands hang off a single leader key (default F9), handled app-wide so it works
+        // regardless of which control has focus. Kept off F1–F8 (the emulated systems use those) and
+        // off F10/F11 (terminals bind those to their own menu/fullscreen). See OnGlobalKeyDown.
+        _leaderKeyCode = ParseLeaderKey(_emulatorConfig.LeaderKey);
         Application.KeyDown += OnGlobalKeyDown;
         try
         {
@@ -254,7 +266,7 @@ public class TuiHostApp : HostApp
     {
         _window = new Window
         {
-            Title = "DotNet 6502 — Terminal Host   (F10 = Quit)",
+            Title = $"DotNet 6502 — Terminal Host   ({LeaderKeyName} = Menu)",
             BorderStyle = LineStyle.Single,
         };
 
@@ -278,6 +290,7 @@ public class TuiHostApp : HostApp
         //   Start    Pause
         //   Reset    Stop
         //   Monitor  Stats
+        //   Quit
         const int col2X = 12; // X of the right button in each pair
 
         // System + variant pickers (only changeable while the emulator is stopped).
@@ -294,21 +307,26 @@ public class TuiHostApp : HostApp
         _stopButton = new Button { X = col2X, Y = 5, Text = "Stop" };
         _monitorButton = new Button { X = 0, Y = 6, Text = "Monitor", Enabled = false };
         _statsButton = new Button { X = col2X, Y = 6, Text = "Stats" };
+        // Quit always available via a button (not just the leader-key Q command), since terminals
+        // offer no clickable window close control and Esc is reserved for the emulator (RUN/STOP).
+        _quitButton = new Button { X = 0, Y = 7, Text = "Quit" };
 
         _startButton.Accepting += (_, e) => { e.Handled = true; DoStart(); };
         _pauseButton.Accepting += (_, e) => { e.Handled = true; DoPause(); };
         _stopButton.Accepting += (_, e) => { e.Handled = true; DoStop(); };
         _resetButton.Accepting += (_, e) => { e.Handled = true; DoReset(); };
         _statsButton.Accepting += (_, e) => { e.Handled = true; ToggleStats(); };
-        // Monitor button and F12 both open the machine-code monitor (enabled once a system is running).
+        // Monitor button and the leader-key Monitor command both open the machine-code monitor
+        // (enabled once a system is running).
         _monitorButton.Accepting += (_, e) => { e.Handled = true; DoMonitor(); };
+        _quitButton.Accepting += (_, e) => { e.Handled = true; Application.RequestStop(_window); };
 
         // Disable Terminal.Gui's default button drop-shadow: in this dense column the shadows of
         // adjacent buttons are mostly overlapped by neighbours, leaving stray black stripes.
         foreach (var button in new[]
                  {
                      _systemButton, _variantButton, _startButton, _pauseButton,
-                     _resetButton, _stopButton, _monitorButton, _statsButton,
+                     _resetButton, _stopButton, _monitorButton, _statsButton, _quitButton,
                  })
         {
             button.ShadowStyle = ShadowStyles.None;
@@ -316,7 +334,8 @@ public class TuiHostApp : HostApp
 
         controlsFrame.Add(
             _systemButton, _variantButton, _leftStatusLabel,
-            _startButton, _pauseButton, _resetButton, _stopButton, _monitorButton, _statsButton);
+            _startButton, _pauseButton, _resetButton, _stopButton, _monitorButton, _statsButton,
+            _quitButton);
 
         // Per-system menu area (below the standard controls). A discovered system plugin may
         // contribute a system-specific control here (see ITerminalMenuContribution); systems without
@@ -414,15 +433,17 @@ public class TuiHostApp : HostApp
         _tabsFrame.Add(_infoTabStrip, _logsListView, _configLabel, _infoLabel);
 
         // --- Bottom hint line ---
-        var hintLabel = new Label
+        // Doubles as the host-command menu: shows the leader-key hint normally, and the available
+        // commands while host mode is active (see UpdateHintLine / OnGlobalKeyDown).
+        _hintLabel = new Label
         {
             X = 0,
             Y = Pos.AnchorEnd(1),
             Width = Dim.Fill(),
-            Text = " 9 System  0 Variant   F9 Start/Stop  F10 Quit  F11 Stats  F12 Monitor",
         };
+        UpdateHintLine();
 
-        _window.Add(controlsFrame, _screenFrame, statsFrame, _tabsFrame, hintLabel);
+        _window.Add(controlsFrame, _screenFrame, statsFrame, _tabsFrame, _hintLabel);
 
         // Make focus/hover indication a background change (keeping text readable) instead of the
         // theme default, which flips button text to near-black — unreadable on the dark window.
@@ -487,20 +508,31 @@ public class TuiHostApp : HostApp
     // ----------------------------------------------------------------------
 
     /// <summary>
-    /// Application-wide key handler so host hotkeys work no matter which control is focused. Only
-    /// F9–F12 are used — F1–F8 are reserved for the emulated systems (e.g. the C64). Unhandled keys
-    /// fall through to the focused view (so the emulator still receives F1–F8 and typing).
-    /// System/Variant/Pause/Stop have no hotkey (their buttons remain) to stay within F9–F12.
+    /// Application-wide key handler so host commands work no matter which control is focused. A single
+    /// "leader" key (default F9, configurable) enters host mode; the next keystroke selects a command.
+    /// This keeps F1–F8 free for the emulated systems (e.g. the C64) and avoids F10/F11, which
+    /// terminals bind to their own menu/fullscreen. Unhandled keys fall through to the focused view
+    /// (so the emulator still receives F1–F8 and typing).
     /// </summary>
     private void OnGlobalKeyDown(object? sender, Key key)
     {
-        // While a modal dialog (or any other top-level) is the running top, host hotkeys must not
-        // fire — every key has to reach the dialog so its fields and buttons work (e.g. typing the
-        // digits 9/0 into a config text field, or Esc/F10 closing only the dialog).
+        // While a modal dialog (or any other top-level) is the running top, host commands must not
+        // fire — every key has to reach the dialog so its fields and buttons work (e.g. typing into a
+        // config text field, or Esc closing only the dialog).
         if (!ReferenceEquals(Application.TopRunnableView, _window))
             return;
 
         var code = key.KeyCode & ~(KeyCode.ShiftMask | KeyCode.CtrlMask | KeyCode.AltMask);
+
+        // Host mode is armed: this keystroke is a command (or a cancel). Handle it before anything
+        // else so a command letter never leaks through to the emulator.
+        if (_hostModeActive)
+        {
+            HandleHostCommand(code);
+            key.Handled = true;
+            return;
+        }
+
         var stopped = EmulatorState == EmulatorState.Uninitialized;
 
         if (!stopped && IsEmulatorScreenFocused() && IsEmulatorGlobalInputKey(key, code))
@@ -510,33 +542,83 @@ public class TuiHostApp : HostApp
             return;
         }
 
+        // The leader key arms host mode; the next keystroke (HandleHostCommand) is the actual command.
+        if (code == _leaderKeyCode)
+        {
+            _hostModeActive = true;
+            UpdateHintLine();
+            key.Handled = true;
+            return;
+        }
+
+        // Not the leader — let it reach the focused view (e.g. the emulator).
+    }
+
+    /// <summary>
+    /// Dispatch the second keystroke of a leader-key sequence to a host command, then leave host mode.
+    /// Unknown keys (including the leader key again, or Esc) simply cancel without doing anything.
+    /// </summary>
+    private void HandleHostCommand(KeyCode code)
+    {
+        _hostModeActive = false;
+        UpdateHintLine();
+
+        var stopped = EmulatorState == EmulatorState.Uninitialized;
         switch (code)
         {
-            // Running-time actions: only plain F9–F12 are conflict-free while the emulator runs
-            // (Ctrl = the C64/VIC-20 Commodore key, Shift/Tab/Alt are also emulator keys).
-            case KeyCode.F9: DoStartStopToggle(); break;
-            case KeyCode.F10: Application.RequestStop(_window); break; // quit
-            case KeyCode.F11: ToggleStats(); break;
-            case KeyCode.F12: DoMonitor(); break;
+            case KeyCode.S: DoStartStopToggle(); break;
+            case KeyCode.M: DoMonitor(); break;
+            case KeyCode.T: ToggleStats(); break;
+            case KeyCode.Q: Application.RequestStop(_window); break;
 
-            // System/Variant cycling: only meaningful while stopped, so we intercept 9/0 only then
-            // (chosen for being next to F9). While running, 9/0 fall through to the emulator. They are
-            // also left alone when a text-input control is focused, so digits can be typed there.
-            case KeyCode.D9 when stopped && !IsTextInputFocused(): CycleSystem(+1); break;
-            case KeyCode.D0 when stopped && !IsTextInputFocused(): CycleVariant(+1); break;
+            // System/Variant cycling is only meaningful while the emulator is stopped.
+            case KeyCode.Y when stopped: CycleSystem(+1); break;
+            case KeyCode.V when stopped: CycleVariant(+1); break;
 
-            default: return; // not a host hotkey — let it reach the focused view (e.g. the emulator)
+            default: break; // unknown command (or Esc / leader again): cancel, no-op
         }
-        key.Handled = true;
+    }
+
+    /// <summary>
+    /// Bottom hint line: shows the leader-key reminder normally, and the command menu while host mode
+    /// is armed (so the user can see the available commands after pressing the leader key).
+    /// </summary>
+    private void UpdateHintLine()
+    {
+        if (_hintLabel is null)
+            return;
+
+        // Normal: a single short reminder so it's obvious host mode is *not* active. The full command
+        // list appears only once the leader key arms host mode.
+        _hintLabel.Text = _hostModeActive
+            ? $" HOST: S Start/Stop  M Monitor  T Stats  Q Quit  Y System  V Variant   (Esc cancels)"
+            : $" {LeaderKeyName} Menu";
+    }
+
+    /// <summary>Display name of the configured leader key (e.g. "F9").</summary>
+    private string LeaderKeyName => _leaderKeyCode.ToString();
+
+    /// <summary>
+    /// Parse the configured leader key name (e.g. "F9") into a <see cref="KeyCode"/>. Falls back to F9
+    /// on an empty or unrecognised value so the host always has a working command key.
+    /// </summary>
+    private KeyCode ParseLeaderKey(string? configured)
+    {
+        const KeyCode fallback = KeyCode.F9;
+        if (string.IsNullOrWhiteSpace(configured))
+            return fallback;
+
+        if (Enum.TryParse<KeyCode>(configured.Trim(), ignoreCase: true, out var parsed))
+            return parsed;
+
+        _logger.LogWarning(
+            "Unrecognised LeaderKey '{Configured}' in config; falling back to {Fallback}.",
+            configured, fallback);
+        return fallback;
     }
 
     private bool IsEmulatorScreenFocused()
         => ReferenceEquals(Application.Navigation?.GetFocused(), _screenView);
-
-    // True when a text-entry control has focus, so character keys (e.g. the 9/0 hotkeys) are left to
-    // it rather than being treated as host hotkeys.
-    private static bool IsTextInputFocused()
-        => Application.Navigation?.GetFocused() is TextField or TextView;
 
     private static bool IsEmulatorGlobalInputKey(Key key, KeyCode code)
         // Tab is otherwise used by Terminal.Gui focus navigation before the screen view sees it.
@@ -601,7 +683,7 @@ public class TuiHostApp : HostApp
         UpdateLeftStatus();
     });
 
-    /// <summary>F9 toggles between Start/Resume and Stop depending on the current state.</summary>
+    /// <summary>The Start/Stop command toggles between Start/Resume and Stop depending on the current state.</summary>
     private void DoStartStopToggle()
     {
         if (EmulatorState == EmulatorState.Running)
@@ -612,7 +694,7 @@ public class TuiHostApp : HostApp
 
 
     /// <summary>
-    /// Monitor (F12 / Monitor button): open the machine-code monitor against the running (or paused)
+    /// Monitor (leader-key Monitor command / Monitor button): open the machine-code monitor against the running (or paused)
     /// system. Needs a built SystemRunner, so it is unavailable while the emulator is uninitialized.
     /// </summary>
     private void DoMonitor() => Safe(() =>
@@ -650,7 +732,7 @@ public class TuiHostApp : HostApp
 
     /// <summary>
     /// Show the monitor dialog (optionally with a break-trigger reason). Halts emulation while open,
-    /// then resumes the previous run state on close (a 'g' command continues; Esc/F12 leaves it paused
+    /// then resumes the previous run state on close (a 'g' command continues; Esc leaves it paused
     /// in effect until the dialog reopens — the background loop simply resumes where it left off).
     /// </summary>
     private void OpenMonitor(ExecEvaluatorTriggerResult? trigger)
@@ -1048,7 +1130,7 @@ public class TuiHostApp : HostApp
     }
 
     /// <summary>
-    /// Updates the right "Stats" box. When stats are toggled on (Stats button / F11) and a system is
+    /// Updates the right "Stats" box. When stats are toggled on (Stats button / leader-key command) and a system is
     /// running, shows the host instrumentation list (FPS, per-frame timings, …) like the other host
     /// apps; otherwise a short hint.
     /// </summary>
@@ -1056,7 +1138,7 @@ public class TuiHostApp : HostApp
     {
         if (!_statsEnabled)
         {
-            _statsLabel.Text = "(stats off — press Stats / F11)";
+            _statsLabel.Text = $"(stats off — press Stats button or {LeaderKeyName} then T)";
             return;
         }
 
