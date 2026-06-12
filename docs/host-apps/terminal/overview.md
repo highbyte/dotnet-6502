@@ -1,5 +1,7 @@
 # Terminal (TUI) app
 
+![Terminal (TUI) app, C64 Basic](../../assets/screenshots/Terminal_C64_Basic.png){ width="25%" }
+
 Interactive host app that runs the emulator **inside a real terminal**, using
 [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) v2 for the window/control chrome. The
 emulated text-mode screen is rendered as colored Unicode cells, so it works over SSH and inside
