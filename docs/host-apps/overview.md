@@ -26,7 +26,7 @@ the SkiaSharp-rendered alternative.
 ## Installation
 
 Pre-built binaries for the desktop apps are available via Homebrew, Scoop, or manual download. See
-[Installation](installation.md) (covers Avalonia Desktop and Headless). The browser apps need no
+[Installation](installation.md) (covers Avalonia Desktop, Terminal (TUI), and Headless). The browser apps need no
 install — just open the live version.
 
 For automation and scripting features available across these apps, see [Tools](../tools/overview.md).

@@ -11,6 +11,7 @@ The emulator has front-ends written with different technologies, with somewhat s
 | **Avalonia** | Cross-platform app using Avalonia UI for rendering. See details on the [Avalonia Desktop app](avalonia/desktop.md) page. |
 | **SadConsole** | Cross-platform desktop console-style app using SadConsole library. See details on the [SadConsole app](sadconsole/overview.md) page. |
 | **SilkNetNative** | Cross-platform desktop app using Silk.NET + SkiaSharp + shaders for rendering. See details on the [SilkNetNative app](silknet-native/overview.md) page. |
+| **Terminal (TUI)** | Cross-platform app that runs the emulator inside a real terminal using Terminal.Gui v2. See details on the [Terminal (TUI) app](terminal/overview.md) page. Install instructions in the [Terminal (TUI)](#terminal-tui) section below. |
 | **Headless** | Cross-platform console app — no UI, driven by CLI / Lua scripts. See details on the [Headless app](headless/overview.md) page. Install instructions in the [Headless](#headless) section below. |
 
 ## Install via Package Manager
@@ -203,6 +204,92 @@ Compare the output with the corresponding entry in the `checksums-*.sha256` file
 - [Avalonia Desktop app troubleshooting](avalonia/troubleshooting.md)
 - [SilkNetNative app troubleshooting](silknet-native/troubleshooting.md)
 - [SadConsole troubleshooting](sadconsole/troubleshooting.md)
+
+---
+
+## Terminal (TUI)
+
+Pre-built binaries of the Terminal (TUI) app are available for Windows, Linux, and macOS. See [Terminal (TUI) app](terminal/overview.md) for an overview, layout, hotkeys, and terminal requirements.
+
+!!! note
+    The Terminal app needs a terminal emulator with **Unicode (UTF-8)** and **24-bit "true color"** support, and runs over SSH and inside `tmux`/`screen`. On Windows, use a modern terminal such as Windows Terminal — the legacy `conhost` console does not render true color reliably. See [Terminal requirements](terminal/overview.md#terminal-requirements).
+
+### Install via Package Manager
+
+**Prerequisites:** Install [Homebrew](https://brew.sh/) (macOS/Linux) or [Scoop](https://scoop.sh/) (Windows).
+
+#### macOS (Homebrew)
+
+```bash
+brew tap highbyte/dotnet-6502
+brew install --formula dotnet-6502-terminal
+```
+
+#### Linux (Homebrew)
+
+```bash
+brew tap highbyte/dotnet-6502
+brew install --formula dotnet-6502-terminal
+```
+
+#### Windows (Scoop)
+
+```powershell
+scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502
+scoop install dotnet-6502-terminal
+```
+
+#### Terminal launching
+
+!!! note
+    To run the **C64** or **VIC-20** system, ROM files must be available. The app can auto-download them from its in-app Config dialog, or you can place them manually — see [Systems / C64 / ROMs](../systems/c64/roms.md) and [Systems / VIC-20 / ROMs](../systems/vic20/roms.md).
+
+After installing, run the Terminal app from a terminal:
+
+```sh
+dotnet-6502-terminal
+```
+
+#### Terminal updating
+
+```bash
+# macOS / Linux
+brew update && brew upgrade dotnet-6502-terminal
+```
+
+```powershell
+# Windows
+scoop update
+scoop update dotnet-6502-terminal
+```
+
+#### Terminal uninstalling
+
+```bash
+# macOS / Linux
+brew uninstall dotnet-6502-terminal
+brew untap highbyte/dotnet-6502
+```
+
+```powershell
+# Windows
+scoop uninstall dotnet-6502-terminal
+scoop bucket rm dotnet-6502
+```
+
+### Terminal via manual download
+
+Download the latest Terminal release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page.
+
+| Platform | Download |
+|----------|----------|
+| Windows x64 | `DotNet6502-Terminal-win-x64.zip` |
+| Windows ARM64 | `DotNet6502-Terminal-win-arm64.zip` |
+| Linux x64 | `DotNet6502-Terminal-linux-x64.zip` |
+| Linux ARM64 | `DotNet6502-Terminal-linux-arm64.zip` |
+| macOS ARM64 (Apple Silicon) | `DotNet6502-Terminal-osx-arm64.zip` |
+
+Extraction and run-from-terminal procedure is the same as for the desktop apps above (see [Launching the application](#launching-the-application)). Replace the binary name with `Highbyte.DotNet6502.App.Terminal` (or `Highbyte.DotNet6502.App.Terminal.exe` on Windows).
 
 ---
 
