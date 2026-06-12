@@ -57,7 +57,12 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
     private readonly ILoggerFactory _loggerFactory;
     private readonly HttpClient _httpClient = new();
     private readonly DropDownList _programDropDown;
+    private readonly Button _copyButton;
+    private readonly Button _pasteButton;
     private readonly Button _d64Button;
+    private readonly Button _loadProgramButton;
+    private readonly Button _loadButton;
+    private readonly Button _configButton;
     private readonly CheckBox _joystickCheck;
     private readonly Button _joyPortButton;
     private C64AutoLoadAndRun? _c64AutoLoadAndRun;
@@ -75,11 +80,11 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(nameof(C64TerminalMenuView));
 
-        var copyButton = new Button { X = 0, Y = 0, Text = "Copy", ShadowStyle = ShadowStyles.None };
-        copyButton.Accepting += (_, e) => { e.Handled = true; CopyBasicSourceCode(); };
+        _copyButton = new Button { X = 0, Y = 0, Text = "Copy", ShadowStyle = ShadowStyles.None };
+        _copyButton.Accepting += (_, e) => { e.Handled = true; CopyBasicSourceCode(); };
 
-        var pasteButton = new Button { X = 12, Y = 0, Text = "Paste", ShadowStyle = ShadowStyles.None };
-        pasteButton.Accepting += (_, e) => { e.Handled = true; PasteText(); };
+        _pasteButton = new Button { X = 12, Y = 0, Text = "Paste", ShadowStyle = ShadowStyles.None };
+        _pasteButton.Accepting += (_, e) => { e.Handled = true; PasteText(); };
 
         _d64Button = new Button { X = 0, Y = 1, Text = "Attach .D64", ShadowStyle = ShadowStyles.None };
         _d64Button.Accepting += (_, e) => { e.Handled = true; ToggleD64Image(); };
@@ -94,18 +99,18 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
             Text = PreloadedPrograms.Keys.OrderBy(x => x).First(),
         };
 
-        var loadProgramButton = new Button { X = 18, Y = 2, Text = "Load", ShadowStyle = ShadowStyles.None };
-        loadProgramButton.Accepting += async (_, e) =>
+        _loadProgramButton = new Button { X = 18, Y = 2, Text = "Load", ShadowStyle = ShadowStyles.None };
+        _loadProgramButton.Accepting += async (_, e) =>
         {
             e.Handled = true;
             await LoadSelectedProgram();
         };
 
-        var loadButton = new Button { X = 0, Y = 3, Text = "Load .prg…", ShadowStyle = ShadowStyles.None };
-        loadButton.Accepting += (_, e) => { e.Handled = true; LoadBasicPrg(); };
+        _loadButton = new Button { X = 0, Y = 3, Text = "Load .prg…", ShadowStyle = ShadowStyles.None };
+        _loadButton.Accepting += (_, e) => { e.Handled = true; LoadBasicPrg(); };
 
-        var configButton = new Button { X = 0, Y = 4, Text = "Config…", ShadowStyle = ShadowStyles.None };
-        configButton.Accepting += (_, e) =>
+        _configButton = new Button { X = 0, Y = 4, Text = "Config…", ShadowStyle = ShadowStyles.None };
+        _configButton.Accepting += (_, e) =>
         {
             e.Handled = true;
             C64ConfigDialog.Show(_host, _logger);
@@ -140,9 +145,40 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
             SetKeyboardJoystickPort(current == 1 ? 2 : 1);
         };
 
-        Add(copyButton, pasteButton, _d64Button, _programDropDown, loadProgramButton, loadButton, configButton,
+        Add(_copyButton, _pasteButton, _d64Button, _programDropDown, _loadProgramButton, _loadButton, _configButton,
             _joystickCheck, _joyPortButton);
         UpdateD64ButtonText();
+    }
+
+    /// <summary>
+    /// Enable/disable the contributed controls to match the current emulator state, mirroring the
+    /// rules the other host apps' C64 menus use (e.g. SadConsole's SetControlStates). Disabled
+    /// controls render dimmed via the host's UI scheme.
+    /// </summary>
+    public void RefreshControlStates()
+    {
+        var state = _host.EmulatorState;
+        var running = state == EmulatorState.Running;
+        var uninitialized = state == EmulatorState.Uninitialized;
+
+        // Copy/Paste act on a live BASIC session — only meaningful while running.
+        _copyButton.Enabled = running;
+        _pasteButton.Enabled = running;
+
+        // Disk image + BASIC .prg load act on the built C64 instance — running or paused.
+        _d64Button.Enabled = !uninitialized;
+        _loadButton.Enabled = !uninitialized;
+
+        // C64 config (ROM paths etc.) can only be changed while the emulator is fully stopped.
+        _configButton.Enabled = uninitialized;
+
+        // The preloaded-program download starts/replaces the system itself, so it stays available in
+        // any state; it is only blocked while a download is already in flight.
+        _programDropDown.Enabled = !_isLoadingPreloadedProgram;
+        _loadProgramButton.Enabled = !_isLoadingPreloadedProgram;
+
+        // Keyboard joystick can be configured in any state (applied live while running, stored
+        // otherwise); the port button follows the checkbox (see SetKeyboardJoystickEnabled).
     }
 
     private C64SystemConfig? CurrentC64Config =>
@@ -289,6 +325,7 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
             return;
 
         _isLoadingPreloadedProgram = true;
+        RefreshControlStates(); // dim the dropdown + Load button while the download is in flight
         _logger.LogInformation("Loading {DisplayName}.", programInfo.DisplayName);
 
         try
@@ -305,6 +342,7 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
         finally
         {
             _isLoadingPreloadedProgram = false;
+            RefreshControlStates(); // re-enable the dropdown + Load button now the download has finished
         }
     }
 

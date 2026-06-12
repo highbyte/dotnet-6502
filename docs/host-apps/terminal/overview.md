@@ -28,10 +28,12 @@ panel, and config dialog. See [Architecture](../../architecture.md) and
 
 The screen pane resizes automatically to fit the running system's frame (C64 ≈ 40 columns,
 VIC-20 ≈ 22 columns), and the status/logs column reflows around it. The emulated screen is drawn
-without an extra framing box — each system renders its own coloured screen border — and one cell of
-that border is cropped from the top and bottom so a C64 (29 cells tall including its border) fits a
-default ~30-row terminal without the user having to enlarge the window. The crop is configurable via
-`ScreenBorderTrim` in `appsettings.json` (set it to `0` to show the full emulated border).
+without an extra framing box — each system renders its own coloured screen border, which is wide and
+wasteful in a terminal, so the view crops it down to a thin, consistent border on every side. This
+keeps the C64 (29 cells tall including its border) within a default ~30-row terminal without the user
+having to enlarge the window. How much border to keep on each side is configurable in
+`appsettings.json`: `VerticalBorderRows` (top/bottom, default `1`) and `HorizontalBorderColumns`
+(left/right, default `2`); set either to `0` to show the full emulated border on that axis.
 
 ## Layout and controls
 

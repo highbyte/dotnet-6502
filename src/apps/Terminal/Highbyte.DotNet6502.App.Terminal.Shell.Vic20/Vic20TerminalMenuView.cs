@@ -25,6 +25,10 @@ public sealed class Vic20TerminalMenuView : View, ITerminalMenuContribution
 {
     private readonly TuiHostApp _host;
     private readonly ILogger _logger;
+    private readonly Button _copyButton;
+    private readonly Button _pasteButton;
+    private readonly Button _loadButton;
+    private readonly Button _configButton;
 
     public string MenuTitle => "VIC-20";
 
@@ -37,19 +41,41 @@ public sealed class Vic20TerminalMenuView : View, ITerminalMenuContribution
         _host = host;
         _logger = loggerFactory.CreateLogger(nameof(Vic20TerminalMenuView));
 
-        var copyButton = new Button { X = 0, Y = 0, Text = "Copy", ShadowStyle = ShadowStyles.None };
-        copyButton.Accepting += (_, e) => { e.Handled = true; CopyBasicSourceCode(); };
+        _copyButton = new Button { X = 0, Y = 0, Text = "Copy", ShadowStyle = ShadowStyles.None };
+        _copyButton.Accepting += (_, e) => { e.Handled = true; CopyBasicSourceCode(); };
 
-        var pasteButton = new Button { X = 12, Y = 0, Text = "Paste", ShadowStyle = ShadowStyles.None };
-        pasteButton.Accepting += (_, e) => { e.Handled = true; PasteText(); };
+        _pasteButton = new Button { X = 12, Y = 0, Text = "Paste", ShadowStyle = ShadowStyles.None };
+        _pasteButton.Accepting += (_, e) => { e.Handled = true; PasteText(); };
 
-        var loadButton = new Button { X = 0, Y = 1, Text = "Load .prg…", ShadowStyle = ShadowStyles.None };
-        loadButton.Accepting += (_, e) => { e.Handled = true; LoadBasicPrg(); };
+        _loadButton = new Button { X = 0, Y = 1, Text = "Load .prg…", ShadowStyle = ShadowStyles.None };
+        _loadButton.Accepting += (_, e) => { e.Handled = true; LoadBasicPrg(); };
 
-        var configButton = new Button { X = 0, Y = 2, Text = "Config…", ShadowStyle = ShadowStyles.None };
-        configButton.Accepting += (_, e) => { e.Handled = true; Vic20ConfigDialog.Show(_host, _logger); };
+        _configButton = new Button { X = 0, Y = 2, Text = "Config…", ShadowStyle = ShadowStyles.None };
+        _configButton.Accepting += (_, e) => { e.Handled = true; Vic20ConfigDialog.Show(_host, _logger); };
 
-        Add(copyButton, pasteButton, loadButton, configButton);
+        Add(_copyButton, _pasteButton, _loadButton, _configButton);
+    }
+
+    /// <summary>
+    /// Enable/disable the contributed controls to match the current emulator state, mirroring the C64
+    /// menu's rules (a trimmed set: no disk/joystick here). Disabled controls render dimmed via the
+    /// host's UI scheme.
+    /// </summary>
+    public void RefreshControlStates()
+    {
+        var state = _host.EmulatorState;
+        var running = state == EmulatorState.Running;
+        var uninitialized = state == EmulatorState.Uninitialized;
+
+        // Copy/Paste act on a live BASIC session — only meaningful while running.
+        _copyButton.Enabled = running;
+        _pasteButton.Enabled = running;
+
+        // BASIC .prg load acts on the built VIC-20 instance — running or paused.
+        _loadButton.Enabled = !uninitialized;
+
+        // ROM config can only be changed while the emulator is fully stopped.
+        _configButton.Enabled = uninitialized;
     }
 
     private void CopyBasicSourceCode()

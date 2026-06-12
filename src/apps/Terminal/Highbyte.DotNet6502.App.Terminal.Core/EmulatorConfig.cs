@@ -16,16 +16,25 @@ public class EmulatorConfig
     /// </summary>
     public int DisplayRefreshHz { get; set; } = 30;
 
+    // The emulated systems render their own thick solid-colour screen border, which wastes space in a
+    // terminal where every row/column is precious. These two settings cap how much of that border the
+    // terminal view keeps on each side; it crops any excess so every system shows a consistent thin
+    // border (a system whose border is already this thin, or thinner, is left untouched). They only
+    // affect the terminal view — the shared render command stream (and other hosts) are unaffected.
+
     /// <summary>
-    /// How many cosmetic border cells to crop from the top and bottom of the emulated screen when
-    /// painting it in the terminal. The emulated systems render their own (solid-colour) screen
-    /// border, which for the C64/VIC-20 is 2–3 cells tall — taller than needed in a terminal where
-    /// every row is precious. Cropping 1 cell on each side lets a C64 (29 cells tall incl. border)
-    /// fit a default 30-row terminal without the user resizing the window, while still showing a
-    /// border. 0 disables cropping (shows the full emulated border). Only affects the terminal view;
-    /// the shared render command stream (and other hosts) are unaffected.
+    /// Border rows to keep on the top and bottom of the emulated screen. The C64/VIC-20 border is
+    /// ~2 rows tall; keeping 1 lets a C64 (29 rows incl. border) fit a default 30-row terminal without
+    /// resizing, while still showing a border. 0 disables vertical cropping (full border).
     /// </summary>
-    public int ScreenBorderTrim { get; set; } = 1;
+    public int VerticalBorderRows { get; set; } = 1;
+
+    /// <summary>
+    /// Border columns to keep on the left and right of the emulated screen. The side border is wide
+    /// (the C64 ~6 columns, the VIC-20 ~5); keeping 2 trims that to a thin, consistent border.
+    /// 0 disables horizontal cropping (full border).
+    /// </summary>
+    public int HorizontalBorderColumns { get; set; } = 2;
 
     /// <summary>Machine-code monitor options (shared with the other host apps' monitor).</summary>
     public MonitorConfig Monitor { get; set; } = new();

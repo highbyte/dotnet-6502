@@ -339,7 +339,7 @@ public class TuiHostApp : HostApp
         // (anchored to its right) follows. The container is intentionally borderless: the emulated
         // systems draw their own coloured screen border, so a titled FrameView box around it would be
         // a redundant second border — and dropping it reclaims 2 rows so the C64 fits a default
-        // terminal (see ScreenBorderTrim for the other 2).
+        // terminal (see VerticalBorderRows for trimming the emulated border itself).
         _screenFrame = new FrameView
         {
             Title = string.Empty,
@@ -355,7 +355,8 @@ public class TuiHostApp : HostApp
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            VerticalBorderTrim = _emulatorConfig.ScreenBorderTrim,
+            VerticalBorderRows = _emulatorConfig.VerticalBorderRows,
+            HorizontalBorderColumns = _emulatorConfig.HorizontalBorderColumns,
         };
         _screenView.EmulatorKeyPressed += key => _inputContext.OnKeyDown(key);
         _screenFrame.Add(_screenView);
@@ -747,10 +748,33 @@ public class TuiHostApp : HostApp
         {
             // Bind the screen view to the freshly created render target for this run.
             _screenView.SetRenderTarget(GetRenderTarget<TerminalRenderTarget>());
+            ApplyScreenBorderTrim();
         }
 
         ApplyInstrumentationEnabled();
         UpdateLeftStatus();
+    }
+
+    /// <summary>
+    /// Tell the screen view how thick the running system's cosmetic border is (in cells), so it crops
+    /// it down to the configured VerticalBorderRows/HorizontalBorderColumns. Read from the system's own
+    /// screen geometry (exact and constant for the run) rather than detected from rendered pixels —
+    /// which wobbles while the system boots, briefly resizing the screen. Systems with no border (or no
+    /// known character size) are shown untrimmed.
+    /// </summary>
+    private void ApplyScreenBorderTrim()
+    {
+        var screen = CurrentRunningSystem?.Screen;
+        if (screen is not { HasBorder: true } || screen is not ITextMode textMode
+            || textMode.CharacterWidth <= 0 || textMode.CharacterHeight <= 0)
+        {
+            _screenView.SetBorderThickness(0, 0);
+            return;
+        }
+
+        var borderColumns = screen.VisibleLeftRightBorderWidth / textMode.CharacterWidth;
+        var borderRows = screen.VisibleTopBottomBorderHeight / textMode.CharacterHeight;
+        _screenView.SetBorderThickness(borderColumns, borderRows);
     }
 
     public override void OnAfterEmulatorStateChange()
@@ -949,7 +973,8 @@ public class TuiHostApp : HostApp
     /// Resizes the (borderless) "Screen" box to fit the running system's rendered frame, so it hugs
     /// the emulator screen (no dead space) for any system/variant. The status/logs panes anchored to
     /// its right reflow automatically. The box is borderless, so its size equals the painted cell size
-    /// (which already has <see cref="EmulatorScreenView.VerticalBorderTrim"/> applied to the height).
+    /// (which already has the border trim from <see cref="EmulatorScreenView.VerticalBorderRows"/> /
+    /// <see cref="EmulatorScreenView.HorizontalBorderColumns"/> applied).
     /// </summary>
     private void ResizeScreenFrameToFit(int frameCellWidth, int frameCellHeight)
     {
@@ -1008,6 +1033,9 @@ public class TuiHostApp : HostApp
         // Monitor needs a built SystemRunner, so it is available whenever a system is running/paused.
         _monitorButton.Enabled = !uninitialized;
         _statsButton.Text = _statsEnabled ? "Stats*" : "Stats";
+
+        // Let the active system's menu contribution dim/enable its own controls for this state.
+        _activeMenuContribution?.RefreshControlStates();
     }
 
     /// <summary>True if the selected system's current host config is valid (so it can be started).</summary>
@@ -1111,6 +1139,7 @@ public class TuiHostApp : HostApp
             _systemMenuFrame.Title = next.MenuTitle;
             _systemMenuFrame.Height = next.MenuRowCount + 2; // + top/bottom border
             _systemMenuFrame.Visible = true;
+            next.RefreshControlStates(); // set initial enabled/disabled state for the current emulator state
         }
         else
         {

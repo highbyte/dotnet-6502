@@ -19,4 +19,11 @@ public interface ITerminalMenuContribution
 
     /// <summary>The Terminal.Gui view hosting the system-specific controls.</summary>
     View View { get; }
+
+    /// <summary>
+    /// Refresh the enabled/disabled state of the contributed controls to match the current emulator
+    /// state (so controls that can't be used right now render dimmed, like the standard host buttons).
+    /// The host calls this whenever the emulator state or config changes.
+    /// </summary>
+    void RefreshControlStates();
 }
