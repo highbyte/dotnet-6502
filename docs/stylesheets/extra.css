@@ -1,0 +1,297 @@
+/* ── Terminal-style overrides for mkdocs-material
+ *
+ *    Adapted from terminal.css used by the memsearch documentation site:
+ *      https://github.com/zilliztech/memsearch
+ *      https://zilliztech.github.io/memsearch/stylesheets/terminal.css
+ *
+ *    Color palette swapped for the Avalonia desktop app (App.axaml).
+ *
+ *    Original work licensed under the MIT License:
+ *      Copyright (c) 2025 Zilliz Inc.
+ *
+ *    Permission is hereby granted, free of charge, to any person obtaining a
+ *    copy of this software and associated documentation files (the
+ *    "Software"), to deal in the Software without restriction, including
+ *    without limitation the rights to use, copy, modify, merge, publish,
+ *    distribute, sublicense, and/or sell copies of the Software, and to
+ *    permit persons to whom the Software is furnished to do so, subject to
+ *    the following conditions:
+ *
+ *    The above copyright notice and this permission notice shall be included
+ *    in all copies or substantial portions of the Software.
+ *
+ *    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ *    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ *    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * ── */
+
+:root {
+  /* Avalonia palette */
+  --t-gold:        #B8A876; /* HighlightGold */
+  --t-gold-dim:    #8C7E55; /* darker gold for # prefix */
+  --t-gold-bright: #C8B886;
+  --t-blue:        #6B8CAE; /* AccentBlue */
+  --t-blue-dim:    #4F6B85; /* darker blue for ## prefix / h3 */
+  --t-blue-bright: #7B9CBE;
+  --t-bg:          #1A202C; /* ViewDefaultBg */
+  --t-surface:     #2A3544; /* SecondaryBg */
+  --t-text:        #E8EEF5; /* PrimaryText */
+  --t-text-dim:    #8B9BB0; /* SecondaryText */
+  --t-border:      #4A5566; /* BorderColor */
+  --t-code-bg:     #15202B;
+  --t-header-bg:   #1A2332; /* PrimaryBg */
+  --t-success:     #5B8A7D;
+  --t-warning:     #B89D5F;
+  --t-danger:      #A85E5E;
+}
+
+/* ── Dark scheme background ── */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color:        var(--t-bg);
+  --md-default-bg-color--light:  var(--t-surface);
+  --md-default-fg-color:         var(--t-text);
+  --md-default-fg-color--light:  var(--t-text-dim);
+  --md-default-fg-color--lighter:#6B7B90;
+  --md-default-fg-color--lightest: var(--t-border);
+  --md-accent-fg-color:          var(--t-gold);
+  --md-typeset-a-color:          var(--t-blue);
+  --md-code-bg-color:            var(--t-code-bg);
+  --md-code-fg-color:            var(--t-text);
+}
+
+/* ── Header bar ── */
+[data-md-color-scheme="slate"] .md-header {
+  background: var(--t-header-bg);
+  border-bottom: 1px solid var(--t-border);
+}
+
+/* ── Site title ── */
+.md-header__title {
+  font-family: 'Fira Code', monospace;
+}
+
+/* ── Top tabs ── */
+[data-md-color-scheme="slate"] .md-tabs {
+  background: var(--t-header-bg);
+  border-bottom: 1px solid var(--t-border);
+}
+[data-md-color-scheme="slate"] .md-tabs__link {
+  color: var(--t-text-dim);
+  opacity: 1;
+}
+[data-md-color-scheme="slate"] .md-tabs__link:hover,
+[data-md-color-scheme="slate"] .md-tabs__link--active {
+  color: var(--t-gold);
+}
+
+/* ── Left & right navigation ── */
+[data-md-color-scheme="slate"] .md-nav__link {
+  color: var(--t-text-dim);
+}
+[data-md-color-scheme="slate"] .md-nav__link:hover,
+[data-md-color-scheme="slate"] .md-nav__link--active {
+  color: var(--t-gold);
+}
+[data-md-color-scheme="slate"] .md-nav__title {
+  color: var(--t-gold);
+  font-weight: 600;
+  /* keep normal case (no uppercase transform) */
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* Section labels in the left sidebar — keep mixed case */
+[data-md-color-scheme="slate"] .md-nav__item--section > .md-nav__link {
+  color: var(--t-gold);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+/* Right TOC active marker */
+[data-md-color-scheme="slate"] .md-nav--secondary .md-nav__link--active {
+  color: var(--t-gold);
+  border-left: 2px solid var(--t-gold);
+  padding-left: 0.5rem;
+}
+
+/* ── Headings ──
+ *  h1            → gold (level 1 only)
+ *  h2, h3, h4…   → light blue
+ *  ::before adds the leading "#" markers in a slightly darker tone.
+ */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+  font-family: 'Fira Code', monospace;
+  font-weight: 600;
+}
+
+.md-typeset h1 {
+  color: var(--t-gold);
+  border-bottom: 1px solid var(--t-border);
+  padding-bottom: 0.4rem;
+}
+.md-typeset h2 { color: var(--t-blue); }
+.md-typeset h3 { color: var(--t-blue); }
+.md-typeset h4 { color: var(--t-blue-dim); }
+.md-typeset h5 { color: var(--t-blue-dim); }
+.md-typeset h6 { color: var(--t-blue-dim); }
+
+.md-typeset h1::before { content: "# ";    color: var(--t-gold-dim); }
+.md-typeset h2::before { content: "## ";   color: var(--t-blue-dim); }
+.md-typeset h3::before { content: "### ";  color: var(--t-blue-dim); }
+.md-typeset h4::before { content: "#### "; color: var(--t-blue-dim); }
+.md-typeset h5::before { content: "##### ";color: var(--t-blue-dim); }
+.md-typeset h6::before { content: "###### ";color: var(--t-blue-dim); }
+
+/* ── Body text ── */
+[data-md-color-scheme="slate"] .md-typeset {
+  color: var(--t-text);
+}
+[data-md-color-scheme="slate"] .md-typeset strong {
+  color: #F2F6FA;
+}
+
+/* ── Code ── */
+[data-md-color-scheme="slate"] .md-typeset code {
+  background: var(--t-code-bg);
+  color: var(--t-gold);
+  border: 1px solid var(--t-border);
+  border-radius: 3px;
+  padding: 0.05em 0.4em;
+  font-size: 0.85em;
+}
+[data-md-color-scheme="slate"] .md-typeset pre {
+  background: var(--t-code-bg);
+  border: 1px solid var(--t-border);
+  border-radius: 6px;
+}
+[data-md-color-scheme="slate"] .md-typeset pre code {
+  border: none;
+  color: var(--t-text);
+  background: transparent;
+}
+
+/* ── Links ── */
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: var(--t-blue);
+  text-decoration: none;
+}
+[data-md-color-scheme="slate"] .md-typeset a:hover {
+  text-decoration: underline;
+  color: var(--t-blue-bright);
+}
+
+/* ── Blockquotes ── */
+[data-md-color-scheme="slate"] .md-typeset blockquote {
+  border-left: 3px solid var(--t-gold-dim);
+  color: var(--t-text-dim);
+}
+
+/* ── Tables ── */
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) {
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background: var(--t-header-bg);
+  color: var(--t-blue);
+  border-bottom: 2px solid var(--t-blue-dim);
+}
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tr:hover td {
+  background: rgba(107, 140, 174, 0.08);
+}
+
+/* ── Admonitions ── */
+.md-typeset .admonition,
+.md-typeset details {
+  border: 1px solid var(--t-border);
+  background: var(--t-surface);
+  border-radius: 4px;
+}
+.md-typeset .admonition.note,
+.md-typeset details.note            { border-color: var(--t-blue); }
+.md-typeset .admonition.tip,
+.md-typeset details.tip,
+.md-typeset .admonition.success,
+.md-typeset details.success         { border-color: var(--t-success); }
+.md-typeset .admonition.warning,
+.md-typeset details.warning         { border-color: var(--t-warning); }
+.md-typeset .admonition.danger,
+.md-typeset details.danger,
+.md-typeset .admonition.error,
+.md-typeset details.error           { border-color: var(--t-danger); }
+
+/* ── Search ── */
+[data-md-color-scheme="slate"] .md-search__input {
+  background: var(--t-code-bg);
+  border: 1px solid var(--t-border);
+  color: var(--t-text);
+}
+[data-md-color-scheme="slate"] .md-search__input::placeholder {
+  color: var(--t-text-dim);
+}
+
+/* ── Sidebar separator ── */
+[data-md-color-scheme="slate"] .md-sidebar {
+  border-right: 1px solid var(--t-border);
+}
+
+/* ── Footer ── */
+[data-md-color-scheme="slate"] .md-footer {
+  background: var(--t-header-bg);
+  border-top: 1px solid var(--t-border);
+}
+
+/* ── Scrollbar ── */
+[data-md-color-scheme="slate"] ::-webkit-scrollbar              { width: 8px; height: 8px; }
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-track        { background: var(--t-bg); }
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-thumb        { background: var(--t-border); border-radius: 4px; }
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-thumb:hover  { background: var(--t-blue-dim); }
+
+/* ── Selection ── */
+::selection {
+  background-color: rgba(184, 168, 118, 0.35);
+  color: var(--t-text);
+}
+
+/* ── Copy button for command cells in tables (see javascripts/table-copy.js) ── */
+.md-typeset .cmd-copy {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background-color: currentColor;
+  color: var(--md-default-fg-color--light, var(--t-text-dim));
+  cursor: pointer;
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin-left: 0.45em;
+  padding: 0;
+  vertical-align: text-bottom;
+  opacity: 0.6;
+  /* mdi "content-copy" icon */
+  -webkit-mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg>') center / contain no-repeat;
+}
+.md-typeset .cmd-copy:hover {
+  opacity: 1;
+  color: var(--t-gold, currentColor);
+}
+.md-typeset .cmd-copy.cmd-copied {
+  opacity: 1;
+  color: var(--t-success, currentColor);
+  /* mdi "check" icon */
+  -webkit-mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>') center / contain no-repeat;
+}

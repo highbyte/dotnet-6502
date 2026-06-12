@@ -1,0 +1,8 @@
+10 c1=7:c2=14
+20 c=c1
+30 if c=c1 then c=c2 : goto 50
+40 if c=c2 then c=c1
+50 poke 53280,c
+60 print "hello world!"
+70 for i=1 to 150:next
+80 goto 30
