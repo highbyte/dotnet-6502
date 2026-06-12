@@ -26,6 +26,7 @@ hold no direct project reference to them.
 | `Highbyte.DotNet6502.Impl.Avalonia.Commodore64` | Avalonia | Avalonia Desktop, Avalonia Browser |
 | `Highbyte.DotNet6502.Impl.AspNet.Commodore64` | Blazor / JS interop | Blazor WASM |
 | `Highbyte.DotNet6502.Impl.Headless.Commodore64` | none (headless) | Headless |
+| `Highbyte.DotNet6502.Impl.Terminal.Commodore64` | Terminal.Gui (text cells) | Terminal (TUI) |
 
 ### Render
 
@@ -34,7 +35,9 @@ C64 render targets live under `Commodore64/Render/` in the engine-plugin librari
 desktop and browser apps render the C64 via the generic Avalonia bitmap render target in
 [`Highbyte.DotNet6502.Impl.Avalonia`](../../libraries/implementation/avalonia.md) — there is no
 bespoke C64 renderer, so `Impl.Avalonia.Commodore64` exists only for engine registration and host
-config.
+config. Likewise the Terminal (TUI) app renders the C64 (character mode only) via the generic
+terminal render target in [`Highbyte.DotNet6502.Impl.Terminal`](../../libraries/implementation/terminal.md),
+so `Impl.Terminal.Commodore64` exists only for engine registration and host config.
 
 ### Input
 
@@ -75,6 +78,7 @@ Each provider is paired with a host audio target that knows how to play its outp
 - **Avalonia Desktop**, **SadConsole**, **SilkNetNative**: both providers available (sample-based by default).
 - **Avalonia Browser**: both providers available (sample-based by default), playback via WebAudio JS interop.
 - **Blazor WASM**: command-stream only. The sample-based provider is not yet wired up here — see the design log for the planned work.
+- **Terminal (TUI)**: no audio (terminals have no audio output).
 
 There is no C64-specific audio library — the former `Impl.NAudio.Commodore64` was removed
 when the audio command vocabulary was generalised, and the new sample path is also

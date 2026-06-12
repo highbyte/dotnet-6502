@@ -11,6 +11,7 @@ one app with two runtimes.
 | [Blazor WebAssembly](blazor-wasm/overview.md) | Browser | [Blazor WebAssembly](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) + `Highbyte.DotNet6502.Impl.Skia` (SkiaSharp on canvas) | `Highbyte.DotNet6502.Impl.AspNet` (WebAudio JS interop). C64 command-stream provider only. | SkiaSharp-rendered browser alternative. |
 | [SadConsole](sadconsole/overview.md) | Desktop | [SadConsole](https://github.com/Thraka/SadConsole) (terminal/ASCII engine) | NAudio + OpenAL. | Console-style retro UI. |
 | [SilkNetNative](silknet-native/overview.md) | Desktop | [Silk.NET](https://github.com/dotnet/Silk.NET) + ImGui + OpenGL/SkiaSharp | NAudio + OpenAL. | OpenGL/shader rendering paths, incl. a custom GPU-packet C64 renderer. |
+| [Terminal (TUI)](terminal/overview.md) | Desktop / CLI | [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) v2 — renders the emulated text-mode screen as colored Unicode cells in a real terminal (works over SSH, in tmux). | none | Interactive emulator inside a real terminal. C64 and VIC-20 (text mode); no audio. |
 | [Console Monitor](console-monitor/overview.md) | Desktop | Plain .NET console | none | Stand-alone 6502 machine code monitor; no system emulation UI. |
 | [Headless](headless/overview.md) | Desktop / CLI | none | none | Automation, scripting, CI workflows. Driven entirely by CLI args and Lua. |
 
@@ -37,6 +38,7 @@ See per-app troubleshooting pages for platform-specific notes:
 - [Avalonia Desktop troubleshooting](avalonia/troubleshooting.md) — Windows / macOS / Linux all working (Linux ARM64 needs a freetype workaround).
 - [SilkNetNative troubleshooting](silknet-native/troubleshooting.md) — requires OpenGL; ARM64 Linux/Windows not currently working.
 - [SadConsole troubleshooting](sadconsole/troubleshooting.md) — ARM64 Linux/Windows not currently working.
+- [Terminal (TUI)](terminal/overview.md) — cross-platform; needs a terminal with Unicode and 24-bit ("true color") support. Runs over SSH and in `tmux`/`screen`.
 
 ## Limitations specific to browser runtimes
 

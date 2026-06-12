@@ -42,7 +42,7 @@ Core library: [`Highbyte.DotNet6502.Systems.Commodore64`](../../libraries/system
     - `RawTcp` and `HayesModem` host transport modes.
     - `IRQ` or `NMI` interrupt routing.
     - `Compatible` and `FastBuffered` receive modes.
-- Blazor Browser (WASM), Avalonia Browser (WASM) and Desktop, SilkNetNative Desktop, and SadConsole Desktop UI:s.
+- Blazor Browser (WASM), Avalonia Browser (WASM) and Desktop, SilkNetNative Desktop, SadConsole Desktop, and Terminal (TUI) UI:s.
 
 ## 1541 Disk Drive Support
 

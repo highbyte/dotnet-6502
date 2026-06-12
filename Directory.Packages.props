@@ -38,9 +38,11 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <!-- 10.0.7: pulled in transitively by Microsoft.Extensions.Logging.Abstractions 10.0.7 (Terminal.Gui). -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <!-- 10.0.7: minimum required by Terminal.Gui 2.4.5 (avoids NU1605 downgrade). -->
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.0" />
@@ -86,6 +88,8 @@
     <PackageVersion Include="MessagePack.Annotations" Version="2.5.187" />
     <!-- StreamJsonRpc for Debug Adapter Protocol -->
     <PackageVersion Include="StreamJsonRpc" Version="2.19.27" />
+    <!-- Terminal.Gui v2 (interactive TUI host app) -->
+    <PackageVersion Include="Terminal.Gui" Version="2.4.5" />
     <!-- System packages -->
     <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageVersion Include="System.Net.Http.Json" Version="10.0.0" />

@@ -21,8 +21,9 @@ hold no direct project reference to them.
 | Engine-plugin library | Host technology | Used by app |
 | --------------------- | --------------- | ----------- |
 | `Highbyte.DotNet6502.Impl.Avalonia.Vic20` | Avalonia | Avalonia Desktop, Avalonia Browser |
+| `Highbyte.DotNet6502.Impl.Terminal.Vic20` | Terminal.Gui (text cells) | Terminal (TUI) |
 
-The VIC-20 currently has only an Avalonia engine plugin. No SilkNet, SadConsole, Blazor WASM, or
+The VIC-20 has Avalonia and Terminal (TUI) engine plugins. No SilkNet, SadConsole, Blazor WASM, or
 Headless plugins exist yet.
 
 ### Render
@@ -39,6 +40,10 @@ Avalonia can consume both through the generic render targets in
 
 - `AvaloniaBitmapTwoLayerRenderTarget` for the rasterizer path.
 - `AvaloniaCommandTarget` for the command-stream path.
+
+The Terminal (TUI) app consumes the command-stream (glyph-based) path via the generic terminal
+render target in [`Highbyte.DotNet6502.Impl.Terminal`](../../libraries/implementation/terminal.md),
+rendering the VIC-20 in character mode as text cells.
 
 ### Input
 

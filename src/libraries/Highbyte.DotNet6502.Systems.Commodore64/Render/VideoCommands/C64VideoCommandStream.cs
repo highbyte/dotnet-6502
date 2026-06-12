@@ -15,6 +15,9 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
     private readonly C64 _c64;
 
     private readonly Queue<IVideoCommand> _commands = new();
+    // Some hosts run emulation on a background thread and render on the UI thread. Protect the
+    // command queue so OnEndFrame production cannot interleave with DequeueAll consumption.
+    private readonly object _commandsLock = new();
 
     private readonly Dictionary<byte, uint> _c64ToRenderColorMap;
 
@@ -35,8 +38,12 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
 
     public IEnumerable<IVideoCommand> DequeueAll()
     {
-        while (_commands.Count > 0)
-            yield return _commands.Dequeue();
+        lock (_commandsLock)
+        {
+            var commands = _commands.ToArray();
+            _commands.Clear();
+            return commands;
+        }
     }
 
     public void OnAfterInstruction()
@@ -45,7 +52,8 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
 
     public void OnEndFrame()
     {
-        GenerateCommands();
+        lock (_commandsLock)
+            GenerateCommands();
         FrameCompleted?.Invoke(this, EventArgs.Empty);
     }
 
@@ -71,6 +79,19 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
         try
         {
             string representAsString;
+
+            // Best-effort Unicode for PETSCII block-graphics glyphs (lines, blocks, suits, etc.) so
+            // hosts without a C64 font (e.g. a terminal) show something similar instead of garbage.
+            // Only valid for the built-in uppercase/graphics ROM charset (VIC charset base 0x1000, the
+            // power-on default), where screen codes 0x40–0x7F are graphics. In the lowercase ROM
+            // charset those codes are letters, and a custom RAM charset is arbitrary, so skip the map
+            // there and fall through to the normal text mapping below.
+            if (_c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank == 0x1000
+                && C64GraphicsCharset.TryGetUnicode(c64ScreenCode, out var graphic))
+            {
+                return graphic;
+            }
+
             switch (c64ScreenCode)
             {
                 case 0xa0:  //160, C64 inverted space

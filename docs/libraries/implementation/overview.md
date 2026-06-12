@@ -48,3 +48,6 @@ The table below lists the system-agnostic `Impl.<Tech>` library each app uses pe
 | `Highbyte.DotNet6502.App.SadConsole`       | Render: `SadConsole`                        | Render: [`Highbyte.DotNet6502.Impl.SadConsole`](sadconsole.md) | x | x |
 |                                            | Input:  `SadConsole`                        | Input:  [`Highbyte.DotNet6502.Impl.SadConsole`](sadconsole.md) | x | x |
 |                                            | Audio:  `NAudio`, `OpenAL`                  | Audio:  [`Highbyte.DotNet6502.Impl.NAudio`](naudio.md) | x |   |
+| `Highbyte.DotNet6502.App.Terminal`         | Render: `Terminal.Gui` (text cells)         | Render: [`Highbyte.DotNet6502.Impl.Terminal`](terminal.md) | x |   |
+|                                            | Input:  `Terminal.Gui`                      | Input:  [`Highbyte.DotNet6502.Impl.Terminal`](terminal.md) | x |   |
+|                                            | Audio:  none                                | Audio:  none (terminals have no audio output) |   |   |
