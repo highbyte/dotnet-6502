@@ -12,7 +12,7 @@ Technologies:
 
 ## Installation
 
-See [Desktop apps installation](../installation.md#headless) for package manager and manual download instructions.
+See [Desktop apps installation](../installation.md#install-via-package-manager) for package manager and manual download instructions.
 
 ## Features
 

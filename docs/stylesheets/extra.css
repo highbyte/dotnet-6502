@@ -264,3 +264,34 @@
   background-color: rgba(184, 168, 118, 0.35);
   color: var(--t-text);
 }
+
+/* ── Copy button for command cells in tables (see javascripts/table-copy.js) ── */
+.md-typeset .cmd-copy {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background-color: currentColor;
+  color: var(--md-default-fg-color--light, var(--t-text-dim));
+  cursor: pointer;
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin-left: 0.45em;
+  padding: 0;
+  vertical-align: text-bottom;
+  opacity: 0.6;
+  /* mdi "content-copy" icon */
+  -webkit-mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg>') center / contain no-repeat;
+}
+.md-typeset .cmd-copy:hover {
+  opacity: 1;
+  color: var(--t-gold, currentColor);
+}
+.md-typeset .cmd-copy.cmd-copied {
+  opacity: 1;
+  color: var(--t-success, currentColor);
+  /* mdi "check" icon */
+  -webkit-mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>') center / contain no-repeat;
+}

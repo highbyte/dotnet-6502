@@ -6,100 +6,94 @@ Pre-built desktop applications are available for Windows, Linux, and macOS.
 
 The emulator has front-ends written with different technologies, with somewhat similar functionality (but not exact).
 
-| Frontend application | Description |
-|----------------------|-------------|
-| **Avalonia** | Cross-platform app using Avalonia UI for rendering. See details on the [Avalonia Desktop app](avalonia/desktop.md) page. |
-| **SadConsole** | Cross-platform desktop console-style app using SadConsole library. See details on the [SadConsole app](sadconsole/overview.md) page. |
-| **SilkNetNative** | Cross-platform desktop app using Silk.NET + SkiaSharp + shaders for rendering. See details on the [SilkNetNative app](silknet-native/overview.md) page. |
-| **Terminal (TUI)** | Cross-platform app that runs the emulator inside a real terminal using Terminal.Gui v2. See details on the [Terminal (TUI) app](terminal/overview.md) page. Install instructions in the [Terminal (TUI)](#terminal-tui) section below. |
-| **Headless** | Cross-platform console app — no UI, driven by CLI / Lua scripts. See details on the [Headless app](headless/overview.md) page. Install instructions in the [Headless](#headless) section below. |
+| Application | Description | Install via |
+|-------------|-------------|-------------|
+| **Avalonia** | Cross-platform app using Avalonia UI for rendering. See the [Avalonia Desktop app](avalonia/desktop.md) page. | Package manager or manual download |
+| **Terminal (TUI)** | Cross-platform app that runs the emulator inside a real terminal using Terminal.Gui v2. See the [Terminal (TUI) app](terminal/overview.md) page. | Package manager or manual download |
+| **Headless** | Cross-platform console app — no UI, driven by CLI / Lua scripts. See the [Headless app](headless/overview.md) page. | Package manager or manual download |
+| **Remote client** | Cross-platform CLI that drives a *running* emulator from another process over its TCP remote-control endpoint. See the [Remote control](../tools/remote-control/overview.md) page. | Package manager or manual download |
+| **SadConsole** | Cross-platform desktop console-style app using SadConsole library. See the [SadConsole app](sadconsole/overview.md) page. | Manual download only |
+| **SilkNetNative** | Cross-platform desktop app using Silk.NET + SkiaSharp + shaders for rendering. See the [SilkNetNative app](silknet-native/overview.md) page. | Manual download only |
 
-## Install via Package Manager
+---
 
-The **Avalonia** desktop app can be installed via package managers for a simpler experience.
+## Install via package manager
+
+**Avalonia**, **Terminal (TUI)**, **Headless**, and the **Remote client** can be installed via package managers — Homebrew on macOS/Linux, Scoop on Windows. (SadConsole and SilkNetNative are [manual download](#install-via-manual-download) only.)
 
 **Prerequisites:** Install [Homebrew](https://brew.sh/) (macOS/Linux) or [Scoop](https://scoop.sh/) (Windows) if you don't have them already.
 
+!!! note "Homebrew tap trust (macOS/Linux)"
+    The install commands use the **fully-qualified** `highbyte/dotnet-6502/<package>` name. This installs and trusts only that single package, as required by Homebrew 6.0's [tap-trust](https://docs.brew.sh/Tap-Trust) model — so no separate `brew tap` step is needed. (The same command also works on older Homebrew.)
+
+    **Upgrading from a pre-6.0 install?** If you previously added the tap on an older Homebrew (`brew tap highbyte/dotnet-6502`), that tap is no longer trusted after you upgrade to Homebrew 6.0, so short-name commands like `brew upgrade --formula dotnet-6502` may now be blocked. Trust it once — either the specific package, e.g. `brew trust --formula highbyte/dotnet-6502/dotnet-6502-terminal` (use `--cask` for the macOS Avalonia GUI app), or the whole tap with `brew trust highbyte/dotnet-6502`.
+
+Find your OS below, then your application's row.
+
 ### macOS (Homebrew)
 
-```bash
-brew tap highbyte/dotnet-6502
-brew install --cask dotnet-6502
-```
+| Application | Install | Update | Remove |
+|-------------|---------|--------|--------|
+| **Avalonia** (GUI) | `brew install --cask highbyte/dotnet-6502/dotnet-6502` | `brew update && brew upgrade --cask dotnet-6502` | `brew uninstall --cask dotnet-6502` |
+| **Terminal (TUI)** | `brew install --formula highbyte/dotnet-6502/dotnet-6502-terminal` | `brew update && brew upgrade dotnet-6502-terminal` | `brew uninstall dotnet-6502-terminal` |
+| **Headless** | `brew install --formula highbyte/dotnet-6502/dotnet-6502-headless` | `brew update && brew upgrade dotnet-6502-headless` | `brew uninstall dotnet-6502-headless` |
+| **Remote client** | `brew install --formula highbyte/dotnet-6502/dotnet-6502-remote` | `brew update && brew upgrade dotnet-6502-remote` | `brew uninstall dotnet-6502-remote` |
 
-### Linux (Homebrew)
+### Linux / Ubuntu (Homebrew)
 
-```bash
-brew tap highbyte/dotnet-6502
-brew install --formula dotnet-6502
-```
+| Application | Install | Update | Remove |
+|-------------|---------|--------|--------|
+| **Avalonia** | `brew install --formula highbyte/dotnet-6502/dotnet-6502` | `brew update && brew upgrade --formula dotnet-6502` | `brew uninstall --formula dotnet-6502` |
+| **Terminal (TUI)** | `brew install --formula highbyte/dotnet-6502/dotnet-6502-terminal` | `brew update && brew upgrade dotnet-6502-terminal` | `brew uninstall dotnet-6502-terminal` |
+| **Headless** | `brew install --formula highbyte/dotnet-6502/dotnet-6502-headless` | `brew update && brew upgrade dotnet-6502-headless` | `brew uninstall dotnet-6502-headless` |
+| **Remote client** | `brew install --formula highbyte/dotnet-6502/dotnet-6502-remote` | `brew update && brew upgrade dotnet-6502-remote` | `brew uninstall dotnet-6502-remote` |
 
 ### Windows (Scoop)
 
+Register the bucket once, then install/update/remove any application:
+
 ```powershell
 scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502
-scoop install dotnet-6502
 ```
 
-### Launching
+| Application | Install | Update | Remove |
+|-------------|---------|--------|--------|
+| **Avalonia** | `scoop install dotnet-6502` | `scoop update; scoop update dotnet-6502` | `scoop uninstall dotnet-6502` |
+| **Terminal (TUI)** | `scoop install dotnet-6502-terminal` | `scoop update; scoop update dotnet-6502-terminal` | `scoop uninstall dotnet-6502-terminal` |
+| **Headless** | `scoop install dotnet-6502-headless` | `scoop update; scoop update dotnet-6502-headless` | `scoop uninstall dotnet-6502-headless` |
+| **Remote client** | `scoop install dotnet-6502-remote` | `scoop update; scoop update dotnet-6502-remote` | `scoop uninstall dotnet-6502-remote` |
 
-After installing via a package manager, run the emulator from a terminal:
+!!! note "Removing the tap / bucket"
+    The `highbyte/dotnet-6502` Homebrew tap and the `dotnet-6502` Scoop bucket are shared by all three packages. Only remove them once you've uninstalled **all** dotnet-6502 packages:
+    `brew untap highbyte/dotnet-6502` (macOS/Linux) or `scoop bucket rm dotnet-6502` (Windows).
 
-```sh
-dotnet-6502
-```
+### After installing — launch & notes
 
-On macOS, the app is also installed to `/Applications` and can be launched from Launchpad, Spotlight, or Finder like any other Mac app.
+| Application | Run command | Notes |
+|-------------|-------------|-------|
+| **Avalonia** | `dotnet-6502` | On macOS also launchable from Launchpad / Spotlight / Finder (installed to `/Applications`); on Windows from the **DotNet 6502 Emulator** Start Menu shortcut. |
+| **Terminal (TUI)** | `dotnet-6502-terminal` | Needs a terminal with **Unicode** + **24-bit true color** (on Windows use Windows Terminal, not legacy `conhost`). C64 / VIC-20 ROMs required — auto-downloadable from the in-app Config dialog. See [Terminal requirements](terminal/overview.md#terminal-requirements). |
+| **Headless** | `dotnet-6502-headless --system C64 --start --script scripts/example_c64_basic_readwrite.lua` | CLI / Lua automation. C64 ROMs must be available (path set in `appsettings.json`). |
+| **Remote client** | `dotnet-6502-remote emu.state` | Drives a *separate* running Avalonia Desktop / Headless emulator over TCP — start that emulator with remote control enabled first. See [Remote control](../tools/remote-control/overview.md); run `dotnet-6502-remote --help` for all commands. |
 
-On Windows (Scoop), a Start Menu shortcut **DotNet 6502 Emulator** is also created.
-
-### Updating
-
-```bash
-# macOS
-brew update && brew upgrade --cask dotnet-6502
-
-# Linux
-brew update && brew upgrade --formula dotnet-6502
-```
-
-```powershell
-# Windows
-scoop update
-scoop update dotnet-6502
-```
-
-### Uninstalling
-
-```bash
-# macOS
-brew uninstall --cask dotnet-6502
-brew untap highbyte/dotnet-6502
-
-# Linux
-brew uninstall --formula dotnet-6502
-brew untap highbyte/dotnet-6502
-```
-
-```powershell
-# Windows
-scoop uninstall dotnet-6502
-scoop bucket rm dotnet-6502
-```
+ROM details: [Systems / C64 / ROMs](../systems/c64/roms.md), [Systems / VIC-20 / ROMs](../systems/vic20/roms.md).
 
 ---
 
 ## Install via manual download
 
-Download the latest release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page under Assets.
+Download the latest release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page under Assets. Every application ships as its own zip; substitute `<platform>` with one of `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-arm64` (macOS is Apple Silicon / ARM64 only).
 
-| Platform | Download |
-|----------|----------|
-| Windows x64 | `DotNet6502-*-win-x64.zip` |
-| Windows ARM64 | `DotNet6502-*-win-arm64.zip` |
-| Linux x64 | `DotNet6502-*-linux-x64.zip` |
-| Linux ARM64 | `DotNet6502-*-linux-arm64.zip` |
-| macOS ARM64 (Apple Silicon) | `DotNet6502-*-osx-arm64.zip` |
+| Application | Zip file | Run after extracting |
+|-------------|----------|----------------------|
+| **Avalonia** | `DotNet6502-Avalonia-<platform>.zip` | `Highbyte.DotNet6502.App.Avalonia.Desktop` |
+| **Terminal (TUI)** | `DotNet6502-Terminal-<platform>.zip` | `Highbyte.DotNet6502.App.Terminal` |
+| **Headless** | `DotNet6502-Headless-<platform>.zip` | `Highbyte.DotNet6502.App.Headless` |
+| **Remote client** | `DotNet6502-RemoteClient-<platform>.zip` | `Highbyte.DotNet6502.App.RemoteClient` |
+| **SadConsole** | `DotNet6502-SadConsole-<platform>.zip` | `Highbyte.DotNet6502.App.SadConsole` |
+| **SilkNetNative** | `DotNet6502-SilkNetNative-<platform>.zip` | `Highbyte.DotNet6502.App.SilkNetNative` |
+
+On Windows, append `.exe` to the run command (e.g. `Highbyte.DotNet6502.App.Avalonia.Desktop.exe`).
 
 ### Launching the application
 
@@ -108,7 +102,7 @@ Download the latest release for your platform from the [Releases](https://github
 1. Extract the `.zip` file to a folder.
 2. Double-click the `.exe` file to run.
 
-##### SmartScreen Warning
+##### SmartScreen warning
 
 Since the application is not code-signed, Windows SmartScreen may show a warning:
 
@@ -121,8 +115,6 @@ Since the application is not code-signed, Windows SmartScreen may show a warning
 
 This warning only appears the first time you run the application.
 
----
-
 #### Linux
 
 1. Extract the `.zip` file:
@@ -132,15 +124,13 @@ This warning only appears the first time you run the application.
    cd dotnet6502
    ```
 
-2. Run the application:
+2. Run the application (substitute the binary name from the table above):
 
    ```sh
    ./Highbyte.DotNet6502.App.Avalonia.Desktop
    ```
 
 No security warnings are typically shown on Linux.
-
----
 
 #### macOS
 
@@ -161,7 +151,7 @@ No security warnings are typically shown on Linux.
    xattr -cr .
    ```
 
-4. Run the application:
+4. Run the application (substitute the binary name from the table above):
 
    ```sh
    ./Highbyte.DotNet6502.App.Avalonia.Desktop
@@ -171,29 +161,15 @@ No security warnings are typically shown on Linux.
 
 macOS Gatekeeper blocks unsigned/non-notarized applications from running via Finder. Running from Terminal with the `xattr -cr .` command removes the quarantine flag and allows execution.
 
----
-
 ### Verifying download integrity (optional)
 
-Each release includes SHA256 checksum files (`checksums-*.sha256`) to verify your download hasn't been corrupted or tampered with.
+Each release includes SHA256 checksum files (`checksums-*.sha256`) to verify your download hasn't been corrupted or tampered with. Replace `<zip>` with your downloaded file name.
 
-#### Windows (PowerShell)
-
-```powershell
-(Get-FileHash -Algorithm SHA256 DotNet6502-Avalonia-win-x64.zip).Hash.ToLower()
-```
-
-#### Linux
-
-```sh
-sha256sum DotNet6502-Avalonia-linux-x64.zip
-```
-
-#### macOS
-
-```sh
-shasum -a 256 DotNet6502-Avalonia-osx-arm64.zip
-```
+| OS | Command |
+|----|---------|
+| Windows (PowerShell) | `(Get-FileHash -Algorithm SHA256 <zip>).Hash.ToLower()` |
+| Linux | `sha256sum <zip>` |
+| macOS | `shasum -a 256 <zip>` |
 
 Compare the output with the corresponding entry in the `checksums-*.sha256` file.
 
@@ -204,172 +180,3 @@ Compare the output with the corresponding entry in the `checksums-*.sha256` file
 - [Avalonia Desktop app troubleshooting](avalonia/troubleshooting.md)
 - [SilkNetNative app troubleshooting](silknet-native/troubleshooting.md)
 - [SadConsole troubleshooting](sadconsole/troubleshooting.md)
-
----
-
-## Terminal (TUI)
-
-Pre-built binaries of the Terminal (TUI) app are available for Windows, Linux, and macOS. See [Terminal (TUI) app](terminal/overview.md) for an overview, layout, hotkeys, and terminal requirements.
-
-!!! note
-    The Terminal app needs a terminal emulator with **Unicode (UTF-8)** and **24-bit "true color"** support, and runs over SSH and inside `tmux`/`screen`. On Windows, use a modern terminal such as Windows Terminal — the legacy `conhost` console does not render true color reliably. See [Terminal requirements](terminal/overview.md#terminal-requirements).
-
-### Install via Package Manager
-
-**Prerequisites:** Install [Homebrew](https://brew.sh/) (macOS/Linux) or [Scoop](https://scoop.sh/) (Windows).
-
-#### macOS (Homebrew)
-
-```bash
-brew tap highbyte/dotnet-6502
-brew install --formula dotnet-6502-terminal
-```
-
-#### Linux (Homebrew)
-
-```bash
-brew tap highbyte/dotnet-6502
-brew install --formula dotnet-6502-terminal
-```
-
-#### Windows (Scoop)
-
-```powershell
-scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502
-scoop install dotnet-6502-terminal
-```
-
-#### Terminal launching
-
-!!! note
-    To run the **C64** or **VIC-20** system, ROM files must be available. The app can auto-download them from its in-app Config dialog, or you can place them manually — see [Systems / C64 / ROMs](../systems/c64/roms.md) and [Systems / VIC-20 / ROMs](../systems/vic20/roms.md).
-
-After installing, run the Terminal app from a terminal:
-
-```sh
-dotnet-6502-terminal
-```
-
-#### Terminal updating
-
-```bash
-# macOS / Linux
-brew update && brew upgrade dotnet-6502-terminal
-```
-
-```powershell
-# Windows
-scoop update
-scoop update dotnet-6502-terminal
-```
-
-#### Terminal uninstalling
-
-```bash
-# macOS / Linux
-brew uninstall dotnet-6502-terminal
-brew untap highbyte/dotnet-6502
-```
-
-```powershell
-# Windows
-scoop uninstall dotnet-6502-terminal
-scoop bucket rm dotnet-6502
-```
-
-### Terminal via manual download
-
-Download the latest Terminal release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page.
-
-| Platform | Download |
-|----------|----------|
-| Windows x64 | `DotNet6502-Terminal-win-x64.zip` |
-| Windows ARM64 | `DotNet6502-Terminal-win-arm64.zip` |
-| Linux x64 | `DotNet6502-Terminal-linux-x64.zip` |
-| Linux ARM64 | `DotNet6502-Terminal-linux-arm64.zip` |
-| macOS ARM64 (Apple Silicon) | `DotNet6502-Terminal-osx-arm64.zip` |
-
-Extraction and run-from-terminal procedure is the same as for the desktop apps above (see [Launching the application](#launching-the-application)). Replace the binary name with `Highbyte.DotNet6502.App.Terminal` (or `Highbyte.DotNet6502.App.Terminal.exe` on Windows).
-
----
-
-## Headless
-
-Pre-built binaries of the Headless console app are available for Windows, Linux, and macOS. See [Headless app](headless/overview.md) for an overview, CLI arguments, and Lua scripting.
-
-### Install via Package Manager
-
-**Prerequisites:** Install [Homebrew](https://brew.sh/) (macOS/Linux) or [Scoop](https://scoop.sh/) (Windows).
-
-#### macOS (Homebrew)
-
-```bash
-brew tap highbyte/dotnet-6502
-brew install --formula dotnet-6502-headless
-```
-
-#### Linux (Homebrew)
-
-```bash
-brew tap highbyte/dotnet-6502
-brew install --formula dotnet-6502-headless
-```
-
-#### Windows (Scoop)
-
-```powershell
-scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502
-scoop install dotnet-6502-headless
-```
-
-#### Headless launching
-
-!!! note
-    To run the **C64** system, ROM files (Kernal, Basic, Chargen) must be downloaded separately and placed in the directory configured in `appsettings.json`. See [Systems / C64 / ROMs](../systems/c64/roms.md).
-
-After installing, run the headless app from a terminal:
-
-```sh
-dotnet-6502-headless --system C64 --start --script scripts/example_c64_basic_readwrite.lua
-```
-
-#### Headless updating
-
-```bash
-# macOS / Linux
-brew update && brew upgrade dotnet-6502-headless
-```
-
-```powershell
-# Windows
-scoop update
-scoop update dotnet-6502-headless
-```
-
-#### Headless uninstalling
-
-```bash
-# macOS / Linux
-brew uninstall dotnet-6502-headless
-brew untap highbyte/dotnet-6502
-```
-
-```powershell
-# Windows
-scoop uninstall dotnet-6502-headless
-scoop bucket rm dotnet-6502
-```
-
-### Headless via manual download
-
-Download the latest Headless release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page.
-
-| Platform | Download |
-|----------|----------|
-| Windows x64 | `DotNet6502-Headless-win-x64.zip` |
-| Windows ARM64 | `DotNet6502-Headless-win-arm64.zip` |
-| Linux x64 | `DotNet6502-Headless-linux-x64.zip` |
-| Linux ARM64 | `DotNet6502-Headless-linux-arm64.zip` |
-| macOS ARM64 (Apple Silicon) | `DotNet6502-Headless-osx-arm64.zip` |
-
-Extraction and run-from-terminal procedure is the same as for the desktop apps above (see [Launching the application](#launching-the-application)). Replace the binary name with `Highbyte.DotNet6502.App.Headless` (or `Highbyte.DotNet6502.App.Headless.exe` on Windows).
