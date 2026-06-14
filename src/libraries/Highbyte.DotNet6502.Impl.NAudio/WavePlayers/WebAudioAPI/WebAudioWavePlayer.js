@@ -119,6 +119,14 @@ export const WebAudioWavePlayer = (() => {
         return `base=${baseLatency}, output=${outputLatency}`;
     }
 
+    function getSharedAudioWorkletAvailabilityText() {
+        const crossOriginIsolated = Boolean(globalThis.crossOriginIsolated);
+        const sharedArrayBuffer = typeof SharedArrayBuffer === 'function';
+        const audioWorklet = Boolean(audioContext?.audioWorklet);
+        const secureContext = Boolean(globalThis.isSecureContext);
+        return `crossOriginIsolated=${crossOriginIsolated}, SharedArrayBuffer=${sharedArrayBuffer}, audioWorklet=${audioWorklet}, secureContext=${secureContext}`;
+    }
+
     function clearStatsTimer() {
         if (statsTimerId !== null) {
             clearInterval(statsTimerId);
@@ -239,6 +247,7 @@ export const WebAudioWavePlayer = (() => {
         });
         logInfo(`AudioContext created with sample rate: ${audioContext.sampleRate}`);
         logInfo(`AudioContext latency: ${getAudioLatencyText()}`);
+        logInfo(`Shared AudioWorklet availability: ${getSharedAudioWorkletAvailabilityText()}`);
 
         // Resume context if it was suspended (browser autoplay policy)
         if (audioContext.state === 'suspended') {
@@ -257,12 +266,13 @@ export const WebAudioWavePlayer = (() => {
         logInfo(`  Start threshold: ${minBufferBeforePlay} samples (~${minBufferMs}ms) [${options.minBufferBeforePlayMultiplier}x multiplier]`);
         logInfo(`  ScriptProcessor buffer: ${scriptProcessorBufferSize} samples`);
         logInfo(`  Stats interval: ${statsIntervalMs}ms${statsIntervalMs === 0 ? ' (disabled)' : ''}`);
+        logInfo(`  Prefer/require shared AudioWorklet: ${options.preferSharedAudioWorklet}/${options.requireSharedAudioWorklet}`);
 
         if (options.preferSharedAudioWorklet && canUseSharedAudioWorklet()) {
             setupSharedAudioWorklet(options.requireSharedAudioWorklet);
         } else {
             if (options.preferSharedAudioWorklet) {
-                const message = 'SharedArrayBuffer AudioWorklet unavailable';
+                const message = `SharedArrayBuffer AudioWorklet unavailable (${getSharedAudioWorkletAvailabilityText()})`;
                 if (options.requireSharedAudioWorklet) {
                     logError(`${message}; DirectWriteAudioWorklet mode cannot start`);
                     return;
