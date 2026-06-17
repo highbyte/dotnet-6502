@@ -165,7 +165,7 @@ For development system requirements, see [Development](../../home/development.md
 
 ### Visual Studio (Windows)
 
-Open solution `dotnet-6502.sln`. Set project `Highbyte.DotNet6502.App.Headless` as startup and start with F5.
+Open solution `dotnet-6502.slnx`. Set project `Highbyte.DotNet6502.App.Headless` as startup and start with F5.
 
 ### VSCode
 

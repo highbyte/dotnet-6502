@@ -80,7 +80,7 @@ For development system requirements, see details under [Development](../../home/
 
 ### Visual Studio (Windows)
 
-Open solution `dotnet-6502.sln`.
+Open solution `dotnet-6502.slnx`.
 Set project `Highbyte.DotNet6502.App.WASM` as startup, and start with F5.
 
 !!! important

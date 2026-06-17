@@ -113,7 +113,7 @@ See [Avalonia Desktop app troubleshooting](troubleshooting.md).
 
 ### Visual Studio (Windows)
 
-Open solution `dotnet-6502.sln`. Set project `Highbyte.DotNet6502.App.Avalonia.Desktop` as startup, and start with F5.
+Open solution `dotnet-6502.slnx`. Set project `Highbyte.DotNet6502.App.Avalonia.Desktop` as startup, and start with F5.
 
 ### VSCode
 

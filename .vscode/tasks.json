@@ -151,7 +151,7 @@
             "type": "process",
             "args": [
                 "test",
-                "${workspaceFolder}/dotnet-6502.sln",
+                "${workspaceFolder}/dotnet-6502.slnx",
                 "--filter",
                 "TestType=Integration",
                 "/property:GenerateFullPaths=true",
@@ -169,7 +169,7 @@
             "type": "process",
             "args": [
                 "test",
-                "${workspaceFolder}/dotnet-6502.sln",
+                "${workspaceFolder}/dotnet-6502.slnx",
                 "--filter",
                 "TestType!=Integration",
                 "/property:GenerateFullPaths=true",

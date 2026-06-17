@@ -42,8 +42,8 @@ jobs:
     #     dotnet nuget locals all --clear
       
     - name: Restore dependencies
-      run: dotnet restore dotnet-6502.sln
+      run: dotnet restore dotnet-6502.slnx
     - name: Build
-      run: dotnet build dotnet-6502.sln --no-restore
+      run: dotnet build dotnet-6502.slnx --no-restore
     - name: Test
-      run: dotnet test dotnet-6502.sln --no-build --verbosity normal
+      run: dotnet test dotnet-6502.slnx --no-build --verbosity normal

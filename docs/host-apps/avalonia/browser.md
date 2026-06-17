@@ -106,7 +106,7 @@ For development system requirements, see [Development](../../home/development.md
 
 ### Visual Studio (Windows)
 
-Open solution `dotnet-6502.sln`. Set project `Highbyte.DotNet6502.App.Avalonia.Browser` as startup, and start with F5.
+Open solution `dotnet-6502.slnx`. Set project `Highbyte.DotNet6502.App.Avalonia.Browser` as startup, and start with F5.
 
 !!! important
     Running a Debug build of the Avalonia Browser app is very slow. To get acceptable performance a published release build with AOT is required. The Avalonia Desktop app has ok performance in Debug mode, so using the Desktop app when developing and testing locally is recommended.

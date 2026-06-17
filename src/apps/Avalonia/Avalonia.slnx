@@ -1,0 +1,40 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Apps/">
+    <Project Path="Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj" />
+    <Project Path="Highbyte.DotNet6502.App.Avalonia.Core/Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+    <Project Path="Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/Libs/">
+    <Project Path="../../libraries/Highbyte.DotNet6502.AI/Highbyte.DotNet6502.AI.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.DebugAdapter/Highbyte.DotNet6502.DebugAdapter.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.Avalonia.Commodore64/Highbyte.DotNet6502.Impl.Avalonia.Commodore64.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.Avalonia.Generic/Highbyte.DotNet6502.Impl.Avalonia.Generic.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.Avalonia.Vic20/Highbyte.DotNet6502.Impl.Avalonia.Vic20.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.Avalonia/Highbyte.DotNet6502.Impl.Avalonia.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.Browser/Highbyte.DotNet6502.Impl.Browser.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.NAudio/Highbyte.DotNet6502.Impl.NAudio.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.SilkNet.SDL/Highbyte.DotNet6502.Impl.SilkNet.SDL.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.Skia.Commodore64/Highbyte.DotNet6502.Impl.Skia.Commodore64.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Impl.Skia/Highbyte.DotNet6502.Impl.Skia.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Remoting/Highbyte.DotNet6502.Remoting.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Scripting.MoonSharp/Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Systems.Commodore64.Transport/Highbyte.DotNet6502.Systems.Commodore64.Transport.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Systems.Commodore64/Highbyte.DotNet6502.Systems.Commodore64.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Systems.Generic/Highbyte.DotNet6502.Systems.Generic.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Systems.Plugins/Highbyte.DotNet6502.Systems.Plugins.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Systems.Vic20/Highbyte.DotNet6502.Systems.Vic20.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj" />
+    <Project Path="../../libraries/Highbyte.DotNet6502/Highbyte.DotNet6502.csproj" />
+    <Project Path="Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64/Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="../../../NuGet.Config" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+</Solution>

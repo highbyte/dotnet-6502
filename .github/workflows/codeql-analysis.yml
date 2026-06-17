@@ -87,9 +87,9 @@ jobs:
 
     # Manually build instead of relying on Autobuild
     - name: Restore dependencies
-      run: dotnet restore dotnet-6502.sln
+      run: dotnet restore dotnet-6502.slnx
     - name: Build
-      run: dotnet build dotnet-6502.sln --no-restore        
+      run: dotnet build dotnet-6502.slnx --no-restore
 
     #- run: |
     #   make bootstrap

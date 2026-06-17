@@ -1,0 +1,99 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/App/">
+    <Project Path="src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj" />
+    <Project Path="src/apps/Highbyte.DotNet6502.App.RemoteClient/Highbyte.DotNet6502.App.RemoteClient.csproj" />
+    <Project Path="src/apps/Highbyte.DotNet6502.DebugAdapter/Highbyte.DotNet6502.DebugAdapter.ConsoleApp.csproj" />
+  </Folder>
+  <Folder Name="/App/Avalonia/">
+    <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj" />
+    <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+    <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj" />
+    <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64/Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.csproj" />
+    <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.Generic/Highbyte.DotNet6502.App.Avalonia.Shell.Generic.csproj" />
+    <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.Vic20/Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.csproj" />
+  </Folder>
+  <Folder Name="/App/BlazorWASM/">
+    <Project Path="src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM.Core/Highbyte.DotNet6502.App.WASM.Core.csproj" />
+    <Project Path="src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM.Shell.Commodore64/Highbyte.DotNet6502.App.WASM.Shell.Commodore64.csproj" />
+    <Project Path="src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM.Shell.Generic/Highbyte.DotNet6502.App.WASM.Shell.Generic.csproj" />
+    <Project Path="src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj" />
+  </Folder>
+  <Folder Name="/App/SilkNetNative/">
+    <Project Path="src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.Core/Highbyte.DotNet6502.App.SilkNetNative.Core.csproj" />
+    <Project Path="src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.Shell.Commodore64/Highbyte.DotNet6502.App.SilkNetNative.Shell.Commodore64.csproj" />
+    <Project Path="src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.Shell.Generic/Highbyte.DotNet6502.App.SilkNetNative.Shell.Generic.csproj" />
+    <Project Path="src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative.csproj" />
+  </Folder>
+  <Folder Name="/Benchmarks/">
+    <Project Path="benchmarks/Highbyte.DotNet6502.Benchmarks/Highbyte.DotNet6502.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/Libs/">
+    <Project Path="src/libraries/Highbyte.DotNet6502.AI/Highbyte.DotNet6502.AI.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.DebugAdapter/Highbyte.DotNet6502.DebugAdapter.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.AspNet.Commodore64/Highbyte.DotNet6502.Impl.AspNet.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.AspNet.Generic/Highbyte.DotNet6502.Impl.AspNet.Generic.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.AspNet/Highbyte.DotNet6502.Impl.AspNet.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia.Commodore64/Highbyte.DotNet6502.Impl.Avalonia.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia.Generic/Highbyte.DotNet6502.Impl.Avalonia.Generic.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia.Vic20/Highbyte.DotNet6502.Impl.Avalonia.Vic20.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia/Highbyte.DotNet6502.Impl.Avalonia.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Browser/Highbyte.DotNet6502.Impl.Browser.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Headless.Commodore64/Highbyte.DotNet6502.Impl.Headless.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Headless.Generic/Highbyte.DotNet6502.Impl.Headless.Generic.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Headless/Highbyte.DotNet6502.Impl.Headless.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.NAudio/Highbyte.DotNet6502.Impl.NAudio.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SadConsole/Highbyte.DotNet6502.Impl.SadConsole.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SilkNet.Commodore64/Highbyte.DotNet6502.Impl.SilkNet.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SilkNet.Generic/Highbyte.DotNet6502.Impl.SilkNet.Generic.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SilkNet.SDL/Highbyte.DotNet6502.Impl.SilkNet.SDL.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SilkNet/Highbyte.DotNet6502.Impl.SilkNet.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Skia.Commodore64/Highbyte.DotNet6502.Impl.Skia.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Skia/Highbyte.DotNet6502.Impl.Skia.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Remoting/Highbyte.DotNet6502.Remoting.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Scripting.MoonSharp/Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Commodore64/Highbyte.DotNet6502.Systems.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Generic/Highbyte.DotNet6502.Systems.Generic.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Vic20/Highbyte.DotNet6502.Systems.Vic20.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502/Highbyte.DotNet6502.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/apps/">
+    <Project Path="src/apps/Highbyte.DotNet6502.App.Headless/Highbyte.DotNet6502.App.Headless.csproj" />
+  </Folder>
+  <Folder Name="/src/apps/SadConsole/">
+    <Project Path="src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole.Core/Highbyte.DotNet6502.App.SadConsole.Core.csproj" />
+    <Project Path="src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole.Shell.Commodore64/Highbyte.DotNet6502.App.SadConsole.Shell.Commodore64.csproj" />
+    <Project Path="src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole.Shell.Generic/Highbyte.DotNet6502.App.SadConsole.Shell.Generic.csproj" />
+    <Project Path="src/apps/SadConsole/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj" />
+  </Folder>
+  <Folder Name="/src/apps/Terminal/">
+    <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Core/Highbyte.DotNet6502.App.Terminal.Core.csproj" />
+    <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Shell.Commodore64/Highbyte.DotNet6502.App.Terminal.Shell.Commodore64.csproj" />
+    <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Shell.Vic20/Highbyte.DotNet6502.App.Terminal.Shell.Vic20.csproj" />
+    <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal/Highbyte.DotNet6502.App.Terminal.csproj" />
+  </Folder>
+  <Folder Name="/src/libraries/">
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SadConsole.Commodore64/Highbyte.DotNet6502.Impl.SadConsole.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SadConsole.Generic/Highbyte.DotNet6502.Impl.SadConsole.Generic.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal.Commodore64/Highbyte.DotNet6502.Impl.Terminal.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal.Vic20/Highbyte.DotNet6502.Impl.Terminal.Vic20.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal/Highbyte.DotNet6502.Impl.Terminal.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Commodore64.Transport/Highbyte.DotNet6502.Systems.Commodore64.Transport.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Plugins/Highbyte.DotNet6502.Systems.Plugins.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Highbyte.DotNet6502.Monitor.Tests/Highbyte.DotNet6502.Monitor.Tests.csproj" />
+    <Project Path="tests/Highbyte.DotNet6502.Systems.Tests/Highbyte.DotNet6502.Systems.Tests.csproj" />
+    <Project Path="tests/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj" />
+  </Folder>
+</Solution>

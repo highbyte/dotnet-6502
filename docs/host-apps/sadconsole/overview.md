@@ -59,7 +59,7 @@ See [SadConsole troubleshooting](troubleshooting.md).
 
 ### Visual Studio 2026 or 2022 (Windows)
 
-Open solution `dotnet-6502.sln`.
+Open solution `dotnet-6502.slnx`.
 Set project `Highbyte.DotNet6502.App.SadConsole` as startup, and start with F5.
 
 ### VSCode

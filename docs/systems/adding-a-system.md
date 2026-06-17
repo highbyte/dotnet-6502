@@ -18,7 +18,7 @@ configurer, the `--system` CLI argument).
 A new system touches three tiers — a **system core**, an **engine plugin**, and a **shell
 plugin** — per the model described in [architecture.md](./../architecture.md). System cores and
 engine plugins live under `src/libraries/`; shell projects live under `src/apps/`. Add every
-new project to the solution (`dotnet-6502.sln`).
+new project to the solution (`dotnet-6502.slnx`).
 
 ## Step 1 — The system core
 
@@ -177,7 +177,7 @@ The system now shows up in the Avalonia Desktop app's system list, is selectable
 
 ## Step 4 — Build and verify
 
-Add the three projects to `dotnet-6502.sln`, build, and run the Avalonia Desktop app. Confirm the
+Add the three projects to `dotnet-6502.slnx`, build, and run the Avalonia Desktop app. Confirm the
 new system appears in the system selector and can be started/stopped. Nothing is drawn — that is
 expected for a no-op system.
 
