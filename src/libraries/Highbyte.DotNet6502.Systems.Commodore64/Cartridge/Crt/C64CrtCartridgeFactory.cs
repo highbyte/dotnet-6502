@@ -9,6 +9,7 @@ public static class C64CrtCartridgeFactory
         return image.Header.HardwareType switch
         {
             (ushort)C64CrtHardwareType.Generic => CreateGeneric(image),
+            (ushort)C64CrtHardwareType.Ocean => CreateOcean(image),
             (ushort)C64CrtHardwareType.MagicDesk => CreateMagicDesk(image),
             _ => throw new C64UnsupportedCrtHardwareException(image.Header.HardwareType),
         };
@@ -64,6 +65,51 @@ public static class C64CrtCartridgeFactory
             rom,
             string.IsNullOrWhiteSpace(image.Header.Name) ? "Magic Desk" : image.Header.Name);
     }
+
+    private static IC64Cartridge CreateOcean(C64CrtImage image)
+    {
+        if (image.Chips.Any(chip => chip.Type != C64CrtChipType.Rom))
+            throw new C64CrtImageException("Ocean CRT images support ROM CHIP packets only.");
+
+        var banks = BuildBankedRomChips(image, "Ocean", maximumBank: 63);
+        var bankCount = banks.Count;
+        if (!IsPowerOfTwo(bankCount))
+            throw new C64CrtImageException("Ocean CRT bank count must be a power of two.");
+        for (ushort bank = 0; bank < bankCount; bank++)
+        {
+            if (!banks.ContainsKey(bank))
+                throw new C64CrtImageException($"Ocean CRT bank {bank} is missing.");
+        }
+
+        var rom = new C64BankedRom(banks, maximumBank: 63);
+        return new C64OceanCartridge(
+            rom,
+            useEightKMode: bankCount == 64,
+            name: string.IsNullOrWhiteSpace(image.Header.Name) ? "Ocean" : image.Header.Name);
+    }
+
+    private static Dictionary<ushort, byte[]> BuildBankedRomChips(
+        C64CrtImage image,
+        string hardwareName,
+        ushort maximumBank)
+    {
+        var banks = new Dictionary<ushort, byte[]>(image.Chips.Count);
+        foreach (var chip in image.Chips)
+        {
+            if (chip.Bank > maximumBank)
+                throw new C64CrtImageException($"{hardwareName} CRT bank {chip.Bank} exceeds the supported maximum bank {maximumBank}.");
+            if (chip.LoadAddress is not (0x8000 or 0xA000))
+                throw new C64CrtImageException($"{hardwareName} CRT bank {chip.Bank} must load at 0x8000 or 0xA000.");
+            if (chip.Data.Length != C64BankedRom.BankSize)
+                throw new C64CrtImageException($"{hardwareName} CRT bank {chip.Bank} must contain exactly 8K of ROM data.");
+            if (!banks.TryAdd(chip.Bank, chip.Data))
+                throw new C64CrtImageException($"{hardwareName} CRT bank {chip.Bank} is duplicated.");
+        }
+        return banks;
+    }
+
+    private static bool IsPowerOfTwo(int value)
+        => value > 0 && (value & (value - 1)) == 0;
 
     private static byte[]? BuildWindow(IReadOnlyList<C64CrtChip> chips, ushort baseAddress)
     {

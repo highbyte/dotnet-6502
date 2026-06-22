@@ -302,6 +302,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
             var mode = image.HardwareType switch
             {
+                (ushort)C64CrtHardwareType.Ocean => "Ocean",
                 (ushort)C64CrtHardwareType.MagicDesk => "Magic Desk",
                 (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: true, ExromHigh: false } => "generic 8K",
                 (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: false, ExromHigh: false } => "generic 16K",

@@ -244,6 +244,113 @@ public class C64CrtTests
     }
 
     [Fact]
+    public void Factory_Creates_Ocean_16K_Cartridge_With_Mirrored_Banked_Rom()
+    {
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Ocean,
+            exromHigh: false,
+            gameHigh: false,
+            name: "OCEAN TEST",
+            chips: CreateBankChips(4)));
+
+        var cartridge = Assert.IsType<C64OceanCartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        Assert.False(cartridge.UseEightKMode);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: false), cartridge.Lines);
+        Assert.True(cartridge.HasROML);
+        Assert.True(cartridge.HasROMH);
+        Assert.False(cartridge.HandlesIORead(0xDE00));
+        Assert.True(cartridge.HandlesIOWrite(0xDE00));
+        Assert.Equal(0x10, cartridge.ReadROML(0x8000));
+        Assert.Equal(0x10, cartridge.ReadROMH(0xA000));
+
+        cartridge.WriteIO(0xDE00, 0x82);
+
+        Assert.Equal((ushort)2, cartridge.CurrentBank);
+        Assert.Equal(0x12, cartridge.ReadROML(0x8000));
+        Assert.Equal(0x12, cartridge.ReadROMH(0xA000));
+    }
+
+    [Fact]
+    public void Factory_Creates_Ocean_512K_Cartridge_In_8K_Mode()
+    {
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Ocean,
+            exromHigh: false,
+            gameHigh: true,
+            chips: CreateBankChips(64)));
+
+        var cartridge = Assert.IsType<C64OceanCartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        Assert.True(cartridge.UseEightKMode);
+        Assert.Equal(new C64CartridgeLines(GameHigh: true, ExromHigh: false), cartridge.Lines);
+        Assert.False(cartridge.HasROMH);
+
+        cartridge.WriteIO(0xDE00, 63);
+
+        Assert.Equal((ushort)63, cartridge.CurrentBank);
+        Assert.Equal(0x4F, cartridge.ReadROML(0x8000));
+    }
+
+    [Theory]
+    [InlineData("missing-bank")]
+    [InlineData("non-power-of-two")]
+    [InlineData("invalid-address")]
+    [InlineData("invalid-size")]
+    [InlineData("bank-too-high")]
+    public void Factory_Rejects_Invalid_Ocean_Images(string invalidShape)
+    {
+        Chip[] chips = invalidShape switch
+        {
+            "missing-bank" =>
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10)),
+                new Chip(2, 0x8000, Filled(0x2000, 0x12)),
+            ],
+            "non-power-of-two" => CreateBankChips(3),
+            "invalid-address" => [new Chip(0, 0x9000, Filled(0x2000, 0x10))],
+            "invalid-size" => [new Chip(0, 0x8000, Filled(0x1000, 0x10))],
+            "bank-too-high" => [new Chip(64, 0x8000, Filled(0x2000, 0x10))],
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidShape)),
+        };
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Ocean,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        Assert.Throws<C64CrtImageException>(
+            () => C64CrtCartridgeFactory.Create(image));
+    }
+
+    [Fact]
+    public void Ocean_Attach_Maps_And_Switches_Mirrored_Rom_Banks()
+    {
+        var c64 = BuildC64();
+        c64.IO[0x0E00] = 0x5A;
+        var crt = BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Ocean,
+            exromHigh: false,
+            gameHigh: false,
+            name: "OCEAN TEST",
+            chips: CreateBankChips(4));
+
+        var result = c64.AttachCrtImage(crt, "ocean.crt");
+
+        Assert.Equal((ushort)C64CrtHardwareType.Ocean, result.HardwareType);
+        Assert.Equal(0x10, c64.Mem.Read(0x8000));
+        Assert.Equal(0x10, c64.Mem.Read(0xA000));
+        Assert.Equal(0x5A, c64.Mem.Read(0xDE00));
+
+        c64.Mem.Write(0xDE00, 3);
+
+        Assert.Equal(0x13, c64.Mem.Read(0x8000));
+        Assert.Equal(0x13, c64.Mem.Read(0xA000));
+    }
+
+    [Fact]
     public void Unsupported_Hardware_Type_Does_Not_Replace_Current_Cartridge()
     {
         var c64 = BuildC64();
@@ -335,6 +442,14 @@ public class C64CrtTests
         Array.Fill(data, value);
         return data;
     }
+
+    private static Chip[] CreateBankChips(int count)
+        => Enumerable.Range(0, count)
+            .Select(bank => new Chip(
+                (ushort)bank,
+                0x8000,
+                Filled(0x2000, (byte)(0x10 + bank))))
+            .ToArray();
 
     private sealed record Chip(ushort Bank, ushort Address, byte[] Data);
 }
