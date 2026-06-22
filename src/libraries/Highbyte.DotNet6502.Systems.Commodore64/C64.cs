@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.Crt;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
@@ -54,6 +55,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public IECBus IECBus { get; set; } = default!;
     public Dictionary<string, byte[]> ROMData { get; set; } = default!;
     public C64CartridgeSlot CartridgeSlot { get; } = new();
+    public C64CartridgeImageAttachResult? AttachedCartridgeImage { get; private set; }
 
     public bool AudioEnabled { get; private set; }
     public TimerMode TimerMode { get; private set; }
@@ -674,13 +676,52 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     }
 
     public void AttachCartridge(IC64Cartridge cartridge)
-        => CartridgeSlot.Attach(cartridge);
+    {
+        CartridgeSlot.Attach(cartridge);
+        AttachedCartridgeImage = null;
+    }
 
     public void DetachCartridge()
-        => CartridgeSlot.Detach();
+    {
+        CartridgeSlot.Detach();
+        AttachedCartridgeImage = null;
+    }
 
     public void ResetAttachedCartridge()
         => CartridgeSlot.Reset();
+
+    public C64CartridgeImageAttachResult AttachCrtImage(
+        ReadOnlyMemory<byte> image,
+        string? sourceName = null)
+    {
+        var crtImage = C64CrtParser.Parse(image.Span);
+        var cartridge = C64CrtCartridgeFactory.Create(crtImage);
+        var result = new C64CartridgeImageAttachResult(
+            cartridge.Name,
+            crtImage.Header.HardwareType,
+            crtImage.Header.Subtype,
+            cartridge.Lines,
+            crtImage.Chips.Count,
+            sourceName);
+
+        CartridgeSlot.Replace(cartridge);
+        AttachedCartridgeImage = result;
+        HardReset();
+        return result;
+    }
+
+    public void DetachCartridgeAndReset()
+    {
+        DetachCartridge();
+        HardReset();
+    }
+
+    public void HardReset()
+    {
+        CartridgeSlot.Reset();
+        SetStartupBank(this);
+        CPU.Reset(Mem);
+    }
 
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()
     {

@@ -24,6 +24,26 @@ public sealed class C64CartridgeSlot : IDisposable
         LinesChanged?.Invoke();
     }
 
+    public void Replace(IC64Cartridge cartridge)
+    {
+        ArgumentNullException.ThrowIfNull(cartridge);
+        cartridge.Reset();
+
+        var previous = AttachedCartridge;
+        if (previous != null)
+            previous.LinesChanged -= OnCartridgeLinesChanged;
+
+        AttachedCartridge = cartridge;
+        cartridge.LinesChanged += OnCartridgeLinesChanged;
+        LinesChanged?.Invoke();
+
+        if (previous != null)
+        {
+            previous.Reset();
+            previous.Dispose();
+        }
+    }
+
     public void Detach()
     {
         var cartridge = AttachedCartridge;

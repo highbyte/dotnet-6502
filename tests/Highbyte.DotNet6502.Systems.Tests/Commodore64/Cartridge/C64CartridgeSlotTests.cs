@@ -67,15 +67,50 @@ public class C64CartridgeSlotTests
         Assert.Equal(1, cartridge.DisposeCalls);
     }
 
-    private sealed class TestCartridge(string name = "Test") : IC64Cartridge
+    [Fact]
+    public void Replace_Activates_New_Cartridge_And_Disposes_Previous_Cartridge()
+    {
+        var slot = new C64CartridgeSlot();
+        var previous = new TestCartridge("Previous");
+        var replacement = new TestCartridge("Replacement");
+        var lineChanges = 0;
+        slot.LinesChanged += () => lineChanges++;
+        slot.Attach(previous);
+
+        slot.Replace(replacement);
+        previous.RaiseLinesChanged();
+        replacement.RaiseLinesChanged();
+
+        Assert.Same(replacement, slot.AttachedCartridge);
+        Assert.Equal(2, previous.ResetCalls);
+        Assert.Equal(1, previous.DisposeCalls);
+        Assert.Equal(1, replacement.ResetCalls);
+        Assert.Equal(3, lineChanges);
+    }
+
+    [Fact]
+    public void Replace_Preserves_Previous_Cartridge_When_Replacement_Reset_Fails()
+    {
+        var slot = new C64CartridgeSlot();
+        var previous = new TestCartridge("Previous");
+        var replacement = new TestCartridge("Replacement", throwOnReset: true);
+        slot.Attach(previous);
+
+        Assert.Throws<InvalidOperationException>(() => slot.Replace(replacement));
+
+        Assert.Same(previous, slot.AttachedCartridge);
+        Assert.Equal(1, previous.ResetCalls);
+        Assert.Equal(0, previous.DisposeCalls);
+        Assert.Equal(1, replacement.ResetCalls);
+    }
+
+    private sealed class TestCartridge(
+        string name = "Test",
+        bool throwOnReset = false) : IC64Cartridge
     {
         public string Name { get; } = name;
         public C64CartridgeLines Lines => C64CartridgeLines.Released;
-        public event Action? LinesChanged
-        {
-            add { }
-            remove { }
-        }
+        public event Action? LinesChanged;
         private byte _ioValue;
         public int ReadIOCalls { get; private set; }
         public int WriteIOCalls { get; private set; }
@@ -99,7 +134,13 @@ public class C64CartridgeSlotTests
         public bool HasROMH => false;
         public byte ReadROMH(ushort address) => throw new InvalidOperationException();
         public void Tick() => TickCalls++;
-        public void Reset() => ResetCalls++;
+        public void Reset()
+        {
+            ResetCalls++;
+            if (throwOnReset)
+                throw new InvalidOperationException("Reset failed.");
+        }
         public void Dispose() => DisposeCalls++;
+        public void RaiseLinesChanged() => LinesChanged?.Invoke();
     }
 }
