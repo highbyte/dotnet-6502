@@ -189,7 +189,7 @@ services.AddSingleton(loggerFactory);
 services.AddSingleton<IConfiguration>(configuration);
 foreach (var plugin in enginePlugins)
     plugin.Register(services, configuration);
-var serviceProvider = services.BuildServiceProvider();
+var serviceProvider = services.BuildServiceProvider(DotNet6502ServiceProviderOptions.Validated);
 
 var systemList = new SystemList();
 foreach (var configurer in serviceProvider

@@ -131,7 +131,7 @@ try
     foreach (var plugin in shellPlugins)
         plugin.RegisterShellServices(services);
 
-    var serviceProvider = services.BuildServiceProvider();
+    var serviceProvider = services.BuildServiceProvider(DotNet6502ServiceProviderOptions.Validated);
 
     var systemList = new SystemList();
     foreach (var configurer in serviceProvider

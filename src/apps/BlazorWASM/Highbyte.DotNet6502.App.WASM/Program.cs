@@ -46,6 +46,9 @@ var pluginLogger = pluginLoggerFactory.CreateLogger("PluginDiscovery");
 // Plug-in discovery + registration. A failure here (a plug-in that throws while registering, ...)
 // is recorded in BootstrapError; the app still mounts and the Index component shows the error
 // instead of the emulator UI — Blazor WASM cannot show a custom UI before the app has mounted.
+// Unlike the desktop/manual hosts, WebAssemblyHostBuilder owns the service-provider build and
+// does not expose a BuildServiceProvider(ServiceProviderOptions) hook here. Constructor graph
+// validation remains a known browser-host gap, especially for trimmed/AOT published builds.
 try
 {
     var enabledSystems = builder.Configuration.GetSection("EnabledSystems").Get<string[]>();

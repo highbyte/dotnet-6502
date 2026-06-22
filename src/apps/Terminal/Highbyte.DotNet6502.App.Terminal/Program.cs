@@ -96,7 +96,7 @@ try
     foreach (var plugin in shellPlugins)
         plugin.RegisterShellServices(services);
 
-    var serviceProvider = services.BuildServiceProvider();
+    var serviceProvider = services.BuildServiceProvider(DotNet6502ServiceProviderOptions.Validated);
 
     // ----------
     // System list, built from the discovered configurers (no system named in code).

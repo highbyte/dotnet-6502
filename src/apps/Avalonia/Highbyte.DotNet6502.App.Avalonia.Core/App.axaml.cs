@@ -364,7 +364,7 @@ public partial class App : Application
         // Views are NOT registered - XAML creates them!
         // They get their ViewModels through DataContext binding
 
-        _serviceProvider = services.BuildServiceProvider();
+        _serviceProvider = services.BuildServiceProvider(DotNet6502ServiceProviderOptions.Validated);
     }
 
     /// <summary>
