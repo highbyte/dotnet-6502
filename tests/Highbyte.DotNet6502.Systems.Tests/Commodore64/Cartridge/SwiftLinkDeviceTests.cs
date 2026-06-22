@@ -21,8 +21,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         await transport.SendAsync(0x41);
         device.Tick();
@@ -41,8 +40,7 @@ public class SwiftLinkDeviceTests
             Transport = transport
         };
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         mem.Write(0xDE00, 0x42);
         Assert.False(IsTxEmpty(mem.Read(0xDE01)));
@@ -59,8 +57,7 @@ public class SwiftLinkDeviceTests
     public void Device_Maps_At_Configured_Base_Address(C64CartridgeIOAddress cartridgeIOAddress, ushort expectedBaseAddress)
     {
         var device = new SwiftLinkDevice(cartridgeIOAddress, NullLogger<SwiftLinkDevice>.Instance);
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         mem.Write((ushort)(expectedBaseAddress + 0x02), 0x77);
 
@@ -75,8 +72,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         mem.Write(0xDE02, 0x12);
         mem.Write(0xDE03, 0x34);
@@ -104,8 +100,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
         mem.Write(0xDE02, ReceiveIrqEnabledCommand);
 
         await transport.SendAsync(0x41);
@@ -134,8 +129,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
         mem.Write(0xDE02, ReceiveIrqEnabledCommand);
 
         await transport.SendAsync(0x41);
@@ -159,8 +153,7 @@ public class SwiftLinkDeviceTests
             CpuInterrupts = interrupts
         };
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
         mem.Write(0xDE02, TransmitIrqEnabledCommand);
 
         mem.Write(0xDE00, 0x42);
@@ -184,8 +177,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         await transport.SendAsync(0x41);
         await transport.SendAsync(0x42);
@@ -213,8 +205,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         await transport.SendAsync(0x41);
         await transport.SendAsync(0x42);
@@ -246,8 +237,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         mem.Read(0xDE01);
         device.Tick();
@@ -271,8 +261,7 @@ public class SwiftLinkDeviceTests
         await transport.ConnectAsync();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         await transport.SendAsync(0x41);
         device.Tick();
@@ -289,8 +278,7 @@ public class SwiftLinkDeviceTests
         var transport = new LoopbackTransport();
         device.Transport = transport;
 
-        var mem = new Memory();
-        device.MapIOLocations(mem);
+        var mem = MapDevice(device);
 
         Assert.False(IsDcdHigh(mem.Read(0xDE01)));
         Assert.True(IsDsrHigh(mem.Read(0xDE01)));
@@ -363,8 +351,83 @@ public class SwiftLinkDeviceTests
         Assert.Equal(1, transport.DisposeCalls);
     }
 
+    [Fact]
+    public void SwiftLink_Can_Be_Attached_And_Detached_After_C64_Memory_Is_Created()
+    {
+        var c64 = C64.BuildC64(new C64Config
+        {
+            LoadROMs = false,
+            SwiftLink =
+            {
+                Enabled = false,
+            },
+        }, new NullLoggerFactory());
+        c64.Mem.Write(0xDE02, 0x5A);
+        var swiftLink = new SwiftLinkDevice(
+            C64CartridgeIOAddress.DE00,
+            NullLogger<SwiftLinkDevice>.Instance)
+        {
+            CpuInterrupts = c64.CPU.CPUInterrupts,
+        };
+
+        c64.AttachCartridge(swiftLink);
+        c64.Mem.Write(0xDE02, 0x77);
+
+        Assert.Equal(0x77, c64.Mem.Read(0xDE02));
+
+        c64.DetachCartridge();
+
+        Assert.Null(c64.CartridgeSlot.AttachedCartridge);
+        Assert.Equal(0x5A, c64.Mem.Read(0xDE02));
+    }
+
+    [Fact]
+    public async Task Detaching_SwiftLink_Clears_Its_Interrupt_Line()
+    {
+        var c64 = C64.BuildC64(new C64Config
+        {
+            LoadROMs = false,
+            SwiftLink =
+            {
+                Enabled = false,
+            },
+        }, new NullLoggerFactory());
+        var swiftLink = new SwiftLinkDevice(
+            C64CartridgeIOAddress.DE00,
+            NullLogger<SwiftLinkDevice>.Instance)
+        {
+            CpuInterrupts = c64.CPU.CPUInterrupts,
+        };
+        c64.AttachCartridge(swiftLink);
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        swiftLink.Transport = transport;
+        c64.Mem.Write(0xDE02, ReceiveIrqEnabledCommand);
+        await transport.SendAsync(0x41);
+        c64.CartridgeSlot.Tick();
+        Assert.True(c64.CPU.CPUInterrupts.IRQLineEnabled);
+
+        c64.DetachCartridge();
+
+        Assert.False(c64.CPU.CPUInterrupts.IRQLineEnabled);
+        Assert.False(transport.IsConnected);
+    }
+
     private static bool IsRxFull(byte status)
         => (status & (1 << 3)) != 0;
+
+    private static Memory MapDevice(SwiftLinkDevice device)
+    {
+        var memory = new Memory();
+        var io = new byte[0x200];
+        var slot = new C64CartridgeSlot();
+        slot.MapIOLocations(
+            memory,
+            address => io[address - 0xDE00],
+            (address, value) => io[address - 0xDE00] = value);
+        slot.Attach(device);
+        return memory;
+    }
 
     private static bool IsTxEmpty(byte status)
         => (status & (1 << 4)) != 0;

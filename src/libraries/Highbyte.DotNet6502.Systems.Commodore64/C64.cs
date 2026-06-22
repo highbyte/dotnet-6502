@@ -419,7 +419,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             Cia1.MapIOLocations(mem);
             Cia2.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
-            CartridgeSlot.MapIOLocations(mem);
+            CartridgeSlot.MapIOLocations(mem, ReadIOStorage, WriteIOStorage);
         }
     }
 

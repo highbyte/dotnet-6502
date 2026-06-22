@@ -34,19 +34,27 @@ public class C64CartridgeSlotTests
         var slot = new C64CartridgeSlot();
         var cartridge = new TestCartridge();
         var memory = new Memory();
+        var io = new byte[0x200];
+        slot.MapIOLocations(
+            memory,
+            address => io[address - 0xDE00],
+            (address, value) => io[address - 0xDE00] = value);
         slot.Attach(cartridge);
 
-        slot.MapIOLocations(memory);
+        memory.Write(0xDE00, 0x42);
+        var value = memory.Read(0xDE00);
         slot.MapROMLLocations(memory);
         slot.MapROMHLocations(memory);
         slot.Tick();
         slot.Reset();
 
-        Assert.Equal(1, cartridge.MapIOCalls);
+        Assert.Equal(0x42, value);
+        Assert.Equal(1, cartridge.WriteIOCalls);
+        Assert.Equal(1, cartridge.ReadIOCalls);
         Assert.Equal(1, cartridge.MapROMLCalls);
         Assert.Equal(1, cartridge.MapROMHCalls);
         Assert.Equal(1, cartridge.TickCalls);
-        Assert.Equal(1, cartridge.ResetCalls);
+        Assert.Equal(2, cartridge.ResetCalls);
     }
 
     [Fact]
@@ -59,20 +67,33 @@ public class C64CartridgeSlotTests
         slot.Detach();
 
         Assert.Null(slot.AttachedCartridge);
+        Assert.Equal(2, cartridge.ResetCalls);
         Assert.Equal(1, cartridge.DisposeCalls);
     }
 
     private sealed class TestCartridge(string name = "Test") : IC64Cartridge
     {
         public string Name { get; } = name;
-        public int MapIOCalls { get; private set; }
+        private byte _ioValue;
+        public int ReadIOCalls { get; private set; }
+        public int WriteIOCalls { get; private set; }
         public int MapROMLCalls { get; private set; }
         public int MapROMHCalls { get; private set; }
         public int TickCalls { get; private set; }
         public int ResetCalls { get; private set; }
         public int DisposeCalls { get; private set; }
 
-        public void MapIOLocations(Memory mem) => MapIOCalls++;
+        public bool HandlesIOAddress(ushort address) => address == 0xDE00;
+        public byte ReadIO(ushort address)
+        {
+            ReadIOCalls++;
+            return _ioValue;
+        }
+        public void WriteIO(ushort address, byte value)
+        {
+            WriteIOCalls++;
+            _ioValue = value;
+        }
         public void MapROMLLocations(Memory mem) => MapROMLCalls++;
         public void MapROMHLocations(Memory mem) => MapROMHCalls++;
         public void Tick() => TickCalls++;

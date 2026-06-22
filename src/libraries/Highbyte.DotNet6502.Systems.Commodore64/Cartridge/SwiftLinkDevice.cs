@@ -56,16 +56,40 @@ public sealed class SwiftLinkDevice : IC64Cartridge
     public ulong ReceivePacingCycles { get; set; }
     public ushort BaseAddress => _baseAddress;
 
-    public void MapIOLocations(Memory mem)
+    public bool HandlesIOAddress(ushort address)
+        => address >= _baseAddress && address <= _baseAddress + 0x03;
+
+    public byte ReadIO(ushort address)
     {
-        mem.MapReader((ushort)(_baseAddress + 0x00), DataLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x00), DataStore);
-        mem.MapReader((ushort)(_baseAddress + 0x01), StatusLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x01), StatusStore);
-        mem.MapReader((ushort)(_baseAddress + 0x02), CommandLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x02), CommandStore);
-        mem.MapReader((ushort)(_baseAddress + 0x03), ControlLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x03), ControlStore);
+        return (ushort)(address - _baseAddress) switch
+        {
+            0x00 => DataLoad(address),
+            0x01 => StatusLoad(address),
+            0x02 => CommandLoad(address),
+            0x03 => ControlLoad(address),
+            _ => throw new ArgumentOutOfRangeException(nameof(address)),
+        };
+    }
+
+    public void WriteIO(ushort address, byte value)
+    {
+        switch ((ushort)(address - _baseAddress))
+        {
+            case 0x00:
+                DataStore(address, value);
+                break;
+            case 0x01:
+                StatusStore(address, value);
+                break;
+            case 0x02:
+                CommandStore(address, value);
+                break;
+            case 0x03:
+                ControlStore(address, value);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(address));
+        }
     }
 
     public void Tick()
@@ -101,7 +125,7 @@ public sealed class SwiftLinkDevice : IC64Cartridge
         Array.Clear(_diagnosticHistory);
         _diagnosticHistoryNextIndex = 0;
         _diagnosticHistoryCount = 0;
-        ClearIrqPending();
+        ClearAllInterruptSources();
         Transport?.Reset();
     }
 
@@ -295,6 +319,13 @@ public sealed class SwiftLinkDevice : IC64Cartridge
             CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
     }
 
+    private void ClearAllInterruptSources()
+    {
+        _irqPending = false;
+        CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
+        CpuInterrupts?.SetNMISourceInactive(IrqSourceName);
+    }
+
     private bool IsCarrierDetected => Transport?.IsCarrierDetected == true;
 
     private bool IsDataSetReady => Transport?.IsDataSetReady == true;
@@ -412,7 +443,7 @@ public sealed class SwiftLinkDevice : IC64Cartridge
 
     public void Dispose()
     {
-        ClearIrqPending();
+        ClearAllInterruptSources();
         Transport?.Dispose();
         Transport = null;
     }
