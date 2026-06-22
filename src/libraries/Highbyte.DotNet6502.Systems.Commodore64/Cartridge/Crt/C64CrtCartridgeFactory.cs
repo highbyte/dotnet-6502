@@ -6,9 +6,16 @@ public static class C64CrtCartridgeFactory
     {
         ArgumentNullException.ThrowIfNull(image);
 
-        if (image.Header.HardwareType != (ushort)C64CrtHardwareType.Generic)
-            throw new C64UnsupportedCrtHardwareException(image.Header.HardwareType);
+        return image.Header.HardwareType switch
+        {
+            (ushort)C64CrtHardwareType.Generic => CreateGeneric(image),
+            (ushort)C64CrtHardwareType.MagicDesk => CreateMagicDesk(image),
+            _ => throw new C64UnsupportedCrtHardwareException(image.Header.HardwareType),
+        };
+    }
 
+    private static IC64Cartridge CreateGeneric(C64CrtImage image)
+    {
         if (image.Chips.Any(chip => chip.Type != C64CrtChipType.Rom))
             throw new C64CrtImageException("Generic CRT images currently support ROM CHIP packets only.");
         if (image.Chips.Any(chip => chip.Bank != 0))
@@ -29,6 +36,33 @@ public static class C64CrtCartridgeFactory
             romh,
             lines,
             string.IsNullOrWhiteSpace(image.Header.Name) ? "CRT cartridge" : image.Header.Name);
+    }
+
+    private static IC64Cartridge CreateMagicDesk(C64CrtImage image)
+    {
+        if (image.Chips.Any(chip => chip.Type != C64CrtChipType.Rom))
+            throw new C64CrtImageException("Magic Desk CRT images support ROM CHIP packets only.");
+
+        var banks = new List<KeyValuePair<ushort, byte[]>>(image.Chips.Count);
+        var bankNumbers = new HashSet<ushort>();
+        foreach (var chip in image.Chips)
+        {
+            if (chip.Bank > 127)
+                throw new C64CrtImageException($"Magic Desk CRT bank {chip.Bank} exceeds the supported maximum bank 127.");
+            if (chip.LoadAddress is not (0x8000 or 0xA000))
+                throw new C64CrtImageException($"Magic Desk CRT bank {chip.Bank} must load at 0x8000 or 0xA000.");
+            if (chip.Data.Length != C64BankedRom.BankSize)
+                throw new C64CrtImageException($"Magic Desk CRT bank {chip.Bank} must contain exactly 8K of ROM data.");
+            if (!bankNumbers.Add(chip.Bank))
+                throw new C64CrtImageException($"Magic Desk CRT bank {chip.Bank} is duplicated.");
+
+            banks.Add(new KeyValuePair<ushort, byte[]>(chip.Bank, chip.Data));
+        }
+
+        var rom = new C64BankedRom(banks, maximumBank: 127);
+        return new C64MagicDeskCartridge(
+            rom,
+            string.IsNullOrWhiteSpace(image.Header.Name) ? "Magic Desk" : image.Header.Name);
     }
 
     private static byte[]? BuildWindow(IReadOnlyList<C64CrtChip> chips, ushort baseAddress)

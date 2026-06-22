@@ -50,8 +50,9 @@ public sealed class C64RomCartridge : IC64Cartridge
         remove { }
     }
 
-    public bool HandlesIOAddress(ushort address) => false;
+    public bool HandlesIORead(ushort address) => false;
     public byte ReadIO(ushort address) => throw new InvalidOperationException($"{Name} does not provide cartridge I/O.");
+    public bool HandlesIOWrite(ushort address) => false;
     public void WriteIO(ushort address, byte value) => throw new InvalidOperationException($"{Name} does not provide cartridge I/O.");
 
     public bool HasROML => _roml != null;

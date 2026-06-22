@@ -114,7 +114,7 @@ public sealed class C64CartridgeSlot : IDisposable
     private byte ReadIO(ushort address, Func<ushort, byte> fallbackReader)
     {
         var cartridge = AttachedCartridge;
-        return cartridge?.HandlesIOAddress(address) == true
+        return cartridge?.HandlesIORead(address) == true
             ? cartridge.ReadIO(address)
             : fallbackReader(address);
     }
@@ -122,7 +122,7 @@ public sealed class C64CartridgeSlot : IDisposable
     private void WriteIO(ushort address, byte value, Action<ushort, byte> fallbackWriter)
     {
         var cartridge = AttachedCartridge;
-        if (cartridge?.HandlesIOAddress(address) == true)
+        if (cartridge?.HandlesIOWrite(address) == true)
             cartridge.WriteIO(address, value);
         else
             fallbackWriter(address, value);

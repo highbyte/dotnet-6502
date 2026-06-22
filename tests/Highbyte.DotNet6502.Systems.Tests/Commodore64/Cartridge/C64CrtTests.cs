@@ -143,6 +143,107 @@ public class C64CrtTests
     }
 
     [Fact]
+    public void Factory_Creates_MagicDesk_Cartridge_With_Banked_Rom()
+    {
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.MagicDesk,
+            exromHigh: false,
+            gameHigh: true,
+            name: "MAGIC DESK TEST",
+            chips:
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10)),
+                new Chip(1, 0x8000, Filled(0x2000, 0x11)),
+                new Chip(2, 0x8000, Filled(0x2000, 0x12)),
+                new Chip(3, 0x8000, Filled(0x2000, 0x13)),
+            ]));
+
+        var cartridge = Assert.IsType<C64MagicDeskCartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        Assert.Equal("MAGIC DESK TEST", cartridge.Name);
+        Assert.Equal(new C64CartridgeLines(GameHigh: true, ExromHigh: false), cartridge.Lines);
+        Assert.Equal((ushort)0, cartridge.CurrentBank);
+        Assert.Equal(0x10, cartridge.ReadROML(0x8000));
+        Assert.False(cartridge.HandlesIORead(0xDE00));
+        Assert.True(cartridge.HandlesIOWrite(0xDE00));
+
+        cartridge.WriteIO(0xDE00, 2);
+
+        Assert.Equal((ushort)2, cartridge.CurrentBank);
+        Assert.Equal(0x12, cartridge.ReadROML(0x8000));
+    }
+
+    [Theory]
+    [InlineData("duplicate-bank")]
+    [InlineData("invalid-address")]
+    [InlineData("invalid-size")]
+    [InlineData("bank-too-high")]
+    public void Factory_Rejects_Invalid_MagicDesk_Images(string invalidShape)
+    {
+        Chip[] chips = invalidShape switch
+        {
+            "duplicate-bank" =>
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10)),
+                new Chip(0, 0x8000, Filled(0x2000, 0x11)),
+            ],
+            "invalid-address" => [new Chip(0, 0x9000, Filled(0x2000, 0x10))],
+            "invalid-size" => [new Chip(0, 0x8000, Filled(0x1000, 0x10))],
+            "bank-too-high" => [new Chip(128, 0x8000, Filled(0x2000, 0x10))],
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidShape)),
+        };
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.MagicDesk,
+            exromHigh: false,
+            gameHigh: true,
+            chips: chips));
+
+        Assert.Throws<C64CrtImageException>(
+            () => C64CrtCartridgeFactory.Create(image));
+    }
+
+    [Fact]
+    public void MagicDesk_Attach_Switches_Banks_And_Can_Disable_And_Reenable_Itself()
+    {
+        var c64 = BuildC64();
+        c64.RAM[0x8000] = 0x44;
+        c64.IO[0x0E00] = 0x5A;
+        var crt = BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.MagicDesk,
+            exromHigh: false,
+            gameHigh: true,
+            name: "MAGIC DESK TEST",
+            chips:
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10)),
+                new Chip(1, 0x8000, Filled(0x2000, 0x11)),
+                new Chip(2, 0x8000, Filled(0x2000, 0x12)),
+                new Chip(3, 0x8000, Filled(0x2000, 0x13)),
+            ]);
+
+        var result = c64.AttachCrtImage(crt, "magic-desk.crt");
+
+        Assert.Equal((ushort)C64CrtHardwareType.MagicDesk, result.HardwareType);
+        Assert.Equal(0x10, c64.Mem.Read(0x8000));
+        Assert.Equal(0x5A, c64.Mem.Read(0xDE00));
+
+        c64.Mem.Write(0xDE00, 2);
+
+        Assert.Equal(0x12, c64.Mem.Read(0x8000));
+
+        c64.Mem.Write(0xDE00, 0x80);
+
+        Assert.Equal(C64CartridgeLines.Released, c64.CartridgeSlot.Lines);
+        Assert.Equal(0x44, c64.Mem.Read(0x8000));
+
+        c64.Mem.Write(0xDE00, 1);
+
+        Assert.Equal(new C64CartridgeLines(GameHigh: true, ExromHigh: false), c64.CartridgeSlot.Lines);
+        Assert.Equal(0x11, c64.Mem.Read(0x8000));
+    }
+
+    [Fact]
     public void Unsupported_Hardware_Type_Does_Not_Replace_Current_Cartridge()
     {
         var c64 = BuildC64();

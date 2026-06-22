@@ -122,8 +122,9 @@ public class C64CpuPortTests
             LinesChanged?.Invoke();
         }
 
-        public bool HandlesIOAddress(ushort address) => false;
+        public bool HandlesIORead(ushort address) => false;
         public byte ReadIO(ushort address) => throw new InvalidOperationException();
+        public bool HandlesIOWrite(ushort address) => false;
         public void WriteIO(ushort address, byte value) => throw new InvalidOperationException();
         public bool HasROML => false;
         public byte ReadROML(ushort address) => throw new InvalidOperationException();

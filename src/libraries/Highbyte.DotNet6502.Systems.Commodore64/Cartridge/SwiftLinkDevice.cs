@@ -62,7 +62,10 @@ public sealed class SwiftLinkDevice : IC64Cartridge
     public ulong ReceivePacingCycles { get; set; }
     public ushort BaseAddress => _baseAddress;
 
-    public bool HandlesIOAddress(ushort address)
+    public bool HandlesIORead(ushort address)
+        => address >= _baseAddress && address <= _baseAddress + 0x03;
+
+    public bool HandlesIOWrite(ushort address)
         => address >= _baseAddress && address <= _baseAddress + 0x03;
 
     public byte ReadIO(ushort address)

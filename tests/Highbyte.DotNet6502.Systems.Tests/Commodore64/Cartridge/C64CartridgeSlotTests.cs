@@ -118,7 +118,8 @@ public class C64CartridgeSlotTests
         public int ResetCalls { get; private set; }
         public int DisposeCalls { get; private set; }
 
-        public bool HandlesIOAddress(ushort address) => address == 0xDE00;
+        public bool HandlesIORead(ushort address) => address == 0xDE00;
+        public bool HandlesIOWrite(ushort address) => address == 0xDE00;
         public byte ReadIO(ushort address)
         {
             ReadIOCalls++;

@@ -5,8 +5,9 @@ public interface IC64Cartridge : IDisposable
     string Name { get; }
     C64CartridgeLines Lines { get; }
     event Action? LinesChanged;
-    bool HandlesIOAddress(ushort address);
+    bool HandlesIORead(ushort address);
     byte ReadIO(ushort address);
+    bool HandlesIOWrite(ushort address);
     void WriteIO(ushort address, byte value);
     bool HasROML { get; }
     byte ReadROML(ushort address);

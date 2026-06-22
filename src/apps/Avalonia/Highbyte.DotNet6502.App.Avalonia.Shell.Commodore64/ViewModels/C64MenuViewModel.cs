@@ -300,11 +300,12 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             if (image == null)
                 return cartridge.Name;
 
-            var mode = image.Lines switch
+            var mode = image.HardwareType switch
             {
-                { GameHigh: true, ExromHigh: false } => "generic 8K",
-                { GameHigh: false, ExromHigh: false } => "generic 16K",
-                { GameHigh: false, ExromHigh: true } => "Ultimax",
+                (ushort)C64CrtHardwareType.MagicDesk => "Magic Desk",
+                (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: true, ExromHigh: false } => "generic 8K",
+                (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: false, ExromHigh: false } => "generic 16K",
+                (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: false, ExromHigh: true } => "Ultimax",
                 _ => $"hardware type {image.HardwareType}",
             };
             var source = string.IsNullOrWhiteSpace(image.SourceName) ? string.Empty : $" ({image.SourceName})";
