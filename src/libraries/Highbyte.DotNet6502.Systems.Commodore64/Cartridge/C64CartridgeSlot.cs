@@ -6,6 +6,8 @@ public sealed class C64CartridgeSlot : IDisposable
     private const ushort IO2EndAddress = 0xDFFF;
 
     public IC64Cartridge? AttachedCartridge { get; private set; }
+    public C64CartridgeLines Lines => AttachedCartridge?.Lines ?? C64CartridgeLines.Released;
+    public event Action? LinesChanged;
 
     public void Attach(IC64Cartridge cartridge)
     {
@@ -16,6 +18,8 @@ public sealed class C64CartridgeSlot : IDisposable
 
         cartridge.Reset();
         AttachedCartridge = cartridge;
+        cartridge.LinesChanged += OnCartridgeLinesChanged;
+        LinesChanged?.Invoke();
     }
 
     public void Detach()
@@ -25,6 +29,8 @@ public sealed class C64CartridgeSlot : IDisposable
         if (cartridge == null)
             return;
 
+        LinesChanged?.Invoke();
+        cartridge.LinesChanged -= OnCartridgeLinesChanged;
         cartridge.Reset();
         cartridge.Dispose();
     }
@@ -60,6 +66,9 @@ public sealed class C64CartridgeSlot : IDisposable
 
     public void Dispose()
         => Detach();
+
+    private void OnCartridgeLinesChanged()
+        => LinesChanged?.Invoke();
 
     private byte ReadIO(ushort address, Func<ushort, byte> fallbackReader)
     {

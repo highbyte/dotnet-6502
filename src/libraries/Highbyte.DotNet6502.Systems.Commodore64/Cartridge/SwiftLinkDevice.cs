@@ -44,6 +44,12 @@ public sealed class SwiftLinkDevice : IC64Cartridge
     }
 
     public string Name => "SwiftLink";
+    public C64CartridgeLines Lines => C64CartridgeLines.Released;
+    public event Action? LinesChanged
+    {
+        add { }
+        remove { }
+    }
     public ISwiftLinkTransport? Transport { get; set; }
     public CPUInterrupts? CpuInterrupts { get; set; }
     public C64SwiftLinkInterruptMode InterruptMode { get; set; } = C64SwiftLinkInterruptMode.IRQ;

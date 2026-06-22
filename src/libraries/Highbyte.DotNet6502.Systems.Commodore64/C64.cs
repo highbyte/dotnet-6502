@@ -46,7 +46,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     public byte[] RAM { get; set; } = default!;
     public byte[] IO { get; set; } = default!;
-    public byte CurrentBank { get; set; }
+    public byte CurrentBank { get; private set; }
     public Vic2 Vic2 { get; set; } = default!;
     public Cia1 Cia1 { get; set; } = default!;
     public Cia2 Cia2 { get; set; } = default!;
@@ -240,6 +240,11 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     private C64(ILogger logger, ILoggerFactory loggerFactory)
     {
         _logger = logger;
+        CartridgeSlot.LinesChanged += () =>
+        {
+            if (Mem is not null)
+                ApplyCpuPortMemoryConfiguration();
+        };
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
 
         _audioProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryAudioProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
@@ -427,9 +432,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     {
         var mem = c64.Mem;
 
-        // Preserve the cartridge control bits (GAME/EXROM) while restoring the 6510
-        // processor port to the C64 startup defaults.
-        c64.CurrentBank = 0x18;
         c64._cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
         c64._cpuPortDataRegister = CpuPortDataResetValue;
         c64.ApplyCpuPortMemoryConfiguration();
@@ -624,10 +626,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     private void ApplyCpuPortMemoryConfiguration()
     {
-        var bank = CurrentBank;
-        bank.ClearBits(CpuPortBankBitsMask);
-        bank |= (byte)(GetCpuPortEffectiveValue() & CpuPortBankBitsMask);
-        CurrentBank = bank;
+        var cpuPortBits = (byte)(GetCpuPortEffectiveValue() & CpuPortBankBitsMask);
+        var cartridgeLineBits = CartridgeSlot.Lines.GetMemoryConfigurationBits();
+        CurrentBank = (byte)(cartridgeLineBits | cpuPortBits);
         Mem.SetMemoryConfiguration(CurrentBank);
     }
 

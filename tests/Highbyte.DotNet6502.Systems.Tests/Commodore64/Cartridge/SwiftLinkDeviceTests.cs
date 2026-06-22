@@ -310,6 +310,8 @@ public class SwiftLinkDeviceTests
         Assert.Same(c64.CPU.CPUInterrupts, swiftLink.CpuInterrupts);
         Assert.Equal(C64SwiftLinkInterruptMode.IRQ, swiftLink.InterruptMode);
         Assert.Equal(C64SwiftLinkReceiveMode.Compatible, swiftLink.ReceiveMode);
+        Assert.Equal(C64CartridgeLines.Released, swiftLink.Lines);
+        Assert.Equal(31, c64.CurrentBank);
 
         c64.Mem.Write(0xDF02, 0x01);
         Assert.Equal(0x01, c64.Mem.Read(0xDF02));

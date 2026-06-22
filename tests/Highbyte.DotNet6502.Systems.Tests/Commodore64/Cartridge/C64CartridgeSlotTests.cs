@@ -74,6 +74,12 @@ public class C64CartridgeSlotTests
     private sealed class TestCartridge(string name = "Test") : IC64Cartridge
     {
         public string Name { get; } = name;
+        public C64CartridgeLines Lines => C64CartridgeLines.Released;
+        public event Action? LinesChanged
+        {
+            add { }
+            remove { }
+        }
         private byte _ioValue;
         public int ReadIOCalls { get; private set; }
         public int WriteIOCalls { get; private set; }
