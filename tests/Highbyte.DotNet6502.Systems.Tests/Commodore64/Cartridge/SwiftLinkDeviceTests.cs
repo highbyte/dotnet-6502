@@ -315,11 +315,16 @@ public class SwiftLinkDeviceTests
             },
         }, new NullLoggerFactory());
 
-        Assert.NotNull(c64.SwiftLink);
-        Assert.Equal((ushort)0xDF00, c64.SwiftLink!.BaseAddress);
-        Assert.Same(c64.CPU.CPUInterrupts, c64.SwiftLink.CpuInterrupts);
-        Assert.Equal(C64SwiftLinkInterruptMode.IRQ, c64.SwiftLink.InterruptMode);
-        Assert.Equal(C64SwiftLinkReceiveMode.Compatible, c64.SwiftLink.ReceiveMode);
+        var swiftLink = c64.CartridgeSlot.GetCartridge<SwiftLinkDevice>();
+
+        Assert.NotNull(swiftLink);
+        Assert.Equal((ushort)0xDF00, swiftLink!.BaseAddress);
+        Assert.Same(c64.CPU.CPUInterrupts, swiftLink.CpuInterrupts);
+        Assert.Equal(C64SwiftLinkInterruptMode.IRQ, swiftLink.InterruptMode);
+        Assert.Equal(C64SwiftLinkReceiveMode.Compatible, swiftLink.ReceiveMode);
+
+        c64.Mem.Write(0xDF02, 0x01);
+        Assert.Equal(0x01, c64.Mem.Read(0xDF02));
     }
 
     [Fact]
@@ -334,7 +339,28 @@ public class SwiftLinkDeviceTests
             },
         }, new NullLoggerFactory());
 
-        Assert.Null(c64.SwiftLink);
+        Assert.Null(c64.CartridgeSlot.AttachedCartridge);
+    }
+
+    [Fact]
+    public void Cleanup_Detaches_SwiftLink_And_Disposes_Its_Transport()
+    {
+        var c64 = C64.BuildC64(new C64Config
+        {
+            LoadROMs = false,
+            SwiftLink =
+            {
+                Enabled = true,
+            },
+        }, new NullLoggerFactory());
+        var swiftLink = c64.CartridgeSlot.GetCartridge<SwiftLinkDevice>()!;
+        var transport = new PendingSendTransport();
+        swiftLink.Transport = transport;
+
+        c64.Cleanup();
+
+        Assert.Null(c64.CartridgeSlot.AttachedCartridge);
+        Assert.Equal(1, transport.DisposeCalls);
     }
 
     private static bool IsRxFull(byte status)
@@ -359,6 +385,7 @@ public class SwiftLinkDeviceTests
         public bool IsConnected => true;
         public bool IsCarrierDetected => true;
         public bool IsDataSetReady => true;
+        public int DisposeCalls { get; private set; }
 
         public ValueTask ConnectAsync(CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
@@ -382,6 +409,7 @@ public class SwiftLinkDeviceTests
 
         public void Dispose()
         {
+            DisposeCalls++;
         }
 
         public void CompletePendingSend()

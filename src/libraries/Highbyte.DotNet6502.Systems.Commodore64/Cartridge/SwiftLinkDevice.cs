@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 
-public sealed class SwiftLinkDevice : IC64CartridgeDevice
+public sealed class SwiftLinkDevice : IC64Cartridge
 {
     private const byte StatusRxFullBit = 1 << 3;
     private const byte StatusTxEmptyBit = 1 << 4;
@@ -408,5 +408,12 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             $"TRANSPORT_CONNECTED={transport?.IsConnected == true}, NMI_DELIVERABLE={CanDeliverNmi?.Invoke()}, " +
             $"NEXT_RX_CYCLE={_nextReceiveCycleAvailable}, STATUS_READS={_statusReadCount}, " +
             $"HISTORY=[{GetDiagnosticHistory()}]";
+    }
+
+    public void Dispose()
+    {
+        ClearIrqPending();
+        Transport?.Dispose();
+        Transport = null;
     }
 }

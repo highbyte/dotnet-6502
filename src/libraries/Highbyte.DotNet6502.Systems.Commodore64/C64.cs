@@ -53,8 +53,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public Sid Sid { get; set; } = default!;
     public IECBus IECBus { get; set; } = default!;
     public Dictionary<string, byte[]> ROMData { get; set; } = default!;
-    public List<IC64CartridgeDevice> CartridgeDevices { get; } = new();
-    public SwiftLinkDevice? SwiftLink { get; private set; }
+    public C64CartridgeSlot CartridgeSlot { get; } = new();
 
     public bool AudioEnabled { get; private set; }
     public TimerMode TimerMode { get; private set; }
@@ -210,8 +209,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
         // Update IEC bus devices
         IECBus.TickDevices();
-        foreach (var cartridgeDevice in CartridgeDevices)
-            cartridgeDevice.Tick();
+        CartridgeSlot.Tick();
 
         // General emulator timing fix: devices tick after the CPU instruction has already
         // completed, so newly raised hardware IRQ/NMI lines must be serviced here to land
@@ -306,9 +304,10 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         var diskDrive1541 = new DiskDrive1541(loggerFactory);
         iecBus.Attach(diskDrive1541);
 
+        SwiftLinkDevice? swiftLink = null;
         if (c64Config.SwiftLink.Enabled)
         {
-            var swiftLink = new SwiftLinkDevice(
+            swiftLink = new SwiftLinkDevice(
                 c64Config.SwiftLink.CartridgeIOAddress,
                 loggerFactory.CreateLogger(nameof(SwiftLinkDevice)))
             {
@@ -317,8 +316,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
                 ReceiveMode = c64Config.SwiftLink.ReceiveMode,
                 GetCurrentCycleCount = () => cpu.ExecState.CyclesConsumed,
             };
-            c64.SwiftLink = swiftLink;
-            c64.CartridgeDevices.Add(swiftLink);
+            c64.AttachCartridge(swiftLink);
         }
 
         c64.CPU = cpu;
@@ -330,12 +328,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
         var mem = c64.CreateC64Memory(ram, io, romData);
         c64.Mem = mem;
-        if (c64.SwiftLink != null)
+        if (swiftLink != null)
         {
             // SwiftLink-specific compatibility hook: some modem software temporarily banks
             // out the mapped NMI vector area. SwiftLink can consult this callback and defer
             // asserting its NMI source until the currently mapped vector is usable again.
-            c64.SwiftLink.CanDeliverNmi =
+            swiftLink.CanDeliverNmi =
                 () => c64.Mem.FetchWord(CPU.NonMaskableIRQHandlerVector) != 0;
         }
 
@@ -421,8 +419,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             Cia1.MapIOLocations(mem);
             Cia2.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
-            foreach (var cartridgeDevice in CartridgeDevices)
-                cartridgeDevice.MapIOLocations(mem);
+            CartridgeSlot.MapIOLocations(mem);
         }
     }
 
@@ -512,7 +509,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.SetMemoryConfiguration(bank);
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
-            // TODO: Cartridge low + high mapping
+            CartridgeSlot.MapROMLLocations(mem);
+            CartridgeSlot.MapROMHLocations(mem);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 15 })
@@ -522,7 +520,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapROM(0xa000, basic);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
-            // TODO: Cartridge low mapping
+            CartridgeSlot.MapROMLLocations(mem);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 12, 8, 4, 0 })
@@ -538,7 +536,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapROM(0xa000, basic);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
-            // TODO: Cartridge low mapping
+            CartridgeSlot.MapROMLLocations(mem);
             MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 7 })
@@ -547,7 +545,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
-            // TODO: Cartridge low + high mapping
+            CartridgeSlot.MapROMLLocations(mem);
+            CartridgeSlot.MapROMHLocations(mem);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 6 })
@@ -556,7 +555,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
-            // TODO: Cartridge high mapping
+            CartridgeSlot.MapROMHLocations(mem);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 5 })
@@ -572,7 +571,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
-            // TODO: Cartridge low + high mapping
+            CartridgeSlot.MapROMLLocations(mem);
+            CartridgeSlot.MapROMHLocations(mem);
             MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 2 })
@@ -581,7 +581,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
-            // TODO: Cartridge high mapping
+            CartridgeSlot.MapROMHLocations(mem);
             MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 1 })
@@ -669,8 +669,17 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     public void Cleanup()
     {
-        SwiftLink?.Transport?.Dispose();
+        CartridgeSlot.Dispose();
     }
+
+    public void AttachCartridge(IC64Cartridge cartridge)
+        => CartridgeSlot.Attach(cartridge);
+
+    public void DetachCartridge()
+        => CartridgeSlot.Detach();
+
+    public void ResetAttachedCartridge()
+        => CartridgeSlot.Reset();
 
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()
     {
