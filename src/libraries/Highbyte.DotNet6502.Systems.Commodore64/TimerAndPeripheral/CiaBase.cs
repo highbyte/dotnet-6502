@@ -123,6 +123,7 @@ public abstract class CiaBase
 
         // If this address is read, it's contents is automatically cleared ( = all IRQ states are cleared).
         _ciaIRQ.ConditionClearAll();
+        _ciaIRQ.Acknowledge(_c64.CPU);
 
         return value;
     }

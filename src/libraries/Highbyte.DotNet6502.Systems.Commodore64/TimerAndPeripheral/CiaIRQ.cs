@@ -63,6 +63,20 @@ public class CiaIRQ
             ConditionClear(source);
         }
     }
+
+    public void Acknowledge(CPU cpu)
+    {
+        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        {
+            if (source == IRQSource.Any)
+                continue;
+
+            if (_useNMI)
+                cpu.CPUInterrupts.SetNMISourceInactive(source.ToString());
+            else
+                cpu.CPUInterrupts.SetIRQSourceInactive(source.ToString());
+        }
+    }
 }
 
 /// <summary>
