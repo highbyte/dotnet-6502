@@ -43,16 +43,12 @@ public class C64CartridgeSlotTests
 
         memory.Write(0xDE00, 0x42);
         var value = memory.Read(0xDE00);
-        slot.MapROMLLocations(memory);
-        slot.MapROMHLocations(memory);
         slot.Tick();
         slot.Reset();
 
         Assert.Equal(0x42, value);
         Assert.Equal(1, cartridge.WriteIOCalls);
         Assert.Equal(1, cartridge.ReadIOCalls);
-        Assert.Equal(1, cartridge.MapROMLCalls);
-        Assert.Equal(1, cartridge.MapROMHCalls);
         Assert.Equal(1, cartridge.TickCalls);
         Assert.Equal(2, cartridge.ResetCalls);
     }
@@ -83,8 +79,6 @@ public class C64CartridgeSlotTests
         private byte _ioValue;
         public int ReadIOCalls { get; private set; }
         public int WriteIOCalls { get; private set; }
-        public int MapROMLCalls { get; private set; }
-        public int MapROMHCalls { get; private set; }
         public int TickCalls { get; private set; }
         public int ResetCalls { get; private set; }
         public int DisposeCalls { get; private set; }
@@ -100,8 +94,10 @@ public class C64CartridgeSlotTests
             WriteIOCalls++;
             _ioValue = value;
         }
-        public void MapROMLLocations(Memory mem) => MapROMLCalls++;
-        public void MapROMHLocations(Memory mem) => MapROMHCalls++;
+        public bool HasROML => false;
+        public byte ReadROML(ushort address) => throw new InvalidOperationException();
+        public bool HasROMH => false;
+        public byte ReadROMH(ushort address) => throw new InvalidOperationException();
         public void Tick() => TickCalls++;
         public void Reset() => ResetCalls++;
         public void Dispose() => DisposeCalls++;

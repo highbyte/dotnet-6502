@@ -98,6 +98,11 @@ public sealed class SwiftLinkDevice : IC64Cartridge
         }
     }
 
+    public bool HasROML => false;
+    public byte ReadROML(ushort address) => throw new InvalidOperationException("SwiftLink does not provide ROML.");
+    public bool HasROMH => false;
+    public byte ReadROMH(ushort address) => throw new InvalidOperationException("SwiftLink does not provide ROMH.");
+
     public void Tick()
     {
         UpdateConnectionState();

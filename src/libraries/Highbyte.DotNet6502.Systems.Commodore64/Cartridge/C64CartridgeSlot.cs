@@ -4,6 +4,8 @@ public sealed class C64CartridgeSlot : IDisposable
 {
     private const ushort IO1StartAddress = 0xDE00;
     private const ushort IO2EndAddress = 0xDFFF;
+    private const ushort ROMLStartAddress = 0x8000;
+    private const ushort CartridgeRomWindowSize = 0x2000;
 
     public IC64Cartridge? AttachedCartridge { get; private set; }
     public C64CartridgeLines Lines => AttachedCartridge?.Lines ?? C64CartridgeLines.Released;
@@ -44,19 +46,38 @@ public sealed class C64CartridgeSlot : IDisposable
         Func<ushort, byte> fallbackReader,
         Action<ushort, byte> fallbackWriter)
     {
+        Memory.LoadByte reader = ioAddress => ReadIO(ioAddress, fallbackReader);
+        Memory.StoreByte writer = (ioAddress, value) => WriteIO(ioAddress, value, fallbackWriter);
         for (var address = (int)IO1StartAddress; address <= IO2EndAddress; address++)
         {
             var mappedAddress = (ushort)address;
-            mem.MapReader(mappedAddress, ioAddress => ReadIO(ioAddress, fallbackReader));
-            mem.MapWriter(mappedAddress, (ioAddress, value) => WriteIO(ioAddress, value, fallbackWriter));
+            mem.MapReader(mappedAddress, reader);
+            mem.MapWriter(mappedAddress, writer);
         }
     }
 
-    public void MapROMLLocations(Memory mem)
-        => AttachedCartridge?.MapROMLLocations(mem);
+    public void MapROMLLocations(Memory mem, Func<ushort, byte> fallbackReader)
+    {
+        MapRomWindow(
+            mem,
+            ROMLStartAddress,
+            fallbackReader,
+            cartridge => cartridge.HasROML,
+            (cartridge, address) => cartridge.ReadROML(address));
+    }
 
-    public void MapROMHLocations(Memory mem)
-        => AttachedCartridge?.MapROMHLocations(mem);
+    public void MapROMHLocations(
+        Memory mem,
+        ushort baseAddress,
+        Func<ushort, byte> fallbackReader)
+    {
+        MapRomWindow(
+            mem,
+            baseAddress,
+            fallbackReader,
+            cartridge => cartridge.HasROMH,
+            (cartridge, address) => cartridge.ReadROMH(address));
+    }
 
     public void Tick()
         => AttachedCartridge?.Tick();
@@ -85,5 +106,24 @@ public sealed class C64CartridgeSlot : IDisposable
             cartridge.WriteIO(address, value);
         else
             fallbackWriter(address, value);
+    }
+
+    private void MapRomWindow(
+        Memory mem,
+        ushort baseAddress,
+        Func<ushort, byte> fallbackReader,
+        Func<IC64Cartridge, bool> isAvailable,
+        Func<IC64Cartridge, ushort, byte> cartridgeReader)
+    {
+        var endAddress = baseAddress + CartridgeRomWindowSize;
+        Memory.LoadByte reader = mappedAddress =>
+        {
+            var cartridge = AttachedCartridge;
+            return cartridge != null && isAvailable(cartridge)
+                ? cartridgeReader(cartridge, mappedAddress)
+                : fallbackReader(mappedAddress);
+        };
+        for (var address = (int)baseAddress; address < endAddress; address++)
+            mem.MapReader((ushort)address, reader);
     }
 }

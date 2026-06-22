@@ -8,12 +8,10 @@ public interface IC64Cartridge : IDisposable
     bool HandlesIOAddress(ushort address);
     byte ReadIO(ushort address);
     void WriteIO(ushort address, byte value);
-    void MapROMLLocations(Memory mem)
-    {
-    }
-    void MapROMHLocations(Memory mem)
-    {
-    }
+    bool HasROML { get; }
+    byte ReadROML(ushort address);
+    bool HasROMH { get; }
+    byte ReadROMH(ushort address);
     void Tick();
     void Reset();
 }

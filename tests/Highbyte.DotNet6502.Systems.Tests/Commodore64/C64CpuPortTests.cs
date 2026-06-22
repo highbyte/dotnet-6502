@@ -125,6 +125,10 @@ public class C64CpuPortTests
         public bool HandlesIOAddress(ushort address) => false;
         public byte ReadIO(ushort address) => throw new InvalidOperationException();
         public void WriteIO(ushort address, byte value) => throw new InvalidOperationException();
+        public bool HasROML => false;
+        public byte ReadROML(ushort address) => throw new InvalidOperationException();
+        public bool HasROMH => false;
+        public byte ReadROMH(ushort address) => throw new InvalidOperationException();
         public void Tick() { }
         public void Reset() { }
         public void Dispose() { }
