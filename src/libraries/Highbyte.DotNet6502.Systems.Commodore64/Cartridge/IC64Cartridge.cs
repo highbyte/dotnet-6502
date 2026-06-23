@@ -11,8 +11,11 @@ public interface IC64Cartridge : IDisposable
     void WriteIO(ushort address, byte value);
     bool HasROML { get; }
     byte ReadROML(ushort address);
+    bool HandlesROMLWrite => false;
+    void WriteROML(ushort address, byte value)
+        => throw new InvalidOperationException($"{Name} does not provide writable ROML.");
     bool HasROMH { get; }
     byte ReadROMH(ushort address);
-    void Tick();
+    void Tick(ulong cyclesElapsed = 0);
     void Reset();
 }

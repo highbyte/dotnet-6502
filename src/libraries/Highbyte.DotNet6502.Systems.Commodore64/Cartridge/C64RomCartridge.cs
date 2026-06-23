@@ -65,7 +65,7 @@ public sealed class C64RomCartridge : IC64Cartridge
         => _romh?[address & (RomWindowSize - 1)]
             ?? throw new InvalidOperationException($"{Name} does not provide ROMH.");
 
-    public void Tick()
+    public void Tick(ulong cyclesElapsed = 0)
     {
     }
 

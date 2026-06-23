@@ -6,12 +6,14 @@ public class Vic2IRQ
     public ushort? ConfiguredIRQRasterLine { get; set; } = null;
 
     private readonly Dictionary<IRQSource, bool> _sourceEnableStatus = new();
+    private readonly Dictionary<IRQSource, bool> _sourceTriggerStatus = new();
 
     public Vic2IRQ()
     {
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
             _sourceEnableStatus.Add(source, false);
+            _sourceTriggerStatus.Add(source, false);
         }
     }
 
@@ -19,26 +21,32 @@ public class Vic2IRQ
     {
         return _sourceEnableStatus[source];
     }
-    public void Enable(IRQSource source)
+    public void Enable(IRQSource source, CPU cpu)
     {
         _sourceEnableStatus[source] = true;
+        if (_sourceTriggerStatus[source])
+            cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: false);
     }
-    public void Disable(IRQSource source)
+    public void Disable(IRQSource source, CPU cpu)
     {
         _sourceEnableStatus[source] = false;
+        cpu.CPUInterrupts.SetIRQSourceInactive(source.ToString());
     }
 
-    public bool IsTriggered(IRQSource source, CPU cpu)
+    public bool IsTriggered(IRQSource source)
     {
-        return cpu.CPUInterrupts.IsIRQSourceActive(source.ToString());
+        return _sourceTriggerStatus[source];
     }
 
     public void Trigger(IRQSource source, CPU cpu)
     {
-        cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: false);
+        _sourceTriggerStatus[source] = true;
+        if (_sourceEnableStatus[source])
+            cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: false);
     }
     public void ClearTrigger(IRQSource source, CPU cpu)
     {
+        _sourceTriggerStatus[source] = false;
         cpu.CPUInterrupts.SetIRQSourceInactive(source.ToString());
     }
 }

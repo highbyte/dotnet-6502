@@ -197,6 +197,12 @@
                             IsVisible="{Binding IsCartridgeAttached}"
                             Classes="small danger"/>
 
+                    <Button Content="Freeze (cartridge button)"
+                            AutomationProperties.AutomationId="FreezeCartridgeButton"
+                            Command="{Binding FreezeCartridgeCommand}"
+                            IsVisible="{Binding CanFreezeCartridge}"
+                            Classes="small"/>
+
                     <TextBlock Text="Attaching cartridge..."
                                Classes="small secondary-text"
                                IsVisible="{Binding IsCartridgeOperationInProgress}"/>

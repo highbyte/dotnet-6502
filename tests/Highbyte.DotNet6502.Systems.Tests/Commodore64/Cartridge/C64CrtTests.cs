@@ -351,6 +351,241 @@ public class C64CrtTests
     }
 
     [Fact]
+    public void Factory_Creates_EpyxFastLoad_Cartridge_With_Timed_Rom_And_IO2_Page()
+    {
+        var rom = Filled(0x2000, 0x42);
+        rom[0x1F34] = 0x84;
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.EpyxFastLoad,
+            exromHigh: false,
+            gameHigh: true,
+            name: "EPYX FASTLOAD TEST",
+            chips: [new Chip(0, 0x8000, rom)]));
+
+        var cartridge = Assert.IsType<C64EpyxFastLoadCartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        Assert.Equal("EPYX FASTLOAD TEST", cartridge.Name);
+        Assert.True(cartridge.IsRomEnabled);
+        Assert.Equal(new C64CartridgeLines(GameHigh: true, ExromHigh: false), cartridge.Lines);
+        Assert.Equal(0x42, cartridge.ReadROML(0x8000));
+        Assert.Equal(C64EpyxFastLoadCartridge.RomEnableCycles, cartridge.CyclesUntilDisabled);
+        Assert.Equal(0x84, cartridge.ReadIO(0xDF34));
+
+        cartridge.Tick(C64EpyxFastLoadCartridge.RomEnableCycles - 1);
+
+        Assert.True(cartridge.IsRomEnabled);
+
+        cartridge.Tick(1);
+
+        Assert.False(cartridge.IsRomEnabled);
+        Assert.Equal(C64CartridgeLines.Released, cartridge.Lines);
+        Assert.Equal(0x84, cartridge.ReadIO(0xDF34));
+
+        Assert.Equal(0, cartridge.ReadIO(0xDE00));
+        Assert.True(cartridge.IsRomEnabled);
+        Assert.Equal(C64EpyxFastLoadCartridge.RomEnableCycles, cartridge.CyclesUntilDisabled);
+    }
+
+    [Theory]
+    [InlineData("multiple-chips")]
+    [InlineData("wrong-bank")]
+    [InlineData("wrong-address")]
+    [InlineData("wrong-size")]
+    public void Factory_Rejects_Invalid_EpyxFastLoad_Images(string invalidShape)
+    {
+        Chip[] chips = invalidShape switch
+        {
+            "multiple-chips" =>
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10)),
+                new Chip(0, 0x8000, Filled(0x2000, 0x11)),
+            ],
+            "wrong-bank" => [new Chip(1, 0x8000, Filled(0x2000, 0x10))],
+            "wrong-address" => [new Chip(0, 0xA000, Filled(0x2000, 0x10))],
+            "wrong-size" => [new Chip(0, 0x8000, Filled(0x1000, 0x10))],
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidShape)),
+        };
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.EpyxFastLoad,
+            exromHigh: false,
+            gameHigh: true,
+            chips: chips));
+
+        Assert.Throws<C64CrtImageException>(
+            () => C64CrtCartridgeFactory.Create(image));
+    }
+
+    [Fact]
+    public void EpyxFastLoad_Attach_Times_Out_And_IO1_Read_Reenables_Rom()
+    {
+        var c64 = BuildC64();
+        c64.RAM[0x8000] = 0x44;
+        var rom = Filled(0x2000, 0x42);
+        rom[0x1F34] = 0x84;
+        var crt = BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.EpyxFastLoad,
+            exromHigh: false,
+            gameHigh: true,
+            name: "EPYX FASTLOAD TEST",
+            chips: [new Chip(0, 0x8000, rom)]);
+
+        var result = c64.AttachCrtImage(crt, "epyx-fastload.crt");
+
+        Assert.Equal((ushort)C64CrtHardwareType.EpyxFastLoad, result.HardwareType);
+        Assert.Equal(0x42, c64.Mem.Read(0x8000));
+
+        c64.CartridgeSlot.Tick(C64EpyxFastLoadCartridge.RomEnableCycles);
+
+        Assert.Equal(C64CartridgeLines.Released, c64.CartridgeSlot.Lines);
+        Assert.Equal(0x44, c64.Mem.Read(0x8000));
+        Assert.Equal(0x84, c64.Mem.Read(0xDF34));
+
+        Assert.Equal(0, c64.Mem.Read(0xDE00));
+
+        Assert.Equal(new C64CartridgeLines(GameHigh: true, ExromHigh: false), c64.CartridgeSlot.Lines);
+        Assert.Equal(0x42, c64.Mem.Read(0x8000));
+    }
+
+    [Fact]
+    public void Factory_Creates_ActionReplay_With_Banked_Rom_And_Exported_Ram()
+    {
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.ActionReplay,
+            exromHigh: false,
+            gameHigh: true,
+            name: "ACTION REPLAY TEST",
+            chips: CreateBankChips(4)));
+
+        var cartridge = Assert.IsType<C64ActionReplayCartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        Assert.Equal("ACTION REPLAY TEST", cartridge.Name);
+        Assert.Equal(new C64CartridgeLines(GameHigh: true, ExromHigh: false), cartridge.Lines);
+        Assert.Equal((ushort)0, cartridge.CurrentBank);
+        Assert.Equal(0x10, cartridge.ReadROML(0x8000));
+
+        cartridge.WriteIO(0xDE00, 0x11);
+
+        Assert.Equal((ushort)2, cartridge.CurrentBank);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: false), cartridge.Lines);
+        Assert.Equal(0x12, cartridge.ReadROML(0x8000));
+        Assert.Equal(0x12, cartridge.ReadROMH(0xA000));
+        Assert.Equal(0x12, cartridge.ReadIO(0xDF34));
+
+        cartridge.WriteIO(0xDE00, 0x21);
+        cartridge.WriteROML(0x8123, 0x42);
+        cartridge.WriteIO(0xDF34, 0x84);
+
+        Assert.True(cartridge.IsRamExported);
+        Assert.Equal(0x42, cartridge.ReadROML(0x8123));
+        Assert.Equal(0x84, cartridge.ReadIO(0xDF34));
+        Assert.Equal(0x84, cartridge.ReadRam(0x1F34));
+    }
+
+    [Theory]
+    [InlineData("missing-bank")]
+    [InlineData("duplicate-bank")]
+    [InlineData("wrong-address")]
+    [InlineData("wrong-size")]
+    [InlineData("bank-too-high")]
+    public void Factory_Rejects_Invalid_ActionReplay_Images(string invalidShape)
+    {
+        Chip[] chips = invalidShape switch
+        {
+            "missing-bank" => CreateBankChips(3),
+            "duplicate-bank" =>
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10)),
+                new Chip(1, 0x8000, Filled(0x2000, 0x11)),
+                new Chip(2, 0x8000, Filled(0x2000, 0x12)),
+                new Chip(2, 0x8000, Filled(0x2000, 0x13)),
+            ],
+            "wrong-address" =>
+            [
+                new Chip(0, 0x9000, Filled(0x2000, 0x10)),
+                .. CreateBankChips(4)[1..],
+            ],
+            "wrong-size" =>
+            [
+                new Chip(0, 0x8000, Filled(0x1000, 0x10)),
+                .. CreateBankChips(4)[1..],
+            ],
+            "bank-too-high" =>
+            [
+                .. CreateBankChips(3),
+                new Chip(4, 0x8000, Filled(0x2000, 0x14)),
+            ],
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidShape)),
+        };
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.ActionReplay,
+            exromHigh: false,
+            gameHigh: true,
+            chips: chips));
+
+        Assert.Throws<C64CrtImageException>(
+            () => C64CrtCartridgeFactory.Create(image));
+    }
+
+    [Fact]
+    public void ActionReplay_Attach_Maps_Writable_Ram_And_Can_Disable()
+    {
+        var c64 = BuildC64();
+        c64.RAM[0x8000] = 0x44;
+        var crt = BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.ActionReplay,
+            exromHigh: false,
+            gameHigh: true,
+            name: "ACTION REPLAY TEST",
+            chips: CreateBankChips(4));
+
+        var result = c64.AttachCrtImage(crt, "action-replay.crt");
+
+        Assert.Equal((ushort)C64CrtHardwareType.ActionReplay, result.HardwareType);
+        Assert.Equal(0x10, c64.Mem.Read(0x8000));
+
+        c64.Mem.Write(0xDE00, 0x20);
+        c64.Mem.Write(0x8123, 0x42);
+        c64.Mem.Write(0xDF34, 0x84);
+
+        Assert.Equal(0x42, c64.Mem.Read(0x8123));
+        Assert.Equal(0x84, c64.Mem.Read(0xDF34));
+
+        c64.Mem.Write(0xDE00, 0x04);
+
+        Assert.Equal(C64CartridgeLines.Released, c64.CartridgeSlot.Lines);
+        Assert.Equal(0x44, c64.Mem.Read(0x8000));
+    }
+
+    [Fact]
+    public void ActionReplay_Freeze_Enters_Ultimax_And_Services_Nmi_From_Cartridge()
+    {
+        var c64 = BuildC64();
+        var banks = CreateBankChips(4);
+        banks[0].Data[0x1FFA] = 0x34;
+        banks[0].Data[0x1FFB] = 0x12;
+        var crt = BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.ActionReplay,
+            exromHigh: false,
+            gameHigh: true,
+            chips: banks);
+        c64.AttachCrtImage(crt, "action-replay.crt");
+        c64.Mem.Write(0xDE00, 0x1C); // Select bank 3 and disable, like exiting to BASIC.
+
+        var frozen = c64.FreezeAttachedCartridge();
+
+        var cartridge = Assert.IsType<C64ActionReplayCartridge>(
+            c64.CartridgeSlot.AttachedCartridge);
+        Assert.True(frozen);
+        Assert.True(cartridge.IsFreezeMode);
+        Assert.True(cartridge.IsRamExported);
+        Assert.Equal((ushort)0, cartridge.CurrentBank);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: true), cartridge.Lines);
+        Assert.Equal((ushort)0x1234, c64.CPU.PC);
+    }
+
+    [Fact]
     public void Unsupported_Hardware_Type_Does_Not_Replace_Current_Cartridge()
     {
         var c64 = BuildC64();

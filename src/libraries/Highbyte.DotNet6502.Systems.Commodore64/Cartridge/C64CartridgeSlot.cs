@@ -77,6 +77,12 @@ public sealed class C64CartridgeSlot : IDisposable
     }
 
     public void MapROMLLocations(Memory mem, Func<ushort, byte> fallbackReader)
+        => MapROMLLocations(mem, fallbackReader, fallbackWriter: null);
+
+    public void MapROMLLocations(
+        Memory mem,
+        Func<ushort, byte> fallbackReader,
+        Action<ushort, byte>? fallbackWriter)
     {
         MapRomWindow(
             mem,
@@ -84,6 +90,24 @@ public sealed class C64CartridgeSlot : IDisposable
             fallbackReader,
             cartridge => cartridge.HasROML,
             (cartridge, address) => cartridge.ReadROML(address));
+
+        if (fallbackWriter == null)
+            return;
+
+        Memory.StoreByte writer = (mappedAddress, value) =>
+        {
+            var cartridge = AttachedCartridge;
+            if (cartridge?.HandlesROMLWrite == true)
+                cartridge.WriteROML(mappedAddress, value);
+            else
+                fallbackWriter(mappedAddress, value);
+        };
+        for (var address = (int)ROMLStartAddress;
+             address < ROMLStartAddress + CartridgeRomWindowSize;
+             address++)
+        {
+            mem.MapWriter((ushort)address, writer);
+        }
     }
 
     public void MapROMHLocations(
@@ -99,11 +123,20 @@ public sealed class C64CartridgeSlot : IDisposable
             (cartridge, address) => cartridge.ReadROMH(address));
     }
 
-    public void Tick()
-        => AttachedCartridge?.Tick();
+    public void Tick(ulong cyclesElapsed = 0)
+        => AttachedCartridge?.Tick(cyclesElapsed);
 
     public void Reset()
         => AttachedCartridge?.Reset();
+
+    public bool Freeze()
+    {
+        if (AttachedCartridge is not IC64FreezableCartridge freezableCartridge)
+            return false;
+
+        freezableCartridge.Freeze();
+        return true;
+    }
 
     public void Dispose()
         => Detach();

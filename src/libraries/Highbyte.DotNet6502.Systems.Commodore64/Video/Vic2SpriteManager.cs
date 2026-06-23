@@ -98,7 +98,7 @@ public class Vic2SpriteManager : IVic2SpriteManager
         if (((SpriteToSpriteCollisionStore != 0 && !SpriteToSpriteCollisionIRQBlock)
             || (SpriteToBackgroundCollisionStore != 0 && !SpriteToBackgroundCollisionIRQBlock))
             && Vic2.Vic2IRQ.IsEnabled(source)
-            && !Vic2.Vic2IRQ.IsTriggered(source, Vic2.C64.CPU))
+            && !Vic2.Vic2IRQ.IsTriggered(source))
         {
             Vic2.Vic2IRQ.Trigger(source, Vic2.C64.CPU);
             if (SpriteToSpriteCollisionStore != 0)

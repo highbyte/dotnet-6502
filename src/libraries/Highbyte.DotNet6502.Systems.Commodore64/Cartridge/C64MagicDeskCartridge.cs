@@ -55,7 +55,7 @@ public sealed class C64MagicDeskCartridge : IC64Cartridge
     public byte ReadROMH(ushort address)
         => throw new InvalidOperationException($"{Name} does not provide ROMH.");
 
-    public void Tick()
+    public void Tick(ulong cyclesElapsed = 0)
     {
     }
 

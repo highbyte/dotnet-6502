@@ -43,13 +43,14 @@ public class C64CartridgeSlotTests
 
         memory.Write(0xDE00, 0x42);
         var value = memory.Read(0xDE00);
-        slot.Tick();
+        slot.Tick(37);
         slot.Reset();
 
         Assert.Equal(0x42, value);
         Assert.Equal(1, cartridge.WriteIOCalls);
         Assert.Equal(1, cartridge.ReadIOCalls);
         Assert.Equal(1, cartridge.TickCalls);
+        Assert.Equal((ulong)37, cartridge.LastTickCycles);
         Assert.Equal(2, cartridge.ResetCalls);
     }
 
@@ -115,6 +116,7 @@ public class C64CartridgeSlotTests
         public int ReadIOCalls { get; private set; }
         public int WriteIOCalls { get; private set; }
         public int TickCalls { get; private set; }
+        public ulong LastTickCycles { get; private set; }
         public int ResetCalls { get; private set; }
         public int DisposeCalls { get; private set; }
 
@@ -134,7 +136,11 @@ public class C64CartridgeSlotTests
         public byte ReadROML(ushort address) => throw new InvalidOperationException();
         public bool HasROMH => false;
         public byte ReadROMH(ushort address) => throw new InvalidOperationException();
-        public void Tick() => TickCalls++;
+        public void Tick(ulong cyclesElapsed = 0)
+        {
+            TickCalls++;
+            LastTickCycles = cyclesElapsed;
+        }
         public void Reset()
         {
             ResetCalls++;

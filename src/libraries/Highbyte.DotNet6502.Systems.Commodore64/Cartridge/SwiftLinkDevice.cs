@@ -106,7 +106,7 @@ public sealed class SwiftLinkDevice : IC64Cartridge
     public bool HasROMH => false;
     public byte ReadROMH(ushort address) => throw new InvalidOperationException("SwiftLink does not provide ROMH.");
 
-    public void Tick()
+    public void Tick(ulong cyclesElapsed = 0)
     {
         UpdateConnectionState();
 

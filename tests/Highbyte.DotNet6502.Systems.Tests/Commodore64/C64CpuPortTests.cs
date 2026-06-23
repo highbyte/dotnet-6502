@@ -130,7 +130,7 @@ public class C64CpuPortTests
         public byte ReadROML(ushort address) => throw new InvalidOperationException();
         public bool HasROMH => false;
         public byte ReadROMH(ushort address) => throw new InvalidOperationException();
-        public void Tick() { }
+        public void Tick(ulong cyclesElapsed = 0) { }
         public void Reset() { }
         public void Dispose() { }
     }

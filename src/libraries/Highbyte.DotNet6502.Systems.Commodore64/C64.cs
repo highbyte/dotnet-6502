@@ -211,7 +211,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
         // Update IEC bus devices
         IECBus.TickDevices();
-        CartridgeSlot.Tick();
+        CartridgeSlot.Tick(instructionExecResult.CyclesConsumed);
 
         // General emulator timing fix: devices tick after the CPU instruction has already
         // completed, so newly raised hardware IRQ/NMI lines must be serviced here to land
@@ -513,7 +513,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.SetMemoryConfiguration(bank);
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
-            CartridgeSlot.MapROMLLocations(mem, address => ram[address]);
+            CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
             CartridgeSlot.MapROMHLocations(mem, 0xe000, address => ram[address]);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
@@ -524,7 +524,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapROM(0xa000, basic);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
-            CartridgeSlot.MapROMLLocations(mem, address => ram[address]);
+            CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 12, 8, 4, 0 })
@@ -540,7 +540,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapROM(0xa000, basic);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
-            CartridgeSlot.MapROMLLocations(mem, address => ram[address]);
+            CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
             MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 7 })
@@ -549,7 +549,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
-            CartridgeSlot.MapROMLLocations(mem, address => ram[address]);
+            CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
             CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address]);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
@@ -575,7 +575,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
-            CartridgeSlot.MapROMLLocations(mem, address => ram[address]);
+            CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
             CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address]);
             MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
@@ -596,6 +596,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         }
 
         return mem;
+
+        void WriteUnderlyingRam(ushort address, byte value)
+        {
+            if (RamPreWriteIntercept(address, value))
+                ram[address] = value;
+        }
     }
 
     private bool RamPreWriteIntercept(ushort address, byte value)
@@ -689,6 +695,21 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     public void ResetAttachedCartridge()
         => CartridgeSlot.Reset();
+
+    public bool CanFreezeAttachedCartridge
+        => CartridgeSlot.AttachedCartridge is IC64FreezableCartridge;
+
+    public bool FreezeAttachedCartridge()
+    {
+        if (!CartridgeSlot.Freeze())
+            return false;
+
+        const string freezeNmiSource = "CartridgeFreeze";
+        CPU.CPUInterrupts.SetNMISourceActive(freezeNmiSource);
+        CPU.ProcessPendingInterrupts(Mem);
+        CPU.CPUInterrupts.SetNMISourceInactive(freezeNmiSource);
+        return true;
+    }
 
     public C64CartridgeImageAttachResult AttachCrtImage(
         ReadOnlyMemory<byte> image,

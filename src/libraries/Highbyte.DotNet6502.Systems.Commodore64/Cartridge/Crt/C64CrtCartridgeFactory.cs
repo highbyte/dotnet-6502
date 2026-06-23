@@ -9,7 +9,9 @@ public static class C64CrtCartridgeFactory
         return image.Header.HardwareType switch
         {
             (ushort)C64CrtHardwareType.Generic => CreateGeneric(image),
+            (ushort)C64CrtHardwareType.ActionReplay => CreateActionReplay(image),
             (ushort)C64CrtHardwareType.Ocean => CreateOcean(image),
+            (ushort)C64CrtHardwareType.EpyxFastLoad => CreateEpyxFastLoad(image),
             (ushort)C64CrtHardwareType.MagicDesk => CreateMagicDesk(image),
             _ => throw new C64UnsupportedCrtHardwareException(image.Header.HardwareType),
         };
@@ -66,6 +68,26 @@ public static class C64CrtCartridgeFactory
             string.IsNullOrWhiteSpace(image.Header.Name) ? "Magic Desk" : image.Header.Name);
     }
 
+    private static IC64Cartridge CreateActionReplay(C64CrtImage image)
+    {
+        if (image.Chips.Any(chip => chip.Type != C64CrtChipType.Rom))
+            throw new C64CrtImageException("Action Replay CRT images support ROM CHIP packets only.");
+
+        var banks = BuildBankedRomChips(image, "Action Replay", maximumBank: 3);
+        if (banks.Count != C64ActionReplayCartridge.RomBankCount)
+            throw new C64CrtImageException("Action Replay CRT images must contain exactly four ROM banks.");
+        for (ushort bank = 0; bank < C64ActionReplayCartridge.RomBankCount; bank++)
+        {
+            if (!banks.ContainsKey(bank))
+                throw new C64CrtImageException($"Action Replay CRT bank {bank} is missing.");
+        }
+
+        var rom = new C64BankedRom(banks, maximumBank: 3);
+        return new C64ActionReplayCartridge(
+            rom,
+            string.IsNullOrWhiteSpace(image.Header.Name) ? "Action Replay" : image.Header.Name);
+    }
+
     private static IC64Cartridge CreateOcean(C64CrtImage image)
     {
         if (image.Chips.Any(chip => chip.Type != C64CrtChipType.Rom))
@@ -86,6 +108,26 @@ public static class C64CrtCartridgeFactory
             rom,
             useEightKMode: bankCount == 64,
             name: string.IsNullOrWhiteSpace(image.Header.Name) ? "Ocean" : image.Header.Name);
+    }
+
+    private static IC64Cartridge CreateEpyxFastLoad(C64CrtImage image)
+    {
+        if (image.Chips.Count != 1)
+            throw new C64CrtImageException("Epyx FastLoad CRT images must contain exactly one CHIP packet.");
+
+        var chip = image.Chips[0];
+        if (chip.Type != C64CrtChipType.Rom)
+            throw new C64CrtImageException("Epyx FastLoad CRT images support ROM CHIP packets only.");
+        if (chip.Bank != 0)
+            throw new C64CrtImageException("Epyx FastLoad CRT images must use bank 0.");
+        if (chip.LoadAddress != 0x8000)
+            throw new C64CrtImageException("Epyx FastLoad CRT ROM must load at 0x8000.");
+        if (chip.Data.Length != C64EpyxFastLoadCartridge.RomSize)
+            throw new C64CrtImageException("Epyx FastLoad CRT ROM must contain exactly 8K of data.");
+
+        return new C64EpyxFastLoadCartridge(
+            chip.Data,
+            string.IsNullOrWhiteSpace(image.Header.Name) ? "Epyx FastLoad" : image.Header.Name);
     }
 
     private static Dictionary<ushort, byte[]> BuildBankedRomChips(

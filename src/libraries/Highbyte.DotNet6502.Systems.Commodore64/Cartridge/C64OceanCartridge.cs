@@ -70,7 +70,7 @@ public sealed class C64OceanCartridge : IC64Cartridge
             ? _rom.Read(CurrentBank, address)
             : throw new InvalidOperationException($"{Name} does not provide ROMH in 8K mode.");
 
-    public void Tick()
+    public void Tick(ulong cyclesElapsed = 0)
     {
     }
 

@@ -644,7 +644,7 @@ public class Vic2
                 if (source == IRQSource.Any)
                     continue;
                 // Clear all individual latches.
-                if (Vic2IRQ.IsTriggered(source, C64.CPU))
+                if (Vic2IRQ.IsTriggered(source))
                     Vic2IRQ.ClearTrigger(source, C64.CPU);
             }
         }
@@ -657,7 +657,7 @@ public class Vic2
                 if (source == IRQSource.Any)
                     continue;
                 // Clear individual latch.
-                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source, C64.CPU))
+                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source))
                     Vic2IRQ.ClearTrigger(source, C64.CPU);
             }
         }
@@ -667,21 +667,22 @@ public class Vic2
     {
         byte value = 0b01110000;    // Bits 4-7 are unused and always set to 1.
 
-        bool anyIRQSourceTriggered = false;
+        bool irqLineAsserted = false;
         // Set bit 0-3 based on which IRQ sources have been triggered
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
             // "Any" flag does not have a separate trigger.
             if (source == IRQSource.Any)
                 continue;
-            if (Vic2IRQ.IsTriggered(source, C64.CPU))
+            if (Vic2IRQ.IsTriggered(source))
             {
                 value.SetBit((int)source);
-                anyIRQSourceTriggered = true;
+                if (Vic2IRQ.IsEnabled(source))
+                    irqLineAsserted = true;
             }
         }
-        // If any of the individual IRQ flags are set, also set the "Any" flag (bit 7)
-        if (anyIRQSourceTriggered)
+        // Bit 7 reflects the IRQ output, so a latched source must also be enabled.
+        if (irqLineAsserted)
             value.SetBit((int)IRQSource.Any);
         else
             value.ClearBit((int)IRQSource.Any);
@@ -696,9 +697,9 @@ public class Vic2
             if (source == IRQSource.Any)
                 continue;
             if (value.IsBitSet((int)source))
-                Vic2IRQ.Enable(source);
+                Vic2IRQ.Enable(source, C64.CPU);
             else
-                Vic2IRQ.Disable(source);
+                Vic2IRQ.Disable(source, C64.CPU);
         }
     }
     public byte IRQMASKLoad(ushort _)
@@ -766,8 +767,7 @@ public class Vic2
         var source = IRQSource.RasterCompare;
         if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
             || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.TotalHeight))
-            && Vic2IRQ.IsEnabled(source)
-            && !Vic2IRQ.IsTriggered(source, C64.CPU))
+            && !Vic2IRQ.IsTriggered(source))
         {
             Vic2IRQ.Trigger(source, cpu);
         }

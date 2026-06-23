@@ -516,7 +516,7 @@ public partial class C64MenuView : UserControl
     private void OpenCartridgeInfo_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(() => ShowMessageOverlayAsync(
             "C64 Cartridge Images",
-            "Attach generic 8K, generic 16K, Ultimax, Magic Desk, or Ocean .crt images. Other cartridge hardware types are rejected until their banking or device behavior is implemented."));
+            "Attach generic 8K, generic 16K, Ultimax, Magic Desk, Ocean, Epyx FastLoad, or Action Replay .crt images. Freezer cartridges expose a Freeze button while attached. Other cartridge hardware types are rejected until their banking or device behavior is implemented."));
 
     private async Task<bool> ShowConfirmationOverlayAsync(string title, string message)
     {
