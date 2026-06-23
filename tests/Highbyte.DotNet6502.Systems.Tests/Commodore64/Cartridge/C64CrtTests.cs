@@ -208,7 +208,6 @@ public class C64CrtTests
     {
         var c64 = BuildC64();
         c64.RAM[0x8000] = 0x44;
-        c64.IO[0x0E00] = 0x5A;
         var crt = BuildCrt(
             hardwareType: (ushort)C64CrtHardwareType.MagicDesk,
             exromHigh: false,
@@ -226,6 +225,7 @@ public class C64CrtTests
 
         Assert.Equal((ushort)C64CrtHardwareType.MagicDesk, result.HardwareType);
         Assert.Equal(0x10, c64.Mem.Read(0x8000));
+        c64.IO[0x0E00] = 0x5A;
         Assert.Equal(0x5A, c64.Mem.Read(0xDE00));
 
         c64.Mem.Write(0xDE00, 2);
@@ -329,7 +329,6 @@ public class C64CrtTests
     public void Ocean_Attach_Maps_And_Switches_Mirrored_Rom_Banks()
     {
         var c64 = BuildC64();
-        c64.IO[0x0E00] = 0x5A;
         var crt = BuildCrt(
             hardwareType: (ushort)C64CrtHardwareType.Ocean,
             exromHigh: false,
@@ -342,6 +341,7 @@ public class C64CrtTests
         Assert.Equal((ushort)C64CrtHardwareType.Ocean, result.HardwareType);
         Assert.Equal(0x10, c64.Mem.Read(0x8000));
         Assert.Equal(0x10, c64.Mem.Read(0xA000));
+        c64.IO[0x0E00] = 0x5A;
         Assert.Equal(0x5A, c64.Mem.Read(0xDE00));
 
         c64.Mem.Write(0xDE00, 3);
@@ -586,6 +586,175 @@ public class C64CrtTests
     }
 
     [Fact]
+    public void Factory_Creates_FinalCartridgeIII_With_Banked_Rom_And_IO_Mirrors()
+    {
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            name: "FINAL CARTRIDGE III TEST",
+            chips: CreateFinalCartridgeIIIBankChips(4)));
+
+        var cartridge = Assert.IsType<C64FinalCartridgeIIICartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        Assert.Equal("FINAL CARTRIDGE III TEST", cartridge.Name);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: false), cartridge.Lines);
+        Assert.Equal((ushort)0, cartridge.CurrentBank);
+        Assert.Equal(0x10, cartridge.ReadROML(0x8000));
+        Assert.Equal(0x20, cartridge.ReadROMH(0xA000));
+        Assert.Equal(0x10, cartridge.ReadIO(0xDE34));
+        Assert.Equal(0x10, cartridge.ReadIO(0xDF34));
+
+        cartridge.WriteIO(0xDFFF, 0x62); // Bank 2, 8K mode, NMI released.
+
+        Assert.Equal((ushort)2, cartridge.CurrentBank);
+        Assert.Equal(new C64CartridgeLines(GameHigh: true, ExromHigh: false), cartridge.Lines);
+        Assert.Equal(0x12, cartridge.ReadROML(0x8000));
+        Assert.False(cartridge.HasROMH);
+        Assert.Equal(0x12, cartridge.ReadIO(0xDE34));
+        Assert.Equal(0x12, cartridge.ReadIO(0xDF34));
+    }
+
+    [Fact]
+    public void Factory_Creates_Sixteen_Bank_FinalCartridgeIIIPlus()
+    {
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: CreateFinalCartridgeIIIBankChips(16)));
+        var cartridge = Assert.IsType<C64FinalCartridgeIIICartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        cartridge.WriteIO(0xDFFF, 0x4F); // Bank 15, 16K mode, NMI released.
+
+        Assert.Equal((ushort)15, cartridge.CurrentBank);
+        Assert.Equal(0x1F, cartridge.ReadROML(0x8000));
+        Assert.Equal(0x2F, cartridge.ReadROMH(0xA000));
+    }
+
+    [Theory]
+    [InlineData("wrong-count")]
+    [InlineData("duplicate-bank")]
+    [InlineData("wrong-address")]
+    [InlineData("wrong-size")]
+    [InlineData("bank-too-high")]
+    public void Factory_Rejects_Invalid_FinalCartridgeIII_Images(string invalidShape)
+    {
+        Chip[] chips = invalidShape switch
+        {
+            "wrong-count" => CreateFinalCartridgeIIIBankChips(3),
+            "duplicate-bank" =>
+            [
+                .. CreateFinalCartridgeIIIBankChips(3),
+                CreateFinalCartridgeIIIBankChips(4)[2],
+            ],
+            "wrong-address" =>
+            [
+                new Chip(0, 0xA000, Filled(0x4000, 0x10)),
+                .. CreateFinalCartridgeIIIBankChips(4)[1..],
+            ],
+            "wrong-size" =>
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10)),
+                .. CreateFinalCartridgeIIIBankChips(4)[1..],
+            ],
+            "bank-too-high" =>
+            [
+                .. CreateFinalCartridgeIIIBankChips(3),
+                new Chip(4, 0x8000, Filled(0x4000, 0x14)),
+            ],
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidShape)),
+        };
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        Assert.Throws<C64CrtImageException>(
+            () => C64CrtCartridgeFactory.Create(image));
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Hidden_Register_Ignores_Writes_Until_Freeze()
+    {
+        var cartridge = Assert.IsType<C64FinalCartridgeIIICartridge>(
+            C64CrtCartridgeFactory.Create(C64CrtParser.Parse(BuildCrt(
+                hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+                exromHigh: false,
+                gameHigh: false,
+                chips: CreateFinalCartridgeIIIBankChips(4)))));
+
+        cartridge.WriteIO(0xDFFF, 0xF3); // Bank 3, released mode, hide register.
+        cartridge.WriteIO(0xDFFF, 0x40);
+
+        Assert.False(cartridge.IsRegisterEnabled);
+        Assert.Equal((ushort)3, cartridge.CurrentBank);
+        Assert.Equal(C64CartridgeLines.Released, cartridge.Lines);
+
+        cartridge.Freeze();
+        cartridge.WriteIO(0xDFFF, 0x40);
+
+        Assert.True(cartridge.IsRegisterEnabled);
+        Assert.False(cartridge.IsFreezeMode);
+        Assert.Equal((ushort)0, cartridge.CurrentBank);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: false), cartridge.Lines);
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Control_Register_Drives_The_Cartridge_Nmi_Line()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        chips[1].Data[0x3FFA] = 0x78;
+        chips[1].Data[0x3FFB] = 0x56;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        c64.Mem.Write(0xDFFF, 0x11); // Bank 1, Ultimax, assert NMI.
+
+        Assert.True(c64.CartridgeSlot.NmiLineActive);
+        Assert.True(c64.CPU.CPUInterrupts.NMIPending);
+        c64.CPU.ProcessPendingInterrupts(c64.Mem);
+        Assert.Equal((ushort)0x5678, c64.CPU.PC);
+
+        c64.Mem.Write(0xDFFF, 0x51); // Keep mapping and bank, release NMI.
+
+        Assert.False(c64.CartridgeSlot.NmiLineActive);
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Freeze_Preserves_Bank_And_Services_Its_Nmi_Vector()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        chips[2].Data[0x3FFA] = 0x34;
+        chips[2].Data[0x3FFB] = 0x12;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+        c64.Mem.Write(0xDFFF, 0xF2); // Bank 2, released mode, hide register.
+
+        var frozen = c64.FreezeAttachedCartridge();
+
+        var cartridge = Assert.IsType<C64FinalCartridgeIIICartridge>(
+            c64.CartridgeSlot.AttachedCartridge);
+        Assert.True(frozen);
+        Assert.True(cartridge.IsFreezeMode);
+        Assert.True(cartridge.IsRegisterEnabled);
+        Assert.Equal((ushort)2, cartridge.CurrentBank);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: true), cartridge.Lines);
+        Assert.Equal((ushort)0x1234, c64.CPU.PC);
+    }
+
+    [Fact]
     public void Unsupported_Hardware_Type_Does_Not_Replace_Current_Cartridge()
     {
         var c64 = BuildC64();
@@ -684,6 +853,17 @@ public class C64CrtTests
                 (ushort)bank,
                 0x8000,
                 Filled(0x2000, (byte)(0x10 + bank))))
+            .ToArray();
+
+    private static Chip[] CreateFinalCartridgeIIIBankChips(int count)
+        => Enumerable.Range(0, count)
+            .Select(bank => new Chip(
+                (ushort)bank,
+                0x8000,
+                [
+                    .. Filled(0x2000, (byte)(0x10 + bank)),
+                    .. Filled(0x2000, (byte)(0x20 + bank)),
+                ]))
             .ToArray();
 
     private sealed record Chip(ushort Bank, ushort Address, byte[] Data);

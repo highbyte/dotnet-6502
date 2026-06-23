@@ -10,6 +10,7 @@ public static class C64CrtCartridgeFactory
         {
             (ushort)C64CrtHardwareType.Generic => CreateGeneric(image),
             (ushort)C64CrtHardwareType.ActionReplay => CreateActionReplay(image),
+            (ushort)C64CrtHardwareType.FinalCartridgeIII => CreateFinalCartridgeIII(image),
             (ushort)C64CrtHardwareType.Ocean => CreateOcean(image),
             (ushort)C64CrtHardwareType.EpyxFastLoad => CreateEpyxFastLoad(image),
             (ushort)C64CrtHardwareType.MagicDesk => CreateMagicDesk(image),
@@ -86,6 +87,49 @@ public static class C64CrtCartridgeFactory
         return new C64ActionReplayCartridge(
             rom,
             string.IsNullOrWhiteSpace(image.Header.Name) ? "Action Replay" : image.Header.Name);
+    }
+
+    private static IC64Cartridge CreateFinalCartridgeIII(C64CrtImage image)
+    {
+        if (image.Chips.Any(chip => chip.Type != C64CrtChipType.Rom))
+            throw new C64CrtImageException("Final Cartridge III CRT images support ROM CHIP packets only.");
+        if (image.Chips.Count is not (
+            C64FinalCartridgeIIICartridge.StandardRomBankCount or
+            C64FinalCartridgeIIICartridge.ExtendedRomBankCount))
+        {
+            throw new C64CrtImageException("Final Cartridge III CRT images must contain exactly 4 or 16 ROM banks.");
+        }
+
+        var bankCount = image.Chips.Count;
+        var romlBanks = new Dictionary<ushort, byte[]>(bankCount);
+        var romhBanks = new Dictionary<ushort, byte[]>(bankCount);
+        foreach (var chip in image.Chips)
+        {
+            if (chip.Bank >= bankCount)
+                throw new C64CrtImageException($"Final Cartridge III CRT bank {chip.Bank} exceeds maximum bank {bankCount - 1}.");
+            if (chip.LoadAddress != 0x8000)
+                throw new C64CrtImageException($"Final Cartridge III CRT bank {chip.Bank} must load at 0x8000.");
+            if (chip.Data.Length != C64FinalCartridgeIIICartridge.CrtBankSize)
+                throw new C64CrtImageException($"Final Cartridge III CRT bank {chip.Bank} must contain exactly 16K of ROM data.");
+            if (!romlBanks.TryAdd(chip.Bank, chip.Data[..C64BankedRom.BankSize]))
+                throw new C64CrtImageException($"Final Cartridge III CRT bank {chip.Bank} is duplicated.");
+
+            romhBanks.Add(chip.Bank, chip.Data[C64BankedRom.BankSize..]);
+        }
+
+        for (ushort bank = 0; bank < bankCount; bank++)
+        {
+            if (!romlBanks.ContainsKey(bank))
+                throw new C64CrtImageException($"Final Cartridge III CRT bank {bank} is missing.");
+        }
+
+        return new C64FinalCartridgeIIICartridge(
+            new C64BankedRom(romlBanks, (ushort)(bankCount - 1)),
+            new C64BankedRom(romhBanks, (ushort)(bankCount - 1)),
+            bankCount,
+            string.IsNullOrWhiteSpace(image.Header.Name)
+                ? "The Final Cartridge III"
+                : image.Header.Name);
     }
 
     private static IC64Cartridge CreateOcean(C64CrtImage image)

@@ -21,6 +21,19 @@ public class C64CpuPortTests
     }
 
     [Fact]
+    public void Hard_Reset_Clears_Stale_IO_Register_Storage()
+    {
+        var c64 = BuildC64();
+        c64.WriteIOStorage(0xD011, 0x7F);
+        c64.WriteIOStorage(0xDC0D, 0x81);
+
+        c64.HardReset();
+
+        Assert.Equal(0, c64.ReadIOStorage(0xD011));
+        Assert.Equal(0, c64.ReadIOStorage(0xDC0D));
+    }
+
+    [Fact]
     public void Kernal_Rom_Stays_Visible_When_Bank_Lines_Are_Configured_As_Inputs()
     {
         var c64 = BuildC64();

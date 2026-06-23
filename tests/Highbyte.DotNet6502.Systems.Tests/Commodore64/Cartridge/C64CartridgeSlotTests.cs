@@ -105,13 +105,36 @@ public class C64CartridgeSlotTests
         Assert.Equal(1, replacement.ResetCalls);
     }
 
+    [Fact]
+    public void Slot_Tracks_Only_The_Attached_Cartridge_Nmi_Line()
+    {
+        var slot = new C64CartridgeSlot();
+        var previous = new TestCartridge("Previous");
+        var replacement = new TestCartridge("Replacement");
+        var nmiChanges = 0;
+        slot.NmiLineChanged += () => nmiChanges++;
+
+        slot.Attach(previous);
+        previous.SetNmiLine(active: true);
+        slot.Replace(replacement);
+        previous.SetNmiLine(active: false);
+        replacement.SetNmiLine(active: true);
+        slot.Detach();
+        replacement.SetNmiLine(active: false);
+
+        Assert.False(slot.NmiLineActive);
+        Assert.Equal(5, nmiChanges);
+    }
+
     private sealed class TestCartridge(
         string name = "Test",
-        bool throwOnReset = false) : IC64Cartridge
+        bool throwOnReset = false) : IC64Cartridge, IC64CartridgeNmiSource
     {
         public string Name { get; } = name;
         public C64CartridgeLines Lines => C64CartridgeLines.Released;
         public event Action? LinesChanged;
+        public bool NmiLineActive { get; private set; }
+        public event Action? NmiLineChanged;
         private byte _ioValue;
         public int ReadIOCalls { get; private set; }
         public int WriteIOCalls { get; private set; }
@@ -149,5 +172,10 @@ public class C64CartridgeSlotTests
         }
         public void Dispose() => DisposeCalls++;
         public void RaiseLinesChanged() => LinesChanged?.Invoke();
+        public void SetNmiLine(bool active)
+        {
+            NmiLineActive = active;
+            NmiLineChanged?.Invoke();
+        }
     }
 }

@@ -9,7 +9,10 @@ public sealed class C64CartridgeSlot : IDisposable
 
     public IC64Cartridge? AttachedCartridge { get; private set; }
     public C64CartridgeLines Lines => AttachedCartridge?.Lines ?? C64CartridgeLines.Released;
+    public bool NmiLineActive
+        => AttachedCartridge is IC64CartridgeNmiSource { NmiLineActive: true };
     public event Action? LinesChanged;
+    public event Action? NmiLineChanged;
 
     public void Attach(IC64Cartridge cartridge)
     {
@@ -21,7 +24,10 @@ public sealed class C64CartridgeSlot : IDisposable
         cartridge.Reset();
         AttachedCartridge = cartridge;
         cartridge.LinesChanged += OnCartridgeLinesChanged;
+        SubscribeToNmiSource(cartridge);
         LinesChanged?.Invoke();
+        if (cartridge is IC64CartridgeNmiSource)
+            NmiLineChanged?.Invoke();
     }
 
     public void Replace(IC64Cartridge cartridge)
@@ -31,11 +37,17 @@ public sealed class C64CartridgeSlot : IDisposable
 
         var previous = AttachedCartridge;
         if (previous != null)
+        {
             previous.LinesChanged -= OnCartridgeLinesChanged;
+            UnsubscribeFromNmiSource(previous);
+        }
 
         AttachedCartridge = cartridge;
         cartridge.LinesChanged += OnCartridgeLinesChanged;
+        SubscribeToNmiSource(cartridge);
         LinesChanged?.Invoke();
+        if (previous is IC64CartridgeNmiSource || cartridge is IC64CartridgeNmiSource)
+            NmiLineChanged?.Invoke();
 
         if (previous != null)
         {
@@ -52,7 +64,10 @@ public sealed class C64CartridgeSlot : IDisposable
             return;
 
         LinesChanged?.Invoke();
+        if (cartridge is IC64CartridgeNmiSource)
+            NmiLineChanged?.Invoke();
         cartridge.LinesChanged -= OnCartridgeLinesChanged;
+        UnsubscribeFromNmiSource(cartridge);
         cartridge.Reset();
         cartridge.Dispose();
     }
@@ -143,6 +158,21 @@ public sealed class C64CartridgeSlot : IDisposable
 
     private void OnCartridgeLinesChanged()
         => LinesChanged?.Invoke();
+
+    private void OnCartridgeNmiLineChanged()
+        => NmiLineChanged?.Invoke();
+
+    private void SubscribeToNmiSource(IC64Cartridge cartridge)
+    {
+        if (cartridge is IC64CartridgeNmiSource nmiSource)
+            nmiSource.NmiLineChanged += OnCartridgeNmiLineChanged;
+    }
+
+    private void UnsubscribeFromNmiSource(IC64Cartridge cartridge)
+    {
+        if (cartridge is IC64CartridgeNmiSource nmiSource)
+            nmiSource.NmiLineChanged -= OnCartridgeNmiLineChanged;
+    }
 
     private byte ReadIO(ushort address, Func<ushort, byte> fallbackReader)
     {

@@ -313,6 +313,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             var mode = image.HardwareType switch
             {
                 (ushort)C64CrtHardwareType.ActionReplay => "Action Replay",
+                (ushort)C64CrtHardwareType.FinalCartridgeIII => "Final Cartridge III",
                 (ushort)C64CrtHardwareType.Ocean => "Ocean",
                 (ushort)C64CrtHardwareType.EpyxFastLoad => "Epyx FastLoad",
                 (ushort)C64CrtHardwareType.MagicDesk => "Magic Desk",

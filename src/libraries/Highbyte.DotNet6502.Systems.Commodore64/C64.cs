@@ -29,6 +29,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64;
 
 public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 {
+    private const string CartridgeNmiSource = "CartridgeNmi";
     private const byte CpuPortBankBitsMask = 0x07;
     private const byte CpuPortDataDirectionResetValue = 0x2F;
     private const byte CpuPortDataResetValue = 0x37;
@@ -246,6 +247,16 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         {
             if (Mem is not null)
                 ApplyCpuPortMemoryConfiguration();
+        };
+        CartridgeSlot.NmiLineChanged += () =>
+        {
+            if (CPU is null)
+                return;
+
+            if (CartridgeSlot.NmiLineActive)
+                CPU.CPUInterrupts.SetNMISourceActive(CartridgeNmiSource);
+            else
+                CPU.CPUInterrupts.SetNMISourceInactive(CartridgeNmiSource);
         };
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
 
@@ -701,10 +712,26 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     public bool FreezeAttachedCartridge()
     {
+        _logger.LogDebug(
+            "Activating cartridge Freeze. Cartridge={Cartridge}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, PC={PC:X4}",
+            CartridgeSlot.AttachedCartridge?.Name ?? "none",
+            CartridgeSlot.Lines,
+            CurrentBank,
+            CPU.PC);
+
         if (!CartridgeSlot.Freeze())
             return false;
 
+        ApplyCpuPortMemoryConfiguration();
         const string freezeNmiSource = "CartridgeFreeze";
+        var freezeVector = (ushort)(
+            Mem.Read(CPU.NonMaskableIRQHandlerVector) |
+            Mem.Read(CPU.NonMaskableIRQHandlerVector + 1) << 8);
+        _logger.LogDebug(
+            "Cartridge Freeze mapping applied. Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, Vector={Vector:X4}",
+            CartridgeSlot.Lines,
+            CurrentBank,
+            freezeVector);
         CPU.CPUInterrupts.SetNMISourceActive(freezeNmiSource);
         CPU.ProcessPendingInterrupts(Mem);
         CPU.CPUInterrupts.SetNMISourceInactive(freezeNmiSource);
@@ -717,6 +744,13 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     {
         var crtImage = C64CrtParser.Parse(image.Span);
         var cartridge = C64CrtCartridgeFactory.Create(crtImage);
+        _logger.LogInformation(
+            "Attaching CRT cartridge. Source={Source}, Name={Name}, HardwareType={HardwareType}, Chips={ChipCount}, InitialLines={Lines}",
+            sourceName ?? string.Empty,
+            cartridge.Name,
+            crtImage.Header.HardwareType,
+            crtImage.Chips.Count,
+            cartridge.Lines);
         var result = new C64CartridgeImageAttachResult(
             cartridge.Name,
             crtImage.Header.HardwareType,
@@ -728,6 +762,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         CartridgeSlot.Replace(cartridge);
         AttachedCartridgeImage = result;
         HardReset();
+        _logger.LogInformation(
+            "CRT cartridge attached and reset. Name={Name}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, PC={PC:X4}",
+            cartridge.Name,
+            CartridgeSlot.Lines,
+            CurrentBank,
+            CPU.PC);
         return result;
     }
 
@@ -740,8 +780,15 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public void HardReset()
     {
         CartridgeSlot.Reset();
+        Array.Clear(IO);
         SetStartupBank(this);
         CPU.Reset(Mem);
+        _logger.LogDebug(
+            "C64 hard reset complete. Cartridge={Cartridge}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, ResetPC={PC:X4}",
+            CartridgeSlot.AttachedCartridge?.Name ?? "none",
+            CartridgeSlot.Lines,
+            CurrentBank,
+            CPU.PC);
     }
 
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()
