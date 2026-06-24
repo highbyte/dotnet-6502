@@ -62,12 +62,18 @@ public abstract class CiaBase
         Memory.LoadByte reader,
         Memory.StoreByte writer)
     {
+        c64mem.MapReader(registerAddress, reader);
+        c64mem.MapWriter(registerAddress, writer);
+
         var pageStart = registerAddress & 0xFF00;
         var registerOffset = registerAddress & 0x000F;
 
         for (var offset = registerOffset; offset <= 0x00FF; offset += 0x10)
         {
             var mirrorAddress = (ushort)(pageStart + offset);
+            if (mirrorAddress == registerAddress)
+                continue;
+
             c64mem.MapReader(mirrorAddress, _ => reader(registerAddress));
             c64mem.MapWriter(mirrorAddress, (_, value) => writer(registerAddress, value));
         }
