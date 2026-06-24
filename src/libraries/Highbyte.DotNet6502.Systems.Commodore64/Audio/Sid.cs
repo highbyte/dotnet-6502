@@ -98,6 +98,12 @@ public class Sid
         c64Mem.MapReader(SidAddr.SIGVOL, (_) => 0);
         c64Mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
 
+        // Paddle/mouse analog inputs. With no paddle/mouse emulation connected, return the
+        // idle/open value instead of the zero-filled backing IO RAM. Some software probes
+        // POTX/POTY before deciding whether to use mouse-style or joystick-style pointer input.
+        c64Mem.MapReader(SidAddr.POTX, (_) => 0xff);
+        c64Mem.MapReader(SidAddr.POTY, (_) => 0xff);
+
         // Voice 3 read-only registers. Tunes that read $D41B/$D41C for waveform- or
         // envelope-driven effects (vibrato, sweeps, etc.) depend on these. The active audio
         // provider installs a lazy getter so the value is computed only on read (currently only
