@@ -147,6 +147,28 @@ public class C64ShareLinkBuilderTests
     }
 
     [Fact]
+    public void Build_CartridgeImage_Emits_LoadCrtUrl_Without_WaitForSystemReady()
+    {
+        var request = new C64ShareLinkRequest
+        {
+            Mode = C64ShareMode.CartridgeImage,
+            SystemVariant = "C64PAL",
+            CartridgeUrl = "https://example.com/fc3.crt",
+        };
+
+        var q = ParseQuery(C64ShareLinkBuilder.Build(BaseUrl, request));
+
+        Assert.Equal("C64", q["system"]);
+        Assert.Equal("C64PAL", q["systemVariant"]);
+        Assert.Equal("1", q["start"]);
+        Assert.Equal("https://example.com/fc3.crt", q["loadCrtUrl"]);
+        Assert.False(q.ContainsKey("waitForSystemReady"));
+        Assert.False(q.ContainsKey("runLoadedProgram"));
+        Assert.False(q.ContainsKey("loadPrgUrl"));
+        Assert.False(q.ContainsKey("loadD64Url"));
+    }
+
+    [Fact]
     public void Build_With_IncludeSettings_Enabled_Emits_All_Runtime_Knobs()
     {
         var request = new C64ShareLinkRequest
@@ -228,6 +250,18 @@ public class C64ShareLinkBuilderTests
             Mode = C64ShareMode.DownloadProgram,
             SystemVariant = "C64NTSC",
             DownloadType = C64DownloadProgramType.Prg,
+        };
+
+        Assert.Throws<ArgumentException>(() => C64ShareLinkBuilder.Build(BaseUrl, request));
+    }
+
+    [Fact]
+    public void Build_CartridgeImage_Without_Url_Throws()
+    {
+        var request = new C64ShareLinkRequest
+        {
+            Mode = C64ShareMode.CartridgeImage,
+            SystemVariant = "C64NTSC",
         };
 
         Assert.Throws<ArgumentException>(() => C64ShareLinkBuilder.Build(BaseUrl, request));

@@ -26,7 +26,7 @@ public class EmulatorConfig
     /// <summary>
     /// CORS proxy prefix used to route cross-origin HTTP fetches when running in the browser
     /// (WebAssembly). General browser setting shared by all systems and by URL-driven startup
-    /// (<c>loadPrgUrl</c> / <c>loadD64Url</c> / <c>basicUrl</c> / <c>scriptUrl</c>). Defaults to
+    /// (<c>loadPrgUrl</c> / <c>loadD64Url</c> / <c>loadCrtUrl</c> / <c>basicUrl</c> / <c>scriptUrl</c>). Defaults to
     /// <see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/>; ignored on desktop (no proxy). See
     /// <see cref="GetCorsProxyUrl"/>.
     /// </summary>

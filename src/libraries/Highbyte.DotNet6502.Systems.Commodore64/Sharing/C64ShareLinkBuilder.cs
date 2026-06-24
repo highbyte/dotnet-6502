@@ -26,6 +26,7 @@ public static class C64ShareLinkBuilder
         public const string RunBasic = "runBasic";
         public const string LoadPrgUrl = "loadPrgUrl";
         public const string LoadD64Url = "loadD64Url";
+        public const string LoadCrtUrl = "loadCrtUrl";
         public const string D64Program = "d64Program";
         public const string DiskMount = "diskMount";
         public const string RunLoadedProgram = "runLoadedProgram";
@@ -61,9 +62,12 @@ public static class C64ShareLinkBuilder
         if (!string.IsNullOrWhiteSpace(request.SystemVariant))
             pairs.Add((QueryKeys.SystemVariant, request.SystemVariant));
 
-        // Every share mode starts the system and waits for BASIC to be ready.
+        // Every share mode starts the system. BASIC/PRG/D64 flows also wait for BASIC to be ready.
+        // Cartridge images reset/boot the machine when attached, so they intentionally do not
+        // require waitForSystemReady.
         pairs.Add((QueryKeys.Start, "1"));
-        pairs.Add((QueryKeys.WaitForSystemReady, "1"));
+        if (request.Mode != C64ShareMode.CartridgeImage)
+            pairs.Add((QueryKeys.WaitForSystemReady, "1"));
 
         switch (request.Mode)
         {
@@ -72,6 +76,9 @@ public static class C64ShareLinkBuilder
                 break;
             case C64ShareMode.DownloadProgram:
                 AddDownloadProgramParams(pairs, request);
+                break;
+            case C64ShareMode.CartridgeImage:
+                AddCartridgeImageParams(pairs, request);
                 break;
             default:
                 throw new ArgumentException($"Unknown share mode '{request.Mode}'.", nameof(request));
@@ -122,6 +129,14 @@ public static class C64ShareLinkBuilder
 
         if (request.AutoRun)
             pairs.Add((QueryKeys.RunLoadedProgram, "1"));
+    }
+
+    private static void AddCartridgeImageParams(List<(string, string)> pairs, C64ShareLinkRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.CartridgeUrl))
+            throw new ArgumentException("CartridgeImage share mode requires CartridgeUrl.", nameof(request));
+
+        pairs.Add((QueryKeys.LoadCrtUrl, request.CartridgeUrl));
     }
 
     private static void AddSettingsParams(List<(string, string)> pairs, C64ShareLinkRequest request)
