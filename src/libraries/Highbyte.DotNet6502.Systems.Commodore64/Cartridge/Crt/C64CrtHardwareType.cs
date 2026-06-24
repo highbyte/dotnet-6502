@@ -6,6 +6,7 @@ public enum C64CrtHardwareType : ushort
     ActionReplay = 1,
     FinalCartridgeIII = 3,
     Ocean = 5,
+    Expert = 6,
     EpyxFastLoad = 10,
     MagicDesk = 19,
 }

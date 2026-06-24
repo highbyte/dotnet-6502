@@ -12,6 +12,7 @@ public static class C64CrtCartridgeFactory
             (ushort)C64CrtHardwareType.ActionReplay => CreateActionReplay(image),
             (ushort)C64CrtHardwareType.FinalCartridgeIII => CreateFinalCartridgeIII(image),
             (ushort)C64CrtHardwareType.Ocean => CreateOcean(image),
+            (ushort)C64CrtHardwareType.Expert => CreateExpert(image),
             (ushort)C64CrtHardwareType.EpyxFastLoad => CreateEpyxFastLoad(image),
             (ushort)C64CrtHardwareType.MagicDesk => CreateMagicDesk(image),
             _ => throw new C64UnsupportedCrtHardwareException(image.Header.HardwareType),
@@ -152,6 +153,24 @@ public static class C64CrtCartridgeFactory
             rom,
             useEightKMode: bankCount == 64,
             name: string.IsNullOrWhiteSpace(image.Header.Name) ? "Ocean" : image.Header.Name);
+    }
+
+    private static IC64Cartridge CreateExpert(C64CrtImage image)
+    {
+        if (image.Chips.Count != 1)
+            throw new C64CrtImageException("Expert CRT images must contain exactly one CHIP packet.");
+
+        var chip = image.Chips[0];
+        if (chip.Bank != 0)
+            throw new C64CrtImageException("Expert CRT images must use bank 0.");
+        if (chip.LoadAddress != 0x8000)
+            throw new C64CrtImageException("Expert CRT RAM must load at 0x8000.");
+        if (chip.Data.Length != C64ExpertCartridge.RamSize)
+            throw new C64CrtImageException("Expert CRT RAM must contain exactly 8K of data.");
+
+        return new C64ExpertCartridge(
+            chip.Data,
+            string.IsNullOrWhiteSpace(image.Header.Name) ? "Expert Cartridge" : image.Header.Name);
     }
 
     private static IC64Cartridge CreateEpyxFastLoad(C64CrtImage image)

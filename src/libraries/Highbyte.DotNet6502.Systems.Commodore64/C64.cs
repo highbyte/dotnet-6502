@@ -338,6 +338,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         }
 
         c64.CPU = cpu;
+        c64.CPU.NmiAcknowledging += (_, _) => c64.CartridgeSlot.AcknowledgeNmi();
         c64.Vic2 = vic2;
         c64.Cia1 = cia1;
         c64.Cia2 = cia2;
@@ -525,7 +526,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
-            CartridgeSlot.MapROMHLocations(mem, 0xe000, address => ram[address], WriteUnderlyingRam);
+            CartridgeSlot.MapROMHLocations(
+                mem,
+                0xe000,
+                address => ram[address],
+                WriteUnderlyingRam,
+                ReadUltimaxRomHAsReleasedCartridge);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 15 })
@@ -612,6 +618,20 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         {
             if (RamPreWriteIntercept(address, value))
                 ram[address] = value;
+        }
+
+        byte ReadUltimaxRomHAsReleasedCartridge(ushort address)
+        {
+            // Expert can keep the C64 in Ultimax while its RAM is hidden. In that
+            // state ROMH reads should see the normal C64 $E000-$FFFF map as if
+            // GAME/EXROM were released, but without changing the active memory
+            // configuration for every read.
+            var cpuPortBits = mem.CurrentConfiguration & CpuPortBankBitsMask;
+            var kernalVisible = address >= 0xE000 &&
+                (cpuPortBits is 0x07 or 0x06 or 0x03 or 0x02);
+            return kernalVisible
+                ? kernal[address - 0xE000]
+                : ram[address];
         }
     }
 

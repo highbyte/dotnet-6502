@@ -145,8 +145,10 @@ public abstract class CiaBase
         if (_ciaIRQ.IsConditionSet(IRQSource.TimerB))
             value.SetBit((int)IRQSource.TimerB);
 
-        // If any IRQ source is set, also set bit 7.
-        if (value != 0)
+        // Bit 7 is the interrupt-request latch. A CIA source condition can be set
+        // while its mask is disabled; in that case the source bit is reported, but
+        // bit 7 must stay clear because the CIA did not actually drive IRQ/NMI.
+        if (_ciaIRQ.IsConditionSet(IRQSource.Any))
             value.SetBit((int)IRQSource.Any);
 
         // If this address is read, it's contents is automatically cleared ( = all IRQ states are cleared).

@@ -315,6 +315,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 (ushort)C64CrtHardwareType.ActionReplay => "Action Replay",
                 (ushort)C64CrtHardwareType.FinalCartridgeIII => "Final Cartridge III",
                 (ushort)C64CrtHardwareType.Ocean => "Ocean",
+                (ushort)C64CrtHardwareType.Expert => "Expert Cartridge",
                 (ushort)C64CrtHardwareType.EpyxFastLoad => "Epyx FastLoad",
                 (ushort)C64CrtHardwareType.MagicDesk => "Magic Desk",
                 (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: true, ExromHigh: false } => "generic 8K",

@@ -18,6 +18,8 @@ public class CiaIRQ
 
     public void Trigger(IRQSource source, CPU cpu)
     {
+        _sourceConditionStatus[IRQSource.Any] = true;
+
         if (_useNMI)
         {
             // Raise NMI (Non-Maskable Interrupt)

@@ -70,6 +70,25 @@ public class C64CrtTests
     }
 
     [Fact]
+    public void Parser_Accepts_Final_Chip_With_Overstated_Packet_Length_When_Payload_Fits()
+    {
+        var bytes = BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            chips: [new Chip(0, 0x8000, Filled(0x2000, 0x42), C64CrtChipType.Flash)]);
+        BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(0x44, 4), 0x4010);
+
+        var image = C64CrtParser.Parse(bytes);
+
+        Assert.Equal((ushort)C64CrtHardwareType.Expert, image.Header.HardwareType);
+        var chip = Assert.Single(image.Chips);
+        Assert.Equal(C64CrtChipType.Flash, chip.Type);
+        Assert.Equal(0x2000, chip.Data.Length);
+        Assert.Equal(0x42, chip.Data[0]);
+    }
+
+    [Fact]
     public void Factory_Creates_Generic_8K_Cartridge()
     {
         var image = C64CrtParser.Parse(BuildCrt(
@@ -930,6 +949,196 @@ public class C64CrtTests
     }
 
     [Fact]
+    public void Factory_Creates_Expert_Cartridge_From_Saved_Ram_Image()
+    {
+        var ram = Filled(0x2000, 0x42);
+        ram[0x1FFC] = 0x34;
+        ram[0x1FFD] = 0x12;
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            name: "EXPERT TEST",
+            chips: [new Chip(0, 0x8000, ram, C64CrtChipType.Flash)]));
+
+        var cartridge = Assert.IsType<C64ExpertCartridge>(
+            C64CrtCartridgeFactory.Create(image));
+
+        Assert.Equal("EXPERT TEST", cartridge.Name);
+        Assert.Equal(C64ExpertMode.On, cartridge.Mode);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: true), cartridge.Lines);
+        Assert.True(cartridge.HasROML);
+        Assert.True(cartridge.HasROMH);
+        Assert.True(cartridge.HandlesROMLWrite);
+        Assert.Equal(0x42, cartridge.ReadROML(0x8000));
+        Assert.Equal(0x34, cartridge.ReadROMH(0xFFFC));
+    }
+
+    [Theory]
+    [InlineData("wrong-count")]
+    [InlineData("wrong-bank")]
+    [InlineData("wrong-address")]
+    [InlineData("wrong-size")]
+    public void Factory_Rejects_Invalid_Expert_Images(string invalidShape)
+    {
+        Chip[] chips = invalidShape switch
+        {
+            "wrong-count" =>
+            [
+                new Chip(0, 0x8000, Filled(0x2000, 0x10), C64CrtChipType.Flash),
+                new Chip(1, 0x8000, Filled(0x2000, 0x11), C64CrtChipType.Flash),
+            ],
+            "wrong-bank" => [new Chip(1, 0x8000, Filled(0x2000, 0x10), C64CrtChipType.Flash)],
+            "wrong-address" => [new Chip(0, 0xA000, Filled(0x2000, 0x10), C64CrtChipType.Flash)],
+            "wrong-size" => [new Chip(0, 0x8000, Filled(0x1000, 0x10), C64CrtChipType.Flash)],
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidShape)),
+        };
+        var image = C64CrtParser.Parse(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        Assert.Throws<C64CrtImageException>(
+            () => C64CrtCartridgeFactory.Create(image));
+    }
+
+    [Fact]
+    public void Expert_Attach_Resets_From_Cartridge_Ram_Vector_And_Allows_Roml_Writes()
+    {
+        var c64 = BuildC64();
+        var ram = Filled(0x2000, 0x42);
+        ram[0x1FFC] = 0x34;
+        ram[0x1FFD] = 0x12;
+        var crt = BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            name: "EXPERT TEST",
+            chips: [new Chip(0, 0x8000, ram, C64CrtChipType.Flash)]);
+
+        var result = c64.AttachCrtImage(crt, "expert.crt");
+
+        var cartridge = Assert.IsType<C64ExpertCartridge>(c64.CartridgeSlot.AttachedCartridge);
+        Assert.Equal("EXPERT TEST", result.CartridgeName);
+        Assert.Equal((ushort)0x1234, c64.CPU.PC);
+        Assert.Equal(0x42, c64.Mem.Read(0x8000));
+
+        c64.Mem.Write(0x8000, 0x99);
+
+        Assert.Equal(0x99, cartridge.ReadRam(0));
+        Assert.Equal(0x99, c64.Mem.Read(0x8000));
+    }
+
+    [Fact]
+    public void Expert_IO1_Access_Toggles_Ram_Visibility_And_Disables_Cartridge_Ram_Writes()
+    {
+        var c64 = BuildC64();
+        c64.RAM[0x8000] = 0x55;
+        var ram = Filled(0x2000, 0x42);
+        ram[0x1FFC] = 0x34;
+        ram[0x1FFD] = 0x12;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            chips: [new Chip(0, 0x8000, ram, C64CrtChipType.Flash)]));
+        var cartridge = Assert.IsType<C64ExpertCartridge>(c64.CartridgeSlot.AttachedCartridge);
+        c64.WriteIOStorage(0xDE00, 0xA5);
+
+        var ioValue = c64.Mem.Read(0xDE00);
+
+        Assert.Equal(0xA5, ioValue);
+        Assert.False(cartridge.IsRamVisible);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: true), cartridge.Lines);
+        Assert.Equal(23, c64.CurrentBank);
+        Assert.False(cartridge.HandlesROMLWrite);
+        Assert.Equal(0x55, c64.Mem.Read(0x8000));
+
+        c64.Mem.Write(0x8000, 0x77);
+
+        Assert.Equal(0x42, cartridge.ReadRam(0));
+        Assert.Equal(0x77, c64.RAM[0x8000]);
+    }
+
+    [Fact]
+    public void Expert_Hidden_Romh_Falls_Back_To_Normal_C64_Memory_While_Keeping_Ultimax_Lines()
+    {
+        var c64 = BuildC64();
+        c64.ROMData[C64SystemConfig.KERNAL_ROM_NAME][0x1DBD] = 0x85;
+        c64.RAM[0xFDBD] = 0x42;
+        var ram = Filled(0x2000, 0x99);
+        ram[0x1FFC] = 0x34;
+        ram[0x1FFD] = 0x12;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            chips: [new Chip(0, 0x8000, ram, C64CrtChipType.Flash)]));
+        var cartridge = Assert.IsType<C64ExpertCartridge>(c64.CartridgeSlot.AttachedCartridge);
+
+        Assert.Equal(0x99, c64.Mem.Read(0xFDBD));
+
+        c64.Mem.Write(0x01, 0x37);
+        c64.Mem.Read(0xDE00);
+
+        Assert.False(cartridge.IsRamVisible);
+        Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: true), cartridge.Lines);
+        Assert.Equal(23, c64.CurrentBank);
+        Assert.Equal(0x85, c64.Mem.Read(0xFDBD));
+
+        c64.Mem.Write(0x01, 0x35);
+
+        Assert.Equal(0x42, c64.Mem.Read(0xFDBD));
+    }
+
+    [Fact]
+    public void Expert_Freeze_In_On_Mode_Remaps_Writable_Ram()
+    {
+        var c64 = BuildC64();
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            chips: [new Chip(0, 0x8000, Filled(0x2000, 0x42), C64CrtChipType.Flash)]));
+        var cartridge = Assert.IsType<C64ExpertCartridge>(c64.CartridgeSlot.AttachedCartridge);
+        c64.Mem.Read(0xDE00);
+
+        var frozen = c64.FreezeAttachedCartridge();
+
+        Assert.True(frozen);
+        Assert.True(cartridge.IsRamVisible);
+        Assert.True(cartridge.HandlesROMLWrite);
+        Assert.Equal(0x42, c64.Mem.Read(0x8000));
+    }
+
+    [Fact]
+    public void Expert_Maps_Writable_Ram_When_Any_Nmi_Is_Acknowledged()
+    {
+        var c64 = BuildC64();
+        var ram = Filled(0x2000, 0x42);
+        ram[0x1FFA] = 0x78;
+        ram[0x1FFB] = 0x56;
+        ram[0x1FFC] = 0x34;
+        ram[0x1FFD] = 0x12;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.Expert,
+            exromHigh: false,
+            gameHigh: false,
+            chips: [new Chip(0, 0x8000, ram, C64CrtChipType.Flash)]));
+        var cartridge = Assert.IsType<C64ExpertCartridge>(c64.CartridgeSlot.AttachedCartridge);
+        c64.Mem.Read(0xDE00);
+        Assert.False(cartridge.IsRamVisible);
+
+        c64.CPU.CPUInterrupts.SetNMISourceActive("test");
+        c64.CPU.ProcessPendingInterrupts(c64.Mem);
+
+        Assert.True(cartridge.IsRamVisible);
+        Assert.True(cartridge.HandlesROMLWrite);
+        Assert.Equal((ushort)0x5678, c64.CPU.PC);
+    }
+
+    [Fact]
     public void Unsupported_Hardware_Type_Does_Not_Replace_Current_Cartridge()
     {
         var c64 = BuildC64();
@@ -1005,7 +1214,7 @@ public class C64CrtTests
         {
             Encoding.ASCII.GetBytes("CHIP").CopyTo(bytes, offset);
             BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(offset + 4, 4), (uint)(0x10 + chip.Data.Length));
-            BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset + 8, 2), (ushort)C64CrtChipType.Rom);
+            BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset + 8, 2), (ushort)chip.Type);
             BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset + 10, 2), chip.Bank);
             BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset + 12, 2), chip.Address);
             BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset + 14, 2), (ushort)chip.Data.Length);
@@ -1041,5 +1250,9 @@ public class C64CrtTests
                 ]))
             .ToArray();
 
-    private sealed record Chip(ushort Bank, ushort Address, byte[] Data);
+    private sealed record Chip(
+        ushort Bank,
+        ushort Address,
+        byte[] Data,
+        C64CrtChipType Type = C64CrtChipType.Rom);
 }

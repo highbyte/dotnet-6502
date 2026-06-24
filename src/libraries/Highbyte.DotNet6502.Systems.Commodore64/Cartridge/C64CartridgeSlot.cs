@@ -135,14 +135,19 @@ public sealed class C64CartridgeSlot : IDisposable
         Memory mem,
         ushort baseAddress,
         Func<ushort, byte> fallbackReader,
-        Action<ushort, byte>? fallbackWriter)
+        Action<ushort, byte>? fallbackWriter,
+        Func<ushort, byte>? normalMemoryFallbackReader = null)
     {
         MapRomWindow(
             mem,
             baseAddress,
             fallbackReader,
             cartridge => cartridge.HasROMH,
-            (cartridge, address) => cartridge.ReadROMH(address));
+            (cartridge, address) => cartridge.ReadROMH(address),
+            normalMemoryFallbackReader,
+            (cartridge, address) =>
+                cartridge is IC64CartridgeNormalMemoryFallback normalFallback &&
+                normalFallback.UsesNormalMemoryFallbackForROMH(address));
 
         if (fallbackWriter == null)
             return;
@@ -166,6 +171,12 @@ public sealed class C64CartridgeSlot : IDisposable
 
         freezableCartridge.Freeze();
         return true;
+    }
+
+    public void AcknowledgeNmi()
+    {
+        if (AttachedCartridge is IC64CartridgeNmiAcknowledgeHandler handler)
+            handler.AcknowledgeNmi();
     }
 
     public void Dispose()
@@ -192,8 +203,12 @@ public sealed class C64CartridgeSlot : IDisposable
     private byte ReadIO(ushort address, Func<ushort, byte> fallbackReader)
     {
         var cartridge = AttachedCartridge;
-        return cartridge?.HandlesIORead(address) == true
-            ? cartridge.ReadIO(address)
+        if (cartridge?.HandlesIORead(address) != true)
+            return fallbackReader(address);
+
+        var cartridgeValue = cartridge.ReadIO(address);
+        return cartridge.ProvidesIOReadValue(address)
+            ? cartridgeValue
             : fallbackReader(address);
     }
 
@@ -211,16 +226,31 @@ public sealed class C64CartridgeSlot : IDisposable
         ushort baseAddress,
         Func<ushort, byte> fallbackReader,
         Func<IC64Cartridge, bool> isAvailable,
-        Func<IC64Cartridge, ushort, byte> cartridgeReader)
+        Func<IC64Cartridge, ushort, byte> cartridgeReader,
+        Func<ushort, byte>? normalMemoryFallbackReader = null,
+        Func<IC64Cartridge, ushort, bool>? usesNormalMemoryFallback = null)
     {
         var endAddress = baseAddress + CartridgeRomWindowSize;
-        Memory.LoadByte reader = mappedAddress =>
-        {
-            var cartridge = AttachedCartridge;
-            return cartridge != null && isAvailable(cartridge)
-                ? cartridgeReader(cartridge, mappedAddress)
-                : fallbackReader(mappedAddress);
-        };
+        Memory.LoadByte reader =
+            normalMemoryFallbackReader == null || usesNormalMemoryFallback == null
+                ? mappedAddress =>
+                {
+                    var cartridge = AttachedCartridge;
+                    return cartridge != null && isAvailable(cartridge)
+                        ? cartridgeReader(cartridge, mappedAddress)
+                        : fallbackReader(mappedAddress);
+                }
+                : mappedAddress =>
+                {
+                    var cartridge = AttachedCartridge;
+                    if (cartridge != null && isAvailable(cartridge))
+                        return cartridgeReader(cartridge, mappedAddress);
+
+                    if (cartridge != null && usesNormalMemoryFallback(cartridge, mappedAddress))
+                        return normalMemoryFallbackReader(mappedAddress);
+
+                    return fallbackReader(mappedAddress);
+                };
         for (var address = (int)baseAddress; address < endAddress; address++)
             mem.MapReader((ushort)address, reader);
     }

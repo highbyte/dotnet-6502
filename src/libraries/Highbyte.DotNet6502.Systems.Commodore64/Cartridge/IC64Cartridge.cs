@@ -7,6 +7,7 @@ public interface IC64Cartridge : IDisposable
     event Action? LinesChanged;
     bool HandlesIORead(ushort address);
     byte ReadIO(ushort address);
+    bool ProvidesIOReadValue(ushort address) => HandlesIORead(address);
     bool HandlesIOWrite(ushort address);
     void WriteIO(ushort address, byte value);
     bool HasROML { get; }

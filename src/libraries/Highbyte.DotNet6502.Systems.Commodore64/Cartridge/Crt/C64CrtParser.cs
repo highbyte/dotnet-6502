@@ -51,7 +51,7 @@ public static class C64CrtParser
                 throw new C64CrtImageException($"CRT packet at offset 0x{offset:X} does not contain the CHIP signature.");
 
             var packetLength = ReadUInt32(chipHeader, 4);
-            if (packetLength < ChipHeaderLength || packetLength > data.Length - offset)
+            if (packetLength < ChipHeaderLength)
                 throw new C64CrtImageException($"CRT CHIP packet length {packetLength} at offset 0x{offset:X} is invalid.");
 
             var rawChipType = ReadUInt16(chipHeader, 8);
@@ -61,7 +61,22 @@ public static class C64CrtParser
             var bank = ReadUInt16(chipHeader, 10);
             var loadAddress = ReadUInt16(chipHeader, 12);
             var imageSize = ReadUInt16(chipHeader, 14);
-            if (imageSize > packetLength - ChipHeaderLength)
+            var minimumPacketLength = ChipHeaderLength + imageSize;
+            var remainingLength = data.Length - offset;
+            var effectivePacketLength = packetLength;
+            if (packetLength > remainingLength)
+            {
+                // Some CRT images in the wild have an overstated final CHIP packet length
+                // while the CHIP payload-size field and actual remaining bytes are correct.
+                // Accept only that exact final-packet case; malformed middle packets, truncated
+                // payloads, and trailing garbage still fail.
+                if (minimumPacketLength == remainingLength)
+                    effectivePacketLength = (uint)minimumPacketLength;
+                else
+                    throw new C64CrtImageException($"CRT CHIP packet length {packetLength} at offset 0x{offset:X} is invalid.");
+            }
+
+            if (imageSize > effectivePacketLength - ChipHeaderLength)
                 throw new C64CrtImageException($"CRT CHIP payload size {imageSize} exceeds its packet length at offset 0x{offset:X}.");
             if (loadAddress + (uint)imageSize > 0x10000)
                 throw new C64CrtImageException($"CRT CHIP at offset 0x{offset:X} crosses the 64K address boundary.");
@@ -73,7 +88,7 @@ public static class C64CrtParser
                 loadAddress,
                 data.Slice(payloadStart, imageSize).ToArray()));
 
-            offset += checked((int)packetLength);
+            offset += checked((int)effectivePacketLength);
         }
 
         if (chips.Count == 0)
