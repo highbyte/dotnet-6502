@@ -129,6 +129,13 @@ public sealed class C64CartridgeSlot : IDisposable
         Memory mem,
         ushort baseAddress,
         Func<ushort, byte> fallbackReader)
+        => MapROMHLocations(mem, baseAddress, fallbackReader, fallbackWriter: null);
+
+    public void MapROMHLocations(
+        Memory mem,
+        ushort baseAddress,
+        Func<ushort, byte> fallbackReader,
+        Action<ushort, byte>? fallbackWriter)
     {
         MapRomWindow(
             mem,
@@ -136,6 +143,14 @@ public sealed class C64CartridgeSlot : IDisposable
             fallbackReader,
             cartridge => cartridge.HasROMH,
             (cartridge, address) => cartridge.ReadROMH(address));
+
+        if (fallbackWriter == null)
+            return;
+
+        Memory.StoreByte writer = (mappedAddress, value) => fallbackWriter(mappedAddress, value);
+        var endAddress = baseAddress + CartridgeRomWindowSize;
+        for (var address = (int)baseAddress; address < endAddress; address++)
+            mem.MapWriter((ushort)address, writer);
     }
 
     public void Tick(ulong cyclesElapsed = 0)

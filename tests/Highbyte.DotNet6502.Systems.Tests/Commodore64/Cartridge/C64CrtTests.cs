@@ -729,10 +729,11 @@ public class C64CrtTests
     }
 
     [Fact]
-    public void FinalCartridgeIII_Freeze_Preserves_Bank_And_Services_Its_Nmi_Vector()
+    public void FinalCartridgeIII_Freeze_Keeps_Selected_Bank_And_Services_Its_Nmi_Vector()
     {
         var c64 = BuildC64();
         var chips = CreateFinalCartridgeIIIBankChips(4);
+        chips[2].Data[0x1FE0] = 0x8E; // IO2 mirror at $DFE0 should come from the selected bank.
         chips[2].Data[0x3FFA] = 0x34;
         chips[2].Data[0x3FFB] = 0x12;
         c64.AttachCrtImage(BuildCrt(
@@ -740,7 +741,7 @@ public class C64CrtTests
             exromHigh: false,
             gameHigh: false,
             chips: chips));
-        c64.Mem.Write(0xDFFF, 0xF2); // Bank 2, released mode, hide register.
+        c64.Mem.Write(0xDFFF, 0x72); // Bank 2, released mode.
 
         var frozen = c64.FreezeAttachedCartridge();
 
@@ -751,7 +752,181 @@ public class C64CrtTests
         Assert.True(cartridge.IsRegisterEnabled);
         Assert.Equal((ushort)2, cartridge.CurrentBank);
         Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: true), cartridge.Lines);
+        Assert.Equal(0x8E, c64.Mem.Read(0xDFE0));
         Assert.Equal((ushort)0x1234, c64.CPU.PC);
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Freeze_Writes_To_Ram_Under_ROMH_For_VIC_Bank_Three()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        chips[3].Data[0x3FFA] = 0x34;
+        chips[3].Data[0x3FFB] = 0x12;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+        c64.Mem.Write(0xDFFF, 0x73); // Bank 3, released mode.
+        c64.FreezeAttachedCartridge();
+        c64.Vic2.SetVIC2Bank(0x00); // VIC bank 3: C64 $C000-$FFFF.
+
+        c64.Mem.Write(0xE123, 0x5A);
+
+        Assert.Equal(0x5A, c64.RAM[0xE123]);
+        Assert.Equal(0x5A, c64.Vic2.Vic2Mem[0x2123]);
+        Assert.NotEqual(0x5A, c64.Mem.Read(0xE123)); // CPU still reads ROMH while RAM is hidden behind it.
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Ultimax_Exposes_ROMH_To_VIC()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        chips[3].Data[0x2000 + 0x1140] = 0xA5; // ROMH byte visible to VIC bank 3 at C64 $F140.
+        c64.RAM[0xF140] = 0x00;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        c64.Mem.Write(0xDFFF, 0x13); // Bank 3, Ultimax, assert cartridge NMI line.
+        c64.Vic2.SetVIC2Bank(0x00); // VIC bank 3: C64 $C000-$FFFF.
+
+        Assert.Equal(23, c64.CurrentBank);
+        Assert.Equal(0xA5, c64.Vic2.ReadMemory(0x3140));
+        Assert.Equal(0x00, c64.RAM[0xF140]);
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Ultimax_Sprite_Data_Can_Come_From_ROMH()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        chips[3].Data[0x2000 + 0x1140] = 0x80; // Sprite pointer $C5 starts at VIC $3140 / C64 $F140.
+        c64.RAM[0xC7FA] = 0xC5; // Sprite 2 pointer in VIC bank 3, default screen matrix $0400.
+        c64.RAM[0xF140] = 0x00;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+        c64.RAM[0xC7FA] = 0xC5;
+        c64.RAM[0xF140] = 0x00;
+        c64.Vic2.SetVIC2Bank(0x00); // VIC bank 3: C64 $C000-$FFFF.
+        c64.Vic2.MemorySetupStore(0xD018, 0x10); // Screen matrix $0400; sprite pointers at $07F8.
+        c64.Mem.Write(0xDFFF, 0x73); // Bank 3, released mode: sprite data comes from underlying RAM.
+
+        Assert.Equal(0x00, c64.Vic2.SpriteManager.Sprites[2].Data.Rows[0].Bytes[0]);
+
+        c64.Mem.Write(0xDFFF, 0x13); // Bank 3, Ultimax, assert cartridge NMI line.
+
+        var spriteData = c64.Vic2.SpriteManager.Sprites[2].Data;
+
+        Assert.Equal(0x80, spriteData.Rows[0].Bytes[0]);
+        Assert.Equal(0x00, c64.RAM[0xF140]);
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Freeze_Holds_Nmi_Line_Until_Control_Register_Releases_It()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        chips[0].Data[0x3FFA] = 0x34;
+        chips[0].Data[0x3FFB] = 0x12;
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        var frozen = c64.FreezeAttachedCartridge();
+
+        var cartridge = Assert.IsType<C64FinalCartridgeIIICartridge>(
+            c64.CartridgeSlot.AttachedCartridge);
+        Assert.True(frozen);
+        Assert.True(cartridge.NmiLineActive);
+        Assert.True(c64.CPU.CPUInterrupts.IsNMISourceActive("CartridgeNmi"));
+        Assert.False(c64.CPU.NMI);
+        Assert.Equal((ushort)0x1234, c64.CPU.PC);
+
+        c64.Mem.Write(0xDFFF, 0x40);
+
+        Assert.False(cartridge.NmiLineActive);
+        Assert.False(c64.CPU.CPUInterrupts.IsNMISourceActive("CartridgeNmi"));
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Control_Register_Releases_Nmi_Line()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        c64.Mem.Write(0xDFFF, 0x00);
+
+        var cartridge = Assert.IsType<C64FinalCartridgeIIICartridge>(
+            c64.CartridgeSlot.AttachedCartridge);
+        Assert.True(cartridge.NmiLineActive);
+        Assert.True(c64.CPU.CPUInterrupts.IsNMISourceActive("CartridgeNmi"));
+
+        c64.Mem.Write(0xDFFF, 0x40);
+
+        Assert.False(cartridge.NmiLineActive);
+        Assert.False(c64.CPU.CPUInterrupts.IsNMISourceActive("CartridgeNmi"));
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Control_Register_Does_Not_Retrigger_Nmi_While_Line_Is_Active()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+        c64.FreezeAttachedCartridge();
+        c64.CPU.ProcessPendingInterrupts(c64.Mem);
+
+        Assert.True(c64.CartridgeSlot.NmiLineActive);
+        Assert.False(c64.CPU.NMI);
+
+        c64.Mem.Write(0xDFFF, 0x03);
+
+        var cartridge = Assert.IsType<C64FinalCartridgeIIICartridge>(
+            c64.CartridgeSlot.AttachedCartridge);
+        Assert.True(cartridge.NmiLineActive);
+        Assert.False(c64.CPU.NMI);
+        Assert.True(c64.CPU.CPUInterrupts.IsNMISourceActive("CartridgeNmi"));
+    }
+
+    [Fact]
+    public void FinalCartridgeIII_Repeated_Active_Nmi_Register_Write_Does_Not_Retrigger_Nmi()
+    {
+        var c64 = BuildC64();
+        var chips = CreateFinalCartridgeIIIBankChips(4);
+        c64.AttachCrtImage(BuildCrt(
+            hardwareType: (ushort)C64CrtHardwareType.FinalCartridgeIII,
+            exromHigh: false,
+            gameHigh: false,
+            chips: chips));
+
+        c64.Mem.Write(0xDFFF, 0x03);
+        c64.CPU.ProcessPendingInterrupts(c64.Mem);
+
+        Assert.False(c64.CPU.NMI);
+
+        c64.Mem.Write(0xDFFF, 0x03);
+
+        Assert.False(c64.CPU.NMI);
+        Assert.True(c64.CPU.CPUInterrupts.IsNMISourceActive("CartridgeNmi"));
     }
 
     [Fact]

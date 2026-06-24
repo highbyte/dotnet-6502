@@ -128,10 +128,14 @@ public sealed class C64FinalCartridgeIIICartridge :
     public void Freeze()
     {
         var previousLines = Lines;
+        var previousNmiLineActive = _nmiLineActive;
         _registerEnabled = true;
         _freezeMode = true;
+        _nmiLineActive = true;
         if (previousLines != Lines)
             LinesChanged?.Invoke();
+        if (previousNmiLineActive != _nmiLineActive)
+            NmiLineChanged?.Invoke();
     }
 
     public void Tick(ulong cyclesElapsed = 0)

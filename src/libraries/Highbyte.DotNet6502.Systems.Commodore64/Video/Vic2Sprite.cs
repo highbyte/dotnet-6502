@@ -65,7 +65,7 @@ public class Vic2Sprite
 
     private void BuildSpriteData()
     {
-        var spritePointer = _vic2.Vic2Mem[(ushort)(_spriteManager.SpritePointerStartAddress + SpriteNumber)];
+        var spritePointer = _vic2.ReadMemory((ushort)(_spriteManager.SpritePointerStartAddress + SpriteNumber));
         var spritePointerAddress = (ushort)(spritePointer * 64);
 
         var bytesPerRow = DEFAULT_WIDTH / 8;
@@ -76,7 +76,7 @@ public class Vic2Sprite
             for (int rowByte = 0; rowByte < bytesPerRow; rowByte++)
             {
                 var byteAddr = spritePointerAddress + (row * bytesPerRow) + rowByte;
-                var spriteRowByte = _vic2.Vic2Mem[(ushort)(byteAddr)];
+                var spriteRowByte = _vic2.ReadMemory((ushort)byteAddr);
                 _data.Rows[row].Bytes[rowByte] = spriteRowByte;
                 rowHasPixels |= spriteRowByte != 0;
             }

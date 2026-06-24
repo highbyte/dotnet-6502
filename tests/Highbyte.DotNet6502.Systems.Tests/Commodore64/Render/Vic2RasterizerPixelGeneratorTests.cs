@@ -45,13 +45,44 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.Equal(visibleMainScreenArea.Screen.Start.Y + 2, row);
     }
 
+    [Theory]
+    [InlineData("C64PAL", "PAL")]
+    [InlineData("C64NTSC", "NTSC")]
+    public void ConvertRasterLineToScreenLine_aligns_first_display_raster_line_with_visible_layout(string c64Model, string vic2Model)
+    {
+        var c64 = BuildC64(c64Model, vic2Model);
+        var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+
+        var screenLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(c64.Vic2.Vic2Model.FirstRasterLineOfMainScreen);
+
+        Assert.Equal(visibleMainScreenArea.Screen.Start.Y, screenLine);
+    }
+
+    [Fact]
+    public void Vic2_register_mirrors_update_display_state_used_by_raster_timed_cartridge_code()
+    {
+        var c64 = BuildC64();
+
+        c64.Mem.Write(0xD051, 0x3B); // Mirror of $D011.
+        c64.Mem.Write(0xD058, 0xCD); // Mirror of $D018.
+
+        Assert.Equal(Vic2.DispMode.Bitmap, c64.Vic2.DisplayMode);
+        Assert.Equal(0x3000, c64.Vic2.VideoMatrixBaseAddress);
+        Assert.Equal(0x2000, c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank);
+    }
+
     private static C64 BuildC64()
+    {
+        return BuildC64("C64PAL", "PAL");
+    }
+
+    private static C64 BuildC64(string c64Model, string vic2Model)
     {
         return C64.BuildC64(new C64Config
         {
             LoadROMs = false,
-            C64Model = "C64PAL",
-            Vic2Model = "PAL"
+            C64Model = c64Model,
+            Vic2Model = vic2Model
         }, NullLoggerFactory.Instance);
     }
 

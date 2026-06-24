@@ -525,7 +525,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
-            CartridgeSlot.MapROMHLocations(mem, 0xe000, address => ram[address]);
+            CartridgeSlot.MapROMHLocations(mem, 0xe000, address => ram[address], WriteUnderlyingRam);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 15 })
@@ -561,7 +561,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
             CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
-            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address]);
+            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address], WriteUnderlyingRam);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 6 })
@@ -570,7 +570,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
-            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address]);
+            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address], WriteUnderlyingRam);
             MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 5 })
@@ -587,7 +587,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
             CartridgeSlot.MapROMLLocations(mem, address => ram[address], WriteUnderlyingRam);
-            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address]);
+            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address], WriteUnderlyingRam);
             MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 2 })
@@ -596,7 +596,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
-            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address]);
+            CartridgeSlot.MapROMHLocations(mem, 0xa000, address => ram[address], WriteUnderlyingRam);
             MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 1 })
@@ -645,10 +645,13 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     private void ApplyCpuPortMemoryConfiguration()
     {
+        var previousBank = CurrentBank;
         var cpuPortBits = (byte)(GetCpuPortEffectiveValue() & CpuPortBankBitsMask);
         var cartridgeLineBits = CartridgeSlot.Lines.GetMemoryConfigurationBits();
         CurrentBank = (byte)(cartridgeLineBits | cpuPortBits);
         Mem.SetMemoryConfiguration(CurrentBank);
+        if (CurrentBank != previousBank && Vic2 is not null)
+            Vic2.SpriteManager.SetAllChanged(Vic2Sprite.Vic2SpriteChangeType.Data);
     }
 
     private byte GetCpuPortEffectiveValue()
@@ -732,7 +735,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             CartridgeSlot.Lines,
             CurrentBank,
             freezeVector);
-        CPU.CPUInterrupts.SetNMISourceActive(freezeNmiSource);
+        if (!CartridgeSlot.NmiLineActive)
+            CPU.CPUInterrupts.SetNMISourceActive(freezeNmiSource);
         CPU.ProcessPendingInterrupts(Mem);
         CPU.CPUInterrupts.SetNMISourceInactive(freezeNmiSource);
         return true;

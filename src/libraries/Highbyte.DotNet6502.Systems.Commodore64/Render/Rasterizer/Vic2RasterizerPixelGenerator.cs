@@ -248,8 +248,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
             if (posX < _screenLayoutInclNonVisibleLeftBorderStartX || posX > _screenLayoutInclNonVisibleRightBorderEndX)
                 continue;
 
-            // On a new line
-            if (screenLine != _lastScreenLineDataUpdate)
+            var isNewLine = screenLine != _lastScreenLineDataUpdate;
+
+            // On a new line, refresh from the current VIC-II state.
+            if (isNewLine)
             {
                 // Draw border once per line, after normal screen (to cover up any scrolling?). We take data from previous line.
                 if (_lastScreenLineDataUpdate >= 0)
@@ -260,7 +262,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     //Array.Clear(PixelArray_Foreground, 0, PixelArray_Foreground.Length);
                     _clearForegroundPixels(0, _width * _height);
 
-                // C64 screen data is updated each line. TODO: For more accurate rendering, this should be done after each instruction (but may be too slow).
                 _vic2VideoMatrixBaseAddress = _c64.Vic2.VideoMatrixBaseAddress;
                 _vic2BitmapBaseAddress = _c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
                 _vic2CharacterSetAddressInVIC2Bank = _c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
@@ -270,7 +271,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _bitmapMode = _c64.Vic2.BitmapMode;
                 _scrollX = _c64.Vic2.GetScrollX();
                 _scrollY = _c64.Vic2.GetScrollY();
-
 
                 _borderColor = _c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
 
@@ -747,7 +747,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var c64BitMapAddress = (ushort)(_vic2BitmapBaseAddress + characterRow * _vic2ScreenTextCols * 8 + col * 8 + characterLine);
 
         // Determine character code at current position from video matrix
-        var characterCode = c64.Vic2.Vic2Mem[characterAddress];
+        var characterCode = c64.Vic2.ReadMemory(characterAddress);
         var colorRamCode = c64.ReadIOStorage(colorRamAddress);
 
         uint[] eightPixels;
@@ -784,7 +784,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
             var characterSetLineAddress = (ushort)(_vic2CharacterSetAddressInVIC2Bank
                 + characterCode * _vic2ScreenCharacterHeight
                 + characterLine);
-            var lineData = c64.Vic2.Vic2Mem[characterSetLineAddress];
+            var lineData = c64.Vic2.ReadMemory(characterSetLineAddress);
 
             // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
             if (characterMode == CharMode.Standard || characterMode == CharMode.Extended)
@@ -824,7 +824,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
             // Assume bitmap mode
 
             // 8 bits of bitmap data for the current line, at the current column
-            var bitmapLineData = c64.Vic2.Vic2Mem[c64BitMapAddress];
+            var bitmapLineData = c64.Vic2.ReadMemory(c64BitMapAddress);
 
             // Bg color is picked from text screen, low 4 bits.
             var bitmapBgColorCode = (byte)(characterCode & 0b00001111);
