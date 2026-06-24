@@ -119,7 +119,13 @@ public class Vic2ModelPAL : Vic2ModelBase
 
     public override int ConvertRasterLineToScreenLine(int rasterLine)
     {
-        return rasterLine;
+        var screenLine = rasterLine + (GetVisibleScreenStartLine() - FirstRasterLineOfMainScreen);
+        if (screenLine < 0)
+            screenLine += TotalHeight;
+        else if (screenLine >= TotalHeight)
+            screenLine -= TotalHeight;
+
+        return screenLine;
     }
 
 
@@ -196,6 +202,13 @@ public abstract class Vic2ModelBase
     public abstract int VBlankHeight { get; }
 
     public abstract int ConvertRasterLineToScreenLine(int rasterLine);
+
+    protected int GetVisibleScreenStartLine()
+    {
+        var topInvisibleLines = (int)Math.Floor((TotalHeight - MaxVisibleHeight) / 2.0d);
+        var visibleTopBorderHeight = (int)Math.Floor((MaxVisibleHeight - DrawableAreaHeight) / 2.0d);
+        return topInvisibleLines + visibleTopBorderHeight;
+    }
 
     public bool IsRasterLineInMainScreen(int rasterLine)
     {
