@@ -52,6 +52,28 @@ public abstract class CiaBase
     public abstract void MapIOLocations(Memory c64mem);
 
     /// <summary>
+    /// Map one CIA register and all of its mirrors across the chip's 256-byte I/O page.
+    /// The MOS 6526 only decodes the low 4 address bits, so $DC0D is also visible at
+    /// $DC1D, $DC2D, ..., $DCFD (and likewise for CIA #2 at $DDxx).
+    /// </summary>
+    protected static void MapRegisterMirrors(
+        Memory c64mem,
+        ushort registerAddress,
+        Memory.LoadByte reader,
+        Memory.StoreByte writer)
+    {
+        var pageStart = registerAddress & 0xFF00;
+        var registerOffset = registerAddress & 0x000F;
+
+        for (var offset = registerOffset; offset <= 0x00FF; offset += 0x10)
+        {
+            var mirrorAddress = (ushort)(pageStart + offset);
+            c64mem.MapReader(mirrorAddress, _ => reader(registerAddress));
+            c64mem.MapWriter(mirrorAddress, (_, value) => writer(registerAddress, value));
+        }
+    }
+
+    /// <summary>
     /// Common timer high byte load functionality
     /// </summary>
     protected byte TimerHILoad(CiaTimerType timerType) => _ciaTimers[timerType].InternalTimer.Highbyte();

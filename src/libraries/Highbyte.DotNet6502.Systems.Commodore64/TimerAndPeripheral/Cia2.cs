@@ -18,58 +18,42 @@ public class Cia2 : CiaBase
     public override void MapIOLocations(Memory c64mem)
     {
         // CIA #2 DataPort A (VIC2 bank, serial bus, etc)
-        c64mem.MapReader(CiaAddr.CIA2_DATAA, DataALoad);
-        c64mem.MapWriter(CiaAddr.CIA2_DATAA, DataAStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_DATAA, DataALoad, DataAStore);
 
         // CIA #2 DataPort B 
-        c64mem.MapReader(CiaAddr.CIA2_DATAB, DataBLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_DATAB, DataBStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_DATAB, DataBLoad, DataBStore);
 
         // CIA #2 Timer A (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA2_TIMAHI, TimerAHILoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMAHI, TimerAHIStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TIMAHI, TimerAHILoad, TimerAHIStore);
 
-        c64mem.MapReader(CiaAddr.CIA2_TIMALO, TimerALOLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMALO, TimerALOStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TIMALO, TimerALOLoad, TimerALOStore);
 
         // CIA #2 Timer B (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA2_TIMBHI, TimerBHILoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMBHI, TimerBHIStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TIMBHI, TimerBHILoad, TimerBHIStore);
 
-        c64mem.MapReader(CiaAddr.CIA2_TIMBLO, TimerBLOLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMBLO, TimerBLOStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TIMBLO, TimerBLOLoad, TimerBLOStore);
 
         // CIA #2 Interrupt Control Register (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA2_CIAICR, InterruptControlLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_CIAICR, InterruptControlStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_CIAICR, InterruptControlLoad, InterruptControlStore);
 
         // CIA #2 Control Register A (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA2_CIACRA, TimerAControlLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_CIACRA, TimerAControlStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_CIACRA, TimerAControlLoad, TimerAControlStore);
 
         // CIA #2 Control Register B (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA2_CIACRB, TimerBControlLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_CIACRB, TimerBControlStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_CIACRB, TimerBControlLoad, TimerBControlStore);
 
         // CIA #2 Time Of Day registers (temporary debug implementation)
-        c64mem.MapReader(CiaAddr.CIA2_TOD10THS, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TOD10THS, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA2_TODSEC, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TODSEC, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA2_TODMIN, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TODMIN, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA2_TODHR, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TODHR, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TOD10THS, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TODSEC, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TODMIN, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_TODHR, DebugLoad, DebugStore);
 
         // CIA #2 Serial Data Register (temporary debug implementation)
-        c64mem.MapReader(CiaAddr.CIA2_SDR, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_SDR, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_SDR, DebugLoad, DebugStore);
 
         // CIA #2 Data Direction Registers (temporary debug implementation)
-        c64mem.MapReader(CiaAddr.CIA2_DDRA, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_DDRA, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA2_DDRB, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_DDRB, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_DDRA, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_DDRB, DebugLoad, DebugStore);
     }
 
     /// <summary>
