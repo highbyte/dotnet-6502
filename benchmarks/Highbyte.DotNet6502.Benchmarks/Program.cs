@@ -54,6 +54,9 @@ var summary = BenchmarkRunner
 //    .Run<C64ExecuteFrameBenchmark>();
 
 //var summary = BenchmarkRunner
+//    .Run<C64CiaTimerBenchmark>();
+
+//var summary = BenchmarkRunner
 //    .Run<C64SpriteManagerBenchmark>();
 
 //var summary = BenchmarkRunner

@@ -7,6 +7,8 @@ namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.Video;
 
 public class Vic2IrqTests
 {
+    private static readonly string RasterCompareIrqSource = Vic2IRQ.GetInterruptSourceName(IRQSource.RasterCompare);
+
     [Fact]
     public void Raster_Event_Is_Latched_When_Irq_Mask_Is_Disabled()
     {
@@ -17,7 +19,7 @@ public class Vic2IrqTests
         c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
 
         Assert.Equal(0x01, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
-        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(IRQSource.RasterCompare.ToString()));
+        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
     }
 
     [Fact]
@@ -29,11 +31,11 @@ public class Vic2IrqTests
         c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
 
         c64.Mem.Write(Vic2Addr.IRQ_MASK, 1);
-        Assert.True(c64.CPU.CPUInterrupts.IsIRQSourceActive(IRQSource.RasterCompare.ToString()));
+        Assert.True(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
         Assert.Equal(0x81, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
 
         c64.Mem.Write(Vic2Addr.IRQ_MASK, 0);
-        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(IRQSource.RasterCompare.ToString()));
+        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
         Assert.Equal(0x01, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
     }
 
