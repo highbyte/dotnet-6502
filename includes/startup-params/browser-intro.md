@@ -2,7 +2,7 @@ The Avalonia Browser app supports URL-driven startup automation. This is the bro
 
 Parameters are grouped below into **General parameters** (system-agnostic — valid for any system) and one group per **system** (interpreted by that system's plugin; currently only **C64**).
 
-The **Depends on** column lists each parameter's requirements and any parameters it is mutually exclusive with. The **desktop equivalent** is noted per group: the main difference is that the browser fetches its load sources over HTTP (`loadPrgUrl` / `loadD64Url` / `basicUrl` / `scriptUrl`), whereas the desktop app reads from the local filesystem (`--loadPrg` / `--loadD64` / `--basicFile` / `--script`) and additionally offers URL variants (`--loadPrgUrl` / `--loadD64Url`).
+The **Depends on** column lists each parameter's requirements and any parameters it is mutually exclusive with. The **desktop equivalent** is noted per group: the main difference is that the browser fetches its load sources over HTTP (`loadPrgUrl` / `loadD64Url` / `loadCrtUrl` / `basicUrl` / `scriptUrl`), whereas the desktop app reads from the local filesystem (`--loadPrg` / `--loadD64` / `--loadCrt` / `--basicFile` / `--script`) and additionally offers URL variants (`--loadPrgUrl` / `--loadD64Url` / `--loadCrtUrl`).
 
 Query parameter names are case-insensitive. Boolean flags treat an empty value, `1`, `true`, and `yes` as true.
 

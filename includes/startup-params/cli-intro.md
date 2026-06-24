@@ -15,5 +15,6 @@ other app.
 !!! important
     `--script` / `--scriptDir` are **mutually exclusive** with all automated-startup parameters
     (`--system`, `--systemVariant`, `--start`, `--waitForSystemReady`, `--loadPrg`, `--loadPrgUrl`,
-    `--runLoadedProgram`, and the C64-specific parameters). In scripting mode the Lua script is
+    `--runLoadedProgram`, and the C64-specific parameters such as `.d64`, `.crt`, and BASIC paste
+    startup). In scripting mode the Lua script is
     responsible for all emulator setup and lifecycle; combining the two modes is an error.

@@ -90,6 +90,9 @@ remote control.
 # Start C64, fetch a .d64 over HTTP, direct-load the first PRG (no disk mount) and RUN it
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --waitForSystemReady --loadD64Url https://example.com/game.d64 --d64Program "*" --runLoadedProgram
 
+# Start C64 and attach a local .crt cartridge image
+./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadCrt "/path/to/fc3.crt"
+
 # Start with debug adapter for VS Code, waiting for client
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
 

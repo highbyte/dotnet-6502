@@ -37,6 +37,11 @@ Core library: [`Highbyte.DotNet6502.Systems.Commodore64`](../../libraries/system
 - **Limited 1541 disk drive support**
     - Attach `.d64` disk images.
     - Load directory and files to the C64 using the Basic `LOAD` command.
+- **Limited cartridge support**
+    - Attach and detach `.crt` cartridge images.
+    - Supported CRT hardware types include Generic, Magic Desk, Ocean, Epyx FastLoad, Action Replay,
+      Final Cartridge III, and Expert Cartridge.
+    - Freezer button support for cartridges that implement it.
 - **SwiftLink-compatible ACIA support**
     - Optional SwiftLink cartridge at `$DE00` or `$DF00`.
     - `RawTcp` and `HayesModem` host transport modes.
@@ -68,6 +73,11 @@ You can:
 
 For host availability, modem support, and configuration details, see
 [SwiftLink support](swiftlink.md).
+
+## Cartridge support
+
+For `.crt` image support, supported cartridge types, Freeze button behavior, and limitations, see
+[C64 cartridge support](cartridges.md).
 
 ## Implementation libraries
 

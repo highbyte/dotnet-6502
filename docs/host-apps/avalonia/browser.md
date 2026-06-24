@@ -68,6 +68,9 @@ When a URL starts `system=C64` and the app does not yet have the required C64 RO
 # Direct-load the first PRG from a .d64 (no disk mount) and RUN it
 ?system=C64&start=1&waitForSystemReady=1&loadD64Url=d64%2Fgiana-sisters.d64&d64Program=*&runLoadedProgram=1
 
+# Attach a .crt cartridge image
+?system=C64&start=1&loadCrtUrl=crt%2Ffc3.crt
+
 # Start C64 with keyboard-joystick on port 2 and audio disabled (no .d64, no PRG)
 ?system=C64&start=1&waitForSystemReady=1&keyboardJoystickEnabled=1&keyboardJoystickNumber=2&audioEnabled=false
 
@@ -93,10 +96,11 @@ The browser app ships the `basicUrl` sample above as `basic/c64/hello-world.bas`
 
 ### Important differences from desktop automation
 
-- `loadPrgUrl`, `basicUrl`, `loadD64Url`, and `scriptUrl` use browser HTTP fetch semantics, so normal browser origin and CORS rules apply. The desktop app reads its load sources from the local filesystem (`--loadPrg` / `--loadD64` / `--basicFile` / `--script`) and additionally offers HTTP variants (`--loadPrgUrl` / `--loadD64Url` / `--basicUrl`).
+- `loadPrgUrl`, `basicUrl`, `loadD64Url`, `loadCrtUrl`, and `scriptUrl` use browser HTTP fetch semantics, so normal browser origin and CORS rules apply. The desktop app reads its load sources from the local filesystem (`--loadPrg` / `--loadD64` / `--loadCrt` / `--basicFile` / `--script`) and additionally offers HTTP variants (`--loadPrgUrl` / `--loadD64Url` / `--loadCrtUrl` / `--basicUrl`).
 - `basicText` is **base64url-encoded** in the browser (it travels in a URL); the desktop `--basicText` takes plain text, and `--basicFile` reads a local file.
 - `basicText` / `basicUrl` are C64-only and use the normal keyboard paste path after BASIC is ready; `runBasic=1` simply appends `RUN` and Return after the pasted source.
 - `loadD64Url` is fetched **after** the C64 has booted to BASIC ready, so a slow remote `.d64` shows progress as a visible BASIC prompt rather than a blank Avalonia page. The desktop equivalents (`--loadD64 <path>` local, `--loadD64Url <url>`) read from the filesystem or HTTP respectively.
+- `loadCrtUrl` does **not** require `waitForSystemReady`; attaching the cartridge resets / boots the C64 into the cartridge.
 - URL-driven Lua is **disabled by default**. Enable **Allow URL-driven scripts (script / scriptUrl query params)** in the browser app's general settings, save, then reload the page.
 - URL-driven scripts do not behave exactly like desktop `--script`: the browser app still selects the configured default system first, then enables the injected script. The script can still take over by calling APIs such as `emu.select(...)` and `emu.start()`.
 

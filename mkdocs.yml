@@ -132,6 +132,7 @@ nav:
           - Libraries: systems/c64/libraries.md
           - Keyboard mapping: systems/c64/keyboard.md
           - ROMs: systems/c64/roms.md
+          - Cartridge support: systems/c64/cartridges.md
           - SwiftLink support: systems/c64/swiftlink.md
           - Basic code completion: systems/c64/code-completion.md
           - Compatible programs: systems/c64/compatible-programs.md
