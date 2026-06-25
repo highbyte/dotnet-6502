@@ -1,0 +1,25 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "dotnet6502-app-sec-headers",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-10",
+	// Single route covering all dotnet-6502 emulator apps. Repoints the
+	// previously worker-less `/dotnet-6502/*` carve-out at this worker so new
+	// emulator app deployments are covered automatically. The worker only
+	// stamps headers on `/dotnet-6502/app*` paths (see src/index.ts).
+	"routes": [
+		{
+			"pattern": "highbyte.se/dotnet-6502/*",
+			"zone_name": "highbyte.se"
+		}
+	],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"workers_dev": false
+}
