@@ -7,10 +7,10 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using AvaloniaApp = Highbyte.DotNet6502.App.Avalonia.Core.App;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -105,36 +105,28 @@ public partial class C64ConfigUserControl : UserControl
 
     private async Task LoadRomsAsync()
     {
-        if (TopLevel.GetTopLevel(this)?.StorageProvider == null)
+        var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+        var filePicker = serviceProvider?.GetService<IAppFilePicker>();
+        if (filePicker == null)
             return;
-        var storageProvider = TopLevel.GetTopLevel(this)!.StorageProvider;
 
-        var options = new FilePickerOpenOptions
-        {
-            Title = "Select C64 ROM files",
-            AllowMultiple = true,
-            FileTypeFilter = new List<FilePickerFileType>
-            {
-                new FilePickerFileType("ROM files")
-                {
-                    Patterns = new[] { "*.bin", "*.rom" }
-                },
-                FilePickerFileTypes.All
-            }
-        };
-
-        var files = await storageProvider.OpenFilePickerAsync(options);
-        if (files != null && files.Count > 0)
+        var files = await filePicker.OpenFilesAsync(
+            this,
+            new AppFilePickerOpenOptions(
+                "Select C64 ROM files",
+                AllowMultiple: true,
+                [
+                    new AppFilePickerFileType("ROM files", ["*.bin", "*.rom"]),
+                    AppFilePickerFileType.AllFiles
+                ]));
+        if (files.Count > 0)
         {
             var romDataList = new List<(string fileName, byte[] data)>();
             foreach (var file in files)
             {
                 try
                 {
-                    using var stream = await file.OpenReadAsync();
-                    var data = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(data);
-                    romDataList.Add((file.Name, data));
+                    romDataList.Add((file.Name, file.Bytes));
                 }
                 catch (Exception ex)
                 {

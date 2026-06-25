@@ -9,6 +9,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Vic20;
@@ -187,32 +188,15 @@ public partial class Vic20MenuView : UserControl
     private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (TopLevel.GetTopLevel(this) is not { } topLevel)
-                return;
-            var storageProvider = topLevel.StorageProvider;
-            if (!storageProvider.CanOpen)
-                return;
-
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load Basic PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
+            var selectedFile = await OpenLocalFileAsync(
+                "Load Basic PRG File",
+                "PRG Files",
+                "*.prg");
+            if (selectedFile != null)
             {
                 try
                 {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-
-                    _ = ViewModel!.LoadBasicFileCommand.Execute(fileBuffer);
+                    _ = ViewModel!.LoadBasicFileCommand.Execute(selectedFile.Bytes);
                 }
                 catch (Exception ex)
                 {
@@ -261,32 +245,15 @@ public partial class Vic20MenuView : UserControl
     private void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (TopLevel.GetTopLevel(this) is not { } topLevel)
-                return;
-            var storageProvider = topLevel.StorageProvider;
-            if (!storageProvider.CanOpen)
-                return;
-
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load & Start Binary PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
+            var selectedFile = await OpenLocalFileAsync(
+                "Load & Start Binary PRG File",
+                "PRG Files",
+                "*.prg");
+            if (selectedFile != null)
             {
                 try
                 {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-
-                    _ = ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer);
+                    _ = ViewModel!.LoadBinaryFileCommand.Execute(selectedFile.Bytes);
                 }
                 catch (Exception ex)
                 {
@@ -294,6 +261,26 @@ public partial class Vic20MenuView : UserControl
                 }
             }
         });
+
+    private async Task<AppPickedFile?> OpenLocalFileAsync(
+        string title,
+        string fileTypeName,
+        params string[] patterns)
+    {
+        var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+        var filePicker = serviceProvider?.GetService<IAppFilePicker>();
+        return filePicker == null
+            ? null
+            : await filePicker.OpenFileAsync(
+                this,
+                new AppFilePickerOpenOptions(
+                    title,
+                    AllowMultiple: false,
+                    [
+                        new AppFilePickerFileType(fileTypeName, patterns),
+                        AppFilePickerFileType.AllFiles
+                    ]));
+    }
 
     private void OpenVic20Config_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>

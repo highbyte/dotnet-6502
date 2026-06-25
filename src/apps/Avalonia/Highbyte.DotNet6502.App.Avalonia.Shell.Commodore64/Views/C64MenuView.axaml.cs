@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using AvaloniaApp = Highbyte.DotNet6502.App.Avalonia.Core.App;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
@@ -125,34 +126,14 @@ public partial class C64MenuView : UserControl
         {
             try
             {
-                if (TopLevel.GetTopLevel(this) is not { } topLevel ||
-                    !topLevel.StorageProvider.CanOpen)
-                {
-                    tcs.TrySetResult(null);
-                    return;
-                }
-
-                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = "Select C64 CRT Cartridge Image",
-                    AllowMultiple = false,
-                    FileTypeFilter =
-                    [
-                        new FilePickerFileType("C64 CRT Cartridge Images") { Patterns = ["*.crt"] },
-                        new FilePickerFileType("All Files") { Patterns = ["*"] },
-                    ],
-                });
-
-                if (files.Count == 0)
-                {
-                    tcs.TrySetResult(null);
-                    return;
-                }
-
-                await using var stream = await files[0].OpenReadAsync();
-                using var buffer = new MemoryStream();
-                await stream.CopyToAsync(buffer);
-                tcs.TrySetResult(new SelectedBinaryFile(files[0].Name, buffer.ToArray()));
+                tcs.TrySetResult(await OpenLocalFileAsync(
+                    "Select C64 CRT Cartridge Image",
+                    "C64 CRT Cartridge Images",
+                    "*.crt"));
+            }
+            catch (OperationCanceledException)
+            {
+                tcs.TrySetResult(null);
             }
             catch (Exception ex)
             {
@@ -191,47 +172,21 @@ public partial class C64MenuView : UserControl
     private void OnAttachDiskImageRequested(object? sender, TaskCompletionSource<byte[]?> tcs)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+            try
+            {
+                var selectedFile = await OpenLocalFileAsync(
+                    "Select D64 Disk Image",
+                    "D64 Disk Images",
+                    "*.d64");
+                tcs.TrySetResult(selectedFile?.Bytes);
+            }
+            catch (OperationCanceledException)
             {
                 tcs.TrySetResult(null);
-                return;
             }
-
-            var storageProvider = topLevel.StorageProvider;
-            if (!storageProvider.CanOpen)
+            catch (Exception ex)
             {
-                tcs.TrySetResult(null);
-                return;
-            }
-
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Select D64 Disk Image",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
-            {
-                try
-                {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-                    tcs.TrySetResult(fileBuffer);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Error reading disk image file");
-                    tcs.TrySetResult(null);
-                }
-            }
-            else
-            {
+                Logger.LogError(ex, "Error reading disk image file");
                 tcs.TrySetResult(null);
             }
         });
@@ -627,33 +582,16 @@ public partial class C64MenuView : UserControl
     private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (TopLevel.GetTopLevel(this) is not { } topLevel)
-                return;
-            var storageProvider = topLevel.StorageProvider;
-            if (!storageProvider.CanOpen)
-                return;
-
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load Basic PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
+            var selectedFile = await OpenLocalFileAsync(
+                "Load Basic PRG File",
+                "PRG Files",
+                "*.prg");
+            if (selectedFile != null)
             {
                 try
                 {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-
                     // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
-                    _ = ViewModel!.LoadBasicFileCommand.Execute(fileBuffer);
+                    _ = ViewModel!.LoadBasicFileCommand.Execute(selectedFile.Bytes);
                 }
                 catch (Exception ex)
                 {
@@ -661,6 +599,30 @@ public partial class C64MenuView : UserControl
                 }
             }
         });
+
+    private async Task<SelectedBinaryFile?> OpenLocalFileAsync(
+        string title,
+        string fileTypeName,
+        params string[] patterns)
+    {
+        var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+        var filePicker = serviceProvider?.GetService<IAppFilePicker>();
+        var file = filePicker == null
+            ? null
+            : await filePicker.OpenFileAsync(
+                this,
+                new AppFilePickerOpenOptions(
+                    title,
+                    AllowMultiple: false,
+                    [
+                        new AppFilePickerFileType(fileTypeName, patterns),
+                        AppFilePickerFileType.AllFiles
+                    ]));
+
+        return file == null
+            ? null
+            : new SelectedBinaryFile(file.Name, file.Bytes);
+    }
 
     private void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
@@ -703,33 +665,16 @@ public partial class C64MenuView : UserControl
     private void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {
-            if (TopLevel.GetTopLevel(this) is not { } topLevel)
-                return;
-            var storageProvider = topLevel.StorageProvider;
-            if (!storageProvider.CanOpen)
-                return;
-
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load & Start Binary PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
+            var selectedFile = await OpenLocalFileAsync(
+                "Load & Start Binary PRG File",
+                "PRG Files",
+                "*.prg");
+            if (selectedFile != null)
             {
                 try
                 {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-
                     // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
-                    _ = ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer);
+                    _ = ViewModel!.LoadBinaryFileCommand.Execute(selectedFile.Bytes);
                 }
                 catch (Exception ex)
                 {
