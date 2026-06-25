@@ -1,0 +1,16 @@
+{
+  "name": "dotnet6502-app-sec-headers",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --local --ip 127.0.0.1 --port 8789",
+    "start": "wrangler dev --local --ip 127.0.0.1 --port 8789",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "^5.5.2",
+    "wrangler": "^4.98.0"
+  }
+}

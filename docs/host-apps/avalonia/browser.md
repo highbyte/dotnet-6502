@@ -158,3 +158,14 @@ dotnet serve -p 5001 -o:/ --directory ./bin/Publish/wwwroot/ \
 ```
 
 A browser is automatically opened at <http://localhost:5001>.
+
+### Deployed site headers (Cloudflare)
+
+The live site (<https://highbyte.se/dotnet-6502/app2>) is served from GitHub Pages
+behind Cloudflare. GitHub Pages cannot set arbitrary response headers, so the same
+`Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` headers are injected at
+the Cloudflare edge by a small Worker scoped to the emulator app paths
+(`/dotnet-6502/app*`), leaving the docs site unaffected.
+
+The Worker source and its deploy / verify steps live in
+[`tools/cloudflare/app-sec-headers/`](https://github.com/highbyte/dotnet-6502/tree/master/tools/cloudflare/app-sec-headers).
