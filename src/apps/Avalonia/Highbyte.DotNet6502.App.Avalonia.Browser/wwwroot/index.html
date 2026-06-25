@@ -51,13 +51,31 @@ function showUpdateNotification() {
     document.body.appendChild(notification);
 }
 
-// Force refresh with cache clearing
-function forceRefresh() {
-    // Clear localStorage version
+// Force refresh with cache clearing.
+// Note: window.location.reload(true) does NOT bypass the cache — the boolean
+// argument is non-standard and ignored by modern browsers. Instead we
+// explicitly clear any service worker / Cache Storage and force-revalidate the
+// stable-named loader files (index.html -> main.js -> dotnet.js ->
+// blazor.boot.json) so the fresh boot manifest, and thus the new fingerprinted
+// assemblies, are loaded after the reload.
+async function forceRefresh() {
     localStorage.removeItem('app-version');
-    
-    // Force reload bypassing all caches
-    window.location.reload(true);
+    try {
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+        }
+        if (self.caches) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        // Overwrite the HTTP-cached, non-fingerprinted entry files with fresh copies.
+        const entryFiles = ['.', './main.js', './_framework/dotnet.js', './_framework/blazor.boot.json'];
+        await Promise.all(entryFiles.map(u => fetch(u, { cache: 'reload' }).catch(() => {})));
+    } catch (e) {
+        console.warn('Cache clear before update failed', e);
+    }
+    window.location.reload();
 }
 
 // Dismiss update notification
