@@ -6,8 +6,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -88,26 +88,21 @@ public partial class Vic20ConfigDialogView : UserControl
 
     private async Task LoadRomsAsync()
     {
-        if (TopLevel.GetTopLevel(this)?.StorageProvider == null)
+        var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+        var filePicker = serviceProvider?.GetService<IAppFilePicker>();
+        if (filePicker == null)
             return;
-        var storageProvider = TopLevel.GetTopLevel(this)!.StorageProvider;
 
-        var options = new FilePickerOpenOptions
-        {
-            Title = "Select VIC-20 ROM files",
-            AllowMultiple = true,
-            FileTypeFilter = new List<FilePickerFileType>
-            {
-                new("ROM files")
-                {
-                    Patterns = new[] { "*.bin", "*.rom" }
-                },
-                FilePickerFileTypes.All
-            }
-        };
-
-        var files = await storageProvider.OpenFilePickerAsync(options);
-        if (files == null || files.Count == 0)
+        var files = await filePicker.OpenFilesAsync(
+            this,
+            new AppFilePickerOpenOptions(
+                "Select VIC-20 ROM files",
+                AllowMultiple: true,
+                [
+                    new AppFilePickerFileType("ROM files", ["*.bin", "*.rom"]),
+                    AppFilePickerFileType.AllFiles
+                ]));
+        if (files.Count == 0)
             return;
 
         var romDataList = new List<(string fileName, byte[] data)>();
@@ -115,10 +110,7 @@ public partial class Vic20ConfigDialogView : UserControl
         {
             try
             {
-                using var stream = await file.OpenReadAsync();
-                var data = new byte[stream.Length];
-                await stream.ReadExactlyAsync(data);
-                romDataList.Add((file.Name, data));
+                romDataList.Add((file.Name, file.Bytes));
             }
             catch (Exception ex)
             {
