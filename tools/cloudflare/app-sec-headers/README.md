@@ -1,7 +1,8 @@
-# dotnet-6502 app cross-origin isolation headers
+# dotnet-6502 app cross-origin isolation + cache-control headers
 
-Cloudflare Worker that adds cross-origin isolation headers to the dotnet-6502
-emulator browser apps served from GitHub Pages behind Cloudflare.
+Cloudflare Worker that adds cross-origin isolation headers and cache-control
+headers to the dotnet-6502 emulator browser apps served from GitHub Pages
+behind Cloudflare.
 
 ## What it does
 
@@ -9,8 +10,29 @@ emulator browser apps served from GitHub Pages behind Cloudflare.
 - Stamps these headers on emulator **app** paths only (`/dotnet-6502/app*`):
   - `Cross-Origin-Opener-Policy: same-origin`
   - `Cross-Origin-Embedder-Policy: require-corp`
+- Sets `Cache-Control: no-cache` on the stable-named loader/entry files within
+  an app path, forcing the browser to revalidate them every load:
+  - the app document (`/` / `index.html`)
+  - `main.js`
+  - `_framework/dotnet.js` (and `dotnet.boot.js`)
+  - `_framework/blazor.boot.json`
 - Passes every other `/dotnet-6502/*` request (the docs site, etc.) through
-  unchanged.
+  unchanged, and leaves the fingerprinted `*.wasm`/`*.dll` assemblies on their
+  long-lived upstream cache headers.
+
+## Why `no-cache` on the loader files
+
+The .NET WebAssembly publish content-fingerprints every assembly
+(e.g. `Foo.ab12cd34.wasm`), so those are safe to cache forever — a new version
+changes their filenames. But the loader chain that *selects* which fingerprints
+to load keeps stable filenames:
+`index.html` → `main.js` → `_framework/dotnet.js` → `_framework/blazor.boot.json`.
+GitHub Pages serves these with `max-age=600..14400`, so within that window a
+normal reload (including the in-app "Update" button) serves the **old**
+`blazor.boot.json` from the browser cache → old fingerprints → old app version,
+until a manual hard refresh. Marking the loader files `no-cache` makes the
+browser revalidate them on every load (cheap 304 when unchanged), so a new
+deploy is picked up immediately.
 
 ## Why
 
@@ -82,7 +104,15 @@ curl -sI https://highbyte.se/dotnet-6502/app2/ | grep -i cross-origin
 ```
 
 Both `cross-origin-opener-policy` and `cross-origin-embedder-policy` should be
-present. In the live app's devtools console:
+present. The loader files should report `cache-control: no-cache`, while a
+fingerprinted assembly keeps its long-lived cache:
+
+```sh
+curl -sI https://highbyte.se/dotnet-6502/app2/_framework/blazor.boot.json | grep -i cache-control  # no-cache
+curl -sI https://highbyte.se/dotnet-6502/app2/_framework/dotnet.js         | grep -i cache-control  # no-cache
+```
+
+In the live app's devtools console:
 
 ```js
 crossOriginIsolated        // true
