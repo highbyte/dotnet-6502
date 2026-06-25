@@ -9,6 +9,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
@@ -46,6 +47,7 @@ public partial class App : Application
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
     private readonly Func<IHostApp, Task>? _automatedStartupRunner;
+    private readonly IAppFilePicker? _appFilePicker;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -132,7 +134,8 @@ public partial class App : Application
         Action<string, string>? saveScript = null,
         Action<string>? deleteScript = null,
         Func<Task>? loadExamples = null,
-        Func<IHostApp, Task>? automatedStartupRunner = null)
+        Func<IHostApp, Task>? automatedStartupRunner = null,
+        IAppFilePicker? appFilePicker = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -150,6 +153,7 @@ public partial class App : Application
         _deleteScript = deleteScript;
         _loadExamples = loadExamples;
         _automatedStartupRunner = automatedStartupRunner;
+        _appFilePicker = appFilePicker;
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
@@ -309,6 +313,7 @@ public partial class App : Application
         services.AddSingleton(_configuration);
         services.AddSingleton(_loggerFactory);
         services.AddSingleton(new CustomConfigPersistence(_saveCustomConfigString));
+        services.AddSingleton<IAppFilePicker>(_appFilePicker ?? new AvaloniaStorageAppFilePicker());
         if (_logStore != null)
             services.AddSingleton(_logStore);
         if (_logConfig != null)

@@ -8,6 +8,91 @@ export function getLocalStorageKeys(prefix) {
     return JSON.stringify(keys);
 }
 
+export function pickLocalFilesAsBase64(accept, allowMultiple) {
+    return new Promise((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.multiple = !!allowMultiple;
+        input.style.position = "fixed";
+        input.style.left = "-10000px";
+        input.style.top = "-10000px";
+
+        if (accept)
+            input.accept = accept;
+
+        let settled = false;
+
+        const finish = (value) => {
+            if (settled)
+                return;
+
+            settled = true;
+            window.removeEventListener("focus", onFocus, true);
+            input.removeEventListener("change", onChange);
+            input.removeEventListener("cancel", onCancel);
+            input.remove();
+            resolve(value ?? "");
+        };
+
+        const supportsCancelEvent = "oncancel" in input;
+
+        const onCancel = () => finish("");
+
+        const onFocus = () => {
+            if (supportsCancelEvent)
+                return;
+
+            // Some browsers do not fire a cancel event for file inputs. When the OS file picker
+            // closes without a selected file, focus returns to the window. Delay long enough for
+            // browsers that restore focus before dispatching the "change" event on real selection;
+            // otherwise a valid file pick can race with this fallback and be reported as cancel.
+            setTimeout(() => {
+                if (!settled && (!input.files || input.files.length === 0))
+                    finish("");
+            }, 1000);
+        };
+
+        const onChange = async () => {
+            if (!input.files || input.files.length === 0) {
+                finish("");
+                return;
+            }
+
+            try {
+                const files = await Promise.all(Array.from(input.files).map(async file => {
+                    const bytes = new Uint8Array(await file.arrayBuffer());
+                    return {
+                        name: file.name,
+                        base64: bytesToBase64(bytes)
+                    };
+                }));
+                finish(JSON.stringify(files));
+            } catch (error) {
+                console.error("Failed to read local file", error);
+                finish("");
+            }
+        };
+
+        input.addEventListener("change", onChange);
+        if (supportsCancelEvent)
+            input.addEventListener("cancel", onCancel);
+        else
+            window.addEventListener("focus", onFocus, true);
+        document.body.appendChild(input);
+        input.click();
+    });
+}
+
+function bytesToBase64(bytes) {
+    const chunkSize = 0x8000;
+    let binary = "";
+
+    for (let i = 0; i < bytes.length; i += chunkSize)
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+
+    return btoa(binary);
+}
+
 export function getScriptsFromLocalStorage(prefix) {
     const results = [];
     for (let i = 0; i < localStorage.length; i++) {

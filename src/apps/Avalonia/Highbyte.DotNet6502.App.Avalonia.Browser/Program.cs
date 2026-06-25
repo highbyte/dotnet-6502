@@ -5,8 +5,10 @@ using System.Text.Json;
 using AvaloniaBrowserApp = Highbyte.DotNet6502.App.Avalonia.Core.App;
 using Avalonia;
 using Avalonia.Browser;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.Browser.Input;
@@ -1182,6 +1184,39 @@ internal sealed partial class Program
         // emulator's later audio output is allowed to play.
         [JSImport("unlockAudio", "BrowserScripting")]
         public static partial void UnlockAudio();
+
+        [JSImport("pickLocalFilesAsBase64", "BrowserScripting")]
+        public static partial Task<string?> PickLocalFilesAsBase64Async(string accept, bool allowMultiple);
+    }
+
+    private sealed class BrowserAppFilePicker : IAppFilePicker
+    {
+        public async Task<AppPickedFile?> OpenFileAsync(Control owner, AppFilePickerOpenOptions options)
+        {
+            var files = await OpenFilesAsync(owner, options with { AllowMultiple = false });
+            return files.Count == 0 ? null : files[0];
+        }
+
+        public async Task<IReadOnlyList<AppPickedFile>> OpenFilesAsync(Control owner, AppFilePickerOpenOptions options)
+        {
+            var fileJson = await JSInterop.PickLocalFilesAsBase64Async(
+                options.ToBrowserAccept(),
+                options.AllowMultiple);
+            if (string.IsNullOrWhiteSpace(fileJson))
+                return [];
+
+            using var jsonDocument = JsonDocument.Parse(fileJson);
+            var files = new List<AppPickedFile>();
+            foreach (var fileElement in jsonDocument.RootElement.EnumerateArray())
+            {
+                var name = fileElement.GetProperty("name").GetString() ?? string.Empty;
+                var base64 = fileElement.GetProperty("base64").GetString();
+                if (!string.IsNullOrEmpty(base64))
+                    files.Add(new AppPickedFile(name, Convert.FromBase64String(base64)));
+            }
+
+            return files;
+        }
     }
 
     private static async Task SeedExampleScriptsAsync(Action<string, string> saveScript)
@@ -1365,7 +1400,8 @@ internal sealed partial class Program
                                 saveScript: saveScript,
                                 deleteScript: deleteScript,
                                 loadExamples: loadExamples,
-                                automatedStartupRunner: automatedStartupRunner
+                                automatedStartupRunner: automatedStartupRunner,
+                                appFilePicker: new BrowserAppFilePicker()
                             );
         })
         .AfterSetup(_ =>

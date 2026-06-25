@@ -1251,7 +1251,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         if (AttachCartridgeImageRequested == null)
             return null;
 
-        var tcs = new TaskCompletionSource<SelectedBinaryFile?>();
+        var tcs = new TaskCompletionSource<SelectedBinaryFile?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         AttachCartridgeImageRequested.Invoke(this, tcs);
         return await tcs.Task;
     }
@@ -1368,7 +1369,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         if (AttachDiskImageRequested == null)
             return;
 
-        var tcs = new TaskCompletionSource<byte[]?>();
+        var tcs = new TaskCompletionSource<byte[]?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         AttachDiskImageRequested.Invoke(this, tcs);
         var fileBuffer = await tcs.Task;
 
