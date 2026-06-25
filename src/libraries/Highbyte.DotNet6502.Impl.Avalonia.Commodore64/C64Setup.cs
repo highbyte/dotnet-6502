@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Transport;
@@ -59,15 +60,16 @@ public class C64Setup : C64SystemConfigurerCore
         c64.InputConsumer = new C64InputHandler(c64, LoggerFactory, c64HostConfig.InputConfig,
             c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
-        if (PlatformDetection.IsRunningInWebAssembly() && c64.SwiftLink != null)
+        var swiftLink = c64.CartridgeSlot.GetCartridge<SwiftLinkDevice>();
+        if (PlatformDetection.IsRunningInWebAssembly() && swiftLink != null)
         {
             var transport = CreateBrowserSwiftLinkTransport(c64HostConfig);
-            c64.SwiftLink.ReceivePacingCycles =
+            swiftLink.ReceivePacingCycles =
                 c64HostConfig.SwiftLinkTransportMode == C64SwiftLinkTransportMode.HayesModem
-                && c64.SwiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
+                && swiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
                     ? GetReceivePacingCyclesPerCharacter(c64)
                     : 0;
-            c64.SwiftLink.Transport = transport;
+            swiftLink.Transport = transport;
 
             if (c64HostConfig.SwiftLinkConnectOnBoot)
                 await transport.ConnectAsync();

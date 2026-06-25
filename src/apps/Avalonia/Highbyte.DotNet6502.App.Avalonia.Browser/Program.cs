@@ -113,7 +113,7 @@ internal sealed partial class Program
     ///       URL (relative or absolute) to fetch C64 BASIC source text from. Same semantics as
     ///       <c>basicText</c> but unconstrained by URL length. Requires <c>system=C64</c>,
     ///       <c>start</c>, and <c>waitForSystemReady</c>. Mutually exclusive with
-    ///       <c>loadPrgUrl</c> / <c>runLoadedProgram</c>.
+    ///       <c>loadPrgUrl</c> / <c>loadD64Url</c> / <c>loadCrtUrl</c> / <c>runLoadedProgram</c>.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -128,11 +128,37 @@ internal sealed partial class Program
     ///   <item>
     ///     <term><c>loadD64Url</c></term>
     ///     <description>
-    ///       URL (relative or absolute) to fetch a C64 <c>.d64</c> disk image from. Requires
+    ///       URL (relative or absolute) to fetch a C64 <c>.d64</c> disk image from. ZIP archives are
+    ///       accepted; by default the first <c>.d64</c> entry is used. Requires
     ///       <c>system=C64</c>, <c>start</c>, <c>waitForSystemReady</c>, and exactly one of
     ///       <c>d64Program</c> or <c>diskMount</c>. Mutually exclusive with <c>loadPrgUrl</c> /
-    ///       <c>basicText</c> / <c>basicUrl</c>. Bytes are pre-fetched on the main thread (mirrors
-    ///       <c>loadPrgUrl</c>).
+    ///       <c>loadCrtUrl</c> / <c>basicText</c> / <c>basicUrl</c>. The bytes are fetched by the
+    ///       C64 startup participant after the emulator is visible.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>loadD64ZipEntry</c></term>
+    ///     <description>
+    ///       Exact <c>.d64</c> entry to select when <c>loadD64Url</c> points at a ZIP archive. Use
+    ///       forward slashes for folders.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>loadCrtUrl</c></term>
+    ///     <description>
+    ///       URL (relative or absolute) to fetch and attach a C64 <c>.crt</c> cartridge image from.
+    ///       Requires <c>system=C64</c> and <c>start</c>; <c>waitForSystemReady</c> is not required
+    ///       because cartridges reset / boot the machine when attached. Mutually exclusive with
+    ///       <c>loadPrgUrl</c>, <c>loadD64Url</c>, <c>basicText</c>, and <c>basicUrl</c>. ZIP
+    ///       archives containing exactly one <c>.crt</c> are accepted by default.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>loadCrtZipEntry</c></term>
+    ///     <description>
+    ///       Exact <c>.crt</c> entry to select when <c>loadCrtUrl</c> points at a ZIP archive. Use
+    ///       forward slashes for folders; this is required for ZIP archives with multiple
+    ///       <c>.crt</c> files.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -155,7 +181,7 @@ internal sealed partial class Program
     ///     <description>
     ///       Force-enable the C64 keyboard-emulated joystick. Requires <c>system=C64</c>; applies
     ///       for any C64 start path (plain <c>start</c>, <c>loadPrgUrl</c>, BASIC paste,
-    ///       <c>loadD64Url</c>).
+    ///       <c>loadD64Url</c>, <c>loadCrtUrl</c>).
     ///     </description>
     ///   </item>
     ///   <item>
@@ -175,7 +201,8 @@ internal sealed partial class Program
     ///       Base64url-encoded inline Lua script to load and auto-enable at startup. The script
     ///       owns the emulator lifecycle, so this parameter is mutually exclusive with
     ///       <c>system</c>, <c>start</c>, <c>waitForSystemReady</c>, <c>loadPrgUrl</c>,
-    ///       <c>runLoadedProgram</c>, <c>basicText</c>, <c>basicUrl</c>, and <c>runBasic</c>.
+    ///       <c>loadD64Url</c>, <c>loadCrtUrl</c>, <c>runLoadedProgram</c>, <c>basicText</c>,
+    ///       <c>basicUrl</c>, and <c>runBasic</c>.
     ///       Gated by <c>Scripting.AllowUrlScripts</c> (default false).
     ///     </description>
     ///   </item>
@@ -214,6 +241,9 @@ internal sealed partial class Program
     ///
     /// # Direct-load the first PRG from a .d64 (no disk mount) and RUN it
     /// ?system=C64&amp;start=1&amp;waitForSystemReady=1&amp;loadD64Url=https%3A%2F%2Fexample.com%2Fgame.d64&amp;d64Program=*&amp;runLoadedProgram=1
+    ///
+    /// # Attach a .crt cartridge image
+    /// ?system=C64&amp;start=1&amp;loadCrtUrl=https%3A%2F%2Fexample.com%2Ffc3.crt
     ///
     /// # Run an inline Lua script (requires Scripting.AllowUrlScripts=true in browser localStorage config)
     /// ?script=bG9nLmluZm8oJ2hlbGxvJyk        # base64url of: log.info('hello')
@@ -265,6 +295,7 @@ internal sealed partial class Program
                 $"waitForSystemReady={automation.WaitForSystemReady}, " +
                 $"loadPrgUrl={automation.LoadPrgUrl ?? "(none)"}, runLoadedProgram={automation.RunLoadedProgram}, " +
                 $"loadD64Url={automation.LoadD64Url ?? "(none)"}, " +
+                $"loadCrtUrl={automation.LoadCrtUrl ?? "(none)"}, " +
                 $"extraParameters={automation.ExtraParameters.Count}");
         }
         else if (automation.ScriptContent != null || automation.ScriptUrl != null)
@@ -314,7 +345,7 @@ internal sealed partial class Program
         // Set the Lua store prefix for display in the settings UI (browser only)
         emulatorConfig.LuaStorePrefix = LOCAL_STORAGE_STORE_PREFIX;
 
-        // CORS proxy for URL-driven startup fetches (loadPrgUrl / loadD64Url / basicUrl / scriptUrl).
+        // CORS proxy for URL-driven startup fetches (loadPrgUrl / loadD64Url / loadCrtUrl / basicUrl / scriptUrl).
         // A user-supplied cross-origin URL usually lacks CORS headers and can't be fetched directly
         // from WebAssembly, so route it through the configured proxy. Same-origin (bundled) and
         // already-proxied URLs are left unwrapped. See CorsProxyHelper.
@@ -517,16 +548,17 @@ internal sealed partial class Program
         }
         else if (automation.SystemName != null)
         {
-            // .d64 bytes are deliberately NOT pre-fetched here. The participant downloads them via
-            // AutomatedStartupContext.FetchBinaryResource after the C64 reports BASIC ready, so the
-            // user sees the live BASIC prompt during the .d64 download (a pre-fetch here would
-            // block the Avalonia app from starting and leave the page blank).
+            // .d64/.crt bytes are deliberately NOT pre-fetched here. The participant downloads them
+            // via AutomatedStartupContext.FetchBinaryResource from the C64 startup lifecycle, so the
+            // user sees the live emulator rather than a blank page during a remote download.
             // Copy the extras and surface the load-source URLs so the C64 participant can both fetch
-            // (.d64) and *display* them in the pre-selection startup acknowledgement dialog. The .prg
-            // URL is otherwise only captured in the prgBytesProvider closure below.
+            // (.d64/.crt) and *display* them in the pre-selection startup acknowledgement dialog.
+            // The .prg URL is otherwise only captured in the prgBytesProvider closure below.
             var startupExtras = new Dictionary<string, string>(automation.ExtraParameters, StringComparer.OrdinalIgnoreCase);
             if (automation.LoadD64Url != null)
                 startupExtras["loadD64Url"] = automation.LoadD64Url;
+            if (automation.LoadCrtUrl != null)
+                startupExtras["loadCrtUrl"] = automation.LoadCrtUrl;
             if (automation.LoadPrgUrl != null)
                 startupExtras["loadPrgUrl"] = automation.LoadPrgUrl;
 
@@ -560,8 +592,8 @@ internal sealed partial class Program
 
                 // Host capabilities for the participant's post-ready automation:
                 //  - text fetch: used by C64 'basicUrl'.
-                //  - binary fetch: used by C64 'loadD64Url' (deferred until BASIC is ready, so the
-                //    user sees the boot rather than a blank page while a remote .d64 downloads).
+                //  - binary fetch: used by C64 'loadD64Url' / 'loadCrtUrl' (deferred into the
+                //    C64 startup lifecycle so the user sees the emulator during remote downloads).
                 var startupContext = new AutomatedStartupContext
                 {
                     FetchTextResource = async url =>
@@ -738,6 +770,7 @@ internal sealed partial class Program
         string? ScriptContent,
         string? ScriptUrl,
         string? LoadD64Url,
+        string? LoadCrtUrl,
         IReadOnlyDictionary<string, string> ExtraParameters);
 
     /// <summary>
@@ -746,7 +779,7 @@ internal sealed partial class Program
     /// </summary>
     private static BrowserAutomationParams ParseAutomationQuery(string? url)
     {
-        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null, null, new Dictionary<string, string>());
+        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null, null, null, new Dictionary<string, string>());
         if (string.IsNullOrWhiteSpace(url))
             return empty;
 
@@ -789,6 +822,9 @@ internal sealed partial class Program
         string? scriptB64 = map.TryGetValue("script", out var sc) && !string.IsNullOrWhiteSpace(sc) ? sc : null;
         string? scriptUrl = map.TryGetValue("scriptUrl", out var su) && !string.IsNullOrWhiteSpace(su) ? su : null;
         string? loadD64Url = map.TryGetValue("loadD64Url", out var ld64) && !string.IsNullOrWhiteSpace(ld64) ? ld64 : null;
+        string? loadCrtUrl = map.TryGetValue("loadCrtUrl", out var lcrt) && !string.IsNullOrWhiteSpace(lcrt) ? lcrt : null;
+        string? loadD64ZipEntry = map.TryGetValue("loadD64ZipEntry", out var d64ze) && !string.IsNullOrWhiteSpace(d64ze) ? d64ze : null;
+        string? loadCrtZipEntry = map.TryGetValue("loadCrtZipEntry", out var crtze) && !string.IsNullOrWhiteSpace(crtze) ? crtze : null;
         string? d64Program = map.TryGetValue("d64Program", out var d64p) && !string.IsNullOrWhiteSpace(d64p) ? d64p : null;
         bool diskMount = map.TryGetValue("diskMount", out var dm) && IsTruthy(dm);
         bool keyboardJoystickEnabled = map.TryGetValue("keyboardJoystickEnabled", out var kje) && IsTruthy(kje);
@@ -820,6 +856,33 @@ internal sealed partial class Program
             WriteBootstrapLog("Query parameter 'loadPrgUrl' requires 'system' and 'start'; ignoring 'loadPrgUrl'.", LogLevel.Warning);
             loadPrgUrl = null;
         }
+        // ── .crt automation validation ───────────────────────────────────────────────────
+        if (loadCrtUrl != null)
+        {
+            if (!string.Equals(systemName, "C64", StringComparison.OrdinalIgnoreCase))
+            {
+                WriteBootstrapLog("Query parameter 'loadCrtUrl' requires 'system=C64'; ignoring 'loadCrtUrl'.", LogLevel.Warning);
+                loadCrtUrl = null;
+                loadCrtZipEntry = null;
+            }
+            else if (!autoStart)
+            {
+                WriteBootstrapLog("Query parameter 'loadCrtUrl' requires 'start'; ignoring.", LogLevel.Warning);
+                loadCrtUrl = null;
+                loadCrtZipEntry = null;
+            }
+            else if (loadPrgUrl != null)
+            {
+                WriteBootstrapLog("Query parameter 'loadCrtUrl' is mutually exclusive with 'loadPrgUrl'; ignoring 'loadCrtUrl'.", LogLevel.Warning);
+                loadCrtUrl = null;
+                loadCrtZipEntry = null;
+            }
+        }
+        if (loadCrtUrl == null && loadCrtZipEntry != null)
+        {
+            WriteBootstrapLog("Query parameter 'loadCrtZipEntry' has no effect without 'loadCrtUrl'; ignoring.", LogLevel.Warning);
+            loadCrtZipEntry = null;
+        }
         // ── .d64 automation validation ───────────────────────────────────────────────────
         // Runs before the 'runLoadedProgram requires loadPrgUrl' check below so a
         // loadD64Url + runLoadedProgram URL is accepted (loadD64 is also a valid load source).
@@ -829,33 +892,45 @@ internal sealed partial class Program
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' requires 'system=C64'; ignoring 'loadD64Url' and related .d64 params.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (!autoStart || !waitForReady)
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' requires 'start' and 'waitForSystemReady'; ignoring.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (loadPrgUrl != null)
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' is mutually exclusive with 'loadPrgUrl'; ignoring 'loadD64Url'.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
+            }
+            else if (loadCrtUrl != null)
+            {
+                WriteBootstrapLog("Query parameter 'loadD64Url' is mutually exclusive with 'loadCrtUrl'; ignoring 'loadD64Url'.", LogLevel.Warning);
+                loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (d64Program == null && !diskMount)
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' requires exactly one of 'd64Program' or 'diskMount'; ignoring.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (d64Program != null && diskMount)
             {
                 WriteBootstrapLog("Query parameters 'd64Program' and 'diskMount' are mutually exclusive; ignoring 'loadD64Url'.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
         }
         // 'd64Program' / 'diskMount' only make sense with 'loadD64Url'.
-        if (loadD64Url == null && (d64Program != null || diskMount))
+        if (loadD64Url == null && (d64Program != null || diskMount || loadD64ZipEntry != null))
         {
-            WriteBootstrapLog("Query parameters 'd64Program' / 'diskMount' have no effect without 'loadD64Url'; ignoring.", LogLevel.Warning);
+            WriteBootstrapLog("Query parameters 'd64Program' / 'diskMount' / 'loadD64ZipEntry' have no effect without 'loadD64Url'; ignoring.", LogLevel.Warning);
             d64Program = null;
+            loadD64ZipEntry = null;
             diskMount = false;
         }
         // 'keyboardJoystick*' / 'audioEnabled' are general C64 runtime knobs — they apply
@@ -880,7 +955,8 @@ internal sealed partial class Program
             WriteBootstrapLog("Query parameter 'audioEnabled' must be 'true' or 'false'; ignoring.", LogLevel.Warning);
             audioEnabledRaw = null;
         }
-        // 'runLoadedProgram' needs a load source — either a PRG URL or a .d64 image.
+        // 'runLoadedProgram' needs a load source — either a PRG URL or a .d64 image. CRT cartridges
+        // boot/reset themselves and are not "loaded programs" in this automation contract.
         if (runLoaded && loadPrgUrl == null && loadD64Url == null)
         {
             WriteBootstrapLog("Query parameter 'runLoadedProgram' requires 'loadPrgUrl' or 'loadD64Url'; ignoring 'runLoadedProgram'.", LogLevel.Warning);
@@ -897,11 +973,11 @@ internal sealed partial class Program
         }
         // Scripts own the lifecycle: incompatible with system-driven automation.
         if ((scriptContent != null || scriptUrl != null) &&
-            (systemName != null || autoStart || waitForReady || loadPrgUrl != null || runLoaded))
+            (systemName != null || autoStart || waitForReady || loadPrgUrl != null || loadD64Url != null || loadCrtUrl != null || runLoaded))
         {
             WriteBootstrapLog(
                 "Query parameters 'script'/'scriptUrl' are mutually exclusive with 'system', 'start', " +
-                "'waitForSystemReady', 'loadPrgUrl', and 'runLoadedProgram'; ignoring script parameters.",
+                "'waitForSystemReady', 'loadPrgUrl', 'loadD64Url', 'loadCrtUrl', and 'runLoadedProgram'; ignoring script parameters.",
                 LogLevel.Warning);
             scriptContent = null;
             scriptUrl = null;
@@ -914,10 +990,11 @@ internal sealed partial class Program
         {
             "system", "systemVariant", "start", "waitForSystemReady",
             "loadPrgUrl", "runLoadedProgram", "script", "scriptUrl",
-            // .d64 startup keys: 'loadD64Url' is consumed by Program.cs (bytes are pre-fetched
-            // into ExtraParameters as 'd64BytesB64'); the others are forwarded into extras after
-            // validation has filtered out invalid combinations.
-            "loadD64Url", "d64Program", "diskMount",
+            // .d64 startup keys: 'loadD64Url' is consumed by Program.cs; the participant fetches
+            // its bytes via AutomatedStartupContext.FetchBinaryResource after validation. The other
+            // .d64 keys are forwarded into extras after invalid combinations have been filtered out.
+            "loadD64Url", "loadD64ZipEntry", "d64Program", "diskMount",
+            "loadCrtUrl", "loadCrtZipEntry",
             "keyboardJoystickEnabled", "keyboardJoystickNumber", "audioEnabled",
         };
         var extraParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -937,8 +1014,16 @@ internal sealed partial class Program
         {
             if (d64Program != null)
                 extraParameters["d64Program"] = d64Program;
+            if (loadD64ZipEntry != null)
+                extraParameters["loadD64ZipEntry"] = loadD64ZipEntry;
             if (diskMount)
                 extraParameters["diskMount"] = "true";
+        }
+        if (loadCrtUrl != null)
+        {
+            extraParameters["loadCrtUrl"] = loadCrtUrl;
+            if (loadCrtZipEntry != null)
+                extraParameters["loadCrtZipEntry"] = loadCrtZipEntry;
         }
         // C64 runtime knobs apply to any C64 start path — emit whenever the user supplied them
         // and 'system=C64' (the validator already enforced the latter).
@@ -950,7 +1035,7 @@ internal sealed partial class Program
             extraParameters["audioEnabled"] = audioEnabledRaw;
 
         return new BrowserAutomationParams(systemName, systemVariant, autoStart, waitForReady,
-            loadPrgUrl, runLoaded, scriptContent, scriptUrl, loadD64Url, extraParameters);
+            loadPrgUrl, runLoaded, scriptContent, scriptUrl, loadD64Url, loadCrtUrl, extraParameters);
     }
 
     private static string? DecodeBase64UrlUtf8QueryValue(string parameterName, string? base64UrlValue, bool logRawValue = false)

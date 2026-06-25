@@ -143,6 +143,80 @@
             </Border>
         </StackPanel>
 
+        <!-- Cartridge & CRT images -->
+        <StackPanel>
+            <Button Name="CartridgeSectionHeader"
+                    AutomationProperties.AutomationId="CartridgeSectionHeader"
+                    AutomationProperties.Name="Toggle cartridge section"
+                    Classes="section-toggle"
+                    Command="{Binding ToggleCartridgeSectionCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Grid Width="10" Height="10" VerticalAlignment="Center">
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleRight"
+                                             IsVisible="{Binding !IsCartridgeSectionExpanded}"/>
+                        <controls:SymbolIcon Width="8" Height="8"
+                                             Kind="TriangleDown"
+                                             IsVisible="{Binding IsCartridgeSectionExpanded}"/>
+                    </Grid>
+                    <TextBlock Text="Cartridge &amp; .CRT images"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+
+            <Border Name="CartridgeSectionContent"
+                    AutomationProperties.AutomationId="CartridgeSectionContent"
+                    Classes="collapsible-content"
+                    IsVisible="{Binding IsCartridgeSectionExpanded}">
+                <StackPanel Classes="spacing-tight">
+                    <TextBlock Text="{Binding CartridgeSummary}"
+                               Classes="small secondary-text"
+                               TextWrapping="Wrap"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="{Binding CartridgeAttachButtonText}"
+                                AutomationProperties.AutomationId="AttachCartridgeButton"
+                                Command="{Binding AttachCartridgeImageCommand}"
+                                Classes="small"/>
+                        <Button Grid.Column="1"
+                                Content="i"
+                                AutomationProperties.AutomationId="CartridgeInfoButton"
+                                AutomationProperties.Name="About cartridge images"
+                                Classes="info"
+                                Click="OpenCartridgeInfo_Click"/>
+                    </Grid>
+
+                    <Button Content="Detach cartridge"
+                            AutomationProperties.AutomationId="DetachCartridgeButton"
+                            Command="{Binding DetachCartridgeCommand}"
+                            IsVisible="{Binding CanDetachCartridge}"
+                            Classes="small danger"/>
+
+                    <Button Content="Freeze (cartridge button)"
+                            AutomationProperties.AutomationId="FreezeCartridgeButton"
+                            Command="{Binding FreezeCartridgeCommand}"
+                            IsVisible="{Binding CanFreezeCartridge}"
+                            Classes="small"/>
+
+                    <TextBlock Text="Attaching cartridge..."
+                               Classes="small secondary-text"
+                               IsVisible="{Binding IsCartridgeOperationInProgress}"/>
+
+                    <Border Classes="error-container-small"
+                            IsVisible="{Binding HasLatestCartridgeError}">
+                        <TextBlock Text="{Binding LatestCartridgeError}"
+                                   Classes="small"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
         <!-- Load/Save -->
         <StackPanel>
             <Button Name="LoadSaveSectionHeader"

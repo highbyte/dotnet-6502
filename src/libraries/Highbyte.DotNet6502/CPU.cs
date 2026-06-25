@@ -124,6 +124,19 @@ public class CPU
         handler?.Invoke(this, e);
     }
 
+    /// <summary>
+    /// Raised when the CPU is about to service a pending hardware NMI, before the
+    /// vector at $FFFA/$FFFB is read. Some C64 expansion-port hardware changes
+    /// memory mapping as part of NMI acknowledgement, so system integrations can
+    /// use this boundary to expose the vector that the real machine would see.
+    /// </summary>
+    public event EventHandler? NmiAcknowledging;
+    protected virtual void OnNmiAcknowledging()
+    {
+        var handler = NmiAcknowledging;
+        handler?.Invoke(this, EventArgs.Empty);
+    }
+
     // Per-instruction event-firing helpers. Each snapshots the delegate first to avoid
     // the standard event-race (subscriber detaches between null check and invocation)
     // and skips the EventArgs allocation when no subscriber is attached -- a measurable
@@ -330,6 +343,7 @@ public class CPU
 
         if (CPUInterrupts.NMIPending)
         {
+            OnNmiAcknowledging();
             ushort nmiVector = FetchWord(mem, CPU.NonMaskableIRQHandlerVector);
             _logger.LogDebug(
                 "Servicing NMI. PC={PC:X4}, Vector={Vector:X4}, ActiveSources=[{Sources}]",

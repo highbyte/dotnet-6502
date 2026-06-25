@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 
-public sealed class SwiftLinkDevice : IC64CartridgeDevice
+public sealed class SwiftLinkDevice : IC64Cartridge
 {
     private const byte StatusRxFullBit = 1 << 3;
     private const byte StatusTxEmptyBit = 1 << 4;
@@ -44,6 +44,12 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     }
 
     public string Name => "SwiftLink";
+    public C64CartridgeLines Lines => C64CartridgeLines.Released;
+    public event Action? LinesChanged
+    {
+        add { }
+        remove { }
+    }
     public ISwiftLinkTransport? Transport { get; set; }
     public CPUInterrupts? CpuInterrupts { get; set; }
     public C64SwiftLinkInterruptMode InterruptMode { get; set; } = C64SwiftLinkInterruptMode.IRQ;
@@ -56,19 +62,51 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
     public ulong ReceivePacingCycles { get; set; }
     public ushort BaseAddress => _baseAddress;
 
-    public void MapIOLocations(Memory mem)
+    public bool HandlesIORead(ushort address)
+        => address >= _baseAddress && address <= _baseAddress + 0x03;
+
+    public bool HandlesIOWrite(ushort address)
+        => address >= _baseAddress && address <= _baseAddress + 0x03;
+
+    public byte ReadIO(ushort address)
     {
-        mem.MapReader((ushort)(_baseAddress + 0x00), DataLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x00), DataStore);
-        mem.MapReader((ushort)(_baseAddress + 0x01), StatusLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x01), StatusStore);
-        mem.MapReader((ushort)(_baseAddress + 0x02), CommandLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x02), CommandStore);
-        mem.MapReader((ushort)(_baseAddress + 0x03), ControlLoad);
-        mem.MapWriter((ushort)(_baseAddress + 0x03), ControlStore);
+        return (ushort)(address - _baseAddress) switch
+        {
+            0x00 => DataLoad(address),
+            0x01 => StatusLoad(address),
+            0x02 => CommandLoad(address),
+            0x03 => ControlLoad(address),
+            _ => throw new ArgumentOutOfRangeException(nameof(address)),
+        };
     }
 
-    public void Tick()
+    public void WriteIO(ushort address, byte value)
+    {
+        switch ((ushort)(address - _baseAddress))
+        {
+            case 0x00:
+                DataStore(address, value);
+                break;
+            case 0x01:
+                StatusStore(address, value);
+                break;
+            case 0x02:
+                CommandStore(address, value);
+                break;
+            case 0x03:
+                ControlStore(address, value);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(address));
+        }
+    }
+
+    public bool HasROML => false;
+    public byte ReadROML(ushort address) => throw new InvalidOperationException("SwiftLink does not provide ROML.");
+    public bool HasROMH => false;
+    public byte ReadROMH(ushort address) => throw new InvalidOperationException("SwiftLink does not provide ROMH.");
+
+    public void Tick(ulong cyclesElapsed = 0)
     {
         UpdateConnectionState();
 
@@ -101,7 +139,7 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
         Array.Clear(_diagnosticHistory);
         _diagnosticHistoryNextIndex = 0;
         _diagnosticHistoryCount = 0;
-        ClearIrqPending();
+        ClearAllInterruptSources();
         Transport?.Reset();
     }
 
@@ -295,6 +333,13 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
     }
 
+    private void ClearAllInterruptSources()
+    {
+        _irqPending = false;
+        CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
+        CpuInterrupts?.SetNMISourceInactive(IrqSourceName);
+    }
+
     private bool IsCarrierDetected => Transport?.IsCarrierDetected == true;
 
     private bool IsDataSetReady => Transport?.IsDataSetReady == true;
@@ -408,5 +453,12 @@ public sealed class SwiftLinkDevice : IC64CartridgeDevice
             $"TRANSPORT_CONNECTED={transport?.IsConnected == true}, NMI_DELIVERABLE={CanDeliverNmi?.Invoke()}, " +
             $"NEXT_RX_CYCLE={_nextReceiveCycleAvailable}, STATUS_READS={_statusReadCount}, " +
             $"HISTORY=[{GetDiagnosticHistory()}]";
+    }
+
+    public void Dispose()
+    {
+        ClearAllInterruptSources();
+        Transport?.Dispose();
+        Transport = null;
     }
 }

@@ -1,10 +1,12 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using AvaloniaApp = Highbyte.DotNet6502.App.Avalonia.Core.App;
@@ -88,6 +90,8 @@ public partial class C64MenuView : UserControl
             _subscribedViewModel.ClipboardCopyRequested -= OnClipboardCopyRequested;
             _subscribedViewModel.ClipboardPasteRequested -= OnClipboardPasteRequested;
             _subscribedViewModel.AttachDiskImageRequested -= OnAttachDiskImageRequested;
+            _subscribedViewModel.AttachCartridgeImageRequested -= OnAttachCartridgeImageRequested;
+            _subscribedViewModel.ConfirmCartridgeReplaceRequested -= OnConfirmCartridgeReplaceRequested;
         }
 
         _subscribedViewModel = newViewModel;
@@ -97,6 +101,8 @@ public partial class C64MenuView : UserControl
             _subscribedViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
             _subscribedViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
             _subscribedViewModel.AttachDiskImageRequested += OnAttachDiskImageRequested;
+            _subscribedViewModel.AttachCartridgeImageRequested += OnAttachCartridgeImageRequested;
+            _subscribedViewModel.ConfirmCartridgeReplaceRequested += OnConfirmCartridgeReplaceRequested;
         }
     }
 
@@ -111,6 +117,62 @@ public partial class C64MenuView : UserControl
                 await clipboard.SetDataAsync(data);
             }
         });
+
+    private void OnAttachCartridgeImageRequested(
+        object? sender,
+        TaskCompletionSource<SelectedBinaryFile?> tcs)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            try
+            {
+                if (TopLevel.GetTopLevel(this) is not { } topLevel ||
+                    !topLevel.StorageProvider.CanOpen)
+                {
+                    tcs.TrySetResult(null);
+                    return;
+                }
+
+                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Select C64 CRT Cartridge Image",
+                    AllowMultiple = false,
+                    FileTypeFilter =
+                    [
+                        new FilePickerFileType("C64 CRT Cartridge Images") { Patterns = ["*.crt"] },
+                        new FilePickerFileType("All Files") { Patterns = ["*"] },
+                    ],
+                });
+
+                if (files.Count == 0)
+                {
+                    tcs.TrySetResult(null);
+                    return;
+                }
+
+                await using var stream = await files[0].OpenReadAsync();
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer);
+                tcs.TrySetResult(new SelectedBinaryFile(files[0].Name, buffer.ToArray()));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error reading CRT cartridge image");
+                tcs.TrySetResult(null);
+                await ShowMessageOverlayAsync(
+                    "Could Not Read Cartridge Image",
+                    string.IsNullOrWhiteSpace(ex.Message)
+                        ? "The selected CRT cartridge image could not be read."
+                        : ex.Message);
+            }
+        });
+
+    private void OnConfirmCartridgeReplaceRequested(
+        object? sender,
+        CartridgeReplaceConfirmationEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+            e.Completion.TrySetResult(await ShowConfirmationOverlayAsync(
+                "Replace Cartridge",
+                $"Replace the currently attached cartridge '{e.CartridgeName}'?")));
 
     private void OnClipboardPasteRequested(object? sender, TaskCompletionSource<string?> tcs)
         => SafeAsyncHelper.Execute(async () =>
@@ -450,6 +512,106 @@ public partial class C64MenuView : UserControl
 
     private void OpenDiskInfo_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(() => LaunchUriIfAvailableAsync("https://highbyte.github.io/dotnet-6502/docs/systems/c64/compatible-programs/"));
+
+    private void OpenCartridgeInfo_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(() => ShowMessageOverlayAsync(
+            "C64 Cartridge Images",
+            "Attach generic 8K, generic 16K, Ultimax, Magic Desk, Ocean, Expert, Epyx FastLoad, Action Replay, or Final Cartridge III .crt images. Freezer cartridges expose a Freeze button while attached. Other cartridge hardware types are rejected until their banking or device behavior is implemented."));
+
+    private async Task<bool> ShowConfirmationOverlayAsync(string title, string message)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        Panel? overlayPanel = null;
+        Grid? hostGrid = null;
+
+        void Close(bool result)
+        {
+            if (overlayPanel != null && hostGrid != null)
+                hostGrid.Children.Remove(overlayPanel);
+            tcs.TrySetResult(result);
+        }
+
+        var cancelButton = new Button { Content = "Cancel", Classes = { "small", "cancel" } };
+        cancelButton.Click += (_, _) => Close(false);
+        var replaceButton = new Button { Content = "Replace", Classes = { "small", "danger" } };
+        replaceButton.Click += (_, _) => Close(true);
+
+        overlayPanel = BuildMessageOverlay(
+            title,
+            message,
+            new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Spacing = 10,
+                Children = { cancelButton, replaceButton },
+            });
+        hostGrid = ShowOverlay(overlayPanel);
+        if (hostGrid == null)
+            return false;
+        return await tcs.Task;
+    }
+
+    private async Task ShowMessageOverlayAsync(string title, string message)
+    {
+        var tcs = new TaskCompletionSource();
+        Panel? overlayPanel = null;
+        Grid? hostGrid = null;
+        var closeButton = new Button { Content = "OK", Classes = { "small", "primary" } };
+        closeButton.Click += (_, _) =>
+        {
+            if (overlayPanel != null && hostGrid != null)
+                hostGrid.Children.Remove(overlayPanel);
+            tcs.TrySetResult();
+        };
+        overlayPanel = BuildMessageOverlay(title, message, closeButton);
+        hostGrid = ShowOverlay(overlayPanel);
+        if (hostGrid != null)
+            await tcs.Task;
+    }
+
+    private static Panel BuildMessageOverlay(string title, string message, Control actions)
+        => new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+            ZIndex = 1000,
+            Children =
+            {
+                new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(74, 85, 104)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(16),
+                    MaxWidth = 420,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Child = new StackPanel
+                    {
+                        Spacing = 12,
+                        Children =
+                        {
+                            new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.Bold },
+                            new TextBlock { Text = message, FontSize = 11, TextWrapping = TextWrapping.Wrap },
+                            actions,
+                        },
+                    },
+                },
+            },
+        };
+
+    private Grid? ShowOverlay(Panel overlayPanel)
+    {
+        var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            Logger.LogError("Could not get service provider for cartridge dialog");
+            return null;
+        }
+        var helper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        return helper.ShowOverlayDialog(overlayPanel, this);
+    }
 
     private Task LaunchUriIfAvailableAsync(string uri)
     {

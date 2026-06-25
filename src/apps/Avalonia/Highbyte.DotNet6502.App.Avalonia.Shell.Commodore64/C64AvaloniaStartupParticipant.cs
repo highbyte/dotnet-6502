@@ -11,6 +11,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -32,11 +33,15 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
 {
     private const ushort C64BasicProgramLoadAddress = 0x0801;
 
-    // Extra-parameter keys shared by Desktop and Browser (Desktop: --loadD64 etc.; Browser: query
-    // params loadD64Url etc. pre-fetched into d64BytesB64). The participant never sees raw HTTP /
+    // Extra-parameter keys shared by Desktop and Browser (Desktop: --loadD64/--loadCrt etc.;
+    // Browser: query params loadD64Url/loadCrtUrl etc.). The participant never sees raw HTTP /
     // CLI parsing — only these typed extras.
     internal const string ExtraKeyLoadD64Path = "loadD64Path";
     internal const string ExtraKeyLoadD64Url = "loadD64Url";
+    internal const string ExtraKeyLoadCrtPath = "loadCrtPath";
+    internal const string ExtraKeyLoadCrtUrl = "loadCrtUrl";
+    internal const string ExtraKeyLoadD64ZipEntry = "loadD64ZipEntry";
+    internal const string ExtraKeyLoadCrtZipEntry = "loadCrtZipEntry";
     internal const string ExtraKeyD64Program = "d64Program";
     internal const string ExtraKeyDiskMount = "diskMount";
     internal const string ExtraKeyKeyboardJoystickEnabled = "keyboardJoystickEnabled";
@@ -116,6 +121,10 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
             return new C64StartupProgramInfo(kind, loadD64Url, audioEnabled);
         }
 
+        var loadCrtUrl = GetExtra(extras, ExtraKeyLoadCrtUrl);
+        if (loadCrtUrl != null)
+            return new C64StartupProgramInfo(".crt cartridge image", loadCrtUrl, audioEnabled);
+
         return new C64StartupProgramInfo("C64 (no program)", Url: null, audioEnabled);
     }
 
@@ -189,17 +198,117 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         => errors.Count > 0 && errors.All(error => error.StartsWith("Missing ROMs:", StringComparison.Ordinal));
 
     /// <summary>
-    /// Post-ready automation: paste C64 BASIC source (<c>basicText</c> / <c>basicUrl</c>), or run
-    /// the .d64 startup flow (<c>loadD64Path</c> / <c>d64BytesB64</c>) — mount the disk or
-    /// direct-load a PRG and optionally paste the run commands. Invalid combinations are logged
-    /// and skipped; the emulator keeps running. See <c>docs/automated-startup-seam2.md</c>.
+    /// Post-ready automation: attach a CRT cartridge (<c>loadCrtPath</c> / <c>loadCrtUrl</c>;
+    /// raw <c>.crt</c> or a ZIP containing exactly one <c>.crt</c>),
+    /// paste C64 BASIC source (<c>basicText</c> / <c>basicUrl</c>), or run the .d64 startup flow
+    /// (<c>loadD64Path</c> / <c>loadD64Url</c>) — mount the disk or direct-load a PRG and
+    /// optionally paste the run commands. Invalid combinations are logged and skipped; the emulator
+    /// keeps running. See <c>docs/automated-startup-seam2.md</c>.
     /// </summary>
     public async Task OnSystemReadyAsync(
         IHostApp hostApp, AutomatedStartupRequest request, AutomatedStartupContext context)
     {
         var extras = request.ExtraParameters;
+        await TryHandleCrtAutomationAsync(hostApp, request, context, extras);
         await TryHandleBasicAutomationAsync(hostApp, request, context, extras);
         await TryHandleD64AutomationAsync(hostApp, request, context, extras);
+    }
+
+    private async Task TryHandleCrtAutomationAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        AutomatedStartupContext context,
+        IReadOnlyDictionary<string, string> extras)
+    {
+        var loadCrtPath = GetExtra(extras, ExtraKeyLoadCrtPath);
+        var loadCrtUrl = GetExtra(extras, ExtraKeyLoadCrtUrl);
+        var loadCrtZipEntry = GetExtra(extras, ExtraKeyLoadCrtZipEntry);
+        if (loadCrtPath is null && loadCrtUrl is null)
+        {
+            if (loadCrtZipEntry is not null)
+                _logger.LogWarning("Automation 'loadCrtZipEntry' has no effect without 'loadCrtPath'/'loadCrtUrl'; ignoring.");
+            return;
+        }
+
+        if (!request.AutoStart)
+        {
+            _logger.LogWarning("Automation 'loadCrtPath'/'loadCrtUrl' requires start; skipping .crt startup.");
+            return;
+        }
+        if (request.LoadPrgPath is not null
+            || GetExtra(extras, ExtraKeyLoadD64Path) is not null
+            || GetExtra(extras, ExtraKeyLoadD64Url) is not null)
+        {
+            _logger.LogWarning("Automation .crt load is mutually exclusive with PRG and .d64 startup flows; skipping .crt startup.");
+            return;
+        }
+        if (loadCrtPath is not null && loadCrtUrl is not null)
+        {
+            _logger.LogWarning("Automation 'loadCrtPath' and 'loadCrtUrl' are mutually exclusive; skipping .crt startup.");
+            return;
+        }
+        if (request.RunLoadedProgram)
+        {
+            _logger.LogWarning("Automation 'runLoadedProgram' does not apply to .crt startup; skipping .crt startup.");
+            return;
+        }
+        if (hostApp.CurrentRunningSystem is not C64 c64)
+        {
+            _logger.LogError(".crt startup requires the running system to be C64.");
+            return;
+        }
+        if (loadCrtUrl is not null && context.FetchBinaryResource is null)
+        {
+            _logger.LogWarning("Automation 'loadCrtUrl' supplied but host provides no binary-resource fetcher; skipping .crt startup.");
+            return;
+        }
+
+        byte[] crtBytes;
+        try
+        {
+            crtBytes = loadCrtUrl is not null
+                ? await context.FetchBinaryResource!(loadCrtUrl)
+                : await ResolveCrtBytesFromFileAsync(loadCrtPath!);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to read .crt bytes; skipping .crt startup.");
+            return;
+        }
+        if (crtBytes.Length == 0)
+        {
+            _logger.LogWarning(".crt bytes resolved to an empty buffer; skipping .crt startup.");
+            return;
+        }
+
+        // The fetched/read bytes may be a raw .crt or a ZIP archive containing one. Unlike the
+        // existing .d64 ZIP path, multiple .crt files are rejected as ambiguous because a cartridge
+        // image usually represents a single hardware device rather than a multi-disk set.
+        try
+        {
+            crtBytes = ZipImageExtractor.EnsureImageBytes(
+                crtBytes,
+                ".crt",
+                ZipImageMultipleMatchBehavior.Throw,
+                _logger,
+                loadCrtZipEntry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to extract .crt from the ZIP archive; skipping .crt startup.");
+            return;
+        }
+
+        try
+        {
+            var sourceName = loadCrtUrl ?? loadCrtPath ?? "Startup .crt";
+            _logger.LogInformation("Attaching startup .crt cartridge image from {Source}.", sourceName);
+            c64.AttachCrtImage(crtBytes, sourceName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error attaching startup .crt cartridge image.");
+        }
     }
 
     private async Task TryHandleBasicAutomationAsync(
@@ -225,9 +334,13 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
             _logger.LogWarning("Automation 'basicText'/'basicUrl' require the system to be started and ready (start + waitForSystemReady); skipping BASIC source.");
             return;
         }
-        if (request.LoadPrgPath is not null)
+        if (request.LoadPrgPath is not null
+            || GetExtra(extras, ExtraKeyLoadD64Path) is not null
+            || GetExtra(extras, ExtraKeyLoadD64Url) is not null
+            || GetExtra(extras, ExtraKeyLoadCrtPath) is not null
+            || GetExtra(extras, ExtraKeyLoadCrtUrl) is not null)
         {
-            _logger.LogWarning("Automation 'basicText'/'basicUrl' are mutually exclusive with loading a PRG; skipping BASIC source.");
+            _logger.LogWarning("Automation 'basicText'/'basicUrl' are mutually exclusive with PRG, .d64, and .crt startup flows; skipping BASIC source.");
             return;
         }
 
@@ -286,8 +399,13 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
     {
         var loadD64Path = GetExtra(extras, ExtraKeyLoadD64Path);
         var loadD64Url = GetExtra(extras, ExtraKeyLoadD64Url);
+        var loadD64ZipEntry = GetExtra(extras, ExtraKeyLoadD64ZipEntry);
         if (loadD64Path is null && loadD64Url is null)
+        {
+            if (loadD64ZipEntry is not null)
+                _logger.LogWarning("Automation 'loadD64ZipEntry' has no effect without 'loadD64Path'/'loadD64Url'; ignoring.");
             return;
+        }
 
         if (!request.AutoStart || !request.WaitForSystemReady)
         {
@@ -297,6 +415,11 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         if (request.LoadPrgPath is not null)
         {
             _logger.LogWarning("Automation .d64 load is mutually exclusive with loading a PRG; skipping .d64 startup.");
+            return;
+        }
+        if (GetExtra(extras, ExtraKeyLoadCrtPath) is not null || GetExtra(extras, ExtraKeyLoadCrtUrl) is not null)
+        {
+            _logger.LogWarning("Automation .d64 load is mutually exclusive with .crt startup; skipping .d64 startup.");
             return;
         }
         if (hostApp.CurrentRunningSystem is not C64 c64)
@@ -350,7 +473,7 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         // contract carries no download-type hint, so content-sniff and extract if needed.
         try
         {
-            d64Bytes = D64ZipExtractor.EnsureD64Bytes(d64Bytes, _logger);
+            d64Bytes = D64ZipExtractor.EnsureD64Bytes(d64Bytes, _logger, loadD64ZipEntry);
         }
         catch (Exception ex)
         {
@@ -403,6 +526,14 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         var expanded = PathHelper.ExpandOSEnvironmentVariables(loadD64Path);
         if (!File.Exists(expanded))
             throw new FileNotFoundException($".d64 file not found: {expanded}", expanded);
+        return await File.ReadAllBytesAsync(expanded);
+    }
+
+    private static async Task<byte[]> ResolveCrtBytesFromFileAsync(string loadCrtPath)
+    {
+        var expanded = PathHelper.ExpandOSEnvironmentVariables(loadCrtPath);
+        if (!File.Exists(expanded))
+            throw new FileNotFoundException($".crt file not found: {expanded}", expanded);
         return await File.ReadAllBytesAsync(expanded);
     }
 

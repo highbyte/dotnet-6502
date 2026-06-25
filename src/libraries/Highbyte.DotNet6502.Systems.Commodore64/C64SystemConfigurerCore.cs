@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
@@ -136,11 +137,12 @@ public class C64SystemConfigurerCore : ISystemConfigurer
     public virtual async Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)
     {
         var c64 = (C64)system;
-        if (SupportsSwiftLinkTcpTransport && c64.SwiftLink != null && hostSystemConfig is IC64SwiftLinkTcpHostConfig swiftLinkHostConfig)
+        var swiftLink = c64.CartridgeSlot.GetCartridge<SwiftLinkDevice>();
+        if (SupportsSwiftLinkTcpTransport && swiftLink != null && hostSystemConfig is IC64SwiftLinkTcpHostConfig swiftLinkHostConfig)
         {
-            c64.SwiftLink.ReceivePacingCycles =
+            swiftLink.ReceivePacingCycles =
                 swiftLinkHostConfig.SwiftLinkTransportMode == C64SwiftLinkTransportMode.HayesModem
-                && c64.SwiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
+                && swiftLink.ReceiveMode == C64SwiftLinkReceiveMode.Compatible
                     ? GetReceivePacingCyclesPerCharacter(c64)
                     : 0;
 
@@ -157,7 +159,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
                     swiftLinkHostConfig.SwiftLinkTcpPort,
                     LoggerFactory.CreateLogger(nameof(TcpTransport)))
             };
-            c64.SwiftLink.Transport = transport;
+            swiftLink.Transport = transport;
             if (swiftLinkHostConfig.SwiftLinkConnectOnBoot)
                 await transport.ConnectAsync();
         }

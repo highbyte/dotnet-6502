@@ -1,4 +1,4 @@
-using System.IO.Compression;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
@@ -15,52 +15,38 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D
 /// </remarks>
 public static class D64ZipExtractor
 {
-    // Local file header signature for a ZIP archive: "PK\x03\x04".
-    private static readonly byte[] ZipLocalFileHeaderSignature = { 0x50, 0x4B, 0x03, 0x04 };
-
     /// <summary>True if the buffer starts with the ZIP local-file-header magic bytes.</summary>
     public static bool LooksLikeZip(ReadOnlySpan<byte> bytes)
-        => bytes.Length >= ZipLocalFileHeaderSignature.Length
-           && bytes[..ZipLocalFileHeaderSignature.Length].SequenceEqual(ZipLocalFileHeaderSignature);
+        => ZipImageExtractor.LooksLikeZip(bytes);
 
     /// <summary>
     /// Returns raw .d64 bytes from <paramref name="bytes"/>: if the buffer is a ZIP archive, the
     /// first .d64 entry is extracted; otherwise the buffer is assumed to already be a .d64 and is
     /// returned unchanged.
     /// </summary>
-    public static byte[] EnsureD64Bytes(byte[] bytes, ILogger? logger = null)
-    {
-        if (!LooksLikeZip(bytes))
-            return bytes;
-
-        logger?.LogInformation("Downloaded bytes are a ZIP archive ({ByteCount} bytes); extracting .d64.", bytes.Length);
-        return ExtractFirstD64FromZip(bytes, logger);
-    }
+    public static byte[] EnsureD64Bytes(byte[] bytes, ILogger? logger = null, string? entryName = null)
+        => ZipImageExtractor.EnsureImageBytes(
+            bytes,
+            ".d64",
+            ZipImageMultipleMatchBehavior.UseFirst,
+            logger,
+            entryName);
 
     /// <summary>Extracts the first <c>.d64</c> entry from an in-memory ZIP archive.</summary>
-    public static byte[] ExtractFirstD64FromZip(byte[] zipBytes, ILogger? logger = null)
-    {
-        using var zipStream = new MemoryStream(zipBytes, writable: false);
-        return ExtractFirstD64FromZip(zipStream, logger);
-    }
+    public static byte[] ExtractFirstD64FromZip(byte[] zipBytes, ILogger? logger = null, string? entryName = null)
+        => ZipImageExtractor.ExtractImageFromZip(
+            zipBytes,
+            ".d64",
+            ZipImageMultipleMatchBehavior.UseFirst,
+            logger,
+            entryName);
 
     /// <summary>Extracts the first <c>.d64</c> entry from a ZIP archive stream.</summary>
-    public static byte[] ExtractFirstD64FromZip(Stream zipStream, ILogger? logger = null)
-    {
-        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
-
-        var d64Entry = archive.Entries.FirstOrDefault(
-                entry => entry.Name.EndsWith(".d64", StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("No .d64 file found in the ZIP archive");
-
-        logger?.LogInformation("Found .d64 file in ZIP: {EntryName}, size: {ByteCount} bytes", d64Entry.Name, d64Entry.Length);
-
-        // Pre-allocate with the exact uncompressed size and read the entry fully.
-        var d64Bytes = new byte[d64Entry.Length];
-        using var entryStream = d64Entry.Open();
-        entryStream.ReadExactly(d64Bytes);
-
-        logger?.LogInformation("Extracted .d64 file: {ByteCount} bytes", d64Bytes.Length);
-        return d64Bytes;
-    }
+    public static byte[] ExtractFirstD64FromZip(Stream zipStream, ILogger? logger = null, string? entryName = null)
+        => ZipImageExtractor.ExtractImageFromZip(
+            zipStream,
+            ".d64",
+            ZipImageMultipleMatchBehavior.UseFirst,
+            logger,
+            entryName);
 }

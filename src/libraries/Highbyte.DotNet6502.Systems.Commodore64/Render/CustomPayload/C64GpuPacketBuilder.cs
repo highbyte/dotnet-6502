@@ -176,6 +176,10 @@ public static class C64GpuPacketBuilder
         {
             for (var i = 0; i < charsetData.Length; i++)
             {
+                // This builds the legacy GPU renderer's charset cache from the normal
+                // VIC memory view. Actual VIC-II bus fetches in cartridge/Ultimax
+                // contexts must use Vic2.ReadMemory(...) instead, because Vic2Mem
+                // does not include cartridge ROML/ROMH overlays.
                 charsetData[i].CharLine = c64.Vic2.Vic2Mem[(ushort)(charsetManager.CharacterSetAddressInVIC2Bank + i)];
             }
             ;

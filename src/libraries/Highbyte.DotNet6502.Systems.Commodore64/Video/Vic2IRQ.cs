@@ -2,16 +2,32 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 public class Vic2IRQ
 {
+    // Indexed by IRQSource enum value, which is the corresponding bit position in the VIC-II interrupt register.
+    // Bits 4, 5 and 6 are unused in the VIC-II register, so those entries are intentionally empty and should never be used.
+    private static readonly string[] s_interruptSourceNames =
+    [
+        "VIC2.RasterCompare",
+        "VIC2.SpriteToSpriteCollision",
+        "VIC2.SpriteToBackgroundCollision",
+        "VIC2.LightPenTrigger",
+        "",
+        "",
+        "",
+        "VIC2.Any",
+    ];
+
     // ConfiguredIRQRasterLine = null means not configured yet, and raster IRQ should occur when raster line wraps around from it's max (defined by C64/VIC2 model) to 0.
     public ushort? ConfiguredIRQRasterLine { get; set; } = null;
 
     private readonly Dictionary<IRQSource, bool> _sourceEnableStatus = new();
+    private readonly Dictionary<IRQSource, bool> _sourceTriggerStatus = new();
 
     public Vic2IRQ()
     {
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
             _sourceEnableStatus.Add(source, false);
+            _sourceTriggerStatus.Add(source, false);
         }
     }
 
@@ -19,28 +35,37 @@ public class Vic2IRQ
     {
         return _sourceEnableStatus[source];
     }
-    public void Enable(IRQSource source)
+    public void Enable(IRQSource source, CPU cpu)
     {
         _sourceEnableStatus[source] = true;
+        if (_sourceTriggerStatus[source])
+            cpu.CPUInterrupts.SetIRQSourceActive(GetInterruptSourceName(source), autoAcknowledge: false);
     }
-    public void Disable(IRQSource source)
+    public void Disable(IRQSource source, CPU cpu)
     {
         _sourceEnableStatus[source] = false;
+        cpu.CPUInterrupts.SetIRQSourceInactive(GetInterruptSourceName(source));
     }
 
-    public bool IsTriggered(IRQSource source, CPU cpu)
+    public bool IsTriggered(IRQSource source)
     {
-        return cpu.CPUInterrupts.IsIRQSourceActive(source.ToString());
+        return _sourceTriggerStatus[source];
     }
 
     public void Trigger(IRQSource source, CPU cpu)
     {
-        cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: false);
+        _sourceTriggerStatus[source] = true;
+        if (_sourceEnableStatus[source])
+            cpu.CPUInterrupts.SetIRQSourceActive(GetInterruptSourceName(source), autoAcknowledge: false);
     }
     public void ClearTrigger(IRQSource source, CPU cpu)
     {
-        cpu.CPUInterrupts.SetIRQSourceInactive(source.ToString());
+        _sourceTriggerStatus[source] = false;
+        cpu.CPUInterrupts.SetIRQSourceInactive(GetInterruptSourceName(source));
     }
+
+    public static string GetInterruptSourceName(IRQSource source)
+        => s_interruptSourceNames[(int)source];
 }
 
 /// <summary>

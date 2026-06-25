@@ -2,6 +2,20 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 public class CiaIRQ
 {
+    // Indexed by IRQSource enum value, which is the corresponding bit position in the CIA interrupt control register.
+    // Bits 5 and 6 are unused in the CIA register, so those entries are intentionally empty and should never be used.
+    private static readonly string[] s_interruptSourceNames =
+    [
+        "CIA.TimerA",
+        "CIA.TimerB",
+        "CIA.TimeOfDayAlarm",
+        "CIA.SerialShiftRegister",
+        "CIA.FlagLine",
+        "",
+        "",
+        "CIA.Any",
+    ];
+
     private readonly bool _useNMI;
     private readonly Dictionary<IRQSource, bool> _sourceEnableStatus = new();
     private readonly Dictionary<IRQSource, bool> _sourceConditionStatus = new();
@@ -18,17 +32,23 @@ public class CiaIRQ
 
     public void Trigger(IRQSource source, CPU cpu)
     {
+        _sourceConditionStatus[IRQSource.Any] = true;
+        var interruptSourceName = GetInterruptSourceName(source);
+
         if (_useNMI)
         {
             // Raise NMI (Non-Maskable Interrupt)
-            cpu.CPUInterrupts.SetNMISourceActive(source.ToString());
+            cpu.CPUInterrupts.SetNMISourceActive(interruptSourceName);
         }
         else
         {
             // Raise IRQ (Interrupt Request)
-            cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: true);
+            cpu.CPUInterrupts.SetIRQSourceActive(interruptSourceName, autoAcknowledge: true);
         }
     }
+
+    public static string GetInterruptSourceName(IRQSource source)
+        => s_interruptSourceNames[(int)source];
 
     public bool IsEnabled(IRQSource source)
     {
@@ -61,6 +81,21 @@ public class CiaIRQ
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
             ConditionClear(source);
+        }
+    }
+
+    public void Acknowledge(CPU cpu)
+    {
+        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        {
+            if (source == IRQSource.Any)
+                continue;
+
+            var interruptSourceName = GetInterruptSourceName(source);
+            if (_useNMI)
+                cpu.CPUInterrupts.SetNMISourceInactive(interruptSourceName);
+            else
+                cpu.CPUInterrupts.SetIRQSourceInactive(interruptSourceName);
         }
     }
 }

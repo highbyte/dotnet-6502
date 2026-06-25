@@ -18,6 +18,7 @@ using Highbyte.DotNet6502.Impl.Avalonia.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.Crt;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 using Highbyte.DotNet6502.Systems.Commodore64.Sharing;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
@@ -60,6 +61,9 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
     public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDiskImageCommand { get; }
+    public ReactiveCommand<Unit, Unit> AttachCartridgeImageCommand { get; }
+    public ReactiveCommand<Unit, Unit> DetachCartridgeCommand { get; }
+    public ReactiveCommand<Unit, Unit> FreezeCartridgeCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadPreloadedProgramCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
@@ -69,6 +73,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     // Section toggle / joystick commands used by both the UI click handlers and the menu/shortcut bridge.
     public ReactiveCommand<Unit, Unit> ToggleDiskSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleCartridgeSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> CopyShareLinkCommand { get; }
@@ -90,17 +95,20 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         _avaloniaHostApp
             .WhenAnyValue(x => x.EmulatorState)
-            .Subscribe(_ =>
+            .Subscribe(state =>
             {
                 this.RaisePropertyChanged(nameof(IsC64ConfigEnabled));
                 this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
                 this.RaisePropertyChanged(nameof(IsDiskImageAttached));
                 this.RaisePropertyChanged(nameof(CanToggleDisk));
                 this.RaisePropertyChanged(nameof(DiskToggleButtonText));
+                RaiseCartridgePropertiesChanged();
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantAvailable));
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
                 RecomputeShareLink();
+                if (state != EmulatorState.Uninitialized)
+                    _ = AttachPendingCartridgeOnStartAsync();
             });
 
         // Subscribe to KeyDown events from AvaloniaHostApp
@@ -121,6 +129,29 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         ToggleDiskImageCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await ToggleDiskImageInternalAsync(),
             this.WhenAnyValue(x => x.CanToggleDisk),
+            RxSchedulers.MainThreadScheduler);
+
+        var canChangeCartridge = _avaloniaHostApp
+            .WhenAnyValue(x => x.SelectedSystemName, x => x.EmulatorState)
+            .CombineLatest(
+                this.WhenAnyValue(x => x.IsCartridgeOperationInProgress),
+                (systemAndState, inProgress) =>
+                    string.Equals(systemAndState.Item1, C64.SystemName, StringComparison.OrdinalIgnoreCase)
+                    && !inProgress);
+
+        AttachCartridgeImageCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await AttachCartridgeImageInternalAsync(),
+            canChangeCartridge,
+            RxSchedulers.MainThreadScheduler);
+
+        DetachCartridgeCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await DetachCartridgeInternalAsync(),
+            canChangeCartridge,
+            RxSchedulers.MainThreadScheduler);
+
+        FreezeCartridgeCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await FreezeCartridgeInternalAsync(),
+            this.WhenAnyValue(x => x.CanFreezeCartridge),
             RxSchedulers.MainThreadScheduler);
 
         LoadPreloadedProgramCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -155,6 +186,11 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         ToggleDiskSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
             () => ToggleSection(C64MenuSection.Disk),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleCartridgeSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => ToggleSection(C64MenuSection.Cartridge),
             null,
             RxSchedulers.MainThreadScheduler);
 
@@ -254,6 +290,86 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public bool CanToggleDisk => EmulatorState != EmulatorState.Uninitialized;
 
     public string DiskToggleButtonText => IsDiskImageAttached ? "Detach .d64 disk image" : "Attach .d64 disk image";
+
+    public bool IsCartridgeAttached
+        => _avaloniaHostApp.CurrentRunningSystem is C64 c64 &&
+           c64.CartridgeSlot.AttachedCartridge != null;
+
+    public bool HasPendingCartridge
+        => _pendingCartridgeImage != null;
+
+    public bool CanDetachCartridge
+        => IsCartridgeAttached || HasPendingCartridge;
+
+    public string CartridgeAttachButtonText
+        => EmulatorState == EmulatorState.Uninitialized
+            ? "Attach .crt for next start..."
+            : IsCartridgeAttached ? "Replace cartridge..." : "Attach .crt cartridge image";
+
+    public bool CanFreezeCartridge
+        => _avaloniaHostApp.CurrentRunningSystem is C64 { CanFreezeAttachedCartridge: true } &&
+           !IsCartridgeOperationInProgress;
+
+    public string CartridgeSummary
+    {
+        get
+        {
+            if (_avaloniaHostApp.CurrentRunningSystem is not C64 c64 ||
+                c64.CartridgeSlot.AttachedCartridge is not { } cartridge)
+            {
+                if (_pendingCartridgeImage != null)
+                    return $"Pending cartridge: {_pendingCartridgeDisplayName ?? _pendingCartridgeImage.Name}";
+                return "No cartridge attached";
+            }
+
+            var image = c64.AttachedCartridgeImage;
+            if (image == null)
+                return cartridge.Name;
+
+            var mode = image.HardwareType switch
+            {
+                (ushort)C64CrtHardwareType.ActionReplay => "Action Replay",
+                (ushort)C64CrtHardwareType.FinalCartridgeIII => "Final Cartridge III",
+                (ushort)C64CrtHardwareType.Ocean => "Ocean",
+                (ushort)C64CrtHardwareType.Expert => "Expert Cartridge",
+                (ushort)C64CrtHardwareType.EpyxFastLoad => "Epyx FastLoad",
+                (ushort)C64CrtHardwareType.MagicDesk => "Magic Desk",
+                (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: true, ExromHigh: false } => "generic 8K",
+                (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: false, ExromHigh: false } => "generic 16K",
+                (ushort)C64CrtHardwareType.Generic when image.Lines is { GameHigh: false, ExromHigh: true } => "Ultimax",
+                _ => $"hardware type {image.HardwareType}",
+            };
+            var source = string.IsNullOrWhiteSpace(image.SourceName) ? string.Empty : $" ({image.SourceName})";
+            return $"{image.CartridgeName} — {mode}{source}";
+        }
+    }
+
+    private SelectedBinaryFile? _pendingCartridgeImage;
+    private string? _pendingCartridgeDisplayName;
+    private bool _isAttachingPendingCartridge;
+
+    private bool _isCartridgeOperationInProgress;
+    public bool IsCartridgeOperationInProgress
+    {
+        get => _isCartridgeOperationInProgress;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _isCartridgeOperationInProgress, value);
+            this.RaisePropertyChanged(nameof(CanFreezeCartridge));
+        }
+    }
+
+    private string _latestCartridgeError = string.Empty;
+    public string LatestCartridgeError
+    {
+        get => _latestCartridgeError;
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _latestCartridgeError, value);
+            this.RaisePropertyChanged(nameof(HasLatestCartridgeError));
+        }
+    }
+    public bool HasLatestCartridgeError => !string.IsNullOrWhiteSpace(LatestCartridgeError);
 
     // Preloaded downloadable programs
     public ObservableCollection<KeyValuePair<string, string>> PreloadedPrograms { get; } = new();
@@ -430,6 +546,19 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
+    private bool _isCartridgeSectionExpanded;
+    public bool IsCartridgeSectionExpanded
+    {
+        get => _isCartridgeSectionExpanded;
+        private set
+        {
+            if (_isCartridgeSectionExpanded == value)
+                return;
+            _isCartridgeSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsCartridgeSectionExpanded));
+        }
+    }
+
     private bool _isLoadSaveSectionExpanded = false;
     public bool IsLoadSaveSectionExpanded
     {
@@ -462,13 +591,14 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public string LoadSaveSectionHeaderText => "Load/Save";
     public string ConfigSectionHeaderText => "Configuration";
 
-    private enum C64MenuSection { Disk, LoadSave, Config }
+    private enum C64MenuSection { Disk, Cartridge, LoadSave, Config }
 
     private void ToggleSection(C64MenuSection section)
     {
         bool newState = section switch
         {
             C64MenuSection.Disk => !IsDiskSectionExpanded,
+            C64MenuSection.Cartridge => !IsCartridgeSectionExpanded,
             C64MenuSection.LoadSave => !IsLoadSaveSectionExpanded,
             C64MenuSection.Config => !IsConfigSectionExpanded,
             _ => false,
@@ -487,6 +617,16 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 {
                     IsLoadSaveSectionExpanded = false;
                     IsConfigSectionExpanded = false;
+                    IsCartridgeSectionExpanded = false;
+                }
+                break;
+            case C64MenuSection.Cartridge:
+                IsCartridgeSectionExpanded = expanded;
+                if (collapseOthers && expanded)
+                {
+                    IsDiskSectionExpanded = false;
+                    IsLoadSaveSectionExpanded = false;
+                    IsConfigSectionExpanded = false;
                 }
                 break;
             case C64MenuSection.LoadSave:
@@ -495,6 +635,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 {
                     IsDiskSectionExpanded = false;
                     IsConfigSectionExpanded = false;
+                    IsCartridgeSectionExpanded = false;
                 }
                 break;
             case C64MenuSection.Config:
@@ -503,6 +644,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 {
                     IsDiskSectionExpanded = false;
                     IsLoadSaveSectionExpanded = false;
+                    IsCartridgeSectionExpanded = false;
                 }
                 break;
         }
@@ -514,6 +656,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public void ExpandConfigSectionOnValidationError()
     {
         IsDiskSectionExpanded = false;
+        IsCartridgeSectionExpanded = false;
         IsLoadSaveSectionExpanded = false;
         IsConfigSectionExpanded = true;
     }
@@ -954,6 +1097,245 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
+    private async Task AttachCartridgeImageInternalAsync()
+    {
+        LatestCartridgeError = string.Empty;
+
+        if (_avaloniaHostApp.CurrentRunningSystem is not C64 c64)
+        {
+            if (!IsC64System())
+                return;
+
+            var pendingFile = await RequestAttachCartridgeImageAsync();
+            if (pendingFile == null)
+                return;
+
+            try
+            {
+                SetPendingCartridge(pendingFile);
+            }
+            catch (Exception ex)
+            {
+                LatestCartridgeError = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Could not prepare the CRT cartridge image for next start."
+                    : ex.Message;
+                _logger.LogError(ex, "Error preparing pending CRT cartridge image {FileName}", pendingFile.Name);
+            }
+            finally
+            {
+                RaiseCartridgePropertiesChanged();
+            }
+            return;
+        }
+
+        if (c64.CartridgeSlot.AttachedCartridge is { } current)
+        {
+            var confirmed = await RequestCartridgeReplaceConfirmationAsync(current.Name);
+            if (!confirmed)
+                return;
+        }
+
+        var selectedFile = await RequestAttachCartridgeImageAsync();
+        if (selectedFile == null)
+            return;
+
+        IsCartridgeOperationInProgress = true;
+        var wasRunning = _avaloniaHostApp.EmulatorState == EmulatorState.Running;
+        try
+        {
+            if (wasRunning)
+                _avaloniaHostApp.Pause();
+
+            c64.AttachCrtImage(selectedFile.Bytes, selectedFile.Name);
+            ClearPendingCartridge();
+        }
+        catch (Exception ex)
+        {
+            LatestCartridgeError = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not attach the CRT cartridge image."
+                : ex.Message;
+            _logger.LogError(ex, "Error attaching CRT cartridge image {FileName}", selectedFile.Name);
+        }
+        finally
+        {
+            if (wasRunning && _avaloniaHostApp.EmulatorState == EmulatorState.Paused)
+                await _avaloniaHostApp.Start();
+            IsCartridgeOperationInProgress = false;
+            RaiseCartridgePropertiesChanged();
+        }
+    }
+
+    private async Task DetachCartridgeInternalAsync()
+    {
+        if (_avaloniaHostApp.CurrentRunningSystem is not C64 c64)
+        {
+            if (_pendingCartridgeImage != null)
+            {
+                LatestCartridgeError = string.Empty;
+                ClearPendingCartridge();
+            }
+            return;
+        }
+
+        if (c64.CartridgeSlot.AttachedCartridge == null)
+        {
+            if (_pendingCartridgeImage != null)
+            {
+                LatestCartridgeError = string.Empty;
+                ClearPendingCartridge();
+            }
+            return;
+        }
+
+        LatestCartridgeError = string.Empty;
+        IsCartridgeOperationInProgress = true;
+        var wasRunning = _avaloniaHostApp.EmulatorState == EmulatorState.Running;
+        try
+        {
+            if (wasRunning)
+                _avaloniaHostApp.Pause();
+
+            c64.DetachCartridgeAndReset();
+        }
+        catch (Exception ex)
+        {
+            LatestCartridgeError = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not detach the cartridge."
+                : ex.Message;
+            _logger.LogError(ex, "Error detaching C64 cartridge");
+        }
+        finally
+        {
+            if (wasRunning && _avaloniaHostApp.EmulatorState == EmulatorState.Paused)
+                await _avaloniaHostApp.Start();
+            IsCartridgeOperationInProgress = false;
+            RaiseCartridgePropertiesChanged();
+        }
+    }
+
+    private async Task FreezeCartridgeInternalAsync()
+    {
+        if (_avaloniaHostApp.CurrentRunningSystem is not C64 c64 ||
+            !c64.CanFreezeAttachedCartridge)
+            return;
+
+        LatestCartridgeError = string.Empty;
+        IsCartridgeOperationInProgress = true;
+        var wasRunning = _avaloniaHostApp.EmulatorState == EmulatorState.Running;
+        try
+        {
+            if (wasRunning)
+                _avaloniaHostApp.Pause();
+
+            if (!c64.FreezeAttachedCartridge())
+                LatestCartridgeError = "The attached cartridge does not support freezing.";
+        }
+        catch (Exception ex)
+        {
+            LatestCartridgeError = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not activate the cartridge freeze button."
+                : ex.Message;
+            _logger.LogError(ex, "Error activating C64 cartridge freeze");
+        }
+        finally
+        {
+            if (wasRunning && _avaloniaHostApp.EmulatorState == EmulatorState.Paused)
+                await _avaloniaHostApp.Start();
+            IsCartridgeOperationInProgress = false;
+            RaiseCartridgePropertiesChanged();
+        }
+    }
+
+    private async Task<SelectedBinaryFile?> RequestAttachCartridgeImageAsync()
+    {
+        if (AttachCartridgeImageRequested == null)
+            return null;
+
+        var tcs = new TaskCompletionSource<SelectedBinaryFile?>();
+        AttachCartridgeImageRequested.Invoke(this, tcs);
+        return await tcs.Task;
+    }
+
+    private async Task<bool> RequestCartridgeReplaceConfirmationAsync(string cartridgeName)
+    {
+        if (ConfirmCartridgeReplaceRequested == null)
+            return false;
+
+        var tcs = new TaskCompletionSource<bool>();
+        ConfirmCartridgeReplaceRequested.Invoke(
+            this,
+            new CartridgeReplaceConfirmationEventArgs(cartridgeName, tcs));
+        return await tcs.Task;
+    }
+
+    private void RaiseCartridgePropertiesChanged()
+    {
+        this.RaisePropertyChanged(nameof(IsCartridgeAttached));
+        this.RaisePropertyChanged(nameof(HasPendingCartridge));
+        this.RaisePropertyChanged(nameof(CanDetachCartridge));
+        this.RaisePropertyChanged(nameof(CartridgeAttachButtonText));
+        this.RaisePropertyChanged(nameof(CartridgeSummary));
+        this.RaisePropertyChanged(nameof(CanFreezeCartridge));
+        this.RaisePropertyChanged(nameof(HasLatestCartridgeError));
+    }
+
+    private void SetPendingCartridge(SelectedBinaryFile selectedFile)
+    {
+        var crtImage = C64CrtParser.Parse(selectedFile.Bytes);
+        var cartridge = C64CrtCartridgeFactory.Create(crtImage);
+
+        _pendingCartridgeImage = selectedFile;
+        _pendingCartridgeDisplayName = cartridge.Name;
+    }
+
+    private void ClearPendingCartridge()
+    {
+        _pendingCartridgeImage = null;
+        _pendingCartridgeDisplayName = null;
+        RaiseCartridgePropertiesChanged();
+    }
+
+    private async Task AttachPendingCartridgeOnStartAsync()
+    {
+        if (_isAttachingPendingCartridge ||
+            _pendingCartridgeImage == null ||
+            !IsC64System() ||
+            _avaloniaHostApp.CurrentRunningSystem is not C64 c64 ||
+            c64.CartridgeSlot.AttachedCartridge != null)
+        {
+            return;
+        }
+
+        _isAttachingPendingCartridge = true;
+        IsCartridgeOperationInProgress = true;
+        var wasRunning = _avaloniaHostApp.EmulatorState == EmulatorState.Running;
+        var pending = _pendingCartridgeImage;
+        try
+        {
+            if (wasRunning)
+                _avaloniaHostApp.Pause();
+
+            c64.AttachCrtImage(pending.Bytes, pending.Name);
+            ClearPendingCartridge();
+            LatestCartridgeError = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            LatestCartridgeError = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not attach the pending CRT cartridge image."
+                : ex.Message;
+            _logger.LogError(ex, "Error attaching pending CRT cartridge image {FileName}", pending.Name);
+        }
+        finally
+        {
+            if (wasRunning && _avaloniaHostApp.EmulatorState == EmulatorState.Paused)
+                await _avaloniaHostApp.Start();
+            _isAttachingPendingCartridge = false;
+            IsCartridgeOperationInProgress = false;
+            RaiseCartridgePropertiesChanged();
+        }
+    }
+
     private bool IsC64System()
     {
         return string.Equals(_avaloniaHostApp?.SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
@@ -963,6 +1345,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public event EventHandler<string>? ClipboardCopyRequested;
     public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
     public event EventHandler<TaskCompletionSource<byte[]?>>? AttachDiskImageRequested;
+    public event EventHandler<TaskCompletionSource<SelectedBinaryFile?>>? AttachCartridgeImageRequested;
+    public event EventHandler<CartridgeReplaceConfirmationEventArgs>? ConfirmCartridgeReplaceRequested;
 
     private async Task RequestClipboardCopyAsync(string text)
     {
@@ -1341,4 +1725,20 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     {
         // Currently no special handling for KeyUp events
     }
+}
+
+public sealed record SelectedBinaryFile(string Name, byte[] Bytes);
+
+public sealed class CartridgeReplaceConfirmationEventArgs : EventArgs
+{
+    public CartridgeReplaceConfirmationEventArgs(
+        string cartridgeName,
+        TaskCompletionSource<bool> completion)
+    {
+        CartridgeName = cartridgeName;
+        Completion = completion;
+    }
+
+    public string CartridgeName { get; }
+    public TaskCompletionSource<bool> Completion { get; }
 }

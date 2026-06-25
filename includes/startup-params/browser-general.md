@@ -12,13 +12,13 @@ Desktop equivalents: `--system`, `--systemVariant`, `--start`, `--waitForSystemR
 | `systemVariant` | Select a system variant (e.g. `C64PAL`, `C64NTSC`). | Requires `system`. | `systemVariant=C64PAL` |
 | `start` | Auto-start the selected system. | Requires `system`. | `start=1` |
 | `waitForSystemReady` | Wait until the system reports ready (e.g. C64 BASIC prompt). | Requires `system` and `start`. | `waitForSystemReady=1` |
-| `loadPrgUrl` | Fetch a `.prg` over HTTP and load it into memory. Relative URLs resolve from the app origin. | Requires `system` and `start`. Exclusive with `loadD64Url` / `basicText` / `basicUrl`. | `loadPrgUrl=prg/c64/demo.prg` |
+| `loadPrgUrl` | Fetch a `.prg` over HTTP and load it into memory. Relative URLs resolve from the app origin. | Requires `system` and `start`. Exclusive with `loadD64Url` / `loadCrtUrl` / `basicText` / `basicUrl`. | `loadPrgUrl=prg/c64/demo.prg` |
 | `runLoadedProgram` | Start executing the loaded program from its load address (or, with `loadD64Url`, paste the disk run commands). | Requires `loadPrgUrl` or `loadD64Url`. | `runLoadedProgram=1` |
 
 `loadPrgUrl` copies the fetched file's bytes to the load address in its 2-byte header — but how a
 loaded `.prg` is *interpreted and run* is system-specific. The systems documented below may add
 behavior on top of this (e.g. based on the load address); see the relevant system's parameter
-group.
+group. Cartridge images use the C64-specific `.crt` startup flow instead of PRG loading.
 
 #### Lua scripting *(browser only)*
 

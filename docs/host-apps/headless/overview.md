@@ -67,10 +67,11 @@ The headless app is driven entirely from the command line.
     Several automated-startup parameters are currently wired **only in the Avalonia Desktop app** and
     are ignored by the headless app (each is marked *(Avalonia Desktop only)* in the table above):
 
-    - **URL load sources**: `--loadPrgUrl` and `--loadD64Url` (the headless app loads only a local
+    - **URL load sources**: `--loadPrgUrl`, `--loadD64Url`, and `--loadCrtUrl` (the headless app loads only a local
       `--loadPrg`).
     - **C64 BASIC paste**: `--basicText` / `--basicFile` / `--basicUrl` / `--runBasic`.
-    - **C64 `.d64` startup**: `--loadD64` / `--d64Program` / `--diskMount`.
+    - **C64 `.d64` startup**: `--loadD64` / `--loadD64Url` / `--loadD64ZipEntry` / `--d64Program` / `--diskMount`.
+    - **C64 `.crt` startup**: `--loadCrt` / `--loadCrtUrl` / `--loadCrtZipEntry`.
     - **C64 runtime config**: `--keyboardJoystickEnabled` / `--keyboardJoystickNumber` / `--audioEnabled`.
     - **Diagnostics & auto-exit**: `--stats-interval` / `--exit-after`.
 

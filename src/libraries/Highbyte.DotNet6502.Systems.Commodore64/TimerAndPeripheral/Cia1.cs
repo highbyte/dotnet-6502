@@ -28,58 +28,42 @@ public class Cia1 : CiaBase
     public override void MapIOLocations(Memory c64mem)
     {
         // CIA #1 DataPort A
-        c64mem.MapReader(CiaAddr.CIA1_DATAA, DataALoad);
-        c64mem.MapWriter(CiaAddr.CIA1_DATAA, DataAStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_DATAA, DataALoad, DataAStore);
 
         // CIA #1 DataPort B
-        c64mem.MapReader(CiaAddr.CIA1_DATAB, DataBLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_DATAB, DataBStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_DATAB, DataBLoad, DataBStore);
 
         // CIA #1 Timer A (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA1_TIMAHI, TimerAHILoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TIMAHI, TimerAHIStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TIMAHI, TimerAHILoad, TimerAHIStore);
 
-        c64mem.MapReader(CiaAddr.CIA1_TIMALO, TimerALOLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TIMALO, TimerALOStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TIMALO, TimerALOLoad, TimerALOStore);
 
         // CIA #1 Timer B (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA1_TIMBHI, TimerBHILoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TIMBHI, TimerBHIStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TIMBHI, TimerBHILoad, TimerBHIStore);
 
-        c64mem.MapReader(CiaAddr.CIA1_TIMBLO, TimerBLOLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TIMBLO, TimerBLOStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TIMBLO, TimerBLOLoad, TimerBLOStore);
 
         // CIA #1 Interrupt Control Register (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA1_CIAICR, InterruptControlLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_CIAICR, InterruptControlStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_CIAICR, InterruptControlLoad, InterruptControlStore);
 
         // CIA #1 Control Register A (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA1_CIACRA, TimerAControlLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_CIACRA, TimerAControlStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_CIACRA, TimerAControlLoad, TimerAControlStore);
 
         // CIA #1 Control Register B (using base class methods)
-        c64mem.MapReader(CiaAddr.CIA1_CIACRB, TimerBControlLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_CIACRB, TimerBControlStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_CIACRB, TimerBControlLoad, TimerBControlStore);
 
         // CIA #1 Time Of Day registers (temporary debug implementation)
-        c64mem.MapReader(CiaAddr.CIA1_TOD10THS, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TOD10THS, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA1_TODSEC, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TODSEC, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA1_TODMIN, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TODMIN, DebugStore);
-        c64mem.MapReader(CiaAddr.CIA1_TODHR, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_TODHR, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TOD10THS, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TODSEC, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TODMIN, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_TODHR, DebugLoad, DebugStore);
 
         // CIA #1 Serial Data Register (temporary debug implementation)
-        c64mem.MapReader(CiaAddr.CIA1_SDR, DebugLoad);
-        c64mem.MapWriter(CiaAddr.CIA1_SDR, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_SDR, DebugLoad, DebugStore);
 
         // CIA #1 Data Direction Registers
-        c64mem.MapReader(CiaAddr.CIA1_DDRA, DDRARead);
-        c64mem.MapWriter(CiaAddr.CIA1_DDRA, DDRAWrite);
-        c64mem.MapReader(CiaAddr.CIA1_DDRB, DDRBRead);
-        c64mem.MapWriter(CiaAddr.CIA1_DDRB, DDRBWrite);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_DDRA, DDRARead, DDRAWrite);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA1_DDRB, DDRBRead, DDRBWrite);
     }
 
     /// <summary>

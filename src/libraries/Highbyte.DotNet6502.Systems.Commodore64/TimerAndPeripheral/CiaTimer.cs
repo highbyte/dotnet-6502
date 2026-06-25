@@ -76,15 +76,22 @@ public class CiaTimer
 
     public void ProcessTimer(ulong cyclesExecuted)
     {
-        if (TimerControl.IsBitSet(_timerControlStartBit) && _timerIsRunning)
-        {
-            if (InternalTimer >= cyclesExecuted)
-                InternalTimer -= (ushort)cyclesExecuted;
-            else
-                InternalTimer = 0;
+        if (!TimerControl.IsBitSet(_timerControlStartBit) || !_timerIsRunning || cyclesExecuted == 0)
+            return;
 
-            if (InternalTimer == 0)
-                _ciaIRQ.ConditionSet(_iRQSource);
+        var cyclesRemaining = cyclesExecuted;
+        while (cyclesRemaining > 0 && TimerControl.IsBitSet(_timerControlStartBit) && _timerIsRunning)
+        {
+            var cyclesUntilUnderflow = GetCyclesUntilUnderflow();
+            if (cyclesRemaining < cyclesUntilUnderflow)
+            {
+                InternalTimer = (ushort)(cyclesUntilUnderflow - cyclesRemaining - 1);
+                return;
+            }
+
+            cyclesRemaining -= cyclesUntilUnderflow;
+            InternalTimer = 0xffff;
+            _ciaIRQ.ConditionSet(_iRQSource);
 
             if (_ciaIRQ.IsConditionSet(_iRQSource))
             {
@@ -95,7 +102,7 @@ public class CiaTimer
                 // Check if timer should be reloaded from latch. If Timer A RunMode bit is clear, timer should be continously reloaded from latch.
                 if (!TimerControl.IsBitSet(_timerControlRunModeBit))
                 {
-                    ResetTimerValue();
+                    ReloadTimerValue();
                 }
                 else
                 {
@@ -105,10 +112,21 @@ public class CiaTimer
         }
     }
 
+    private ulong GetCyclesUntilUnderflow()
+        => InternalTimer == 0
+            ? 0x10000UL
+            : (ulong)InternalTimer + 1;
+
     private void ResetTimerValue()
     {
         InternalTimer = _internalTimer_Latch;
         StartTimer();
+    }
+
+    private void ReloadTimerValue()
+    {
+        InternalTimer = _internalTimer_Latch;
+        _timerIsRunning = true;
     }
 
     public void StartTimer()

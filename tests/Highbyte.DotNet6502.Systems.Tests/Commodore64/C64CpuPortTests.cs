@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -17,6 +18,19 @@ public class C64CpuPortTests
         Assert.Equal(0x2F, c64.Mem.Read(0x0000));
         Assert.Equal(0x37, c64.Mem.Read(0x0001));
         Assert.Equal(31, c64.CurrentBank);
+    }
+
+    [Fact]
+    public void Hard_Reset_Clears_Stale_IO_Register_Storage()
+    {
+        var c64 = BuildC64();
+        c64.WriteIOStorage(0xD011, 0x7F);
+        c64.WriteIOStorage(0xDC0D, 0x81);
+
+        c64.HardReset();
+
+        Assert.Equal(0, c64.ReadIOStorage(0xD011));
+        Assert.Equal(0, c64.ReadIOStorage(0xDC0D));
     }
 
     [Fact]
@@ -57,6 +71,42 @@ public class C64CpuPortTests
         Assert.Equal(0x42, c64.Mem.Read(KernalProbeAddress));
     }
 
+    [Theory]
+    [InlineData(true, true, 31)]
+    [InlineData(true, false, 15)]
+    [InlineData(false, false, 7)]
+    [InlineData(false, true, 23)]
+    public void Cartridge_Lines_And_Cpu_Port_Derive_The_Memory_Configuration(
+        bool gameHigh,
+        bool exromHigh,
+        byte expectedBank)
+    {
+        var c64 = BuildC64();
+
+        c64.AttachCartridge(new LineStateCartridge(new C64CartridgeLines(gameHigh, exromHigh)));
+
+        Assert.Equal(expectedBank, c64.CurrentBank);
+        Assert.Equal(expectedBank, c64.Mem.CurrentConfiguration);
+    }
+
+    [Fact]
+    public void Cartridge_Line_Changes_And_Detach_Recompute_The_Memory_Configuration()
+    {
+        var c64 = BuildC64();
+        var cartridge = new LineStateCartridge(C64CartridgeLines.Released);
+        c64.AttachCartridge(cartridge);
+
+        cartridge.SetLines(new C64CartridgeLines(GameHigh: false, ExromHigh: false));
+        Assert.Equal(7, c64.CurrentBank);
+
+        c64.Mem.Write(0x0001, 0x06);
+        Assert.Equal(6, c64.CurrentBank);
+
+        c64.DetachCartridge();
+        Assert.Equal(30, c64.CurrentBank);
+        Assert.Equal(30, c64.Mem.CurrentConfiguration);
+    }
+
     private static C64 BuildC64()
     {
         return C64.BuildC64(new C64Config
@@ -71,5 +121,30 @@ public class C64CpuPortTests
     {
         c64.ROMData[C64SystemConfig.KERNAL_ROM_NAME][KernalProbeAddress - 0xE000] = kernalValue;
         c64.RAM[KernalProbeAddress] = ramValue;
+    }
+
+    private sealed class LineStateCartridge(C64CartridgeLines lines) : IC64Cartridge
+    {
+        public string Name => "Line state test cartridge";
+        public C64CartridgeLines Lines { get; private set; } = lines;
+        public event Action? LinesChanged;
+
+        public void SetLines(C64CartridgeLines lines)
+        {
+            Lines = lines;
+            LinesChanged?.Invoke();
+        }
+
+        public bool HandlesIORead(ushort address) => false;
+        public byte ReadIO(ushort address) => throw new InvalidOperationException();
+        public bool HandlesIOWrite(ushort address) => false;
+        public void WriteIO(ushort address, byte value) => throw new InvalidOperationException();
+        public bool HasROML => false;
+        public byte ReadROML(ushort address) => throw new InvalidOperationException();
+        public bool HasROMH => false;
+        public byte ReadROMH(ushort address) => throw new InvalidOperationException();
+        public void Tick(ulong cyclesElapsed = 0) { }
+        public void Reset() { }
+        public void Dispose() { }
     }
 }

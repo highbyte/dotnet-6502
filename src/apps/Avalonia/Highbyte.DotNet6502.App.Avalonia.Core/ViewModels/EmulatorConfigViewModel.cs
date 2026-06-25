@@ -270,7 +270,7 @@ public class EmulatorConfigViewModel : ViewModelBase
 
     /// <summary>
     /// Browser-only: CORS proxy prefix used to fetch cross-origin resources — system downloads
-    /// (games / ROMs) and URL-driven startup (<c>loadPrgUrl</c> / <c>loadD64Url</c> / <c>basicUrl</c>
+    /// (games / ROMs) and URL-driven startup (<c>loadPrgUrl</c> / <c>loadD64Url</c> / <c>loadCrtUrl</c> / <c>basicUrl</c>
     /// / <c>scriptUrl</c>). Blank falls back to the built-in default
     /// (<see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/>). Ignored on desktop.
     /// </summary>

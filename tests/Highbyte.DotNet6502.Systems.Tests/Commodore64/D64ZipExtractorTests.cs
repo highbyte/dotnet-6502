@@ -60,6 +60,30 @@ public class D64ZipExtractorTests
     }
 
     [Fact]
+    public void EnsureD64Bytes_Uses_First_D64_When_Zip_Contains_Multiple_D64_Files()
+    {
+        var first = new byte[] { 0x01, 0x02 };
+        var second = new byte[] { 0x03, 0x04 };
+        var zip = BuildZipWith(("disk1.d64", first), ("disk2.d64", second));
+
+        var result = D64ZipExtractor.EnsureD64Bytes(zip);
+
+        Assert.Equal(first, result);
+    }
+
+    [Fact]
+    public void EnsureD64Bytes_Extracts_Explicit_Zip_Entry()
+    {
+        var first = new byte[] { 0x01, 0x02 };
+        var second = new byte[] { 0x03, 0x04 };
+        var zip = BuildZipWith(("disk1.d64", first), ("side-b/disk2.d64", second));
+
+        var result = D64ZipExtractor.EnsureD64Bytes(zip, entryName: "side-b/disk2.d64");
+
+        Assert.Equal(second, result);
+    }
+
+    [Fact]
     public void ExtractFirstD64FromZip_Throws_When_No_D64_Entry()
     {
         var zip = BuildZipWith(("readme.txt", new byte[] { 1 }), ("game.prg", new byte[] { 2 }));

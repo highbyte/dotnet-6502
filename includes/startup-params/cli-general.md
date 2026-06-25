@@ -17,14 +17,14 @@ These are interpreted by the shared startup pipeline and are valid for any syste
 | `--systemVariant <name>` | Select a system variant (e.g. `C64PAL`, `C64NTSC`). | Requires `--system`. | `--systemVariant C64PAL` |
 | `--start` | Auto-start the emulator after selection. | Requires `--system`. | `--start` |
 | `--waitForSystemReady` | Wait until the system reports ready (e.g. C64 BASIC prompt) before continuing. | Requires `--start`. | `--waitForSystemReady` |
-| `--loadPrg <path>` | Load a local `.prg` file into memory. | Requires `--start`. Exclusive with `--loadPrgUrl` and C64 `--loadD64` / `--loadD64Url`. | `--loadPrg game.prg` |
-| `--loadPrgUrl <url>` | *(Avalonia Desktop only.)* Fetch a `.prg` over HTTP(S) and load it into memory. | Requires `--start`. Exclusive with `--loadPrg` and C64 `--loadD64` / `--loadD64Url`. | `--loadPrgUrl https://example.com/game.prg` |
+| `--loadPrg <path>` | Load a local `.prg` file into memory. | Requires `--start`. Exclusive with `--loadPrgUrl` and C64 `--loadD64` / `--loadD64Url` / `--loadCrt` / `--loadCrtUrl`. | `--loadPrg game.prg` |
+| `--loadPrgUrl <url>` | *(Avalonia Desktop only.)* Fetch a `.prg` over HTTP(S) and load it into memory. | Requires `--start`. Exclusive with `--loadPrg` and C64 `--loadD64` / `--loadD64Url` / `--loadCrt` / `--loadCrtUrl`. | `--loadPrgUrl https://example.com/game.prg` |
 | `--runLoadedProgram` | Run the loaded program after loading. | Requires `--start` and a load source (`--loadPrg` / `--loadPrgUrl`, or C64 `--loadD64` / `--loadD64Url`). | `--runLoadedProgram` |
 
 `--loadPrg` / `--loadPrgUrl` copy the file's bytes to the load address in its 2-byte header — but
 how a loaded `.prg` is *interpreted and run* is system-specific. The systems documented below may
 add behavior on top of this (e.g. based on the load address); see the relevant system's parameter
-group.
+group. Cartridge images use the C64-specific `.crt` startup flow instead of PRG loading.
 
 #### Logging
 

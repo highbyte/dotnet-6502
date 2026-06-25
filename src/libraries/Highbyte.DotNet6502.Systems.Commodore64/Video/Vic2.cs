@@ -110,8 +110,8 @@ public class Vic2
         public byte SpriteMultiColor1;
         public int ScrollX;
         public int ScrollY;
-        public bool ColMode40;
-        public bool RowMode25;
+        public bool ColMode40 = true;
+        public bool RowMode25 = true;
 
         public object Clone()
         {
@@ -169,74 +169,78 @@ public class Vic2
         // TODO: Make common init like this that covers all IO locations, not only VIC2: SID, CIA, etc.
         //       Then all that need specific logic writes special mapping below (will overwrite above).
 
+        // Addresses 0xd000 - 0xd00f: Sprite X/Y coordinates.
+        for (ushort address = Vic2Addr.SPRITE_0_X; address <= Vic2Addr.SPRITE_7_Y; address++)
+        {
+            MapRegisterMirrors(c64Mem, address, C64.ReadIOStorage, C64.WriteIOStorage);
+        }
+
+        // Address 0xd010: Sprite X position MSB.
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MSB_X, C64.ReadIOStorage, C64.WriteIOStorage);
+
         // Address 0xd011: "Vertical Fine Scrollling and Screen Control Register"
-        c64Mem.MapReader(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Load);
-        c64Mem.MapWriter(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Store);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Load, ScrCtrlReg1Store);
 
         // Address 0xd012: "Current Raster Line"
-        c64Mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
-        c64Mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.CURRENT_RASTER_LINE, RasterLoad, RasterStore);
+
+        // Addresses 0xd013 - 0xd014: Light pen X/Y latches.
+        MapRegisterMirrors(c64Mem, 0xD013, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, 0xD014, C64.ReadIOStorage, C64.WriteIOStorage);
 
         // Address 0xd015: "Sprite enable"
-        c64Mem.MapReader(Vic2Addr.SPRITE_ENABLE, SpriteEnableLoad);
-        c64Mem.MapWriter(Vic2Addr.SPRITE_ENABLE, SpriteEnableStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_ENABLE, SpriteEnableLoad, SpriteEnableStore);
 
         // Address 0xd016: "Horizontal Fine Scrolling and Screen Control Register"
-        c64Mem.MapReader(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXLoad);
-        c64Mem.MapWriter(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXLoad, ScrollXStore);
+
+        // Address 0xd017: Sprite Y expansion.
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_Y_EXPAND, C64.ReadIOStorage, C64.WriteIOStorage);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
-        c64Mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
-        c64Mem.MapWriter(Vic2Addr.MEMORY_SETUP, MemorySetupStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.MEMORY_SETUP, MemorySetupLoad, MemorySetupStore);
 
         // Address 0xd019: "VIC Interrupt Flag Register"
-        c64Mem.MapReader(Vic2Addr.VIC_IRQ, VICIRQLoad);
-        c64Mem.MapWriter(Vic2Addr.VIC_IRQ, VICIRQStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.VIC_IRQ, VICIRQLoad, VICIRQStore);
 
         // Address 0xd01a: "IRQ Mask Register"
-        c64Mem.MapReader(Vic2Addr.IRQ_MASK, IRQMASKLoad);
-        c64Mem.MapWriter(Vic2Addr.IRQ_MASK, IRQMASKStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.IRQ_MASK, IRQMASKLoad, IRQMASKStore);
+
+        // Address 0xd01b: Sprite/background priority.
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_FOREGROUND_PRIO, C64.ReadIOStorage, C64.WriteIOStorage);
 
         // Address 0xd01c: "Sprite multi-color enable"
-        c64Mem.MapReader(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableLoad);
-        c64Mem.MapWriter(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableLoad, SpriteMultiColorEnableStore);
+
+        // Address 0xd01d: Sprite X expansion.
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_X_EXPAND, C64.ReadIOStorage, C64.WriteIOStorage);
 
         // Address 0xd01e: "Sprite-to-sprite collision"
-        c64Mem.MapReader(Vic2Addr.SPRITE_TO_SPRITE_COLLISION, SpriteToSpriteCollisionLoad);
-        c64Mem.MapWriter(Vic2Addr.SPRITE_TO_SPRITE_COLLISION, SpriteToSpriteCollisionStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_TO_SPRITE_COLLISION, SpriteToSpriteCollisionLoad, SpriteToSpriteCollisionStore);
 
         // Address 0xd01f: "Sprite-to-background collision"
-        c64Mem.MapReader(Vic2Addr.SPRITE_TO_BACKGROUND_COLLISION, SpriteToBackgroundCollisionLoad);
-        c64Mem.MapWriter(Vic2Addr.SPRITE_TO_BACKGROUND_COLLISION, SpriteToBackgroundCollisionStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_TO_BACKGROUND_COLLISION, SpriteToBackgroundCollisionLoad, SpriteToBackgroundCollisionStore);
 
         // Address 0xd020: Border color
-        c64Mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
-        c64Mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.BORDER_COLOR, BorderColorLoad, BorderColorStore);
         // Address 0xd021: Background color 0
-        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_0, BackgroundColorLoad);
-        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_0, BackgroundColorStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.BACKGROUND_COLOR_0, BackgroundColorLoad, BackgroundColorStore);
         // Address 0xd022: Background color 1
-        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_1, BackgroundColorLoad);
-        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_1, BackgroundColorStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.BACKGROUND_COLOR_1, BackgroundColorLoad, BackgroundColorStore);
         // Address 0xd023: Background color 2
-        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_2, BackgroundColorLoad);
-        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_2, BackgroundColorStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.BACKGROUND_COLOR_2, BackgroundColorLoad, BackgroundColorStore);
         // Address 0xd024: Background color 3
-        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_3, BackgroundColorLoad);
-        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_3, BackgroundColorStore);
+        MapRegisterMirrors(c64Mem, Vic2Addr.BACKGROUND_COLOR_3, BackgroundColorLoad, BackgroundColorStore);
 
         // Address 0xd025: Sprite multi-color 0
-        c64Mem.MapReader(Vic2Addr.SPRITE_MULTI_COLOR_0, SpriteMultiColor0Load);
-        c64Mem.MapWriter(Vic2Addr.SPRITE_MULTI_COLOR_0, SpriteMultiColor0Store);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MULTI_COLOR_0, SpriteMultiColor0Load, SpriteMultiColor0Store);
         // Address 0xd026: Sprite multi-color 1
-        c64Mem.MapReader(Vic2Addr.SPRITE_MULTI_COLOR_1, SpriteMultiColor1Load);
-        c64Mem.MapWriter(Vic2Addr.SPRITE_MULTI_COLOR_1, SpriteMultiColor1Store);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MULTI_COLOR_1, SpriteMultiColor1Load, SpriteMultiColor1Store);
 
         // Addresses 0xd027 - 0xd02e: Sprite colors
         for (ushort address = Vic2Addr.SPRITE_0_COLOR; address <= Vic2Addr.SPRITE_7_COLOR; address++)
         {
-            c64Mem.MapReader(address, SpriteColorLoad);
-            c64Mem.MapWriter(address, SpriteColorStore);
+            MapRegisterMirrors(c64Mem, address, SpriteColorLoad, SpriteColorStore);
         }
 
         // Addresses 0xd800 - 0xdbe7:  Color RAM is always at fixed location. 1 byte per character in screen ram = 0x03e8 (1000) bytes)
@@ -244,6 +248,31 @@ public class Vic2
         {
             c64Mem.MapReader(address, ColorRAMLoad);
             c64Mem.MapWriter(address, ColorRAMStore);
+        }
+    }
+
+    private void MapRegisterMirrors(
+        Memory c64Mem,
+        ushort registerAddress,
+        Memory.LoadByte reader,
+        Memory.StoreByte writer)
+    {
+        c64Mem.MapReader(registerAddress, reader);
+        c64Mem.MapWriter(registerAddress, writer);
+
+        var registerOffset = registerAddress & 0x003F;
+
+        for (var offset = registerOffset; offset <= 0x03FF; offset += 0x40)
+        {
+            var mirrorAddress = (ushort)(0xD000 + offset);
+            if (mirrorAddress == registerAddress)
+                continue;
+
+            c64Mem.MapReader(mirrorAddress, _ => reader(registerAddress));
+            c64Mem.MapWriter(mirrorAddress, (_, value) =>
+            {
+                writer(registerAddress, value);
+            });
         }
     }
 
@@ -580,6 +609,103 @@ public class Vic2
         }
     }
 
+    /// <summary>
+    /// Reads memory as the VIC-II sees it on its video bus.
+    /// </summary>
+    /// <remarks>
+    /// Use this for all actual VIC-II fetches: screen matrix bytes, character/bitmap
+    /// graphics bytes, sprite pointers, and sprite data. Those fetches are not always
+    /// equivalent to <see cref="Vic2Mem"/> reads.
+    ///
+    /// The common path still uses <see cref="Vic2Mem"/>, which models normal 16 KB
+    /// VIC bank selection plus chargen shadows and is kept in sync by
+    /// <see cref="SetVIC2Bank(byte)"/>. The slower cartridge-aware path is only used
+    /// when a cartridge is attached and the current memory configuration can expose
+    /// cartridge ROM to the VIC-II. In Ultimax/MAX mode, freezer cartridges such as
+    /// Final Cartridge III can expose ROML/ROMH to the VIC-II; their freezer menu may
+    /// fetch graphics/sprite data from cartridge ROM instead of the underlying C64
+    /// RAM.
+    ///
+    /// Direct <see cref="Vic2Mem"/> access is still useful for non-bus purposes such
+    /// as maintaining the legacy banked memory view or tests that intentionally inspect
+    /// underlying RAM/chargen mapping, but renderer fetch paths should prefer this
+    /// method.
+    /// </remarks>
+    public byte ReadMemory(ushort vic2Address)
+    {
+        // Hot path: most frames run without a cartridge, and many attached cartridges
+        // are not visible to the VIC-II in the current memory mode. In those cases,
+        // the old banked Vic2Mem lookup is still the correct and cheapest fetch.
+        // Current renderer/sprite callers are expected to pass 14-bit VIC-II
+        // addresses ($0000-$3fff), as they did when accessing Vic2Mem directly.
+        if (C64.CartridgeSlot.AttachedCartridge == null)
+            return Vic2Mem[vic2Address];
+        if (!IsCartridgeMemoryVisibleToVic())
+            return Vic2Mem[vic2Address];
+
+        return ReadMemoryWithCartridge(CurrentVIC2Bank, vic2Address);
+    }
+
+    private byte ReadMemoryWithCartridge(byte vic2Bank, ushort vic2Address)
+    {
+        vic2Address &= 0x3FFF;
+        var c64RamAddress = ResolveC64RamAddress(vic2Bank, vic2Address);
+        if (c64RamAddress.HasValue && TryReadCartridgeMemoryForVic(c64RamAddress.Value, out var cartridgeValue))
+            return cartridgeValue;
+
+        return vic2Bank switch
+        {
+            0 => vic2Address is >= 0x1000 and < 0x2000
+                ? C64.ROMData[C64SystemConfig.CHARGEN_ROM_NAME][vic2Address - 0x1000]
+                : C64.RAM[vic2Address],
+            1 => C64.RAM[0x4000 + vic2Address],
+            2 => vic2Address is >= 0x1000 and < 0x2000
+                ? C64.ROMData[C64SystemConfig.CHARGEN_ROM_NAME][vic2Address - 0x1000]
+                : C64.RAM[0x8000 + vic2Address],
+            3 => C64.RAM[0xC000 + vic2Address],
+            _ => throw new ArgumentOutOfRangeException(nameof(vic2Bank), vic2Bank, "VIC-II bank must be 0-3.")
+        };
+    }
+
+    private bool IsCartridgeMemoryVisibleToVic()
+        => (C64.CurrentBank & 0x18) == 0x10;
+
+    private bool TryReadCartridgeMemoryForVic(ushort c64Address, out byte value)
+    {
+        value = 0;
+
+        var cartridge = C64.CartridgeSlot.AttachedCartridge;
+        if (cartridge == null)
+            return false;
+
+        if (c64Address is >= 0x8000 and <= 0x9FFF && cartridge.HasROML)
+        {
+            value = cartridge.ReadROML(c64Address);
+            return true;
+        }
+
+        if (c64Address >= 0xE000 && cartridge.HasROMH)
+        {
+            value = cartridge.ReadROMH(c64Address);
+            return true;
+        }
+
+        return false;
+    }
+
+    public ushort? ResolveC64RamAddress(byte vic2Bank, ushort vic2Address)
+    {
+        vic2Address &= 0x3FFF;
+        return vic2Bank switch
+        {
+            0 => vic2Address is >= 0x1000 and < 0x2000 ? null : vic2Address,
+            1 => (ushort)(0x4000 + vic2Address),
+            2 => vic2Address is >= 0x1000 and < 0x2000 ? null : (ushort)(0x8000 + vic2Address),
+            3 => (ushort)(0xC000 + vic2Address),
+            _ => throw new ArgumentOutOfRangeException(nameof(vic2Bank), vic2Bank, "VIC-II bank must be 0-3.")
+        };
+    }
+
     public void ScrCtrlReg1Store(ushort address, byte value)
     {
         C64.WriteIOStorage(address, (byte)(value & 0b0111_1111));
@@ -644,7 +770,7 @@ public class Vic2
                 if (source == IRQSource.Any)
                     continue;
                 // Clear all individual latches.
-                if (Vic2IRQ.IsTriggered(source, C64.CPU))
+                if (Vic2IRQ.IsTriggered(source))
                     Vic2IRQ.ClearTrigger(source, C64.CPU);
             }
         }
@@ -657,7 +783,7 @@ public class Vic2
                 if (source == IRQSource.Any)
                     continue;
                 // Clear individual latch.
-                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source, C64.CPU))
+                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source))
                     Vic2IRQ.ClearTrigger(source, C64.CPU);
             }
         }
@@ -667,21 +793,22 @@ public class Vic2
     {
         byte value = 0b01110000;    // Bits 4-7 are unused and always set to 1.
 
-        bool anyIRQSourceTriggered = false;
+        bool irqLineAsserted = false;
         // Set bit 0-3 based on which IRQ sources have been triggered
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
             // "Any" flag does not have a separate trigger.
             if (source == IRQSource.Any)
                 continue;
-            if (Vic2IRQ.IsTriggered(source, C64.CPU))
+            if (Vic2IRQ.IsTriggered(source))
             {
                 value.SetBit((int)source);
-                anyIRQSourceTriggered = true;
+                if (Vic2IRQ.IsEnabled(source))
+                    irqLineAsserted = true;
             }
         }
-        // If any of the individual IRQ flags are set, also set the "Any" flag (bit 7)
-        if (anyIRQSourceTriggered)
+        // Bit 7 reflects the IRQ output, so a latched source must also be enabled.
+        if (irqLineAsserted)
             value.SetBit((int)IRQSource.Any);
         else
             value.ClearBit((int)IRQSource.Any);
@@ -696,9 +823,9 @@ public class Vic2
             if (source == IRQSource.Any)
                 continue;
             if (value.IsBitSet((int)source))
-                Vic2IRQ.Enable(source);
+                Vic2IRQ.Enable(source, C64.CPU);
             else
-                Vic2IRQ.Disable(source);
+                Vic2IRQ.Disable(source, C64.CPU);
         }
     }
     public byte IRQMASKLoad(ushort _)
@@ -766,8 +893,7 @@ public class Vic2
         var source = IRQSource.RasterCompare;
         if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
             || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.TotalHeight))
-            && Vic2IRQ.IsEnabled(source)
-            && !Vic2IRQ.IsTriggered(source, C64.CPU))
+            && !Vic2IRQ.IsTriggered(source))
         {
             Vic2IRQ.Trigger(source, cpu);
         }
