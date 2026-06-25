@@ -11,6 +11,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -39,6 +40,8 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
     internal const string ExtraKeyLoadD64Url = "loadD64Url";
     internal const string ExtraKeyLoadCrtPath = "loadCrtPath";
     internal const string ExtraKeyLoadCrtUrl = "loadCrtUrl";
+    internal const string ExtraKeyLoadD64ZipEntry = "loadD64ZipEntry";
+    internal const string ExtraKeyLoadCrtZipEntry = "loadCrtZipEntry";
     internal const string ExtraKeyD64Program = "d64Program";
     internal const string ExtraKeyDiskMount = "diskMount";
     internal const string ExtraKeyKeyboardJoystickEnabled = "keyboardJoystickEnabled";
@@ -195,7 +198,8 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         => errors.Count > 0 && errors.All(error => error.StartsWith("Missing ROMs:", StringComparison.Ordinal));
 
     /// <summary>
-    /// Post-ready automation: attach a CRT cartridge (<c>loadCrtPath</c> / <c>loadCrtUrl</c>),
+    /// Post-ready automation: attach a CRT cartridge (<c>loadCrtPath</c> / <c>loadCrtUrl</c>;
+    /// raw <c>.crt</c> or a ZIP containing exactly one <c>.crt</c>),
     /// paste C64 BASIC source (<c>basicText</c> / <c>basicUrl</c>), or run the .d64 startup flow
     /// (<c>loadD64Path</c> / <c>loadD64Url</c>) — mount the disk or direct-load a PRG and
     /// optionally paste the run commands. Invalid combinations are logged and skipped; the emulator
@@ -218,8 +222,13 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
     {
         var loadCrtPath = GetExtra(extras, ExtraKeyLoadCrtPath);
         var loadCrtUrl = GetExtra(extras, ExtraKeyLoadCrtUrl);
+        var loadCrtZipEntry = GetExtra(extras, ExtraKeyLoadCrtZipEntry);
         if (loadCrtPath is null && loadCrtUrl is null)
+        {
+            if (loadCrtZipEntry is not null)
+                _logger.LogWarning("Automation 'loadCrtZipEntry' has no effect without 'loadCrtPath'/'loadCrtUrl'; ignoring.");
             return;
+        }
 
         if (!request.AutoStart)
         {
@@ -269,6 +278,24 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         if (crtBytes.Length == 0)
         {
             _logger.LogWarning(".crt bytes resolved to an empty buffer; skipping .crt startup.");
+            return;
+        }
+
+        // The fetched/read bytes may be a raw .crt or a ZIP archive containing one. Unlike the
+        // existing .d64 ZIP path, multiple .crt files are rejected as ambiguous because a cartridge
+        // image usually represents a single hardware device rather than a multi-disk set.
+        try
+        {
+            crtBytes = ZipImageExtractor.EnsureImageBytes(
+                crtBytes,
+                ".crt",
+                ZipImageMultipleMatchBehavior.Throw,
+                _logger,
+                loadCrtZipEntry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to extract .crt from the ZIP archive; skipping .crt startup.");
             return;
         }
 
@@ -372,8 +399,13 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
     {
         var loadD64Path = GetExtra(extras, ExtraKeyLoadD64Path);
         var loadD64Url = GetExtra(extras, ExtraKeyLoadD64Url);
+        var loadD64ZipEntry = GetExtra(extras, ExtraKeyLoadD64ZipEntry);
         if (loadD64Path is null && loadD64Url is null)
+        {
+            if (loadD64ZipEntry is not null)
+                _logger.LogWarning("Automation 'loadD64ZipEntry' has no effect without 'loadD64Path'/'loadD64Url'; ignoring.");
             return;
+        }
 
         if (!request.AutoStart || !request.WaitForSystemReady)
         {
@@ -441,7 +473,7 @@ public sealed class C64AvaloniaStartupParticipant : IAutomatedStartupParticipant
         // contract carries no download-type hint, so content-sniff and extract if needed.
         try
         {
-            d64Bytes = D64ZipExtractor.EnsureD64Bytes(d64Bytes, _logger);
+            d64Bytes = D64ZipExtractor.EnsureD64Bytes(d64Bytes, _logger, loadD64ZipEntry);
         }
         catch (Exception ex)
         {

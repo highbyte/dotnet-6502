@@ -39,6 +39,11 @@ Unlike PRG, BASIC, and D64 startup flows, cartridge startup does **not** require
 `waitForSystemReady`. A cartridge is attached as a reset / boot-time device, not loaded after the
 BASIC prompt is ready.
 
+Startup cartridge sources may be raw `.crt` images or ZIP archives. By default, a ZIP archive must
+contain exactly one `.crt` entry; archives with multiple `.crt` files are rejected as ambiguous. Use
+`--loadCrtZipEntry` in Avalonia Desktop or `loadCrtZipEntry` in Avalonia Browser to select an exact
+entry from a multi-cartridge ZIP archive, for example `carts/fc3.crt`.
+
 ## Supported `.crt` hardware types
 
 The emulator currently supports these `.crt` hardware type IDs:
@@ -66,6 +71,9 @@ IRQ/NMI routing, and host-side raw TCP or Hayes modem transport modes.
 ## General limitations
 
 - The `.crt` parser supports ROM CHIP packets for ROM cartridges and the Expert 8K RAM image form.
+- Startup `.crt` attachment can unwrap a ZIP archive containing exactly one `.crt`, or an explicit
+  `.crt` entry selected with `--loadCrtZipEntry` / `loadCrtZipEntry`. Interactive Avalonia
+  file-picker attachment expects the selected file itself to be a `.crt`.
 - Writing modified cartridge RAM or bank state back to a `.crt` file is not implemented.
 - The Freeze button is only available for cartridge implementations that expose a freezer function.
 - Fast-loader cartridges can install and run their own code, but the emulator's disk-drive model is

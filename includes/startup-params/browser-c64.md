@@ -33,7 +33,8 @@ Desktop equivalents: `--loadD64` (local file) / `--loadD64Url` (URL), `--d64Prog
 
 | Query parameter | Description | Depends on | Example |
 |---|---|---|---|
-| `loadD64Url` | Fetch a C64 `.d64` disk image over HTTP. | Requires `system=C64`, `start`, `waitForSystemReady`, and exactly one of `d64Program` / `diskMount`. Exclusive with `loadPrgUrl` / `loadCrtUrl` / `basicText` / `basicUrl`. | `loadD64Url=d64/game.d64` |
+| `loadD64Url` | Fetch a C64 `.d64` disk image over HTTP. ZIP archives are also accepted; by default the first `.d64` entry is used. | Requires `system=C64`, `start`, `waitForSystemReady`, and exactly one of `d64Program` / `diskMount`. Exclusive with `loadPrgUrl` / `loadCrtUrl` / `basicText` / `basicUrl`. | `loadD64Url=d64/game.d64` |
+| `loadD64ZipEntry` | Select an exact `.d64` entry inside a ZIP archive. Use forward slashes for folders. | Requires `loadD64Url` and the source must be a ZIP archive. | `loadD64ZipEntry=side-b/game.d64` |
 | `d64Program` | Direct-load a PRG from the image into memory (no disk mount). `*` selects the first directory entry; URL-encode names with spaces. | Requires `loadD64Url`. Exclusive with `diskMount`. | `d64Program=*` |
 | `diskMount` | Mount the image in drive 8 and prepare `LOAD"*",8,1` + `RUN`. | Requires `loadD64Url`. Exclusive with `d64Program`. | `diskMount=1` |
 
@@ -43,11 +44,13 @@ With `loadD64Url`, `runLoadedProgram` pastes the disk's run commands after load 
 
 Desktop equivalents: `--loadCrt` (local file) / `--loadCrtUrl` (URL). Bytes are fetched during the
 C64 startup lifecycle, and the cartridge attach operation resets / boots the machine into the
-cartridge.
+cartridge. The target may be a raw `.crt` image or a ZIP archive containing exactly one `.crt`
+entry, or a ZIP archive with an explicit `loadCrtZipEntry`.
 
 | Query parameter | Description | Depends on | Example |
 |---|---|---|---|
-| `loadCrtUrl` | Fetch and attach a C64 `.crt` cartridge image over HTTP. | Requires `system=C64`, `start`. `waitForSystemReady` is not required. Exclusive with `loadPrgUrl`, `loadD64Url`, `basicText`, and `basicUrl`. | `loadCrtUrl=crt/fc3.crt` |
+| `loadCrtUrl` | Fetch and attach a C64 `.crt` cartridge image over HTTP. ZIP archives containing exactly one `.crt` are also accepted. | Requires `system=C64`, `start`. `waitForSystemReady` is not required. Exclusive with `loadPrgUrl`, `loadD64Url`, `basicText`, and `basicUrl`. | `loadCrtUrl=crt/fc3.crt` |
+| `loadCrtZipEntry` | Select an exact `.crt` entry inside a ZIP archive. Use forward slashes for folders. | Requires `loadCrtUrl` and the source must be a ZIP archive. Allows archives with multiple `.crt` files when the entry is explicit. | `loadCrtZipEntry=carts/fc3.crt` |
 
 The `runLoadedProgram` parameter does not apply to `.crt` images.
 

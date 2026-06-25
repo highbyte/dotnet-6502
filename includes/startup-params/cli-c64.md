@@ -32,8 +32,9 @@ on the general `--system C64`, `--start`, and `--waitForSystemReady` flags.
 
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
-| `--loadD64 <path>` | Load a local C64 `.d64` disk image. | Requires `--system C64`, `--start`, `--waitForSystemReady`, and exactly one of `--d64Program` / `--diskMount`. Exclusive with `--loadPrg` / `--loadPrgUrl` / `--loadD64Url` / `--loadCrt` / `--loadCrtUrl`. | `--loadD64 game.d64` |
-| `--loadD64Url <url>` | *(Avalonia Desktop only.)* Fetch a `.d64` over HTTP(S). | Same as `--loadD64`. Exclusive with `--loadD64`, the PRG loads, and the CRT loads. | `--loadD64Url https://example.com/game.d64` |
+| `--loadD64 <path>` | Load a local C64 `.d64` disk image. ZIP archives are also accepted; by default the first `.d64` entry is used. | Requires `--system C64`, `--start`, `--waitForSystemReady`, and exactly one of `--d64Program` / `--diskMount`. Exclusive with `--loadPrg` / `--loadPrgUrl` / `--loadD64Url` / `--loadCrt` / `--loadCrtUrl`. | `--loadD64 game.d64` |
+| `--loadD64Url <url>` | *(Avalonia Desktop only.)* Fetch a `.d64` over HTTP(S). ZIP archives are also accepted; by default the first `.d64` entry is used. | Same as `--loadD64`. Exclusive with `--loadD64`, the PRG loads, and the CRT loads. | `--loadD64Url https://example.com/game.d64` |
+| `--loadD64ZipEntry <entry>` | Select an exact `.d64` entry inside a ZIP archive. Use forward slashes for folders. | Requires `--loadD64` / `--loadD64Url` and the source must be a ZIP archive. | `--loadD64ZipEntry side-b/game.d64` |
 | `--d64Program <name\|*>` | Direct-load a PRG from the disk image into memory (no disk mount). `*` selects the first directory entry. | Requires `--loadD64` / `--loadD64Url`. Exclusive with `--diskMount`. | `--d64Program "*"` |
 | `--diskMount` | Mount the image in drive 8 and prepare `LOAD"*",8,1` + `RUN` via the keyboard buffer. | Requires `--loadD64` / `--loadD64Url`. Exclusive with `--d64Program`. | `--diskMount` |
 
@@ -45,8 +46,9 @@ commands are pasted after the load / mount: `LOAD"*",8,1` + `RUN` for `--diskMou
 
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
-| `--loadCrt <path>` | Attach a local C64 `.crt` cartridge image at startup. | Requires `--system C64`, `--start`. `--waitForSystemReady` is not required. Exclusive with PRG, BASIC, and `.d64` startup loads. | `--loadCrt fc3.crt` |
-| `--loadCrtUrl <url>` | *(Avalonia Desktop only.)* Fetch and attach a `.crt` over HTTP(S). | Same as `--loadCrt`. Exclusive with `--loadCrt`. | `--loadCrtUrl https://example.com/fc3.crt` |
+| `--loadCrt <path>` | Attach a local C64 `.crt` cartridge image at startup. ZIP archives containing exactly one `.crt` are also accepted. | Requires `--system C64`, `--start`. `--waitForSystemReady` is not required. Exclusive with PRG, BASIC, and `.d64` startup loads. | `--loadCrt fc3.crt` |
+| `--loadCrtUrl <url>` | *(Avalonia Desktop only.)* Fetch and attach a `.crt` over HTTP(S). ZIP archives containing exactly one `.crt` are also accepted. | Same as `--loadCrt`. Exclusive with `--loadCrt`. | `--loadCrtUrl https://example.com/fc3.crt` |
+| `--loadCrtZipEntry <entry>` | Select an exact `.crt` entry inside a ZIP archive. Use forward slashes for folders. | Requires `--loadCrt` / `--loadCrtUrl` and the source must be a ZIP archive. Allows archives with multiple `.crt` files when the entry is explicit. | `--loadCrtZipEntry carts/fc3.crt` |
 
 Cartridge startup attaches the image after the C64 instance has been started, and the cartridge
 attach operation resets / boots the machine into the cartridge. The general `--runLoadedProgram`

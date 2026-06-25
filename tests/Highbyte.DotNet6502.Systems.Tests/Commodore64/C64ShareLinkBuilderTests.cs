@@ -117,12 +117,14 @@ public class C64ShareLinkBuilderTests
             AutoRun = true,
             DownloadUrl = "https://csdb.dk/release/download.php?id=70413",
             DownloadType = C64DownloadProgramType.D64Zip,
+            D64ZipEntry = "side-b/elite.d64",
             DirectLoadPRGName = "*",
         };
 
         var q = ParseQuery(C64ShareLinkBuilder.Build(BaseUrl, request));
 
         Assert.Equal("https://csdb.dk/release/download.php?id=70413", q["loadD64Url"]);
+        Assert.Equal("side-b/elite.d64", q["loadD64ZipEntry"]);
         Assert.Equal("*", q["d64Program"]);
         Assert.False(q.ContainsKey("diskMount"));
         Assert.Equal("1", q["runLoadedProgram"]);
@@ -154,6 +156,7 @@ public class C64ShareLinkBuilderTests
             Mode = C64ShareMode.CartridgeImage,
             SystemVariant = "C64PAL",
             CartridgeUrl = "https://example.com/fc3.crt",
+            CartridgeZipEntry = "carts/fc3.crt",
         };
 
         var q = ParseQuery(C64ShareLinkBuilder.Build(BaseUrl, request));
@@ -162,6 +165,7 @@ public class C64ShareLinkBuilderTests
         Assert.Equal("C64PAL", q["systemVariant"]);
         Assert.Equal("1", q["start"]);
         Assert.Equal("https://example.com/fc3.crt", q["loadCrtUrl"]);
+        Assert.Equal("carts/fc3.crt", q["loadCrtZipEntry"]);
         Assert.False(q.ContainsKey("waitForSystemReady"));
         Assert.False(q.ContainsKey("runLoadedProgram"));
         Assert.False(q.ContainsKey("loadPrgUrl"));

@@ -27,6 +27,8 @@ public static class C64ShareLinkBuilder
         public const string LoadPrgUrl = "loadPrgUrl";
         public const string LoadD64Url = "loadD64Url";
         public const string LoadCrtUrl = "loadCrtUrl";
+        public const string LoadD64ZipEntry = "loadD64ZipEntry";
+        public const string LoadCrtZipEntry = "loadCrtZipEntry";
         public const string D64Program = "d64Program";
         public const string DiskMount = "diskMount";
         public const string RunLoadedProgram = "runLoadedProgram";
@@ -121,6 +123,8 @@ public static class C64ShareLinkBuilder
             // .d64 / .d64-in-zip: the automation path content-sniffs the bytes. Direct-load a
             // named PRG when one is given (incl. "*" = first file), otherwise mount the disk.
             pairs.Add((QueryKeys.LoadD64Url, request.DownloadUrl));
+            if (!string.IsNullOrWhiteSpace(request.D64ZipEntry))
+                pairs.Add((QueryKeys.LoadD64ZipEntry, request.D64ZipEntry));
             if (!string.IsNullOrEmpty(request.DirectLoadPRGName))
                 pairs.Add((QueryKeys.D64Program, request.DirectLoadPRGName));
             else
@@ -137,6 +141,8 @@ public static class C64ShareLinkBuilder
             throw new ArgumentException("CartridgeImage share mode requires CartridgeUrl.", nameof(request));
 
         pairs.Add((QueryKeys.LoadCrtUrl, request.CartridgeUrl));
+        if (!string.IsNullOrWhiteSpace(request.CartridgeZipEntry))
+            pairs.Add((QueryKeys.LoadCrtZipEntry, request.CartridgeZipEntry));
     }
 
     private static void AddSettingsParams(List<(string, string)> pairs, C64ShareLinkRequest request)

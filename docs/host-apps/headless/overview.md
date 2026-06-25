@@ -70,8 +70,8 @@ The headless app is driven entirely from the command line.
     - **URL load sources**: `--loadPrgUrl`, `--loadD64Url`, and `--loadCrtUrl` (the headless app loads only a local
       `--loadPrg`).
     - **C64 BASIC paste**: `--basicText` / `--basicFile` / `--basicUrl` / `--runBasic`.
-    - **C64 `.d64` startup**: `--loadD64` / `--d64Program` / `--diskMount`.
-    - **C64 `.crt` startup**: `--loadCrt` / `--loadCrtUrl`.
+    - **C64 `.d64` startup**: `--loadD64` / `--loadD64Url` / `--loadD64ZipEntry` / `--d64Program` / `--diskMount`.
+    - **C64 `.crt` startup**: `--loadCrt` / `--loadCrtUrl` / `--loadCrtZipEntry`.
     - **C64 runtime config**: `--keyboardJoystickEnabled` / `--keyboardJoystickNumber` / `--audioEnabled`.
     - **Diagnostics & auto-exit**: `--stats-interval` / `--exit-after`.
 

@@ -165,7 +165,8 @@ internal sealed partial class Program
     ///       Load a C64 <c>.d64</c> disk image. Requires <c>--system C64</c>, <c>--start</c>,
     ///       <c>--waitForSystemReady</c>, and exactly one of <c>--d64Program</c> or <c>--diskMount</c>.
     ///       Mutually exclusive with <c>--loadPrg</c>, <c>--loadPrgUrl</c>, <c>--loadD64Url</c>,
-    ///       <c>--loadCrt</c>, and <c>--loadCrtUrl</c>.
+    ///       <c>--loadCrt</c>, and <c>--loadCrtUrl</c>. ZIP archives are accepted; by default the
+    ///       first <c>.d64</c> entry is used.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -179,11 +180,19 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--loadD64ZipEntry &lt;entry&gt;</c></term>
+    ///     <description>
+    ///       Select an exact <c>.d64</c> entry when <c>--loadD64</c> / <c>--loadD64Url</c> points at
+    ///       a ZIP archive. Use forward slashes for folders.
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--loadCrt &lt;path&gt;</c></term>
     ///     <description>
     ///       Attach a C64 <c>.crt</c> cartridge image at startup. Requires <c>--system C64</c> and
     ///       <c>--start</c>; <c>--waitForSystemReady</c> is not required because cartridges reset /
     ///       boot the machine when attached. Mutually exclusive with PRG, D64, and BASIC startup loads.
+    ///       ZIP archives containing exactly one <c>.crt</c> are accepted by default.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -192,6 +201,14 @@ internal sealed partial class Program
     ///       Fetch and attach a C64 <c>.crt</c> cartridge image from an absolute <c>http</c>/<c>https</c>
     ///       URL. Same semantics as <c>--loadCrt</c> but the bytes are downloaded instead of read from
     ///       the local filesystem. Browser-equivalent of <c>loadCrtUrl</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--loadCrtZipEntry &lt;entry&gt;</c></term>
+    ///     <description>
+    ///       Select an exact <c>.crt</c> entry when <c>--loadCrt</c> / <c>--loadCrtUrl</c> points at
+    ///       a ZIP archive. Use forward slashes for folders; this is required for ZIP archives with
+    ///       multiple <c>.crt</c> files.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -435,9 +452,11 @@ internal sealed partial class Program
         // Parse C64 .d64 startup arguments (handled by C64AvaloniaStartupParticipant via ExtraParameters)
         string? loadD64Path = AutomatedStartupHandler.ParseStringArgument(args, "--loadD64");
         string? loadD64Url = AutomatedStartupHandler.ParseStringArgument(args, "--loadD64Url");
+        string? loadD64ZipEntry = AutomatedStartupHandler.ParseStringArgument(args, "--loadD64ZipEntry");
         string? d64Program = AutomatedStartupHandler.ParseStringArgument(args, "--d64Program");
         string? loadCrtPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadCrt");
         string? loadCrtUrl = AutomatedStartupHandler.ParseStringArgument(args, "--loadCrtUrl");
+        string? loadCrtZipEntry = AutomatedStartupHandler.ParseStringArgument(args, "--loadCrtZipEntry");
         bool diskMount = args.Contains("--diskMount");
         string? keyboardJoystickNumberRaw = AutomatedStartupHandler.ParseStringArgument(args, "--keyboardJoystickNumber");
         bool keyboardJoystickEnabledFlag = args.Contains("--keyboardJoystickEnabled");
@@ -505,7 +524,7 @@ internal sealed partial class Program
         var effectiveLoadD64 = loadD64Path ?? loadD64Url;
         var effectiveLoadCrt = loadCrtPath ?? loadCrtUrl;
         if (!ValidateD64Arguments(
-                effectiveLoadD64, d64Program, diskMount,
+                effectiveLoadD64, loadD64ZipEntry, d64Program, diskMount,
                 keyboardJoystickEnabledFlag, keyboardJoystickNumberRaw, audioEnabledRaw,
                 systemName, autoStart, waitForSystemReady, effectiveLoadPrg, effectiveLoadCrt,
                 out int parsedKeyboardJoystickNumber, out bool? parsedAudioEnabled))
@@ -515,6 +534,7 @@ internal sealed partial class Program
 
         if (!ValidateCrtArguments(
                 effectiveLoadCrt,
+                loadCrtZipEntry,
                 systemName, autoStart,
                 effectiveLoadPrg, effectiveLoadD64, runLoadedProgram))
         {
@@ -757,8 +777,10 @@ internal sealed partial class Program
                     BuildC64AutomationExtras(
                         loadD64Path,
                         loadD64Url,
+                        loadD64ZipEntry,
                         loadCrtPath,
                         loadCrtUrl,
+                        loadCrtZipEntry,
                         d64Program,
                         diskMount,
                         keyboardJoystickEnabledFlag,
@@ -978,6 +1000,7 @@ internal sealed partial class Program
     /// </summary>
     private static bool ValidateD64Arguments(
         string? loadD64Path,
+        string? loadD64ZipEntry,
         string? d64Program,
         bool diskMount,
         bool keyboardJoystickEnabled,
@@ -1019,9 +1042,9 @@ internal sealed partial class Program
         }
 
         // --d64Program / --diskMount only make sense with --loadD64.
-        if (loadD64Path == null && (d64Program != null || diskMount))
+        if (loadD64Path == null && (d64Program != null || diskMount || loadD64ZipEntry != null))
         {
-            Console.Error.WriteLine("Warning: --d64Program / --diskMount have no effect without --loadD64; ignoring.");
+            Console.Error.WriteLine("Warning: --d64Program / --diskMount / --loadD64ZipEntry have no effect without --loadD64/--loadD64Url; ignoring.");
         }
 
         // --keyboardJoystick* / --audioEnabled are general C64 runtime knobs. They only need
@@ -1080,6 +1103,7 @@ internal sealed partial class Program
     /// </summary>
     private static bool ValidateCrtArguments(
         string? loadCrtPath,
+        string? loadCrtZipEntry,
         string? systemName,
         bool autoStart,
         string? effectiveLoadPrg,
@@ -1087,7 +1111,11 @@ internal sealed partial class Program
         bool runLoadedProgram)
     {
         if (loadCrtPath == null)
+        {
+            if (loadCrtZipEntry != null)
+                Console.Error.WriteLine("Warning: --loadCrtZipEntry has no effect without --loadCrt/--loadCrtUrl; ignoring.");
             return true;
+        }
 
         if (!string.Equals(systemName, "C64", StringComparison.OrdinalIgnoreCase))
         {
@@ -1215,10 +1243,11 @@ internal sealed partial class Program
     /// <summary>
     /// Build the <see cref="AutomatedStartupRequest.ExtraParameters"/> dictionary the C64 Avalonia
     /// startup participant reads. <c>.d64</c> keys
-    /// (<c>loadD64Path</c> or <c>loadD64Url</c>, plus <c>d64Program</c>/<c>diskMount</c>) are only
+    /// (<c>loadD64Path</c> or <c>loadD64Url</c>, optional <c>loadD64ZipEntry</c>, plus
+    /// <c>d64Program</c>/<c>diskMount</c>) are only
     /// emitted when <c>--loadD64</c> or <c>--loadD64Url</c> is supplied. <c>.crt</c> keys
-    /// (<c>loadCrtPath</c> or <c>loadCrtUrl</c>) are only emitted when <c>--loadCrt</c> or
-    /// <c>--loadCrtUrl</c> is supplied. The C64 runtime knobs
+    /// (<c>loadCrtPath</c> or <c>loadCrtUrl</c>, optional <c>loadCrtZipEntry</c>) are only emitted
+    /// when <c>--loadCrt</c> or <c>--loadCrtUrl</c> is supplied. The C64 runtime knobs
     /// (<c>keyboardJoystickEnabled</c>/<c>keyboardJoystickNumber</c>/<c>audioEnabled</c>) are
     /// emitted whenever the user supplied them, since they apply for any C64 start path.
     /// Empty / null entries are skipped so the participant sees only what the user actually supplied.
@@ -1226,8 +1255,10 @@ internal sealed partial class Program
     private static IReadOnlyDictionary<string, string> BuildC64AutomationExtras(
         string? loadD64Path,
         string? loadD64Url,
+        string? loadD64ZipEntry,
         string? loadCrtPath,
         string? loadCrtUrl,
+        string? loadCrtZipEntry,
         string? d64Program,
         bool diskMount,
         bool keyboardJoystickEnabled,
@@ -1244,6 +1275,8 @@ internal sealed partial class Program
                 extras["loadD64Path"] = loadD64Path;
             if (loadD64Url != null)
                 extras["loadD64Url"] = loadD64Url;
+            if (loadD64ZipEntry != null)
+                extras["loadD64ZipEntry"] = loadD64ZipEntry;
             if (d64Program != null)
                 extras["d64Program"] = d64Program;
             if (diskMount)
@@ -1258,6 +1291,8 @@ internal sealed partial class Program
                 extras["loadCrtPath"] = loadCrtPath;
             if (loadCrtUrl != null)
                 extras["loadCrtUrl"] = loadCrtUrl;
+            if (loadCrtZipEntry != null)
+                extras["loadCrtZipEntry"] = loadCrtZipEntry;
         }
 
         if (keyboardJoystickEnabled)

@@ -58,8 +58,14 @@ public sealed record C64ShareLinkRequest
     /// <summary>Direct-load this PRG from the .d64 (incl. <c>*</c> = first file); null = mount disk.</summary>
     public string? DirectLoadPRGName { get; init; }
 
+    /// <summary>Optional exact ZIP entry name to extract for a zipped .d64 download.</summary>
+    public string? D64ZipEntry { get; init; }
+
     // --- CartridgeImage mode ---
 
     /// <summary>Clean remote .crt cartridge-image URL — never proxied (CartridgeImage mode).</summary>
     public string? CartridgeUrl { get; init; }
+
+    /// <summary>Optional exact ZIP entry name to extract for a zipped .crt download.</summary>
+    public string? CartridgeZipEntry { get; init; }
 }

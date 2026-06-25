@@ -128,11 +128,19 @@ internal sealed partial class Program
     ///   <item>
     ///     <term><c>loadD64Url</c></term>
     ///     <description>
-    ///       URL (relative or absolute) to fetch a C64 <c>.d64</c> disk image from. Requires
+    ///       URL (relative or absolute) to fetch a C64 <c>.d64</c> disk image from. ZIP archives are
+    ///       accepted; by default the first <c>.d64</c> entry is used. Requires
     ///       <c>system=C64</c>, <c>start</c>, <c>waitForSystemReady</c>, and exactly one of
     ///       <c>d64Program</c> or <c>diskMount</c>. Mutually exclusive with <c>loadPrgUrl</c> /
     ///       <c>loadCrtUrl</c> / <c>basicText</c> / <c>basicUrl</c>. The bytes are fetched by the
     ///       C64 startup participant after the emulator is visible.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>loadD64ZipEntry</c></term>
+    ///     <description>
+    ///       Exact <c>.d64</c> entry to select when <c>loadD64Url</c> points at a ZIP archive. Use
+    ///       forward slashes for folders.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -141,7 +149,16 @@ internal sealed partial class Program
     ///       URL (relative or absolute) to fetch and attach a C64 <c>.crt</c> cartridge image from.
     ///       Requires <c>system=C64</c> and <c>start</c>; <c>waitForSystemReady</c> is not required
     ///       because cartridges reset / boot the machine when attached. Mutually exclusive with
-    ///       <c>loadPrgUrl</c>, <c>loadD64Url</c>, <c>basicText</c>, and <c>basicUrl</c>.
+    ///       <c>loadPrgUrl</c>, <c>loadD64Url</c>, <c>basicText</c>, and <c>basicUrl</c>. ZIP
+    ///       archives containing exactly one <c>.crt</c> are accepted by default.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>loadCrtZipEntry</c></term>
+    ///     <description>
+    ///       Exact <c>.crt</c> entry to select when <c>loadCrtUrl</c> points at a ZIP archive. Use
+    ///       forward slashes for folders; this is required for ZIP archives with multiple
+    ///       <c>.crt</c> files.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -806,6 +823,8 @@ internal sealed partial class Program
         string? scriptUrl = map.TryGetValue("scriptUrl", out var su) && !string.IsNullOrWhiteSpace(su) ? su : null;
         string? loadD64Url = map.TryGetValue("loadD64Url", out var ld64) && !string.IsNullOrWhiteSpace(ld64) ? ld64 : null;
         string? loadCrtUrl = map.TryGetValue("loadCrtUrl", out var lcrt) && !string.IsNullOrWhiteSpace(lcrt) ? lcrt : null;
+        string? loadD64ZipEntry = map.TryGetValue("loadD64ZipEntry", out var d64ze) && !string.IsNullOrWhiteSpace(d64ze) ? d64ze : null;
+        string? loadCrtZipEntry = map.TryGetValue("loadCrtZipEntry", out var crtze) && !string.IsNullOrWhiteSpace(crtze) ? crtze : null;
         string? d64Program = map.TryGetValue("d64Program", out var d64p) && !string.IsNullOrWhiteSpace(d64p) ? d64p : null;
         bool diskMount = map.TryGetValue("diskMount", out var dm) && IsTruthy(dm);
         bool keyboardJoystickEnabled = map.TryGetValue("keyboardJoystickEnabled", out var kje) && IsTruthy(kje);
@@ -844,17 +863,25 @@ internal sealed partial class Program
             {
                 WriteBootstrapLog("Query parameter 'loadCrtUrl' requires 'system=C64'; ignoring 'loadCrtUrl'.", LogLevel.Warning);
                 loadCrtUrl = null;
+                loadCrtZipEntry = null;
             }
             else if (!autoStart)
             {
                 WriteBootstrapLog("Query parameter 'loadCrtUrl' requires 'start'; ignoring.", LogLevel.Warning);
                 loadCrtUrl = null;
+                loadCrtZipEntry = null;
             }
             else if (loadPrgUrl != null)
             {
                 WriteBootstrapLog("Query parameter 'loadCrtUrl' is mutually exclusive with 'loadPrgUrl'; ignoring 'loadCrtUrl'.", LogLevel.Warning);
                 loadCrtUrl = null;
+                loadCrtZipEntry = null;
             }
+        }
+        if (loadCrtUrl == null && loadCrtZipEntry != null)
+        {
+            WriteBootstrapLog("Query parameter 'loadCrtZipEntry' has no effect without 'loadCrtUrl'; ignoring.", LogLevel.Warning);
+            loadCrtZipEntry = null;
         }
         // ── .d64 automation validation ───────────────────────────────────────────────────
         // Runs before the 'runLoadedProgram requires loadPrgUrl' check below so a
@@ -865,38 +892,45 @@ internal sealed partial class Program
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' requires 'system=C64'; ignoring 'loadD64Url' and related .d64 params.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (!autoStart || !waitForReady)
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' requires 'start' and 'waitForSystemReady'; ignoring.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (loadPrgUrl != null)
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' is mutually exclusive with 'loadPrgUrl'; ignoring 'loadD64Url'.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (loadCrtUrl != null)
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' is mutually exclusive with 'loadCrtUrl'; ignoring 'loadD64Url'.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (d64Program == null && !diskMount)
             {
                 WriteBootstrapLog("Query parameter 'loadD64Url' requires exactly one of 'd64Program' or 'diskMount'; ignoring.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
             else if (d64Program != null && diskMount)
             {
                 WriteBootstrapLog("Query parameters 'd64Program' and 'diskMount' are mutually exclusive; ignoring 'loadD64Url'.", LogLevel.Warning);
                 loadD64Url = null;
+                loadD64ZipEntry = null;
             }
         }
         // 'd64Program' / 'diskMount' only make sense with 'loadD64Url'.
-        if (loadD64Url == null && (d64Program != null || diskMount))
+        if (loadD64Url == null && (d64Program != null || diskMount || loadD64ZipEntry != null))
         {
-            WriteBootstrapLog("Query parameters 'd64Program' / 'diskMount' have no effect without 'loadD64Url'; ignoring.", LogLevel.Warning);
+            WriteBootstrapLog("Query parameters 'd64Program' / 'diskMount' / 'loadD64ZipEntry' have no effect without 'loadD64Url'; ignoring.", LogLevel.Warning);
             d64Program = null;
+            loadD64ZipEntry = null;
             diskMount = false;
         }
         // 'keyboardJoystick*' / 'audioEnabled' are general C64 runtime knobs — they apply
@@ -959,8 +993,8 @@ internal sealed partial class Program
             // .d64 startup keys: 'loadD64Url' is consumed by Program.cs; the participant fetches
             // its bytes via AutomatedStartupContext.FetchBinaryResource after validation. The other
             // .d64 keys are forwarded into extras after invalid combinations have been filtered out.
-            "loadD64Url", "d64Program", "diskMount",
-            "loadCrtUrl",
+            "loadD64Url", "loadD64ZipEntry", "d64Program", "diskMount",
+            "loadCrtUrl", "loadCrtZipEntry",
             "keyboardJoystickEnabled", "keyboardJoystickNumber", "audioEnabled",
         };
         var extraParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -980,11 +1014,17 @@ internal sealed partial class Program
         {
             if (d64Program != null)
                 extraParameters["d64Program"] = d64Program;
+            if (loadD64ZipEntry != null)
+                extraParameters["loadD64ZipEntry"] = loadD64ZipEntry;
             if (diskMount)
                 extraParameters["diskMount"] = "true";
         }
         if (loadCrtUrl != null)
+        {
             extraParameters["loadCrtUrl"] = loadCrtUrl;
+            if (loadCrtZipEntry != null)
+                extraParameters["loadCrtZipEntry"] = loadCrtZipEntry;
+        }
         // C64 runtime knobs apply to any C64 start path — emit whenever the user supplied them
         // and 'system=C64' (the validator already enforced the latter).
         if (keyboardJoystickEnabled)
