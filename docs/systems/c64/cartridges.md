@@ -16,9 +16,11 @@ In the Avalonia C64 UI, use the **Cartridge** section to:
 - detach the current cartridge;
 - press the cartridge **Freeze** button when the attached cartridge supports it.
 
-Attaching a `.crt` image resets the C64, matching the practical emulator model of inserting a
-cartridge before booting the machine. Detaching also resets the machine so the memory map returns to
-normal cleanly.
+When the C64 is already running, attaching a `.crt` image resets / boots the machine into that
+cartridge. When the C64 is stopped, the UI stores the selected cartridge as a pending insert for the
+next start; the **Cartridge** section shows it as `Pending cartridge: ...`, and the next C64 start
+attaches it automatically. Detaching while stopped clears the pending cartridge. Detaching a live
+cartridge resets the machine so the memory map returns to normal cleanly.
 
 The Avalonia Desktop and Browser apps can also attach a cartridge during automated startup:
 

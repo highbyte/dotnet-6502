@@ -194,7 +194,7 @@
                     <Button Content="Detach cartridge"
                             AutomationProperties.AutomationId="DetachCartridgeButton"
                             Command="{Binding DetachCartridgeCommand}"
-                            IsVisible="{Binding IsCartridgeAttached}"
+                            IsVisible="{Binding CanDetachCartridge}"
                             Classes="small danger"/>
 
                     <Button Content="Freeze (cartridge button)"
