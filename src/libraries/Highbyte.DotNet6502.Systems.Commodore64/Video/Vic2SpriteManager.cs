@@ -93,18 +93,28 @@ public class Vic2SpriteManager : IVic2SpriteManager
         var spriteToBackgroundCollision = GetSpriteToBackgroundCollision();
         SpriteToBackgroundCollisionStore = (byte)(SpriteToBackgroundCollisionStore | spriteToBackgroundCollision);
 
-        // Raise IRQ if any collision detected, and it's enabled, and not currently blocked (cleared by reading from collision registers)
-        var source = IRQSource.RasterCompare;
-        if (((SpriteToSpriteCollisionStore != 0 && !SpriteToSpriteCollisionIRQBlock)
-            || (SpriteToBackgroundCollisionStore != 0 && !SpriteToBackgroundCollisionIRQBlock))
-            && Vic2.Vic2IRQ.IsEnabled(source)
-            && !Vic2.Vic2IRQ.IsTriggered(source))
+        // Raise IRQ if a collision is detected, the corresponding source is enabled, and it's not
+        // currently blocked (block is cleared when the game reads the collision IO register).
+        //
+        // Sprite-to-sprite and sprite-to-background collisions are their own VIC-II interrupt
+        // sources ($D019 bits 1 and 2), each enabled independently via $D01A. They must NOT be
+        // raised as a raster-compare IRQ ($D019 bit 0): doing so makes a sprite collision look
+        // like a raster interrupt, so games that drive raster splits (e.g. Giana Sisters) service
+        // the collision as a spurious extra raster IRQ, displacing their split chain.
+        if (SpriteToSpriteCollisionStore != 0 && !SpriteToSpriteCollisionIRQBlock
+            && Vic2.Vic2IRQ.IsEnabled(IRQSource.SpriteToSpriteCollision)
+            && !Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToSpriteCollision))
         {
-            Vic2.Vic2IRQ.Trigger(source, Vic2.C64.CPU);
-            if (SpriteToSpriteCollisionStore != 0)
-                SpriteToSpriteCollisionIRQBlock = true;
-            if (SpriteToBackgroundCollisionStore != 0)
-                SpriteToBackgroundCollisionIRQBlock = true;
+            Vic2.Vic2IRQ.Trigger(IRQSource.SpriteToSpriteCollision, Vic2.C64.CPU);
+            SpriteToSpriteCollisionIRQBlock = true;
+        }
+
+        if (SpriteToBackgroundCollisionStore != 0 && !SpriteToBackgroundCollisionIRQBlock
+            && Vic2.Vic2IRQ.IsEnabled(IRQSource.SpriteToBackgroundCollision)
+            && !Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToBackgroundCollision))
+        {
+            Vic2.Vic2IRQ.Trigger(IRQSource.SpriteToBackgroundCollision, Vic2.C64.CPU);
+            SpriteToBackgroundCollisionIRQBlock = true;
         }
     }
 

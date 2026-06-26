@@ -7,6 +7,9 @@ namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.Video;
 
 public class Vic2SpriteManagerTests
 {
+    private static readonly string RasterCompareIrqSource = Vic2IRQ.GetInterruptSourceName(IRQSource.RasterCompare);
+    private static readonly string SpriteToSpriteCollisionIrqSource = Vic2IRQ.GetInterruptSourceName(IRQSource.SpriteToSpriteCollision);
+
     [Fact]
     public void GetSpriteToSpriteCollision_returns_zero_for_non_overlapping_visible_sprites()
     {
@@ -41,6 +44,43 @@ public class Vic2SpriteManagerTests
         var collision = c64.Vic2.SpriteManager.GetSpriteToSpriteCollision();
 
         Assert.Equal(0b0000_0011, collision);
+    }
+
+    [Fact]
+    public void Sprite_to_sprite_collision_raises_collision_irq_and_not_raster_irq()
+    {
+        var c64 = BuildC64();
+
+        // A game using raster splits has the raster IRQ enabled; enable the sprite-to-sprite
+        // collision IRQ too ($D01A bit 0 = raster-compare, bit 1 = sprite-to-sprite collision).
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0011);
+
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 20, y: 15, spritePointer: 193);
+
+        c64.Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+
+        // A collision must raise its own collision IRQ source ($D019 bit 1)...
+        Assert.True(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
+        // ...and must never raise the raster-compare IRQ source ($D019 bit 0).
+        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
+    }
+
+    [Fact]
+    public void Sprite_collision_does_not_raise_raster_irq_when_only_raster_irq_enabled()
+    {
+        // Regression for the Great Giana Sisters status-panel jitter: the game enables the
+        // raster IRQ (for screen splits) but not the collision IRQ. A sprite collision must
+        // not raise a spurious raster-compare IRQ that the game would service as an extra split.
+        var c64 = BuildC64();
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0001); // enable raster-compare only
+
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 20, y: 15, spritePointer: 193);
+
+        c64.Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+
+        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
     }
 
     private static C64 BuildC64()
