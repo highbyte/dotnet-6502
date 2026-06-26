@@ -30,6 +30,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64;
 public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 {
     private const string CartridgeNmiSource = "CartridgeNmi";
+    private const string CartridgeIrqSource = "CartridgeIrq";
     private const byte CpuPortBankBitsMask = 0x07;
     private const byte CpuPortDataDirectionResetValue = 0x2F;
     private const byte CpuPortDataResetValue = 0x37;
@@ -258,6 +259,16 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             else
                 CPU.CPUInterrupts.SetNMISourceInactive(CartridgeNmiSource);
         };
+        CartridgeSlot.IrqLineChanged += () =>
+        {
+            if (CPU is null)
+                return;
+
+            if (CartridgeSlot.IrqLineActive)
+                CPU.CPUInterrupts.SetIRQSourceActive(CartridgeIrqSource, autoAcknowledge: false);
+            else
+                CPU.CPUInterrupts.SetIRQSourceInactive(CartridgeIrqSource);
+        };
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
 
         _audioProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryAudioProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
@@ -329,7 +340,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
                 c64Config.SwiftLink.CartridgeIOAddress,
                 loggerFactory.CreateLogger(nameof(SwiftLinkDevice)))
             {
-                CpuInterrupts = cpu.CPUInterrupts,
                 InterruptMode = c64Config.SwiftLink.InterruptMode,
                 ReceiveMode = c64Config.SwiftLink.ReceiveMode,
                 GetCurrentCycleCount = () => cpu.ExecState.CyclesConsumed,

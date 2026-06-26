@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 
-public sealed class SwiftLinkDevice : IC64Cartridge
+public sealed class SwiftLinkDevice : IC64Cartridge, IC64CartridgeNmiSource, IC64CartridgeIrqSource
 {
     private const byte StatusRxFullBit = 1 << 3;
     private const byte StatusTxEmptyBit = 1 << 4;
@@ -16,7 +16,6 @@ public sealed class SwiftLinkDevice : IC64Cartridge
     private const byte CommandReceiverIrqDisableBit = 1 << 1;
     private const byte CommandTransmitterControlMask = 0b0000_1100;
     private const byte CommandTransmitterIrqControl = 0b0000_0100;
-    private const string IrqSourceName = "SwiftLink";
     private const int DiagnosticHistorySize = 24;
 
     private readonly ILogger _logger;
@@ -26,6 +25,9 @@ public sealed class SwiftLinkDevice : IC64Cartridge
     private bool _rxFull;
     private bool _txEmpty = true;
     private bool _irqPending;
+    private bool _nmiLineActive;
+    private bool _irqLineActive;
+    private bool _nmiDeferred;
     private byte _commandRegister;
     private byte _controlRegister;
     private Task? _pendingSendTask;
@@ -51,13 +53,22 @@ public sealed class SwiftLinkDevice : IC64Cartridge
         remove { }
     }
     public ISwiftLinkTransport? Transport { get; set; }
-    public CPUInterrupts? CpuInterrupts { get; set; }
+
+    // Interrupt participation goes through the cartridge line abstractions: SwiftLink drives
+    // its active-low IRQ/NMI lines and the C64 slot wiring translates them into CPU interrupt
+    // sources. The device never touches CPUInterrupts directly.
+    public bool NmiLineActive => _nmiLineActive;
+    public event Action? NmiLineChanged;
+    public bool IrqLineActive => _irqLineActive;
+    public event Action? IrqLineChanged;
+
     public C64SwiftLinkInterruptMode InterruptMode { get; set; } = C64SwiftLinkInterruptMode.IRQ;
     public C64SwiftLinkReceiveMode ReceiveMode { get; set; } = C64SwiftLinkReceiveMode.Compatible;
     public Func<ulong>? GetCurrentCycleCount { get; set; }
-    // Optional device-specific compatibility hook. When unset, NMI is asserted as soon as
-    // SwiftLink marks its receive interrupt pending. C64 currently uses this for software
-    // that temporarily banks out the mapped NMI vector area.
+    // Optional device-specific compatibility policy. When unset, the NMI line is driven as
+    // soon as SwiftLink marks its receive interrupt pending. When set and it returns false,
+    // SwiftLink holds the NMI line released (see RefreshInterruptLines) -- C64 uses this for
+    // software that temporarily banks out the mapped NMI vector area.
     public Func<bool>? CanDeliverNmi { get; set; }
     public ulong ReceivePacingCycles { get; set; }
     public ushort BaseAddress => _baseAddress;
@@ -115,7 +126,9 @@ public sealed class SwiftLinkDevice : IC64Cartridge
             CompletePendingSend();
         }
 
-        TryAssertDeferredNmi();
+        // Re-evaluate the interrupt lines each tick so a deferred NMI is asserted once the
+        // mapped NMI vector becomes usable again (see RefreshInterruptLines).
+        RefreshInterruptLines();
 
         if (_rxFull)
             return;
@@ -139,7 +152,10 @@ public sealed class SwiftLinkDevice : IC64Cartridge
         Array.Clear(_diagnosticHistory);
         _diagnosticHistoryNextIndex = 0;
         _diagnosticHistoryCount = 0;
-        ClearAllInterruptSources();
+        _nmiDeferred = false;
+        // _irqPending was cleared above; refreshing releases both lines (and fires the line
+        // changed events so the C64 slot wiring clears any active CPU interrupt source).
+        RefreshInterruptLines();
         Transport?.Reset();
     }
 
@@ -316,10 +332,7 @@ public sealed class SwiftLinkDevice : IC64Cartridge
             _rxFull,
             _txEmpty);
         RecordDiagnosticEvent($"IRQ set mode={InterruptMode} rx={_rxFull} tx={_txEmpty}");
-        if (InterruptMode == C64SwiftLinkInterruptMode.NMI)
-            TryAssertDeferredNmi();
-        else
-            CpuInterrupts?.SetIRQSourceActive(IrqSourceName, autoAcknowledge: false);
+        RefreshInterruptLines();
     }
 
     private void ClearIrqPending()
@@ -327,42 +340,51 @@ public sealed class SwiftLinkDevice : IC64Cartridge
         _irqPending = false;
         _logger.LogDebug("SwiftLink {InterruptMode} pending cleared.", InterruptMode);
         RecordDiagnosticEvent($"IRQ clear mode={InterruptMode}");
-        if (InterruptMode == C64SwiftLinkInterruptMode.NMI)
-            CpuInterrupts?.SetNMISourceInactive(IrqSourceName);
-        else
-            CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
+        RefreshInterruptLines();
     }
 
-    private void ClearAllInterruptSources()
+    /// <summary>
+    /// Drives the cartridge IRQ/NMI lines from the current pending state and interrupt mode,
+    /// firing the line-changed events only on transitions. The C64 slot wiring turns those
+    /// lines into CPU interrupt sources, so SwiftLink never touches CPUInterrupts directly.
+    ///
+    /// NMI mode additionally honors the optional <see cref="CanDeliverNmi"/> policy: while the
+    /// mapped NMI vector is unusable (some modem software temporarily banks it out) the NMI
+    /// line is held released and re-evaluated on each Tick instead of asserting into a bad
+    /// vector. This device-local deferral is the SwiftLink compatibility behavior.
+    /// </summary>
+    private void RefreshInterruptLines()
     {
-        _irqPending = false;
-        CpuInterrupts?.SetIRQSourceInactive(IrqSourceName);
-        CpuInterrupts?.SetNMISourceInactive(IrqSourceName);
+        var nmiMode = InterruptMode == C64SwiftLinkInterruptMode.NMI;
+        var desiredIrqLine = _irqPending && !nmiMode;
+
+        var wantsNmi = _irqPending && nmiMode;
+        var nmiDeliverable = !wantsNmi || CanDeliverNmi?.Invoke() != false;
+        var desiredNmiLine = wantsNmi && nmiDeliverable;
+
+        var deferred = wantsNmi && !nmiDeliverable;
+        if (deferred && !_nmiDeferred)
+            RecordDiagnosticEvent("NMI deferred");
+        _nmiDeferred = deferred;
+
+        if (_irqLineActive != desiredIrqLine)
+        {
+            _irqLineActive = desiredIrqLine;
+            IrqLineChanged?.Invoke();
+        }
+
+        if (_nmiLineActive != desiredNmiLine)
+        {
+            _nmiLineActive = desiredNmiLine;
+            if (desiredNmiLine)
+                RecordDiagnosticEvent("NMI asserted");
+            NmiLineChanged?.Invoke();
+        }
     }
 
     private bool IsCarrierDetected => Transport?.IsCarrierDetected == true;
 
     private bool IsDataSetReady => Transport?.IsDataSetReady == true;
-
-    private void TryAssertDeferredNmi()
-    {
-        if (!_irqPending || InterruptMode != C64SwiftLinkInterruptMode.NMI)
-            return;
-
-        if (CpuInterrupts?.IsNMISourceActive(IrqSourceName) == true)
-            return;
-
-        if (CanDeliverNmi?.Invoke() == false)
-        {
-            // SwiftLink-specific compatibility behavior: keep the pending receive state but
-            // avoid asserting the NMI source until the mapped NMI vector is usable again.
-            RecordDiagnosticEvent("NMI deferred");
-            return;
-        }
-
-        CpuInterrupts?.SetNMISourceActive(IrqSourceName);
-        RecordDiagnosticEvent("NMI asserted");
-    }
 
     private void TryLatchReceivedByte()
     {
@@ -457,7 +479,9 @@ public sealed class SwiftLinkDevice : IC64Cartridge
 
     public void Dispose()
     {
-        ClearAllInterruptSources();
+        _irqPending = false;
+        _nmiDeferred = false;
+        RefreshInterruptLines();
         Transport?.Dispose();
         Transport = null;
     }

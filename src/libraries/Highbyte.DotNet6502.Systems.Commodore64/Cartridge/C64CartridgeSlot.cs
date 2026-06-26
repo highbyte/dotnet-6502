@@ -11,8 +11,11 @@ public sealed class C64CartridgeSlot : IDisposable
     public C64CartridgeLines Lines => AttachedCartridge?.Lines ?? C64CartridgeLines.Released;
     public bool NmiLineActive
         => AttachedCartridge is IC64CartridgeNmiSource { NmiLineActive: true };
+    public bool IrqLineActive
+        => AttachedCartridge is IC64CartridgeIrqSource { IrqLineActive: true };
     public event Action? LinesChanged;
     public event Action? NmiLineChanged;
+    public event Action? IrqLineChanged;
 
     public void Attach(IC64Cartridge cartridge)
     {
@@ -25,9 +28,12 @@ public sealed class C64CartridgeSlot : IDisposable
         AttachedCartridge = cartridge;
         cartridge.LinesChanged += OnCartridgeLinesChanged;
         SubscribeToNmiSource(cartridge);
+        SubscribeToIrqSource(cartridge);
         LinesChanged?.Invoke();
         if (cartridge is IC64CartridgeNmiSource)
             NmiLineChanged?.Invoke();
+        if (cartridge is IC64CartridgeIrqSource)
+            IrqLineChanged?.Invoke();
     }
 
     public void Replace(IC64Cartridge cartridge)
@@ -40,14 +46,18 @@ public sealed class C64CartridgeSlot : IDisposable
         {
             previous.LinesChanged -= OnCartridgeLinesChanged;
             UnsubscribeFromNmiSource(previous);
+            UnsubscribeFromIrqSource(previous);
         }
 
         AttachedCartridge = cartridge;
         cartridge.LinesChanged += OnCartridgeLinesChanged;
         SubscribeToNmiSource(cartridge);
+        SubscribeToIrqSource(cartridge);
         LinesChanged?.Invoke();
         if (previous is IC64CartridgeNmiSource || cartridge is IC64CartridgeNmiSource)
             NmiLineChanged?.Invoke();
+        if (previous is IC64CartridgeIrqSource || cartridge is IC64CartridgeIrqSource)
+            IrqLineChanged?.Invoke();
 
         if (previous != null)
         {
@@ -66,8 +76,11 @@ public sealed class C64CartridgeSlot : IDisposable
         LinesChanged?.Invoke();
         if (cartridge is IC64CartridgeNmiSource)
             NmiLineChanged?.Invoke();
+        if (cartridge is IC64CartridgeIrqSource)
+            IrqLineChanged?.Invoke();
         cartridge.LinesChanged -= OnCartridgeLinesChanged;
         UnsubscribeFromNmiSource(cartridge);
+        UnsubscribeFromIrqSource(cartridge);
         cartridge.Reset();
         cartridge.Dispose();
     }
@@ -188,6 +201,9 @@ public sealed class C64CartridgeSlot : IDisposable
     private void OnCartridgeNmiLineChanged()
         => NmiLineChanged?.Invoke();
 
+    private void OnCartridgeIrqLineChanged()
+        => IrqLineChanged?.Invoke();
+
     private void SubscribeToNmiSource(IC64Cartridge cartridge)
     {
         if (cartridge is IC64CartridgeNmiSource nmiSource)
@@ -198,6 +214,18 @@ public sealed class C64CartridgeSlot : IDisposable
     {
         if (cartridge is IC64CartridgeNmiSource nmiSource)
             nmiSource.NmiLineChanged -= OnCartridgeNmiLineChanged;
+    }
+
+    private void SubscribeToIrqSource(IC64Cartridge cartridge)
+    {
+        if (cartridge is IC64CartridgeIrqSource irqSource)
+            irqSource.IrqLineChanged += OnCartridgeIrqLineChanged;
+    }
+
+    private void UnsubscribeFromIrqSource(IC64Cartridge cartridge)
+    {
+        if (cartridge is IC64CartridgeIrqSource irqSource)
+            irqSource.IrqLineChanged -= OnCartridgeIrqLineChanged;
     }
 
     private byte ReadIO(ushort address, Func<ushort, byte> fallbackReader)

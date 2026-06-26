@@ -91,11 +91,7 @@ public class SwiftLinkDeviceTests
     [Fact]
     public async Task Receive_Irq_Is_Raised_When_Rx_Full_Transitions_And_Cleared_On_Status_Read()
     {
-        var interrupts = new CPUInterrupts();
-        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
-        {
-            CpuInterrupts = interrupts
-        };
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance);
         var transport = new LoopbackTransport();
         await transport.ConnectAsync();
         device.Transport = transport;
@@ -106,11 +102,11 @@ public class SwiftLinkDeviceTests
         await transport.SendAsync(0x41);
         device.Tick();
 
-        Assert.True(interrupts.IRQLineEnabled);
+        Assert.True(device.IrqLineActive);
         var status = mem.Read(0xDE01);
         Assert.True(IsRxFull(status));
         Assert.True(IsIrqPending(status));
-        Assert.False(interrupts.IRQLineEnabled);
+        Assert.False(device.IrqLineActive);
 
         Assert.Equal(0x41, mem.Read(0xDE00));
         Assert.False(IsIrqPending(mem.Read(0xDE01)));
@@ -119,10 +115,8 @@ public class SwiftLinkDeviceTests
     [Fact]
     public async Task Receive_Nmi_Is_Raised_When_Configured_And_Cleared_On_Status_Read()
     {
-        var interrupts = new CPUInterrupts();
         var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
         {
-            CpuInterrupts = interrupts,
             InterruptMode = C64SwiftLinkInterruptMode.NMI
         };
         var transport = new LoopbackTransport();
@@ -135,38 +129,71 @@ public class SwiftLinkDeviceTests
         await transport.SendAsync(0x41);
         device.Tick();
 
-        Assert.True(interrupts.NMILineEnabled);
+        Assert.True(device.NmiLineActive);
         var status = mem.Read(0xDE01);
         Assert.True(IsRxFull(status));
         Assert.True(IsIrqPending(status));
-        Assert.False(interrupts.NMILineEnabled);
+        Assert.False(device.NmiLineActive);
+    }
+
+    [Fact]
+    public async Task Nmi_Line_Is_Deferred_While_Vector_Not_Deliverable_Then_Asserted()
+    {
+        // SwiftLink compatibility policy: in NMI mode the device must not drive the NMI line
+        // while the mapped NMI vector is unusable; it re-evaluates each Tick and asserts once
+        // the vector becomes deliverable. With the line abstraction this is expressed purely
+        // as the device's own line state -- the C64 slot wiring stays generic.
+        var canDeliver = false;
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
+        {
+            InterruptMode = C64SwiftLinkInterruptMode.NMI,
+            CanDeliverNmi = () => canDeliver,
+        };
+        var transport = new LoopbackTransport();
+        await transport.ConnectAsync();
+        device.Transport = transport;
+
+        var mem = MapDevice(device);
+        mem.Write(0xDE02, ReceiveIrqEnabledCommand);
+
+        await transport.SendAsync(0x41);
+        device.Tick();
+
+        // The receive interrupt is pending, but the NMI line is held released while the vector
+        // is undeliverable. (Avoid reading the status register here -- that would clear the
+        // pending interrupt per 6551 semantics.)
+        Assert.False(device.NmiLineActive);
+
+        canDeliver = true;
+        device.Tick();
+
+        // Re-evaluated on Tick: now deliverable, so the still-pending interrupt asserts NMI.
+        Assert.True(device.NmiLineActive);
     }
 
     [Fact]
     public void Transmit_Irq_Is_Raised_When_Send_Completes_And_Cleared_On_Status_Read()
     {
-        var interrupts = new CPUInterrupts();
         var transport = new PendingSendTransport();
         var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
         {
-            Transport = transport,
-            CpuInterrupts = interrupts
+            Transport = transport
         };
 
         var mem = MapDevice(device);
         mem.Write(0xDE02, TransmitIrqEnabledCommand);
 
         mem.Write(0xDE00, 0x42);
-        Assert.False(interrupts.IRQLineEnabled);
+        Assert.False(device.IrqLineActive);
 
         transport.CompletePendingSend();
         device.Tick();
 
-        Assert.True(interrupts.IRQLineEnabled);
+        Assert.True(device.IrqLineActive);
         var status = mem.Read(0xDE01);
         Assert.True(IsTxEmpty(status));
         Assert.True(IsIrqPending(status));
-        Assert.False(interrupts.IRQLineEnabled);
+        Assert.False(device.IrqLineActive);
     }
 
     [Fact]
@@ -252,11 +279,7 @@ public class SwiftLinkDeviceTests
     [Fact]
     public async Task Receive_Irq_Is_Not_Raised_When_Disabled()
     {
-        var interrupts = new CPUInterrupts();
-        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance)
-        {
-            CpuInterrupts = interrupts
-        };
+        var device = new SwiftLinkDevice(C64CartridgeIOAddress.DE00, NullLogger<SwiftLinkDevice>.Instance);
         var transport = new LoopbackTransport();
         await transport.ConnectAsync();
         device.Transport = transport;
@@ -266,7 +289,7 @@ public class SwiftLinkDeviceTests
         await transport.SendAsync(0x41);
         device.Tick();
 
-        Assert.False(interrupts.IRQLineEnabled);
+        Assert.False(device.IrqLineActive);
         Assert.True(IsRxFull(mem.Read(0xDE01)));
         Assert.False(IsIrqPending(mem.Read(0xDE01)));
     }
@@ -307,7 +330,6 @@ public class SwiftLinkDeviceTests
 
         Assert.NotNull(swiftLink);
         Assert.Equal((ushort)0xDF00, swiftLink!.BaseAddress);
-        Assert.Same(c64.CPU.CPUInterrupts, swiftLink.CpuInterrupts);
         Assert.Equal(C64SwiftLinkInterruptMode.IRQ, swiftLink.InterruptMode);
         Assert.Equal(C64SwiftLinkReceiveMode.Compatible, swiftLink.ReceiveMode);
         Assert.Equal(C64CartridgeLines.Released, swiftLink.Lines);
@@ -367,10 +389,7 @@ public class SwiftLinkDeviceTests
         c64.Mem.Write(0xDE02, 0x5A);
         var swiftLink = new SwiftLinkDevice(
             C64CartridgeIOAddress.DE00,
-            NullLogger<SwiftLinkDevice>.Instance)
-        {
-            CpuInterrupts = c64.CPU.CPUInterrupts,
-        };
+            NullLogger<SwiftLinkDevice>.Instance);
 
         c64.AttachCartridge(swiftLink);
         c64.Mem.Write(0xDE02, 0x77);
@@ -396,10 +415,7 @@ public class SwiftLinkDeviceTests
         }, new NullLoggerFactory());
         var swiftLink = new SwiftLinkDevice(
             C64CartridgeIOAddress.DE00,
-            NullLogger<SwiftLinkDevice>.Instance)
-        {
-            CpuInterrupts = c64.CPU.CPUInterrupts,
-        };
+            NullLogger<SwiftLinkDevice>.Instance);
         c64.AttachCartridge(swiftLink);
         var transport = new LoopbackTransport();
         await transport.ConnectAsync();
