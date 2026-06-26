@@ -6,6 +6,8 @@ import sys
 import time
 from typing import Optional
 
+from _safe_path import safe_path
+
 
 def wait_for_trigger(trigger_file: Optional[str]) -> None:
     if not trigger_file:
@@ -28,7 +30,7 @@ def main() -> int:
     args = parser.parse_args()
 
     payload = bytes((args.start_byte + i) & 0xFF for i in range(args.count))
-    log_path = pathlib.Path(args.log_file) if args.log_file else None
+    log_path = safe_path(args.log_file) if args.log_file else None
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -37,7 +39,7 @@ def main() -> int:
 
         actual_port = server.getsockname()[1]
         if args.port_file:
-            pathlib.Path(args.port_file).write_text(f"{actual_port}\n", encoding="utf-8")
+            safe_path(args.port_file).write_text(f"{actual_port}\n", encoding="utf-8")
 
         print(f"listening {args.host}:{actual_port}", flush=True)
 

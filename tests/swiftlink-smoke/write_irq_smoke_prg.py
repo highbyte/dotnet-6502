@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import pathlib
 import sys
+
+from _safe_path import safe_path
 
 
 LOAD_ADDRESS = 0xC000
@@ -176,7 +177,7 @@ def main() -> int:
         print("usage: write_irq_smoke_prg.py <output.prg>", file=sys.stderr)
         return 2
 
-    output_path = pathlib.Path(sys.argv[1])
+    output_path = safe_path(sys.argv[1])
     output_path.write_bytes(build_program())
     return 0
 
