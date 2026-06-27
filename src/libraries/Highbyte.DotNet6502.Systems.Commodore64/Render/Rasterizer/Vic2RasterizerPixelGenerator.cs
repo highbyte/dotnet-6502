@@ -120,15 +120,71 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private readonly Action<Span<uint>, int, int, int> _setForegroundPixels; // source, sourceIndex, destIndex, width
     private readonly Action<int, int> _clearForegroundPixels; // destIndex, width
 
+    // When true, sprites are rendered per raster line during OnAfterInstruction (enables
+    // sprite multiplexing) instead of once at end-of-frame. See DrawSpritesForLine.
+    private readonly bool _perLineSprites;
+
+    // Sprite clipping/positioning (main screen area, without 38-col / 24-row consideration).
+    private int _spriteScreenEndX;
+    private int _spriteScreenEndY;
+    private int _spriteScreenOffsetX;
+    private int _spriteScreenOffsetY;
+
+    // Per-line sprite display state machine (mirrors the VIC-II sprite display latch).
+    //
+    // Design: the per-line pass only *detects latches* (a sprite's Y matching the raster line) and
+    // records a "band" - one displayed run of a hardware sprite - capturing its position, shape,
+    // geometry and colors at that moment. The actual pixels are drawn at end-of-frame, after the
+    // whole main screen is rendered. This is essential: the main-screen character foreground is
+    // written scroll-adjusted (ypos += GetScrollY(), which is -3..+4), so with a negative fine
+    // scroll it writes *upward* into rows below the current line. If sprites were composited inline
+    // per line, that later main-screen write would clobber them (the cause of sprites vanishing at
+    // certain vertical scroll positions). Drawing all bands last makes them immune - exactly why
+    // the old end-of-frame path never had the problem - while one band per latch still reproduces
+    // multiplexing.
+    private const int SPRITE_COUNT = 8;
+    private const int SPRITE_ROWS = Vic2Sprite.DEFAULT_HEIGTH;         // 21
+    private const int SPRITE_ROW_BYTES = Vic2Sprite.DEFAULT_WIDTH / 8; // 3
+
+    // Active-run gating: prevents a hardware sprite from re-latching until its 21-row run completes.
+    private readonly bool[] _spriteActive = new bool[SPRITE_COUNT];
+    private readonly int[] _spriteRow = new int[SPRITE_COUNT];            // logical row 0..20
+    private readonly bool[] _spriteExpandYPhase = new bool[SPRITE_COUNT]; // double-height: each row on 2 lines
+    private readonly bool[] _spriteActiveDoubleHeight = new bool[SPRITE_COUNT];
+    private readonly bool[] _spriteHadBandThisFrame = new bool[SPRITE_COUNT]; // gate the end-of-frame fallback
+
+    // Recorded bands to draw at end-of-frame. Parallel arrays indexed 0.._bandCount.
+    private const int MAX_BANDS = 128; // ~ SPRITE_COUNT * (visible lines / SPRITE_ROWS), plus fallbacks
+    private readonly byte[] _bandShape = new byte[MAX_BANDS * SPRITE_ROWS * SPRITE_ROW_BYTES];
+    private readonly uint[] _bandNonEmpty = new uint[MAX_BANDS];
+    private readonly int[] _bandRowStart = new int[MAX_BANDS]; // pixel-array row of the band's row 0
+    private readonly int[] _bandX = new int[MAX_BANDS];        // already in pixel-array coords
+    private readonly bool[] _bandDoubleWidth = new bool[MAX_BANDS];
+    private readonly bool[] _bandDoubleHeight = new bool[MAX_BANDS];
+    private readonly bool[] _bandMultiColor = new bool[MAX_BANDS];
+    private readonly bool[] _bandPriority = new bool[MAX_BANDS];
+    private readonly uint[] _bandColorFg = new uint[MAX_BANDS];
+    private readonly uint[] _bandColorMc0 = new uint[MAX_BANDS];
+    private readonly uint[] _bandColorMc1 = new uint[MAX_BANDS];
+    private int _bandCount;
+
+    // Start-of-line snapshot of the trigger inputs (enable + Y), captured at the same phase as
+    // the border/color snapshot. Reading these live at draw-time instead samples the CPU "ahead"
+    // of the line being drawn (the draw runs once the next line has started).
+    private readonly bool[] _slEnable = new bool[SPRITE_COUNT];
+    private readonly int[] _slY = new int[SPRITE_COUNT];
+
     public Vic2RasterizerUintPixelGenerator(
         C64 c64,
         Action<uint, int, bool> setPixel,
         Action<Span<uint>, int, int, int> setBackgroundPixels,
         Action<int, int> clearBackgroundPixels,
         Action<Span<uint>, int, int, int> setForegroundPixels,
-        Action<int, int> clearForegroundPixels)
+        Action<int, int> clearForegroundPixels,
+        bool perLineSprites = false)
     {
         _c64 = c64;
+        _perLineSprites = perLineSprites;
 
         // Use supplied pixel arrays or init new ones
         var width = c64.Vic2.Vic2Screen.VisibleWidth;
@@ -159,8 +215,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
             _c64ToRenderColorMap[c64Color] = (uint)GetSystemColor(c64Color, _c64.ColorMapName).ToArgb();
         }
 
-        // Configure callback method for video generation after each instruction
-        _c64.RememberVic2RegistersPerRasterLine = true; // Set to false if/when sprites are drawn directly to the screen bitmap in the "after instruction" callback here.
+        // Configure callback method for video generation after each instruction.
+        // Per-line sprites read live VIC-II registers as each line is drawn and don't need the
+        // per-line snapshot, so it can be turned off (saves the StoreRasterLineIORegisters copy).
+        // The end-of-frame sprite path still depends on the snapshot for per-line sprite colors.
+        _c64.RememberVic2RegistersPerRasterLine = !_perLineSprites;
 
         // Init class variables with C64 screen values that should'nt change
 
@@ -180,9 +239,15 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // Entire screen area with only visible parts (borders, screen). Without consideration to 38 column mode or 24 row mode.
         var visibleMainScreenAreaNormalized = _c64.Vic2.ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
-        // Not considering 24 row mode or 38 col mode or fine scroll 
+        // Not considering 24 row mode or 38 col mode or fine scroll
         _screenStartX = visibleMainScreenAreaNormalized.Screen.Start.X;
         _screenStartY = visibleMainScreenAreaNormalized.Screen.Start.Y;
+
+        // Sprite clip bounds (closed borders) and the VIC-II sprite coordinate offsets.
+        _spriteScreenEndX = visibleMainScreenAreaNormalized.Screen.End.X;
+        _spriteScreenEndY = visibleMainScreenAreaNormalized.Screen.End.Y;
+        _spriteScreenOffsetX = _c64.Vic2.SpriteManager.ScreenOffsetX;
+        _spriteScreenOffsetY = _c64.Vic2.SpriteManager.ScreenOffsetY;
 
         _topBorderStartX = visibleMainScreenAreaNormalized.TopBorder.Start.X;
         _topBorderStartY = visibleMainScreenAreaNormalized.TopBorder.Start.Y;
@@ -255,12 +320,29 @@ public sealed class Vic2RasterizerUintPixelGenerator
             {
                 // Draw border once per line, after normal screen (to cover up any scrolling?). We take data from previous line.
                 if (_lastScreenLineDataUpdate >= 0)
+                {
                     DrawBorderPixels(normalizedScreenLine: _lastScreenLineDataUpdate - _screenLayoutInclNonVisibleTopBorderStartY);
 
+                    // Now that the just-finished previous line's text/bitmap/border is laid down,
+                    // composite that line's sprites on top of it (per-line / multiplexing path).
+                    if (_perLineSprites)
+                        DrawSpritesForLine(_lastScreenLineDataUpdate);
+                }
+
                 if (screenLine - _screenLayoutInclNonVisibleTopBorderStartY == 0)
+                {
                     // First line of screen. Clear foreground bitmap, otherwise it will contain garbage from previous frame if fine scrolling is used.
                     //Array.Clear(PixelArray_Foreground, 0, PixelArray_Foreground.Length);
                     _clearForegroundPixels(0, _width * _height);
+
+                    // New frame: reset the sprite display latch so no sprite carries over.
+                    if (_perLineSprites)
+                    {
+                        Array.Clear(_spriteActive, 0, _spriteActive.Length);
+                        Array.Clear(_spriteHadBandThisFrame, 0, _spriteHadBandThisFrame.Length);
+                        _bandCount = 0;
+                    }
+                }
 
                 _vic2VideoMatrixBaseAddress = _c64.Vic2.VideoMatrixBaseAddress;
                 _vic2BitmapBaseAddress = _c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
@@ -295,6 +377,19 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 if (_isTextMode && _characterMode == CharMode.Standard)
                     PrefillStandardTextBackgroundLine(screenLine);
 
+                // Snapshot the sprite trigger inputs (enable + Y) for this line, captured at the
+                // same phase as the border/color snapshot above. DrawSpritesForLine consumes these
+                // when this line is finalized (on entry to the next line).
+                if (_perLineSprites)
+                {
+                    var sprites = _c64.Vic2.SpriteManager.Sprites;
+                    for (int i = 0; i < SPRITE_COUNT; i++)
+                    {
+                        _slEnable[i] = sprites[i].Visible;
+                        _slY[i] = sprites[i].Y;
+                    }
+                }
+
                 _lastScreenLineDataUpdate = screenLine;
             }
 
@@ -312,7 +407,229 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     public void OnEndFrame()
     {
-        DrawSpritesToBitmapBackedByPixelArray();
+        // Per-line mode draws sprites during OnAfterInstruction; skip the end-of-frame pass.
+        if (!_perLineSprites)
+        {
+            DrawSpritesToBitmapBackedByPixelArray();
+            return;
+        }
+
+        // Fallback: any enabled sprite that never latched a band this frame (e.g. its Y was written
+        // too late from the main loop, past its display line) is recorded as a band at its settled
+        // end-of-frame position - matching the old end-of-frame path so the per-line path is never
+        // worse than it. Sprites that did latch keep their per-line (multiplexing) bands.
+        var sprites = _c64.Vic2.SpriteManager.Sprites;
+        // Iterate high->low so sprite 0 is recorded last (highest band index) and so drawn on top.
+        for (int i = SPRITE_COUNT - 1; i >= 0; i--)
+        {
+            if (_spriteHadBandThisFrame[i] || !sprites[i].Visible)
+                continue;
+            var settledRow = sprites[i].Y + _screenStartY - _spriteScreenOffsetY;
+            RecordBand(sprites[i], settledRow);
+        }
+
+        // Now that the whole main screen is rendered, composite all recorded sprite bands on top.
+        // Bands are recorded high sprite number first per line, so drawing in ascending index order
+        // makes lower sprite numbers (recorded later) land on top within a layer.
+        for (int b = 0; b < _bandCount; b++)
+            DrawBand(b);
+    }
+
+    /// <summary>
+    /// Per-raster-line sprite *latch detection*. Called when a raster line is finalized (on entry to
+    /// the next line). Implements a VIC-II-like display latch: when the raster reaches a sprite's Y,
+    /// the sprite's shape/geometry/colors are recorded as a band (one displayed run). The band is
+    /// drawn later, at end-of-frame, after the whole main screen - so fine-scroll main-screen writes
+    /// can't clobber it. One band per latch reproduces multiplexing.
+    /// </summary>
+    private void DrawSpritesForLine(int screenLine)
+    {
+        var pixelArrayY = screenLine - _screenLayoutInclNonVisibleTopBorderStartY;
+
+        var sprites = _c64.Vic2.SpriteManager.Sprites;
+        // Highest sprite number first so lower sprite numbers (recorded later) draw on top.
+        for (int spriteIndex = SPRITE_COUNT - 1; spriteIndex >= 0; spriteIndex--)
+        {
+            // Trigger from the start-of-line snapshot (NOT live registers - see field comment).
+            if (!_spriteActive[spriteIndex] && _slEnable[spriteIndex])
+            {
+                var spriteScreenPosY = _slY[spriteIndex] + _screenStartY - _spriteScreenOffsetY;
+                if (pixelArrayY == spriteScreenPosY)
+                {
+                    _spriteActive[spriteIndex] = true;
+                    _spriteRow[spriteIndex] = 0;
+                    _spriteExpandYPhase[spriteIndex] = false;
+                    _spriteActiveDoubleHeight[spriteIndex] = sprites[spriteIndex].DoubleHeight;
+                    _spriteHadBandThisFrame[spriteIndex] = true;
+                    RecordBand(sprites[spriteIndex], pixelArrayY);
+                }
+            }
+
+            if (!_spriteActive[spriteIndex])
+                continue;
+
+            // Advance the active-run gate (double-height keeps each row for 2 lines). This only
+            // gates re-latching; the pixels are drawn from the recorded band at end-of-frame.
+            if (_spriteActiveDoubleHeight[spriteIndex] && !_spriteExpandYPhase[spriteIndex])
+            {
+                _spriteExpandYPhase[spriteIndex] = true;
+            }
+            else
+            {
+                _spriteExpandYPhase[spriteIndex] = false;
+                _spriteRow[spriteIndex]++;
+                if (_spriteRow[spriteIndex] >= SPRITE_ROWS)
+                    _spriteActive[spriteIndex] = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Records one sprite band (a displayed run) to be drawn at end-of-frame: snapshots shape,
+    /// geometry, colors and the pixel-array row of the band's first row.
+    /// </summary>
+    private void RecordBand(Vic2Sprite sprite, int rowStart)
+    {
+        if (_bandCount >= MAX_BANDS)
+            return;
+
+        var b = _bandCount;
+        _bandRowStart[b] = rowStart;
+        _bandX[b] = sprite.X + _screenStartX - _spriteScreenOffsetX;
+        _bandDoubleWidth[b] = sprite.DoubleWidth;
+        _bandDoubleHeight[b] = sprite.DoubleHeight;
+        _bandMultiColor[b] = sprite.Multicolor;
+        _bandPriority[b] = sprite.PriorityOverForeground;
+        _bandColorFg[b] = _c64ToRenderColorMap[sprite.Color];
+        _bandColorMc0[b] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
+        _bandColorMc1[b] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
+
+        // Snapshot shape so a later pointer change (next band) can't corrupt this one.
+        var spriteData = sprite.Data;
+        _bandNonEmpty[b] = spriteData.NonEmptyRowMask;
+        var shapeBase = b * SPRITE_ROWS * SPRITE_ROW_BYTES;
+        for (int row = 0; row < SPRITE_ROWS; row++)
+        {
+            var rowBytes = spriteData.Rows[row].Bytes;
+            var rowOffset = shapeBase + row * SPRITE_ROW_BYTES;
+            for (int by = 0; by < SPRITE_ROW_BYTES; by++)
+                _bandShape[rowOffset + by] = rowBytes[by];
+        }
+        _bandCount++;
+    }
+
+    /// <summary>Draws all 21 rows of a recorded band into the layers (called at end-of-frame).</summary>
+    private void DrawBand(int b)
+    {
+        var nonEmpty = _bandNonEmpty[b];
+        if (nonEmpty == 0)
+            return;
+
+        var shapeBase = b * SPRITE_ROWS * SPRITE_ROW_BYTES;
+        var lineAdvance = _bandDoubleHeight[b] ? 2 : 1;
+        var pixelArrayY = _bandRowStart[b];
+        for (int row = 0; row < SPRITE_ROWS; row++)
+        {
+            if ((nonEmpty & (1u << row)) != 0)
+            {
+                DrawSpriteRowPixels(shapeBase + row * SPRITE_ROW_BYTES, b, pixelArrayY);
+                if (lineAdvance == 2)
+                    DrawSpriteRowPixels(shapeBase + row * SPRITE_ROW_BYTES, b, pixelArrayY + 1);
+            }
+            pixelArrayY += lineAdvance;
+        }
+    }
+
+    /// <summary>Writes one sprite row's pixels from band <paramref name="b"/> at row offset <paramref name="rowOffset"/>.</summary>
+    private void DrawSpriteRowPixels(int rowOffset, int b, int pixelArrayY)
+    {
+        var spriteScreenPosX = _bandX[b];
+        var isMultiColor = _bandMultiColor[b];
+        var priorityOverForeground = _bandPriority[b];
+        var isDoubleWidth = _bandDoubleWidth[b];
+        var singleColorPixelAdvance = isDoubleWidth ? 2 : 1;
+        var multiColorPixelAdvance = isDoubleWidth ? 4 : 2;
+        var spriteLinePartAdvance = isDoubleWidth ? 16 : 8;
+
+        var spriteForegroundPixelColor = _bandColorFg[b];
+        var spriteMultiColor0PixelColor = _bandColorMc0[b];
+        var spriteMultiColor1PixelColor = _bandColorMc1[b];
+
+        var x = 0;
+        for (int byteIndex = 0; byteIndex < SPRITE_ROW_BYTES; byteIndex++)
+        {
+            var spriteLinePart = _bandShape[rowOffset + byteIndex];
+            if (spriteLinePart == 0) { x += spriteLinePartAdvance; continue; }
+
+            if (isMultiColor)
+            {
+                var maskMultiColor0Mask = 0b01000000;
+                var maskSpriteColorMask = 0b10000000;
+                var maskMultiColor1Mask = 0b11000000;
+
+                for (var pixel = 0; pixel < 8; pixel += 2)
+                {
+                    uint spriteColor;
+                    if ((spriteLinePart & maskMultiColor1Mask) == maskMultiColor1Mask)
+                        spriteColor = spriteMultiColor1PixelColor;
+                    else if ((spriteLinePart & maskSpriteColorMask) == maskSpriteColorMask)
+                        spriteColor = spriteForegroundPixelColor;
+                    else if ((spriteLinePart & maskMultiColor0Mask) == maskMultiColor0Mask)
+                        spriteColor = spriteMultiColor0PixelColor;
+                    else
+                        spriteColor = 0;
+
+                    if (spriteColor > 0)
+                    {
+                        WriteSpritePixel(spriteScreenPosX + x, pixelArrayY, spriteColor, priorityOverForeground);
+                        WriteSpritePixel(spriteScreenPosX + x + 1, pixelArrayY, spriteColor, priorityOverForeground);
+                        if (isDoubleWidth)
+                        {
+                            WriteSpritePixel(spriteScreenPosX + x + 2, pixelArrayY, spriteColor, priorityOverForeground);
+                            WriteSpritePixel(spriteScreenPosX + x + 3, pixelArrayY, spriteColor, priorityOverForeground);
+                        }
+                    }
+
+                    maskMultiColor0Mask >>= 2;
+                    maskMultiColor1Mask >>= 2;
+                    maskSpriteColorMask >>= 2;
+                    x += multiColorPixelAdvance;
+                }
+            }
+            else
+            {
+                var mask = 0b10000000;
+                for (var pixel = 0; pixel < 8; pixel++)
+                {
+                    if ((spriteLinePart & mask) == mask)
+                    {
+                        WriteSpritePixel(spriteScreenPosX + x, pixelArrayY, spriteForegroundPixelColor, priorityOverForeground);
+                        if (isDoubleWidth)
+                            WriteSpritePixel(spriteScreenPosX + x + 1, pixelArrayY, spriteForegroundPixelColor, priorityOverForeground);
+                    }
+                    mask >>= 1;
+                    x += singleColorPixelAdvance;
+                }
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteSpritePixel(int screenPosX, int screenPosY, uint color, bool priorityOverForeground)
+    {
+        if (screenPosX < 0 || screenPosX >= _width || screenPosY < 0 || screenPosY > _height)
+            return;
+        if (screenPosX < _screenStartX || screenPosX > _spriteScreenEndX)   // side borders closed (TODO: open)
+            return;
+        if (screenPosY < _screenStartY || screenPosY > _spriteScreenEndY)   // top/bottom borders closed (TODO: open)
+            return;
+
+        if (FlipY)
+            screenPosY = _height - screenPosY - 1;
+
+        var bitmapIndex = screenPosY * _width + screenPosX;
+        // priorityOverForeground => foreground layer (on top of text/bitmap), else background layer.
+        _setPixel(color, bitmapIndex, priorityOverForeground);
     }
 
     private void InitBitmaps(C64 c64)

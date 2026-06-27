@@ -397,7 +397,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     private static void ConfigureRenderer(C64 c64, C64Config config)
     {
-        c64.RenderProviders.Add(new Vic2Rasterizer(c64));
+        c64.RenderProviders.Add(new Vic2Rasterizer(c64, perLineSprites: config.Vic2RasterizerPerLineSprites));
         c64.RenderProviders.Add(new C64CustomRenderProvider(c64));
         c64.RenderProviders.Add(new C64GpuProvider(c64, useFineScrollPerRasterLine: true));
         c64.RenderProviders.Add(new C64VideoCommandStream(c64));

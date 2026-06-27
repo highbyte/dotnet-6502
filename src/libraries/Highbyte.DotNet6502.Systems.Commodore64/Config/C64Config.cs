@@ -28,6 +28,13 @@ public class C64Config
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; set; }
     public C64SwiftLinkConfig SwiftLink { get; set; }
     public Type? RenderProviderType { get; set; }
+
+    /// <summary>
+    /// When true, the Vic2Rasterizer render provider draws sprites per raster line (enabling sprite
+    /// multiplexing) instead of once at end-of-frame. Only affects the Vic2Rasterizer provider.
+    /// </summary>
+    public bool Vic2RasterizerPerLineSprites { get; set; }
+
     public Type? AudioProviderType { get; set; }
     public SidEmulationMode SidEmulationMode { get; set; } = SidEmulationMode.Auto;
     public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
@@ -44,6 +51,8 @@ public class C64Config
 
         ColorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
+        Vic2RasterizerPerLineSprites = true;
+        
         AudioEnabled = false;
         KeyboardJoystickEnabled = false;
         KeyboardJoystick = 2;
