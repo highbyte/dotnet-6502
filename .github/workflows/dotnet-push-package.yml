@@ -3,18 +3,18 @@ name: Build & push .NET library
 on:
   #Trigger when tag is created
   push:
-      tags:
-          - 'v[0-9]*.[0-9]*.[0-9]*'
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
 env:
-   PROJECT_FILE: "src/libraries/Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
+  PROJECT_FILE: "src/libraries/Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
   #  PROJECT_FILE2: "src/libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj"
   #  PROJECT_FILE3: "src/libraries/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj"
   #  PROJECT_FILE4: "src/libraries/Highbyte.DotNet6502.Impl.SadConsole/Highbyte.DotNet6502.Impl.SadConsole.csproj"
   #  PROJECT_FILE5: "src/libraries/Highbyte.DotNet6502.Impl.AspNet/Highbyte.DotNet6502.Impl.AspNet.csproj"
   #  PROJECT_FILE6: "src/libraries/Highbyte.DotNet6502.Impl.SilkNet/Highbyte.DotNet6502.Impl.SilkNet.csproj"
   #  PROJECT_FILE7: "src/libraries/Highbyte.DotNet6502.Impl.Skia/Highbyte.DotNet6502.Impl.Skia.csproj"
-   CONFIGURATION: "Release"
-   PACKAGE_REPO: "https://nuget.pkg.github.com/highbyte/index.json"
+  CONFIGURATION: "Release"
+  PACKAGE_REPO: "https://nuget.pkg.github.com/highbyte/index.json"
 
 jobs:
   build:
@@ -22,26 +22,66 @@ jobs:
     steps:
       # Checkout the code
       - uses: actions/checkout@v5
-      
-      # Get version from tag
-      - name: Get version from tag with 'v' prefix
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+        with:
+          fetch-depth: 0
+
+      # Only publish the core CPU emulator package when its package inputs changed since
+      # the previous release tag. This avoids pushing a new NuGet package for app-only
+      # releases while still publishing after changes to the library, central package
+      # versions, or this workflow's package publishing behavior.
+      - name: Check core library changes
+        id: core_changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_tag="${GITHUB_REF_NAME}"
+          previous_tag="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -Fvx "$current_tag" | head -n 1 || true)"
+
+          if [ -z "$previous_tag" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "No previous package tag found. Publishing core library package."
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$previous_tag" HEAD -- \
+            src/libraries/Highbyte.DotNet6502/ \
+            Directory.Packages.props \
+            .github/workflows/dotnet-push-package.yml)"
+
+          if [ -n "$changed_files" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "Core library package inputs changed since $previous_tag:"
+            printf '%s\n' "$changed_files" | sed 's/^/ - /'
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "Core library package inputs unchanged since $previous_tag. Skipping package publish."
+          fi
 
       # Install .NET Core SDK
       - name: Setup .NET
+        if: steps.core_changes.outputs.should_publish == 'true'
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
+      - name: Skip NuGet package publish
+        if: steps.core_changes.outputs.should_publish == 'false'
+        run: echo "Core library package inputs are unchanged since the previous release tag. No new NuGet package will be built or published."
+
       # Build, pack and push NuGet package
-      - name: Build dll
-        run: dotnet build ${{ env.PROJECT_FILE }} -c ${{ env.CONFIGURATION }} /Property:Version="$VERSION"
-      - name: Pack NuGet package
-        run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion="$VERSION" -o out
-      - name: Push NuGet package to GitHub Packages
-        run: dotnet nuget push "./out/*.nupkg" --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
-      - name: Push NuGet package to NuGet.org
-        run: dotnet nuget push "./out/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+      - name: Build, pack and push NuGet package
+        if: steps.core_changes.outputs.should_publish == 'true'
+        env:
+          GITHUB_PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          dotnet build "${PROJECT_FILE}" -c "${CONFIGURATION}" /Property:Version="$VERSION"
+          dotnet pack "${PROJECT_FILE}" --no-build -c "${CONFIGURATION}" -p:PackageVersion="$VERSION" -o out
+          dotnet nuget push "./out/*.nupkg" --source "${PACKAGE_REPO}" --api-key "${GITHUB_PACKAGE_TOKEN}" --skip-duplicate
+          dotnet nuget push "./out/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "${NUGET_API_KEY}" --skip-duplicate
         
       # - name: Build dll 2
       #   run: dotnet build ${{ env.PROJECT_FILE2 }} -c ${{ env.CONFIGURATION }} /Property:Version="${{ env.VERSION }}"
