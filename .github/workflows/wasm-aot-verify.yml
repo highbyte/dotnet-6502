@@ -57,7 +57,7 @@ jobs:
       - name: Publish ${{ matrix.app.name }} (Release, AOT)
         env:
           VERSION: 0.0.0-pr${{ github.event.pull_request.number || github.run_number }}
-        # Same flags as .github/workflows/dotnet-*-publish-to-gh-pages.yml so we
+        # Same flags as .github/workflows/pages-publish.yml so we
         # exercise the real release publish path. GHPagesBase=/ because we serve
         # locally from the wwwroot at the server root.
         run: |
