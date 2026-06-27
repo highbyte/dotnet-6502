@@ -1,0 +1,202 @@
+name: Publish site to GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: "Which GitHub Pages paths to publish"
+        required: false
+        default: production
+        type: choice
+        options:
+          - production
+          - test
+          - all
+
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/**'
+      - 'includes/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.in'
+      - 'requirements-docs.txt'
+      - '.pip-tools.toml'
+      - '.github/workflows/pages-publish.yml'
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+env:
+  CONFIGURATION: "Release"
+  PAGES_SITE_DIR: "site"
+  BUILD_OUTPUT_WORKING_DIR: "build"
+  PRODUCTION_SOURCE_DIR: "production-src"
+  TEST_SOURCE_DIR: "test-src"
+  BLAZOR_PROJECT_FILE: "src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
+  AVALONIA_PROJECT_FILE: "src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Check out production source
+        uses: actions/checkout@v5
+        with:
+          # For test-only deployments, keep production Pages paths sourced from master.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'test' && 'master' || github.ref }}
+          path: ${{ env.PRODUCTION_SOURCE_DIR }}
+
+      - name: Check out test source
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.publish_target == 'test' || inputs.publish_target == 'all') }}
+        uses: actions/checkout@v5
+        with:
+          path: ${{ env.TEST_SOURCE_DIR }}
+
+      - name: Set publish versions
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "$REF" == refs/tags/* ]]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            echo "BLAZOR_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
+            echo "AVALONIA_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
+          else
+            echo "BLAZOR_VERSION=0.1.${{ github.run_number }}-test" >> "$GITHUB_ENV"
+            echo "AVALONIA_VERSION=0.25.${{ github.run_number }}-alpha" >> "$GITHUB_ENV"
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: ${{ env.PRODUCTION_SOURCE_DIR }}/requirements-docs.txt
+
+      - name: Install MkDocs and dependencies
+        working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
+        run: "pip install --require-hashes --only-binary :all: -r requirements-docs.txt"
+
+      - name: Build documentation site
+        working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
+        run: mkdocs build --strict --site-dir ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/docs
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Add GitHub Pages metadata
+        run: touch ${{ env.PAGES_SITE_DIR }}/.nojekyll
+
+      - name: Publish Blazor app
+        working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
+        run: |
+          dotnet publish "${{ env.BLAZOR_PROJECT_FILE }}" \
+            -p:Version="$BLAZOR_VERSION" \
+            -c:${{ env.CONFIGURATION }} \
+            -p:GHPages=true \
+            -p:GHPagesBase="/${{ github.event.repository.name }}/app/" \
+            -p:GHPagesInjectBrotliLoader=false \
+            -o:${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app
+          mkdir -p ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app
+          cp -r ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app/wwwroot/. ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app/
+
+      - name: Publish Avalonia browser app
+        working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
+        run: |
+          dotnet publish "${{ env.AVALONIA_PROJECT_FILE }}" \
+            -p:Version="$AVALONIA_VERSION" \
+            -c:${{ env.CONFIGURATION }} \
+            -p:GHPages=true \
+            -p:GHPagesBase="/${{ github.event.repository.name }}/app2/" \
+            -p:GHPagesInjectBrotliLoader=false \
+            -o:${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot -name "*.html" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
+          mkdir -p ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2
+          cp -r ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot/. ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2/
+
+      - name: Publish Blazor test app
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.publish_target == 'test' || inputs.publish_target == 'all') }}
+        working-directory: ${{ env.TEST_SOURCE_DIR }}
+        run: |
+          dotnet publish "${{ env.BLAZOR_PROJECT_FILE }}" \
+            -p:Version="$BLAZOR_VERSION" \
+            -c:${{ env.CONFIGURATION }} \
+            -p:GHPages=true \
+            -p:GHPagesBase="/${{ github.event.repository.name }}/app-test/" \
+            -p:GHPagesInjectBrotliLoader=false \
+            -o:${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app-test
+          mkdir -p ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app-test
+          cp -r ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app-test/wwwroot/. ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app-test/
+
+      - name: Publish Avalonia browser test app
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.publish_target == 'test' || inputs.publish_target == 'all') }}
+        working-directory: ${{ env.TEST_SOURCE_DIR }}
+        run: |
+          dotnet publish "${{ env.AVALONIA_PROJECT_FILE }}" \
+            -p:Version="$AVALONIA_VERSION" \
+            -c:${{ env.CONFIGURATION }} \
+            -p:GHPages=true \
+            -p:GHPagesBase="/${{ github.event.repository.name }}/app2-test/" \
+            -p:GHPagesInjectBrotliLoader=false \
+            -o:${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot -name "*.html" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
+          mkdir -p ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2-test
+          cp -r ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot/. ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2-test/
+
+      - name: Report Pages artifact size
+        run: |
+          set -euo pipefail
+          du -sh "$PAGES_SITE_DIR"
+          echo "Files staged for Pages: $(find "$PAGES_SITE_DIR" -type f | wc -l | xargs)"
+
+          size_check_archive="$RUNNER_TEMP/pages-site-size-check.tar.gz"
+          tar -czf "$size_check_archive" -C "$PAGES_SITE_DIR" .
+          size_bytes="$(stat -c%s "$size_check_archive")"
+          size_mib="$((size_bytes / 1024 / 1024))"
+          echo "Compressed Pages artifact estimate: ${size_mib} MiB (${size_bytes} bytes)"
+
+          warn_threshold_bytes="$((1024 * 1024 * 1024))"
+          fail_threshold_bytes="$((9500 * 1024 * 1024))"
+          if (( size_bytes >= fail_threshold_bytes )); then
+            echo "::error::Compressed Pages artifact estimate is ${size_mib} MiB, which is too close to GitHub Pages' 10 GiB artifact limit."
+            exit 1
+          fi
+
+          if (( size_bytes >= warn_threshold_bytes )); then
+            echo "::warning::Compressed Pages artifact estimate is ${size_mib} MiB. GitHub recommends keeping Pages artifacts below 1 GiB."
+          fi
+
+          rm -f "$size_check_archive"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ env.PAGES_SITE_DIR }}
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
