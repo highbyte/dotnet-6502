@@ -60,6 +60,7 @@ jobs:
           # For test-only deployments, keep production Pages paths sourced from master.
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'test' && 'master' || github.ref }}
           path: ${{ env.PRODUCTION_SOURCE_DIR }}
+          fetch-depth: 0
 
       - name: Check out test source
         if: ${{ github.event_name == 'workflow_dispatch' && (inputs.publish_target == 'test' || inputs.publish_target == 'all') }}
@@ -73,12 +74,13 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "push" && "$REF" == refs/tags/* ]]; then
             TAG_VERSION="${GITHUB_REF_NAME#v}"
-            echo "BLAZOR_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
-            echo "AVALONIA_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
+            echo "PRODUCTION_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
           else
-            echo "BLAZOR_VERSION=0.1.${{ github.run_number }}-test" >> "$GITHUB_ENV"
-            echo "AVALONIA_VERSION=0.25.${{ github.run_number }}-alpha" >> "$GITHUB_ENV"
+            LATEST_PRODUCTION_TAG="$(git -C "${{ env.PRODUCTION_SOURCE_DIR }}" describe --tags --match 'v[0-9]*.[0-9]*.[0-9]*' --abbrev=0)"
+            echo "PRODUCTION_VERSION=${LATEST_PRODUCTION_TAG#v}" >> "$GITHUB_ENV"
           fi
+          echo "TEST_BLAZOR_VERSION=0.1.${{ github.run_number }}-test" >> "$GITHUB_ENV"
+          echo "TEST_AVALONIA_VERSION=0.25.${{ github.run_number }}-alpha" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -110,7 +112,7 @@ jobs:
         working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
         run: |
           dotnet publish "${{ env.BLAZOR_PROJECT_FILE }}" \
-            -p:Version="$BLAZOR_VERSION" \
+            -p:Version="$PRODUCTION_VERSION" \
             -c:${{ env.CONFIGURATION }} \
             -p:GHPages=true \
             -p:GHPagesBase="/${{ github.event.repository.name }}/app/" \
@@ -123,14 +125,14 @@ jobs:
         working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
         run: |
           dotnet publish "${{ env.AVALONIA_PROJECT_FILE }}" \
-            -p:Version="$AVALONIA_VERSION" \
+            -p:Version="$PRODUCTION_VERSION" \
             -c:${{ env.CONFIGURATION }} \
             -p:GHPages=true \
             -p:GHPagesBase="/${{ github.event.repository.name }}/app2/" \
             -p:GHPagesInjectBrotliLoader=false \
             -o:${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2
-          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot -name "*.html" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
-          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot -name "*.html" -exec sed -i "s/{{APP_VERSION}}/$PRODUCTION_VERSION/g" {} \;
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$PRODUCTION_VERSION/g" {} \;
           mkdir -p ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2
           cp -r ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2/wwwroot/. ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2/
 
@@ -139,7 +141,7 @@ jobs:
         working-directory: ${{ env.TEST_SOURCE_DIR }}
         run: |
           dotnet publish "${{ env.BLAZOR_PROJECT_FILE }}" \
-            -p:Version="$BLAZOR_VERSION" \
+            -p:Version="$TEST_BLAZOR_VERSION" \
             -c:${{ env.CONFIGURATION }} \
             -p:GHPages=true \
             -p:GHPagesBase="/${{ github.event.repository.name }}/app-test/" \
@@ -153,14 +155,14 @@ jobs:
         working-directory: ${{ env.TEST_SOURCE_DIR }}
         run: |
           dotnet publish "${{ env.AVALONIA_PROJECT_FILE }}" \
-            -p:Version="$AVALONIA_VERSION" \
+            -p:Version="$TEST_AVALONIA_VERSION" \
             -c:${{ env.CONFIGURATION }} \
             -p:GHPages=true \
             -p:GHPagesBase="/${{ github.event.repository.name }}/app2-test/" \
             -p:GHPagesInjectBrotliLoader=false \
             -o:${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test
-          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot -name "*.html" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
-          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$AVALONIA_VERSION/g" {} \;
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot -name "*.html" -exec sed -i "s/{{APP_VERSION}}/$TEST_AVALONIA_VERSION/g" {} \;
+          find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$TEST_AVALONIA_VERSION/g" {} \;
           mkdir -p ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2-test
           cp -r ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot/. ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2-test/
 
