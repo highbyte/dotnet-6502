@@ -16,11 +16,26 @@ public interface IVic2SpriteManager
     public bool SpriteToBackgroundCollisionIRQBlock { get; set; }
 
     public Vic2 Vic2 { get; }
+
+    /// <summary>
+    /// When true, sprite collision is accumulated per raster line during the frame (so multiplexed
+    /// sprites register collisions for each displayed band), instead of once at end-of-frame on each
+    /// sprite's final position. Gated by C64Config.Vic2RasterizerPerLineSprites.
+    /// </summary>
+    public bool PerLineCollisionEnabled { get; set; }
+
     public void SetAllDirty();
     public void SetAllChanged(Vic2Sprite.Vic2SpriteChangeType spriteChangeType);
 
     public void DetectChangesToSpriteData(ushort vic2Address, byte value);
     public void SetCollitionDetectionStatesAndIRQ();
+
+    /// <summary>
+    /// Accumulates sprite-to-sprite and sprite-to-background collisions for a single raster line into
+    /// the collision stores, using the sprites' current (per-line / multiplex) positions. Called once
+    /// per raster line from <see cref="Vic2.AdvanceRaster"/> when <see cref="PerLineCollisionEnabled"/>.
+    /// </summary>
+    public void AccumulatePerLineCollisions(int rasterLine);
 
     public byte GetSpriteToSpriteCollision();
     public byte GetSpriteToBackgroundCollision();

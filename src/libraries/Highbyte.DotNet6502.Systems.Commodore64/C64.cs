@@ -398,6 +398,10 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     private static void ConfigureRenderer(C64 c64, C64Config config)
     {
         c64.RenderProviders.Add(new Vic2Rasterizer(c64, perLineSprites: config.Vic2RasterizerPerLineSprites));
+
+        // Multiplex sprites also need per-line collision accumulation to stay correct. Gate it on the
+        // same config flag (collision lives in the system layer, independent of the render provider).
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = config.Vic2RasterizerPerLineSprites;
         c64.RenderProviders.Add(new C64CustomRenderProvider(c64));
         c64.RenderProviders.Add(new C64GpuProvider(c64, useFineScrollPerRasterLine: true));
         c64.RenderProviders.Add(new C64VideoCommandStream(c64));

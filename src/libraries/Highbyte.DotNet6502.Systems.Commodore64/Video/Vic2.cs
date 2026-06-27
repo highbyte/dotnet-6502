@@ -878,6 +878,11 @@ public class Vic2
             // Remember colors and other IO registers for each raster line
             if (C64.RememberVic2RegistersPerRasterLine)
                 StoreRasterLineIORegisters(_currentRasterLineInternal);
+
+            // Accumulate sprite collisions for this raster line (multiplex-correct). Only when the
+            // per-line collision mode is enabled; otherwise collisions are computed end-of-frame.
+            if (SpriteManager.PerLineCollisionEnabled)
+                SpriteManager.AccumulatePerLineCollisions(_currentRasterLineInternal);
         }
 
         // Check if we have reached the end of the frame.
