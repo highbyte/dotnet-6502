@@ -1,4 +1,4 @@
-name: Publish site to GitHub Pages
+name: Publish apps and docs to GitHub Pages
 
 on:
   workflow_dispatch:
