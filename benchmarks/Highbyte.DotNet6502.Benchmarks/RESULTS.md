@@ -119,6 +119,52 @@ Observations to carry into the next optimization pass:
   the combined scenario scales roughly additively, which makes the suite useful
   for validating future render/audio refactors independently.
 
+## C64 sprite rendering: per-frame vs per-line — 2026-06-28 (feature/c64-sprite-multiplex)
+
+`C64SpriteRenderBenchmark` compares `Vic2Rasterizer` sprite rendering cost for the
+**same** 8 static sprites (mix of single/multi colour and X/Y expansion) between the
+default end-of-frame path (`PerLineSprites=False`) and the opt-in per-raster-line
+multiplex path (`PerLineSprites=True`, `C64Config.Vic2RasterizerPerLineSprites`). One
+NTSC frame is simulated by advancing the raster in instruction-sized cycle chunks and
+calling the rasterizer directly (no CPU), so only the rendering path is measured —
+including the per-line latch/snapshot scan and, for the per-frame path, the
+`StoreRasterLineIORegisters` snapshot cost.
+
+Run:
+
+    dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks -- --filter '*C64SpriteRenderBenchmark*'
+
+Apple M5 / .NET 10.0.5 / Arm64 / DefaultJob. The whole-frame time is dominated by the
+full-screen text background (identical in both modes); the **per-line vs per-frame delta**
+is the signal. `NumberOfSprites=0` isolates the per-line fixed scan overhead; `Sparse`
+toggles full-opaque vs realistic (~half rows empty) sprite shapes.
+
+| PerLineSprites | NumberOfSprites | Sparse | Mean | Allocated |
+|---------------:|----------------:|-------:|-----:|----------:|
+| False | 0 | False  |  97.2 us | - |
+| False | 0 | True   |  97.7 us | - |
+| False | 8 | False  | 114.8 us | - |
+| False | 8 | True   | 103.1 us | - |
+| True  | 0 | False  |  98.9 us | - |
+| True  | 0 | True   |  98.5 us | - |
+| True  | 8 | False  | 116.1 us | - |
+| True  | 8 | True   | 109.0 us | - |
+
+Within-run deltas (per-line minus per-frame), both paths allocation-free:
+
+- **No sprites enabled (idle scan):** ~+1.2 us/frame.
+- **8 full opaque sprites:** ~+1.3 us (+1.1%) — on par; the heavy pixel-draw work
+  dominates and roughly cancels the per-line overhead.
+- **8 sparse / realistic sprites:** ~+5.9 us (+5.7%) — the end-of-frame path skips empty
+  sprite rows very cheaply, while the per-line path pays a fixed per-line scan + per-sprite
+  Y reads + a 63-byte band copy per displayed band regardless of fill. Marginal sprite draw
+  cost (8 − 0) is ~5.4 us (per-frame) vs ~10.5 us (per-line) for the sparse shape.
+
+Takeaway: for the same sprite count the per-line path is roughly even for pixel-dense
+sprites and ~5–6% slower per frame for realistic sparse sprites; the cost is per-line
+overhead, not the drawing. The end-of-frame path is unchanged and used whenever the flag
+is off.
+
 ## Confirming `[AggressiveInlining]` folded the ExecEvaluator helpers
 
 The `LegacyExecEvaluator.Check` refactor split the original method into three
@@ -134,6 +180,21 @@ separate call sites in the disassembly of `Check`.
 
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
+
+### 2026-06-28 — per-line sprite scan reads `$D015` once
+
+The per-line sprite path (`Vic2RasterizerUintPixelGenerator`) sampled each sprite's
+enable+Y via up to 16 `ReadIOStorage` calls on **every** visible raster line. It now reads
+the sprite-enable register (`$D015`) once per line, bit-tests it for the trigger, and only
+samples Y for enabled sprites — skipping all per-sprite reads on lines where no sprite is
+enabled.
+
+Measured via `C64SpriteRenderBenchmark` on Apple M5 / .NET 10.0.5, the per-line **fixed
+overhead with no sprites enabled** (per-line minus end-of-frame at `NumberOfSprites=0`)
+dropped from ~+5.2 us to ~+1.2 us per frame. The enabled-sprite cases improve modestly (the
+16→9 reads/line saving); the remaining per-line overhead for enabled sparse sprites is the
+per-sprite Y reads, the active-run gate loop, and the 63-byte band copy. Still
+allocation-free; all 407 `Highbyte.DotNet6502.Systems.Tests` pass.
 
 ### 2026-06-02 — standard-text background is prefilled once per line
 

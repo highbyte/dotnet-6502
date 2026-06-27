@@ -170,8 +170,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     // Start-of-line snapshot of the trigger inputs (enable + Y), captured at the same phase as
     // the border/color snapshot. Reading these live at draw-time instead samples the CPU "ahead"
-    // of the line being drawn (the draw runs once the next line has started).
-    private readonly bool[] _slEnable = new bool[SPRITE_COUNT];
+    // of the line being drawn (the draw runs once the next line has started). The enable bits are
+    // kept as the raw $D015 mask (read once per line) and Y is only sampled for enabled sprites.
+    private byte _slEnableMask;
     private readonly int[] _slY = new int[SPRITE_COUNT];
 
     public Vic2RasterizerUintPixelGenerator(
@@ -382,11 +383,17 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 // when this line is finalized (on entry to the next line).
                 if (_perLineSprites)
                 {
-                    var sprites = _c64.Vic2.SpriteManager.Sprites;
-                    for (int i = 0; i < SPRITE_COUNT; i++)
+                    // Read the sprite-enable register ($D015) once; only sample Y for enabled
+                    // sprites. Skips all per-sprite IO reads on lines where no sprite is enabled.
+                    _slEnableMask = _c64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+                    if (_slEnableMask != 0)
                     {
-                        _slEnable[i] = sprites[i].Visible;
-                        _slY[i] = sprites[i].Y;
+                        var sprites = _c64.Vic2.SpriteManager.Sprites;
+                        for (int i = 0; i < SPRITE_COUNT; i++)
+                        {
+                            if ((_slEnableMask & (1 << i)) != 0)
+                                _slY[i] = sprites[i].Y;
+                        }
                     }
                 }
 
@@ -451,7 +458,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         for (int spriteIndex = SPRITE_COUNT - 1; spriteIndex >= 0; spriteIndex--)
         {
             // Trigger from the start-of-line snapshot (NOT live registers - see field comment).
-            if (!_spriteActive[spriteIndex] && _slEnable[spriteIndex])
+            if (!_spriteActive[spriteIndex] && (_slEnableMask & (1 << spriteIndex)) != 0)
             {
                 var spriteScreenPosY = _slY[spriteIndex] + _screenStartY - _spriteScreenOffsetY;
                 if (pixelArrayY == spriteScreenPosY)
