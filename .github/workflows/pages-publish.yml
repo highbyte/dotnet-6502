@@ -1,4 +1,4 @@
-name: Publish site to GitHub Pages
+name: Publish apps and docs to GitHub Pages
 
 on:
   workflow_dispatch:
@@ -13,17 +13,9 @@ on:
           - test
           - all
 
+  # Release tags publish docs and production browser apps together so app
+  # versions always come from the tag.
   push:
-    branches:
-      - master
-    paths:
-      - 'docs/**'
-      - 'includes/**'
-      - 'mkdocs.yml'
-      - 'requirements-docs.in'
-      - 'requirements-docs.txt'
-      - '.pip-tools.toml'
-      - '.github/workflows/pages-publish.yml'
     tags:
       - 'v[0-9]*.[0-9]*.[0-9]*'
 
@@ -40,6 +32,7 @@ env:
   CONFIGURATION: "Release"
   PAGES_SITE_DIR: "site"
   BUILD_OUTPUT_WORKING_DIR: "build"
+  DOCS_SOURCE_DIR: "docs-src"
   PRODUCTION_SOURCE_DIR: "production-src"
   TEST_SOURCE_DIR: "test-src"
   BLAZOR_PROJECT_FILE: "src/apps/BlazorWASM/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
@@ -54,6 +47,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
+      - name: Check out docs source
+        uses: actions/checkout@v5
+        with:
+          # This site has no docs-test path, so docs always come from master.
+          ref: master
+          path: ${{ env.DOCS_SOURCE_DIR }}
+
       - name: Check out production source
         uses: actions/checkout@v5
         with:
@@ -85,14 +85,14 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: ${{ env.PRODUCTION_SOURCE_DIR }}/requirements-docs.txt
+          cache-dependency-path: ${{ env.DOCS_SOURCE_DIR }}/requirements-docs.txt
 
       - name: Install MkDocs and dependencies
-        working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
+        working-directory: ${{ env.DOCS_SOURCE_DIR }}
         run: "pip install --require-hashes --only-binary :all: -r requirements-docs.txt"
 
       - name: Build documentation site
-        working-directory: ${{ env.PRODUCTION_SOURCE_DIR }}
+        working-directory: ${{ env.DOCS_SOURCE_DIR }}
         run: mkdocs build --strict --site-dir ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/docs
 
       - name: Setup .NET
