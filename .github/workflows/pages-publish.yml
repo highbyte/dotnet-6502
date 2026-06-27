@@ -82,6 +82,12 @@ jobs:
           echo "TEST_BLAZOR_VERSION=0.1.${{ github.run_number }}-test" >> "$GITHUB_ENV"
           echo "TEST_AVALONIA_VERSION=0.25.${{ github.run_number }}-alpha" >> "$GITHUB_ENV"
 
+      - name: Show publish versions
+        run: |
+          echo "PRODUCTION_VERSION=$PRODUCTION_VERSION"
+          echo "TEST_BLAZOR_VERSION=$TEST_BLAZOR_VERSION"
+          echo "TEST_AVALONIA_VERSION=$TEST_AVALONIA_VERSION"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -165,6 +171,24 @@ jobs:
           find ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$TEST_AVALONIA_VERSION/g" {} \;
           mkdir -p ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2-test
           cp -r ${{ github.workspace }}/${{ env.BUILD_OUTPUT_WORKING_DIR }}/app2-test/wwwroot/. ${{ github.workspace }}/${{ env.PAGES_SITE_DIR }}/app2-test/
+
+      - name: Verify staged app versions
+        run: |
+          set -euo pipefail
+
+          grep -n "$PRODUCTION_VERSION" "$PAGES_SITE_DIR/app2/index.html"
+          if grep -R "{{APP_VERSION}}" "$PAGES_SITE_DIR/app2"; then
+            echo "::error::Unreplaced APP_VERSION placeholder found in app2"
+            exit 1
+          fi
+
+          if [[ -d "$PAGES_SITE_DIR/app2-test" ]]; then
+            grep -n "$TEST_AVALONIA_VERSION" "$PAGES_SITE_DIR/app2-test/index.html"
+            if grep -R "{{APP_VERSION}}" "$PAGES_SITE_DIR/app2-test"; then
+              echo "::error::Unreplaced APP_VERSION placeholder found in app2-test"
+              exit 1
+            fi
+          fi
 
       - name: Report Pages artifact size
         run: |
