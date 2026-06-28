@@ -34,6 +34,11 @@ public class Vic2SpriteManager : IVic2SpriteManager
 
     public bool PerLineCollisionEnabled { get; set; }
 
+    // Single per-line sprite trigger-input snapshot, shared by per-line rendering and per-line
+    // collision (captured once per raster line in AdvanceRaster -> CaptureLineSpriteSnapshot).
+    public byte LineSpriteEnableMask { get; private set; }
+    public int[] LineSpriteY { get; } = new int[NUMBERS_OF_SPRITES];
+
     // Pre-calculate all possible sprite combination for collision detection
     // Get all K-Combinations of sprite numbers (2)
     // This will give us all possible combinations of sprite pairs
@@ -147,9 +152,23 @@ public class Vic2SpriteManager : IVic2SpriteManager
     /// line is (rasterLine - spriteY). That is exactly the spriteScreenLine the helpers expect, so a
     /// static scene reproduces the end-of-frame result line-for-line.
     /// </summary>
+    public void CaptureLineSpriteSnapshot()
+    {
+        LineSpriteEnableMask = Vic2.C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+        if (LineSpriteEnableMask == 0)
+            return;
+        // Only sample Y for enabled sprites (disabled entries keep stale values, never consumed).
+        for (int i = 0; i < NUMBERS_OF_SPRITES; i++)
+        {
+            if ((LineSpriteEnableMask & (1 << i)) != 0)
+                LineSpriteY[i] = Sprites[i].Y;
+        }
+    }
+
     public void AccumulatePerLineCollisions(int rasterLine)
     {
-        var enableMask = Vic2.C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+        // Uses the shared start-of-line snapshot (captured just before this call in AdvanceRaster).
+        var enableMask = LineSpriteEnableMask;
         if (enableMask == 0)
             return;
 
@@ -162,7 +181,7 @@ public class Vic2SpriteManager : IVic2SpriteManager
             if ((enableMask & (1 << i)) == 0)
                 continue;
             var sprite = Sprites[i];
-            var spriteScreenLine = rasterLine - sprite.Y;
+            var spriteScreenLine = rasterLine - LineSpriteY[i];
             if (spriteScreenLine < 0 || spriteScreenLine >= sprite.HeightPixels)
                 continue;
             if (!sprite.ScreenLineHasVisiblePixels(spriteScreenLine))

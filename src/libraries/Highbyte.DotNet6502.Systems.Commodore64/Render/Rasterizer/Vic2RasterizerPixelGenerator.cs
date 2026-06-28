@@ -378,21 +378,21 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 if (_isTextMode && _characterMode == CharMode.Standard)
                     PrefillStandardTextBackgroundLine(screenLine);
 
-                // Snapshot the sprite trigger inputs (enable + Y) for this line, captured at the
-                // same phase as the border/color snapshot above. DrawSpritesForLine consumes these
-                // when this line is finalized (on entry to the next line).
+                // Copy the sprite trigger inputs (enable + Y) for this line from the shared system-layer
+                // snapshot (captured in Vic2.AdvanceRaster earlier this same instruction - identical
+                // register values, single source of truth shared with per-line collision).
+                // DrawSpritesForLine consumes these when this line is finalized (on entry to next line).
                 if (_perLineSprites)
                 {
-                    // Read the sprite-enable register ($D015) once; only sample Y for enabled
-                    // sprites. Skips all per-sprite IO reads on lines where no sprite is enabled.
-                    _slEnableMask = _c64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+                    var spriteManager = _c64.Vic2.SpriteManager;
+                    _slEnableMask = spriteManager.LineSpriteEnableMask;
                     if (_slEnableMask != 0)
                     {
-                        var sprites = _c64.Vic2.SpriteManager.Sprites;
+                        var lineSpriteY = spriteManager.LineSpriteY;
                         for (int i = 0; i < SPRITE_COUNT; i++)
                         {
                             if ((_slEnableMask & (1 << i)) != 0)
-                                _slY[i] = sprites[i].Y;
+                                _slY[i] = lineSpriteY[i];
                         }
                     }
                 }

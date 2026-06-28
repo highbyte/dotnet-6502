@@ -24,6 +24,12 @@ public class C64SpriteManagerBenchmark
     //[Params(1, 2, 4, 8)]
     public int NumberOfSprites;
 
+    // false = the original sparse test sprites (pixels mostly in row 0) over a near-empty screen;
+    // true = fully-filled (all-21-row) sprites over a fully-filled screen, so the per-row collision
+    // work is exercised on every row (a denser, heavier scene).
+    [Params(false, true)]
+    public bool Solid;
+
     // GlobalSetup is executed once, or if Params are used: once per each Params value combination
     [GlobalSetup]
     public void Setup()
@@ -60,9 +66,11 @@ public class C64SpriteManagerBenchmark
         for (var i = 0; i < NumberOfSprites; i++)
         {
             var spriteData = spriteDataList[i];
-            byte[] spriteShape = spriteData.multiColor ?
-                                    spriteGenerator.CreateTestMultiColorSpriteImage() :
-                                    spriteGenerator.CreateTestSingleColorSpriteImage();
+            byte[] spriteShape = Solid
+                ? (spriteData.multiColor ? FullMultiColorShape() : FullSingleColorShape())
+                : (spriteData.multiColor
+                    ? spriteGenerator.CreateTestMultiColorSpriteImage()
+                    : spriteGenerator.CreateTestSingleColorSpriteImage());
 
             spriteGenerator.CreateSprite(
                 spriteNumber: (byte)i,
@@ -81,8 +89,33 @@ public class C64SpriteManagerBenchmark
         // ------------------------------------
         var charGenerator = new C64CharGenerator(_c64);
         charGenerator.CreateCharData();
-        byte characterCode = 1; // A
-        charGenerator.WriteToScreen(characterCode, 0, 0);
+        if (Solid)
+        {
+            // Fill the whole screen so sprite-to-background collision does real per-row work.
+            for (byte col = 0; col < 40; col++)
+                for (byte row = 0; row < 25; row++)
+                    charGenerator.WriteToScreen(1, col, row);
+        }
+        else
+        {
+            charGenerator.WriteToScreen(1, 0, 0); // original near-empty background
+        }
+    }
+
+    private static byte[] FullSingleColorShape()
+    {
+        var shape = new byte[63];
+        for (int i = 0; i < shape.Length; i++)
+            shape[i] = 0xFF;
+        return shape;
+    }
+
+    private static byte[] FullMultiColorShape()
+    {
+        var shape = new byte[63];
+        for (int i = 0; i < shape.Length; i++)
+            shape[i] = 0b01101100; // pixel pairs 01,10,11,00 (all rows non-empty)
+        return shape;
     }
 
     //[GlobalCleanup]
@@ -101,5 +134,30 @@ public class C64SpriteManagerBenchmark
     public void GetSpriteToBackgroundCollissions()
     {
         var spriteToBackgroundCollision = Vic2SpriteManager.GetSpriteToBackgroundCollision();
+    }
+
+    // Whole-frame per-frame (end-of-frame) collision cost: the two Get* calls SetCollition makes once.
+    [Benchmark]
+    public void PerFrame_TotalCollisionForFrame()
+    {
+        var s2s = Vic2SpriteManager.GetSpriteToSpriteCollision();
+        var s2b = Vic2SpriteManager.GetSpriteToBackgroundCollision();
+    }
+
+    // Whole-frame per-raster-line (multiplex) collision cost: capture the shared snapshot and
+    // accumulate, once per raster line. Stores are reset first so each invocation does the full work
+    // (the skip-when-already-flagged optimization would otherwise short-circuit on repeat runs).
+    [Benchmark]
+    public void PerLine_TotalCollisionForFrame()
+    {
+        var sm = Vic2SpriteManager;
+        sm.SpriteToSpriteCollisionStore = 0;
+        sm.SpriteToBackgroundCollisionStore = 0;
+        var totalHeight = _c64.Vic2.Vic2Model.TotalHeight;
+        for (int line = 0; line < totalHeight; line++)
+        {
+            sm.CaptureLineSpriteSnapshot();
+            sm.AccumulatePerLineCollisions(line);
+        }
     }
 }

@@ -31,6 +31,26 @@ public interface IVic2SpriteManager
     public void SetCollitionDetectionStatesAndIRQ();
 
     /// <summary>
+    /// Start-of-line snapshot of the sprite enable register ($D015), captured once per raster line by
+    /// <see cref="CaptureLineSpriteSnapshot"/>. Single source of truth shared by per-line sprite
+    /// rendering and per-line collision (avoids both re-reading the registers).
+    /// </summary>
+    public byte LineSpriteEnableMask { get; }
+
+    /// <summary>
+    /// Start-of-line snapshot of each sprite's Y register, captured once per raster line. Only valid
+    /// for sprites whose bit is set in <see cref="LineSpriteEnableMask"/>.
+    /// </summary>
+    public int[] LineSpriteY { get; }
+
+    /// <summary>
+    /// Captures the per-line sprite trigger-input snapshot (enable mask + Y). Called once per raster
+    /// line from <see cref="Vic2.AdvanceRaster"/> when per-line sprite processing is active, before
+    /// the collision accumulation and before the rasterizer's per-line sprite pass reads it.
+    /// </summary>
+    public void CaptureLineSpriteSnapshot();
+
+    /// <summary>
     /// Accumulates sprite-to-sprite and sprite-to-background collisions for a single raster line into
     /// the collision stores, using the sprites' current (per-line / multiplex) positions. Called once
     /// per raster line from <see cref="Vic2.AdvanceRaster"/> when <see cref="PerLineCollisionEnabled"/>.

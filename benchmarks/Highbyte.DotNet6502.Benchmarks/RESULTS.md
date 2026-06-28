@@ -165,6 +165,46 @@ sprites and ~5–6% slower per frame for realistic sparse sprites; the cost is p
 overhead, not the drawing. The end-of-frame path is unchanged and used whenever the flag
 is off.
 
+## C64 sprite collision: per-frame vs per-line — 2026-06-28 (feature/c64-sprite-multiplex)
+
+`C64SpriteManagerBenchmark` covers sprite collision. The per-frame methods
+(`GetSpriteToSpriteCollision` / `GetSpriteToBackgroundCollision`) are **byte-identical to
+master** — the multiplex work only adds a gated per-line accumulator
+(`AccumulatePerLineCollisions`) plus a shared per-line snapshot, and *reuses* the same pixel
+helpers (no duplication). Two whole-frame totals were added: `PerFrame_TotalCollisionForFrame`
+(the two Get* calls `SetCollition` makes once) and `PerLine_TotalCollisionForFrame` (capture +
+accumulate once per raster line across a frame; stores reset per run so the
+skip-when-already-flagged optimization doesn't short-circuit repeats).
+
+Run:
+
+    dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks -- --filter '*C64SpriteManagerBenchmark*'
+
+Apple M5 / .NET 10.0.5 / Arm64 / DefaultJob, 8 sprites, all allocation-free. `Solid` toggles
+the scene: `False` = the original sparse test sprites (pixels mostly in row 0) over a near-empty
+screen; `True` = fully-filled 21-row sprites over a fully-filled screen.
+
+| Method | Solid (sparse=False) | Solid (dense=True) |
+|------- |---------------------:|-------------------:|
+| `GetSpriteToSpriteCollissions` (per-frame) | 1.67 us | 6.46 us |
+| `GetSpriteToBackgroundCollissions` (per-frame) | 1.62 us | 5.90 us |
+| `PerFrame_TotalCollisionForFrame` | 3.33 us | 12.37 us |
+| `PerLine_TotalCollisionForFrame` | 7.14 us | 13.70 us |
+| per-line ÷ per-frame | ~2.1× | ~1.1× |
+
+Observations:
+
+- **Per-frame is not slower.** Even the dense per-frame numbers (6.46 / 5.90 us) sit *below* the
+  earlier recorded baseline of 17.08 / 13.36 us (see the 2026-06-02 prefilter entry); the methods
+  are unchanged, so the remaining gap is scene density plus the later sprite-data dirty-cache
+  optimization, not this change.
+- **Per-line cost shrinks as the scene gets denser:** ~2.1× per-frame for sparse (+3.8 us/frame,
+  scaffolding-dominated) down to ~1.1× for dense (+1.3 us/frame). In a colliding scene the
+  skip-when-already-flagged short-circuit means per-line does *less* per-row pixel work than
+  per-frame, offsetting the fixed per-line scan overhead.
+- So multiplex collision costs roughly **+1.3 to +3.8 us/frame** depending on density, allocation-
+  free, and is only active when `Vic2RasterizerPerLineSprites` is enabled.
+
 ## Confirming `[AggressiveInlining]` folded the ExecEvaluator helpers
 
 The `LegacyExecEvaluator.Check` refactor split the original method into three
