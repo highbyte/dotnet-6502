@@ -274,6 +274,22 @@ public class C64SystemConfig : ISystemConfig
         }
     }
 
+    private bool _vic2RasterizerPerLineSprites;
+    /// <summary>
+    /// When true, the Vic2Rasterizer render provider draws sprites per raster line (enabling sprite
+    /// multiplexing) and accumulates sprite collision per raster line, instead of once at end-of-frame.
+    /// Only affects the Vic2Rasterizer provider. Default false.
+    /// </summary>
+    public bool Vic2RasterizerPerLineSprites
+    {
+        get => _vic2RasterizerPerLineSprites;
+        set
+        {
+            _vic2RasterizerPerLineSprites = value;
+            _isDirty = true;
+        }
+    }
+
     private string _colorMapName;
 
     public string ColorMapName
@@ -360,6 +376,8 @@ public class C64SystemConfig : ISystemConfig
 
         SetRenderProviderType(GetSupportedRenderProviderTypes().First());
         //SetRenderProviderType(GetSupportedRenderProviderTypes().Single(x => x == typeof(C64VideoCommandStream)));
+
+        _vic2RasterizerPerLineSprites = true;
 
         // Default audio provider is the sample-accurate SID emulation. Hosts that have no
         // compatible IAudioSampleTarget registered (e.g. the Blazor WASM/Skia host today, which

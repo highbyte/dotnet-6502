@@ -32,6 +32,13 @@ public class Vic2SpriteManager : IVic2SpriteManager
     public byte SpriteToBackgroundCollisionStore { get; set; }
     public bool SpriteToBackgroundCollisionIRQBlock { get; set; }
 
+    public bool PerLineCollisionEnabled { get; set; }
+
+    // Single per-line sprite trigger-input snapshot, shared by per-line rendering and per-line
+    // collision (captured once per raster line in AdvanceRaster -> CaptureLineSpriteSnapshot).
+    public byte LineSpriteEnableMask { get; private set; }
+    public int[] LineSpriteY { get; } = new int[NUMBERS_OF_SPRITES];
+
     // Pre-calculate all possible sprite combination for collision detection
     // Get all K-Combinations of sprite numbers (2)
     // This will give us all possible combinations of sprite pairs
@@ -85,22 +92,39 @@ public class Vic2SpriteManager : IVic2SpriteManager
         // Any previous collision that is no longer detected will remain set.
         // It's cleared when reading from the sprite collision IO registers.
 
-        // Sprite-to-sprite collision
-        var spriteToSpriteCollision = GetSpriteToSpriteCollision();
-        SpriteToSpriteCollisionStore = (byte)(SpriteToSpriteCollisionStore | spriteToSpriteCollision);
+        // In per-line mode the stores were already accumulated during the frame (one raster line at a
+        // time, from each sprite's per-line/multiplex position) by AccumulatePerLineCollisions, so the
+        // end-of-frame single-position recompute is skipped. The IRQ logic below is shared.
+        if (!PerLineCollisionEnabled)
+        {
+            // Sprite-to-sprite collision
+            var spriteToSpriteCollision = GetSpriteToSpriteCollision();
+            SpriteToSpriteCollisionStore = (byte)(SpriteToSpriteCollisionStore | spriteToSpriteCollision);
 
-        // Sprite-to-background collision
-        var spriteToBackgroundCollision = GetSpriteToBackgroundCollision();
-        SpriteToBackgroundCollisionStore = (byte)(SpriteToBackgroundCollisionStore | spriteToBackgroundCollision);
+            // Sprite-to-background collision
+            var spriteToBackgroundCollision = GetSpriteToBackgroundCollision();
+            SpriteToBackgroundCollisionStore = (byte)(SpriteToBackgroundCollisionStore | spriteToBackgroundCollision);
+        }
 
-        // Raise IRQ if a collision is detected, the corresponding source is enabled, and it's not
-        // currently blocked (block is cleared when the game reads the collision IO register).
-        //
-        // Sprite-to-sprite and sprite-to-background collisions are their own VIC-II interrupt
-        // sources ($D019 bits 1 and 2), each enabled independently via $D01A. They must NOT be
-        // raised as a raster-compare IRQ ($D019 bit 0): doing so makes a sprite collision look
-        // like a raster interrupt, so games that drive raster splits (e.g. Giana Sisters) service
-        // the collision as a spurious extra raster IRQ, displacing their split chain.
+        // Per-frame: raise at end-of-frame. Per-line: this is a harmless safety net (the IRQ was
+        // already raised mid-frame at the collision's raster line; the calls below are idempotent
+        // thanks to the block/triggered guards).
+        RaiseCollisionIRQsIfNeeded();
+    }
+
+    /// <summary>
+    /// Raises the sprite-to-sprite / sprite-to-background collision IRQs if a collision is latched in
+    /// the stores, the corresponding source is enabled ($D01A), and it isn't currently blocked (the
+    /// block is cleared when the game reads the collision IO register). Idempotent: safe to call
+    /// repeatedly (e.g. once per raster line in per-line mode and again at end-of-frame).
+    ///
+    /// Sprite-to-sprite and sprite-to-background collisions are their own VIC-II interrupt sources
+    /// ($D019 bits 1 and 2). They must NOT be raised as a raster-compare IRQ ($D019 bit 0): doing so
+    /// makes a sprite collision look like a raster interrupt, so games that drive raster splits (e.g.
+    /// Giana Sisters) service the collision as a spurious extra raster IRQ, displacing their splits.
+    /// </summary>
+    private void RaiseCollisionIRQsIfNeeded()
+    {
         if (SpriteToSpriteCollisionStore != 0 && !SpriteToSpriteCollisionIRQBlock
             && Vic2.Vic2IRQ.IsEnabled(IRQSource.SpriteToSpriteCollision)
             && !Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToSpriteCollision))
@@ -116,6 +140,126 @@ public class Vic2SpriteManager : IVic2SpriteManager
             Vic2.Vic2IRQ.Trigger(IRQSource.SpriteToBackgroundCollision, Vic2.C64.CPU);
             SpriteToBackgroundCollisionIRQBlock = true;
         }
+    }
+
+    /// <summary>
+    /// Per-raster-line collision accumulation (multiplex-correct). Evaluated one raster line at a
+    /// time using the sprites' live positions, reusing the exact same pixel-overlap helpers as the
+    /// end-of-frame path. For a static sprite this OR-accumulates to an identical result; for a
+    /// multiplexed sprite each displayed band is evaluated at the position it had on that line.
+    ///
+    /// A sprite displays raster lines [spriteY, spriteY + heightPixels); its internal row on this
+    /// line is (rasterLine - spriteY). That is exactly the spriteScreenLine the helpers expect, so a
+    /// static scene reproduces the end-of-frame result line-for-line.
+    /// </summary>
+    public void CaptureLineSpriteSnapshot()
+    {
+        LineSpriteEnableMask = Vic2.C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+        if (LineSpriteEnableMask == 0)
+            return;
+        // Only sample Y for enabled sprites (disabled entries keep stale values, never consumed).
+        for (int i = 0; i < NUMBERS_OF_SPRITES; i++)
+        {
+            if ((LineSpriteEnableMask & (1 << i)) != 0)
+                LineSpriteY[i] = Sprites[i].Y;
+        }
+    }
+
+    public void AccumulatePerLineCollisions(int rasterLine)
+    {
+        // Uses the shared start-of-line snapshot (captured just before this call in AdvanceRaster).
+        var enableMask = LineSpriteEnableMask;
+        if (enableMask == 0)
+            return;
+
+        // Determine which enabled sprites display (with visible pixels) on this raster line, and
+        // their internal row. Cheap reject for the common "nothing here" lines.
+        Span<int> rowOf = stackalloc int[NUMBERS_OF_SPRITES];
+        int activeMask = 0;
+        for (int i = 0; i < NUMBERS_OF_SPRITES; i++)
+        {
+            if ((enableMask & (1 << i)) == 0)
+                continue;
+            var sprite = Sprites[i];
+            var spriteScreenLine = rasterLine - LineSpriteY[i];
+            if (spriteScreenLine < 0 || spriteScreenLine >= sprite.HeightPixels)
+                continue;
+            if (!sprite.ScreenLineHasVisiblePixels(spriteScreenLine))
+                continue;
+            rowOf[i] = spriteScreenLine;
+            activeMask |= 1 << i;
+        }
+        if (activeMask == 0)
+            return;
+
+        var scrollX = Vic2.GetScrollX();
+        var scrollY = Vic2.GetScrollY();
+
+        // Reusable scratch (max sprite width = 6 bytes when X-expanded; background needs +1 for
+        // sub-byte alignment). Hoisted out of the loops to avoid per-iteration stackalloc.
+        Span<byte> spriteRow = stackalloc byte[DEFAULT_WIDTH / 8 * 2];
+        Span<byte> otherRow = stackalloc byte[DEFAULT_WIDTH / 8 * 2];
+        Span<byte> bgRow = stackalloc byte[DEFAULT_WIDTH / 8 * 2 + 1];
+
+        var collisionAddedThisLine = false;
+
+        // Sprite-to-background, per active sprite on this line.
+        for (int i = 0; i < NUMBERS_OF_SPRITES; i++)
+        {
+            if ((activeMask & (1 << i)) == 0)
+                continue;
+            // Once a sprite has flagged a background collision this frame, no need to re-check it
+            // every subsequent line (the store stays set until the game reads the register).
+            if ((SpriteToBackgroundCollisionStore & (1 << i)) != 0)
+                continue;
+
+            var sprite = Sprites[i];
+            var spriteLineData = spriteRow.Slice(0, sprite.WidthBytes);
+            GetSpriteRowLineData(sprite, rowOf[i], ref spriteLineData);
+            var screenLineData = bgRow.Slice(0, sprite.WidthBytes + 1);
+            GetCharacterRowLineDataMatchingSpritePosition(sprite, rowOf[i], spriteLineData.Length, scrollX, scrollY, ref screenLineData);
+            if (CheckCollision(spriteLineData, screenLineData))
+            {
+                SpriteToBackgroundCollisionStore |= (byte)(1 << i);
+                collisionAddedThisLine = true;
+            }
+        }
+
+        // Sprite-to-sprite, per active pair on this line.
+        for (int a = 0; a < NUMBERS_OF_SPRITES; a++)
+        {
+            if ((activeMask & (1 << a)) == 0)
+                continue;
+            var spriteA = Sprites[a];
+            for (int b = a + 1; b < NUMBERS_OF_SPRITES; b++)
+            {
+                if ((activeMask & (1 << b)) == 0)
+                    continue;
+                // Both already flagged this frame -> nothing to add.
+                if ((SpriteToSpriteCollisionStore & (1 << a)) != 0 && (SpriteToSpriteCollisionStore & (1 << b)) != 0)
+                    continue;
+                var spriteB = Sprites[b];
+                if (!SpriteBoundsOverlap(spriteA, spriteB))
+                    continue;
+
+                var aData = spriteRow.Slice(0, spriteA.WidthBytes);
+                GetSpriteRowLineData(spriteA, rowOf[a], ref aData);
+                var bData = otherRow.Slice(0, aData.Length);
+                GetSpriteRowLineDataMatchingOtherSpritePosition(spriteA, spriteB, rowOf[a], ref bData);
+                if (CheckCollision(aData, bData))
+                {
+                    SpriteToSpriteCollisionStore |= (byte)(1 << a);
+                    SpriteToSpriteCollisionStore |= (byte)(1 << b);
+                    collisionAddedThisLine = true;
+                }
+            }
+        }
+
+        // Mid-frame collision IRQ: raise as soon as a new collision is latched on this raster line
+        // (the CPU services it on the next instruction boundary, like the raster IRQ), instead of
+        // waiting for the end-of-frame SetCollitionDetectionStatesAndIRQ.
+        if (collisionAddedThisLine)
+            RaiseCollisionIRQsIfNeeded();
     }
 
     public byte GetSpriteToSpriteCollision()

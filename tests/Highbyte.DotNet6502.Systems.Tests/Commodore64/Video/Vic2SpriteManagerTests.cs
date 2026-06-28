@@ -83,13 +83,125 @@ public class Vic2SpriteManagerTests
         Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
     }
 
-    private static C64 BuildC64()
+    [Fact]
+    public void PerLine_sprite_to_sprite_collision_matches_end_of_frame_for_static_overlap()
+    {
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 20, y: 15, spritePointer: 193);
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        // Same result as the end-of-frame path for a static scene (see the non-per-line test above).
+        Assert.Equal(0b0000_0011, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+    }
+
+    [Fact]
+    public void PerLine_sprite_to_sprite_no_collision_for_non_overlapping()
+    {
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 80, y: 80, spritePointer: 193);
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        Assert.Equal(0, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+    }
+
+    [Fact]
+    public void PerLine_collision_detected_for_earlier_band_even_when_final_position_does_not_overlap()
+    {
+        // The multiplex case the end-of-frame path cannot see: a hardware sprite collides during an
+        // early band, then is repositioned away. The end-of-frame single-position check (final Y)
+        // misses it; the per-line accumulation catches the band where it actually overlapped.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 30, y: 10, spritePointer: 193); // static, top
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 30, y: 10, spritePointer: 192); // band 1 overlaps sprite 1
+
+        var sm = c64.Vic2.SpriteManager;
+        var totalHeight = c64.Vic2.Vic2Model.TotalHeight;
+        for (int line = 0; line < totalHeight; line++)
+        {
+            // After sprite 0's first band (raster 10..30) finishes, move it far away (multiplex reuse).
+            if (line == 40)
+                c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, 200);
+            sm.CaptureLineSpriteSnapshot();
+            sm.AccumulatePerLineCollisions(line);
+        }
+
+        // Per-line caught the band-1 overlap.
+        Assert.Equal(0b0000_0011, sm.SpriteToSpriteCollisionStore);
+        // ...and the end-of-frame single-position check (sprite 0 now at y=200) would have missed it.
+        Assert.Equal(0, sm.GetSpriteToSpriteCollision());
+    }
+
+    [Fact]
+    public void PerLine_sprite_collision_raises_collision_irq_and_not_raster_irq()
+    {
+        var c64 = BuildC64(perLineSprites: true);
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0011);
+
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 20, y: 15, spritePointer: 193);
+
+        DrivePerLineCollisionsForFrame(c64);
+        c64.Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+
+        Assert.True(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
+        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
+    }
+
+    [Fact]
+    public void PerLine_sprite_collision_raises_collision_irq_mid_frame()
+    {
+        // The collision IRQ should be raised at the raster line where the collision occurs, not only
+        // at end-of-frame. Drive the raster lines directly and assert the IRQ becomes active WITHOUT
+        // calling SetCollitionDetectionStatesAndIRQ.
+        var c64 = BuildC64(perLineSprites: true);
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0010); // enable sprite-to-sprite collision IRQ only
+
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 20, y: 60, spritePointer: 192);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 25, y: 60, spritePointer: 193);
+
+        var sm = c64.Vic2.SpriteManager;
+
+        // Before the sprites' display band (raster 60..80): no collision, no IRQ.
+        sm.CaptureLineSpriteSnapshot();
+        sm.AccumulatePerLineCollisions(50);
+        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
+
+        // Process the band: the collision must raise the IRQ mid-frame.
+        for (int line = 60; line <= 80; line++)
+        {
+            sm.CaptureLineSpriteSnapshot();
+            sm.AccumulatePerLineCollisions(line);
+        }
+
+        Assert.True(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
+    }
+
+    private static void DrivePerLineCollisionsForFrame(C64 c64)
+    {
+        var sm = c64.Vic2.SpriteManager;
+        var totalHeight = c64.Vic2.Vic2Model.TotalHeight;
+        for (int line = 0; line < totalHeight; line++)
+        {
+            // Mirror Vic2.AdvanceRaster: capture the shared per-line snapshot, then accumulate.
+            sm.CaptureLineSpriteSnapshot();
+            sm.AccumulatePerLineCollisions(line);
+        }
+    }
+
+    private static C64 BuildC64(bool perLineSprites = false)
     {
         return C64.BuildC64(new C64Config
         {
             LoadROMs = false,
             C64Model = "C64PAL",
-            Vic2Model = "PAL"
+            Vic2Model = "PAL",
+            // These tests target the end-of-frame collision recompute path; pin the mode so the
+            // (default-on) per-line collision path doesn't skip it. Per-line is covered separately.
+            Vic2RasterizerPerLineSprites = perLineSprites,
         }, NullLoggerFactory.Instance);
     }
 

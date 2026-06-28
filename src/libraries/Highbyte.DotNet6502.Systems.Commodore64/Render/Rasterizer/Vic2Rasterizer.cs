@@ -13,7 +13,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 /// 
 /// Overview
 /// - Called after each instruction to generate Text and Bitmap graphics.
-/// - Called once per frame to generate Sprites (if possible a future improvement should make this also be called after each instruction if performance allows it).
+/// - Sprites: by default generated once per frame (fast path). When constructed with perLineSprites: true,
+///   sprites are instead generated per raster line during the after-instruction callback, which enables
+///   sprite multiplexing (reusing the 8 hardware sprites across raster bands).
 /// - Writes background and foreground to separate uint arrays. Renderer needs to combine these two layers.
 /// - Uses uint arrays directly for 32-bit pixel operations (no casting overhead).
 /// - Fast enough to be used in native apps. For browser (WASM) app if the computer is reasonably fast.
@@ -23,7 +25,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 /// - Bitmap mode (Standard/HiRes, MultiColor)
 /// - Colors per raster line
 /// - Fine scroll per raster line
-/// - Sprites (Standard, MultiColor). No multiplexing support.
+/// - Sprites (Standard, MultiColor). Multiplexing supported when perLineSprites is enabled.
 
 public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 {
@@ -68,7 +70,7 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     private readonly Vic2RasterizerUintPixelGenerator _pixelGenerator;
 
-    public Vic2Rasterizer(C64 c64, bool useDoubleBuffering = true)
+    public Vic2Rasterizer(C64 c64, bool useDoubleBuffering = true, bool perLineSprites = false)
     {
         var width = c64.Screen.VisibleWidth;
         var height = c64.Screen.VisibleHeight;
@@ -97,7 +99,8 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
             SetBackgroundPixels,
             ClearBackgroundPixels,
             SetForegroundPixels,
-            ClearForegroundPixels);
+            ClearForegroundPixels,
+            perLineSprites);
     }
 
     #region C64 emulator integration points

@@ -124,6 +124,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             AudioProviderType = c64SystemConfig.AudioProviderType,
             SidEmulationMode = c64SystemConfig.SidEmulationMode,
             CpuCompatibilityProfile = c64SystemConfig.CpuCompatibilityProfile,
+            Vic2RasterizerPerLineSprites = c64SystemConfig.Vic2RasterizerPerLineSprites,
         };
 
         var c64 = C64.BuildC64(c64Config, LoggerFactory);

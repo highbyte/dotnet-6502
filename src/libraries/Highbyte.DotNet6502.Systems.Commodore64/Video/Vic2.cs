@@ -878,6 +878,16 @@ public class Vic2
             // Remember colors and other IO registers for each raster line
             if (C64.RememberVic2RegistersPerRasterLine)
                 StoreRasterLineIORegisters(_currentRasterLineInternal);
+
+            // Per-line sprite processing (rendering + collision are gated by the same config flag).
+            // Capture the shared start-of-line sprite snapshot once here; both the per-line collision
+            // (below) and the rasterizer's per-line sprite pass (later this instruction, in its
+            // OnAfterInstruction) read it - so the registers are sampled once per line, not twice.
+            if (SpriteManager.PerLineCollisionEnabled)
+            {
+                SpriteManager.CaptureLineSpriteSnapshot();
+                SpriteManager.AccumulatePerLineCollisions(_currentRasterLineInternal);
+            }
         }
 
         // Check if we have reached the end of the frame.
