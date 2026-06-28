@@ -52,6 +52,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private string? _validationMessage;
     private readonly ObservableCollection<string> _validationErrors = new();
     private bool _audioEnabled;
+    private bool _vic2RasterizerPerLineSprites;
     private bool _basicAIAssistantEnabled;
     private bool _keyboardJoystickEnabled;
     private int _selectedKeyboardJoystick;
@@ -491,6 +492,24 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _audioEnabled, value);
             _workingConfig.SystemConfig.AudioEnabled = value;
+        }
+    }
+
+    /// <summary>
+    /// When enabled, the Rasterizer render provider draws sprites per raster line (enabling sprite
+    /// multiplexing) and accumulates sprite collision per raster line, instead of once at end-of-frame.
+    /// Only affects the Rasterizer (Vic2Rasterizer) render provider.
+    /// </summary>
+    public bool Vic2RasterizerPerLineSprites
+    {
+        get => _vic2RasterizerPerLineSprites;
+        set
+        {
+            if (_vic2RasterizerPerLineSprites == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _vic2RasterizerPerLineSprites, value);
+            _workingConfig.SystemConfig.Vic2RasterizerPerLineSprites = value;
         }
     }
 
@@ -1672,6 +1691,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         InitializeSwiftLinkBridgeTargetOptions();
 
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+        Vic2RasterizerPerLineSprites = _workingConfig.SystemConfig.Vic2RasterizerPerLineSprites;
         SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
 
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;

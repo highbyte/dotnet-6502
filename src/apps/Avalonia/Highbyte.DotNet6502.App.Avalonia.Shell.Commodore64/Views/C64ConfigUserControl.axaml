@@ -164,9 +164,9 @@
                 <TextBlock Text="Video"
                             Classes=""/>
 
-                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
-                    <TextBlock Grid.Row="0" Grid.Column="0" 
-                                Text="Render provider:" 
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                Text="Render provider:"
                                 Classes="secondary-text"/>
                     <ComboBox Grid.Row="0" Grid.Column="1"
                             AutomationProperties.AutomationId="RenderProviderComboBox"
@@ -200,6 +200,14 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
+
+                    <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                            AutomationProperties.AutomationId="PerLineSpritesCheckBox"
+                            AutomationProperties.Name="Per-line sprites (multiplexing)"
+                            Content="Per-line sprites (multiplexing)"
+                            IsChecked="{Binding Vic2RasterizerPerLineSprites}"
+                            ToolTip.Tip="Render sprites per raster line, enabling sprite multiplexing and per-line sprite collision, instead of once at end-of-frame. Only affects the Rasterizer render provider."
+                            Classes=""/>
                 </Grid>
 
                 </StackPanel>

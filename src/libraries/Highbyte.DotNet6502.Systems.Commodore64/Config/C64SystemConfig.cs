@@ -377,6 +377,8 @@ public class C64SystemConfig : ISystemConfig
         SetRenderProviderType(GetSupportedRenderProviderTypes().First());
         //SetRenderProviderType(GetSupportedRenderProviderTypes().Single(x => x == typeof(C64VideoCommandStream)));
 
+        _vic2RasterizerPerLineSprites = true;
+
         // Default audio provider is the sample-accurate SID emulation. Hosts that have no
         // compatible IAudioSampleTarget registered (e.g. the Blazor WASM/Skia host today, which
         // only registers WebAudioCommandTarget) must override this by setting
