@@ -51,8 +51,6 @@ public class C64Config
 
         ColorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
-        Vic2RasterizerPerLineSprites = false;
-        
         AudioEnabled = false;
         KeyboardJoystickEnabled = false;
         KeyboardJoystick = 2;
