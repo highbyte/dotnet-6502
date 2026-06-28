@@ -1,8 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
-using Highbyte.DotNet6502.Systems.Instrumentation;
-using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
@@ -19,11 +17,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private uint[] _c64ToRenderColorMap;
     private uint TransparentColor { get; }
     private bool FlipY { get; }
-
-    private string StatsCategory { get; } = string.Empty;
-    public Instrumentations Instrumentations { get; } = new();
-    private ElapsedMillisecondsTimedStatSystem _spritesStat;
-    private ElapsedMillisecondsTimedStatSystem _renderArraysStat;
 
 
     // Pre-calculated pixel arrays
@@ -209,8 +202,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     [MemberNotNull(
         nameof(_c64ToRenderColorMap),
-        nameof(_spritesStat),
-        nameof(_renderArraysStat),
         nameof(_oneLineSameColorPixels),
         nameof(_eightPixelsOneColorAndBackground),
         nameof(_eightPixelsTwoColors),
@@ -290,11 +281,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // Init bitmaps to render to
         InitBitmaps(_c64);
         InitBitPatternToPixelMaps(_c64);
-
-        // Init instrumentation
-        Instrumentations.Clear();
-        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(_c64));
-        _renderArraysStat = Instrumentations.Add($"{StatsCategory}-RenderArrays", new ElapsedMillisecondsTimedStatSystem(_c64));
     }
 
     /// <summary>
@@ -841,7 +827,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
     public void DrawSpritesToBitmapBackedByPixelArray()
     {
         // Main screen, copy 8 pixels at a time
-        _spritesStat.Start();
         var vic2 = _c64.Vic2;
         var vic2Screen = vic2.Vic2Screen;
         var vic2ScreenLayouts = vic2.ScreenLayouts;
@@ -937,8 +922,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 y += spriteLineAdvance;
             }
         }
-
-        _spritesStat.Stop();
     }
 
     private void DrawBorderPixels(int normalizedScreenLine)
