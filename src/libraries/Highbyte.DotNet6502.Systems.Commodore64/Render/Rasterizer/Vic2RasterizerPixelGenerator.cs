@@ -163,10 +163,17 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private readonly bool[] _bandDoubleHeight = new bool[MAX_BANDS];
     private readonly bool[] _bandMultiColor = new bool[MAX_BANDS];
     private readonly bool[] _bandPriority = new bool[MAX_BANDS];
-    private readonly uint[] _bandColorFg = new uint[MAX_BANDS];
-    private readonly uint[] _bandColorMc0 = new uint[MAX_BANDS];
-    private readonly uint[] _bandColorMc1 = new uint[MAX_BANDS];
+    // Per-row colors (index = band * SPRITE_ROWS + row): captured per raster line as the band
+    // displays, so an intra-sprite per-raster colour change (striped sprites, per-raster
+    // $D025/$D026 swaps) is preserved - matching the end-of-frame path's per-line colour read.
+    private readonly uint[] _bandRowColorFg = new uint[MAX_BANDS * SPRITE_ROWS];
+    private readonly uint[] _bandRowColorMc0 = new uint[MAX_BANDS * SPRITE_ROWS];
+    private readonly uint[] _bandRowColorMc1 = new uint[MAX_BANDS * SPRITE_ROWS];
     private int _bandCount;
+
+    // Band index of each sprite's currently-displaying band (-1 = none / dropped), so the gate can
+    // record each row's live colour into that band as the raster passes.
+    private readonly int[] _spriteCurrentBand = new int[SPRITE_COUNT];
 
     // Start-of-line snapshot of the trigger inputs (enable + Y), captured at the same phase as
     // the border/color snapshot. Reading these live at draw-time instead samples the CPU "ahead"
@@ -468,12 +475,24 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     _spriteExpandYPhase[spriteIndex] = false;
                     _spriteActiveDoubleHeight[spriteIndex] = sprites[spriteIndex].DoubleHeight;
                     _spriteHadBandThisFrame[spriteIndex] = true;
+                    _spriteCurrentBand[spriteIndex] = _bandCount < MAX_BANDS ? _bandCount : -1;
                     RecordBand(sprites[spriteIndex], pixelArrayY);
                 }
             }
 
             if (!_spriteActive[spriteIndex])
                 continue;
+
+            // Capture this row's live sprite colours into the band (preserves intra-sprite per-raster
+            // colour changes). Done per line while displaying, like the end-of-frame colour read.
+            var curBand = _spriteCurrentBand[spriteIndex];
+            if (curBand >= 0)
+            {
+                var ci = curBand * SPRITE_ROWS + _spriteRow[spriteIndex];
+                _bandRowColorFg[ci] = _c64ToRenderColorMap[sprites[spriteIndex].Color];
+                _bandRowColorMc0[ci] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
+                _bandRowColorMc1[ci] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
+            }
 
             // Advance the active-run gate (double-height keeps each row for 2 lines). This only
             // gates re-latching; the pixels are drawn from the recorded band at end-of-frame.
@@ -507,9 +526,19 @@ public sealed class Vic2RasterizerUintPixelGenerator
         _bandDoubleHeight[b] = sprite.DoubleHeight;
         _bandMultiColor[b] = sprite.Multicolor;
         _bandPriority[b] = sprite.PriorityOverForeground;
-        _bandColorFg[b] = _c64ToRenderColorMap[sprite.Color];
-        _bandColorMc0[b] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
-        _bandColorMc1[b] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
+
+        // Default every row to the latch-time colours, so rows the gate never reaches (a cut-short
+        // band) still have a sane colour. The gate overwrites each row's colour as it displays.
+        var fg = _c64ToRenderColorMap[sprite.Color];
+        var mc0 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
+        var mc1 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
+        var colorBase = b * SPRITE_ROWS;
+        for (int row = 0; row < SPRITE_ROWS; row++)
+        {
+            _bandRowColorFg[colorBase + row] = fg;
+            _bandRowColorMc0[colorBase + row] = mc0;
+            _bandRowColorMc1[colorBase + row] = mc1;
+        }
 
         // Snapshot shape so a later pointer change (next band) can't corrupt this one.
         var spriteData = sprite.Data;
@@ -533,39 +562,45 @@ public sealed class Vic2RasterizerUintPixelGenerator
             return;
 
         var shapeBase = b * SPRITE_ROWS * SPRITE_ROW_BYTES;
+        var colorBase = b * SPRITE_ROWS;
+        var destX = _bandX[b];
+        var isDoubleWidth = _bandDoubleWidth[b];
+        var isMultiColor = _bandMultiColor[b];
+        var priority = _bandPriority[b];
         var lineAdvance = _bandDoubleHeight[b] ? 2 : 1;
         var pixelArrayY = _bandRowStart[b];
         for (int row = 0; row < SPRITE_ROWS; row++)
         {
             if ((nonEmpty & (1u << row)) != 0)
             {
-                DrawSpriteRowPixels(shapeBase + row * SPRITE_ROW_BYTES, b, pixelArrayY);
+                var rowBytes = _bandShape.AsSpan(shapeBase + row * SPRITE_ROW_BYTES, SPRITE_ROW_BYTES);
+                var fg = _bandRowColorFg[colorBase + row];
+                var mc0 = _bandRowColorMc0[colorBase + row];
+                var mc1 = _bandRowColorMc1[colorBase + row];
+                DecodeAndWriteSpriteRow(rowBytes, destX, pixelArrayY, isDoubleWidth, isMultiColor, priority, fg, mc0, mc1);
                 if (lineAdvance == 2)
-                    DrawSpriteRowPixels(shapeBase + row * SPRITE_ROW_BYTES, b, pixelArrayY + 1);
+                    DecodeAndWriteSpriteRow(rowBytes, destX, pixelArrayY + 1, isDoubleWidth, isMultiColor, priority, fg, mc0, mc1);
             }
             pixelArrayY += lineAdvance;
         }
     }
 
-    /// <summary>Writes one sprite row's pixels from band <paramref name="b"/> at row offset <paramref name="rowOffset"/>.</summary>
-    private void DrawSpriteRowPixels(int rowOffset, int b, int pixelArrayY)
+    /// <summary>
+    /// Decodes one sprite shape row (3 bytes / 24 px) and writes its pixels at (destX, destY).
+    /// Shared by both the end-of-frame (per-frame) and per-line (band) sprite paths - the only
+    /// difference between them is which producer supplies the position, shape and per-row colours.
+    /// Handles single/multi colour and X expansion; the caller handles Y expansion (calls twice).
+    /// </summary>
+    private void DecodeAndWriteSpriteRow(ReadOnlySpan<byte> rowBytes, int destX, int destY, bool isDoubleWidth, bool isMultiColor, bool priorityOverForeground, uint spriteForegroundPixelColor, uint spriteMultiColor0PixelColor, uint spriteMultiColor1PixelColor)
     {
-        var spriteScreenPosX = _bandX[b];
-        var isMultiColor = _bandMultiColor[b];
-        var priorityOverForeground = _bandPriority[b];
-        var isDoubleWidth = _bandDoubleWidth[b];
         var singleColorPixelAdvance = isDoubleWidth ? 2 : 1;
         var multiColorPixelAdvance = isDoubleWidth ? 4 : 2;
         var spriteLinePartAdvance = isDoubleWidth ? 16 : 8;
 
-        var spriteForegroundPixelColor = _bandColorFg[b];
-        var spriteMultiColor0PixelColor = _bandColorMc0[b];
-        var spriteMultiColor1PixelColor = _bandColorMc1[b];
-
         var x = 0;
         for (int byteIndex = 0; byteIndex < SPRITE_ROW_BYTES; byteIndex++)
         {
-            var spriteLinePart = _bandShape[rowOffset + byteIndex];
+            var spriteLinePart = rowBytes[byteIndex];
             if (spriteLinePart == 0) { x += spriteLinePartAdvance; continue; }
 
             if (isMultiColor)
@@ -588,12 +623,12 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
                     if (spriteColor > 0)
                     {
-                        WriteSpritePixel(spriteScreenPosX + x, pixelArrayY, spriteColor, priorityOverForeground);
-                        WriteSpritePixel(spriteScreenPosX + x + 1, pixelArrayY, spriteColor, priorityOverForeground);
+                        WriteSpritePixel(destX + x, destY, spriteColor, priorityOverForeground);
+                        WriteSpritePixel(destX + x + 1, destY, spriteColor, priorityOverForeground);
                         if (isDoubleWidth)
                         {
-                            WriteSpritePixel(spriteScreenPosX + x + 2, pixelArrayY, spriteColor, priorityOverForeground);
-                            WriteSpritePixel(spriteScreenPosX + x + 3, pixelArrayY, spriteColor, priorityOverForeground);
+                            WriteSpritePixel(destX + x + 2, destY, spriteColor, priorityOverForeground);
+                            WriteSpritePixel(destX + x + 3, destY, spriteColor, priorityOverForeground);
                         }
                     }
 
@@ -610,9 +645,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 {
                     if ((spriteLinePart & mask) == mask)
                     {
-                        WriteSpritePixel(spriteScreenPosX + x, pixelArrayY, spriteForegroundPixelColor, priorityOverForeground);
+                        WriteSpritePixel(destX + x, destY, spriteForegroundPixelColor, priorityOverForeground);
                         if (isDoubleWidth)
-                            WriteSpritePixel(spriteScreenPosX + x + 1, pixelArrayY, spriteForegroundPixelColor, priorityOverForeground);
+                            WriteSpritePixel(destX + x + 1, destY, spriteForegroundPixelColor, priorityOverForeground);
                     }
                     mask >>= 1;
                     x += singleColorPixelAdvance;
@@ -849,9 +884,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
             var isDoubleWidth = sprite.DoubleWidth;
             var isDoubleHeight = sprite.DoubleHeight;
-            var spriteLinePartAdvance = isDoubleWidth ? 16 : 8;
-            var singleColorPixelAdvance = isDoubleWidth ? 2 : 1;
-            var multiColorPixelAdvance = isDoubleWidth ? 4 : 2;
             var spriteLineAdvance = isDoubleHeight ? 2 : 1;
 
             uint spriteForegroundPixelColor;  // One color per sprite
@@ -896,141 +928,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 spriteMultiColor0PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor0];
                 spriteMultiColor1PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor1];
 
-                // Loop each 8-bit part of the sprite line (3 bytes, 24 pixels).
-                var x = 0;
-                foreach (var spriteLinePart in spriteRow.Bytes)
-                {
-                    // 0 means the whole 8-bit sprite chunk is transparent, so skip the per-pixel decode work
-                    // but still advance by the on-screen width that this sprite byte occupies.
-                    if (spriteLinePart == 0)
-                    {
-                        x += spriteLinePartAdvance;
-                        continue;
-                    }
+                // Decode the row using the shared core (same code path as the per-line band draw).
+                // For a Y-expanded sprite the second physical line is the same decode at y+1.
+                DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor);
+                if (isDoubleHeight)
+                    DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y + 1, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor);
 
-                    if (isMultiColor)
-                    {
-                        var maskMultiColor0Mask = 0b01000000;
-                        var maskSpriteColorMask = 0b10000000;
-                        var maskMultiColor1Mask = 0b11000000;
-
-                        uint spriteColor;
-                        for (var pixel = 0; pixel < 8; pixel += 2)
-                        {
-                            if ((spriteLinePart & maskMultiColor1Mask) == maskMultiColor1Mask)
-                                spriteColor = spriteMultiColor1PixelColor;
-                            else if ((spriteLinePart & maskSpriteColorMask) == maskSpriteColorMask)
-                            {
-                                spriteColor = spriteForegroundPixelColor;
-                            }
-                            else if ((spriteLinePart & maskMultiColor0Mask) == maskMultiColor0Mask)
-                            {
-                                spriteColor = spriteMultiColor0PixelColor;
-                            }
-                            else
-                            {
-                                spriteColor = 0;
-                            }
-
-                            if (spriteColor > 0)
-                            {
-                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteColor, priorityOverForground);
-                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteColor, priorityOverForground);
-
-                                if (isDoubleWidth)
-                                {
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y, spriteColor, priorityOverForground);
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y, spriteColor, priorityOverForground);
-                                }
-
-                                if (isDoubleHeight)
-                                {
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-
-                                    if (isDoubleWidth)
-                                    {
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-                                    }
-                                }
-                            }
-
-                            maskMultiColor0Mask = maskMultiColor0Mask >> 2;
-                            maskMultiColor1Mask = maskMultiColor1Mask >> 2;
-                            maskSpriteColorMask = maskSpriteColorMask >> 2;
-
-                            x += multiColorPixelAdvance;
-                        }
-                    }
-                    else
-                    {
-                        var mask = 0b10000000;
-                        for (var pixel = 0; pixel < 8; pixel++)
-                        {
-                            var pixelSet = (spriteLinePart & mask) == mask;
-                            if (pixelSet)
-                            {
-                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
-
-                                if (isDoubleWidth)
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
-
-                                if (isDoubleHeight)
-                                {
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
-                                    if (isDoubleWidth)
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
-                                }
-                            }
-                            mask = mask >> 1;
-
-                            x += singleColorPixelAdvance;
-                        }
-                    }
-                }
                 y += spriteLineAdvance;
-            }
-
-            void WriteSpritePixelWithAlphaPrio(int screenPosX, int screenPosY, uint color, bool priorityOverForground)
-            {
-                // Check if pixel is outside the visible screen area
-                if (screenPosX < 0 || screenPosX >= width || screenPosY < 0 || screenPosY > height)
-                    return;
-
-                // Check if pixel is within side borders, and if it should be shown there or not.
-                // TODO: Detect if side borders are open? How to?
-                var openSideBorders = false;
-                if (!openSideBorders && (screenPosX < visibleMainScreenArea.Screen.Start.X || screenPosX > visibleMainScreenArea.Screen.End.X))
-                    return;
-
-                // Check if pixel is within top/bottom borders, and if it should be shown there or not.
-                // TODO: Detect if top/bottom borders are open? How to?
-                var openTopBottomBorders = false;
-                if (!openTopBottomBorders && (screenPosY < visibleMainScreenArea.Screen.Start.Y || screenPosY > visibleMainScreenArea.Screen.End.Y))
-                    return;
-
-                // Calculate the position in the bitmap where the pixel should be drawn
-                // If inverted Y coordinate system is used, flip it
-                if (FlipY)
-                    screenPosY = _height - screenPosY - 1;
-
-                var bitmapIndex = screenPosY * width + screenPosX;
-
-                //// If pixel to be set is from a low prio sprite, don't overwrite if current pixel is from high prio sprite
-                //const uint BLUE_COLOR_MASK = 0x000000ff;
-                if (!priorityOverForground)
-                    //if ((backgroundPixelArray[bitmapIndex] & BLUE_COLOR_MASK) == HIGH_PRIO_SPRITE_BLUE)
-                    //    return;
-                    //backgroundPixelArray[bitmapIndex] = color;
-                    //_setBackgroundPixels(new uint[] { color }, 0, bitmapIndex, 1);
-                    _setPixel(color, bitmapIndex, false); // false = background
-                else
-                {
-                    //foregroundPixelArray[bitmapIndex] = color;
-                    //_setForegroundPixels(new uint[] { color }, 0, bitmapIndex, 1);
-                    _setPixel(color, bitmapIndex, true); // true = foreground
-                }
             }
         }
 
