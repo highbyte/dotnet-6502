@@ -101,14 +101,25 @@ public class Vic2SpriteManager : IVic2SpriteManager
             SpriteToBackgroundCollisionStore = (byte)(SpriteToBackgroundCollisionStore | spriteToBackgroundCollision);
         }
 
-        // Raise IRQ if a collision is detected, the corresponding source is enabled, and it's not
-        // currently blocked (block is cleared when the game reads the collision IO register).
-        //
-        // Sprite-to-sprite and sprite-to-background collisions are their own VIC-II interrupt
-        // sources ($D019 bits 1 and 2), each enabled independently via $D01A. They must NOT be
-        // raised as a raster-compare IRQ ($D019 bit 0): doing so makes a sprite collision look
-        // like a raster interrupt, so games that drive raster splits (e.g. Giana Sisters) service
-        // the collision as a spurious extra raster IRQ, displacing their split chain.
+        // Per-frame: raise at end-of-frame. Per-line: this is a harmless safety net (the IRQ was
+        // already raised mid-frame at the collision's raster line; the calls below are idempotent
+        // thanks to the block/triggered guards).
+        RaiseCollisionIRQsIfNeeded();
+    }
+
+    /// <summary>
+    /// Raises the sprite-to-sprite / sprite-to-background collision IRQs if a collision is latched in
+    /// the stores, the corresponding source is enabled ($D01A), and it isn't currently blocked (the
+    /// block is cleared when the game reads the collision IO register). Idempotent: safe to call
+    /// repeatedly (e.g. once per raster line in per-line mode and again at end-of-frame).
+    ///
+    /// Sprite-to-sprite and sprite-to-background collisions are their own VIC-II interrupt sources
+    /// ($D019 bits 1 and 2). They must NOT be raised as a raster-compare IRQ ($D019 bit 0): doing so
+    /// makes a sprite collision look like a raster interrupt, so games that drive raster splits (e.g.
+    /// Giana Sisters) service the collision as a spurious extra raster IRQ, displacing their splits.
+    /// </summary>
+    private void RaiseCollisionIRQsIfNeeded()
+    {
         if (SpriteToSpriteCollisionStore != 0 && !SpriteToSpriteCollisionIRQBlock
             && Vic2.Vic2IRQ.IsEnabled(IRQSource.SpriteToSpriteCollision)
             && !Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToSpriteCollision))
@@ -171,6 +182,8 @@ public class Vic2SpriteManager : IVic2SpriteManager
         Span<byte> otherRow = stackalloc byte[DEFAULT_WIDTH / 8 * 2];
         Span<byte> bgRow = stackalloc byte[DEFAULT_WIDTH / 8 * 2 + 1];
 
+        var collisionAddedThisLine = false;
+
         // Sprite-to-background, per active sprite on this line.
         for (int i = 0; i < NUMBERS_OF_SPRITES; i++)
         {
@@ -187,7 +200,10 @@ public class Vic2SpriteManager : IVic2SpriteManager
             var screenLineData = bgRow.Slice(0, sprite.WidthBytes + 1);
             GetCharacterRowLineDataMatchingSpritePosition(sprite, rowOf[i], spriteLineData.Length, scrollX, scrollY, ref screenLineData);
             if (CheckCollision(spriteLineData, screenLineData))
+            {
                 SpriteToBackgroundCollisionStore |= (byte)(1 << i);
+                collisionAddedThisLine = true;
+            }
         }
 
         // Sprite-to-sprite, per active pair on this line.
@@ -215,9 +231,16 @@ public class Vic2SpriteManager : IVic2SpriteManager
                 {
                     SpriteToSpriteCollisionStore |= (byte)(1 << a);
                     SpriteToSpriteCollisionStore |= (byte)(1 << b);
+                    collisionAddedThisLine = true;
                 }
             }
         }
+
+        // Mid-frame collision IRQ: raise as soon as a new collision is latched on this raster line
+        // (the CPU services it on the next instruction boundary, like the raster IRQ), instead of
+        // waiting for the end-of-frame SetCollitionDetectionStatesAndIRQ.
+        if (collisionAddedThisLine)
+            RaiseCollisionIRQsIfNeeded();
     }
 
     public byte GetSpriteToSpriteCollision()

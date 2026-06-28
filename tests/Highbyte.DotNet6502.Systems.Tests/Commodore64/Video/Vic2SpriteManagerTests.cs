@@ -150,6 +150,31 @@ public class Vic2SpriteManagerTests
         Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(RasterCompareIrqSource));
     }
 
+    [Fact]
+    public void PerLine_sprite_collision_raises_collision_irq_mid_frame()
+    {
+        // The collision IRQ should be raised at the raster line where the collision occurs, not only
+        // at end-of-frame. Drive the raster lines directly and assert the IRQ becomes active WITHOUT
+        // calling SetCollitionDetectionStatesAndIRQ.
+        var c64 = BuildC64(perLineSprites: true);
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0010); // enable sprite-to-sprite collision IRQ only
+
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 20, y: 60, spritePointer: 192);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 25, y: 60, spritePointer: 193);
+
+        var sm = c64.Vic2.SpriteManager;
+
+        // Before the sprites' display band (raster 60..80): no collision, no IRQ.
+        sm.AccumulatePerLineCollisions(50);
+        Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
+
+        // Process the band: the collision must raise the IRQ mid-frame.
+        for (int line = 60; line <= 80; line++)
+            sm.AccumulatePerLineCollisions(line);
+
+        Assert.True(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
+    }
+
     private static void DrivePerLineCollisionsForFrame(C64 c64)
     {
         var sm = c64.Vic2.SpriteManager;
