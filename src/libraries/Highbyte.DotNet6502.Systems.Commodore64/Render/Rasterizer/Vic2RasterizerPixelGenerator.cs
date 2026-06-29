@@ -84,12 +84,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private CharMode _characterMode;
     private BitmMode _bitmapMode;
     private bool _invalidMode; // ECM combined with BMM/MCM: VIC-II outputs black for the display area.
-    private bool _prevInvalidMode; // invalid-mode state of the previous line, to detect when display resumes.
-    // Character-grid vertical phase offset (0-7). Normally 0 (grid locked to the screen-top
-    // drawLine/8 grid). When the display resumes after an invalid-mode band the grid is re-phased so
-    // the resuming line starts at character-line 0 - mimicking the VIC-II row counter restart and
-    // preventing the band from splitting a character row (which clips e.g. a status line's text top).
-    private int _charGridYOffset;
+    // Invalid-mode lines render black and don't advance the character-row counter, so rows below a
+    // band are pushed down past it (VIC-II "flexible line distance" effect). Normally 0 - identical
+    // to baseline rendering for ordinary screens.
+    private int _charGridYOffset;   // grid snap (0-7) after an invalid-mode band; 0 for normal screens.
+    private bool _prevInvalidMode;  // invalid-mode state of the previous line (to detect band end).
     private int _scrollX;
     private int _scrollY;
 
@@ -337,7 +336,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     //Array.Clear(PixelArray_Foreground, 0, PixelArray_Foreground.Length);
                     _clearForegroundPixels(0, _width * _height);
 
-                    // New frame: character grid starts locked to the screen top.
+                    // New frame: character grid locked to the screen top.
                     _charGridYOffset = 0;
                     _prevInvalidMode = false;
 
@@ -359,22 +358,22 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _bitmapMode = _c64.Vic2.BitmapMode;
                 _invalidMode = _c64.Vic2.IsInvalidVideoMode;
 
-                // When the display resumes after an invalid-mode band, re-phase the character grid so
-                // the resuming line is character-line 0 (VIC-II row-counter restart). This keeps the
-                // same screen-RAM row (characterRow is unchanged at the resume line) but shifts its
-                // 8 character-lines down so the band can't clip the row's top. Only ever non-zero
-                // after an invalid band, so normal (non-split) screens are unaffected.
+                // Invalid-mode (ECM+BMM/MCM) lines render black and DO NOT advance the character-row
+                // counter - matching the VIC-II "flexible line distance" effect a program produces by
+                // suppressing bad lines during the band. The character grid for the lines below the
+                // band is therefore pushed down by the number of invalid lines, so a row that would
+                // otherwise straddle the band (clipping e.g. a title's text) lands cleanly after it.
+                // For normal screens (no invalid lines) this stays 0, identical to baseline rendering.
+                // When the display resumes after an invalid-mode band, snap the character grid to the
+                // next character-row boundary so the resuming row starts cleanly *after* the band
+                // (the band absorbs the partial separator row it overlapped). This is the minimal
+                // downward shift needed to clear the band - pushing by the full band height would
+                // over-shift and drop the rows below off the bottom border. Only ever non-zero after
+                // an invalid band, so normal (non-split) screens are unaffected.
                 if (_prevInvalidMode && !_invalidMode)
                 {
-                    // Align the resumed character grid to the VIC-II bad-line phase: character-line 0
-                    // (row-counter reset) falls on raster lines where (raster & 7) == yscroll. Anchored
-                    // to the bad-line grid (not the resume line) so the shift is the minimal amount the
-                    // hardware would apply - a fixed per-screen offset would over-shift text that sits
-                    // far from the band (e.g. a title screen's lines near the bottom border).
                     var resumeDrawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
-                    var rasterAtDrawLine0 = rasterLine - resumeDrawLine; // raster line of drawLine 0 (constant)
-                    var yscroll = _c64.Vic2.GetScrollY();
-                    _charGridYOffset = (((yscroll - rasterAtDrawLine0) % 8) + 8) % 8;
+                    _charGridYOffset = ((resumeDrawLine % 8) + 8) % 8;
                 }
                 _prevInvalidMode = _invalidMode;
 
@@ -1002,8 +1001,8 @@ public sealed class Vic2RasterizerUintPixelGenerator
             return;
         }
 
-        // Re-phase the character grid after an invalid-mode band (see _charGridYOffset). Normally 0,
-        // so this is identical to drawLine/8 and drawLine%8 for ordinary screens.
+        // Snap the character grid to the row boundary after an invalid-mode band (see _charGridYOffset).
+        // Normally 0, so this is identical to drawLine/8 and drawLine%8 for ordinary screens.
         var gridLine = drawLine - _charGridYOffset;
         var characterRow = gridLine / 8;
         var characterLine = (ushort)(gridLine % 8);
