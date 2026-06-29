@@ -996,6 +996,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // than painting black keeps the foreground transparent so sprites still composite normally.
         if (_invalidMode)
         {
+            // Clear pixels
             WriteToPixelArray(_oneLineSameColorPixels[(byte)C64Colors.Black], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
             WriteToPixelArray(_oneLineTransparentPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
             return;
@@ -1003,6 +1004,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         // Snap the character grid to the row boundary after an invalid-mode band (see _charGridYOffset).
         // Normally 0, so this is identical to drawLine/8 and drawLine%8 for ordinary screens.
+        // This is adjusted again when the actual pixels are drawn to pixel buffer in WriteToPixelArray. 
         var gridLine = drawLine - _charGridYOffset;
         var characterRow = gridLine / 8;
         var characterLine = (ushort)(gridLine % 8);
@@ -1073,7 +1075,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                         throw new DotNet6502Exception("Invalid background color number.");
                 }
             }
-            else // Asume text multicolor mode
+            else // Assume text multicolor mode
             {
                 // Text multicolor mode color usage (8 bits, 4 pixel pairs)
                 // Transparent background = the color of pixel-pair 00
@@ -1134,6 +1136,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
             if (fnAdjustForScrollY)
                 fnMainScreenY += _scrollY;
             var ypos = _screenStartY + fnMainScreenY;
+
+            // Adjust for invalid mode lines offset
+            ypos -= _charGridYOffset;
+
             if (ypos <= _topBorderEndYAdjusted || ypos >= _bottomBorderStartYAdjusted)
                 return;
 
