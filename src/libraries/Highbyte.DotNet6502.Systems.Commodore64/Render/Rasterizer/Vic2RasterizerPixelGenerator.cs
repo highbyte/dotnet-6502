@@ -21,6 +21,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     // Pre-calculated pixel arrays
     private uint[][] _oneLineSameColorPixels; // pixelArray
+    private uint[] _oneLineTransparentPixels = default!; // a line of the transparent color, used to clear the foreground layer
 
     // Text standard mode: 8-bit patterns mapped to 8 pixels (1 pixel = 1 uint rgba).
     // 1 maps to the color in the lookup table, and 0 maps to a predefined "background" color that will be replaced in shader.
@@ -82,6 +83,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private bool _isTextMode;
     private CharMode _characterMode;
     private BitmMode _bitmapMode;
+    private bool _invalidMode; // ECM combined with BMM/MCM: VIC-II outputs black for the display area.
+    private bool _prevInvalidMode; // invalid-mode state of the previous line, to detect when display resumes.
+    // Character-grid vertical phase offset (0-7). Normally 0 (grid locked to the screen-top
+    // drawLine/8 grid). When the display resumes after an invalid-mode band the grid is re-phased so
+    // the resuming line starts at character-line 0 - mimicking the VIC-II row counter restart and
+    // preventing the band from splitting a character row (which clips e.g. a status line's text top).
+    private int _charGridYOffset;
     private int _scrollX;
     private int _scrollY;
 
@@ -329,6 +337,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     //Array.Clear(PixelArray_Foreground, 0, PixelArray_Foreground.Length);
                     _clearForegroundPixels(0, _width * _height);
 
+                    // New frame: character grid starts locked to the screen top.
+                    _charGridYOffset = 0;
+                    _prevInvalidMode = false;
+
                     // New frame: reset the sprite display latch so no sprite carries over.
                     if (_perLineSprites)
                     {
@@ -345,6 +357,27 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _isTextMode = _c64.Vic2.DisplayMode == DispMode.Text;
                 _characterMode = _c64.Vic2.CharacterMode;
                 _bitmapMode = _c64.Vic2.BitmapMode;
+                _invalidMode = _c64.Vic2.IsInvalidVideoMode;
+
+                // When the display resumes after an invalid-mode band, re-phase the character grid so
+                // the resuming line is character-line 0 (VIC-II row-counter restart). This keeps the
+                // same screen-RAM row (characterRow is unchanged at the resume line) but shifts its
+                // 8 character-lines down so the band can't clip the row's top. Only ever non-zero
+                // after an invalid band, so normal (non-split) screens are unaffected.
+                if (_prevInvalidMode && !_invalidMode)
+                {
+                    // Align the resumed character grid to the VIC-II bad-line phase: character-line 0
+                    // (row-counter reset) falls on raster lines where (raster & 7) == yscroll. Anchored
+                    // to the bad-line grid (not the resume line) so the shift is the minimal amount the
+                    // hardware would apply - a fixed per-screen offset would over-shift text that sits
+                    // far from the band (e.g. a title screen's lines near the bottom border).
+                    var resumeDrawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
+                    var rasterAtDrawLine0 = rasterLine - resumeDrawLine; // raster line of drawLine 0 (constant)
+                    var yscroll = _c64.Vic2.GetScrollY();
+                    _charGridYOffset = (((yscroll - rasterAtDrawLine0) % 8) + 8) % 8;
+                }
+                _prevInvalidMode = _invalidMode;
+
                 _scrollX = _c64.Vic2.GetScrollX();
                 _scrollY = _c64.Vic2.GetScrollY();
 
@@ -699,6 +732,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         var transparentColorVal = TransparentColor;
 
+        // A single line of the transparent color. Used to clear the foreground layer (e.g. invalid mode).
+        _oneLineTransparentPixels = new uint[width];
+        for (var i = 0; i < _oneLineTransparentPixels.Length; i++)
+            _oneLineTransparentPixels[i] = transparentColorVal;
+
         // Text (normal) & bitmap (standard "HiRes") mode with one foreground color with a single "transparent" color as background color
         // 8 bits => 8 pixels
         _eightPixelsOneColorAndBackground = new uint[256 * 16][];
@@ -949,8 +987,26 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     private void DrawTextAndBitmapPixels(C64 c64, int drawLine, int col)
     {
-        var characterRow = drawLine / 8;
-        var characterLine = (ushort)(drawLine % 8);
+        // Invalid VIC-II mode (ECM combined with BMM/MCM): the pixel sequencer is disabled and the
+        // display area outputs black at the physical raster line, regardless of screen/char/bitmap
+        // memory. (Without this, the BMM bit alone makes us render garbage bitmap data - the cause of
+        // the garbled band seen in e.g. Commando, which toggles this mode on for a few raster lines.)
+        // Fill the background layer black, and clear the foreground layer at the *unshifted* raster
+        // position: fine-scroll writes foreground from neighbouring lines shifted by ScrollY, which
+        // would otherwise bleed scrolled content (e.g. trees) into the black band. Clearing rather
+        // than painting black keeps the foreground transparent so sprites still composite normally.
+        if (_invalidMode)
+        {
+            WriteToPixelArray(_oneLineSameColorPixels[(byte)C64Colors.Black], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+            WriteToPixelArray(_oneLineTransparentPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+            return;
+        }
+
+        // Re-phase the character grid after an invalid-mode band (see _charGridYOffset). Normally 0,
+        // so this is identical to drawLine/8 and drawLine%8 for ordinary screens.
+        var gridLine = drawLine - _charGridYOffset;
+        var characterRow = gridLine / 8;
+        var characterLine = (ushort)(gridLine % 8);
         var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
 
         var characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + characterRow * _vic2ScreenTextCols + col);

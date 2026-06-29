@@ -322,7 +322,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         };
 
         var cpu = CreateC64CPU(loggerFactory, c64Config.CpuCompatibilityProfile);
-        var vic2 = Vic2.BuildVic2(vic2Model, c64);
+        var vic2 = Vic2.BuildVic2(vic2Model, c64, loggerFactory);
         var sid = Sid.BuildSid(c64);
 
         var cia1 = new Cia1(c64, c64Config, loggerFactory);
