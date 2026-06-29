@@ -2,6 +2,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Utils;
+using Microsoft.Extensions.Logging;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -26,6 +27,8 @@ public class Vic2
     public Memory Vic2Mem { get; private set; } = default!;
 
     public Vic2IRQ Vic2IRQ { get; private set; } = default!;
+
+    private ILogger _logger = default!;
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
@@ -68,6 +71,24 @@ public class Vic2
     }
 
     public enum CharMode { Standard = 0, Extended = 1, MultiColor = 2 };
+
+    /// <summary>
+    /// True when the VIC-II mode bits select an invalid combination: ECM (bit 6 of $D011) set
+    /// together with BMM (bit 5 of $D011) and/or MCM (bit 4 of $D016). On real hardware the pixel
+    /// sequencer is disabled for these modes and the display area outputs black. Some games (e.g.
+    /// Commando) toggle this on for a few raster lines to draw a black separator band.
+    /// </summary>
+    public bool IsInvalidVideoMode
+    {
+        get
+        {
+            if (!C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(6)) // ECM
+                return false;
+            var bmm = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(5);
+            var mcm = C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(4);
+            return bmm || mcm;
+        }
+    }
 
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
@@ -128,7 +149,7 @@ public class Vic2
 
     private Vic2() { }
 
-    public static Vic2 BuildVic2(Vic2ModelBase vic2Model, C64 c64)
+    public static Vic2 BuildVic2(Vic2ModelBase vic2Model, C64 c64, ILoggerFactory loggerFactory)
     {
         var vic2Mem = CreateVic2Memory(c64);
 
@@ -143,6 +164,7 @@ public class Vic2
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineIORegisterValues = screenLineData,
+            _logger = loggerFactory.CreateLogger(nameof(Vic2)),
         };
 
         var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
@@ -726,11 +748,12 @@ public class Vic2
 
         }
 
-#if DEBUG
+        // A program is allowed to set a raster IRQ compare line beyond the model's visible/total line count.
+        // On real hardware the compare simply never matches that line (the IRQ won't fire) until reprogrammed.
+        // This happens e.g. when bit 7 of SCRCTRL1 ($D011) is set while the low 8 bits ($D012) hold a value
+        // that combines to more lines than the model has. Just log it instead of treating it as an error.
         if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.TotalHeight)
-            throw new DotNet6502Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
-#endif
-
+            _logger.LogDebug("Raster IRQ compare line {IRQLine} is beyond the {Model} model's total height ({TotalHeight}); IRQ will not fire for this line until reprogrammed.", Vic2IRQ.ConfiguredIRQRasterLine, Vic2Model.Name, Vic2Model.TotalHeight);
     }
 
     public byte ScrCtrlReg1Load(ushort address)
