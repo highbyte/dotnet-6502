@@ -725,6 +725,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         new C64SidSnapshotModule(),
         // c64-disk8 embeds the mounted .d64 image and re-mounts it on restore.
         new C64Disk8SnapshotModule(),
+        // c64-cartridge re-attaches an embedded .crt (without reset) and restores live cartridge
+        // state. Last, so it re-derives the memory configuration after RAM/CPU-port are restored.
+        new C64CartridgeSnapshotModule(),
     };
 
     public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
@@ -778,12 +781,14 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     {
         CartridgeSlot.Attach(cartridge);
         AttachedCartridgeImage = null;
+        _attachedCrtImageBytes = null;
     }
 
     public void DetachCartridge()
     {
         CartridgeSlot.Detach();
         AttachedCartridgeImage = null;
+        _attachedCrtImageBytes = null;
     }
 
     public void ResetAttachedCartridge()
@@ -824,16 +829,34 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public C64CartridgeImageAttachResult AttachCrtImage(
         ReadOnlyMemory<byte> image,
         string? sourceName = null)
+        => AttachCrtImageInternal(image.ToArray(), sourceName, reset: true);
+
+    // Raw .crt bytes of the currently attached cartridge image (null if none / not from a .crt).
+    // Retained so the snapshot c64-cartridge module can embed them.
+    internal byte[]? AttachedCrtImageBytes => _attachedCrtImageBytes;
+    private byte[]? _attachedCrtImageBytes;
+
+    // Snapshot restore: re-attach a .crt cartridge without a hard reset, so machine state restored
+    // by the other snapshot modules (RAM, CPU, chips) is preserved. The c64-cartridge module
+    // restores the cartridge's live state afterwards and re-applies the memory configuration.
+    internal void AttachCrtImageForSnapshotRestore(byte[] image, string? sourceName)
+        => AttachCrtImageInternal(image, sourceName, reset: false);
+
+    private C64CartridgeImageAttachResult AttachCrtImageInternal(
+        byte[] image,
+        string? sourceName,
+        bool reset)
     {
-        var crtImage = C64CrtParser.Parse(image.Span);
+        var crtImage = C64CrtParser.Parse(image);
         var cartridge = C64CrtCartridgeFactory.Create(crtImage);
         _logger.LogInformation(
-            "Attaching CRT cartridge. Source={Source}, Name={Name}, HardwareType={HardwareType}, Chips={ChipCount}, InitialLines={Lines}",
+            "Attaching CRT cartridge. Source={Source}, Name={Name}, HardwareType={HardwareType}, Chips={ChipCount}, InitialLines={Lines}, Reset={Reset}",
             sourceName ?? string.Empty,
             cartridge.Name,
             crtImage.Header.HardwareType,
             crtImage.Chips.Count,
-            cartridge.Lines);
+            cartridge.Lines,
+            reset);
         var result = new C64CartridgeImageAttachResult(
             cartridge.Name,
             crtImage.Header.HardwareType,
@@ -844,13 +867,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
         CartridgeSlot.Replace(cartridge);
         AttachedCartridgeImage = result;
-        HardReset();
-        _logger.LogInformation(
-            "CRT cartridge attached and reset. Name={Name}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, PC={PC:X4}",
-            cartridge.Name,
-            CartridgeSlot.Lines,
-            CurrentBank,
-            CPU.PC);
+        _attachedCrtImageBytes = image;
+        if (reset)
+            HardReset();
         return result;
     }
 

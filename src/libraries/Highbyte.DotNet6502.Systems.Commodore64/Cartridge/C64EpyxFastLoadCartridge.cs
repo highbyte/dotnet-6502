@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 /// Epyx FastLoad cartridge with a capacitor-style ROM timeout.
 /// ROML and IO1 reads enable ROML for 512 CPU cycles; IO2 always exposes the final ROM page.
 /// </summary>
-public sealed class C64EpyxFastLoadCartridge : IC64Cartridge
+public sealed class C64EpyxFastLoadCartridge : IC64Cartridge, ISnapshotableCartridge
 {
     public const int RomSize = 0x2000;
     public const ulong RomEnableCycles = 512;
@@ -95,6 +95,18 @@ public sealed class C64EpyxFastLoadCartridge : IC64Cartridge
 
     public void Dispose()
     {
+    }
+
+    public byte[] CaptureSnapshotState()
+    {
+        var bytes = new byte[8];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(bytes, _cyclesUntilDisabled);
+        return bytes;
+    }
+    public void RestoreSnapshotState(byte[] state)
+    {
+        if (state.Length >= 8)
+            _cyclesUntilDisabled = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(state);
     }
 
     private void TriggerRom()

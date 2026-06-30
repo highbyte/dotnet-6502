@@ -6,7 +6,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 public sealed class C64FinalCartridgeIIICartridge :
     IC64Cartridge,
     IC64FreezableCartridge,
-    IC64CartridgeNmiSource
+    IC64CartridgeNmiSource,
+    ISnapshotableCartridge
 {
     public const int StandardRomBankCount = 4;
     public const int ExtendedRomBankCount = 16;
@@ -160,5 +161,17 @@ public sealed class C64FinalCartridgeIIICartridge :
 
     public void Dispose()
     {
+    }
+
+    public byte[] CaptureSnapshotState()
+        => new[] { _register, (byte)(_registerEnabled ? 1 : 0), (byte)(_freezeMode ? 1 : 0), (byte)(_nmiLineActive ? 1 : 0) };
+    public void RestoreSnapshotState(byte[] state)
+    {
+        if (state.Length < 4)
+            return;
+        _register = state[0];
+        _registerEnabled = state[1] != 0;
+        _freezeMode = state[2] != 0;
+        _nmiLineActive = state[3] != 0;
     }
 }

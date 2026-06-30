@@ -7,7 +7,8 @@ public sealed class C64ExpertCartridge :
     IC64Cartridge,
     IC64FreezableCartridge,
     IC64CartridgeNmiAcknowledgeHandler,
-    IC64CartridgeNormalMemoryFallback
+    IC64CartridgeNormalMemoryFallback,
+    ISnapshotableCartridge
 {
     public const int RamSize = 0x2000;
 
@@ -185,6 +186,27 @@ public sealed class C64ExpertCartridge :
 
     public void Dispose()
     {
+    }
+
+    // Live state: register-enabled / RAM-visible / RAM-writeable flags and the 8K cartridge RAM.
+    // The mode is fixed at attach time, so it is reconstructed by re-attaching the .crt.
+    public byte[] CaptureSnapshotState()
+    {
+        var state = new byte[3 + RamSize];
+        state[0] = (byte)(_registerEnabled ? 1 : 0);
+        state[1] = (byte)(_ramWriteable ? 1 : 0);
+        state[2] = (byte)(_ramVisible ? 1 : 0);
+        Array.Copy(_ram, 0, state, 3, RamSize);
+        return state;
+    }
+    public void RestoreSnapshotState(byte[] state)
+    {
+        if (state.Length < 3 + RamSize)
+            return;
+        _registerEnabled = state[0] != 0;
+        _ramWriteable = state[1] != 0;
+        _ramVisible = state[2] != 0;
+        Array.Copy(state, 3, _ram, 0, RamSize);
     }
 
     public byte ReadRam(ushort offset)

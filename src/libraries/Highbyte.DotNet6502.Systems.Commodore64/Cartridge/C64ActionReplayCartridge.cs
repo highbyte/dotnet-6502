@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 /// Action Replay 4.2/5/6 cartridge with four 8K ROM banks, 8K RAM,
 /// register-controlled cartridge lines, and freeze-button support.
 /// </summary>
-public sealed class C64ActionReplayCartridge : IC64Cartridge, IC64FreezableCartridge
+public sealed class C64ActionReplayCartridge : IC64Cartridge, IC64FreezableCartridge, ISnapshotableCartridge
 {
     public const int RomBankCount = 4;
     public const int RamSize = 0x2000;
@@ -145,6 +145,26 @@ public sealed class C64ActionReplayCartridge : IC64Cartridge, IC64FreezableCartr
 
     public void Dispose()
     {
+    }
+
+    // Live state: control register, active/freeze flags, and the 8K cartridge RAM (written during use).
+    public byte[] CaptureSnapshotState()
+    {
+        var state = new byte[3 + RamSize];
+        state[0] = _register;
+        state[1] = (byte)(_active ? 1 : 0);
+        state[2] = (byte)(_freezeMode ? 1 : 0);
+        Array.Copy(_ram, 0, state, 3, RamSize);
+        return state;
+    }
+    public void RestoreSnapshotState(byte[] state)
+    {
+        if (state.Length < 3 + RamSize)
+            return;
+        _register = state[0];
+        _active = state[1] != 0;
+        _freezeMode = state[2] != 0;
+        Array.Copy(state, 3, _ram, 0, RamSize);
     }
 
     public byte ReadRam(ushort offset)
