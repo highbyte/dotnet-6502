@@ -29,6 +29,15 @@ public interface IHostApp
 
     public void RunEmulatorOneFrame();
 
+    /// <summary>
+    /// Deterministically advances the loaded system by <paramref name="frameCount"/> frames and
+    /// renders the result to the host's render target (if any). Intended for automation: load a
+    /// snapshot (paused), step N frames, then screenshot. Requires the emulator to be stopped/paused
+    /// and a system to be loaded; throws if it is Running (the real-time run loop would make stepping
+    /// non-deterministic) or if no system is loaded.
+    /// </summary>
+    public Task StepEmulatorFramesAsync(int frameCount);
+
     public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid();
 
     /// <summary>

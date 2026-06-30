@@ -269,6 +269,8 @@ public class AutomatedStartupHandlerTests
         {
         }
 
+        public Task StepEmulatorFramesAsync(int frameCount) => Task.CompletedTask;
+
         public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid()
             => Task.FromResult<(bool, List<string>)>((true, []));
 

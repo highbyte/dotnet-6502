@@ -46,6 +46,13 @@ public class RemoteCommandDispatcher
                 "emu.selectvariant" => string.IsNullOrEmpty(cmd.Name)
                     ? Err(cmd.Id, "Missing 'name' parameter")
                     : await HandleUiAsync(cmd.Id, async hostApp => await hostApp.SelectSystemConfigurationVariant(cmd.Name)),
+                "emu.savesnapshot" => string.IsNullOrEmpty(cmd.Path)
+                    ? Err(cmd.Id, "Missing 'path' parameter")
+                    : await HandleUiAsync(cmd.Id, hostApp => SaveSnapshotToFile(hostApp, cmd.Path!)),
+                "emu.loadsnapshot" => string.IsNullOrEmpty(cmd.Path)
+                    ? Err(cmd.Id, "Missing 'path' parameter")
+                    : await HandleUiAsync(cmd.Id, hostApp => LoadSnapshotFromFile(hostApp, cmd.Path!)),
+                "emu.runframes" => await HandleUiAsync(cmd.Id, hostApp => hostApp.StepEmulatorFramesAsync(cmd.Count ?? 1)),
                 "cpu.get"      => HandleCpuGet(cmd.Id),
                 "cpu.set"      => await HandleFrameAsync(cmd.Id, hostApp => CpuSetDirect(hostApp, cmd)),
                 "mem.read"     => HandleMemRead(cmd.Id, cmd),
@@ -463,6 +470,26 @@ public class RemoteCommandDispatcher
     }
 
     // --- Helpers ---
+
+    // Snapshot save/load run on the UI thread (via HandleUiAsync) and read/write the .d6502snap on
+    // the machine the emulator runs on. Exceptions (no provider, missing file, ...) propagate to
+    // DispatchAsync's catch and are returned to the client as an error result.
+    private static async Task SaveSnapshotToFile(IRemotableHostApp hostApp, string path)
+    {
+        if (!hostApp.CanSnapshotCurrentSystem)
+            throw new InvalidOperationException(
+                $"System '{hostApp.SelectedSystemName}' does not support snapshots (none selected/running?).");
+        await using var fileStream = System.IO.File.Create(path);
+        await hostApp.SaveSnapshotAsync(fileStream);
+    }
+
+    private static async Task LoadSnapshotFromFile(IRemotableHostApp hostApp, string path)
+    {
+        if (!System.IO.File.Exists(path))
+            throw new System.IO.FileNotFoundException($"Snapshot file not found: {path}");
+        await using var fileStream = System.IO.File.OpenRead(path);
+        await hostApp.LoadSnapshotAsync(fileStream);
+    }
 
     private static RemoteCommandResult Ok(int? id) =>
         new() { Id = id, Ok = true };

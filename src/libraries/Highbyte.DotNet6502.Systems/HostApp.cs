@@ -758,6 +758,33 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }
 
+    /// <summary>
+    /// Deterministically steps the loaded system by <paramref name="frameCount"/> frames and flushes
+    /// the render coordinator so the host's render target (e.g. the desktop screenshot bitmap)
+    /// reflects the final frame. Bypasses the real-time run loop — it is intended for automation
+    /// (load a snapshot paused, step a known number of frames, then screenshot).
+    /// Requires the emulator to be stopped/paused: stepping while it is Running is rejected, because
+    /// the real-time run loop is concurrently advancing the same system, which would make the step
+    /// non-deterministic.
+    /// </summary>
+    public async Task StepEmulatorFramesAsync(int frameCount)
+    {
+        if (frameCount < 1)
+            throw new DotNet6502Exception($"frameCount must be >= 1 (was {frameCount}).");
+        if (_systemRunner == null)
+            throw new DotNet6502Exception("No system is loaded to step (load/start a system or restore a snapshot first).");
+        if (EmulatorState == EmulatorState.Running)
+            throw new DotNet6502Exception("Cannot step frames while the emulator is running; deterministic stepping requires a stopped/paused emulator. Pause the emulator (or load a snapshot) first.");
+
+        for (int i = 0; i < frameCount; i++)
+            _systemRunner.RunEmulatorOneFrame();
+
+        // Draw the resulting frame to the render target so a subsequent screenshot reflects it.
+        // Null on hosts without a renderer (e.g. headless) — stepping still advances emulation.
+        if (_renderCoordinator != null)
+            await _renderCoordinator.FlushIfDirtyAsync();
+    }
+
     private void InitRendererForSystem()
     {
         // Skip rendering initialization if no render config has been provided (e.g., in unit tests)
