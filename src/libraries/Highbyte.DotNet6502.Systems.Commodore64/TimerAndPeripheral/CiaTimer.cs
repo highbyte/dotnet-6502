@@ -74,6 +74,22 @@ public class CiaTimer
         _timerControlForceLoadBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.ForceLoadTimerA : (int)CiaTimerBControl.ForceLoadTimerB;
     }
 
+    // --- Snapshot support ---
+    // Captures/restores the live timer state that is not held in the C64 IO register storage:
+    // the latch, the control byte, the current counter and the running flag. Restore sets the
+    // fields directly (bypassing the TimerControl setter) so the exact preserved state is applied
+    // without re-triggering force-load/start side effects.
+    internal (ushort Latch, byte Control, ushort Current, bool Running) GetSnapshotState()
+        => (_internalTimer_Latch, _timerControl, InternalTimer, _timerIsRunning);
+
+    internal void RestoreSnapshotState(ushort latch, byte control, ushort current, bool running)
+    {
+        _internalTimer_Latch = latch;
+        _timerControl = control;
+        InternalTimer = current;
+        _timerIsRunning = running;
+    }
+
     public void ProcessTimer(ulong cyclesExecuted)
     {
         if (!TimerControl.IsBitSet(_timerControlStartBit) || !_timerIsRunning || cyclesExecuted == 0)

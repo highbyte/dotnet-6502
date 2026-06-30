@@ -22,12 +22,14 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
+using Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
+public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider
 {
     private const string CartridgeNmiSource = "CartridgeNmi";
     private const string CartridgeIrqSource = "CartridgeIrq";
@@ -687,6 +689,45 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
         if (CurrentBank != previousBank && Vic2 is not null)
             Vic2.SpriteManager.SetAllChanged(Vic2Sprite.Vic2SpriteChangeType.Data);
     }
+
+    // --- Snapshot support ---
+    // The 6510 CPU port raw registers are private and reading $00/$01 returns derived values
+    // (effective port value with pull-ups), so the c64-core snapshot module captures/restores the
+    // raw registers through these internal accessors instead of through memory reads/writes.
+    internal byte SnapshotCpuPortDataDirectionRegister
+    {
+        get => _cpuPortDataDirectionRegister;
+        set => _cpuPortDataDirectionRegister = value;
+    }
+    internal byte SnapshotCpuPortDataRegister
+    {
+        get => _cpuPortDataRegister;
+        set => _cpuPortDataRegister = value;
+    }
+
+    // Re-applies the bank/memory configuration derived from the restored CPU port registers and
+    // cartridge lines (recomputes CurrentBank and calls Mem.SetMemoryConfiguration).
+    internal void ApplyCpuPortMemoryConfigurationFromSnapshot() => ApplyCpuPortMemoryConfiguration();
+
+    // The shared SnapshotService enforces format-version, machine-name, unknown-required-module and
+    // module-version rules. The c64-core module additionally validates model/timer-mode on restore.
+    public const int SnapshotVersion = 1;
+    private readonly IReadOnlyList<ISnapshotModule> _snapshotModules = new ISnapshotModule[]
+    {
+        new Cpu6502SnapshotModule(),
+        new C64CoreSnapshotModule(),
+        // c64-vic2 must restore after c64-core so it can re-derive cached display state from the
+        // restored IO registers. SID registers live in the IO array (restored by c64-core), so no
+        // separate SID module is needed for the registers-only v1.
+        new C64Vic2SnapshotModule(),
+        new C64CiaSnapshotModule(),
+    };
+
+    public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
+
+    public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
+
+    public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest) => SnapshotCompatibility.Compatible();
 
     private byte GetCpuPortEffectiveValue()
     {
