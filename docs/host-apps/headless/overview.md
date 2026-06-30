@@ -123,6 +123,18 @@ Start with remote control and allow `emu.quit` command:
 dotnet-6502-headless --system C64 --start --remote-port 6510 --allow-remote-quit
 ```
 
+Restore an emulator-state snapshot and resume running it (the snapshot's manifest determines the system — no `--system` needed):
+
+```sh
+dotnet-6502-headless --load-snapshot state.d6502snap --start
+```
+
+Restore a snapshot but leave it paused, with remote control so an external process can step/screenshot it:
+
+```sh
+dotnet-6502-headless --load-snapshot state.d6502snap --remote-port 6510
+```
+
 Example console output:
 
 ```

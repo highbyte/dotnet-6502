@@ -4,7 +4,7 @@ These are valid for any system.
 
 #### System selection & lifecycle
 
-Desktop equivalents: `--system`, `--systemVariant`, `--start`, `--waitForSystemReady`, `--loadPrg` / `--loadPrgUrl`, `--runLoadedProgram`.
+Desktop equivalents: `--system`, `--systemVariant`, `--start`, `--waitForSystemReady`, `--loadPrg` / `--loadPrgUrl`, `--runLoadedProgram`, `--load-snapshot`.
 
 | Query parameter | Description | Depends on | Example |
 |---|---|---|---|
@@ -14,6 +14,7 @@ Desktop equivalents: `--system`, `--systemVariant`, `--start`, `--waitForSystemR
 | `waitForSystemReady` | Wait until the system reports ready (e.g. C64 BASIC prompt). | Requires `system` and `start`. | `waitForSystemReady=1` |
 | `loadPrgUrl` | Fetch a `.prg` over HTTP and load it into memory. Relative URLs resolve from the app origin. | Requires `system` and `start`. Exclusive with `loadD64Url` / `loadCrtUrl` / `basicText` / `basicUrl`. | `loadPrgUrl=prg/c64/demo.prg` |
 | `runLoadedProgram` | Start executing the loaded program from its load address (or, with `loadD64Url`, paste the disk run commands). | Requires `loadPrgUrl` or `loadD64Url`. | `runLoadedProgram=1` |
+| `loadSnapshotUrl` | Fetch a `.d6502snap` emulator-state snapshot over HTTP and restore it. The snapshot's manifest determines the system, so no `system` is needed. The machine is left paused after restore; add `start=1` to resume. Mirrors desktop `--load-snapshot`. | Exclusive with `system`, `systemVariant`, `loadPrgUrl`, `loadD64Url`, `loadCrtUrl`, `runLoadedProgram`, and `script` / `scriptUrl`. | `loadSnapshotUrl=snapshots/state.d6502snap` |
 
 `loadPrgUrl` copies the fetched file's bytes to the load address in its 2-byte header — but how a
 loaded `.prg` is *interpreted and run* is system-specific. The systems documented below may add

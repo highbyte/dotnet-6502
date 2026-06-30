@@ -195,6 +195,60 @@ Selects a configuration variant for the current system. **The emulator must be s
 {"id": 9, "ok": true}
 ```
 
+### `emu.savesnapshot`
+
+Saves the current full emulator state to a `.d6502snap` snapshot file. The path is resolved **on the machine the emulator runs on** (the server), not the client. The selected system must support snapshots.
+
+**Parameters**
+
+| Parameter | Type   | Description                                  |
+|-----------|--------|----------------------------------------------|
+| `path`    | string | Server-side destination path for the snapshot |
+
+```json
+{"id": 10, "cmd": "emu.savesnapshot", "path": "/tmp/state.d6502snap"}
+```
+
+```json
+{"id": 10, "ok": true}
+```
+
+### `emu.loadsnapshot`
+
+Restores full emulator state from a `.d6502snap` snapshot file (read from the **server-side** path). The snapshot's manifest determines the system, so no `emu.selectsystem` is needed first. The emulator is left **paused** after restore — send `emu.start` to resume.
+
+**Parameters**
+
+| Parameter | Type   | Description                             |
+|-----------|--------|-----------------------------------------|
+| `path`    | string | Server-side path of the snapshot to load |
+
+```json
+{"id": 11, "cmd": "emu.loadsnapshot", "path": "/tmp/state.d6502snap"}
+```
+
+```json
+{"id": 11, "ok": true}
+```
+
+### `emu.runframes`
+
+Deterministically advances the emulator by a fixed number of frames and renders the result (so a following `screenshot` reflects it). Intended for automation: load a snapshot (paused), step a known number of frames, then screenshot. **The emulator must be stopped/paused** — stepping is rejected while it is `Running`, because the real-time run loop would make the step non-deterministic.
+
+**Parameters**
+
+| Parameter | Type | Description                          |
+|-----------|------|--------------------------------------|
+| `count`   | int  | Number of frames to step (default 1) |
+
+```json
+{"id": 12, "cmd": "emu.runframes", "count": 1}
+```
+
+```json
+{"id": 12, "ok": true}
+```
+
 ### `cpu.get`
 
 Returns all CPU registers. The emulator must be running or paused.
@@ -718,6 +772,6 @@ Returns the current BASIC program in memory as a human-readable string with line
 | Command type              | Execution thread         |
 |---------------------------|--------------------------|
 | Read-only queries (`emu.state`, `emu.systems`, `emu.variants`, `cpu.get`, `mem.read`, `screenshot`, `ui.message`, `c64.isbasicstarted`, `c64.getbasicsource`) | Session thread (direct) |
-| `emu.start/stop/pause/reset/quit`, `emu.selectsystem`, `emu.selectvariant` | UI thread via dispatcher |
+| `emu.start/stop/pause/reset/quit`, `emu.selectsystem`, `emu.selectvariant`, `emu.savesnapshot`, `emu.loadsnapshot`, `emu.runframes` | UI thread via dispatcher |
 | `mem.write`, `mem.loadbin`, `cpu.set`, `c64.loadprg`, `joystick.set/press/release/releaseall`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
 | `keyboard.iskeydown`, `keyboard.getall` | Session thread (direct read) |

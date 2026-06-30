@@ -93,6 +93,12 @@ remote control.
 # Start C64 and attach a local .crt cartridge image
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --loadCrt "/path/to/fc3.crt"
 
+# Restore an emulator-state snapshot and resume running it (manifest determines the system)
+./Highbyte.DotNet6502.App.Avalonia.Desktop --load-snapshot "/path/to/state.d6502snap" --start
+
+# Restore a snapshot but leave it paused
+./Highbyte.DotNet6502.App.Avalonia.Desktop --load-snapshot "/path/to/state.d6502snap"
+
 # Start with debug adapter for VS Code, waiting for client
 ./Highbyte.DotNet6502.App.Avalonia.Desktop --system C64 --start --enableExternalDebug --debug-port 6502 --debug-wait
 
