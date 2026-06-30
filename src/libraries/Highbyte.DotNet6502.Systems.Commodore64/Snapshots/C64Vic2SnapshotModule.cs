@@ -28,8 +28,18 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
 {
     public const string ModuleName = "c64-vic2";
 
+    // VIC-II interrupt sources whose enable/trigger flags are persisted (IRQSource.Any is a
+    // derived latch recomputed by the VIC, so it is not persisted).
+    private static readonly Video.IRQSource[] s_irqSources =
+    {
+        Video.IRQSource.RasterCompare,
+        Video.IRQSource.SpriteToSpriteCollision,
+        Video.IRQSource.SpriteToBackgroundCollision,
+        Video.IRQSource.LightPenTrigger,
+    };
+
     public string Name => ModuleName;
-    public int Version => 1;
+    public int Version => 2;
     public bool Required => true;
 
     public void Capture(SnapshotModuleWriter writer, SnapshotCaptureContext context)
@@ -39,6 +49,19 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
         // Live raster position (diagnostics / forward-compatibility only).
         writer.WriteUInt16(vic2.CurrentRasterLine);
         writer.WriteUInt64(vic2.CyclesConsumedCurrentVblank);
+
+        // VIC-II interrupt state (held outside IO storage): the configured raster-compare IRQ
+        // line and the per-source enable/trigger flags. Without these, an IRQ-driven game's
+        // raster interrupt never fires after restore and the game hangs.
+        var irq = vic2.Vic2IRQ;
+        var configuredRasterLine = irq.ConfiguredIRQRasterLine;
+        writer.WriteBool(configuredRasterLine.HasValue);
+        writer.WriteUInt16(configuredRasterLine ?? 0);
+        foreach (var source in s_irqSources)
+        {
+            writer.WriteBool(irq.IsEnabled(source));
+            writer.WriteBool(irq.IsTriggered(source));
+        }
     }
 
     public void Restore(SnapshotModuleReader reader, SnapshotRestoreContext context)
@@ -48,6 +71,17 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
 
         _ = reader.ReadUInt16(); // CurrentRasterLine (re-derived during execution)
         _ = reader.ReadUInt64(); // CyclesConsumedCurrentVblank (re-derived during execution)
+
+        var hasConfiguredRasterLine = reader.ReadBool();
+        var configuredRasterLine = reader.ReadUInt16();
+        var irq = vic2.Vic2IRQ;
+        irq.ConfiguredIRQRasterLine = hasConfiguredRasterLine ? configuredRasterLine : null;
+        foreach (var source in s_irqSources)
+        {
+            var enabled = reader.ReadBool();
+            var triggered = reader.ReadBool();
+            irq.RestoreSnapshotState(source, enabled, triggered);
+        }
 
         // Re-derive the cached VIC-II display state from the registers restored by c64-core.
         // Order matters: the VIC bank (CIA2 $DD00) selects the 16 KB window and refreshes the

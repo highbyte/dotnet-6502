@@ -52,6 +52,16 @@ public class Vic2IRQ
         return _sourceTriggerStatus[source];
     }
 
+    // --- Snapshot support ---
+    // Sets the enable/trigger flags directly without touching the CPU interrupt line. The CPU's
+    // IRQ source state is restored separately by the cpu-6502 snapshot module, so re-raising it
+    // here (as Enable/Trigger would) is unnecessary and would risk double-restoring it.
+    internal void RestoreSnapshotState(IRQSource source, bool enabled, bool triggered)
+    {
+        _sourceEnableStatus[source] = enabled;
+        _sourceTriggerStatus[source] = triggered;
+    }
+
     public void Trigger(IRQSource source, CPU cpu)
     {
         _sourceTriggerStatus[source] = true;

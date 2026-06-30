@@ -1,6 +1,8 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Systems.Snapshots;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -142,6 +144,56 @@ public class C64CoreSnapshotRoundTripTests
         // The CIA Timer A current-value registers read back the restored live counter.
         Assert.Equal(sourceTimerLo, restored.Mem.Read(0xDC04));
         Assert.Equal(sourceTimerHi, restored.Mem.Read(0xDC05));
+    }
+
+    [Fact]
+    public void C64_round_trip_restores_vic2_raster_irq_state()
+    {
+        // Configure a raster-compare IRQ ($D012 line + $D01A enable). This state lives in the
+        // Vic2IRQ object (ConfiguredIRQRasterLine + enable flags), not in IO storage; without it
+        // an IRQ-driven game's raster interrupt never fires after restore and the game hangs.
+        var source = BuildC64();
+        source.Mem.Write(0xD012, 0x80); // raster compare line (low 8 bits)
+        source.Mem.Write(0xD01A, 0x01); // enable raster-compare IRQ
+        Assert.True(source.Vic2.Vic2IRQ.IsEnabled(IRQSource.RasterCompare));
+        var sourceConfiguredLine = source.Vic2.Vic2IRQ.ConfiguredIRQRasterLine;
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+
+        snapshotStream.Position = 0;
+        var restored = BuildC64(); // fresh: raster IRQ not configured/enabled
+        Assert.False(restored.Vic2.Vic2IRQ.IsEnabled(IRQSource.RasterCompare));
+        new SnapshotService().Restore(restored, snapshotStream);
+
+        Assert.Equal(sourceConfiguredLine, restored.Vic2.Vic2IRQ.ConfiguredIRQRasterLine);
+        Assert.True(restored.Vic2.Vic2IRQ.IsEnabled(IRQSource.RasterCompare));
+    }
+
+    [Fact]
+    public void C64_round_trip_resumes_sustained_sid_voice()
+    {
+        // A sustained voice: waveform + gate on, set up before the snapshot. The register values
+        // are in IO storage, but the audio provider is edge-triggered on register changes, so the
+        // c64-sid module re-flags the registers on restore to restart the voice.
+        var source = BuildC64();
+        source.Mem.Write(0xD400, 0x10); // voice 1 frequency low
+        source.Mem.Write(0xD401, 0x20); // voice 1 frequency high
+        source.Mem.Write(0xD404, 0b0001_0001); // voice 1 control: triangle waveform + gate on
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+
+        snapshotStream.Position = 0;
+        var restored = BuildC64();
+        new SnapshotService().Restore(restored, snapshotStream);
+
+        var sid = restored.Sid.InternalSidState;
+        // Register values came back (via IO storage / c64-core).
+        Assert.Equal((byte)0b0001_0001, sid.GetRawSidRegValue(0xD404));
+        Assert.Equal((byte)0x10, sid.GetRawSidRegValue(0xD400));
+        // And the voice control register is flagged changed so the provider restarts the voice.
+        Assert.Equal(InternalSidState.GateControl.StartAttackDecaySustain, sid.GetGateControl(1));
     }
 
     [Fact]

@@ -717,10 +717,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         new Cpu6502SnapshotModule(),
         new C64CoreSnapshotModule(),
         // c64-vic2 must restore after c64-core so it can re-derive cached display state from the
-        // restored IO registers. SID registers live in the IO array (restored by c64-core), so no
-        // separate SID module is needed for the registers-only v1.
+        // restored IO registers.
         new C64Vic2SnapshotModule(),
         new C64CiaSnapshotModule(),
+        // c64-sid re-triggers the (edge-triggered) audio providers from the restored SID registers
+        // so sustained voices resume; the register values themselves come from c64-core (IO array).
+        new C64SidSnapshotModule(),
     };
 
     public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
