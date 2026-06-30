@@ -153,6 +153,11 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorPaused => EmulatorState == EmulatorState.Paused;
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
+    // True when the selected/running system supports emulator state snapshots (its ISystem
+    // implements ISystemSnapshotProvider). Drives the enabled state of the Save/Load snapshot
+    // buttons. Re-evaluated on system/variant selection and on emulator-state changes.
+    public bool SnapshotSupported => _hostApp.CanSnapshotCurrentSystem;
+
     public string StatusEmulatorStateText => EmulatorState switch
     {
         EmulatorState.Running => "Running",
@@ -680,12 +685,14 @@ public class MainViewModel : ViewModelBase, IDisposable
                   this.RaisePropertyChanged(nameof(IsEmulatorUninitialized));
                   this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
                   this.RaisePropertyChanged(nameof(StatusEmulatorStateText));
+                  this.RaisePropertyChanged(nameof(SnapshotSupported));
               });
 
         this.WhenAnyValue(x => x.SelectedSystemName, x => x.SelectedSystemVariant)
             .Subscribe(_ =>
             {
                 this.RaisePropertyChanged(nameof(StatusSystemText));
+                this.RaisePropertyChanged(nameof(SnapshotSupported));
                 // The selected system/variant determines the emulator display size; refresh it so the
                 // display container (and window) resizes here — and only here (plus Scale changes).
                 this.RaisePropertyChanged(nameof(EmulatorDisplayWidth));

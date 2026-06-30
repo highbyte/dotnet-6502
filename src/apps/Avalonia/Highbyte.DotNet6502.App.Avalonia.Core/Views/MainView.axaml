@@ -171,6 +171,29 @@
                             Command="{Binding StatsCommand}"
                             ToolTip.Tip="Toggle with F11"/>
                     </Grid>
+
+                    <!-- Fourth row: Save and Load snapshot -->
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                            Content="Save snap"
+                            AutomationProperties.AutomationId="SaveSnapshotButton"
+                            Classes="grid"
+                            Click="SaveSnapshot_Click"
+                            IsEnabled="{Binding SnapshotSupported}"
+                            ToolTip.Tip="Save the current emulator state to a .d6502snap file"/>
+                        <Button Grid.Column="2"
+                            Content="Load snap"
+                            AutomationProperties.AutomationId="LoadSnapshotButton"
+                            Classes="grid"
+                            Click="LoadSnapshot_Click"
+                            IsEnabled="{Binding SnapshotSupported}"
+                            ToolTip.Tip="Restore an emulator state from a .d6502snap file"/>
+                    </Grid>
                 </StackPanel>
     
                 <!-- Common display and audio settings -->

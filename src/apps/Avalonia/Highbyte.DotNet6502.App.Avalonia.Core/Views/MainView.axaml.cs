@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -8,8 +9,10 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems;
@@ -1086,4 +1089,90 @@ public partial class MainView : UserControl
             mainGrid.Children.Remove(overlayPanel);
         }
     }
+
+    // Emulator state snapshots (save/restore). Cross-system feature, so it lives in the common
+    // MainView rather than a per-system menu. Only systems whose ISystem implements
+    // ISystemSnapshotProvider can be snapshotted (currently the Generic computer); for others the
+    // save is skipped with a log message.
+    private void SaveSnapshot_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var hostApp = _subscribedViewModel?.HostApp;
+            if (hostApp == null)
+                return;
+            if (!hostApp.CanSnapshotCurrentSystem)
+            {
+                Logger.LogWarning("Current system '{System}' does not support snapshots yet.", hostApp.SelectedSystemName);
+                return;
+            }
+            if (TopLevel.GetTopLevel(this) is not { } topLevel || !topLevel.StorageProvider.CanSave)
+                return;
+
+            try
+            {
+                var suggestedName = hostApp.SelectedSystemName.Replace(" ", "_");
+                var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Save emulator snapshot",
+                    SuggestedFileName = suggestedName,
+                    DefaultExtension = "d6502snap",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("Emulator snapshot") { Patterns = new[] { "*.d6502snap" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    }
+                });
+                if (file == null)
+                    return;
+
+                using var buffer = new MemoryStream();
+                await hostApp.SaveSnapshotAsync(buffer);
+                buffer.Position = 0;
+
+                await using var stream = await file.OpenWriteAsync();
+                await buffer.CopyToAsync(stream);
+                Logger.LogInformation("Snapshot saved to {FileName}", file.Name);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error saving snapshot");
+            }
+        });
+
+    private void LoadSnapshot_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var hostApp = _subscribedViewModel?.HostApp;
+            if (hostApp == null)
+                return;
+
+            var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+            var filePicker = serviceProvider?.GetService<IAppFilePicker>();
+            if (filePicker == null)
+                return;
+
+            var picked = await filePicker.OpenFileAsync(
+                this,
+                new AppFilePickerOpenOptions(
+                    "Load emulator snapshot",
+                    AllowMultiple: false,
+                    [
+                        new AppFilePickerFileType("Emulator snapshot", ["*.d6502snap"]),
+                        AppFilePickerFileType.AllFiles
+                    ]));
+            if (picked == null)
+                return;
+
+            try
+            {
+                using var ms = new MemoryStream(picked.Bytes);
+                var result = await hostApp.LoadSnapshotAsync(ms);
+                Logger.LogInformation("Snapshot '{Name}' loaded ({WarningCount} warning(s)); emulator paused.",
+                    picked.Name, result.Warnings.Count);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading snapshot");
+            }
+        });
 }

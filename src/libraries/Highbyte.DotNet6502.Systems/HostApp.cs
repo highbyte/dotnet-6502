@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems;
@@ -597,6 +598,88 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
         Stop();
         await Start();
+    }
+
+    /// <summary>
+    /// True if the currently running (or selected-but-not-started) system supports snapshots.
+    /// </summary>
+    public bool CanSnapshotCurrentSystem
+        => (CurrentRunningSystem ?? _selectedSystemTemporary) is ISystemSnapshotProvider;
+
+    /// <summary>
+    /// Captures a snapshot of the current system to <paramref name="output"/>. Pauses the emulator
+    /// for the (read-only) capture and resumes it afterwards if it had been running. Throws
+    /// <see cref="SnapshotException"/> if no snapshot-capable system is available.
+    /// </summary>
+    public async Task SaveSnapshotAsync(Stream output, SnapshotSaveOptions? options = null)
+    {
+        var system = CurrentRunningSystem ?? _selectedSystemTemporary
+            ?? throw new SnapshotException("No system is selected or running to snapshot.");
+        if (system is not ISystemSnapshotProvider)
+            throw new SnapshotException($"System '{system.Name}' does not support snapshots yet.");
+
+        options ??= new SnapshotSaveOptions { ConfigurationVariant = _selectedSystemConfigurationVariant };
+
+        bool wasRunning = EmulatorState == EmulatorState.Running;
+        if (wasRunning)
+            Pause();
+        try
+        {
+            new SnapshotService().Save(system, output, options);
+            _logger.LogInformation("Saved snapshot of system '{System}' variant '{Variant}'.",
+                system.Name, _selectedSystemConfigurationVariant);
+        }
+        finally
+        {
+            if (wasRunning)
+                await Start();
+        }
+    }
+
+    /// <summary>
+    /// Restores a snapshot read from <paramref name="input"/>. Stops any running system, rebuilds a
+    /// fresh system of the snapshot's machine + variant, restores module state into it, then starts
+    /// it left paused. Returns the restore result (including any non-fatal warnings).
+    /// </summary>
+    public async Task<SnapshotRestoreResult> LoadSnapshotAsync(Stream input)
+    {
+        var manifest = SnapshotService.PeekManifest(input);
+        input.Position = 0;
+
+        var targetSystemName = manifest.Machine.SystemName;
+        if (!_systemList.Systems.Contains(targetSystemName))
+            throw new SnapshotException(
+                $"Snapshot is for system '{targetSystemName}', which is not available in this host.");
+
+        if (EmulatorState != EmulatorState.Uninitialized)
+            Stop();
+
+        await SelectSystem(targetSystemName);
+
+        var variant = manifest.Machine.ConfigurationVariant;
+        if (!string.IsNullOrEmpty(variant)
+            && _allSelectedSystemConfigurationVariants.Contains(variant)
+            && variant != _selectedSystemConfigurationVariant)
+        {
+            await SelectSystemConfigurationVariant(variant);
+        }
+
+        // Build a fresh system of the target machine + variant and restore the snapshot into it.
+        // BuildSystem clears the config-dirty flag, so the subsequent Start() reuses this exact
+        // instance instead of rebuilding it (and discarding the restored state).
+        var freshSystem = await _systemList.BuildSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
+        var result = new SnapshotService().Restore(freshSystem, input);
+
+        _selectedSystemTemporary = freshSystem;
+        await Start();
+        Pause();
+
+        foreach (var warning in result.Warnings)
+            _logger.LogWarning("Snapshot restore warning: {Warning}", warning);
+        _logger.LogInformation("Restored snapshot into system '{System}' variant '{Variant}' (paused).",
+            _selectedSystemName, _selectedSystemConfigurationVariant);
+
+        return result;
     }
 
     public void Close()

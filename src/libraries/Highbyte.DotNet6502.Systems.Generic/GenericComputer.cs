@@ -1,16 +1,18 @@
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Generic.Render;
+using Highbyte.DotNet6502.Systems.Generic.Snapshots;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Generic;
 
-public class GenericComputer : ISystem, ITextMode, IScreen
+public class GenericComputer : ISystem, ITextMode, IScreen, ISystemSnapshotProvider
 {
     public const string SystemName = "Generic";
     public string Name => SystemName;
@@ -255,6 +257,27 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     //        _logger = this._logger
     //    };
     //}
+
+    // Snapshot support (ISystemSnapshotProvider). The Generic computer is the smallest proof of
+    // the snapshot file format and host flow: shared cpu-6502 module + full-memory module.
+    public const int SnapshotVersion = 1;
+    private readonly IReadOnlyList<ISnapshotModule> _snapshotModules = new ISnapshotModule[]
+    {
+        new Cpu6502SnapshotModule(),
+        new GenericMemorySnapshotModule(),
+    };
+
+    public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
+
+    public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
+
+    public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest)
+    {
+        // The shared SnapshotService already enforces format-version, machine-name, unknown
+        // required module and module-version rules. The Generic computer has no model/variant
+        // to differentiate, so nothing further to validate.
+        return SnapshotCompatibility.Compatible();
+    }
 
     public void Reset(ushort? cpuStartPos = null)
     {
