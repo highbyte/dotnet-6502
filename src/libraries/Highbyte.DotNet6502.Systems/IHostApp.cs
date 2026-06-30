@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Snapshots;
+
 namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
@@ -41,4 +43,19 @@ public interface IHostApp
     public Task<ISystem?> GetSelectedSystem();
     public void UpdateHostSystemConfig(IHostSystemConfig newConfig);
     public Task PersistCurrentHostSystemConfig();
+
+    /// <summary>True if the current/selected system supports emulator state snapshots.</summary>
+    public bool CanSnapshotCurrentSystem { get; }
+
+    /// <summary>
+    /// Captures a snapshot of the current system to <paramref name="output"/>. Pauses the emulator
+    /// for the (read-only) capture and resumes it afterwards if it was running.
+    /// </summary>
+    public Task SaveSnapshotAsync(System.IO.Stream output, SnapshotSaveOptions? options = null);
+
+    /// <summary>
+    /// Restores a snapshot from <paramref name="input"/>: stops any running system, rebuilds the
+    /// snapshot's machine + variant, restores module state into it, and leaves it paused.
+    /// </summary>
+    public Task<SnapshotRestoreResult> LoadSnapshotAsync(System.IO.Stream input);
 }

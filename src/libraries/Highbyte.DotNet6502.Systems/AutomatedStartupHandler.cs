@@ -45,13 +45,31 @@ public static class AutomatedStartupHandler
         bool waitForSystemReady,
         string? loadPrgPath,
         bool runLoadedProgram,
-        bool hasScripts = false)
+        bool hasScripts = false,
+        string? loadSnapshotPath = null)
     {
         // --script / --scriptDir and lifecycle/setup flags are mutually exclusive
-        if (hasScripts && (systemName != null || systemVariant != null || autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram))
+        if (hasScripts && (systemName != null || systemVariant != null || autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram || loadSnapshotPath != null))
         {
-            Console.Error.WriteLine("Error: --script and --scriptDir are mutually exclusive with --system, --systemVariant, --start, --waitForSystemReady, --loadPrg, and --runLoadedProgram. The Lua script is responsible for emulator setup and lifecycle when scripts are used.");
+            Console.Error.WriteLine("Error: --script and --scriptDir are mutually exclusive with --system, --systemVariant, --start, --waitForSystemReady, --loadPrg, --runLoadedProgram, and --load-snapshot. The Lua script is responsible for emulator setup and lifecycle when scripts are used.");
             return false;
+        }
+
+        // --load-snapshot defines the machine and full state itself, so it does not combine with
+        // system selection or PRG loading. --start (resume after restore) is allowed.
+        if (loadSnapshotPath != null)
+        {
+            if (systemName != null || systemVariant != null || loadPrgPath != null || runLoadedProgram)
+            {
+                Console.Error.WriteLine("Error: --load-snapshot cannot be combined with --system, --systemVariant, --loadPrg, or --runLoadedProgram (the snapshot defines the machine and state).");
+                return false;
+            }
+            if (waitForSystemReady && !autoStart)
+            {
+                Console.Error.WriteLine("Error: --waitForSystemReady requires --start to be specified.");
+                return false;
+            }
+            return true;
         }
 
         // If no system specified, no other automated args should be present
@@ -172,7 +190,8 @@ public static class AutomatedStartupHandler
         Func<Func<Task>, Task>? lifecycleInvoker = null,
         Func<Task<byte[]>>? loadPrgBytesProvider = null,
         IAutomatedStartupParticipant? startupParticipant = null,
-        AutomatedStartupContext? startupContext = null)
+        AutomatedStartupContext? startupContext = null,
+        Func<Task<byte[]>>? loadSnapshotBytesProvider = null)
     {
         var logger = loggerFactory.CreateLogger(nameof(AutomatedStartupHandler));
         Func<Func<Task>, Task> invokeLifecycle = lifecycleInvoker ?? (f => f());
@@ -183,6 +202,18 @@ public static class AutomatedStartupHandler
 
         try
         {
+            // Snapshot load takes a distinct path: the snapshot's manifest determines the machine,
+            // so hostApp.LoadSnapshotAsync selects + builds + restores the system (left paused). The
+            // normal select-system / variant / PRG-load flow is skipped entirely.
+            if (request.LoadSnapshotPath != null || loadSnapshotBytesProvider != null)
+            {
+                await invokeLifecycle(() => LoadSnapshotAsync(
+                    hostApp, request, loadSnapshotBytesProvider, autoStart, waitForSystemReady,
+                    enableExternalDebug, prepareForExternalDebuggerStart, onStartupComplete,
+                    fatalError, logger));
+                return;
+            }
+
             // Select the system
             logger.LogInformation($"Selecting system: {systemName}");
             if (!hostApp.AvailableSystemNames.Contains(systemName))
@@ -431,6 +462,87 @@ public static class AutomatedStartupHandler
         {
             logger.LogError(ex, "Error during automated startup");
         }
+    }
+
+    /// <summary>
+    /// Loads an emulator state snapshot at startup. Reads the snapshot bytes (via the host-supplied
+    /// provider, or from the local <see cref="AutomatedStartupRequest.LoadSnapshotPath"/>), restores
+    /// the system (which selects + rebuilds the machine and leaves it paused), then optionally
+    /// resumes it when <paramref name="autoStart"/> is set.
+    /// </summary>
+    private static async Task LoadSnapshotAsync(
+        IHostApp hostApp,
+        AutomatedStartupRequest request,
+        Func<Task<byte[]>>? loadSnapshotBytesProvider,
+        bool autoStart,
+        bool waitForSystemReady,
+        bool enableExternalDebug,
+        Action? prepareForExternalDebuggerStart,
+        Action? onStartupComplete,
+        Action fatalError,
+        ILogger logger)
+    {
+        byte[] snapshotBytes;
+        if (loadSnapshotBytesProvider != null)
+        {
+            logger.LogInformation("Loading snapshot bytes via provider");
+            try
+            {
+                snapshotBytes = await loadSnapshotBytesProvider();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Snapshot bytes provider threw while fetching");
+                fatalError();
+                return;
+            }
+        }
+        else
+        {
+            var expandedPath = PathHelper.ExpandOSEnvironmentVariables(request.LoadSnapshotPath!);
+            if (!File.Exists(expandedPath))
+            {
+                logger.LogError($"Snapshot file not found: {expandedPath}");
+                fatalError();
+                return;
+            }
+            logger.LogInformation($"Loading snapshot file: {expandedPath}");
+            snapshotBytes = await File.ReadAllBytesAsync(expandedPath);
+        }
+
+        try
+        {
+            using var snapshotStream = new MemoryStream(snapshotBytes);
+            var result = await hostApp.LoadSnapshotAsync(snapshotStream);
+            foreach (var warning in result.Warnings)
+                logger.LogWarning("Snapshot restore warning: {Warning}", warning);
+            logger.LogInformation("Snapshot restored for system '{System}' (paused).", hostApp.SelectedSystemName);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to restore snapshot");
+            fatalError();
+            return;
+        }
+
+        if (autoStart)
+        {
+            if (enableExternalDebug && prepareForExternalDebuggerStart != null)
+            {
+                prepareForExternalDebuggerStart();
+                logger.LogInformation("WaitForExternalDebugger set: CPU will not execute until debugger connects.");
+            }
+            logger.LogInformation("Resuming system after snapshot load...");
+            await hostApp.Start();
+            if (waitForSystemReady)
+            {
+                logger.LogInformation("Waiting for system to be ready...");
+                await WaitForSystemReadyAsync(hostApp, logger);
+            }
+        }
+
+        logger.LogInformation("Automated snapshot startup complete.");
+        onStartupComplete?.Invoke();
     }
 
     /// <summary>

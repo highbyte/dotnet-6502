@@ -26,4 +26,13 @@ public sealed record AutomatedStartupRequest(
     /// </summary>
     public IReadOnlyDictionary<string, string> ExtraParameters { get; init; }
         = new Dictionary<string, string>();
+
+    /// <summary>
+    /// Optional path (or host-resolvable resource id) of an emulator state snapshot to load at
+    /// startup. When set, the snapshot's manifest determines the machine, so
+    /// <see cref="SystemName"/> is not required — <see cref="AutomatedStartupHandler"/> restores
+    /// the system from the snapshot (leaving it paused) before any optional autostart, instead of
+    /// the normal select-system / load-PRG flow.
+    /// </summary>
+    public string? LoadSnapshotPath { get; init; }
 }

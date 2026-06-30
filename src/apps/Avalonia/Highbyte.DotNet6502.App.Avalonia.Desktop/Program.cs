@@ -438,6 +438,9 @@ internal sealed partial class Program
         string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrg");
         string? loadPrgUrl = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrgUrl");
         bool runLoadedProgram = args.Contains("--runLoadedProgram");
+        // --load-snapshot defines the machine and full state from the snapshot manifest, so it does
+        // not combine with --system / --loadPrg / .d64 / .crt; --start resumes the restored machine.
+        string? loadSnapshotPath = AutomatedStartupHandler.ParseStringArgument(args, "--load-snapshot");
         var statsInterval = ParseDurationSecondsArgument(args, "--stats-interval");
         if (statsInterval == TimeSpan.MinValue)
             return 1;
@@ -508,7 +511,7 @@ internal sealed partial class Program
         // requires a load" rules apply uniformly.
         var effectiveLoadPrg = loadPrgPath ?? loadPrgUrl;
         var validatorLoadPrgPath = effectiveLoadPrg ?? ((loadD64Path != null || loadD64Url != null) ? "<loadD64>" : null);
-        if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, validatorLoadPrgPath, runLoadedProgram, hasScripts))
+        if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, validatorLoadPrgPath, runLoadedProgram, hasScripts, loadSnapshotPath))
         {
             return 1; // Exit with error code
         }
@@ -738,7 +741,45 @@ internal sealed partial class Program
         //                                    we just need to prevent default system selection).
         //  - mutually exclusive (validated above): at most one of these applies.
         Func<IHostApp, Task>? automatedStartupRunner = null;
-        if (systemName != null)
+        if (loadSnapshotPath != null)
+        {
+            // Snapshot startup: the snapshot's manifest determines the machine, so the handler's
+            // snapshot-load branch selects + rebuilds + restores it (paused), then resumes if
+            // --start. None of the C64-specific PRG/.d64/.crt/participant setup applies.
+            s_automatedRunController = (statsInterval.HasValue || exitAfter.HasValue)
+                ? new AutomatedRunController(loggerFactory, statsInterval, exitAfter)
+                : null;
+
+            automatedStartupRunner = async _ =>
+            {
+                var startupLogger = loggerFactory.CreateLogger(nameof(Program));
+                while (Core.App.Current == null)
+                    await Task.Delay(10);
+#pragma warning disable VSTHRD003
+                var hostApp = await Core.App.WhenHostAppReadyAsync.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+                var debuggableHostApp = hostApp as IDebuggableHostApp;
+
+                var startupRequest = new AutomatedStartupRequest(
+                    systemName ?? "", null, autoStart, waitForSystemReady,
+                    null, false, enableExternalDebug)
+                {
+                    LoadSnapshotPath = loadSnapshotPath,
+                };
+                await AutomatedStartupHandler.ExecuteAsync(
+                    hostApp,
+                    startupRequest,
+                    onStartupComplete: () => debugController.SignalProgramReady(),
+                    loggerFactory: loggerFactory,
+                    prepareForExternalDebuggerStart: debuggableHostApp != null
+                        ? () => debuggableHostApp.WaitForExternalDebugger = true
+                        : null);
+
+                if (hostApp is HostApp instrumentedHostApp)
+                    Dispatcher.UIThread.Post(() => s_automatedRunController?.Start(instrumentedHostApp));
+            };
+        }
+        else if (systemName != null)
         {
             s_automatedRunController = (statsInterval.HasValue || exitAfter.HasValue)
                 ? new AutomatedRunController(loggerFactory, statsInterval, exitAfter)

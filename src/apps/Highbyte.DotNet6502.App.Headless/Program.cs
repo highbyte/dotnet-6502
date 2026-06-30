@@ -36,6 +36,7 @@ bool autoStart = args.Contains("--start");
 bool waitForSystemReady = args.Contains("--waitForSystemReady");
 string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrg");
 bool runLoadedProgram = args.Contains("--runLoadedProgram");
+string? loadSnapshotPath = AutomatedStartupHandler.ParseStringArgument(args, "--load-snapshot");
 
 // Parse scripting override arguments
 List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
@@ -43,7 +44,7 @@ string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(ar
 
 // Validate automated startup arguments
 bool hasScripts = scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
-if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram, hasScripts))
+if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram, hasScripts, loadSnapshotPath))
 {
     return 1;
 }
@@ -162,7 +163,7 @@ if (remotePort.HasValue)
 // ----------
 // Initialize Lua scripting engine
 // ----------
-bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram;
+bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram || loadSnapshotPath != null;
 var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "headless");
 
 // ----------
@@ -228,11 +229,14 @@ logger.LogInformation("Headless host app initialized.");
 // ----------
 // Automated startup
 // ----------
-if (systemName != null)
+if (systemName != null || loadSnapshotPath != null)
 {
     var startupRequest = new AutomatedStartupRequest(
-        systemName, systemVariant, autoStart, waitForSystemReady,
-        loadPrgPath, runLoadedProgram, enableExternalDebug);
+        systemName ?? "", systemVariant, autoStart, waitForSystemReady,
+        loadPrgPath, runLoadedProgram, enableExternalDebug)
+    {
+        LoadSnapshotPath = loadSnapshotPath,
+    };
     await AutomatedStartupHandler.ExecuteAsync(
         hostApp,
         startupRequest,
