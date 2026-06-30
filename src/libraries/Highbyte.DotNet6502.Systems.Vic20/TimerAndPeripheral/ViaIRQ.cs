@@ -41,6 +41,17 @@ public class ViaIRQ
     public bool IsCA1Enabled      => _ca1Enabled;
     public bool IsCA1Triggered    => _ca1Condition;
 
+    // --- Snapshot support ---
+    internal (bool Timer1Enabled, bool Timer1Condition, bool Ca1Enabled, bool Ca1Condition) GetSnapshotState()
+        => (_timer1Enabled, _timer1Condition, _ca1Enabled, _ca1Condition);
+    internal void RestoreSnapshotState(bool timer1Enabled, bool timer1Condition, bool ca1Enabled, bool ca1Condition)
+    {
+        _timer1Enabled = timer1Enabled;
+        _timer1Condition = timer1Condition;
+        _ca1Enabled = ca1Enabled;
+        _ca1Condition = ca1Condition;
+    }
+
     public void SetTimer1Condition()   => _timer1Condition = true;
     public void ClearTimer1Condition() => _timer1Condition = false;
 

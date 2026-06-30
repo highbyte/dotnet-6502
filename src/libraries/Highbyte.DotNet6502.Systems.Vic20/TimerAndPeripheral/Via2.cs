@@ -61,6 +61,10 @@ public class Via2 : ViaBase
     }
 
     private byte _portBValue = 0xFF;
+
+    // --- Snapshot support: the keyboard column-strobe latch (Port B) is held outside memory. ---
+    internal byte SnapshotPortBValue { get => _portBValue; set => _portBValue = value; }
+
     private byte PortALoad(ushort _) => _via1.Keyboard.GetPressedRowsForSelectedColumns();
     private byte PortBLoad(ushort _) => _portBValue;
     private void PortBStore(ushort _, byte value)
