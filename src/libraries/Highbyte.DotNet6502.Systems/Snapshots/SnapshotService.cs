@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Highbyte.DotNet6502.Systems.Snapshots;
@@ -18,6 +19,7 @@ public sealed class SnapshotService
 {
     public const string ManifestEntryName = "snapshot.json";
     public const string ModulesDirectory = "modules";
+    public const string MediaDirectory = "media";
     public const string FileExtension = ".d6502snap";
 
     private static readonly JsonSerializerOptions s_jsonOptions = new()
@@ -77,6 +79,24 @@ public sealed class SnapshotService
             moduleData.Add((entry, moduleStream.ToArray()));
         }
 
+        // Media (disk/cartridge images) the modules registered during capture. Embedded in the
+        // package so the snapshot is self-contained.
+        var mediaData = new List<(string path, byte[] bytes)>();
+        foreach (var media in captureContext.EmbeddedMedia)
+        {
+            var path = $"{MediaDirectory}/{media.Id}.{media.Kind}";
+            manifest.Media.Add(new SnapshotMediaEntry
+            {
+                Id = media.Id,
+                Kind = media.Kind,
+                Mode = "embedded",
+                Path = path,
+                SourceName = media.SourceName,
+                Sha256 = Convert.ToHexStringLower(SHA256.HashData(media.Bytes)),
+            });
+            mediaData.Add((path, media.Bytes));
+        }
+
         using var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
 
         var manifestEntry = archive.CreateEntry(ManifestEntryName, CompressionLevel.Optimal);
@@ -89,6 +109,13 @@ public sealed class SnapshotService
         {
             var moduleEntry = archive.CreateEntry(entry.Path, CompressionLevel.Optimal);
             using var entryStream = moduleEntry.Open();
+            entryStream.Write(bytes, 0, bytes.Length);
+        }
+
+        foreach (var (path, bytes) in mediaData)
+        {
+            var mediaEntry = archive.CreateEntry(path, CompressionLevel.Optimal);
+            using var entryStream = mediaEntry.Open();
             entryStream.Write(bytes, 0, bytes.Length);
         }
     }
@@ -112,7 +139,8 @@ public sealed class SnapshotService
         var manifest = ReadManifest(archive);
         EnforceCompatibility(manifest, targetSystem, provider, out var modulesByName);
 
-        var restoreContext = new SnapshotRestoreContext(targetSystem, manifest);
+        var embeddedMedia = ReadEmbeddedMedia(archive, manifest);
+        var restoreContext = new SnapshotRestoreContext(targetSystem, manifest, embeddedMedia);
         var providerWarnings = provider.ValidateSnapshot(manifest).Warnings;
         foreach (var warning in providerWarnings)
             restoreContext.AddWarning(warning);
@@ -165,6 +193,24 @@ public sealed class SnapshotService
         var manifest = JsonSerializer.Deserialize<SnapshotManifest>(stream, s_jsonOptions)
             ?? throw new SnapshotException($"Snapshot '{ManifestEntryName}' could not be parsed.");
         return manifest;
+    }
+
+    private static Dictionary<string, byte[]> ReadEmbeddedMedia(ZipArchive archive, SnapshotManifest manifest)
+    {
+        var media = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        foreach (var entry in manifest.Media)
+        {
+            if (!string.Equals(entry.Mode, "embedded", StringComparison.Ordinal) || string.IsNullOrEmpty(entry.Path))
+                continue; // reference-only media is not embedded; nothing to read here.
+
+            var mediaEntry = archive.GetEntry(entry.Path)
+                ?? throw new SnapshotException($"Snapshot package is missing embedded media '{entry.Path}'.");
+            using var stream = mediaEntry.Open();
+            using var ms = new MemoryStream();
+            stream.CopyTo(ms);
+            media[entry.Id] = ms.ToArray();
+        }
+        return media;
     }
 
     private static byte[] ReadModuleBytes(ZipArchive archive, SnapshotModuleEntry entry)

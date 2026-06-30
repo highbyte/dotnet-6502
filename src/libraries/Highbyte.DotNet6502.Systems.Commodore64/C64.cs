@@ -723,6 +723,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         // c64-sid re-triggers the (edge-triggered) audio providers from the restored SID registers
         // so sustained voices resume; the register values themselves come from c64-core (IO array).
         new C64SidSnapshotModule(),
+        // c64-disk8 embeds the mounted .d64 image and re-mounts it on restore.
+        new C64Disk8SnapshotModule(),
     };
 
     public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
