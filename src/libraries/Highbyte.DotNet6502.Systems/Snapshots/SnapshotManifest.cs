@@ -63,3 +63,15 @@ public class SnapshotMediaEntry
     public string? SourceUri { get; set; }
     public string? Sha256 { get; set; }
 }
+
+/// <summary>
+/// Source-generated JSON metadata for the snapshot manifest. Using the source generator (rather than
+/// reflection-based serialization) is required for the manifest to round-trip in trimmed / AOT hosts
+/// such as the Avalonia Browser (WASM) app, where reflection-based <see cref="System.Text.Json"/> is
+/// disabled.
+/// </summary>
+[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(SnapshotManifest))]
+internal partial class SnapshotManifestJsonContext : JsonSerializerContext
+{
+}

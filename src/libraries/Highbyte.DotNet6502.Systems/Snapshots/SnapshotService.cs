@@ -22,11 +22,8 @@ public sealed class SnapshotService
     public const string MediaDirectory = "media";
     public const string FileExtension = ".d6502snap";
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
+    // Source-generated metadata (see SnapshotManifestJsonContext) is used instead of reflection-based
+    // serialization so the manifest round-trips in trimmed/AOT hosts (e.g. the Browser/WASM app).
 
     /// <summary>
     /// Captures <paramref name="system"/> state into a snapshot package written to
@@ -102,7 +99,7 @@ public sealed class SnapshotService
         var manifestEntry = archive.CreateEntry(ManifestEntryName, CompressionLevel.Optimal);
         using (var manifestStream = manifestEntry.Open())
         {
-            JsonSerializer.Serialize(manifestStream, manifest, s_jsonOptions);
+            JsonSerializer.Serialize(manifestStream, manifest, SnapshotManifestJsonContext.Default.SnapshotManifest);
         }
 
         foreach (var (entry, bytes) in moduleData)
@@ -190,7 +187,7 @@ public sealed class SnapshotService
         var manifestEntry = archive.GetEntry(ManifestEntryName)
             ?? throw new SnapshotException($"Snapshot package is missing '{ManifestEntryName}'.");
         using var stream = manifestEntry.Open();
-        var manifest = JsonSerializer.Deserialize<SnapshotManifest>(stream, s_jsonOptions)
+        var manifest = JsonSerializer.Deserialize(stream, SnapshotManifestJsonContext.Default.SnapshotManifest)
             ?? throw new SnapshotException($"Snapshot '{ManifestEntryName}' could not be parsed.");
         return manifest;
     }

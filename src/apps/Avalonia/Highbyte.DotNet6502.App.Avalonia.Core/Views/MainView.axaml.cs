@@ -1105,33 +1105,36 @@ public partial class MainView : UserControl
                 Logger.LogWarning("Current system '{System}' does not support snapshots yet.", hostApp.SelectedSystemName);
                 return;
             }
-            if (TopLevel.GetTopLevel(this) is not { } topLevel || !topLevel.StorageProvider.CanSave)
+
+            var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+            var fileSaver = serviceProvider?.GetService<IAppFileSaver>();
+            if (fileSaver == null)
                 return;
 
             try
             {
-                var suggestedName = hostApp.SelectedSystemName.Replace(" ", "_");
-                var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-                {
-                    Title = "Save emulator snapshot",
-                    SuggestedFileName = suggestedName,
-                    DefaultExtension = "d6502snap",
-                    FileTypeChoices = new[]
-                    {
-                        new FilePickerFileType("Emulator snapshot") { Patterns = new[] { "*.d6502snap" } },
-                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                    }
-                });
-                if (file == null)
-                    return;
-
+                // Capture the snapshot to memory, then hand the bytes to the platform saver:
+                // Desktop writes via the StorageProvider save picker; Browser triggers a download.
                 using var buffer = new MemoryStream();
                 await hostApp.SaveSnapshotAsync(buffer);
-                buffer.Position = 0;
 
-                await using var stream = await file.OpenWriteAsync();
-                await buffer.CopyToAsync(stream);
-                Logger.LogInformation("Snapshot saved to {FileName}", file.Name);
+                // SuggestedFileName is extension-less; each saver adds the extension (Desktop via the
+                // StorageProvider DefaultExtension, Browser by appending it to the download name).
+                var suggestedName = hostApp.SelectedSystemName.Replace(" ", "_");
+                var saved = await fileSaver.SaveFileAsync(
+                    this,
+                    new AppFileSaveOptions(
+                        "Save emulator snapshot",
+                        suggestedName,
+                        "d6502snap",
+                        [
+                            new AppFilePickerFileType("Emulator snapshot", ["*.d6502snap"]),
+                            AppFilePickerFileType.AllFiles
+                        ]),
+                    buffer.ToArray());
+
+                if (saved)
+                    Logger.LogInformation("Snapshot saved ({Name}.d6502snap).", suggestedName);
             }
             catch (Exception ex)
             {

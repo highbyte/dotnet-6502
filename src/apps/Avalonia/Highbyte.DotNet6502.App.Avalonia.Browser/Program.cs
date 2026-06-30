@@ -198,6 +198,17 @@ internal sealed partial class Program
     ///     <description>Override C64 audio enable. Requires <c>system=C64</c>.</description>
     ///   </item>
     ///   <item>
+    ///     <term><c>loadSnapshotUrl</c></term>
+    ///     <description>
+    ///       URL (relative or absolute) to fetch a <c>.d6502snap</c> emulator-state snapshot from and
+    ///       restore. The snapshot's manifest defines the machine and full state, so this is mutually
+    ///       exclusive with <c>system</c>, <c>systemVariant</c>, <c>loadPrgUrl</c>, <c>loadD64Url</c>,
+    ///       <c>loadCrtUrl</c>, <c>runLoadedProgram</c>, and <c>script</c>/<c>scriptUrl</c>. The machine
+    ///       is left paused after restore; add <c>start</c> to resume. Mirrors desktop
+    ///       <c>--load-snapshot</c> (which reads a local file instead of a URL).
+    ///     </description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>script</c></term>
     ///     <description>
     ///       Base64url-encoded inline Lua script to load and auto-enable at startup. The script
@@ -698,6 +709,74 @@ internal sealed partial class Program
                 }
             };
         }
+        else if (automation.LoadSnapshotUrl != null)
+        {
+            // Snapshot-driven automation (parity with desktop --load-snapshot). The snapshot's
+            // manifest determines the machine, so the handler's snapshot-load branch rebuilds +
+            // restores it (paused), then resumes if 'start'. Desktop reads the snapshot from a file
+            // path; the browser fetches the bytes from the URL instead (like loadPrgUrl/loadD64Url).
+            var snapshotUrl = automation.LoadSnapshotUrl;
+            var resumeAfterRestore = automation.AutoStart;
+            var waitForReady = automation.WaitForSystemReady;
+            automatedStartupRunner = async hostApp =>
+            {
+                var startupLogger = loggerFactory.CreateLogger(nameof(Program));
+
+                var fetchUrl = CorsProxyHelper.ApplyCorsProxyIfNeeded(snapshotUrl, corsProxyUrl, appBaseUrl);
+                Func<Task<byte[]>> snapshotBytesProvider = async () =>
+                {
+                    using var http = GetAppUrlHttpClient();
+                    startupLogger.LogInformation($"Fetching snapshot from '{fetchUrl}'...");
+                    var bytes = await http.GetByteArrayAsync(fetchUrl);
+                    startupLogger.LogInformation($"Fetched {bytes.Length} bytes from '{fetchUrl}'.");
+                    return bytes;
+                };
+
+                try
+                {
+                    var startupRequest = new AutomatedStartupRequest(
+                        SystemName: "",
+                        SystemVariant: null,
+                        AutoStart: resumeAfterRestore,
+                        WaitForSystemReady: waitForReady,
+                        LoadPrgPath: null,
+                        RunLoadedProgram: false,
+                        EnableExternalDebug: false);
+
+                    await AutomatedStartupHandler.ExecuteAsync(
+                        hostApp,
+                        startupRequest,
+                        onStartupComplete: null,
+                        loggerFactory: loggerFactory,
+                        prepareForExternalDebuggerStart: null,
+                        onFatalError: () =>
+                        {
+                            startupLogger.LogError("Snapshot automated startup aborted; falling back to default system selection.");
+                            var defaultSystem = emulatorConfig.DefaultEmulator;
+                            if (string.IsNullOrEmpty(defaultSystem))
+                                return;
+                            Dispatcher.UIThread.Post(
+                                () =>
+                                {
+                                    var task = hostApp.SelectSystem(defaultSystem);
+                                    _ = task.ContinueWith(
+                                        t =>
+                                        {
+                                            if (t.IsFaulted && t.Exception != null)
+                                                startupLogger.LogError(t.Exception, "Failed to select default system after aborted snapshot startup.");
+                                        },
+                                        TaskScheduler.Default);
+                                },
+                                DispatcherPriority.Background);
+                        },
+                        loadSnapshotBytesProvider: snapshotBytesProvider);
+                }
+                catch (Exception ex)
+                {
+                    WriteBootstrapLog($"Snapshot automated startup runner failed: {ex.Message}", LogLevel.Error);
+                }
+            };
+        }
 
 
         // Start Avalonia app
@@ -773,6 +852,7 @@ internal sealed partial class Program
         string? ScriptUrl,
         string? LoadD64Url,
         string? LoadCrtUrl,
+        string? LoadSnapshotUrl,
         IReadOnlyDictionary<string, string> ExtraParameters);
 
     /// <summary>
@@ -781,7 +861,7 @@ internal sealed partial class Program
     /// </summary>
     private static BrowserAutomationParams ParseAutomationQuery(string? url)
     {
-        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null, null, null, new Dictionary<string, string>());
+        var empty = new BrowserAutomationParams(null, null, false, false, null, false, null, null, null, null, null, new Dictionary<string, string>());
         if (string.IsNullOrWhiteSpace(url))
             return empty;
 
@@ -825,6 +905,7 @@ internal sealed partial class Program
         string? scriptUrl = map.TryGetValue("scriptUrl", out var su) && !string.IsNullOrWhiteSpace(su) ? su : null;
         string? loadD64Url = map.TryGetValue("loadD64Url", out var ld64) && !string.IsNullOrWhiteSpace(ld64) ? ld64 : null;
         string? loadCrtUrl = map.TryGetValue("loadCrtUrl", out var lcrt) && !string.IsNullOrWhiteSpace(lcrt) ? lcrt : null;
+        string? loadSnapshotUrl = map.TryGetValue("loadSnapshotUrl", out var lsnap) && !string.IsNullOrWhiteSpace(lsnap) ? lsnap : null;
         string? loadD64ZipEntry = map.TryGetValue("loadD64ZipEntry", out var d64ze) && !string.IsNullOrWhiteSpace(d64ze) ? d64ze : null;
         string? loadCrtZipEntry = map.TryGetValue("loadCrtZipEntry", out var crtze) && !string.IsNullOrWhiteSpace(crtze) ? crtze : null;
         string? d64Program = map.TryGetValue("d64Program", out var d64p) && !string.IsNullOrWhiteSpace(d64p) ? d64p : null;
@@ -842,7 +923,9 @@ internal sealed partial class Program
             WriteBootstrapLog("Query parameter 'systemVariant' requires 'system'; ignoring 'systemVariant'.", LogLevel.Warning);
             systemVariant = null;
         }
-        if (systemName == null && (autoStart || waitForReady))
+        // 'loadSnapshotUrl' also legitimately uses 'start' (resume after restore) without 'system',
+        // so it is exempt from this 'system'-required check; its own validation runs below.
+        if (systemName == null && loadSnapshotUrl == null && (autoStart || waitForReady))
         {
             WriteBootstrapLog("Query parameters 'start' and 'waitForSystemReady' require 'system'; ignoring.", LogLevel.Warning);
             autoStart = false;
@@ -985,6 +1068,29 @@ internal sealed partial class Program
             scriptUrl = null;
         }
 
+        // ── snapshot automation validation (mirrors desktop --load-snapshot) ──────────────
+        // The snapshot's manifest defines the machine and full state, so 'loadSnapshotUrl' does not
+        // combine with system selection, program/disk/cartridge loading, or scripts. 'start' (resume
+        // after restore) is allowed; 'waitForSystemReady' requires 'start'.
+        if (loadSnapshotUrl != null)
+        {
+            if (systemName != null || systemVariant != null || loadPrgUrl != null || loadD64Url != null
+                || loadCrtUrl != null || runLoaded || scriptContent != null || scriptUrl != null)
+            {
+                WriteBootstrapLog(
+                    "Query parameter 'loadSnapshotUrl' is mutually exclusive with 'system', 'systemVariant', " +
+                    "'loadPrgUrl', 'loadD64Url', 'loadCrtUrl', 'runLoadedProgram', and 'script'/'scriptUrl' " +
+                    "(the snapshot defines the machine and state); ignoring 'loadSnapshotUrl'.",
+                    LogLevel.Warning);
+                loadSnapshotUrl = null;
+            }
+            else if (waitForReady && !autoStart)
+            {
+                WriteBootstrapLog("Query parameter 'waitForSystemReady' requires 'start'; ignoring 'waitForSystemReady'.", LogLevel.Warning);
+                waitForReady = false;
+            }
+        }
+
         // Every query parameter the typed fields above did not consume — system-specific
         // automation parameters (e.g. C64 'basicText'/'basicUrl'/'runBasic') interpreted by an
         // IAutomatedStartupParticipant. See docs/automated-startup-seam2.md.
@@ -997,6 +1103,7 @@ internal sealed partial class Program
             // .d64 keys are forwarded into extras after invalid combinations have been filtered out.
             "loadD64Url", "loadD64ZipEntry", "d64Program", "diskMount",
             "loadCrtUrl", "loadCrtZipEntry",
+            "loadSnapshotUrl",
             "keyboardJoystickEnabled", "keyboardJoystickNumber", "audioEnabled",
         };
         var extraParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1037,7 +1144,7 @@ internal sealed partial class Program
             extraParameters["audioEnabled"] = audioEnabledRaw;
 
         return new BrowserAutomationParams(systemName, systemVariant, autoStart, waitForReady,
-            loadPrgUrl, runLoaded, scriptContent, scriptUrl, loadD64Url, loadCrtUrl, extraParameters);
+            loadPrgUrl, runLoaded, scriptContent, scriptUrl, loadD64Url, loadCrtUrl, loadSnapshotUrl, extraParameters);
     }
 
     private static string? DecodeBase64UrlUtf8QueryValue(string parameterName, string? base64UrlValue, bool logRawValue = false)
@@ -1187,6 +1294,33 @@ internal sealed partial class Program
 
         [JSImport("pickLocalFilesAsBase64", "BrowserScripting")]
         public static partial Task<string?> PickLocalFilesAsBase64Async(string accept, bool allowMultiple);
+
+        [JSImport("downloadFileFromBase64", "BrowserScripting")]
+        public static partial void DownloadFileFromBase64(string name, string base64, string mime);
+    }
+
+    // Browser save: Avalonia's browser StorageProvider save maps to the File System Access API
+    // (Chromium-only), so instead we trigger a Blob download — works on every browser and yields a
+    // portable .d6502snap identical to the desktop's.
+    private sealed class BrowserAppFileSaver : IAppFileSaver
+    {
+        public Task<bool> SaveFileAsync(Control owner, AppFileSaveOptions options, byte[] data)
+        {
+            // SuggestedFileName is extension-less (Desktop adds it via StorageProvider's
+            // DefaultExtension); for a download the name is used verbatim, so append it here unless
+            // the name already carries it.
+            var fileName = options.SuggestedFileName;
+            if (!string.IsNullOrEmpty(options.DefaultExtension) &&
+                !fileName.EndsWith("." + options.DefaultExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                fileName += "." + options.DefaultExtension;
+            }
+
+            var base64 = Convert.ToBase64String(data);
+            JSInterop.DownloadFileFromBase64(fileName, base64, "application/octet-stream");
+            // A download cannot be confirmed/cancelled from script; report it as initiated.
+            return Task.FromResult(true);
+        }
     }
 
     private sealed class BrowserAppFilePicker : IAppFilePicker
@@ -1401,7 +1535,8 @@ internal sealed partial class Program
                                 deleteScript: deleteScript,
                                 loadExamples: loadExamples,
                                 automatedStartupRunner: automatedStartupRunner,
-                                appFilePicker: new BrowserAppFilePicker()
+                                appFilePicker: new BrowserAppFilePicker(),
+                                appFileSaver: new BrowserAppFileSaver()
                             );
         })
         .AfterSetup(_ =>
