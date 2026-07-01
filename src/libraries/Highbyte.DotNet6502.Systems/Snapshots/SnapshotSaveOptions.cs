@@ -20,4 +20,11 @@ public sealed class SnapshotSaveOptions
 
     /// <summary>Optional human-readable machine model recorded in the manifest for diagnostics.</summary>
     public string? Model { get; set; }
+
+    /// <summary>
+    /// Optional runtime-settings ("config") blocks to embed in the snapshot, captured by the host
+    /// orchestration when the user opts in ("Include config in save"). Null/empty writes no config,
+    /// keeping the snapshot machine-state-only. See <see cref="SnapshotConfigContent"/>.
+    /// </summary>
+    public SnapshotConfigContent? Config { get; set; }
 }

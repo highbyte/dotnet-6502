@@ -10,9 +10,17 @@ public sealed class SnapshotRestoreResult
     public SnapshotManifest Manifest { get; }
     public IReadOnlyList<string> Warnings { get; }
 
-    public SnapshotRestoreResult(SnapshotManifest manifest, IReadOnlyList<string> warnings)
+    /// <summary>
+    /// The runtime-settings ("config") blocks embedded in the snapshot, or null if none. Machine state
+    /// is always restored; whether these settings are <i>applied</i> is a separate host decision
+    /// ("Restore config on load"). See <see cref="SnapshotConfigContent"/>.
+    /// </summary>
+    public SnapshotConfigContent? Config { get; }
+
+    public SnapshotRestoreResult(SnapshotManifest manifest, IReadOnlyList<string> warnings, SnapshotConfigContent? config = null)
     {
         Manifest = manifest;
         Warnings = warnings;
+        Config = config;
     }
 }

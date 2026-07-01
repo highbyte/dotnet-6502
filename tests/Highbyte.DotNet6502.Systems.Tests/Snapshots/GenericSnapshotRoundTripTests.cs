@@ -93,4 +93,62 @@ public class GenericSnapshotRoundTripTests
         Assert.NotNull(archive.GetEntry($"{SnapshotService.ModulesDirectory}/{Cpu6502SnapshotModule.ModuleName}.bin"));
         Assert.NotNull(archive.GetEntry($"{SnapshotService.ModulesDirectory}/{GenericMemorySnapshotModule.ModuleName}.bin"));
     }
+
+    [Fact]
+    public void Config_blocks_round_trip_as_opaque_json()
+    {
+        var source = BuildComputer();
+        var service = new SnapshotService();
+
+        var options = new SnapshotSaveOptions
+        {
+            Config = new SnapshotConfigContent
+            {
+                SystemConfigJson = "{\"keyboardJoystickEnabled\":true}",
+                HostJson = "{\"hostApp\":\"desktop\",\"settings\":{\"audioEnabled\":false}}",
+            },
+        };
+
+        using var snapshotStream = new MemoryStream();
+        service.Save(source, snapshotStream, options);
+
+        // Present in the package under the config/ directory.
+        snapshotStream.Position = 0;
+        using (var archive = new System.IO.Compression.ZipArchive(snapshotStream, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true))
+        {
+            Assert.NotNull(archive.GetEntry(SnapshotService.ConfigSystemEntryName));
+            Assert.NotNull(archive.GetEntry(SnapshotService.ConfigHostEntryName));
+        }
+
+        // Surfaced verbatim on restore.
+        snapshotStream.Position = 0;
+        var restored = BuildComputer();
+        var result = service.Restore(restored, snapshotStream);
+
+        Assert.NotNull(result.Config);
+        Assert.Equal(options.Config.SystemConfigJson, result.Config!.SystemConfigJson);
+        Assert.Equal(options.Config.HostJson, result.Config!.HostJson);
+    }
+
+    [Fact]
+    public void No_config_block_written_or_returned_when_not_requested()
+    {
+        var source = BuildComputer();
+        var service = new SnapshotService();
+
+        using var snapshotStream = new MemoryStream();
+        service.Save(source, snapshotStream); // no config
+
+        snapshotStream.Position = 0;
+        using (var archive = new System.IO.Compression.ZipArchive(snapshotStream, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true))
+        {
+            Assert.Null(archive.GetEntry(SnapshotService.ConfigSystemEntryName));
+            Assert.Null(archive.GetEntry(SnapshotService.ConfigHostEntryName));
+        }
+
+        snapshotStream.Position = 0;
+        var restored = BuildComputer();
+        var result = service.Restore(restored, snapshotStream);
+        Assert.Null(result.Config);
+    }
 }

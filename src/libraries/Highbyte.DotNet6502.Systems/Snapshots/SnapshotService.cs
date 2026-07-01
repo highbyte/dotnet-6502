@@ -22,6 +22,11 @@ public sealed class SnapshotService
     public const string MediaDirectory = "media";
     public const string FileExtension = ".d6502snap";
 
+    // Optional runtime-settings blocks (see SnapshotConfigContent). Stored as opaque, owner-serialized
+    // JSON entries; the framework never interprets their contents.
+    public const string ConfigSystemEntryName = "config/systemConfig.json";
+    public const string ConfigHostEntryName = "config/host.json";
+
     // Source-generated metadata (see SnapshotManifestJsonContext) is used instead of reflection-based
     // serialization so the manifest round-trips in trimmed/AOT hosts (e.g. the Browser/WASM app).
 
@@ -115,6 +120,46 @@ public sealed class SnapshotService
             using var entryStream = mediaEntry.Open();
             entryStream.Write(bytes, 0, bytes.Length);
         }
+
+        // Optional runtime-settings ("config") blocks — opaque, owner-serialized JSON.
+        if (options.Config is { IsEmpty: false } config)
+        {
+            WriteTextEntry(archive, ConfigSystemEntryName, config.SystemConfigJson);
+            WriteTextEntry(archive, ConfigHostEntryName, config.HostJson);
+        }
+    }
+
+    private static void WriteTextEntry(ZipArchive archive, string entryName, string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+        using var entryStream = entry.Open();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        entryStream.Write(bytes, 0, bytes.Length);
+    }
+
+    private static string? ReadTextEntry(ZipArchive archive, string entryName)
+    {
+        var entry = archive.GetEntry(entryName);
+        if (entry == null)
+            return null;
+        using var entryStream = entry.Open();
+        using var reader = new StreamReader(entryStream, System.Text.Encoding.UTF8);
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>
+    /// Reads the optional runtime-settings ("config") blocks from a snapshot package, or null if the
+    /// snapshot contains none. Leaves the archive readable.
+    /// </summary>
+    private static SnapshotConfigContent? ReadConfig(ZipArchive archive)
+    {
+        var systemJson = ReadTextEntry(archive, ConfigSystemEntryName);
+        var hostJson = ReadTextEntry(archive, ConfigHostEntryName);
+        if (string.IsNullOrEmpty(systemJson) && string.IsNullOrEmpty(hostJson))
+            return null;
+        return new SnapshotConfigContent { SystemConfigJson = systemJson, HostJson = hostJson };
     }
 
     /// <summary>
@@ -159,7 +204,11 @@ public sealed class SnapshotService
             module.Restore(reader, restoreContext);
         }
 
-        return new SnapshotRestoreResult(manifest, restoreContext.Warnings);
+        // Machine state is now restored. Any embedded runtime-settings ("config") blocks are returned
+        // to the caller opaquely; whether to apply them is the host's decision.
+        var config = ReadConfig(archive);
+
+        return new SnapshotRestoreResult(manifest, restoreContext.Warnings, config);
     }
 
     /// <summary>
