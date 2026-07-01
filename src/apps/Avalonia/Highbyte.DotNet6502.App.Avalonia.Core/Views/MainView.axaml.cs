@@ -1111,6 +1111,12 @@ public partial class MainView : UserControl
             if (fileSaver == null)
                 return;
 
+            // Pause while the save dialog is open so the emulator isn't advancing underneath: the
+            // state written is exactly the frozen frame the user sees, with no ambiguity about which
+            // moment was captured. Resumed afterwards if it had been running.
+            var wasRunning = hostApp.EmulatorState == EmulatorState.Running;
+            if (wasRunning)
+                hostApp.Pause();
             try
             {
                 // Capture the snapshot to memory, then hand the bytes to the platform saver:
@@ -1140,6 +1146,11 @@ public partial class MainView : UserControl
             {
                 Logger.LogError(ex, "Error saving snapshot");
             }
+            finally
+            {
+                if (wasRunning && hostApp.EmulatorState == EmulatorState.Paused)
+                    await hostApp.Start();
+            }
         });
 
     private void LoadSnapshot_Click(object? sender, RoutedEventArgs e)
@@ -1154,6 +1165,12 @@ public partial class MainView : UserControl
             if (filePicker == null)
                 return;
 
+            // Pause the current machine while the load dialog is open so it isn't running (and making
+            // sound) while the user browses for a snapshot to restore.
+            var wasRunning = hostApp.EmulatorState == EmulatorState.Running;
+            if (wasRunning)
+                hostApp.Pause();
+
             var picked = await filePicker.OpenFileAsync(
                 this,
                 new AppFilePickerOpenOptions(
@@ -1164,7 +1181,12 @@ public partial class MainView : UserControl
                         AppFilePickerFileType.AllFiles
                     ]));
             if (picked == null)
+            {
+                // Cancelled — resume the machine we paused for the dialog.
+                if (wasRunning && hostApp.EmulatorState == EmulatorState.Paused)
+                    await hostApp.Start();
                 return;
+            }
 
             try
             {
@@ -1183,6 +1205,12 @@ public partial class MainView : UserControl
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error loading snapshot");
+
+                // Best-effort: if the load failed before the current machine was torn down (it is
+                // still paused), resume it. After a successful Stop() the state is Uninitialized, so
+                // this guard leaves it stopped rather than rebuilding a fresh machine.
+                if (wasRunning && hostApp.EmulatorState == EmulatorState.Paused)
+                    await hostApp.Start();
             }
         });
 }
