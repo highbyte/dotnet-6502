@@ -223,6 +223,18 @@ public sealed class SnapshotService
         return ReadManifest(archive);
     }
 
+    /// <summary>
+    /// Reads just the optional runtime-settings ("config") blocks without restoring, or null if none.
+    /// Used by a host to apply the portable system-config block <i>before</i> rebuilding the machine.
+    /// Leaves <paramref name="input"/> open; the caller should reset its position before restoring.
+    /// </summary>
+    public static SnapshotConfigContent? PeekConfig(Stream input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: true);
+        return ReadConfig(archive);
+    }
+
     private static ISystemSnapshotProvider GetProvider(ISystem system)
     {
         if (system is ISystemSnapshotProvider provider)

@@ -25,6 +25,9 @@ public class HostApp : IHostApp, IManualRenderingProvider
     private readonly SystemList _systemList;
     private readonly bool _useStatsNamePrefix;
 
+    /// <summary>Host app / settings-schema identifier (e.g. "Avalonia", "Headless"). See <see cref="IHostApp.HostName"/>.</summary>
+    public string HostName => _hostName;
+
     // Other variables
     private string _selectedSystemName;
     public string SelectedSystemName => _selectedSystemName;
@@ -183,6 +186,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     {
         _hostName = hostName;
         _updateFps = _instrumentations.Add($"{_statsPrefix}OnUpdateFPS", new PerSecondTimedStat());
+        // (HostName exposes _hostName for snapshot host-config tagging; see HostName property.)
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
@@ -641,7 +645,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     /// for the (read-only) capture and resumes it afterwards if it had been running. Throws
     /// <see cref="SnapshotException"/> if no snapshot-capable system is available.
     /// </summary>
-    public async Task SaveSnapshotAsync(Stream output, SnapshotSaveOptions? options = null)
+    public async Task SaveSnapshotAsync(Stream output, SnapshotSaveOptions? options = null, bool includeConfig = false)
     {
         var system = CurrentRunningSystem ?? _selectedSystemTemporary
             ?? throw new SnapshotException("No system is selected or running to snapshot.");
@@ -649,6 +653,12 @@ public class HostApp : IHostApp, IManualRenderingProvider
             throw new SnapshotException($"System '{system.Name}' does not support snapshots yet.");
 
         options ??= new SnapshotSaveOptions { ConfigurationVariant = _selectedSystemConfigurationVariant };
+
+        // Optionally capture the current runtime settings ("config"). The host-specific block is
+        // produced by the concrete host app; the portable system-config block is captured separately
+        // (see CaptureConfigForSnapshotAsync). Reads current runtime values, not appsettings defaults.
+        if (includeConfig)
+            options.Config = await CaptureConfigForSnapshotAsync();
 
         bool wasRunning = EmulatorState == EmulatorState.Running;
         if (wasRunning)
@@ -671,7 +681,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     /// fresh system of the snapshot's machine + variant, restores module state into it, then starts
     /// it left paused. Returns the restore result (including any non-fatal warnings).
     /// </summary>
-    public async Task<SnapshotRestoreResult> LoadSnapshotAsync(Stream input)
+    public async Task<SnapshotRestoreResult> LoadSnapshotAsync(Stream input, bool applyConfig = false)
     {
         var manifest = SnapshotService.PeekManifest(input);
         input.Position = 0;
@@ -694,6 +704,26 @@ public class HostApp : IHostApp, IManualRenderingProvider
             await SelectSystemConfigurationVariant(variant);
         }
 
+        // Apply the embedded settings ("config") if the user opted in — BEFORE building/starting, so
+        // both the rebuilt machine and its initialized host services reflect them. This matters
+        // because several settings are read at build/init time, not as live toggles: e.g. the C64
+        // keyboard-joystick is read from config when the machine is built, and audio (enabled + volume)
+        // is wired up when the audio pipeline is initialized during Start.
+        if (applyConfig)
+        {
+            input.Position = 0;
+            var peekedConfig = SnapshotService.PeekConfig(input);
+            input.Position = 0;
+            if (!string.IsNullOrEmpty(peekedConfig?.SystemConfigJson))
+                ApplySystemConfigBeforeRebuild(peekedConfig!.SystemConfigJson!);
+            if (!string.IsNullOrEmpty(peekedConfig?.HostJson))
+                await ApplyHostSnapshotConfigAsync(peekedConfig!.HostJson!);
+            // Notify config-bound UI once the final values are in place, so controls (e.g. the audio
+            // checkbox) reflect the restored settings rather than the pre-load values.
+            if (peekedConfig is { IsEmpty: false })
+                OnAfterHostSystemConfigUpdated();
+        }
+
         // Build a fresh system of the target machine + variant and restore the snapshot into it.
         // BuildSystem clears the config-dirty flag, so the subsequent Start() reuses this exact
         // instance instead of rebuilding it (and discarding the restored state).
@@ -709,8 +739,56 @@ public class HostApp : IHostApp, IManualRenderingProvider
         _logger.LogInformation("Restored snapshot into system '{System}' variant '{Variant}' (paused).",
             _selectedSystemName, _selectedSystemConfigurationVariant);
 
+        // (Both config blocks were applied before the rebuild/start above, so the running machine and
+        // its host services already reflect them.)
+
         return result;
     }
+
+    // --- Snapshot runtime-settings ("config") capture/apply orchestration ---
+
+    /// <summary>
+    /// Gathers the runtime-settings blocks to embed in a snapshot: the portable system-config block
+    /// (from the global <see cref="ISystemConfig"/> if it opts in via <see cref="ISnapshotableConfig"/>)
+    /// and the host-specific block (from the concrete host app). Returns null if neither produced
+    /// anything. Reads current runtime values, not appsettings defaults.
+    /// </summary>
+    private async Task<SnapshotConfigContent?> CaptureConfigForSnapshotAsync()
+    {
+        var systemConfigJson = (CurrentHostSystemConfig?.SystemConfig as ISnapshotableConfig)?.ExportSnapshotSettings();
+        var hostJson = await CaptureHostSnapshotConfigAsync();
+        var content = new SnapshotConfigContent { SystemConfigJson = systemConfigJson, HostJson = hostJson };
+        return content.IsEmpty ? null : content;
+    }
+
+    /// <summary>
+    /// Applies the portable system-config block to the current system config <b>before</b> the machine
+    /// is rebuilt, so the rebuilt machine reflects it (no live-machine poke). Called from
+    /// <see cref="LoadSnapshotAsync"/> after the target system/variant is selected but before build.
+    /// </summary>
+    private void ApplySystemConfigBeforeRebuild(string systemConfigJson)
+    {
+        if (CurrentHostSystemConfig?.SystemConfig is not ISnapshotableConfig snapshotable)
+            return;
+        snapshotable.ApplySnapshotSettings(systemConfigJson);
+        // Propagate the mutated config so BuildSystem picks it up.
+        UpdateHostSystemConfig(CurrentHostSystemConfig);
+    }
+
+    /// <summary>
+    /// Capture the host-specific block (general host-app settings, e.g. audio/scale, plus the
+    /// per-backend host system config). Override in a concrete host app; base returns null (no host
+    /// settings, e.g. headless). The block should carry the originating <see cref="HostName"/> so a
+    /// loading host can decide whether it applies.
+    /// </summary>
+    protected virtual Task<string?> CaptureHostSnapshotConfigAsync() => Task.FromResult<string?>(null);
+
+    /// <summary>
+    /// Apply a host-specific block previously produced by <see cref="CaptureHostSnapshotConfigAsync"/>.
+    /// The override should ignore a block whose host does not match this one (logging an info/warning)
+    /// and reproduce the full effect of the corresponding UI actions. Base is a no-op.
+    /// </summary>
+    protected virtual Task ApplyHostSnapshotConfigAsync(string payload) => Task.CompletedTask;
 
     public void Close()
     {

@@ -1150,8 +1150,9 @@ public partial class MainView : UserControl
             {
                 // Capture the snapshot to memory, then hand the bytes to the platform saver:
                 // Desktop writes via the StorageProvider save picker; Browser triggers a download.
+                // Optionally embed current runtime settings ("config") per the user's checkbox.
                 using var buffer = new MemoryStream();
-                await hostApp.SaveSnapshotAsync(buffer);
+                await hostApp.SaveSnapshotAsync(buffer, includeConfig: _subscribedViewModel?.IncludeConfigInSnapshot ?? false);
 
                 // SuggestedFileName is extension-less; each saver adds the extension (Desktop via the
                 // StorageProvider DefaultExtension, Browser by appending it to the download name).
@@ -1220,7 +1221,7 @@ public partial class MainView : UserControl
             try
             {
                 using var ms = new MemoryStream(picked.Bytes);
-                var result = await hostApp.LoadSnapshotAsync(ms);
+                var result = await hostApp.LoadSnapshotAsync(ms, applyConfig: _subscribedViewModel?.RestoreConfigOnLoad ?? false);
 
                 // LoadSnapshotAsync leaves the machine paused (the shared contract used by the CLI,
                 // remote, and scripting surfaces). In the interactive UI, resume immediately so the

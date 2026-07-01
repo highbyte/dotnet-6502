@@ -6,6 +6,13 @@ namespace Highbyte.DotNet6502.Systems;
 /// </summary>
 public interface IHostApp
 {
+    /// <summary>
+    /// Identifier of the host app / settings-schema owner (e.g. <c>"Avalonia"</c> shared by the
+    /// Desktop and Browser apps, <c>"Headless"</c>). Used to tag and gate host-specific snapshot
+    /// config (the general host-app settings block).
+    /// </summary>
+    public string HostName { get; }
+
     public string SelectedSystemName { get; }
     public HashSet<string> AvailableSystemNames { get; }
 
@@ -67,13 +74,17 @@ public interface IHostApp
 
     /// <summary>
     /// Captures a snapshot of the current system to <paramref name="output"/>. Pauses the emulator
-    /// for the (read-only) capture and resumes it afterwards if it was running.
+    /// for the (read-only) capture and resumes it afterwards if it was running. When
+    /// <paramref name="includeConfig"/> is true, the current runtime settings ("config") are also
+    /// captured into the snapshot (see the config extension in the feature design doc).
     /// </summary>
-    public Task SaveSnapshotAsync(System.IO.Stream output, SnapshotSaveOptions? options = null);
+    public Task SaveSnapshotAsync(System.IO.Stream output, SnapshotSaveOptions? options = null, bool includeConfig = false);
 
     /// <summary>
     /// Restores a snapshot from <paramref name="input"/>: stops any running system, rebuilds the
-    /// snapshot's machine + variant, restores module state into it, and leaves it paused.
+    /// snapshot's machine + variant, restores module state into it, and leaves it paused. When
+    /// <paramref name="applyConfig"/> is true, any runtime settings ("config") embedded in the
+    /// snapshot are applied (settings not relevant to this host app are ignored).
     /// </summary>
-    public Task<SnapshotRestoreResult> LoadSnapshotAsync(System.IO.Stream input);
+    public Task<SnapshotRestoreResult> LoadSnapshotAsync(System.IO.Stream input, bool applyConfig = false);
 }

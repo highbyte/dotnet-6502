@@ -218,6 +218,7 @@ public class AutomatedStartupHandlerTests
         public const string SystemName = "TestSystem";
         public FakeSystem System { get; } = new();
 
+        public string HostName => "Fake";
         public string SelectedSystemName { get; private set; } = string.Empty;
         public HashSet<string> AvailableSystemNames { get; } = new(StringComparer.Ordinal) { SystemName };
         public string SelectedSystemConfigurationVariant { get; private set; } = "Default";
@@ -289,9 +290,9 @@ public class AutomatedStartupHandlerTests
         public int LoadSnapshotCount { get; private set; }
         public bool CanSnapshotCurrentSystem => true;
         public bool SelectedSystemSupportsSnapshots => true;
-        public Task SaveSnapshotAsync(System.IO.Stream output, SnapshotSaveOptions? options = null)
+        public Task SaveSnapshotAsync(System.IO.Stream output, SnapshotSaveOptions? options = null, bool includeConfig = false)
             => Task.CompletedTask;
-        public Task<SnapshotRestoreResult> LoadSnapshotAsync(System.IO.Stream input)
+        public Task<SnapshotRestoreResult> LoadSnapshotAsync(System.IO.Stream input, bool applyConfig = false)
         {
             LoadSnapshotCount++;
             // Mimic the real flow: the snapshot determines the machine and leaves it paused.

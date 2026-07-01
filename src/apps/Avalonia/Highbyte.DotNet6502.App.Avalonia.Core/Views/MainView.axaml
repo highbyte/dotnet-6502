@@ -294,6 +294,19 @@
                                         IsEnabled="{Binding CanLoadSnapshot}"
                                         ToolTip.Tip="Restore an emulator state from a .d6502snap file"/>
                             </Grid>
+
+                            <TextBlock Text="Settings (config)"
+                                       Classes="small secondary-text"/>
+                            <CheckBox Content="Include config in save"
+                                      AutomationProperties.AutomationId="IncludeConfigInSnapshotCheckBox"
+                                      Classes="small"
+                                      IsChecked="{Binding IncludeConfigInSnapshot}"
+                                      ToolTip.Tip="Include the current runtime settings (audio, input mapping, ...) when saving a snapshot"/>
+                            <CheckBox Content="Restore config on load"
+                                      AutomationProperties.AutomationId="RestoreConfigOnLoadCheckBox"
+                                      Classes="small"
+                                      IsChecked="{Binding RestoreConfigOnLoad}"
+                                      ToolTip.Tip="If config was included in the snapshot file, apply it when loading (settings not relevant to this app are ignored)"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

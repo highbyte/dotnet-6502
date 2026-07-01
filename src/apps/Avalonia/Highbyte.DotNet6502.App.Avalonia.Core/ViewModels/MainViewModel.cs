@@ -164,6 +164,37 @@ public class MainViewModel : ViewModelBase, IDisposable
     // regardless of run state, and consistent between a freshly launched app and a stopped one.
     public bool CanLoadSnapshot => _hostApp.SelectedSystemSupportsSnapshots;
 
+    // Snapshot config options (persisted in EmulatorConfig). "Include" is the capture switch; "Restore"
+    // is a host-side load preference (opt-in). See the config extension in the feature design doc.
+    public bool IncludeConfigInSnapshot
+    {
+        get => _emulatorConfig.IncludeConfigInSnapshot;
+        set
+        {
+            if (value == _emulatorConfig.IncludeConfigInSnapshot)
+                return;
+            _emulatorConfig.IncludeConfigInSnapshot = value;
+            this.RaisePropertyChanged();
+            PersistSnapshotConfigPrefs();
+        }
+    }
+
+    public bool RestoreConfigOnLoad
+    {
+        get => _emulatorConfig.RestoreConfigOnLoad;
+        set
+        {
+            if (value == _emulatorConfig.RestoreConfigOnLoad)
+                return;
+            _emulatorConfig.RestoreConfigOnLoad = value;
+            this.RaisePropertyChanged();
+            PersistSnapshotConfigPrefs();
+        }
+    }
+
+    private void PersistSnapshotConfigPrefs()
+        => SafeAsyncHelper.Execute(() => _hostApp.PersistEmulatorConfigAsync());
+
     // Expand/collapse state of the common "Snapshot" section (collapsed by default — snapshots are an
     // occasional operation, so they live in a collapsible section rather than the primary button grid).
     private bool _isSnapshotSectionExpanded;
