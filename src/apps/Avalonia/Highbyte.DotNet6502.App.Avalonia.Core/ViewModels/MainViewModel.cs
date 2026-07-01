@@ -153,10 +153,16 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorPaused => EmulatorState == EmulatorState.Paused;
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
-    // True when the selected/running system supports emulator state snapshots (its ISystem
-    // implements ISystemSnapshotProvider). Drives the enabled state of the Save/Load snapshot
-    // buttons. Re-evaluated on system/variant selection and on emulator-state changes.
-    public bool SnapshotSupported => _hostApp.CanSnapshotCurrentSystem;
+    // Drives the enabled state of the Save/Load snapshot buttons. Re-evaluated on system/variant
+    // selection and on emulator-state changes.
+    //
+    // Save needs a live system to capture, so it requires a snapshot-capable system that is running
+    // or paused (disabled while Uninitialized — both at app start and after a stop).
+    public bool CanSaveSnapshot => _hostApp.CanSnapshotCurrentSystem && EmulatorState != EmulatorState.Uninitialized;
+
+    // Load rebuilds the machine, so it only needs the selected system to support snapshots — enabled
+    // regardless of run state, and consistent between a freshly launched app and a stopped one.
+    public bool CanLoadSnapshot => _hostApp.SelectedSystemSupportsSnapshots;
 
     public string StatusEmulatorStateText => EmulatorState switch
     {
@@ -685,14 +691,16 @@ public class MainViewModel : ViewModelBase, IDisposable
                   this.RaisePropertyChanged(nameof(IsEmulatorUninitialized));
                   this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
                   this.RaisePropertyChanged(nameof(StatusEmulatorStateText));
-                  this.RaisePropertyChanged(nameof(SnapshotSupported));
+                  this.RaisePropertyChanged(nameof(CanSaveSnapshot));
+                  this.RaisePropertyChanged(nameof(CanLoadSnapshot));
               });
 
         this.WhenAnyValue(x => x.SelectedSystemName, x => x.SelectedSystemVariant)
             .Subscribe(_ =>
             {
                 this.RaisePropertyChanged(nameof(StatusSystemText));
-                this.RaisePropertyChanged(nameof(SnapshotSupported));
+                this.RaisePropertyChanged(nameof(CanSaveSnapshot));
+                this.RaisePropertyChanged(nameof(CanLoadSnapshot));
                 // The selected system/variant determines the emulator display size; refresh it so the
                 // display container (and window) resizes here — and only here (plus Scale changes).
                 this.RaisePropertyChanged(nameof(EmulatorDisplayWidth));

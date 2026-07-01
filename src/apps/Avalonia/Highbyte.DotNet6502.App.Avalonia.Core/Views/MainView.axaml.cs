@@ -1170,7 +1170,14 @@ public partial class MainView : UserControl
             {
                 using var ms = new MemoryStream(picked.Bytes);
                 var result = await hostApp.LoadSnapshotAsync(ms);
-                Logger.LogInformation("Snapshot '{Name}' loaded ({WarningCount} warning(s)); emulator paused.",
+
+                // LoadSnapshotAsync leaves the machine paused (the shared contract used by the CLI,
+                // remote, and scripting surfaces). In the interactive UI, resume immediately so the
+                // user continues from the restored state — matching the save-state convention of other
+                // emulators. A user who wants to inspect can pause again.
+                await hostApp.Start();
+
+                Logger.LogInformation("Snapshot '{Name}' loaded ({WarningCount} warning(s)); emulator resumed.",
                     picked.Name, result.Warnings.Count);
             }
             catch (Exception ex)

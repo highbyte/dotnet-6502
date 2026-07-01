@@ -184,14 +184,14 @@
                             AutomationProperties.AutomationId="SaveSnapshotButton"
                             Classes="grid"
                             Click="SaveSnapshot_Click"
-                            IsEnabled="{Binding SnapshotSupported}"
+                            IsEnabled="{Binding CanSaveSnapshot}"
                             ToolTip.Tip="Save the current emulator state to a .d6502snap file"/>
                         <Button Grid.Column="2"
                             Content="Load snap"
                             AutomationProperties.AutomationId="LoadSnapshotButton"
                             Classes="grid"
                             Click="LoadSnapshot_Click"
-                            IsEnabled="{Binding SnapshotSupported}"
+                            IsEnabled="{Binding CanLoadSnapshot}"
                             ToolTip.Tip="Restore an emulator state from a .d6502snap file"/>
                     </Grid>
                 </StackPanel>

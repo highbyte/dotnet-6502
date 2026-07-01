@@ -288,6 +288,7 @@ public class AutomatedStartupHandlerTests
 
         public int LoadSnapshotCount { get; private set; }
         public bool CanSnapshotCurrentSystem => true;
+        public bool SelectedSystemSupportsSnapshots => true;
         public Task SaveSnapshotAsync(System.IO.Stream output, SnapshotSaveOptions? options = null)
             => Task.CompletedTask;
         public Task<SnapshotRestoreResult> LoadSnapshotAsync(System.IO.Stream input)

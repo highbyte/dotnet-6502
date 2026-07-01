@@ -53,8 +53,17 @@ public interface IHostApp
     public void UpdateHostSystemConfig(IHostSystemConfig newConfig);
     public Task PersistCurrentHostSystemConfig();
 
-    /// <summary>True if the current/selected system supports emulator state snapshots.</summary>
+    /// <summary>
+    /// True if there is a live system instance (running or selected-but-not-started) that supports
+    /// snapshots. False after a stop. Gates <b>saving</b> (needs a live system to read state from).
+    /// </summary>
     public bool CanSnapshotCurrentSystem { get; }
+
+    /// <summary>
+    /// True if the currently selected system (by name) supports snapshots, independent of run state
+    /// and surviving a stop. Gates <b>loading</b> (which rebuilds the machine).
+    /// </summary>
+    public bool SelectedSystemSupportsSnapshots { get; }
 
     /// <summary>
     /// Captures a snapshot of the current system to <paramref name="output"/>. Pauses the emulator

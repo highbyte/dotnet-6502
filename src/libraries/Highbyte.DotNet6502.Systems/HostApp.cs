@@ -28,7 +28,26 @@ public class HostApp : IHostApp, IManualRenderingProvider
     // Other variables
     private string _selectedSystemName;
     public string SelectedSystemName => _selectedSystemName;
-    private ISystem? _selectedSystemTemporary; // A temporary storage of the selected system if asked for, and system has not been started yet.
+
+    private ISystem? _selectedSystemTemporaryBacking; // A temporary storage of the selected system if asked for, and system has not been started yet.
+    private ISystem? _selectedSystemTemporary
+    {
+        get => _selectedSystemTemporaryBacking;
+        set
+        {
+            _selectedSystemTemporaryBacking = value;
+            // Remember whether the selected system supports snapshots. Updated only when a system
+            // instance is established; deliberately NOT reset when the instance is cleared (e.g. by
+            // Stop()), so the snapshot capability of the still-selected system survives a stop —
+            // see SelectedSystemSupportsSnapshots.
+            if (value != null)
+                _selectedSystemSupportsSnapshots = value is ISystemSnapshotProvider;
+        }
+    }
+
+    // Cached snapshot capability of the currently selected system (by name). Persists across Stop(),
+    // which clears _selectedSystemTemporary but leaves the system selected.
+    private bool _selectedSystemSupportsSnapshots;
 
     public HashSet<string> AvailableSystemNames
     {
@@ -601,10 +620,21 @@ public class HostApp : IHostApp, IManualRenderingProvider
     }
 
     /// <summary>
-    /// True if the currently running (or selected-but-not-started) system supports snapshots.
+    /// True if the currently running (or selected-but-not-started) system instance supports
+    /// snapshots. False after <see cref="Stop"/> (no system instance exists to capture). Use this to
+    /// gate <b>saving</b>, which needs a live system to read state from.
     /// </summary>
     public bool CanSnapshotCurrentSystem
         => (CurrentRunningSystem ?? _selectedSystemTemporary) is ISystemSnapshotProvider;
+
+    /// <summary>
+    /// True if the currently <b>selected</b> system (by name) supports snapshots, independent of
+    /// whether it is started. Unlike <see cref="CanSnapshotCurrentSystem"/> this survives
+    /// <see cref="Stop"/>, so it stays consistent between a freshly launched app and a stopped one.
+    /// Use this to gate <b>loading</b>, which rebuilds the machine and so does not need a live system.
+    /// </summary>
+    public bool SelectedSystemSupportsSnapshots
+        => (CurrentRunningSystem ?? _selectedSystemTemporary) is ISystemSnapshotProvider || _selectedSystemSupportsSnapshots;
 
     /// <summary>
     /// Captures a snapshot of the current system to <paramref name="output"/>. Pauses the emulator
