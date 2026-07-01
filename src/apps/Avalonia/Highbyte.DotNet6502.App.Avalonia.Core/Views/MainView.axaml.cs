@@ -548,6 +548,21 @@ public partial class MainView : UserControl
             viewRoot.Menu = viewMenu;
             appMenu.Items.Add(viewRoot);
 
+            // Always add an "Emulator" menu for common (non-system-specific) toggles/actions, parallel
+            // to the per-system menu. Currently holds the Snapshot sidebar-section toggle. The
+            // ⌘⌥⇧ modifier matches the per-system "toggle section" convention (see the C64 menu);
+            // S = Snapshot, and ⌘⌥⇧S does not collide with View (⌘⌥) or the C64 ⌘⌥⇧ set {D,L,C,1,2}.
+            var emulatorRoot = new NativeMenuItem { Header = "Emulator" };
+            var emulatorMenu = new NativeMenu();
+            emulatorMenu.Items.Add(new NativeMenuItem
+            {
+                Header = "Toggle Snapshot section",
+                Gesture = new KeyGesture(Key.S, KeyModifiers.Meta | KeyModifiers.Alt | KeyModifiers.Shift),
+                Command = _subscribedViewModel?.ToggleSnapshotSectionCommand
+            });
+            emulatorRoot.Menu = emulatorMenu;
+            appMenu.Items.Add(emulatorRoot);
+
             if (contributor != null)
             {
                 var systemRoot = new NativeMenuItem { Header = contributor.MenuLabel };
@@ -631,6 +646,20 @@ public partial class MainView : UserControl
             };
             window.KeyBindings.Add(kb);
             _generalKeyBindings.Add(kb);
+        }
+
+        // Common "Emulator" menu shortcut (Windows/Linux counterpart of the macOS Emulator menu):
+        // Toggle Snapshot section. Ctrl+Alt+Shift+S mirrors the C64 section-toggle modifier and does
+        // not collide with the tab shortcuts above (Ctrl+Alt, no Shift) or the C64 Ctrl+Alt+Shift set.
+        if (_subscribedViewModel?.ToggleSnapshotSectionCommand is { } toggleSnapshotCommand)
+        {
+            var snapshotKb = new KeyBinding
+            {
+                Gesture = new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift),
+                Command = toggleSnapshotCommand
+            };
+            window.KeyBindings.Add(snapshotKb);
+            _generalKeyBindings.Add(snapshotKb);
         }
     }
 

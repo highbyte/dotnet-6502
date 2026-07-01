@@ -164,6 +164,21 @@ public class MainViewModel : ViewModelBase, IDisposable
     // regardless of run state, and consistent between a freshly launched app and a stopped one.
     public bool CanLoadSnapshot => _hostApp.SelectedSystemSupportsSnapshots;
 
+    // Expand/collapse state of the common "Snapshot" section (collapsed by default — snapshots are an
+    // occasional operation, so they live in a collapsible section rather than the primary button grid).
+    private bool _isSnapshotSectionExpanded;
+    public bool IsSnapshotSectionExpanded
+    {
+        get => _isSnapshotSectionExpanded;
+        private set
+        {
+            if (_isSnapshotSectionExpanded == value)
+                return;
+            _isSnapshotSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsSnapshotSectionExpanded));
+        }
+    }
+
     public string StatusEmulatorStateText => EmulatorState switch
     {
         EmulatorState.Running => "Running",
@@ -567,6 +582,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> ResetCommand { get; }
     public ReactiveCommand<Unit, Unit> MonitorCommand { get; }
     public ReactiveCommand<Unit, Unit> StatsCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleSnapshotSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
@@ -949,6 +965,11 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
+
+        ToggleSnapshotSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => IsSnapshotSectionExpanded = !IsSnapshotSectionExpanded,
+            null,
             RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         ClearLogCommand = ReactiveCommandHelper.CreateSafeCommand(
