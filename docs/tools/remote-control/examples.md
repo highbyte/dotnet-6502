@@ -89,6 +89,27 @@ dotnet-6502-remote cpu.get
 dotnet-6502-remote screenshot --output /tmp/result.png
 ```
 
+### Restoring a snapshot, stepping, and screenshotting
+
+Deterministically restore a saved state, advance a known number of frames, and capture the result. Pair this with starting the host paused — e.g. `--load-snapshot state.d6502snap --remote-port 6510` (no `--start`), or a fresh `--remote-port` server you `emu.loadsnapshot` into. Snapshot paths are resolved on the **emulator host**.
+
+```sh
+# Restore full machine state (manifest picks the system); leaves the emulator paused
+dotnet-6502-remote emu.loadsnapshot --path /tmp/state.d6502snap
+
+# Advance exactly one frame and render it (rejected if the emulator is Running)
+dotnet-6502-remote emu.runframes --count 1
+
+# Capture the rendered frame (Avalonia hosts only — headless has no renderer)
+dotnet-6502-remote screenshot --output /tmp/result.png
+```
+
+To save a snapshot of the current state instead:
+
+```sh
+dotnet-6502-remote emu.savesnapshot --path /tmp/state.d6502snap
+```
+
 ### Discovering valid key names at runtime
 
 ```sh

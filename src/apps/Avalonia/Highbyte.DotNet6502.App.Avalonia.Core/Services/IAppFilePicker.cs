@@ -107,6 +107,71 @@ public sealed class AvaloniaStorageAppFilePicker : IAppFilePicker
     }
 
     private static FilePickerFileType ToAvaloniaFileType(AppFilePickerFileType fileType)
+        => AppFileTypeConverter.ToAvaloniaFileType(fileType);
+}
+
+public sealed record AppFileSaveOptions(
+    string Title,
+    string SuggestedFileName,
+    string DefaultExtension,
+    IReadOnlyList<AppFilePickerFileType> FileTypes);
+
+/// <summary>
+/// App-level save-file abstraction used by Avalonia views that need to write bytes to a user-chosen
+/// destination. Mirrors <see cref="IAppFilePicker"/> for the save direction.
+/// </summary>
+/// <remarks>
+/// On Desktop this writes through Avalonia's StorageProvider save picker. The Browser host replaces it
+/// with a download: Avalonia's browser StorageProvider save maps to the File System Access API, which
+/// is Chromium-only, so the browser implementation triggers a Blob download instead for universal
+/// browser support.
+/// </remarks>
+public interface IAppFileSaver
+{
+    /// <summary>
+    /// Saves <paramref name="data"/> to a user-chosen destination (Desktop) or initiates a download
+    /// (Browser). Returns <c>true</c> if the save/download was performed, <c>false</c> if the user
+    /// cancelled or saving is unavailable on this platform.
+    /// </summary>
+    Task<bool> SaveFileAsync(Control owner, AppFileSaveOptions options, byte[] data);
+}
+
+/// <summary>
+/// Default Desktop-capable implementation backed by Avalonia's StorageProvider save picker.
+/// </summary>
+public sealed class AvaloniaStorageAppFileSaver : IAppFileSaver
+{
+    public async Task<bool> SaveFileAsync(Control owner, AppFileSaveOptions options, byte[] data)
+    {
+        if (TopLevel.GetTopLevel(owner) is not { } topLevel || !topLevel.StorageProvider.CanSave)
+            return false;
+
+        try
+        {
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = options.Title,
+                SuggestedFileName = options.SuggestedFileName,
+                DefaultExtension = options.DefaultExtension,
+                FileTypeChoices = options.FileTypes.Select(AppFileTypeConverter.ToAvaloniaFileType).ToArray()
+            });
+            if (file == null)
+                return false;
+
+            await using var stream = await file.OpenWriteAsync();
+            await stream.WriteAsync(data);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+    }
+}
+
+internal static class AppFileTypeConverter
+{
+    public static FilePickerFileType ToAvaloniaFileType(AppFilePickerFileType fileType)
     {
         if (fileType.Patterns.Count == 1 && fileType.Patterns[0] == "*")
             return FilePickerFileTypes.All;

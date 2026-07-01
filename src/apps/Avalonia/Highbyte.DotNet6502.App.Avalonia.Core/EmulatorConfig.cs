@@ -23,6 +23,12 @@ public class EmulatorConfig
     public bool ShowDebugTools { get; set; } = false;
     public bool LoadResourcesOverHttp { get; set; } = false;
 
+    /// <summary>Include current runtime settings ("config") when saving an emulator-state snapshot.</summary>
+    public bool IncludeConfigInSnapshot { get; set; } = true;
+
+    /// <summary>Apply any settings ("config") embedded in a snapshot when loading it (opt-in).</summary>
+    public bool RestoreConfigOnLoad { get; set; } = true;
+
     /// <summary>
     /// CORS proxy prefix used to route cross-origin HTTP fetches when running in the browser
     /// (WebAssembly). General browser setting shared by all systems and by URL-driven startup

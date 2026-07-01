@@ -57,6 +57,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **System selection**: `SystemSelectionComboBox`, `SystemVariantSelectionComboBox`
 - **Emulator control**: `StartButton`, `PauseButton`, `ResetButton`, `StopButton`, `MonitorButton`, `StatsButton`
 - **Display/audio**: `ScaleSlider`, `AudioCheckBox`, `AudioVolumeSlider`, `OptionsButton`
+- **Snapshot section (collapsible, common)**: header `SnapshotSectionHeader`, content `SnapshotSectionContent`; buttons `SaveSnapshotButton`, `LoadSnapshotButton` (visible only when the section is expanded — collapsed by default; toggle it with the `Emulator` menu / `⌘⌥⇧S` shortcut)
 - **Status**: `EmulatorStateText`
 - **Bottom tab control**: `InformationTabControl` with tabs `InformationTab`, `ConfigStatusTab`, `LogTab`, `ScriptsTab`, `GeneralInfoTab`, `DebugAndRemotingTab`
 - **Log tab**: `ClearLogButton`
@@ -116,12 +117,13 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 
 ## Keyboard shortcuts
 
-The app exposes two layers of shortcuts:
+The app exposes these layers of shortcuts:
 
 1. **General tab-navigation shortcuts** — always active, independent of which emulator system is running.
-2. **System-specific shortcuts** — active only when a particular system is selected (e.g. C64). The active system's menu ViewModel implements `ISystemMenuContributor` ([`Core/SystemSetup/ISystemMenuContributor.cs`](https://github.com/highbyte/dotnet-6502/blob/master/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/SystemSetup/ISystemMenuContributor.cs)).
+2. **Common (non-system-specific) shortcuts** — always active, for cross-system functions such as toggling the Snapshot sidebar section.
+3. **System-specific shortcuts** — active only when a particular system is selected (e.g. C64). The active system's menu ViewModel implements `ISystemMenuContributor` ([`Core/SystemSetup/ISystemMenuContributor.cs`](https://github.com/highbyte/dotnet-6502/blob/master/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/SystemSetup/ISystemMenuContributor.cs)).
 
-On macOS both layers appear in the OS-level **system menu bar** (outside the app window) — general shortcuts under a `View` top-level menu, system-specific shortcuts under the system name (e.g. `C64`). The macOS Accessibility API exposes these with their `Gesture` string, so an AI agent can discover them at runtime without prior documentation:
+On macOS all layers appear in the OS-level **system menu bar** (outside the app window) — general (tab) shortcuts under a `View` top-level menu, common shortcuts under an `Emulator` top-level menu, and system-specific shortcuts under the system name (e.g. `C64`). The macOS Accessibility API exposes these with their `Gesture` string, so an AI agent can discover them at runtime without prior documentation:
 
 ```sh
 peekaboo menu list --app "DotNet 6502 Emulator"
@@ -146,6 +148,20 @@ On macOS, click via the menu bar instead of counting arrow-key presses:
 
 ```sh
 peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > View > Log"
+```
+
+### Common shortcuts (always active — `Emulator` menu)
+
+Cross-system functions, available regardless of which system is selected.
+
+| Action                   | macOS      | Windows / Linux       |
+| ------------------------ | ---------- | --------------------- |
+| Toggle Snapshot section  | `⌘⌥⇧S`  | `Ctrl+Alt+Shift+S`    |
+
+On macOS, click via the menu bar:
+
+```sh
+peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > Emulator > Toggle Snapshot section"
 ```
 
 ### C64 shortcuts (active when the C64 system is selected)
@@ -193,6 +209,7 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
    **Avoid** clicking by screen coordinates for tabs: coordinates are window-size-dependent and scale across display densities. **Avoid** `peekaboo click "Log"`: text-query matching is global and can hit an element with the same label in another app or inside the tab's content area (e.g. Ghostty's "Log Out" menu).
 
 2. **Collapsed/conditional content** only appears in the AX tree when its container is rendered. Examples:
+    - `MainView` common `SnapshotSectionContent` (`SaveSnapshotButton`, `LoadSnapshotButton`) — collapsed by default; expand via the `Emulator` menu / `⌘⌥⇧S` shortcut or by clicking `SnapshotSectionHeader`.
     - `C64MenuView` section contents (`DiskSectionContent`, `LoadSaveSectionContent`, `ConfigSectionContent`) — only visible when the section header is expanded.
     - Some tools in `Debug & Remoting` tab contents — hidden until `ShowDebugTools` is enabled in `EmulatorConfig`.
     - Dialog controls (`C64ConfigDialog`, `MonitorDialog`, `ScriptEditorDialog`) — only exist while the dialog is open.

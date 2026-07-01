@@ -22,12 +22,14 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
+using Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
+public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider
 {
     private const string CartridgeNmiSource = "CartridgeNmi";
     private const string CartridgeIrqSource = "CartridgeIrq";
@@ -688,6 +690,52 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
             Vic2.SpriteManager.SetAllChanged(Vic2Sprite.Vic2SpriteChangeType.Data);
     }
 
+    // --- Snapshot support ---
+    // The 6510 CPU port raw registers are private and reading $00/$01 returns derived values
+    // (effective port value with pull-ups), so the c64-core snapshot module captures/restores the
+    // raw registers through these internal accessors instead of through memory reads/writes.
+    internal byte SnapshotCpuPortDataDirectionRegister
+    {
+        get => _cpuPortDataDirectionRegister;
+        set => _cpuPortDataDirectionRegister = value;
+    }
+    internal byte SnapshotCpuPortDataRegister
+    {
+        get => _cpuPortDataRegister;
+        set => _cpuPortDataRegister = value;
+    }
+
+    // Re-applies the bank/memory configuration derived from the restored CPU port registers and
+    // cartridge lines (recomputes CurrentBank and calls Mem.SetMemoryConfiguration).
+    internal void ApplyCpuPortMemoryConfigurationFromSnapshot() => ApplyCpuPortMemoryConfiguration();
+
+    // The shared SnapshotService enforces format-version, machine-name, unknown-required-module and
+    // module-version rules. The c64-core module additionally validates model/timer-mode on restore.
+    public const int SnapshotVersion = 1;
+    private readonly IReadOnlyList<ISnapshotModule> _snapshotModules = new ISnapshotModule[]
+    {
+        new Cpu6502SnapshotModule(),
+        new C64CoreSnapshotModule(),
+        // c64-vic2 must restore after c64-core so it can re-derive cached display state from the
+        // restored IO registers.
+        new C64Vic2SnapshotModule(),
+        new C64CiaSnapshotModule(),
+        // c64-sid re-triggers the (edge-triggered) audio providers from the restored SID registers
+        // so sustained voices resume; the register values themselves come from c64-core (IO array).
+        new C64SidSnapshotModule(),
+        // c64-disk8 embeds the mounted .d64 image and re-mounts it on restore.
+        new C64Disk8SnapshotModule(),
+        // c64-cartridge re-attaches an embedded .crt (without reset) and restores live cartridge
+        // state. Last, so it re-derives the memory configuration after RAM/CPU-port are restored.
+        new C64CartridgeSnapshotModule(),
+    };
+
+    public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
+
+    public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
+
+    public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest) => SnapshotCompatibility.Compatible();
+
     private byte GetCpuPortEffectiveValue()
     {
         // On the C64 the lower 3 banking lines and cassette sense line are pulled high
@@ -733,12 +781,14 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     {
         CartridgeSlot.Attach(cartridge);
         AttachedCartridgeImage = null;
+        _attachedCrtImageBytes = null;
     }
 
     public void DetachCartridge()
     {
         CartridgeSlot.Detach();
         AttachedCartridgeImage = null;
+        _attachedCrtImageBytes = null;
     }
 
     public void ResetAttachedCartridge()
@@ -779,16 +829,34 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public C64CartridgeImageAttachResult AttachCrtImage(
         ReadOnlyMemory<byte> image,
         string? sourceName = null)
+        => AttachCrtImageInternal(image.ToArray(), sourceName, reset: true);
+
+    // Raw .crt bytes of the currently attached cartridge image (null if none / not from a .crt).
+    // Retained so the snapshot c64-cartridge module can embed them.
+    internal byte[]? AttachedCrtImageBytes => _attachedCrtImageBytes;
+    private byte[]? _attachedCrtImageBytes;
+
+    // Snapshot restore: re-attach a .crt cartridge without a hard reset, so machine state restored
+    // by the other snapshot modules (RAM, CPU, chips) is preserved. The c64-cartridge module
+    // restores the cartridge's live state afterwards and re-applies the memory configuration.
+    internal void AttachCrtImageForSnapshotRestore(byte[] image, string? sourceName)
+        => AttachCrtImageInternal(image, sourceName, reset: false);
+
+    private C64CartridgeImageAttachResult AttachCrtImageInternal(
+        byte[] image,
+        string? sourceName,
+        bool reset)
     {
-        var crtImage = C64CrtParser.Parse(image.Span);
+        var crtImage = C64CrtParser.Parse(image);
         var cartridge = C64CrtCartridgeFactory.Create(crtImage);
         _logger.LogInformation(
-            "Attaching CRT cartridge. Source={Source}, Name={Name}, HardwareType={HardwareType}, Chips={ChipCount}, InitialLines={Lines}",
+            "Attaching CRT cartridge. Source={Source}, Name={Name}, HardwareType={HardwareType}, Chips={ChipCount}, InitialLines={Lines}, Reset={Reset}",
             sourceName ?? string.Empty,
             cartridge.Name,
             crtImage.Header.HardwareType,
             crtImage.Chips.Count,
-            cartridge.Lines);
+            cartridge.Lines,
+            reset);
         var result = new C64CartridgeImageAttachResult(
             cartridge.Name,
             crtImage.Header.HardwareType,
@@ -799,13 +867,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
         CartridgeSlot.Replace(cartridge);
         AttachedCartridgeImage = result;
-        HardReset();
-        _logger.LogInformation(
-            "CRT cartridge attached and reset. Name={Name}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, PC={PC:X4}",
-            cartridge.Name,
-            CartridgeSlot.Lines,
-            CurrentBank,
-            CPU.PC);
+        _attachedCrtImageBytes = image;
+        if (reset)
+            HardReset();
         return result;
     }
 

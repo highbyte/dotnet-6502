@@ -45,6 +45,22 @@ internal static class RemoteClientRequestBuilder
                 if (parameters.TryGetValue("name", out var sysName)) request["name"] = sysName;
                 break;
 
+            case "emu.savesnapshot":
+            case "emu.loadsnapshot":
+                if (!parameters.TryGetValue("path", out var snapshotPath) || string.IsNullOrEmpty(snapshotPath))
+                    return new RemoteClientRequestBuildResult { Error = $"{cmd} requires --path <file.d6502snap>" };
+                request["path"] = snapshotPath;
+                break;
+
+            case "emu.runframes":
+                if (parameters.TryGetValue("count", out var frameCount))
+                {
+                    if (!int.TryParse(frameCount, out int countVal) || countVal < 1)
+                        return new RemoteClientRequestBuildResult { Error = "emu.runframes --count must be an integer >= 1" };
+                    request["count"] = countVal;
+                }
+                break;
+
             case "cpu.set":
                 if (parameters.TryGetValue("pc", out var cpuPc)) request["pc"] = cpuPc;
                 if (parameters.TryGetValue("a", out var cpuA) && int.TryParse(cpuA, out int aVal)) request["a"] = aVal;

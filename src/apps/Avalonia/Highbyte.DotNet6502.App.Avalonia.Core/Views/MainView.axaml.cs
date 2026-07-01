@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -8,8 +9,10 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems;
@@ -545,6 +548,21 @@ public partial class MainView : UserControl
             viewRoot.Menu = viewMenu;
             appMenu.Items.Add(viewRoot);
 
+            // Always add an "Emulator" menu for common (non-system-specific) toggles/actions, parallel
+            // to the per-system menu. Currently holds the Snapshot sidebar-section toggle. The
+            // ⌘⌥⇧ modifier matches the per-system "toggle section" convention (see the C64 menu);
+            // S = Snapshot, and ⌘⌥⇧S does not collide with View (⌘⌥) or the C64 ⌘⌥⇧ set {D,L,C,1,2}.
+            var emulatorRoot = new NativeMenuItem { Header = "Emulator" };
+            var emulatorMenu = new NativeMenu();
+            emulatorMenu.Items.Add(new NativeMenuItem
+            {
+                Header = "Toggle Snapshot section",
+                Gesture = new KeyGesture(Key.S, KeyModifiers.Meta | KeyModifiers.Alt | KeyModifiers.Shift),
+                Command = _subscribedViewModel?.ToggleSnapshotSectionCommand
+            });
+            emulatorRoot.Menu = emulatorMenu;
+            appMenu.Items.Add(emulatorRoot);
+
             if (contributor != null)
             {
                 var systemRoot = new NativeMenuItem { Header = contributor.MenuLabel };
@@ -628,6 +646,20 @@ public partial class MainView : UserControl
             };
             window.KeyBindings.Add(kb);
             _generalKeyBindings.Add(kb);
+        }
+
+        // Common "Emulator" menu shortcut (Windows/Linux counterpart of the macOS Emulator menu):
+        // Toggle Snapshot section. Ctrl+Alt+Shift+S mirrors the C64 section-toggle modifier and does
+        // not collide with the tab shortcuts above (Ctrl+Alt, no Shift) or the C64 Ctrl+Alt+Shift set.
+        if (_subscribedViewModel?.ToggleSnapshotSectionCommand is { } toggleSnapshotCommand)
+        {
+            var snapshotKb = new KeyBinding
+            {
+                Gesture = new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift),
+                Command = toggleSnapshotCommand
+            };
+            window.KeyBindings.Add(snapshotKb);
+            _generalKeyBindings.Add(snapshotKb);
         }
     }
 
@@ -1086,4 +1118,129 @@ public partial class MainView : UserControl
             mainGrid.Children.Remove(overlayPanel);
         }
     }
+
+    // Emulator state snapshots (save/restore). Cross-system feature, so it lives in the common
+    // MainView rather than a per-system menu. Only systems whose ISystem implements
+    // ISystemSnapshotProvider can be snapshotted (currently the Generic computer); for others the
+    // save is skipped with a log message.
+    private void SaveSnapshot_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var hostApp = _subscribedViewModel?.HostApp;
+            if (hostApp == null)
+                return;
+            if (!hostApp.CanSnapshotCurrentSystem)
+            {
+                Logger.LogWarning("Current system '{System}' does not support snapshots yet.", hostApp.SelectedSystemName);
+                return;
+            }
+
+            var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+            var fileSaver = serviceProvider?.GetService<IAppFileSaver>();
+            if (fileSaver == null)
+                return;
+
+            // Pause while the save dialog is open so the emulator isn't advancing underneath: the
+            // state written is exactly the frozen frame the user sees, with no ambiguity about which
+            // moment was captured. Resumed afterwards if it had been running.
+            var wasRunning = hostApp.EmulatorState == EmulatorState.Running;
+            if (wasRunning)
+                hostApp.Pause();
+            try
+            {
+                // Capture the snapshot to memory, then hand the bytes to the platform saver:
+                // Desktop writes via the StorageProvider save picker; Browser triggers a download.
+                // Optionally embed current runtime settings ("config") per the user's checkbox.
+                using var buffer = new MemoryStream();
+                await hostApp.SaveSnapshotAsync(buffer, includeConfig: _subscribedViewModel?.IncludeConfigInSnapshot ?? false);
+
+                // SuggestedFileName is extension-less; each saver adds the extension (Desktop via the
+                // StorageProvider DefaultExtension, Browser by appending it to the download name).
+                var suggestedName = hostApp.SelectedSystemName.Replace(" ", "_");
+                var saved = await fileSaver.SaveFileAsync(
+                    this,
+                    new AppFileSaveOptions(
+                        "Save emulator snapshot",
+                        suggestedName,
+                        "d6502snap",
+                        [
+                            new AppFilePickerFileType("Emulator snapshot", ["*.d6502snap"]),
+                            AppFilePickerFileType.AllFiles
+                        ]),
+                    buffer.ToArray());
+
+                if (saved)
+                    Logger.LogInformation("Snapshot saved ({Name}.d6502snap).", suggestedName);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error saving snapshot");
+            }
+            finally
+            {
+                if (wasRunning && hostApp.EmulatorState == EmulatorState.Paused)
+                    await hostApp.Start();
+            }
+        });
+
+    private void LoadSnapshot_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var hostApp = _subscribedViewModel?.HostApp;
+            if (hostApp == null)
+                return;
+
+            var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+            var filePicker = serviceProvider?.GetService<IAppFilePicker>();
+            if (filePicker == null)
+                return;
+
+            // Pause the current machine while the load dialog is open so it isn't running (and making
+            // sound) while the user browses for a snapshot to restore.
+            var wasRunning = hostApp.EmulatorState == EmulatorState.Running;
+            if (wasRunning)
+                hostApp.Pause();
+
+            var picked = await filePicker.OpenFileAsync(
+                this,
+                new AppFilePickerOpenOptions(
+                    "Load emulator snapshot",
+                    AllowMultiple: false,
+                    [
+                        new AppFilePickerFileType("Emulator snapshot", ["*.d6502snap"]),
+                        AppFilePickerFileType.AllFiles
+                    ]));
+            if (picked == null)
+            {
+                // Cancelled — resume the machine we paused for the dialog.
+                if (wasRunning && hostApp.EmulatorState == EmulatorState.Paused)
+                    await hostApp.Start();
+                return;
+            }
+
+            try
+            {
+                using var ms = new MemoryStream(picked.Bytes);
+                var result = await hostApp.LoadSnapshotAsync(ms, applyConfig: _subscribedViewModel?.RestoreConfigOnLoad ?? false);
+
+                // LoadSnapshotAsync leaves the machine paused (the shared contract used by the CLI,
+                // remote, and scripting surfaces). In the interactive UI, resume immediately so the
+                // user continues from the restored state — matching the save-state convention of other
+                // emulators. A user who wants to inspect can pause again.
+                await hostApp.Start();
+
+                Logger.LogInformation("Snapshot '{Name}' loaded ({WarningCount} warning(s)); emulator resumed.",
+                    picked.Name, result.Warnings.Count);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading snapshot");
+
+                // Best-effort: if the load failed before the current machine was torn down (it is
+                // still paused), resume it. After a successful Stop() the state is Uninitialized, so
+                // this guard leaves it stopped rather than rebuilding a fresh machine.
+                if (wasRunning && hostApp.EmulatorState == EmulatorState.Paused)
+                    await hostApp.Start();
+            }
+        });
 }

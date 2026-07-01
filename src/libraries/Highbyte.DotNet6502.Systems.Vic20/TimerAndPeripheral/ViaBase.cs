@@ -45,6 +45,13 @@ public abstract class ViaBase
 
     public abstract void MapIOLocations(Memory mem);
 
+    // --- Snapshot support (consumed by the vic20-via snapshot module in the same assembly) ---
+    internal byte SnapshotDdra { get => DDRA; set => DDRA = value; }
+    internal byte SnapshotDdrb { get => DDRB; set => DDRB = value; }
+    internal byte SnapshotAcr { get => _acr; set => _acr = value; }
+    internal ViaTimer1 SnapshotTimer1 => _timer1;
+    internal ViaIRQ SnapshotIrq => _viaIRQ;
+
     // ---------- Timer 1 read/write delegates (used by MapIOLocations) ----------
 
     protected byte  T1CLLoad (ushort _) => _timer1.ReadCounterLo();

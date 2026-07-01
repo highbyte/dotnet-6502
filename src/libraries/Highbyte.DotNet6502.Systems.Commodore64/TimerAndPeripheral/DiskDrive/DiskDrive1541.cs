@@ -67,6 +67,10 @@ public class DiskDrive1541 : IIECDevice
         _bus = _bus is null ? iECBus : throw new InvalidOperationException("DiskDrive1541 is already set to a bus.");
     }
 
+    // Snapshot support: exposes the currently mounted disk image (or null) so the c64-disk8
+    // snapshot module can embed its raw bytes. Restore re-mounts via SetD64DiskImage.
+    internal D64DiskImage? MountedDiskImage => _d64DiskImage;
+
     public void SetD64DiskImage(D64DiskImage d64DiskImage)
     {
         _d64DiskImage = d64DiskImage;

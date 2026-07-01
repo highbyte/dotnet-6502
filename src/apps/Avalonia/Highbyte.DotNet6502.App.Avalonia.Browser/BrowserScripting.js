@@ -83,6 +83,35 @@ export function pickLocalFilesAsBase64(accept, allowMultiple) {
     });
 }
 
+// Triggers a browser download of binary data (e.g. an emulator snapshot). Avalonia's browser
+// StorageProvider save uses the File System Access API (Chromium-only), so a Blob download is used
+// instead for universal browser support.
+export function downloadFileFromBase64(name, base64, mime) {
+    const bytes = base64ToBytes(base64);
+    const blob = new Blob([bytes], { type: mime || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name || "download";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    // Defer cleanup so the click is processed before the object URL is revoked.
+    setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+    }, 0);
+}
+
+function base64ToBytes(base64) {
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++)
+        bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
 function bytesToBase64(bytes) {
     const chunkSize = 0x8000;
     let binary = "";

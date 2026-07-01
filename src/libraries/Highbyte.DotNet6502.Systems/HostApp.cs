@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems;
@@ -24,10 +25,32 @@ public class HostApp : IHostApp, IManualRenderingProvider
     private readonly SystemList _systemList;
     private readonly bool _useStatsNamePrefix;
 
+    /// <summary>Host app / settings-schema identifier (e.g. "Avalonia", "Headless"). See <see cref="IHostApp.HostName"/>.</summary>
+    public string HostName => _hostName;
+
     // Other variables
     private string _selectedSystemName;
     public string SelectedSystemName => _selectedSystemName;
-    private ISystem? _selectedSystemTemporary; // A temporary storage of the selected system if asked for, and system has not been started yet.
+
+    private ISystem? _selectedSystemTemporaryBacking; // A temporary storage of the selected system if asked for, and system has not been started yet.
+    private ISystem? _selectedSystemTemporary
+    {
+        get => _selectedSystemTemporaryBacking;
+        set
+        {
+            _selectedSystemTemporaryBacking = value;
+            // Remember whether the selected system supports snapshots. Updated only when a system
+            // instance is established; deliberately NOT reset when the instance is cleared (e.g. by
+            // Stop()), so the snapshot capability of the still-selected system survives a stop —
+            // see SelectedSystemSupportsSnapshots.
+            if (value != null)
+                _selectedSystemSupportsSnapshots = value is ISystemSnapshotProvider;
+        }
+    }
+
+    // Cached snapshot capability of the currently selected system (by name). Persists across Stop(),
+    // which clears _selectedSystemTemporary but leaves the system selected.
+    private bool _selectedSystemSupportsSnapshots;
 
     public HashSet<string> AvailableSystemNames
     {
@@ -163,6 +186,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     {
         _hostName = hostName;
         _updateFps = _instrumentations.Add($"{_statsPrefix}OnUpdateFPS", new PerSecondTimedStat());
+        // (HostName exposes _hostName for snapshot host-config tagging; see HostName property.)
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
@@ -599,6 +623,173 @@ public class HostApp : IHostApp, IManualRenderingProvider
         await Start();
     }
 
+    /// <summary>
+    /// True if the currently running (or selected-but-not-started) system instance supports
+    /// snapshots. False after <see cref="Stop"/> (no system instance exists to capture). Use this to
+    /// gate <b>saving</b>, which needs a live system to read state from.
+    /// </summary>
+    public bool CanSnapshotCurrentSystem
+        => (CurrentRunningSystem ?? _selectedSystemTemporary) is ISystemSnapshotProvider;
+
+    /// <summary>
+    /// True if the currently <b>selected</b> system (by name) supports snapshots, independent of
+    /// whether it is started. Unlike <see cref="CanSnapshotCurrentSystem"/> this survives
+    /// <see cref="Stop"/>, so it stays consistent between a freshly launched app and a stopped one.
+    /// Use this to gate <b>loading</b>, which rebuilds the machine and so does not need a live system.
+    /// </summary>
+    public bool SelectedSystemSupportsSnapshots
+        => (CurrentRunningSystem ?? _selectedSystemTemporary) is ISystemSnapshotProvider || _selectedSystemSupportsSnapshots;
+
+    /// <summary>
+    /// Captures a snapshot of the current system to <paramref name="output"/>. Pauses the emulator
+    /// for the (read-only) capture and resumes it afterwards if it had been running. Throws
+    /// <see cref="SnapshotException"/> if no snapshot-capable system is available.
+    /// </summary>
+    public async Task SaveSnapshotAsync(Stream output, SnapshotSaveOptions? options = null, bool includeConfig = false)
+    {
+        var system = CurrentRunningSystem ?? _selectedSystemTemporary
+            ?? throw new SnapshotException("No system is selected or running to snapshot.");
+        if (system is not ISystemSnapshotProvider)
+            throw new SnapshotException($"System '{system.Name}' does not support snapshots yet.");
+
+        options ??= new SnapshotSaveOptions { ConfigurationVariant = _selectedSystemConfigurationVariant };
+
+        // Optionally capture the current runtime settings ("config"). The host-specific block is
+        // produced by the concrete host app; the portable system-config block is captured separately
+        // (see CaptureConfigForSnapshotAsync). Reads current runtime values, not appsettings defaults.
+        if (includeConfig)
+            options.Config = await CaptureConfigForSnapshotAsync();
+
+        bool wasRunning = EmulatorState == EmulatorState.Running;
+        if (wasRunning)
+            Pause();
+        try
+        {
+            new SnapshotService().Save(system, output, options);
+            _logger.LogInformation("Saved snapshot of system '{System}' variant '{Variant}'.",
+                system.Name, _selectedSystemConfigurationVariant);
+        }
+        finally
+        {
+            if (wasRunning)
+                await Start();
+        }
+    }
+
+    /// <summary>
+    /// Restores a snapshot read from <paramref name="input"/>. Stops any running system, rebuilds a
+    /// fresh system of the snapshot's machine + variant, restores module state into it, then starts
+    /// it left paused. Returns the restore result (including any non-fatal warnings).
+    /// </summary>
+    public async Task<SnapshotRestoreResult> LoadSnapshotAsync(Stream input, bool applyConfig = false)
+    {
+        var manifest = SnapshotService.PeekManifest(input);
+        input.Position = 0;
+
+        var targetSystemName = manifest.Machine.SystemName;
+        if (!_systemList.Systems.Contains(targetSystemName))
+            throw new SnapshotException(
+                $"Snapshot is for system '{targetSystemName}', which is not available in this host.");
+
+        if (EmulatorState != EmulatorState.Uninitialized)
+            Stop();
+
+        await SelectSystem(targetSystemName);
+
+        var variant = manifest.Machine.ConfigurationVariant;
+        if (!string.IsNullOrEmpty(variant)
+            && _allSelectedSystemConfigurationVariants.Contains(variant)
+            && variant != _selectedSystemConfigurationVariant)
+        {
+            await SelectSystemConfigurationVariant(variant);
+        }
+
+        // Apply the embedded settings ("config") if the user opted in — BEFORE building/starting, so
+        // both the rebuilt machine and its initialized host services reflect them. This matters
+        // because several settings are read at build/init time, not as live toggles: e.g. the C64
+        // keyboard-joystick is read from config when the machine is built, and audio (enabled + volume)
+        // is wired up when the audio pipeline is initialized during Start.
+        if (applyConfig)
+        {
+            input.Position = 0;
+            var peekedConfig = SnapshotService.PeekConfig(input);
+            input.Position = 0;
+            if (!string.IsNullOrEmpty(peekedConfig?.SystemConfigJson))
+                ApplySystemConfigBeforeRebuild(peekedConfig!.SystemConfigJson!);
+            if (!string.IsNullOrEmpty(peekedConfig?.HostJson))
+                await ApplyHostSnapshotConfigAsync(peekedConfig!.HostJson!);
+            // Notify config-bound UI once the final values are in place, so controls (e.g. the audio
+            // checkbox) reflect the restored settings rather than the pre-load values.
+            if (peekedConfig is { IsEmpty: false })
+                OnAfterHostSystemConfigUpdated();
+        }
+
+        // Build a fresh system of the target machine + variant and restore the snapshot into it.
+        // BuildSystem clears the config-dirty flag, so the subsequent Start() reuses this exact
+        // instance instead of rebuilding it (and discarding the restored state).
+        var freshSystem = await _systemList.BuildSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
+        var result = new SnapshotService().Restore(freshSystem, input);
+
+        _selectedSystemTemporary = freshSystem;
+        await Start();
+        Pause();
+
+        foreach (var warning in result.Warnings)
+            _logger.LogWarning("Snapshot restore warning: {Warning}", warning);
+        _logger.LogInformation("Restored snapshot into system '{System}' variant '{Variant}' (paused).",
+            _selectedSystemName, _selectedSystemConfigurationVariant);
+
+        // (Both config blocks were applied before the rebuild/start above, so the running machine and
+        // its host services already reflect them.)
+
+        return result;
+    }
+
+    // --- Snapshot runtime-settings ("config") capture/apply orchestration ---
+
+    /// <summary>
+    /// Gathers the runtime-settings blocks to embed in a snapshot: the portable system-config block
+    /// (from the global <see cref="ISystemConfig"/> if it opts in via <see cref="ISnapshotableConfig"/>)
+    /// and the host-specific block (from the concrete host app). Returns null if neither produced
+    /// anything. Reads current runtime values, not appsettings defaults.
+    /// </summary>
+    private async Task<SnapshotConfigContent?> CaptureConfigForSnapshotAsync()
+    {
+        var systemConfigJson = (CurrentHostSystemConfig?.SystemConfig as ISnapshotableConfig)?.ExportSnapshotSettings();
+        var hostJson = await CaptureHostSnapshotConfigAsync();
+        var content = new SnapshotConfigContent { SystemConfigJson = systemConfigJson, HostJson = hostJson };
+        return content.IsEmpty ? null : content;
+    }
+
+    /// <summary>
+    /// Applies the portable system-config block to the current system config <b>before</b> the machine
+    /// is rebuilt, so the rebuilt machine reflects it (no live-machine poke). Called from
+    /// <see cref="LoadSnapshotAsync"/> after the target system/variant is selected but before build.
+    /// </summary>
+    private void ApplySystemConfigBeforeRebuild(string systemConfigJson)
+    {
+        if (CurrentHostSystemConfig?.SystemConfig is not ISnapshotableConfig snapshotable)
+            return;
+        snapshotable.ApplySnapshotSettings(systemConfigJson);
+        // Propagate the mutated config so BuildSystem picks it up.
+        UpdateHostSystemConfig(CurrentHostSystemConfig);
+    }
+
+    /// <summary>
+    /// Capture the host-specific block (general host-app settings, e.g. audio/scale, plus the
+    /// per-backend host system config). Override in a concrete host app; base returns null (no host
+    /// settings, e.g. headless). The block should carry the originating <see cref="HostName"/> so a
+    /// loading host can decide whether it applies.
+    /// </summary>
+    protected virtual Task<string?> CaptureHostSnapshotConfigAsync() => Task.FromResult<string?>(null);
+
+    /// <summary>
+    /// Apply a host-specific block previously produced by <see cref="CaptureHostSnapshotConfigAsync"/>.
+    /// The override should ignore a block whose host does not match this one (logging an info/warning)
+    /// and reproduce the full effect of the corresponding UI actions. Base is a no-op.
+    /// </summary>
+    protected virtual Task ApplyHostSnapshotConfigAsync(string payload) => Task.CompletedTask;
+
     public void Close()
     {
         if (EmulatorState != EmulatorState.Uninitialized)
@@ -674,6 +865,33 @@ public class HostApp : IHostApp, IManualRenderingProvider
     }
 
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }
+
+    /// <summary>
+    /// Deterministically steps the loaded system by <paramref name="frameCount"/> frames and flushes
+    /// the render coordinator so the host's render target (e.g. the desktop screenshot bitmap)
+    /// reflects the final frame. Bypasses the real-time run loop — it is intended for automation
+    /// (load a snapshot paused, step a known number of frames, then screenshot).
+    /// Requires the emulator to be stopped/paused: stepping while it is Running is rejected, because
+    /// the real-time run loop is concurrently advancing the same system, which would make the step
+    /// non-deterministic.
+    /// </summary>
+    public async Task StepEmulatorFramesAsync(int frameCount)
+    {
+        if (frameCount < 1)
+            throw new DotNet6502Exception($"frameCount must be >= 1 (was {frameCount}).");
+        if (_systemRunner == null)
+            throw new DotNet6502Exception("No system is loaded to step (load/start a system or restore a snapshot first).");
+        if (EmulatorState == EmulatorState.Running)
+            throw new DotNet6502Exception("Cannot step frames while the emulator is running; deterministic stepping requires a stopped/paused emulator. Pause the emulator (or load a snapshot) first.");
+
+        for (int i = 0; i < frameCount; i++)
+            _systemRunner.RunEmulatorOneFrame();
+
+        // Draw the resulting frame to the render target so a subsequent screenshot reflects it.
+        // Null on hosts without a renderer (e.g. headless) — stepping still advances emulation.
+        if (_renderCoordinator != null)
+            await _renderCoordinator.FlushIfDirtyAsync();
+    }
 
     private void InitRendererForSystem()
     {

@@ -85,6 +85,12 @@ When a URL starts `system=C64` and the app does not yet have the required C64 RO
 
 # Run a Lua script fetched over HTTP
 ?scriptUrl=scripts/example_emulator_control.lua
+
+# Restore an emulator-state snapshot (machine is left paused after restore)
+?loadSnapshotUrl=snapshots%2Fc64-game.d6502snap
+
+# Restore a snapshot and resume running it
+?loadSnapshotUrl=snapshots%2Fc64-game.d6502snap&start=1
 ```
 
 The browser app ships the `basicUrl` sample above as `basic/c64/hello-world.bas`, containing:
@@ -102,7 +108,8 @@ The browser app ships the `basicUrl` sample above as `basic/c64/hello-world.bas`
 
 ### Important differences from desktop automation
 
-- `loadPrgUrl`, `basicUrl`, `loadD64Url`, `loadCrtUrl`, and `scriptUrl` use browser HTTP fetch semantics, so normal browser origin and CORS rules apply. The desktop app reads its load sources from the local filesystem (`--loadPrg` / `--loadD64` / `--loadCrt` / `--basicFile` / `--script`) and additionally offers HTTP variants (`--loadPrgUrl` / `--loadD64Url` / `--loadCrtUrl` / `--basicUrl`).
+- `loadPrgUrl`, `basicUrl`, `loadD64Url`, `loadCrtUrl`, `loadSnapshotUrl`, and `scriptUrl` use browser HTTP fetch semantics, so normal browser origin and CORS rules apply. The desktop app reads its load sources from the local filesystem (`--loadPrg` / `--loadD64` / `--loadCrt` / `--basicFile` / `--load-snapshot` / `--script`) and additionally offers HTTP variants (`--loadPrgUrl` / `--loadD64Url` / `--loadCrtUrl` / `--basicUrl`).
+- `loadSnapshotUrl` restores a full `.d6502snap` emulator-state snapshot; the snapshot's manifest defines the machine, so it does not take a `system` parameter and is mutually exclusive with the other load sources and scripts. The machine is left paused after restore — add `start=1` to resume. Mirrors desktop `--load-snapshot`.
 - `basicText` is **base64url-encoded** in the browser (it travels in a URL); the desktop `--basicText` takes plain text, and `--basicFile` reads a local file.
 - `basicText` / `basicUrl` are C64-only and use the normal keyboard paste path after BASIC is ready; `runBasic=1` simply appends `RUN` and Return after the pasted source.
 - `loadD64Url` is fetched **after** the C64 has booted to BASIC ready, so a slow remote `.d64` shows progress as a visible BASIC prompt rather than a blank Avalonia page. The desktop equivalents (`--loadD64 <path>` local, `--loadD64Url <url>`) read from the filesystem or HTTP respectively. If the URL points at a ZIP archive, `loadD64ZipEntry` can select an exact `.d64`; otherwise the first `.d64` entry is used.

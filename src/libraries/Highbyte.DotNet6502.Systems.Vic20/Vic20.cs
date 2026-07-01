@@ -2,7 +2,9 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Highbyte.DotNet6502.Systems.Vic20.Config;
+using Highbyte.DotNet6502.Systems.Vic20.Snapshots;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
 using Highbyte.DotNet6502.Systems.Vic20.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Vic20.Utils;
@@ -18,7 +20,7 @@ namespace Highbyte.DotNet6502.Systems.Vic20;
 /// Runs the 6502 CPU instruction-by-instruction (matching the C64 pattern) so that
 /// VIA chip timers are advanced in lock-step with the CPU cycle count.
 /// </summary>
-public class Vic20 : ISystem, ITextMode, IScreen, ISystemState
+public class Vic20 : ISystem, ITextMode, IScreen, ISystemState, ISystemSnapshotProvider
 {
     public const string SystemName = "VIC-20";
 
@@ -79,6 +81,28 @@ public class Vic20 : ISystem, ITextMode, IScreen, ISystemState
     private readonly byte[] _mainRam = new byte[0x1000];
     private readonly byte[] _vicRegisterStorage = new byte[0x0010];
     private readonly byte[] _colorRam = new byte[0x0400];
+
+    // --- Snapshot support ---
+    // These backing arrays are mapped into Memory by reference, so the vic20-core snapshot module
+    // copies bytes into them (it does not replace the instances). VIC-I registers and color RAM are
+    // plain RAM here (no cached display pointers like the C64's VIC-II), so restoring the bytes
+    // restores the video state. The unexpanded VIC-20 has no bank switching, cartridge or disk.
+    internal byte[] SnapshotLowRam => _lowRam;
+    internal byte[] SnapshotMainRam => _mainRam;
+    internal byte[] SnapshotVicRegisterStorage => _vicRegisterStorage;
+    internal byte[] SnapshotColorRam => _colorRam;
+
+    public const int SnapshotVersion = 1;
+    private readonly IReadOnlyList<ISnapshotModule> _snapshotModules = new ISnapshotModule[]
+    {
+        new Cpu6502SnapshotModule(),
+        new Vic20CoreSnapshotModule(),
+        new Vic20ViaSnapshotModule(),
+    };
+
+    public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
+    public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
+    public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest) => SnapshotCompatibility.Compatible();
 
 
     /// <summary>

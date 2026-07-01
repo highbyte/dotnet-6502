@@ -34,7 +34,7 @@ internal class HotPathConfig : ManualConfig
 /// be validated empirically against a baseline before merge.
 ///
 /// See <c>documents/features/hot-path-benchmarking-and-improvements.md</c> in the
-/// dotnet-6502-design-log repo for the design notes that drove these picks.
+/// design log for the design notes that drove these picks.
 /// </summary>
 [Config(typeof(HotPathConfig))]
 public class HotPathBenchmarks

@@ -111,6 +111,12 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantAvailable));
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
+                // Keyboard-joystick config can change out-of-band from the UI (e.g. restored from a
+                // snapshot's config), so re-read it here — a load transitions EmulatorState after
+                // applying config.
+                this.RaisePropertyChanged(nameof(JoystickKeyboardEnabled));
+                this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
+                this.RaisePropertyChanged(nameof(KeyboardJoystick));
                 RecomputeShareLink();
                 if (state != EmulatorState.Uninitialized)
                     _ = AttachPendingCartridgeOnStartAsync();

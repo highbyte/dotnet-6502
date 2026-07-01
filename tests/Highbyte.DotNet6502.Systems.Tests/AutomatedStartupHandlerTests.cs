@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Tests;
@@ -34,6 +35,65 @@ public class AutomatedStartupHandlerTests
         Assert.Equal(1, hostApp.PauseCount);
         Assert.Equal(2, hostApp.StartCount);
         Assert.Equal(EmulatorState.Running, hostApp.EmulatorState);
+    }
+
+    [Fact]
+    public async Task LoadSnapshot_WithoutStart_RestoresAndLeavesPaused()
+    {
+        var hostApp = new FakeHostApp();
+        var request = new AutomatedStartupRequest(
+            "", null, false, false, null, false, false)
+        {
+            LoadSnapshotPath = "ignored-when-provider-set",
+        };
+
+        await AutomatedStartupHandler.ExecuteAsync(
+            hostApp,
+            request,
+            null,
+            loggerFactory: NullLoggerFactory.Instance,
+            loadSnapshotBytesProvider: () => Task.FromResult(new byte[] { 1, 2, 3 }));
+
+        Assert.Equal(1, hostApp.LoadSnapshotCount);
+        Assert.Equal(0, hostApp.StartCount); // not resumed without --start
+        Assert.Equal(EmulatorState.Paused, hostApp.EmulatorState);
+    }
+
+    [Fact]
+    public async Task LoadSnapshot_WithStart_RestoresAndResumes()
+    {
+        var hostApp = new FakeHostApp();
+        var request = new AutomatedStartupRequest(
+            "", null, true, false, null, false, false)
+        {
+            LoadSnapshotPath = "ignored-when-provider-set",
+        };
+
+        await AutomatedStartupHandler.ExecuteAsync(
+            hostApp,
+            request,
+            null,
+            loggerFactory: NullLoggerFactory.Instance,
+            loadSnapshotBytesProvider: () => Task.FromResult(new byte[] { 1, 2, 3 }));
+
+        Assert.Equal(1, hostApp.LoadSnapshotCount);
+        Assert.Equal(1, hostApp.StartCount); // resumed after restore
+        Assert.Equal(EmulatorState.Running, hostApp.EmulatorState);
+    }
+
+    [Theory]
+    [InlineData(null, false, null, false, true)]                 // --load-snapshot alone: valid
+    [InlineData(null, true, null, false, true)]                  // --load-snapshot --start: valid
+    [InlineData("C64", false, null, false, false)]               // with --system: invalid
+    [InlineData(null, false, "game.prg", false, false)]          // with --loadPrg: invalid
+    [InlineData(null, false, null, true, false)]                 // --waitForSystemReady without --start: invalid
+    public void ValidateArguments_LoadSnapshot_Rules(
+        string? systemName, bool autoStart, string? loadPrgPath, bool waitForSystemReady, bool expectedValid)
+    {
+        var valid = AutomatedStartupHandler.ValidateArguments(
+            systemName, systemVariant: null, autoStart, waitForSystemReady,
+            loadPrgPath, runLoadedProgram: false, hasScripts: false, loadSnapshotPath: "state.d6502snap");
+        Assert.Equal(expectedValid, valid);
     }
 
     [Fact]
@@ -158,6 +218,7 @@ public class AutomatedStartupHandlerTests
         public const string SystemName = "TestSystem";
         public FakeSystem System { get; } = new();
 
+        public string HostName => "Fake";
         public string SelectedSystemName { get; private set; } = string.Empty;
         public HashSet<string> AvailableSystemNames { get; } = new(StringComparer.Ordinal) { SystemName };
         public string SelectedSystemConfigurationVariant { get; private set; } = "Default";
@@ -209,6 +270,8 @@ public class AutomatedStartupHandlerTests
         {
         }
 
+        public Task StepEmulatorFramesAsync(int frameCount) => Task.CompletedTask;
+
         public Task<(bool IsValid, List<string> Errors)> IsCurrentSystemConfigValid()
             => Task.FromResult<(bool, List<string>)>((true, []));
 
@@ -223,6 +286,21 @@ public class AutomatedStartupHandlerTests
         }
 
         public Task PersistCurrentHostSystemConfig() => Task.CompletedTask;
+
+        public int LoadSnapshotCount { get; private set; }
+        public bool CanSnapshotCurrentSystem => true;
+        public bool SelectedSystemSupportsSnapshots => true;
+        public Task SaveSnapshotAsync(System.IO.Stream output, SnapshotSaveOptions? options = null, bool includeConfig = false)
+            => Task.CompletedTask;
+        public Task<SnapshotRestoreResult> LoadSnapshotAsync(System.IO.Stream input, bool applyConfig = false)
+        {
+            LoadSnapshotCount++;
+            // Mimic the real flow: the snapshot determines the machine and leaves it paused.
+            SelectedSystemName = SystemName;
+            CurrentRunningSystem = System;
+            EmulatorState = EmulatorState.Paused;
+            return Task.FromResult(new SnapshotRestoreResult(new SnapshotManifest(), Array.Empty<string>()));
+        }
     }
 
     private sealed class FakeSystem : ISystem

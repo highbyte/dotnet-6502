@@ -333,6 +333,14 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         _audioHandlerContext?.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
+    // --- Snapshot host-config block (host-app-specific settings) ---
+    // No host-specific settings are captured yet: audio *enabled* lives in the portable system config
+    // (ISystemConfig.AudioEnabled), so it is restored via the systemConfig block through the normal
+    // build/start path. Audio *volume* is host-specific but must be applied to the live audio context
+    // (only takes effect while running), which the paused-on-restore load flow does not cleanly
+    // support — deferred. The base capture (null) / apply (no-op) are used until a host-specific
+    // setting that can be applied safely is added; the hooks + HostName tag remain for that.
+
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
     {
         // Force a full GC to free up memory, so it won't risk accumulate memory usage if GC has not run for a while.

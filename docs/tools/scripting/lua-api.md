@@ -251,6 +251,26 @@ Available when `AllowFileIO: true`. Loads a binary file from `FileBaseDirectory`
 
 The operation is deferred (like `emu.start()` etc.) and takes effect after the current frame. Path confinement rules are the same as for `file.*`.
 
+## Snapshots (`emu.save_snapshot` / `emu.load_snapshot`)
+
+Available when `AllowFileIO: true`. Save and restore the **full emulator state** (CPU, memory, machine-specific chips, and attached disk/cartridge media) to a `.d6502snap` file. Paths are confined to `FileBaseDirectory`, the same as `file.*`. These mirror the remote-control `emu.savesnapshot` / `emu.loadsnapshot` commands.
+
+| Function | Description |
+|----------|-------------|
+| `emu.save_snapshot(name)` | Captures the current machine state and writes it to `name`. Requires `AllowFileWrite: true`. Runs **inline** — the file exists immediately after the call returns, and any failure raises a Lua runtime error. The currently selected system must support snapshots. |
+| `emu.load_snapshot(name)` | Restores machine state from `name`. The snapshot's manifest determines the system, so no `emu.select()` is needed first. Runs **deferred** (takes effect after the current frame), because restoring rebuilds the system. |
+
+After a successful `emu.load_snapshot()`, the emulator is left **paused** (consistent with the remote and command-line load paths). This means a script blocked on `emu.frameadvance()` will not resume until something calls `emu.start()` again, because the frame pump is stopped while paused. To observe state immediately after a load, drive the wait with `emu.yield()` (tick-based, independent of the frame pump) rather than `emu.frameadvance()`:
+
+```lua
+emu.save_snapshot("quicksave.d6502snap")
+-- ... later ...
+emu.load_snapshot("quicksave.d6502snap")
+emu.yield()                       -- let the deferred restore apply (emulator is now paused)
+print("restored, state = " .. emu.state())   -- "paused"
+emu.start()                       -- resume from the restored state
+```
+
 ## HTTP (`http`)
 
 Available when `AllowHttpRequests: true`. The `http` global is not registered when `AllowHttpRequests` is `false`.

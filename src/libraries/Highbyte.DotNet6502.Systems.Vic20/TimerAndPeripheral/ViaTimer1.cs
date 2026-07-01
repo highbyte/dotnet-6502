@@ -33,6 +33,17 @@ public class ViaTimer1
 
     public void SetFreeRunning(bool freeRunning) => _freeRunning = freeRunning;
 
+    // --- Snapshot support ---
+    internal (ushort Latch, ushort Counter, bool Running, bool FreeRunning) GetSnapshotState()
+        => (_latch, _counter, _running, _freeRunning);
+    internal void RestoreSnapshotState(ushort latch, ushort counter, bool running, bool freeRunning)
+    {
+        _latch = latch;
+        _counter = counter;
+        _running = running;
+        _freeRunning = freeRunning;
+    }
+
     // Write to T1L-L ($9116) — latch low only, no effect on running counter.
     public void WriteLatchLo(byte value)
     {

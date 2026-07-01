@@ -171,8 +171,9 @@
                             Command="{Binding StatsCommand}"
                             ToolTip.Tip="Toggle with F11"/>
                     </Grid>
+
                 </StackPanel>
-    
+
                 <!-- Common display and audio settings -->
                 <StackPanel Classes="spacing-tight">
                     <!-- Display Settings -->
@@ -241,6 +242,73 @@
                        </Grid>
                     </StackPanel>
 
+                </StackPanel>
+
+                <!-- Snapshot (emulator state) — common across systems, collapsed by default since it is
+                     an occasional operation. Styled like the per-system collapsible sections below. -->
+                <StackPanel>
+                    <Button Name="SnapshotSectionHeader"
+                            AutomationProperties.AutomationId="SnapshotSectionHeader"
+                            AutomationProperties.Name="Toggle Snapshot section"
+                            Classes="section-toggle"
+                            Command="{Binding ToggleSnapshotSectionCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Grid Width="10" Height="10" VerticalAlignment="Center">
+                                <controls:SymbolIcon Width="8" Height="8"
+                                                     Kind="TriangleRight"
+                                                     IsVisible="{Binding !IsSnapshotSectionExpanded}"/>
+                                <controls:SymbolIcon Width="8" Height="8"
+                                                     Kind="TriangleDown"
+                                                     IsVisible="{Binding IsSnapshotSectionExpanded}"/>
+                            </Grid>
+                            <TextBlock Text="Snapshot"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Border Name="SnapshotSectionContent"
+                            AutomationProperties.AutomationId="SnapshotSectionContent"
+                            Classes="collapsible-content"
+                            IsVisible="{Binding IsSnapshotSectionExpanded}">
+                        <StackPanel Classes="spacing-tight">
+                            <TextBlock Text="Full machine state (.d6502snap)"
+                                       Classes="small secondary-text"/>
+                            <Grid Classes="spacing-tight">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0"
+                                        Content="Save snap"
+                                        AutomationProperties.AutomationId="SaveSnapshotButton"
+                                        Classes="small"
+                                        Click="SaveSnapshot_Click"
+                                        IsEnabled="{Binding CanSaveSnapshot}"
+                                        ToolTip.Tip="Save the current emulator state to a .d6502snap file"/>
+                                <Button Grid.Column="2"
+                                        Content="Load snap"
+                                        AutomationProperties.AutomationId="LoadSnapshotButton"
+                                        Classes="small"
+                                        Click="LoadSnapshot_Click"
+                                        IsEnabled="{Binding CanLoadSnapshot}"
+                                        ToolTip.Tip="Restore an emulator state from a .d6502snap file"/>
+                            </Grid>
+
+                            <TextBlock Text="Settings (config)"
+                                       Classes="small secondary-text"/>
+                            <CheckBox Content="Include config in save"
+                                      AutomationProperties.AutomationId="IncludeConfigInSnapshotCheckBox"
+                                      Classes="small"
+                                      IsChecked="{Binding IncludeConfigInSnapshot}"
+                                      ToolTip.Tip="Include the current runtime settings (audio, input mapping, ...) when saving a snapshot"/>
+                            <CheckBox Content="Restore config on load"
+                                      AutomationProperties.AutomationId="RestoreConfigOnLoadCheckBox"
+                                      Classes="small"
+                                      IsChecked="{Binding RestoreConfigOnLoad}"
+                                      ToolTip.Tip="If config was included in the snapshot file, apply it when loading (settings not relevant to this app are ignored)"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- Separator -->

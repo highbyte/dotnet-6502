@@ -48,6 +48,7 @@ public partial class App : Application
     private readonly Func<Task>? _loadExamples;
     private readonly Func<IHostApp, Task>? _automatedStartupRunner;
     private readonly IAppFilePicker? _appFilePicker;
+    private readonly IAppFileSaver? _appFileSaver;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -135,7 +136,8 @@ public partial class App : Application
         Action<string>? deleteScript = null,
         Func<Task>? loadExamples = null,
         Func<IHostApp, Task>? automatedStartupRunner = null,
-        IAppFilePicker? appFilePicker = null)
+        IAppFilePicker? appFilePicker = null,
+        IAppFileSaver? appFileSaver = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -154,6 +156,7 @@ public partial class App : Application
         _loadExamples = loadExamples;
         _automatedStartupRunner = automatedStartupRunner;
         _appFilePicker = appFilePicker;
+        _appFileSaver = appFileSaver;
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
@@ -314,6 +317,7 @@ public partial class App : Application
         services.AddSingleton(_loggerFactory);
         services.AddSingleton(new CustomConfigPersistence(_saveCustomConfigString));
         services.AddSingleton<IAppFilePicker>(_appFilePicker ?? new AvaloniaStorageAppFilePicker());
+        services.AddSingleton<IAppFileSaver>(_appFileSaver ?? new AvaloniaStorageAppFileSaver());
         if (_logStore != null)
             services.AddSingleton(_logStore);
         if (_logConfig != null)

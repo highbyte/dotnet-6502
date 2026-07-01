@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 /// Smaller cartridges use 16K mode with the selected bank mirrored in ROML and ROMH;
 /// 512K cartridges use 8K ROML-only mode.
 /// </summary>
-public sealed class C64OceanCartridge : IC64Cartridge
+public sealed class C64OceanCartridge : IC64Cartridge, ISnapshotableCartridge
 {
     private const ushort IO1StartAddress = 0xDE00;
     private const ushort IO1EndAddress = 0xDEFF;
@@ -79,6 +79,13 @@ public sealed class C64OceanCartridge : IC64Cartridge
 
     public void Dispose()
     {
+    }
+
+    public byte[] CaptureSnapshotState() => new[] { _register };
+    public void RestoreSnapshotState(byte[] state)
+    {
+        if (state.Length > 0)
+            _register = state[0];
     }
 
     private static bool IsPowerOfTwo(int value)

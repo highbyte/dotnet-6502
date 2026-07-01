@@ -3,7 +3,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 /// <summary>
 /// Magic Desk compatible cartridge with banked 8K ROML and a write-only IO1 register.
 /// </summary>
-public sealed class C64MagicDeskCartridge : IC64Cartridge
+public sealed class C64MagicDeskCartridge : IC64Cartridge, ISnapshotableCartridge
 {
     private const ushort IO1StartAddress = 0xDE00;
     private const ushort IO1EndAddress = 0xDEFF;
@@ -69,6 +69,13 @@ public sealed class C64MagicDeskCartridge : IC64Cartridge
 
     public void Dispose()
     {
+    }
+
+    public byte[] CaptureSnapshotState() => new[] { _register };
+    public void RestoreSnapshotState(byte[] state)
+    {
+        if (state.Length > 0)
+            _register = state[0];
     }
 
     private static byte GetBankMask(ushort highestBank)

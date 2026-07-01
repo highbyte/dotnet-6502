@@ -33,6 +33,13 @@ public abstract class CiaBase
         _ciaTimers.Add(CiaTimerType.CiaB, new CiaTimer(CiaTimerType.CiaB, IRQSource.TimerB, _c64, _ciaIRQ));
     }
 
+    // --- Snapshot support ---
+    // Exposes the live timer and IRQ state (not held in IO register storage) to the c64-cia
+    // snapshot module, which lives in the same assembly.
+    internal CiaTimer SnapshotTimerA => _ciaTimers[CiaTimerType.CiaA];
+    internal CiaTimer SnapshotTimerB => _ciaTimers[CiaTimerType.CiaB];
+    internal CiaIRQ SnapshotIrq => _ciaIRQ;
+
     /// <summary>
     /// Process timers for this CIA chip
     /// </summary>

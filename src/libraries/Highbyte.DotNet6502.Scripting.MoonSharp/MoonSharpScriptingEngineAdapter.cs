@@ -702,6 +702,71 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             });
         }
 
+        // emu.save_snapshot / emu.load_snapshot — capture/restore full machine state to a .d6502snap file.
+        // Registered only when AllowFileIO is true (paths are sandboxed to the scripting base dir via
+        // LuaFileProxy, same as emu.screenshot / file.*). Mirrors the TCP emu.savesnapshot/emu.loadsnapshot
+        // commands. save_snapshot requires AllowFileWrite; load_snapshot only needs read access.
+        if (config.AllowFileIO && _fileProxy != null && hostApp != null)
+        {
+            var snapshotFileProxy = _fileProxy;
+            var snapshotAllowWrite = config.AllowFileWrite;
+
+            // save_snapshot runs inline (read-only capture) so the file exists and errors surface
+            // immediately to the script. The async host call is bridged off the script thread the same
+            // way emu.config_valid does, to avoid blocking on a captured SynchronizationContext.
+            emuTable["save_snapshot"] = DynValue.NewCallback((ctx, args) =>
+            {
+                if (!snapshotAllowWrite)
+                    throw new ScriptRuntimeException("emu.save_snapshot() requires AllowFileWrite: true in scripting config.");
+                var filename = args.Count > 0 ? args[0].CastToString() : null;
+                if (string.IsNullOrWhiteSpace(filename))
+                    throw new ScriptRuntimeException("emu.save_snapshot() requires a filename argument.");
+                var safePath = snapshotFileProxy.GetSafePath(filename)
+                    ?? throw new ScriptRuntimeException($"emu.save_snapshot(): unsafe or invalid filename: {filename}");
+
+                try
+                {
+                    Task.Run(async () =>
+                    {
+                        if (!hostApp.CanSnapshotCurrentSystem)
+                            throw new InvalidOperationException(
+                                $"system '{hostApp.SelectedSystemName}' does not support snapshots (none selected/running?).");
+                        var dir = Path.GetDirectoryName(safePath);
+                        if (!string.IsNullOrEmpty(dir))
+                            Directory.CreateDirectory(dir);
+                        await using var fileStream = File.Create(safePath);
+                        await hostApp.SaveSnapshotAsync(fileStream);
+                    }).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    throw new ScriptRuntimeException($"emu.save_snapshot(): {ex.Message}");
+                }
+                return DynValue.Void;
+            });
+
+            // load_snapshot is deferred (via enqueueAction) because restoring rebuilds the system, which
+            // is unsafe to do re-entrantly from inside the current script frame/tick. Like the remote
+            // emu.loadsnapshot, the restored machine is left paused. The manifest determines the system.
+            emuTable["load_snapshot"] = DynValue.NewCallback((ctx, args) =>
+            {
+                var filename = args.Count > 0 ? args[0].CastToString() : null;
+                if (string.IsNullOrWhiteSpace(filename))
+                    throw new ScriptRuntimeException("emu.load_snapshot() requires a filename argument.");
+                var safePath = snapshotFileProxy.GetSafePath(filename)
+                    ?? throw new ScriptRuntimeException($"emu.load_snapshot(): unsafe or invalid filename: {filename}");
+
+                enqueueAction(CurrentScriptFileName(), async () =>
+                {
+                    if (!File.Exists(safePath))
+                        throw new FileNotFoundException($"emu.load_snapshot(): snapshot file not found: {safePath}");
+                    await using var fileStream = File.OpenRead(safePath);
+                    await hostApp.LoadSnapshotAsync(fileStream);
+                });
+                return DynValue.Void;
+            });
+        }
+
         var inputTable = new Table(_script);
         inputTable["key_press"] = DynValue.NewCallback((ctx, args) =>
         {

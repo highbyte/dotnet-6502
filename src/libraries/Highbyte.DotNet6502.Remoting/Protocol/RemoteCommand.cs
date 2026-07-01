@@ -77,4 +77,13 @@ public class RemoteCommand
     // emu.selectsystem / emu.selectvariant
     [JsonPropertyName("name")]
     public string? Name { get; set; }
+
+    // emu.savesnapshot / emu.loadsnapshot — server-side file path (the remote server reads/writes
+    // the .d6502snap on the machine the emulator runs on).
+    [JsonPropertyName("path")]
+    public string? Path { get; set; }
+
+    // emu.runframes — number of frames to step (default 1).
+    [JsonPropertyName("count")]
+    public int? Count { get; set; }
 }

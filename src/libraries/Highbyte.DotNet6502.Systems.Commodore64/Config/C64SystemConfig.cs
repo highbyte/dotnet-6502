@@ -9,11 +9,12 @@ using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-public class C64SystemConfig : ISystemConfig
+public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
 {
     private bool _isDirty = false;
     private void MarkDirty() => _isDirty = true;

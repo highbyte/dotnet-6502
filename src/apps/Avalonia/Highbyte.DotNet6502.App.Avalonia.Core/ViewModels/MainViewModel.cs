@@ -153,6 +153,63 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorPaused => EmulatorState == EmulatorState.Paused;
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
+    // Drives the enabled state of the Save/Load snapshot buttons. Re-evaluated on system/variant
+    // selection and on emulator-state changes.
+    //
+    // Save needs a live system to capture, so it requires a snapshot-capable system that is running
+    // or paused (disabled while Uninitialized — both at app start and after a stop).
+    public bool CanSaveSnapshot => _hostApp.CanSnapshotCurrentSystem && EmulatorState != EmulatorState.Uninitialized;
+
+    // Load rebuilds the machine, so it only needs the selected system to support snapshots — enabled
+    // regardless of run state, and consistent between a freshly launched app and a stopped one.
+    public bool CanLoadSnapshot => _hostApp.SelectedSystemSupportsSnapshots;
+
+    // Snapshot config options (persisted in EmulatorConfig). "Include" is the capture switch; "Restore"
+    // is a host-side load preference (opt-in). See the config extension in the feature design doc.
+    public bool IncludeConfigInSnapshot
+    {
+        get => _emulatorConfig.IncludeConfigInSnapshot;
+        set
+        {
+            if (value == _emulatorConfig.IncludeConfigInSnapshot)
+                return;
+            _emulatorConfig.IncludeConfigInSnapshot = value;
+            this.RaisePropertyChanged();
+            PersistSnapshotConfigPrefs();
+        }
+    }
+
+    public bool RestoreConfigOnLoad
+    {
+        get => _emulatorConfig.RestoreConfigOnLoad;
+        set
+        {
+            if (value == _emulatorConfig.RestoreConfigOnLoad)
+                return;
+            _emulatorConfig.RestoreConfigOnLoad = value;
+            this.RaisePropertyChanged();
+            PersistSnapshotConfigPrefs();
+        }
+    }
+
+    private void PersistSnapshotConfigPrefs()
+        => SafeAsyncHelper.Execute(() => _hostApp.PersistEmulatorConfigAsync());
+
+    // Expand/collapse state of the common "Snapshot" section (collapsed by default — snapshots are an
+    // occasional operation, so they live in a collapsible section rather than the primary button grid).
+    private bool _isSnapshotSectionExpanded;
+    public bool IsSnapshotSectionExpanded
+    {
+        get => _isSnapshotSectionExpanded;
+        private set
+        {
+            if (_isSnapshotSectionExpanded == value)
+                return;
+            _isSnapshotSectionExpanded = value;
+            this.RaisePropertyChanged(nameof(IsSnapshotSectionExpanded));
+        }
+    }
+
     public string StatusEmulatorStateText => EmulatorState switch
     {
         EmulatorState.Running => "Running",
@@ -556,6 +613,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> ResetCommand { get; }
     public ReactiveCommand<Unit, Unit> MonitorCommand { get; }
     public ReactiveCommand<Unit, Unit> StatsCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleSnapshotSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
@@ -680,12 +738,16 @@ public class MainViewModel : ViewModelBase, IDisposable
                   this.RaisePropertyChanged(nameof(IsEmulatorUninitialized));
                   this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
                   this.RaisePropertyChanged(nameof(StatusEmulatorStateText));
+                  this.RaisePropertyChanged(nameof(CanSaveSnapshot));
+                  this.RaisePropertyChanged(nameof(CanLoadSnapshot));
               });
 
         this.WhenAnyValue(x => x.SelectedSystemName, x => x.SelectedSystemVariant)
             .Subscribe(_ =>
             {
                 this.RaisePropertyChanged(nameof(StatusSystemText));
+                this.RaisePropertyChanged(nameof(CanSaveSnapshot));
+                this.RaisePropertyChanged(nameof(CanLoadSnapshot));
                 // The selected system/variant determines the emulator display size; refresh it so the
                 // display container (and window) resizes here — and only here (plus Scale changes).
                 this.RaisePropertyChanged(nameof(EmulatorDisplayWidth));
@@ -934,6 +996,11 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
+            RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
+
+        ToggleSnapshotSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => IsSnapshotSectionExpanded = !IsSnapshotSectionExpanded,
+            null,
             RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         ClearLogCommand = ReactiveCommandHelper.CreateSafeCommand(
