@@ -1175,6 +1175,10 @@ public partial class MainView : UserControl
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error saving snapshot");
+
+                // Rethrow so the app's global error handling surfaces the failure to the user instead
+                // of silently leaving them looking at an unchanged screen with only a log entry.
+                throw;
             }
             finally
             {
@@ -1241,6 +1245,11 @@ public partial class MainView : UserControl
                 // this guard leaves it stopped rather than rebuilding a fresh machine.
                 if (wasRunning && hostApp.EmulatorState == EmulatorState.Paused)
                     await hostApp.Start();
+
+                // Rethrow so the app's global error handling surfaces the failure to the user (e.g.
+                // "Snapshot could not be restored: ROM file does not exist: ...") instead of silently
+                // leaving them looking at an unchanged screen with only a log entry to explain why.
+                throw;
             }
         });
 }
