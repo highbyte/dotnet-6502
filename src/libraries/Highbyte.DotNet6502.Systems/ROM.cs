@@ -97,7 +97,15 @@ public class ROM
         var romsData = new Dictionary<string, byte[]>();
         foreach (var rom in roms)
         {
-            var romData = rom.GetRomData(romFileAssumedToExist: true, directory);
+            byte[]? romData;
+            try
+            {
+                romData = rom.GetRomData(romFileAssumedToExist: true, directory);
+            }
+            catch (IOException ex)
+            {
+                throw new DotNet6502Exception($"Failed to load ROM '{rom.Name}' from '{rom.GetROMFilePath(directory)}': {ex.Message}", ex);
+            }
             romsData.Add(rom.Name, romData!);
         }
         return romsData;

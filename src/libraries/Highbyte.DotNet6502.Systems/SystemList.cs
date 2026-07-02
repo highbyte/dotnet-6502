@@ -71,9 +71,14 @@ public class SystemList
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
 
-        bool isValid = await IsValidConfig(systemName);
+        var (isValid, validationErrors) = await IsValidConfigWithDetails(systemName);
         if (!isValid)
-            throw new DotNet6502Exception($"Internal error. Configuration for system {systemName} variant {configurationVariant} is invalid.");
+        {
+            var details = validationErrors.Count > 0
+                ? string.Join("; ", validationErrors)
+                : "no details available";
+            throw new DotNet6502Exception($"Configuration for system {systemName} variant {configurationVariant} is invalid: {details}");
+        }
 
         var hostSystemConfig = await GetHostSystemConfig(systemName);
         var system = await _systemConfigurers[systemName].BuildSystem(configurationVariant, hostSystemConfig.SystemConfig);
