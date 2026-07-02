@@ -100,7 +100,7 @@ dotnet-6502-remote emu.loadsnapshot --path /tmp/state.d6502snap
 # Advance exactly one frame and render it (rejected if the emulator is Running)
 dotnet-6502-remote emu.runframes --count 1
 
-# Capture the rendered frame (Avalonia hosts only — headless has no renderer)
+# Capture the rendered frame (works on both Avalonia and headless hosts)
 dotnet-6502-remote screenshot --output /tmp/result.png
 ```
 
