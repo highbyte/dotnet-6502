@@ -5,6 +5,7 @@ repos:
       - id: pip-compile
         name: pip-compile requirements-docs.in
         files: ^requirements-docs\.(in|txt)$
+        language_version: python3.14
         args:
           - --output-file=requirements-docs.txt
           - requirements-docs.in
