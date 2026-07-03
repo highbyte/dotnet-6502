@@ -81,8 +81,10 @@
     <ItemGroup>
       <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*" />
       <_DesktopScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\desktop\*" />
+      <_OldOutputExampleScripts Include="$(OutDir)scripts\example_*.lua" />
     </ItemGroup>
-    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(_DesktopScripts)" DestinationFolder="$(OutDir)scripts" SkipUnchangedFiles="true" />
+    <Delete Files="@(_OldOutputExampleScripts)" />
+    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="$(OutDir)example-scripts" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_DesktopScripts)" DestinationFolder="$(OutDir)example-scripts" SkipUnchangedFiles="true" />
   </Target>
 </Project>

@@ -183,7 +183,7 @@ internal static class Vic20ConfigDialog
     /// </summary>
     private static async Task DownloadRoms(Vic20SystemConfig cfg)
     {
-        var romFolder = PathHelper.ExpandOSEnvironmentVariables(cfg.ROMDirectory);
+        var romFolder = PathHelper.ExpandOSEnvironmentVariables(cfg.EffectiveROMDirectory);
         if (!Directory.Exists(romFolder))
             Directory.CreateDirectory(romFolder);
 
@@ -242,7 +242,7 @@ internal static class Vic20ConfigDialog
 
     private static string? PickPath(TuiHostApp host, Vic20SystemConfig cfg, bool isDirectory)
     {
-        var startDir = PathHelper.ExpandOSEnvironmentVariables(cfg.ROMDirectory);
+        var startDir = PathHelper.ExpandOSEnvironmentVariables(cfg.EffectiveROMDirectory);
         using var picker = new OpenDialog
         {
             Title = isDirectory ? "Select ROM directory" : "Select ROM file",

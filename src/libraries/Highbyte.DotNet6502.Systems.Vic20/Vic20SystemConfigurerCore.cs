@@ -36,6 +36,9 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
 
     public string SystemName => Vic20.SystemName;
 
+    public virtual IEnumerable<string> GetUserContentDirectories()
+        => [Vic20SystemConfig.DefaultROMDirectory];
+
     public const string VariantNtsc = "NTSC";
     public const string VariantPal = "PAL";
 
@@ -61,7 +64,7 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
 
         Dictionary<string, byte[]>? romData = null;
         if (vic20SystemConfig.ROMs.Count > 0)
-            romData = ROM.LoadROMS(vic20SystemConfig.ROMDirectory, vic20SystemConfig.ROMs.ToArray());
+            romData = ROM.LoadROMS(vic20SystemConfig.EffectiveROMDirectory, vic20SystemConfig.ROMs.ToArray());
 
         var vic20 = new Vic20(vic20Config, LoggerFactory, romData);
         vic20.SetCurrentRenderProviderType(vic20SystemConfig.RenderProviderType);

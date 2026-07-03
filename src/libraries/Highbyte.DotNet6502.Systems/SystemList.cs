@@ -1,5 +1,7 @@
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems;
@@ -160,6 +162,31 @@ public class SystemList
             }
         }
         return removed;
+    }
+
+    public void EnsureUserContentDirectories(ILogger? logger = null)
+    {
+        if (OperatingSystem.IsBrowser())
+            return;
+
+        var directories = AppStoragePaths.GetSharedUserContentDirectories()
+            .Concat(_systemConfigurers.Values.SelectMany(configurer => configurer.GetUserContentDirectories()))
+            .Where(directory => !string.IsNullOrWhiteSpace(directory))
+            .Select(PathHelper.ExpandOSEnvironmentVariables)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var directory in directories)
+        {
+            try
+            {
+                Directory.CreateDirectory(directory);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                logger?.LogWarning(ex, "Could not create user content directory '{Directory}'.", directory);
+            }
+        }
     }
 
     public async Task<bool> IsValidConfig(string systemName)

@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.App.Terminal;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +34,8 @@ var isDevelopment = string.IsNullOrEmpty(devEnvironmentVariable)
     || devEnvironmentVariable.Equals("development", StringComparison.OrdinalIgnoreCase);
 if (isDevelopment)
     configBuilder.AddUserSecrets<Program>(optional: true);
+
+configBuilder.AddJsonFile(AppStoragePaths.GetUserSettingsFilePath("Terminal"), optional: true, reloadOnChange: true);
 
 IConfiguration configuration = configBuilder.Build();
 
@@ -105,6 +108,7 @@ try
     foreach (var configurer in serviceProvider.GetServices<ISystemConfigurer>())
         systemList.AddSystem(configurer);
     await systemList.RemoveSystemsWithNoConfigurationVariants(bootstrapLogger);
+    systemList.EnsureUserContentDirectories(bootstrapLogger);
 
     // Resolve a system's optional terminal contributions (cast from the UI-agnostic plug-in result).
     ITerminalMenuContribution? ResolveMenuContribution(string systemName) =>

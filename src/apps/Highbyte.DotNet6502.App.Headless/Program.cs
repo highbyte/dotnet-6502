@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
@@ -65,6 +66,8 @@ if (isDevelopment)
 {
     builder.AddUserSecrets<Program>();
 }
+
+builder.AddJsonFile(AppStoragePaths.GetUserSettingsFilePath("Headless"), optional: true, reloadOnChange: true);
 
 IConfiguration configuration = builder.Build();
 
@@ -201,6 +204,7 @@ foreach (var configurer in serviceProvider
 
 // Drop any system that declares no configuration variants — it cannot be built or run.
 await systemList.RemoveSystemsWithNoConfigurationVariants(pluginLogger);
+systemList.EnsureUserContentDirectories(pluginLogger);
 
 // No usable system: a headless run cannot do anything without one. There is no UI to show an
 // error dialog in, so log a clear message and exit with a non-zero code.

@@ -74,6 +74,7 @@
                             AutomationProperties.Name="ROM directory"
                             Text="{Binding RomDirectory}"
                             PlaceholderText="Directory path"
+                            ToolTip.Tip="{Binding RomDirectoryToolTip}"
                             Classes="field-aligned"/>
                 </Grid>
             </StackPanel>

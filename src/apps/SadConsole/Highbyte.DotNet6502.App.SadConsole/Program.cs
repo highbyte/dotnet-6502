@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.App.SadConsole.Core;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
@@ -49,12 +50,15 @@ try
         .AddJsonFile("appsettings.json")
         .AddJsonFile("appsettings.Development.json", optional: true);
 
-    var devEnvironmentVariable = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT ");
-    var isDevelopment = string.IsNullOrEmpty(devEnvironmentVariable) || devEnvironmentVariable.ToLower() == "development";
+    var devEnvironmentVariable = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+    var isDevelopment = string.IsNullOrEmpty(devEnvironmentVariable)
+        || devEnvironmentVariable.Equals("development", StringComparison.OrdinalIgnoreCase);
     if (isDevelopment) //only add secrets in development
     {
-        configBuilder.AddUserSecrets<Program>();
+        configBuilder.AddUserSecrets<Program>(optional: true);
     }
+
+    configBuilder.AddJsonFile(AppStoragePaths.GetUserSettingsFilePath("SadConsole"), optional: true, reloadOnChange: true);
 
     IConfiguration Configuration = configBuilder.Build();
 
@@ -143,6 +147,7 @@ try
     // Drop any system that declares no configuration variants — it cannot be built or run, and
     // would crash the variant picker in the menu. Treated as unavailable, like a missing plug-in.
     await systemList.RemoveSystemsWithNoConfigurationVariants(pluginLogger);
+    systemList.EnsureUserContentDirectories(pluginLogger);
 
     // ----------
     // Start SadConsoleHostApp

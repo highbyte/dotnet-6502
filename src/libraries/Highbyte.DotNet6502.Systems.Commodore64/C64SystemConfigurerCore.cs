@@ -59,6 +59,9 @@ public class C64SystemConfigurerCore : ISystemConfigurer
 
     public string SystemName => C64.SystemName;
 
+    public virtual IEnumerable<string> GetUserContentDirectories()
+        => [C64SystemConfig.DefaultROMDirectory];
+
     public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
         => Task.FromResult(C64ModelInventory.C64Models.Keys.ToList());
 
@@ -119,7 +122,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
             SwiftLink = c64SystemConfig.SwiftLink.Clone(),
             ROMs = c64SystemConfig.ROMs,
-            ROMDirectory = c64SystemConfig.ROMDirectory,
+            ROMDirectory = c64SystemConfig.EffectiveROMDirectory,
             RenderProviderType = c64SystemConfig.RenderProviderType ?? DefaultRenderProviderType,
             AudioProviderType = c64SystemConfig.AudioProviderType,
             SidEmulationMode = c64SystemConfig.SidEmulationMode,

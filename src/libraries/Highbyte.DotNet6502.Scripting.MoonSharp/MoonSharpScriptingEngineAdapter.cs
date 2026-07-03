@@ -140,9 +140,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         // Set AllowFileIO: false in environments without filesystem access (e.g. WASM/browser).
         if (config.AllowFileIO)
         {
-            var fileBaseDir = string.IsNullOrWhiteSpace(config.FileBaseDirectory)
-                ? config.ResolvedScriptDirectory()
-                : config.FileBaseDirectory;
+            var fileBaseDir = config.ResolvedFileBaseDirectory();
             _fileProxy = new LuaFileProxy(fileBaseDir, config.AllowFileWrite);
 
             var fileTable = new Table(_script);

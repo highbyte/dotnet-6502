@@ -93,7 +93,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         // Show info message on desktop about permanent settings
         if (!IsRunningInWebAssembly)
         {
-            StatusMessage = "To change the settings permanently, update the appsettings.json file.";
+            StatusMessage = "Changes are saved to your user settings.";
         }
     }
 

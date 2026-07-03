@@ -141,4 +141,49 @@ public class EmulatorConfig
         var json = JsonSerializer.Serialize(this, EmulatorConfigJsonContext.Default.EmulatorConfig);
         return json;
     }
+
+    public string GetUserSettingsJson()
+    {
+        var settings = new EmulatorConfigUserSettings
+        {
+            DefaultEmulator = DefaultEmulator,
+            DefaultDrawScale = DefaultDrawScale,
+            ShowErrorDialog = ShowErrorDialog,
+            ShowDebugTools = ShowDebugTools,
+            IncludeConfigInSnapshot = IncludeConfigInSnapshot,
+            RestoreConfigOnLoad = RestoreConfigOnLoad,
+            CorsProxyUrl = CorsProxyUrl,
+            AudioSettingsProfile = AudioSettingsProfile,
+            BrowserSampleAudioMode = BrowserSampleAudioMode,
+            Monitor = new EmulatorMonitorUserSettings
+            {
+                StopAfterBRKInstruction = Monitor.StopAfterBRKInstruction,
+                StopAfterUnknownInstruction = Monitor.StopAfterUnknownInstruction
+            }
+        };
+
+        return JsonSerializer.Serialize(settings, EmulatorConfigJsonContext.Default.EmulatorConfigUserSettings);
+    }
+}
+
+internal sealed class EmulatorConfigUserSettings
+{
+    public string DefaultEmulator { get; set; } = "C64";
+    public float DefaultDrawScale { get; set; } = 2.0f;
+    public bool ShowErrorDialog { get; set; } = true;
+    public bool ShowDebugTools { get; set; }
+    public bool IncludeConfigInSnapshot { get; set; } = true;
+    public bool RestoreConfigOnLoad { get; set; } = true;
+    public string CorsProxyUrl { get; set; } = BrowserServiceDefaults.DefaultCorsProxyUrl;
+    [JsonConverter(typeof(JsonStringEnumConverter<WavePlayerSettingsProfile>))]
+    public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
+    [JsonConverter(typeof(JsonStringEnumConverter<BrowserSampleAudioMode>))]
+    public BrowserSampleAudioMode BrowserSampleAudioMode { get; set; } = BrowserSampleAudioMode.Stable;
+    public EmulatorMonitorUserSettings Monitor { get; set; } = new();
+}
+
+internal sealed class EmulatorMonitorUserSettings
+{
+    public bool StopAfterBRKInstruction { get; set; } = true;
+    public bool StopAfterUnknownInstruction { get; set; } = true;
 }

@@ -366,7 +366,7 @@ public class C64ConfigUIConsole : Window
 
     private void ShowROMFilePickerDialog(string romName)
     {
-        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.ROMDirectory);
+        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.EffectiveROMDirectory);
         var window = new FilePickerConsole(FilePickerMode.OpenFile, currentFolder, C64SystemConfig.GetROM(romName).GetROMFilePath(currentFolder));
         window.Center();
         window.Closed += (s2, e2) =>
@@ -385,7 +385,7 @@ public class C64ConfigUIConsole : Window
 
     private void ShowROMFolderPickerDialog()
     {
-        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.ROMDirectory);
+        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.EffectiveROMDirectory);
         var window = new FilePickerConsole(FilePickerMode.OpenFolder, currentFolder);
         window.Center();
         window.Closed += (s2, e2) =>
@@ -401,7 +401,7 @@ public class C64ConfigUIConsole : Window
 
     private async Task AutoDownloadROMs()
     {
-        var romFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.ROMDirectory);
+        var romFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.EffectiveROMDirectory);
         if (!Directory.Exists(romFolder))
         {
             Directory.CreateDirectory(romFolder);

@@ -186,7 +186,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// <param name="loadScript">Optional callback to load a script's source content by file name (browser: from localStorage).</param>
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
-    /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
+    /// <param name="loadExamples">Optional callback to seed bundled example scripts into the host's script storage.</param>
     internal AvaloniaHostApp(
         SystemList systemList,
         ILoggerFactory loggerFactory,
@@ -886,7 +886,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         if (_saveCustomConfigString == null)
             return;
         var configSectionName = EmulatorConfig.ConfigSectionName;
-        var json = _emulatorConfig.GetConfigAsJson();
+        var json = _emulatorConfig.GetUserSettingsJson();
         await _saveCustomConfigString(configSectionName, json, null);
     }
 

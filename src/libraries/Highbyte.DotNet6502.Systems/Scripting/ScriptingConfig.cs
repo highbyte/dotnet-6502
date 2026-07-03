@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Utils;
+
 namespace Highbyte.DotNet6502.Systems;
 
 public class ScriptingConfig
@@ -12,6 +14,7 @@ public class ScriptingConfig
     /// <summary>
     /// Directory path where .lua script files are loaded from.
     /// Can be absolute or relative to the application working directory.
+    /// OS-specific environment variables and "~" are expanded before resolving the path.
     /// </summary>
     public string ScriptDirectory { get; set; } = string.Empty;
 
@@ -56,6 +59,7 @@ public class ScriptingConfig
     /// All paths passed to file operations are resolved relative to this directory;
     /// traversal outside it (e.g. "../") is blocked.
     /// When null or empty, defaults to <see cref="ScriptDirectory"/>.
+    /// OS-specific environment variables and "~" are expanded before resolving the path.
     /// </summary>
     public string? FileBaseDirectory { get; set; } = null;
 
@@ -124,9 +128,28 @@ public class ScriptingConfig
     /// </summary>
     public string ResolvedScriptDirectory()
     {
-        if (string.IsNullOrEmpty(ScriptDirectory) || Path.IsPathRooted(ScriptDirectory))
-            return ScriptDirectory;
-        var cwdPath = Path.GetFullPath(ScriptDirectory);
-        return Directory.Exists(cwdPath) ? cwdPath : Path.GetFullPath(ScriptDirectory, AppContext.BaseDirectory);
+        return ResolveDirectory(ScriptDirectory);
+    }
+
+    /// <summary>
+    /// Returns <see cref="FileBaseDirectory"/> resolved to an absolute path, or the resolved
+    /// <see cref="ScriptDirectory"/> when no file base directory override is configured.
+    /// </summary>
+    public string ResolvedFileBaseDirectory()
+    {
+        return string.IsNullOrWhiteSpace(FileBaseDirectory)
+            ? ResolvedScriptDirectory()
+            : ResolveDirectory(FileBaseDirectory);
+    }
+
+    private static string ResolveDirectory(string directory)
+    {
+        var expandedDirectory = PathHelper.ExpandOSEnvironmentVariables(directory);
+
+        if (string.IsNullOrEmpty(expandedDirectory) || Path.IsPathRooted(expandedDirectory))
+            return expandedDirectory;
+
+        var cwdPath = Path.GetFullPath(expandedDirectory);
+        return Directory.Exists(cwdPath) ? cwdPath : Path.GetFullPath(expandedDirectory, AppContext.BaseDirectory);
     }
 }

@@ -111,7 +111,7 @@ public partial class App : Application
     /// <param name="loadScript">Optional callback to load a script's source by file name (browser: from localStorage).</param>
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
-    /// <param name="loadExamples">Optional callback to fetch and seed bundled example scripts (browser-only).</param>
+    /// <param name="loadExamples">Optional callback to seed bundled example scripts into the host's script storage.</param>
     /// <param name="automatedStartupRunner">
     /// Optional automated-startup delegate invoked from <see cref="ViewModels.MainViewModel.SetDefaultSystemSelectionAsync"/>
     /// after the view tree has been loaded. When non-null, the UI's default system selection is
@@ -404,6 +404,8 @@ public partial class App : Application
 #pragma warning disable VSTHRD002
             systemList.RemoveSystemsWithNoConfigurationVariants(_logger).GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
+
+            systemList.EnsureUserContentDirectories(_logger);
 
             // No usable system: a fatal startup error. The caller (OnFrameworkInitializationCompleted)
             // catches this and shows the fatal error screen instead of the main UI.
