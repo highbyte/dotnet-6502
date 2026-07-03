@@ -92,20 +92,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int _scrollX;
     private int _scrollY;
 
-    // Tracks the start of a new foreground band. When a program changes the active
-    // character/bitmap source or vertical fine scroll mid-frame, later foreground
-    // writes can be shifted upward into the previous band. The clip line prevents
-    // those scrolled writes from leaking above the line where the new band starts.
-    private bool _hasPreviousForegroundSourceState;
-    private ushort _previousForegroundVideoMatrixBaseAddress;
-    private ushort _previousForegroundBitmapBaseAddress;
-    private ushort _previousForegroundCharacterSetAddressInVIC2Bank;
-    private bool _previousForegroundIsTextMode;
-    private CharMode _previousForegroundCharacterMode;
-    private BitmMode _previousForegroundBitmapMode;
-    private int _previousForegroundScrollY;
-    private int _foregroundScrollClipTopScreenLine = int.MinValue;
-
     private byte _borderColor;
     private byte _backgroundColor0;
     private byte _backgroundColor1;
@@ -353,9 +339,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     // New frame: character grid locked to the screen top.
                     _charGridYOffset = 0;
                     _prevInvalidMode = false;
-                    _hasPreviousForegroundSourceState = false;
-                    _foregroundScrollClipTopScreenLine = int.MinValue;
-
                     // New frame: reset the sprite display latch so no sprite carries over.
                     if (_perLineSprites)
                     {
@@ -405,8 +388,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
                 _is38ColModeEnabled = _c64.Vic2.Is38ColumnDisplayEnabled;
                 _is24RowModeEnabled = _c64.Vic2.Is24RowDisplayEnabled;
-
-                UpdateForegroundScrollClipTop(screenLine);
 
                 _leftBorderEndXAdjusted = _leftBorderEndX + (_is38ColModeEnabled ? Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA : 0);
                 _leftBorderLengthAdjusted = _leftBorderEndXAdjusted - _leftBorderStartX + 1;
@@ -1020,10 +1001,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
             return;
         }
 
-        // Snap the character grid to the row boundary after an invalid-mode band (see _charGridYOffset).
-        // Normally 0, so this is identical to drawLine/8 and drawLine%8 for ordinary screens.
-        // This is adjusted again when the actual pixels are drawn to pixel buffer in WriteToPixelArray. 
-        var gridLine = drawLine - _charGridYOffset;
+        // Vertical fine scroll changes which character row/line is sampled at the current raster
+        // line. Do not delay the destination Y write itself, because raster splits must affect the
+        // pixels being drawn on this line instead of appearing a few lines later.
+        var gridLine = drawLine - _charGridYOffset - _scrollY;
+        if (gridLine < 0)
+            return;
+
         var characterRow = gridLine / 8;
         var characterLine = (ushort)(gridLine % 8);
         var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
@@ -1139,8 +1123,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
         if (!backgroundIsPrefilled)
             WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
 
-        // Write the character to the pixel array for foreground (adjusted for fine scrolling)
-        WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
+        // Write the character to the current raster line. Horizontal fine scroll still shifts the
+        // destination X, but vertical fine scroll was already applied to gridLine above.
+        WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
 
 
         //void WriteToPixelArray(uint[] fnEightPixels, uint[] fnPixelArray, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)
@@ -1157,16 +1142,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
             // Adjust for invalid mode lines offset
             ypos -= _charGridYOffset;
-
-            var sourceScreenLine = _screenLayoutInclNonVisibleScreenStartY + drawLine;
-            var targetScreenLine = _screenLayoutInclNonVisibleTopBorderStartY + ypos;
-
-            // Fine-scroll foreground pixels before the normal border clip. A new
-            // raster band must not write shifted pixels into the band above it.
-            if (ShouldClipForegroundAboveRasterSplit(foreground, fnAdjustForScrollY, sourceScreenLine, targetScreenLine))
-            {
-                return;
-            }
 
             if (ypos <= _topBorderEndYAdjusted || ypos >= _bottomBorderStartYAdjusted)
                 return;
@@ -1221,73 +1196,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
             else
                 _setBackgroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
         }
-    }
-
-    /// <summary>
-    /// Detects when the foreground rendering source or vertical fine scroll changes mid-frame and
-    /// records that screen line as the top of a new foreground band.
-    /// </summary>
-    private void UpdateForegroundScrollClipTop(int screenLine)
-    {
-        if (!_hasPreviousForegroundSourceState)
-        {
-            StoreForegroundSourceState();
-            _hasPreviousForegroundSourceState = true;
-            return;
-        }
-
-        // Source/mode/vertical-scroll changes mean the foreground below this line is
-        // logically a new raster band, even if the scrolled destination overlaps rows above.
-        var foregroundSourceChanged =
-            _vic2VideoMatrixBaseAddress != _previousForegroundVideoMatrixBaseAddress
-            || _vic2BitmapBaseAddress != _previousForegroundBitmapBaseAddress
-            || _vic2CharacterSetAddressInVIC2Bank != _previousForegroundCharacterSetAddressInVIC2Bank
-            || _isTextMode != _previousForegroundIsTextMode
-            || _characterMode != _previousForegroundCharacterMode
-            || _bitmapMode != _previousForegroundBitmapMode
-            || _scrollY != _previousForegroundScrollY;
-
-        if (foregroundSourceChanged)
-        {
-            _foregroundScrollClipTopScreenLine = screenLine;
-        }
-
-        StoreForegroundSourceState();
-    }
-
-    /// <summary>
-    /// Saves the foreground source state for comparison with the next raster line.
-    /// </summary>
-    private void StoreForegroundSourceState()
-    {
-        _previousForegroundVideoMatrixBaseAddress = _vic2VideoMatrixBaseAddress;
-        _previousForegroundBitmapBaseAddress = _vic2BitmapBaseAddress;
-        _previousForegroundCharacterSetAddressInVIC2Bank = _vic2CharacterSetAddressInVIC2Bank;
-        _previousForegroundIsTextMode = _isTextMode;
-        _previousForegroundCharacterMode = _characterMode;
-        _previousForegroundBitmapMode = _bitmapMode;
-        _previousForegroundScrollY = _scrollY;
-    }
-
-    /// <summary>
-    /// Returns true when a negatively fine-scrolled foreground write from the current band would
-    /// land above the band start and should be skipped.
-    /// </summary>
-    private bool ShouldClipForegroundAboveRasterSplit(
-        bool foreground,
-        bool adjustForScrollY,
-        int sourceScreenLine,
-        int targetScreenLine)
-    {
-        // Only foreground pixels are shifted by vertical fine scroll. With negative scroll,
-        // rows from the new band can target earlier screen lines; clip only the part that
-        // would land above the band start, leaving normal in-band scrolling untouched.
-        return foreground
-            && adjustForScrollY
-            && _scrollY < 0
-            && _foregroundScrollClipTopScreenLine != int.MinValue
-            && sourceScreenLine >= _foregroundScrollClipTopScreenLine
-            && targetScreenLine < _foregroundScrollClipTopScreenLine;
     }
 
     private void PrefillStandardTextBackgroundLine(int screenLine)
