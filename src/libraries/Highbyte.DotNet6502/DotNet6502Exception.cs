@@ -5,4 +5,8 @@ public class DotNet6502Exception : Exception
     public DotNet6502Exception(string message) : base(message)
     {
     }
+
+    public DotNet6502Exception(string message, Exception innerException) : base(message, innerException)
+    {
+    }
 }
