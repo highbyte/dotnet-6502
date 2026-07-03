@@ -83,9 +83,9 @@
     <PackageVersion Include="SkiaSharp.Views.Blazor" Version="3.119.3-preview.1.1" />
     <!-- SourceLink -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
-    <!-- Pin patched MessagePack packages until StreamJsonRpc moves its transitive baseline. -->
-    <PackageVersion Include="MessagePack" Version="2.5.187" />
-    <PackageVersion Include="MessagePack.Annotations" Version="2.5.187" />
+    <!-- Pin patched MessagePack packages (fixes GHSA-2f33-pr97-265q / CVE-2026-48509) until StreamJsonRpc moves its transitive baseline. -->
+    <PackageVersion Include="MessagePack" Version="2.5.302" />
+    <PackageVersion Include="MessagePack.Annotations" Version="2.5.302" />
     <!-- StreamJsonRpc for Debug Adapter Protocol -->
     <PackageVersion Include="StreamJsonRpc" Version="2.19.27" />
     <!-- Terminal.Gui v2 (interactive TUI host app) -->
