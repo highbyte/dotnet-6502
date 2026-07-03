@@ -81,7 +81,6 @@ By default the server binds to `127.0.0.1`, so it is only reachable from the sam
 - **`emu.loadsnapshot` leaves the emulator paused**, and **`emu.runframes` requires the emulator to be stopped/paused** (it is rejected while `Running`, since the real-time run loop would make the frame step non-deterministic). The typical automation flow is `emu.loadsnapshot` → `emu.runframes` → `screenshot`. `emu.savesnapshot` / `emu.loadsnapshot` paths are resolved on the **server** (the machine the emulator runs on), not the client.
 - **One client at a time.** A second connection attempt is accepted only after the first client disconnects.
 - **`emu.quit` is disabled in Avalonia Desktop** by default. It is available in headless mode when `--allow-remote-quit` is passed.
-- **`screenshot` returns an error in headless mode** because no renderer is active.
 - **Loopback by default.** The server binds to `127.0.0.1` unless `--remote-bind-address` (or the **Bind** field in the Debug & Remoting tab) is set to a different interface. The wire protocol is unauthenticated — only bind to non-loopback addresses on trusted networks.
 - **`keyboard.press` holds a key until `keyboard.release` or `keyboard.releaseall`.** The client controls press duration by choosing when to release. Keys are applied at frame boundary and remain held until released.
 - **`joystick.press` holds joystick actions until `joystick.release` or `joystick.releaseall`.** Use this for ergonomic hold/release remote control.

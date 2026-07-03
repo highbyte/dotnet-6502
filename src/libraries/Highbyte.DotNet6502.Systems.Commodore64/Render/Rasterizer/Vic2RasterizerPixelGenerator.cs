@@ -125,8 +125,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private readonly bool _perLineSprites;
 
     // Sprite clipping/positioning (main screen area, without 38-col / 24-row consideration).
-    private int _spriteScreenEndX;
-    private int _spriteScreenEndY;
     private int _spriteScreenOffsetX;
     private int _spriteScreenOffsetY;
 
@@ -169,6 +167,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private readonly uint[] _bandRowColorFg = new uint[MAX_BANDS * SPRITE_ROWS];
     private readonly uint[] _bandRowColorMc0 = new uint[MAX_BANDS * SPRITE_ROWS];
     private readonly uint[] _bandRowColorMc1 = new uint[MAX_BANDS * SPRITE_ROWS];
+    // Border clipping can change on raster splits ($D016 38/40 columns, $D011 24/25 rows).
+    // Sprite bands are drawn at end-of-frame, so each sprite row keeps the clipping window that was
+    // active while that row was displayed.
+    private readonly int[] _bandRowClipStartX = new int[MAX_BANDS * SPRITE_ROWS];
+    private readonly int[] _bandRowClipEndX = new int[MAX_BANDS * SPRITE_ROWS];
+    private readonly int[] _bandRowClipStartY = new int[MAX_BANDS * SPRITE_ROWS];
+    private readonly int[] _bandRowClipEndY = new int[MAX_BANDS * SPRITE_ROWS];
     private int _bandCount;
 
     // Band index of each sprite's currently-displaying band (-1 = none / dropped), so the gate can
@@ -249,9 +254,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         _screenStartX = visibleMainScreenAreaNormalized.Screen.Start.X;
         _screenStartY = visibleMainScreenAreaNormalized.Screen.Start.Y;
 
-        // Sprite clip bounds (closed borders) and the VIC-II sprite coordinate offsets.
-        _spriteScreenEndX = visibleMainScreenAreaNormalized.Screen.End.X;
-        _spriteScreenEndY = visibleMainScreenAreaNormalized.Screen.End.Y;
+        // VIC-II sprite coordinate offsets.
         _spriteScreenOffsetX = _c64.Vic2.SpriteManager.ScreenOffsetX;
         _spriteScreenOffsetY = _c64.Vic2.SpriteManager.ScreenOffsetY;
 
@@ -339,7 +342,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     // New frame: character grid locked to the screen top.
                     _charGridYOffset = 0;
                     _prevInvalidMode = false;
-
                     // New frame: reset the sprite display latch so no sprite carries over.
                     if (_perLineSprites)
                     {
@@ -510,6 +512,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _bandRowColorFg[ci] = _c64ToRenderColorMap[sprites[spriteIndex].Color];
                 _bandRowColorMc0[ci] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
                 _bandRowColorMc1[ci] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
+                _bandRowClipStartX[ci] = _screenStartXAdjusted;
+                _bandRowClipEndX[ci] = _rightBorderStartXAdjusted;
+                _bandRowClipStartY[ci] = _topBorderEndYAdjusted + 1;
+                _bandRowClipEndY[ci] = _bottomBorderStartYAdjusted;
             }
 
             // Advance the active-run gate (double-height keeps each row for 2 lines). This only
@@ -556,6 +562,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
             _bandRowColorFg[colorBase + row] = fg;
             _bandRowColorMc0[colorBase + row] = mc0;
             _bandRowColorMc1[colorBase + row] = mc1;
+            _bandRowClipStartX[colorBase + row] = _screenStartXAdjusted;
+            _bandRowClipEndX[colorBase + row] = _rightBorderStartXAdjusted;
+            _bandRowClipStartY[colorBase + row] = _topBorderEndYAdjusted + 1;
+            _bandRowClipEndY[colorBase + row] = _bottomBorderStartYAdjusted;
         }
 
         // Snapshot shape so a later pointer change (next band) can't corrupt this one.
@@ -595,9 +605,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 var fg = _bandRowColorFg[colorBase + row];
                 var mc0 = _bandRowColorMc0[colorBase + row];
                 var mc1 = _bandRowColorMc1[colorBase + row];
-                DecodeAndWriteSpriteRow(rowBytes, destX, pixelArrayY, isDoubleWidth, isMultiColor, priority, fg, mc0, mc1);
+                var clipStartX = _bandRowClipStartX[colorBase + row];
+                var clipEndX = _bandRowClipEndX[colorBase + row];
+                var clipStartY = _bandRowClipStartY[colorBase + row];
+                var clipEndY = _bandRowClipEndY[colorBase + row];
+                DecodeAndWriteSpriteRow(rowBytes, destX, pixelArrayY, isDoubleWidth, isMultiColor, priority, fg, mc0, mc1, clipStartX, clipEndX, clipStartY, clipEndY);
                 if (lineAdvance == 2)
-                    DecodeAndWriteSpriteRow(rowBytes, destX, pixelArrayY + 1, isDoubleWidth, isMultiColor, priority, fg, mc0, mc1);
+                    DecodeAndWriteSpriteRow(rowBytes, destX, pixelArrayY + 1, isDoubleWidth, isMultiColor, priority, fg, mc0, mc1, clipStartX, clipEndX, clipStartY, clipEndY);
             }
             pixelArrayY += lineAdvance;
         }
@@ -609,7 +623,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
     /// difference between them is which producer supplies the position, shape and per-row colours.
     /// Handles single/multi colour and X expansion; the caller handles Y expansion (calls twice).
     /// </summary>
-    private void DecodeAndWriteSpriteRow(ReadOnlySpan<byte> rowBytes, int destX, int destY, bool isDoubleWidth, bool isMultiColor, bool priorityOverForeground, uint spriteForegroundPixelColor, uint spriteMultiColor0PixelColor, uint spriteMultiColor1PixelColor)
+    private void DecodeAndWriteSpriteRow(ReadOnlySpan<byte> rowBytes, int destX, int destY, bool isDoubleWidth, bool isMultiColor, bool priorityOverForeground, uint spriteForegroundPixelColor, uint spriteMultiColor0PixelColor, uint spriteMultiColor1PixelColor, int clipStartX, int clipEndX, int clipStartY, int clipEndY)
     {
         var singleColorPixelAdvance = isDoubleWidth ? 2 : 1;
         var multiColorPixelAdvance = isDoubleWidth ? 4 : 2;
@@ -641,12 +655,12 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
                     if (spriteColor > 0)
                     {
-                        WriteSpritePixel(destX + x, destY, spriteColor, priorityOverForeground);
-                        WriteSpritePixel(destX + x + 1, destY, spriteColor, priorityOverForeground);
+                        WriteSpritePixel(destX + x, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
+                        WriteSpritePixel(destX + x + 1, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
                         if (isDoubleWidth)
                         {
-                            WriteSpritePixel(destX + x + 2, destY, spriteColor, priorityOverForeground);
-                            WriteSpritePixel(destX + x + 3, destY, spriteColor, priorityOverForeground);
+                            WriteSpritePixel(destX + x + 2, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
+                            WriteSpritePixel(destX + x + 3, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
                         }
                     }
 
@@ -663,9 +677,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 {
                     if ((spriteLinePart & mask) == mask)
                     {
-                        WriteSpritePixel(destX + x, destY, spriteForegroundPixelColor, priorityOverForeground);
+                        WriteSpritePixel(destX + x, destY, spriteForegroundPixelColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
                         if (isDoubleWidth)
-                            WriteSpritePixel(destX + x + 1, destY, spriteForegroundPixelColor, priorityOverForeground);
+                            WriteSpritePixel(destX + x + 1, destY, spriteForegroundPixelColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
                     }
                     mask >>= 1;
                     x += singleColorPixelAdvance;
@@ -675,13 +689,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteSpritePixel(int screenPosX, int screenPosY, uint color, bool priorityOverForeground)
+    private void WriteSpritePixel(int screenPosX, int screenPosY, uint color, bool priorityOverForeground, int clipStartX, int clipEndX, int clipStartY, int clipEndY)
     {
         if (screenPosX < 0 || screenPosX >= _width || screenPosY < 0 || screenPosY > _height)
             return;
-        if (screenPosX < _screenStartX || screenPosX > _spriteScreenEndX)   // side borders closed (TODO: open)
+        if (screenPosX < clipStartX || screenPosX >= clipEndX)   // side borders closed (TODO: open)
             return;
-        if (screenPosY < _screenStartY || screenPosY > _spriteScreenEndY)   // top/bottom borders closed (TODO: open)
+        if (screenPosY < clipStartY || screenPosY >= clipEndY)   // top/bottom borders closed (TODO: open)
             return;
 
         if (FlipY)
@@ -949,17 +963,39 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 spriteForegroundPixelColor = _c64ToRenderColorMap[spriteColorValue];
                 spriteMultiColor0PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor0];
                 spriteMultiColor1PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor1];
+                var is38ColumnLine = !screenLineIORegisters.ColMode40;
+                var is24RowLine = !screenLineIORegisters.RowMode25;
+                var clipStartX = GetSpriteClipStartX(is38ColumnLine);
+                var clipEndX = GetSpriteClipEndX(is38ColumnLine);
+                var clipStartY = GetSpriteClipStartY(is24RowLine);
+                var clipEndY = GetSpriteClipEndY(is24RowLine);
 
                 // Decode the row using the shared core (same code path as the per-line band draw).
                 // For a Y-expanded sprite the second physical line is the same decode at y+1.
-                DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor);
+                DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, clipStartX, clipEndX, clipStartY, clipEndY);
                 if (isDoubleHeight)
-                    DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y + 1, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor);
+                    DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y + 1, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, clipStartX, clipEndX, clipStartY, clipEndY);
 
                 y += spriteLineAdvance;
             }
         }
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetSpriteClipStartX(bool is38ColumnLine)
+        => _screenStartX + (is38ColumnLine ? Vic2Screen.COL_38_SCREEN_START_X_DELTA : 0);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetSpriteClipEndX(bool is38ColumnLine)
+        => _rightBorderStartX + (is38ColumnLine ? Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA : 0);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetSpriteClipStartY(bool is24RowLine)
+        => _screenStartY + (is24RowLine ? Vic2Screen.ROW_24_SCREEN_START_Y_DELTA : 0);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetSpriteClipEndY(bool is24RowLine)
+        => _bottomBorderStartY + (is24RowLine ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
 
     private void DrawBorderPixels(int normalizedScreenLine)
     {
@@ -1002,10 +1038,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
             return;
         }
 
-        // Snap the character grid to the row boundary after an invalid-mode band (see _charGridYOffset).
-        // Normally 0, so this is identical to drawLine/8 and drawLine%8 for ordinary screens.
-        // This is adjusted again when the actual pixels are drawn to pixel buffer in WriteToPixelArray. 
-        var gridLine = drawLine - _charGridYOffset;
+        // Vertical fine scroll changes which character row/line is sampled at the current raster
+        // line. Do not delay the destination Y write itself, because raster splits must affect the
+        // pixels being drawn on this line instead of appearing a few lines later.
+        var gridLine = drawLine - _charGridYOffset - _scrollY;
+        if (gridLine < 0)
+            return;
+
         var characterRow = gridLine / 8;
         var characterLine = (ushort)(gridLine % 8);
         var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
@@ -1121,8 +1160,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
         if (!backgroundIsPrefilled)
             WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
 
-        // Write the character to the pixel array for foreground (adjusted for fine scrolling)
-        WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
+        // Write the character to the current raster line. Horizontal fine scroll still shifts the
+        // destination X, but vertical fine scroll was already applied to gridLine above.
+        WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
 
 
         //void WriteToPixelArray(uint[] fnEightPixels, uint[] fnPixelArray, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)

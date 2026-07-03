@@ -585,7 +585,7 @@ Call `keyboard.getall` at runtime for the authoritative list. Common C64 key nam
 
 ### `screenshot`
 
-Captures the current display as a Base64-encoded PNG. Returns an error in headless mode (no renderer).
+Captures the current display as a Base64-encoded PNG. Works in both Avalonia and headless hosts (composited from the current system's render frame); returns an error if no system is running.
 
 ```json
 {"id": 19, "cmd": "screenshot"}

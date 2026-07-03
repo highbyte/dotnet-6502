@@ -45,6 +45,24 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.Equal(visibleMainScreenArea.Screen.Start.Y + 2, row);
     }
 
+    [Fact]
+    public void DrawSprites_clips_right_edge_to_38_column_border()
+    {
+        var c64 = BuildC64();
+        var normalLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var col38Layout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: true);
+        var spriteScreenX = col38Layout.RightBorder.Start.X - 4;
+        var spriteX = c64.Vic2.SpriteManager.ScreenOffsetX + spriteScreenX - normalLayout.Screen.Start.X;
+        SetAllScreenLinesToColumnMode(c64, colMode40: false);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192, x: spriteX);
+
+        var foreground = RenderSprites(c64);
+
+        var (_, startX, endX) = GetFirstRenderedSpan(foreground, c64.Screen.VisibleWidth);
+        Assert.Equal(spriteScreenX, startX);
+        Assert.Equal(col38Layout.RightBorder.Start.X - 1, endX);
+    }
+
     [Theory]
     [InlineData("C64PAL", "PAL")]
     [InlineData("C64NTSC", "NTSC")]
@@ -86,11 +104,15 @@ public class Vic2RasterizerPixelGeneratorTests
         }, NullLoggerFactory.Instance);
     }
 
-    private static void CreateVisibleSprite(C64 c64, int spriteNumber, bool doubleWidth, bool doubleHeight, byte[] spriteShape, byte spritePointer)
+    private static void CreateVisibleSprite(C64 c64, int spriteNumber, bool doubleWidth, bool doubleHeight, byte[] spriteShape, byte spritePointer, int? x = null)
     {
         var spriteManager = c64.Vic2.SpriteManager;
-        c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2), (byte)spriteManager.ScreenOffsetX);
+        var spriteX = x ?? spriteManager.ScreenOffsetX;
+        c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2), (byte)(spriteX & 0xff));
         c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2), (byte)spriteManager.ScreenOffsetY);
+        var spriteMsbX = c64.ReadIOStorage(Vic2Addr.SPRITE_MSB_X);
+        spriteMsbX = spriteX > 255 ? (byte)(spriteMsbX | (1 << spriteNumber)) : (byte)(spriteMsbX & ~(1 << spriteNumber));
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, spriteMsbX);
 
         var spriteEnable = c64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
         spriteEnable |= (byte)(1 << spriteNumber);
@@ -134,6 +156,14 @@ public class Vic2RasterizerPixelGeneratorTests
 
         generator.DrawSpritesToBitmapBackedByPixelArray();
         return foreground;
+    }
+
+    private static void SetAllScreenLinesToColumnMode(C64 c64, bool colMode40)
+    {
+        foreach (var screenLineData in c64.Vic2.ScreenLineIORegisterValues.Values)
+        {
+            screenLineData.ColMode40 = colMode40;
+        }
     }
 
     private static (int Row, int StartX, int EndX) GetFirstRenderedSpan(uint[] pixels, int width)
