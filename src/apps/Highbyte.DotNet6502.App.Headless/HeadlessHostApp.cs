@@ -1,10 +1,14 @@
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Input;
+using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Timing;
 using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Highbyte.DotNet6502.App.Headless;
 
@@ -220,6 +224,38 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
         }
     }
 
-    // IRemotableHostApp — no rendering in headless
-    public byte[]? CaptureScreenshotPng() => null;
+    // IRemotableHostApp — screenshot capture.
+    // Headless has no bitmap render target, so composite the current frame's layers directly
+    // (same technique as LuaScreenshotProxy's emu.screenshot(), duplicated here to avoid pulling
+    // an ImageSharp dependency into the shared Systems library).
+    public byte[]? CaptureScreenshotPng()
+    {
+        var layerProvider = CurrentSystemRunner?.System.RenderProvider as IVideoFrameLayerProvider;
+        if (layerProvider == null) return null;
+
+        var layers = layerProvider.Layers;
+        if (layers.Count == 0) return null;
+
+        var size = layers[0].Size;
+        int width = size.Width;
+        int height = size.Height;
+
+        var frontBuffers = layerProvider.CurrentFrontLayerBuffers;
+        var byteSrcs = new List<ReadOnlyMemory<byte>>(frontBuffers.Count);
+        foreach (var mem in frontBuffers)
+        {
+            var byteSpan = MemoryMarshal.AsBytes(mem.Span);
+            byteSrcs.Add(byteSpan.ToArray());
+        }
+
+        int dstStride = width * 4;
+        var dst = new byte[height * dstStride];
+        SoftwareLayerCompositor.FlattenRgba32(dst, dstStride, size, layers, byteSrcs);
+
+        // FlattenRgba32 output layout: [B, G, R, A] per pixel (BGRA32)
+        using var image = Image.LoadPixelData<Bgra32>(dst, width, height);
+        using var ms = new MemoryStream();
+        image.SaveAsPng(ms);
+        return ms.ToArray();
+    }
 }
