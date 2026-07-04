@@ -611,13 +611,15 @@
                                                                 Command="{Binding LoadExamplesCommand}"
                                                                 IsVisible="{Binding CanLoadExamples}"
                                                                 FontSize="10"
-                                                                Padding="6,2"
+                                                                Height="22"
+                                                                Padding="6,0"
                                                                 MinWidth="0"
                                                                 MinHeight="0"
                                                                 VerticalAlignment="Center"
+                                                                VerticalContentAlignment="Center"
                                                                 ToolTip.Tip="Copy bundled example scripts to the script folder without overwriting existing files"/>
                                                     </StackPanel>
-                                                    <TextBlock Text="Use your OS file browser and editor to add, edit, or delete scripts. The script directory is configured in appsettings.json or appsettings.user.json. Restart app after making changes to the script directory path."
+                                                    <TextBlock Text="Use your OS file browser and editor to add, edit, or delete scripts. Set script directory can be set in Options."
                                                                Classes="small"
                                                                Foreground="{DynamicResource SecondaryText}"
                                                                TextWrapping="Wrap"/>

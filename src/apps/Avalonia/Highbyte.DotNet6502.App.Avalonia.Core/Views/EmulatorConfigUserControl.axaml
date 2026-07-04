@@ -231,7 +231,7 @@
                          Width="250"
                          HorizontalAlignment="Left"/>
                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                           Text="The directory from which Lua scripts are loaded. Configure it in appsettings.json or appsettings.user.json and restart the application."
+                           Text="The directory from which Lua scripts are loaded. Restart the app for changes to take effect."
                            Classes="small secondary-text"
                            TextWrapping="Wrap"
                            Margin="0,4,0,0"/>
