@@ -49,8 +49,31 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var hostConfig = _hostConfigFactory();
-        Configuration.GetSection(_configSectionName).Bind(hostConfig);
+        var section = Configuration.GetSection(_configSectionName);
+        section.Bind(hostConfig);
+
+        // IConfiguration.Bind() does not apply the JsonPropertyName aliases used for the
+        // persisted Type-valued render settings, so read those keys explicitly.
+        ApplyTypeOverridesFromConfig(section.GetSection(nameof(IHostSystemConfig.SystemConfig)), hostConfig.SystemConfig);
+
         return Task.FromResult(hostConfig);
+    }
+
+    private static void ApplyTypeOverridesFromConfig(IConfiguration systemConfigSection, ISystemConfig systemConfig)
+    {
+        ApplyTypeKey(systemConfigSection, "RenderProviderType", systemConfig.SetRenderProviderType);
+        ApplyTypeKey(systemConfigSection, "RenderTargetType", systemConfig.SetRenderTargetType);
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "Configured type names are validated immediately and constrained to application-defined types.")]
+    private static void ApplyTypeKey(IConfiguration section, string key, Action<Type?> setter)
+    {
+        var value = section[key];
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+        var t = Type.GetType(value)
+            ?? throw new DotNet6502Exception($"{key} '{value}' could not be resolved.");
+        setter(t);
     }
 
     public virtual Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
