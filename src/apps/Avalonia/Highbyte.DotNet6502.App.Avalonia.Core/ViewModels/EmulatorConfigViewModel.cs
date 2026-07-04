@@ -36,6 +36,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private string _snapshotDirectory;
     private bool _allowUrlScripts;
     private string _corsProxyUrl;
+    private bool _downloadCacheEnabled;
 
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
@@ -68,6 +69,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _snapshotDirectory = _emulatorConfig.SnapshotDirectory;
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
         _corsProxyUrl = _emulatorConfig.CorsProxyUrl;
+        _downloadCacheEnabled = _emulatorConfig.DownloadCacheEnabled;
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -131,7 +133,7 @@ public class EmulatorConfigViewModel : ViewModelBase
 
     public bool CanSave => IsNotBusy && !HasValidationErrors;
 
-    public bool IsDownloadCacheAvailable => _hostApp.GetDownloadCache() != null;
+    public bool IsDownloadCacheAvailable => _hostApp.GetDownloadCacheForManagement() != null;
 
     public bool CanClearDownloadCache => IsNotBusy && IsDownloadCacheAvailable;
 
@@ -320,6 +322,22 @@ public class EmulatorConfigViewModel : ViewModelBase
 
     public static string CorsProxyUrlWatermark => BrowserServiceDefaults.DefaultCorsProxyUrl;
 
+    /// <summary>
+    /// Enables the download cache for emulator content. Clearing remains available when the cache
+    /// backend can be opened, even if cache use is disabled.
+    /// </summary>
+    public bool DownloadCacheEnabled
+    {
+        get => _downloadCacheEnabled;
+        set
+        {
+            if (_downloadCacheEnabled == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _downloadCacheEnabled, value);
+        }
+    }
+
     private void UpdateValidation()
     {
         _validationErrors.Clear();
@@ -353,6 +371,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         // Browser-only knob; defaults to disabled.
         AllowUrlScripts = false;
         CorsProxyUrl = defaults.CorsProxyUrl;
+        DownloadCacheEnabled = defaults.DownloadCacheEnabled;
 
         UpdateValidation();
         StatusMessage = "Settings reset to defaults. Click Save to apply.";
@@ -360,7 +379,7 @@ public class EmulatorConfigViewModel : ViewModelBase
 
     private async Task ClearDownloadCacheAsync()
     {
-        var downloadCache = _hostApp.GetDownloadCache();
+        var downloadCache = _hostApp.GetDownloadCacheForManagement();
         if (downloadCache == null)
         {
             StatusMessage = "Download cache is not available.";
@@ -411,6 +430,7 @@ public class EmulatorConfigViewModel : ViewModelBase
             if (!IsRunningInWebAssembly)
                 _emulatorConfig.SnapshotDirectory = _snapshotDirectory;
             _emulatorConfig.CorsProxyUrl = _corsProxyUrl;
+            _emulatorConfig.DownloadCacheEnabled = _downloadCacheEnabled;
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
             await _hostApp.PersistEmulatorConfigAsync();

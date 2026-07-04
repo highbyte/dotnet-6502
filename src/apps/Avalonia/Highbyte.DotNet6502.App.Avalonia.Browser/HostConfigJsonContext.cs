@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Highbyte.DotNet6502.Systems.Caching;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Browser;
 
@@ -18,6 +19,9 @@ namespace Highbyte.DotNet6502.App.Avalonia.Browser;
     JsonSerializable(typeof(LocalStorageScript)),
     JsonSerializable(typeof(List<LocalStorageScript>)),
     JsonSerializable(typeof(List<string>)),
+    JsonSerializable(typeof(DownloadCacheEntry)),
+    JsonSerializable(typeof(List<DownloadCacheEntry>)),
+    JsonSerializable(typeof(BrowserDownloadCacheRecord)),
 ]
 internal partial class HostConfigJsonContext : JsonSerializerContext
 {

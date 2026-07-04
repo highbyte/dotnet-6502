@@ -16,6 +16,7 @@ using Highbyte.DotNet6502.Impl.Browser.Input;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Caching;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.DependencyInjection;
@@ -386,6 +387,12 @@ internal sealed partial class Program
         // Load custom JS module for localStorage-based Lua script loading
         WriteBootstrapLog("Importing BrowserScripting JS module.");
         await JSHost.ImportAsync("BrowserScripting", BrowserScriptingResources.GetJavaScriptModuleDataUri());
+
+        WriteBootstrapLog("Importing BrowserDownloadCache JS module.");
+        await JSHost.ImportAsync("BrowserDownloadCache", BrowserDownloadCacheResources.GetJavaScriptModuleDataUri());
+        var browserDownloadCache = await BrowserDownloadCache.TryCreateAsync(loggerFactory);
+        if (!emulatorConfig.DownloadCacheEnabled)
+            startupLogger.LogInformation("Browser download cache use is disabled by settings.");
 
         // Detect the browser keyboard layout / OS so the C64 input handler can auto-select the
         // keyboard layout and apply the macOS ISO-key fix. The Avalonia input context is created
@@ -784,7 +791,21 @@ internal sealed partial class Program
         try
         {
             WriteBootstrapLog("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad, scriptingEngine, LoadScript, SaveScript, DeleteScript, LoadExamplesAsync, automatedStartupRunner: automatedStartupRunner)
+            await BuildAvaloniaApp(
+                    configuration,
+                    emulatorConfig,
+                    logStore,
+                    logConfig,
+                    loggerFactory,
+                    avaloniaLoggerBridge,
+                    browserGamepad,
+                    scriptingEngine,
+                    LoadScript,
+                    SaveScript,
+                    DeleteScript,
+                    LoadExamplesAsync,
+                    automatedStartupRunner: automatedStartupRunner,
+                    downloadCacheFactory: browserDownloadCache == null ? null : () => browserDownloadCache)
                 .StartBrowserAppAsync("out");
 
             WriteBootstrapLog("Avalonia Browser app exiting.");
@@ -1535,7 +1556,8 @@ internal sealed partial class Program
         Action<string, string>? saveScript = null,
         Action<string>? deleteScript = null,
         Func<Task>? loadExamples = null,
-        Func<IHostApp, Task>? automatedStartupRunner = null)
+        Func<IHostApp, Task>? automatedStartupRunner = null,
+        Func<IDownloadCache?>? downloadCacheFactory = null)
     {
         return AppBuilder.Configure(() =>
         {
@@ -1555,7 +1577,8 @@ internal sealed partial class Program
                                 loadExamples: loadExamples,
                                 automatedStartupRunner: automatedStartupRunner,
                                 appFilePicker: new BrowserAppFilePicker(),
-                                appFileSaver: new BrowserAppFileSaver()
+                                appFileSaver: new BrowserAppFileSaver(),
+                                downloadCacheFactory: downloadCacheFactory
                             );
         })
         .AfterSetup(_ =>

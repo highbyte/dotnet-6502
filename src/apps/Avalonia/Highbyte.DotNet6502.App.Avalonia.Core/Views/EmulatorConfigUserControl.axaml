@@ -237,7 +237,7 @@
         </StackPanel>
 
         <!-- Download Cache Section -->
-        <StackPanel Width="400" Classes="wrap-item" IsVisible="{Binding !IsRunningInWebAssembly}">
+        <StackPanel Width="400" Classes="wrap-item">
           <Border Classes="content-section">
             <StackPanel Classes="spacing-tight">
               <TextBlock Text="Download Cache" Classes=""/>
@@ -245,6 +245,14 @@
               <TextBlock Text="Automatically downloaded C64 programs and disk images are cached locally."
                          Classes="small secondary-text"
                          TextWrapping="Wrap"/>
+              <CheckBox Content="Use download cache"
+                        AutomationProperties.AutomationId="DownloadCacheEnabledCheckBox"
+                        AutomationProperties.Name="Use download cache"
+                        IsChecked="{Binding DownloadCacheEnabled}"/>
+              <TextBlock Text="Desktop stores cached files on disk; Browser stores them in IndexedDB when available. Disable this if caching causes problems."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"
+                         Margin="20,0,0,0"/>
               <Button Content="Clear cache"
                       AutomationProperties.AutomationId="ClearDownloadCacheButton"
                       AutomationProperties.Name="Clear download cache"

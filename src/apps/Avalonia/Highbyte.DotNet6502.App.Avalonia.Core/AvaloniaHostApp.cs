@@ -57,6 +57,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
+    private readonly Func<IDownloadCache?>? _downloadCacheFactory;
     private float _defaultAudioVolumePercent;
 
     private readonly SystemList _systemList;
@@ -177,18 +178,40 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// <summary>
     /// The read-through cache for auto-downloaded C64 content (<c>.d64</c>/<c>.prg</c>), or null when
     /// caching is unavailable. Desktop hosts get a <see cref="FileDownloadCache"/> under
-    /// <see cref="AppStoragePaths.GetDownloadCacheDirectory"/>; the browser (WASM) host returns null
-    /// for now (a filesystem cache would be non-persistent there — an IndexedDB backend is the
-    /// intended future implementation). Exposed so per-system shell view models can pass it into the
+    /// <see cref="AppStoragePaths.GetDownloadCacheDirectory"/>; browser hosts can supply an
+    /// IndexedDB-backed cache factory. Exposed so per-system shell view models can pass it into the
     /// download-and-run flow without access to the internal config.
     /// </summary>
     public IDownloadCache? GetDownloadCache()
+    {
+        if (!_emulatorConfig.DownloadCacheEnabled)
+            return null;
+
+        return GetOrCreateDownloadCache();
+    }
+
+    internal IDownloadCache? GetDownloadCacheForManagement()
+        => GetOrCreateDownloadCache();
+
+    private IDownloadCache? GetOrCreateDownloadCache()
     {
         if (_downloadCacheResolved)
             return _downloadCache;
 
         _downloadCacheResolved = true;
-        if (!OperatingSystem.IsBrowser())
+        if (OperatingSystem.IsBrowser())
+        {
+            try
+            {
+                _downloadCache = _downloadCacheFactory?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _loggerFactory.CreateLogger(nameof(AvaloniaHostApp))
+                    .LogWarning(ex, "Failed to initialize the browser download cache; downloads will not be cached.");
+            }
+        }
+        else
         {
             try
             {
@@ -223,6 +246,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
     /// <param name="loadExamples">Optional callback to seed bundled example scripts into the host's script storage.</param>
+    /// <param name="downloadCacheFactory">Optional host-provided cache backend (browser: IndexedDB).</param>
     internal AvaloniaHostApp(
         SystemList systemList,
         ILoggerFactory loggerFactory,
@@ -235,7 +259,8 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
         Action<string>? deleteScript = null,
-        Func<Task>? loadExamples = null
+        Func<Task>? loadExamples = null,
+        Func<IDownloadCache?>? downloadCacheFactory = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
@@ -248,6 +273,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         _saveScript = saveScript;
         _deleteScript = deleteScript;
         _loadExamples = loadExamples;
+        _downloadCacheFactory = downloadCacheFactory;
 
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;
