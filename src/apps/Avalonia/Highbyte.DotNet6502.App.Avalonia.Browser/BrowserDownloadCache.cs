@@ -10,6 +10,8 @@ namespace Highbyte.DotNet6502.App.Avalonia.Browser;
 [SupportedOSPlatform("browser")]
 internal static partial class BrowserDownloadCache
 {
+    private const long MaxTotalBytes = DownloadCacheDefaults.MaxTotalBytes;
+
     public static async Task<IDownloadCache?> TryCreateAsync(ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger(nameof(BrowserDownloadCache));
@@ -23,7 +25,7 @@ internal static partial class BrowserDownloadCache
 
             return new DelegateDownloadCache(
                 tryGet: (url, cancellationToken) => TryGetAsync(url, logger, cancellationToken),
-                put: PutAsync,
+                put: (entry, content, cancellationToken) => PutAsync(entry, content, logger, cancellationToken),
                 list: ListAsync,
                 remove: RemoveAsync,
                 clear: ClearAsync);
@@ -69,7 +71,7 @@ internal static partial class BrowserDownloadCache
         }
     }
 
-    private static async Task PutAsync(DownloadCacheEntry entry, byte[] content, CancellationToken cancellationToken)
+    private static async Task PutAsync(DownloadCacheEntry entry, byte[] content, ILogger logger, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -79,6 +81,7 @@ internal static partial class BrowserDownloadCache
         var entryJson = JsonSerializer.Serialize(entry, HostConfigJsonContext.Default.DownloadCacheEntry);
         var base64 = Convert.ToBase64String(content);
         await JSInterop.PutDownloadCacheEntryAsync(entryJson, base64);
+        await EvictIfOverCapAsync(logger, cancellationToken);
     }
 
     private static async Task<IReadOnlyList<DownloadCacheEntry>> ListAsync(CancellationToken cancellationToken)
@@ -105,6 +108,17 @@ internal static partial class BrowserDownloadCache
     {
         cancellationToken.ThrowIfCancellationRequested();
         await JSInterop.ClearDownloadCacheAsync();
+    }
+
+    private static async Task EvictIfOverCapAsync(ILogger logger, CancellationToken cancellationToken)
+    {
+        var entries = await ListAsync(cancellationToken);
+        foreach (var entry in DownloadCacheEviction.SelectLruEvictions(entries, MaxTotalBytes))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await JSInterop.RemoveDownloadCacheEntryAsync(entry.Url);
+            logger.LogInformation("Evicted cached {Url} ({Size} bytes) to stay under cache size cap.", entry.Url, entry.Size);
+        }
     }
 
     private static string ComputeSha256Hex(byte[] bytes)

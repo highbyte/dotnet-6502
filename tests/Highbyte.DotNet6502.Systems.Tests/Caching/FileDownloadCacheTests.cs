@@ -19,7 +19,7 @@ public class FileDownloadCacheTests : IDisposable
             Directory.Delete(_directory, recursive: true);
     }
 
-    private FileDownloadCache CreateCache(long maxTotalBytes = FileDownloadCache.DefaultMaxTotalBytes)
+    private FileDownloadCache CreateCache(long maxTotalBytes = DownloadCacheDefaults.MaxTotalBytes)
         => new(_directory, NullLoggerFactory.Instance, maxTotalBytes);
 
     [Fact]

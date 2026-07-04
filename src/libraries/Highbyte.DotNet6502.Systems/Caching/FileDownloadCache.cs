@@ -23,9 +23,6 @@ namespace Highbyte.DotNet6502.Systems.Caching;
 /// </remarks>
 public sealed class FileDownloadCache : IDownloadCache
 {
-    /// <summary>Default cap on total cached content size (256 MiB).</summary>
-    public const long DefaultMaxTotalBytes = 256L * 1024 * 1024;
-
     private const string ManifestFileName = "index.json";
 
     private readonly string _directory;
@@ -33,7 +30,7 @@ public sealed class FileDownloadCache : IDownloadCache
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _mutex = new(1, 1);
 
-    public FileDownloadCache(string directory, ILoggerFactory loggerFactory, long maxTotalBytes = DefaultMaxTotalBytes)
+    public FileDownloadCache(string directory, ILoggerFactory loggerFactory, long maxTotalBytes = DownloadCacheDefaults.MaxTotalBytes)
     {
         if (string.IsNullOrWhiteSpace(directory))
             throw new ArgumentException("Cache directory must be specified.", nameof(directory));
@@ -214,20 +211,10 @@ public sealed class FileDownloadCache : IDownloadCache
 
     private void EvictIfOverCap(DownloadCacheManifest manifest)
     {
-        var total = manifest.Entries.Sum(e => e.Size);
-        if (total <= _maxTotalBytes)
-            return;
-
-        // Oldest access first; keep evicting until under the cap (never evict the last entry, so a
-        // single artifact larger than the cap is still usable rather than immediately discarded).
-        foreach (var entry in manifest.Entries.OrderBy(e => e.LastAccessUtc).ToList())
+        foreach (var entry in DownloadCacheEviction.SelectLruEvictions(manifest.Entries, _maxTotalBytes))
         {
-            if (total <= _maxTotalBytes || manifest.Entries.Count <= 1)
-                break;
-
             manifest.Entries.Remove(entry);
             TryDeleteFile(Path.Combine(_directory, entry.File));
-            total -= entry.Size;
             _logger.LogInformation("Evicted cached {Url} ({Size} bytes) to stay under cache size cap.", entry.Url, entry.Size);
         }
     }
