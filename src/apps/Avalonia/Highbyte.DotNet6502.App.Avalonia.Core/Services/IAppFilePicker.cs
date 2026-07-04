@@ -18,7 +18,8 @@ public sealed record AppFilePickerFileType(string Name, IReadOnlyList<string> Pa
 public sealed record AppFilePickerOpenOptions(
     string Title,
     bool AllowMultiple,
-    IReadOnlyList<AppFilePickerFileType> FileTypes)
+    IReadOnlyList<AppFilePickerFileType> FileTypes,
+    string? SuggestedStartDirectory = null)
 {
     public string ToBrowserAccept()
     {
@@ -84,6 +85,7 @@ public sealed class AvaloniaStorageAppFilePicker : IAppFilePicker
             {
                 Title = options.Title,
                 AllowMultiple = options.AllowMultiple,
+                SuggestedStartLocation = await AppFilePickerStartLocation.ResolveAsync(topLevel.StorageProvider, options.SuggestedStartDirectory),
                 FileTypeFilter = options.FileTypes
                     .Select(ToAvaloniaFileType)
                     .ToArray()
@@ -114,7 +116,8 @@ public sealed record AppFileSaveOptions(
     string Title,
     string SuggestedFileName,
     string DefaultExtension,
-    IReadOnlyList<AppFilePickerFileType> FileTypes);
+    IReadOnlyList<AppFilePickerFileType> FileTypes,
+    string? SuggestedStartDirectory = null);
 
 /// <summary>
 /// App-level save-file abstraction used by Avalonia views that need to write bytes to a user-chosen
@@ -153,6 +156,7 @@ public sealed class AvaloniaStorageAppFileSaver : IAppFileSaver
                 Title = options.Title,
                 SuggestedFileName = options.SuggestedFileName,
                 DefaultExtension = options.DefaultExtension,
+                SuggestedStartLocation = await AppFilePickerStartLocation.ResolveAsync(topLevel.StorageProvider, options.SuggestedStartDirectory),
                 FileTypeChoices = options.FileTypes.Select(AppFileTypeConverter.ToAvaloniaFileType).ToArray()
             });
             if (file == null)
@@ -180,5 +184,23 @@ internal static class AppFileTypeConverter
         {
             Patterns = fileType.Patterns
         };
+    }
+}
+
+internal static class AppFilePickerStartLocation
+{
+    public static async Task<IStorageFolder?> ResolveAsync(IStorageProvider storageProvider, string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+            return null;
+
+        try
+        {
+            return await storageProvider.TryGetFolderFromPathAsync(directory);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

@@ -321,10 +321,11 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         if (config.AllowStore)
         {
             IScriptStore? storeBackend = config.StoreBackend;
-            if (storeBackend == null && !string.IsNullOrEmpty(config.ScriptDirectory))
+            var resolvedScriptDirectory = config.ResolvedScriptDirectory();
+            if (storeBackend == null && !string.IsNullOrEmpty(resolvedScriptDirectory))
             {
                 var subDir = string.IsNullOrEmpty(config.StoreSubDirectory) ? ".store" : config.StoreSubDirectory;
-                var storeDir = Path.Combine(config.ResolvedScriptDirectory(), subDir);
+                var storeDir = Path.Combine(resolvedScriptDirectory, subDir);
                 storeBackend = new FileSystemScriptStore(storeDir);
             }
 

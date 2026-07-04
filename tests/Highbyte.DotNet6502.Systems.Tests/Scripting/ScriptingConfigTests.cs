@@ -5,6 +5,31 @@ namespace Highbyte.DotNet6502.Systems.Tests.Scripting;
 public class ScriptingConfigTests
 {
     [Fact]
+    public void ResolvedScriptDirectory_WhenBlank_UsesDefaultScriptDirectory()
+    {
+        var config = new ScriptingConfig
+        {
+            ScriptDirectory = string.Empty
+        };
+
+        Assert.Equal(ScriptingConfig.DefaultScriptDirectory, config.EffectiveScriptDirectory);
+        Assert.Equal(ScriptingConfig.DefaultScriptDirectory, config.ResolvedScriptDirectory());
+    }
+
+    [Fact]
+    public void ResolvedScriptDirectory_WhenSet_UsesOverride()
+    {
+        const string configuredPath = "%HOME%/CustomScripts";
+        var config = new ScriptingConfig
+        {
+            ScriptDirectory = configuredPath
+        };
+
+        Assert.Equal(configuredPath, config.EffectiveScriptDirectory);
+        Assert.Equal(PathHelper.ExpandOSEnvironmentVariables(configuredPath), config.ResolvedScriptDirectory());
+    }
+
+    [Fact]
     public void ResolvedScriptDirectory_ExpandsHomeVariableBeforeResolvingPath()
     {
         const string configuredPath = "%HOME%/Documents/Highbyte/DotNet6502/scripts";

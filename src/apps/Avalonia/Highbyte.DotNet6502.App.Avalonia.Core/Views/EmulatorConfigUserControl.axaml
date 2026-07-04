@@ -209,6 +209,33 @@
           </Border>
         </StackPanel>
 
+        <!-- Snapshot Settings Section -->
+        <StackPanel Width="400" Classes="wrap-item" IsVisible="{Binding !IsRunningInWebAssembly}">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Snapshots" Classes=""/>
+
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Snapshot folder:"
+                           Classes="secondary-text"
+                           VerticalAlignment="Center"/>
+                <TextBox Grid.Row="0" Grid.Column="1"
+                         AutomationProperties.AutomationId="SnapshotDirectoryTextBox"
+                         AutomationProperties.Name="Snapshot folder"
+                         Text="{Binding SnapshotDirectory}"
+                         Width="250"
+                         HorizontalAlignment="Left"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="{Binding SnapshotDirectoryDescription}"
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
         <!-- Lua Scripting Section -->
         <StackPanel Width="400" Classes="wrap-item">
           <Border Classes="content-section">
@@ -231,7 +258,7 @@
                          Width="250"
                          HorizontalAlignment="Left"/>
                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                           Text="The directory from which Lua scripts are loaded. Restart the app for changes to take effect."
+                           Text="{Binding LuaScriptDirectoryDescription}"
                            Classes="small secondary-text"
                            TextWrapping="Wrap"
                            Margin="0,4,0,0"/>

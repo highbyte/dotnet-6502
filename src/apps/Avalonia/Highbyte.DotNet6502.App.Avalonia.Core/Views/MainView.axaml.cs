@@ -1157,6 +1157,7 @@ public partial class MainView : UserControl
                 // SuggestedFileName is extension-less; each saver adds the extension (Desktop via the
                 // StorageProvider DefaultExtension, Browser by appending it to the download name).
                 var suggestedName = hostApp.SelectedSystemName.Replace(" ", "_");
+                var snapshotDirectory = EnsureSnapshotDirectory(hostApp.EmulatorConfig);
                 var saved = await fileSaver.SaveFileAsync(
                     this,
                     new AppFileSaveOptions(
@@ -1166,7 +1167,8 @@ public partial class MainView : UserControl
                         [
                             new AppFilePickerFileType("Emulator snapshot", ["*.d6502snap"]),
                             AppFilePickerFileType.AllFiles
-                        ]),
+                        ],
+                        snapshotDirectory),
                     buffer.ToArray());
 
                 if (saved)
@@ -1205,6 +1207,7 @@ public partial class MainView : UserControl
             if (wasRunning)
                 hostApp.Pause();
 
+            var snapshotDirectory = EnsureSnapshotDirectory(hostApp.EmulatorConfig);
             var picked = await filePicker.OpenFileAsync(
                 this,
                 new AppFilePickerOpenOptions(
@@ -1213,7 +1216,8 @@ public partial class MainView : UserControl
                     [
                         new AppFilePickerFileType("Emulator snapshot", ["*.d6502snap"]),
                         AppFilePickerFileType.AllFiles
-                    ]));
+                    ],
+                    snapshotDirectory));
             if (picked == null)
             {
                 // Cancelled — resume the machine we paused for the dialog.
@@ -1252,4 +1256,17 @@ public partial class MainView : UserControl
                 throw;
             }
         });
+
+    private static string? EnsureSnapshotDirectory(EmulatorConfig emulatorConfig)
+    {
+        if (OperatingSystem.IsBrowser())
+            return null;
+
+        var snapshotDirectory = emulatorConfig.ResolvedSnapshotDirectory();
+        if (string.IsNullOrWhiteSpace(snapshotDirectory))
+            return null;
+
+        Directory.CreateDirectory(snapshotDirectory);
+        return snapshotDirectory;
+    }
 }

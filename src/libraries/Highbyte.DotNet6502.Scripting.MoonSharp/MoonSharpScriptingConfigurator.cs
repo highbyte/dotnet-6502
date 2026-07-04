@@ -32,11 +32,15 @@ public static class MoonSharpScriptingConfigurator
             return new NoScriptingEngine();
         }
 
-        // Automated startup mode (--start etc) owns the lifecycle — suppress scripts from config
-        if (suppressConfigScripts)
+        var hasScriptFilePaths = scriptFilePaths is { Count: > 0 };
+
+        // Automated startup mode (--start etc) owns the lifecycle, so suppress scripts from config.
+        // Blank ScriptDirectory normally means "use the default", so return a disabled engine
+        // unless an explicit CLI script source is present.
+        if (suppressConfigScripts && scriptDirectoryOverride == null && !hasScriptFilePaths)
         {
-            logger.LogInformation("[Scripting] Suppressing scripts from configuration (automated startup mode).");
-            config.ScriptDirectory = string.Empty;
+            logger.LogInformation("[Scripting] Suppressing scripts from configuration (automated startup mode). Using NoScriptingEngine.");
+            return new NoScriptingEngine();
         }
 
         // Apply CLI overrides
@@ -46,10 +50,10 @@ public static class MoonSharpScriptingConfigurator
             config.ScriptDirectory = scriptDirectoryOverride;
         }
 
-        if (scriptFilePaths != null && scriptFilePaths.Count > 0)
+        if (hasScriptFilePaths)
         {
             logger.LogInformation("[Scripting] Loading {Count} specific script(s) via CLI: {Files}",
-                scriptFilePaths.Count, string.Join(", ", scriptFilePaths));
+                scriptFilePaths!.Count, string.Join(", ", scriptFilePaths));
             config.ScriptLoader = () => scriptFilePaths.Select(path =>
             {
                 var fullPath = Path.GetFullPath(path);
@@ -58,19 +62,21 @@ public static class MoonSharpScriptingConfigurator
         }
 
         // Force auto-enable when CLI overrides are in effect (automation intent)
-        if (scriptFilePaths?.Count > 0 || scriptDirectoryOverride != null)
+        if (hasScriptFilePaths || scriptDirectoryOverride != null)
         {
             config.EnableScriptsAtStart = true;
         }
 
-        // ScriptDirectory is only required when no ScriptLoader is set
-        if (config.ScriptLoader == null && string.IsNullOrWhiteSpace(config.ScriptDirectory))
+        var resolvedScriptDirectory = config.ResolvedScriptDirectory();
+
+        // ScriptDirectory is only required when no ScriptLoader is set and no default is available.
+        if (config.ScriptLoader == null && string.IsNullOrWhiteSpace(resolvedScriptDirectory))
         {
             logger.LogWarning("[Scripting] Enabled but ScriptDirectory is not set. Using NoScriptingEngine.");
             return new NoScriptingEngine();
         }
 
-        logger.LogInformation("[Scripting] MoonSharp engine enabled. ScriptDirectory: {Dir}", config.ScriptDirectory);
+        logger.LogInformation("[Scripting] MoonSharp engine enabled. ScriptDirectory: {Dir}", resolvedScriptDirectory);
         var adapter = new MoonSharpScriptingEngineAdapter(loggerFactory, hostType);
         return new ScriptingEngine(adapter, config, loggerFactory);
     }

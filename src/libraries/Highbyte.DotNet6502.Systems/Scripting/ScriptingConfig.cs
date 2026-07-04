@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Systems;
@@ -12,11 +14,35 @@ public class ScriptingConfig
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Directory path where .lua script files are loaded from.
+    private string _scriptDirectory = string.Empty;
+
+    /// <summary>
+    /// Default directory path where .lua script files are loaded from when <see cref="ScriptDirectory"/> is not set.
+    /// </summary>
+    [JsonIgnore]
+    public static string DefaultScriptDirectory => AppStoragePaths.GetScriptsDirectory();
+
+    /// <summary>
+    /// Optional override directory path where .lua script files are loaded from.
+    /// When empty, desktop hosts use <see cref="DefaultScriptDirectory"/>.
     /// Can be absolute or relative to the application working directory.
     /// OS-specific environment variables and "~" are expanded before resolving the path.
     /// </summary>
-    public string ScriptDirectory { get; set; } = string.Empty;
+    public string ScriptDirectory
+    {
+        get => _scriptDirectory;
+        set => _scriptDirectory = value ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Effective script directory path after applying the default for hosts with filesystem access.
+    /// Browser hosts keep an empty directory because they normally load scripts from storage callbacks.
+    /// </summary>
+    [JsonIgnore]
+    public string EffectiveScriptDirectory =>
+        string.IsNullOrWhiteSpace(ScriptDirectory) && !OperatingSystem.IsBrowser()
+            ? DefaultScriptDirectory
+            : ScriptDirectory;
 
     /// <summary>
     /// Log a warning if a script hook (on_before_frame / on_after_frame) takes longer than this many milliseconds.
@@ -119,7 +145,7 @@ public class ScriptingConfig
     public IScriptStore? StoreBackend { get; set; }
 
     /// <summary>
-    /// Returns <see cref="ScriptDirectory"/> resolved to an absolute path.
+    /// Returns <see cref="EffectiveScriptDirectory"/> resolved to an absolute path.
     /// For relative paths, tries the current working directory first; if that directory
     /// does not exist, falls back to <see cref="AppContext.BaseDirectory"/> (the binary's
     /// output folder). This ensures that example scripts copied to the build output are
@@ -128,7 +154,7 @@ public class ScriptingConfig
     /// </summary>
     public string ResolvedScriptDirectory()
     {
-        return ResolveDirectory(ScriptDirectory);
+        return ResolveDirectory(EffectiveScriptDirectory);
     }
 
     /// <summary>

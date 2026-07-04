@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Configuration;
 using ReactiveUI;
 
@@ -30,6 +31,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private BrowserSampleAudioMode _selectedBrowserSampleAudioMode;
     private bool _stopAfterBRKInstruction;
     private bool _stopAfterUnknownInstruction;
+    private string _snapshotDirectory;
     private bool _allowUrlScripts;
     private string _corsProxyUrl;
 
@@ -59,6 +61,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _selectedBrowserSampleAudioMode = _emulatorConfig.BrowserSampleAudioMode;
         _stopAfterBRKInstruction = _emulatorConfig.Monitor.StopAfterBRKInstruction;
         _stopAfterUnknownInstruction = _emulatorConfig.Monitor.StopAfterUnknownInstruction;
+        _snapshotDirectory = _emulatorConfig.SnapshotDirectory;
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
         _corsProxyUrl = _emulatorConfig.CorsProxyUrl;
 
@@ -246,8 +249,24 @@ public class EmulatorConfigViewModel : ViewModelBase
         }
     }
 
+    public string SnapshotDirectory
+    {
+        get => _snapshotDirectory;
+        set => this.RaiseAndSetIfChanged(ref _snapshotDirectory, value ?? string.Empty);
+    }
+
+    public string SnapshotDirectoryDescription =>
+        $"Optional snapshot folder override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(EmulatorConfig.DefaultSnapshotDirectory)}.";
+
     // Lua Scripting (read-only, informational)
-    public string LuaScriptDirectory => _hostApp.ScriptingEngine.ScriptDirectory;
+    public string LuaScriptDirectory =>
+        _configuration
+            .GetSection(ScriptingConfig.ConfigSectionName)
+            .GetValue(nameof(ScriptingConfig.ScriptDirectory), string.Empty) ?? string.Empty;
+
+    public string LuaScriptDirectoryDescription =>
+        $"Optional script directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(ScriptingConfig.DefaultScriptDirectory)}. Restart the app for changes to take effect.";
+
     public string LuaStorePrefix => _emulatorConfig.LuaStorePrefix;
 
     /// <summary>
@@ -317,6 +336,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         SelectedBrowserSampleAudioMode = defaults.BrowserSampleAudioMode;
         StopAfterBRKInstruction = defaults.Monitor.StopAfterBRKInstruction;
         StopAfterUnknownInstruction = defaults.Monitor.StopAfterUnknownInstruction;
+        SnapshotDirectory = defaults.SnapshotDirectory;
         // Browser-only knob; defaults to disabled.
         AllowUrlScripts = false;
         CorsProxyUrl = defaults.CorsProxyUrl;
@@ -343,6 +363,8 @@ public class EmulatorConfigViewModel : ViewModelBase
             _emulatorConfig.BrowserSampleAudioMode = _selectedBrowserSampleAudioMode;
             _emulatorConfig.Monitor.StopAfterBRKInstruction = _stopAfterBRKInstruction;
             _emulatorConfig.Monitor.StopAfterUnknownInstruction = _stopAfterUnknownInstruction;
+            if (!IsRunningInWebAssembly)
+                _emulatorConfig.SnapshotDirectory = _snapshotDirectory;
             _emulatorConfig.CorsProxyUrl = _corsProxyUrl;
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
