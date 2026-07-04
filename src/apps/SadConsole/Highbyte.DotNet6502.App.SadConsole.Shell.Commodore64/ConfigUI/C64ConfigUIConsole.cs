@@ -18,7 +18,12 @@ public class C64ConfigUIConsole : Window
     public const int CONSOLE_WIDTH = USABLE_WIDTH;
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT;
     private const int USABLE_WIDTH = 60;
-    private const int USABLE_HEIGHT = 30;
+    private const int USABLE_HEIGHT = 33;
+    private const int ActionButtonRow = USABLE_HEIGHT - 7;
+    private const int ValidationErrorLabelRow = USABLE_HEIGHT - 5;
+    private const int ValidationErrorListRow = USABLE_HEIGHT - 4;
+    private const int ValidationErrorHorizontalScrollBarRow = USABLE_HEIGHT - 1;
+    private const int ValidationErrorListVisibleTextWidth = USABLE_WIDTH - 6;
 
     public C64SystemConfig C64SystemConfig => C64HostConfig.SystemConfig;
     public readonly C64HostConfig C64HostConfig;
@@ -26,6 +31,7 @@ public class C64ConfigUIConsole : Window
     private readonly ILoggerFactory _loggerFactory;
     private readonly List<(Type audioProviderType, Type audioTargetType)> _audioCombinations;
     private ComboBox? _audioTargetComboBox;
+    private List<string> _validationErrors = new();
     // Mutable so the audio-target ComboBox's SelectedItemChanged closure resolves the
     // currently-visible types after RebuildAudioTargetComboBox swaps the item set.
     private List<Type> _audioTargetDisplayTypes = new();
@@ -315,22 +321,11 @@ public class C64ConfigUIConsole : Window
         RebuildAudioTargetComboBox();
 
 
-        // Validaton errors
-        var validationErrorsLabel = CreateLabel("Validation errors", 1, audioTargetLabel.Bounds.MaxExtentY + 2, "validationErrorsLabel");
-        var validationErrorsListBox = new ListBox(Width - 3, 3)
-        {
-            Name = "validationErrorsListBox",
-            Position = (1, validationErrorsLabel.Bounds.MaxExtentY + 1),
-            IsScrollBarVisible = true,
-            IsEnabled = true,
-        };
-        Controls.Add(validationErrorsListBox);
-
         var okButton = new Button(6, 1)
         {
             Name = "okButton",
             Text = "OK",
-            Position = (1, Height - 2)
+            Position = (1, ActionButtonRow)
         };
         okButton.Click += (s, e) => { DialogResult = true; Hide(); };
         Controls.Add(okButton);
@@ -338,10 +333,30 @@ public class C64ConfigUIConsole : Window
         var cancelButton = new Button(10, 1)
         {
             Text = "Cancel",
-            Position = (okButton.Bounds.MaxExtentX + 2, Height - 2)
+            Position = (okButton.Bounds.MaxExtentX + 2, okButton.Position.Y)
         };
         cancelButton.Click += (s, e) => { DialogResult = false; Hide(); };
         Controls.Add(cancelButton);
+
+        // Validation errors
+        var validationErrorsLabel = CreateLabel("Validation errors", 1, ValidationErrorLabelRow, "validationErrorsLabel");
+        var validationErrorsListBox = new ListBox(Width - 3, 3)
+        {
+            Name = "validationErrorsListBox",
+            Position = (1, ValidationErrorListRow),
+            IsScrollBarVisible = true,
+            IsEnabled = true,
+        };
+        Controls.Add(validationErrorsListBox);
+
+        var validationErrorsHorizontalScrollBar = new ScrollBar(Orientation.Horizontal, Width - 4)
+        {
+            Name = "validationErrorsHorizontalScrollBar",
+            Position = (1, ValidationErrorHorizontalScrollBarRow),
+            MaximumValue = 0
+        };
+        validationErrorsHorizontalScrollBar.ValueChanged += (s, e) => RefreshValidationErrorsListBox();
+        Controls.Add(validationErrorsHorizontalScrollBar);
 
 
         // Helper function to create a label and add it to the console
@@ -474,10 +489,34 @@ public class C64ConfigUIConsole : Window
         validationErrorsLabel.IsVisible = !isOk;
         var validationErrorsListBox = GetControlOrThrow<ListBox>("validationErrorsListBox");
         validationErrorsListBox.IsVisible = !isOk;
+        var validationErrorsHorizontalScrollBar = GetControlOrThrow<ScrollBar>("validationErrorsHorizontalScrollBar");
+        validationErrorsHorizontalScrollBar.IsVisible = !isOk;
+
+        _validationErrors = validationErrors;
+        var maxHorizontalOffset = _validationErrors.Count == 0
+            ? 0
+            : Math.Max(0, _validationErrors.Max(error => error.Length) - ValidationErrorListVisibleTextWidth);
+        validationErrorsHorizontalScrollBar.MaximumValue = maxHorizontalOffset;
+        validationErrorsHorizontalScrollBar.IsEnabled = maxHorizontalOffset > 0;
+        if (validationErrorsHorizontalScrollBar.Value > maxHorizontalOffset)
+            validationErrorsHorizontalScrollBar.Value = maxHorizontalOffset;
+
+        RefreshValidationErrorsListBox();
+    }
+
+    private void RefreshValidationErrorsListBox()
+    {
+        var validationErrorsListBox = GetControlOrThrow<ListBox>("validationErrorsListBox");
+        var validationErrorsHorizontalScrollBar = GetControlOrThrow<ScrollBar>("validationErrorsHorizontalScrollBar");
+        var horizontalOffset = validationErrorsHorizontalScrollBar.Value;
+
         validationErrorsListBox.Items.Clear();
-        foreach (var error in validationErrors)
+        foreach (var error in _validationErrors)
         {
-            var coloredString = new ColoredString(error, foreground: Color.Red, background: Color.Black);
+            var visibleError = error.Length <= horizontalOffset
+                ? string.Empty
+                : error.Substring(horizontalOffset, Math.Min(ValidationErrorListVisibleTextWidth, error.Length - horizontalOffset));
+            var coloredString = new ColoredString(visibleError, foreground: Color.Red, background: Color.Black);
             validationErrorsListBox.Items.Add(coloredString);
         }
     }
