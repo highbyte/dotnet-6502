@@ -24,12 +24,15 @@ using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Scripting;
 using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
 internal sealed partial class Program
 {
+    private const string BundledExampleScriptsDirectoryName = "example-scripts";
+
     private static AutomatedRunController? s_automatedRunController;
 
     /// <summary>
@@ -575,6 +578,9 @@ internal sealed partial class Program
             builder.AddUserSecrets<Program>();
         }
 
+        var userSettingsFilePath = AppStoragePaths.GetUserSettingsFilePath("Avalonia.Desktop");
+        builder.AddJsonFile(userSettingsFilePath, optional: true, reloadOnChange: true);
+
         IConfiguration configuration = builder.Build();
 
         // ----------
@@ -874,7 +880,10 @@ internal sealed partial class Program
         // Start Avalonia app
         // ----------
         WriteBootstrapLog($"Starting Avalonia app.");
-        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, remoteController, scriptingEngine, automatedStartupRunner);
+        Func<Task>? loadExampleScripts = scriptingEngine is { IsEnabled: true, CanManageScripts: false } && !string.IsNullOrWhiteSpace(scriptingEngine.ScriptDirectory)
+            ? () => CopyBundledExampleScriptsAsync(scriptingEngine.ScriptDirectory, loggerFactory)
+            : null;
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, remoteController, scriptingEngine, automatedStartupRunner, loadExampleScripts);
 
         app.StartWithClassicDesktopLifetime(args);
 
@@ -926,19 +935,21 @@ internal sealed partial class Program
         IExternalDebugController? externalDebugController = null,
         IRemoteControlController? remoteControlController = null,
         IScriptingEngine? scriptingEngine = null,
-        Func<IHostApp, Task>? automatedStartupRunner = null)
+        Func<IHostApp, Task>? automatedStartupRunner = null,
+        Func<Task>? loadExamples = null)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
                 logStore,
                 logConfig,
                 loggerFactory,
-                saveCustomConfigString: null,
-                saveCustomConfigSection: null,
+                saveCustomConfigString: PersistStringToUserSettingsAsync,
+                saveCustomConfigSection: PersistConfigSectionToUserSettingsAsync,
                 gamepad: gamepad,
                 externalDebugController: externalDebugController,
                 remoteControlController: remoteControlController,
                 scriptingEngine: scriptingEngine,
+                loadExamples: loadExamples,
                 automatedStartupRunner: automatedStartupRunner))
             .UsePlatformDetect()
             .LogToTrace()
@@ -947,6 +958,70 @@ internal sealed partial class Program
                 // Set up the Avalonia logger bridge to route logs via Avalonia Logger through ILogger
                 global::Avalonia.Logging.Logger.Sink = avaloniaLoggerBridge;
             });
+
+    private static Task PersistStringToUserSettingsAsync(string configSectionName, string configSectionJson, string? optionalFileName = null)
+    {
+        var userSettingsFilePath = string.IsNullOrWhiteSpace(optionalFileName)
+            ? AppStoragePaths.GetUserSettingsFilePath("Avalonia.Desktop")
+            : Path.Combine(AppStoragePaths.GetUserSettingsDirectory("Avalonia.Desktop"), optionalFileName);
+        return AppSettingsUserFile.MergeSectionAsync(userSettingsFilePath, configSectionName, configSectionJson);
+    }
+
+    private static Task PersistConfigSectionToUserSettingsAsync(string configSectionName, IConfigurationSection configSection, string? optionalFileName = null)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(ToDictionary(configSection));
+        return PersistStringToUserSettingsAsync(configSectionName, json, optionalFileName);
+    }
+
+    private static Task CopyBundledExampleScriptsAsync(string scriptDirectory, ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger(nameof(Program));
+        var sourceDirectory = Path.Combine(AppContext.BaseDirectory, BundledExampleScriptsDirectoryName);
+
+        if (!Directory.Exists(sourceDirectory))
+        {
+            logger.LogWarning("Bundled example scripts directory does not exist: {Directory}", sourceDirectory);
+            return Task.CompletedTask;
+        }
+
+        Directory.CreateDirectory(scriptDirectory);
+
+        var copiedCount = 0;
+        var skippedCount = 0;
+        foreach (var sourceFile in Directory.GetFiles(sourceDirectory, "*.lua", SearchOption.TopDirectoryOnly))
+        {
+            var destinationFile = Path.Combine(scriptDirectory, Path.GetFileName(sourceFile));
+            if (File.Exists(destinationFile))
+            {
+                skippedCount++;
+                continue;
+            }
+
+            File.Copy(sourceFile, destinationFile);
+            copiedCount++;
+        }
+
+        logger.LogInformation(
+            "Copied {CopiedCount} bundled example script(s) to {Directory}; skipped {SkippedCount} existing file(s).",
+            copiedCount,
+            scriptDirectory,
+            skippedCount);
+        return Task.CompletedTask;
+    }
+
+    private static Dictionary<string, object?> ToDictionary(IConfigurationSection section)
+    {
+        var result = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var child in section.GetChildren())
+        {
+            var children = child.GetChildren().ToList();
+            result[child.Key] = children.Count == 0
+                ? child.Value
+                : ToDictionary(child);
+        }
+
+        return result;
+    }
 }
 
 internal sealed partial class Program

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using AvaloniaBrowserApp = Highbyte.DotNet6502.App.Avalonia.Core.App;
@@ -1353,18 +1354,23 @@ internal sealed partial class Program
         }
     }
 
-    private static async Task SeedExampleScriptsAsync(Action<string, string> saveScript)
+    private static Task SeedExampleScriptsAsync(Action<string, string> saveScript)
     {
-        using var http = GetAppUrlHttpClient();
         foreach (var scriptName in _exampleScriptNames)
         {
             var key = $"{LOCAL_STORAGE_SCRIPT_PREFIX}{scriptName}";
-            if (JSInterop.GetLocalStorage(key) != null)
-                continue;   // already exists (user content) — skip
+            if (!string.IsNullOrWhiteSpace(JSInterop.GetLocalStorage(key)))
+                continue;   // already exists with content (user content) — skip
 
             try
             {
-                var content = await GetUtf8TextAsync(http, $"scripts/{scriptName}");
+                var content = ReadBundledExampleScript(scriptName);
+                if (string.IsNullOrEmpty(content))
+                {
+                    WriteBootstrapLog($"Could not seed example script '{scriptName}': embedded resource was empty or missing.", LogLevel.Warning);
+                    continue;
+                }
+
                 saveScript(scriptName, content);   // writes localStorage + hot-adds to engine
                 WriteBootstrapLog($"Seeded example script: {scriptName}");
             }
@@ -1373,6 +1379,19 @@ internal sealed partial class Program
                 WriteBootstrapLog($"Could not seed example script '{scriptName}': {ex.Message}", LogLevel.Warning);
             }
         }
+
+        return Task.CompletedTask;
+    }
+
+    private static string? ReadBundledExampleScript(string scriptName)
+    {
+        var resourceName = $"Highbyte.DotNet6502.App.Avalonia.Browser.ExampleScripts.{scriptName}";
+        using var stream = typeof(Program).Assembly.GetManifestResourceStream(resourceName);
+        if (stream == null)
+            return null;
+
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 
     private static IEnumerable<(string fileName, string content)> LoadScriptsFromLocalStorage()

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -7,6 +8,8 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Configuration;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Configuration;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
@@ -28,6 +31,35 @@ public class EmulatorConfig
 
     /// <summary>Apply any settings ("config") embedded in a snapshot when loading it (opt-in).</summary>
     public bool RestoreConfigOnLoad { get; set; } = true;
+
+    /// <summary>
+    /// Optional desktop snapshot folder override. When empty, <see cref="DefaultSnapshotDirectory"/> is used.
+    /// Ignored in browser, where snapshots are uploaded/downloaded through browser file APIs.
+    /// </summary>
+    public string SnapshotDirectory { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public static string DefaultSnapshotDirectory => AppStoragePaths.GetSnapshotsDirectory();
+
+    [JsonIgnore]
+    public string EffectiveSnapshotDirectory =>
+        string.IsNullOrWhiteSpace(SnapshotDirectory) && !OperatingSystem.IsBrowser()
+            ? DefaultSnapshotDirectory
+            : SnapshotDirectory;
+
+    public string ResolvedSnapshotDirectory()
+        => ResolveDirectory(EffectiveSnapshotDirectory);
+
+    private static string ResolveDirectory(string directory)
+    {
+        var expandedDirectory = PathHelper.ExpandOSEnvironmentVariables(directory);
+
+        if (string.IsNullOrEmpty(expandedDirectory) || Path.IsPathRooted(expandedDirectory))
+            return expandedDirectory;
+
+        var cwdPath = Path.GetFullPath(expandedDirectory);
+        return Directory.Exists(cwdPath) ? cwdPath : Path.GetFullPath(expandedDirectory, AppContext.BaseDirectory);
+    }
 
     /// <summary>
     /// CORS proxy prefix used to route cross-origin HTTP fetches when running in the browser
@@ -141,4 +173,52 @@ public class EmulatorConfig
         var json = JsonSerializer.Serialize(this, EmulatorConfigJsonContext.Default.EmulatorConfig);
         return json;
     }
+
+    public string GetUserSettingsJson()
+    {
+        var settings = new EmulatorConfigUserSettings
+        {
+            DefaultEmulator = DefaultEmulator,
+            DefaultDrawScale = DefaultDrawScale,
+            ShowErrorDialog = ShowErrorDialog,
+            ShowDebugTools = ShowDebugTools,
+            IncludeConfigInSnapshot = IncludeConfigInSnapshot,
+            RestoreConfigOnLoad = RestoreConfigOnLoad,
+            SnapshotDirectory = OperatingSystem.IsBrowser() ? null : SnapshotDirectory,
+            CorsProxyUrl = CorsProxyUrl,
+            AudioSettingsProfile = AudioSettingsProfile,
+            BrowserSampleAudioMode = BrowserSampleAudioMode,
+            Monitor = new EmulatorMonitorUserSettings
+            {
+                StopAfterBRKInstruction = Monitor.StopAfterBRKInstruction,
+                StopAfterUnknownInstruction = Monitor.StopAfterUnknownInstruction
+            }
+        };
+
+        return JsonSerializer.Serialize(settings, EmulatorConfigJsonContext.Default.EmulatorConfigUserSettings);
+    }
+}
+
+internal sealed class EmulatorConfigUserSettings
+{
+    public string DefaultEmulator { get; set; } = "C64";
+    public float DefaultDrawScale { get; set; } = 2.0f;
+    public bool ShowErrorDialog { get; set; } = true;
+    public bool ShowDebugTools { get; set; }
+    public bool IncludeConfigInSnapshot { get; set; } = true;
+    public bool RestoreConfigOnLoad { get; set; } = true;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SnapshotDirectory { get; set; }
+    public string CorsProxyUrl { get; set; } = BrowserServiceDefaults.DefaultCorsProxyUrl;
+    [JsonConverter(typeof(JsonStringEnumConverter<WavePlayerSettingsProfile>))]
+    public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
+    [JsonConverter(typeof(JsonStringEnumConverter<BrowserSampleAudioMode>))]
+    public BrowserSampleAudioMode BrowserSampleAudioMode { get; set; } = BrowserSampleAudioMode.Stable;
+    public EmulatorMonitorUserSettings Monitor { get; set; } = new();
+}
+
+internal sealed class EmulatorMonitorUserSettings
+{
+    public bool StopAfterBRKInstruction { get; set; } = true;
+    public bool StopAfterUnknownInstruction { get; set; } = true;
 }

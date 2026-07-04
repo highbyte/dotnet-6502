@@ -156,8 +156,8 @@ public sealed class Vic20RomPromptService
                                 Margin = new Thickness(0, 8, 0, 0),
                                 Children =
                                 {
-                                    confirmButton,
-                                    cancelButton
+                                    cancelButton,
+                                    confirmButton
                                 }
                             }
                         }

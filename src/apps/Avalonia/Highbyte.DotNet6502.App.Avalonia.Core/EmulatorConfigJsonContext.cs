@@ -10,6 +10,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
     PropertyNameCaseInsensitive = true // your option from the code
 )]
 [JsonSerializable(typeof(EmulatorConfig))]
+[JsonSerializable(typeof(EmulatorConfigUserSettings))]
 internal partial class EmulatorConfigJsonContext : JsonSerializerContext
 {
 }

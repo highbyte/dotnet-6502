@@ -1,6 +1,6 @@
-using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
@@ -225,10 +225,19 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
         }
         set
         {
-            _romDirectory = value;
+            _romDirectory = value ?? string.Empty;
             _isDirty = true;
         }
     }
+
+    [JsonIgnore]
+    public static string DefaultROMDirectory => AppStoragePaths.GetRomDirectory("C64");
+
+    [JsonIgnore]
+    public string EffectiveROMDirectory => string.IsNullOrWhiteSpace(ROMDirectory)
+        && !OperatingSystem.IsBrowser()
+        ? DefaultROMDirectory
+        : ROMDirectory;
 
     public Dictionary<string, string> ROMDownloadUrls { get; } = new()
     {
@@ -354,16 +363,7 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
         // Defaults
         _roms = new List<ROM>();
 
-        // Only set default ROM directory if running on Desktop OS.
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("BROWSER")) ||
-            RuntimeInformation.OSArchitecture == Architecture.Wasm)
-        {
-            _romDirectory = string.Empty;
-        }
-        else
-        {
-            _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
-        }
+        _romDirectory = string.Empty;
 
         _colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
@@ -467,8 +467,9 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
             validationErrors.Add($"Missing ROMs: {string.Join(", ", missingRoms)}.");
         }
 
-        var romDir = PathHelper.ExpandOSEnvironmentVariables(ROMDirectory);
-        if (!string.IsNullOrEmpty(romDir))
+        var effectiveRomDirectory = EffectiveROMDirectory;
+        var romDir = PathHelper.ExpandOSEnvironmentVariables(effectiveRomDirectory);
+        if (ROMs.Any(rom => !string.IsNullOrEmpty(rom.File)) && !string.IsNullOrEmpty(romDir))
         {
             if (!Directory.Exists(romDir))
                 validationErrors.Add($"{nameof(ROMDirectory)} is not an existing directory: {romDir}");
@@ -479,7 +480,7 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
             foreach (var rom in ROMs)
             {
                 var romValidationErrors = new List<string>();
-                if (!rom.Validate(out romValidationErrors, ROMDirectory))
+                if (!rom.Validate(out romValidationErrors, effectiveRomDirectory))
                     validationErrors.AddRange(romValidationErrors);
             }
         }

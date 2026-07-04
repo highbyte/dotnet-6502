@@ -487,7 +487,7 @@ public class SilkNetImGuiC64Config
         try
         {
             var systemConfig = GetSystemConfigOrThrow();
-            var romFolder = PathHelper.ExpandOSEnvironmentVariables(systemConfig.ROMDirectory);
+            var romFolder = PathHelper.ExpandOSEnvironmentVariables(systemConfig.EffectiveROMDirectory);
             await DownloadC64RomsAsync(systemConfig.ROMDownloadUrls, romFolder);
 
             // Update the system config with the downloaded ROM files

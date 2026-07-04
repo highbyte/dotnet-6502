@@ -232,7 +232,7 @@ public sealed class C64AcknowledgmentService
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 10,
             Margin = new Thickness(0, 8, 0, 0),
-            Children = { confirmButton, cancelButton }
+            Children = { cancelButton, confirmButton }
         });
 
         var dialogContent = BuildDialogShell(title, bodyChildren);
@@ -447,8 +447,8 @@ public sealed class C64AcknowledgmentService
                                 Margin = new Thickness(0, 8, 0, 0),
                                 Children =
                                 {
-                                    openConfigButton,
-                                    cancelButton
+                                    cancelButton,
+                                    openConfigButton
                                 }
                             }
                         }

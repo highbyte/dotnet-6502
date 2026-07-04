@@ -122,12 +122,25 @@
     <EmbeddedResource Include="BrowserScripting.js" />
   </ItemGroup>
 
-  <!-- Copy Lua example scripts from central resources location to wwwroot so they are served at runtime -->
-  <Target Name="CopyExampleScripts" AfterTargets="AfterBuild">
+  <!-- Serve Lua example scripts as browser static assets. -->
+  <ItemGroup>
+    <Content Remove="wwwroot\scripts\*.lua" />
+    <None Remove="wwwroot\scripts\*.lua" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*.lua"
+                      LogicalName="Highbyte.DotNet6502.App.Avalonia.Browser.ExampleScripts.%(Filename)%(Extension)" />
+    <Content Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*.lua"
+             Link="wwwroot\scripts\%(Filename)%(Extension)"
+             TargetPath="wwwroot\scripts\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="CopyExampleScriptsToWwwroot" AfterTargets="Build">
     <ItemGroup>
-      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*" />
+      <_SharedScripts Include="$(MSBuildThisFileDirectory)..\..\..\..\resources\scripts\shared\*.lua" />
     </ItemGroup>
-    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="wwwroot\scripts" SkipUnchangedFiles="true" />
+    <MakeDir Directories="$(MSBuildThisFileDirectory)wwwroot\scripts" />
+    <Copy SourceFiles="@(_SharedScripts)" DestinationFolder="$(MSBuildThisFileDirectory)wwwroot\scripts" />
   </Target>
 
   <Target Name="CopySharedAssets" AfterTargets="AfterBuild">

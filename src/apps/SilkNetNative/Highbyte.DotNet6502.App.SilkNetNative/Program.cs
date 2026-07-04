@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.App.SilkNetNative.Core;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
@@ -64,7 +65,8 @@ try
     var configBuilder = new ConfigurationBuilder()
         .SetBasePath(appDir)
         .AddJsonFile("appsettings.json")
-        .AddJsonFile("appsettings.Development.json", optional: true);
+        .AddJsonFile("appsettings.Development.json", optional: true)
+        .AddJsonFile(AppStoragePaths.GetUserSettingsFilePath("SilkNetNative"), optional: true, reloadOnChange: true);
 
     IConfiguration Configuration = configBuilder.Build();
 
@@ -161,6 +163,7 @@ try
     // Drop any system that declares no configuration variants — it cannot be built or run, and
     // would crash the variant picker in the menu. Treated as unavailable, like a missing plug-in.
     await systemList.RemoveSystemsWithNoConfigurationVariants(pluginLogger);
+    systemList.EnsureUserContentDirectories(pluginLogger);
 
     // Any fatal startup error (no systems, invalid DefaultEmulator, ...) is caught inside the host
     // app's OnLoad and shown as a quit-only error dialog — see SilkNetHostApp.OnLoad.

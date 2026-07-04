@@ -603,6 +603,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    public string RomDirectoryToolTip =>
+        $"Optional ROM folder override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.DefaultROMDirectory)}";
+
     public RenderProviderOption? SelectedRenderProvider
     {
         get => _selectedRenderProvider;
@@ -833,7 +836,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             SetStatusMessage("Downloading ROMs...");
             ValidationMessage = string.Empty;
 
-            var romFolder = PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.ROMDirectory);
+            var romFolder = PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.EffectiveROMDirectory);
             if (!Directory.Exists(romFolder))
             {
                 Directory.CreateDirectory(romFolder);
@@ -1511,7 +1514,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         {
             try
             {
-                var romFilePath = rom.GetROMFilePath(_workingConfig.SystemConfig.ROMDirectory);
+                var romFilePath = rom.GetROMFilePath(_workingConfig.SystemConfig.EffectiveROMDirectory);
                 fileExists = File.Exists(romFilePath);
             }
             catch

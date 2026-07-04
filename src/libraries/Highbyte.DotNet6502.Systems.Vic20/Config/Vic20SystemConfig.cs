@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Utils;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
 
@@ -77,8 +77,17 @@ public class Vic20SystemConfig : ISystemConfig
     public string ROMDirectory
     {
         get => _romDirectory;
-        set { _romDirectory = value; _isDirty = true; }
+        set { _romDirectory = value ?? string.Empty; _isDirty = true; }
     }
+
+    [JsonIgnore]
+    public static string DefaultROMDirectory => AppStoragePaths.GetRomDirectory("VIC20");
+
+    [JsonIgnore]
+    public string EffectiveROMDirectory => string.IsNullOrWhiteSpace(ROMDirectory)
+        && !OperatingSystem.IsBrowser()
+        ? DefaultROMDirectory
+        : ROMDirectory;
 
     public Dictionary<string, string> ROMDownloadUrls { get; } = new()
     {
@@ -182,16 +191,7 @@ public class Vic20SystemConfig : ISystemConfig
 
     public Vic20SystemConfig()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("BROWSER")) ||
-            RuntimeInformation.OSArchitecture == Architecture.Wasm)
-        {
-            _romDirectory = string.Empty;
-        }
-        else
-        {
-            _romDirectory = "%USERPROFILE%/Documents/VIC20/VICE/VIC20";
-        }
-
+        _romDirectory = string.Empty;
         SetRenderProviderType(GetSupportedRenderProviderTypes().First());
     }
 
@@ -219,15 +219,16 @@ public class Vic20SystemConfig : ISystemConfig
         if (missing.Count > 0)
             validationErrors.Add($"Missing ROMs: {string.Join(", ", missing)}.");
 
-        var romDir = PathHelper.ExpandOSEnvironmentVariables(_romDirectory);
-        if (!string.IsNullOrEmpty(romDir) && !Directory.Exists(romDir))
+        var effectiveRomDirectory = EffectiveROMDirectory;
+        var romDir = PathHelper.ExpandOSEnvironmentVariables(effectiveRomDirectory);
+        if (_roms.Any(rom => !string.IsNullOrEmpty(rom.File)) && !string.IsNullOrEmpty(romDir) && !Directory.Exists(romDir))
             validationErrors.Add($"{nameof(ROMDirectory)} does not exist: {romDir}");
 
         if (validationErrors.Count == 0)
         {
             foreach (var rom in _roms)
             {
-                if (!rom.Validate(out var romErrors, _romDirectory))
+                if (!rom.Validate(out var romErrors, effectiveRomDirectory))
                     validationErrors.AddRange(romErrors);
             }
         }

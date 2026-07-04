@@ -8,6 +8,8 @@ public interface ISystemConfigurer
     public Task<IHostSystemConfig> GetNewHostSystemConfig();
     public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig);
 
+    public IEnumerable<string> GetUserContentDirectories() => [];
+
     /// <summary>
     /// Builds the <see cref="SystemRunner"/> for a run of the system.
     ///
