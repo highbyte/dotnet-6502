@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Updates\Highbyte.DotNet6502.Updates.csproj" />
     <!-- Convention glob: every per-system shell is deployed for SystemPluginDiscovery without
          editing this entry exe when a new system is added. -->
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Highbyte.DotNet6502.App.Avalonia.Shell.*\*.csproj" />

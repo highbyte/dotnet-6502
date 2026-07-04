@@ -26,6 +26,7 @@ using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using Highbyte.DotNet6502.Updates;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -364,6 +365,11 @@ internal sealed partial class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Update-check CLI flags run before any GUI/startup work and exit immediately.
+        var updateExitCode = TryHandleUpdateCli(args);
+        if (updateExitCode is not null)
+            return updateExitCode.Value;
+
         try
         {
             return RunApp(args);
@@ -1035,6 +1041,41 @@ internal sealed partial class Program
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool FreeConsole();
+
+    // Windows API to attach the (WinExe, console-less) process to the parent terminal's console,
+    // so stdout from the --version / --check-update / --update flags reaches the invoking shell.
+    private const uint AttachParentProcess = 0xFFFFFFFF; // ATTACH_PARENT_PROCESS
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool AttachConsole(uint dwProcessId);
+
+    /// <summary>
+    /// Handles the update-check CLI flags (<c>--version</c> / <c>--check-update</c> / <c>--update</c>)
+    /// before any GUI startup, returning the process exit code — or null if none was passed. The same
+    /// shared <see cref="ConsoleUpdateCli"/> the console hosts use. No automatic startup notice: the GUI
+    /// is normally launched without an attached terminal. This app ships as a Homebrew cask on macOS but
+    /// a formula on Linux (same package name), hence <c>HomebrewIsCask = OperatingSystem.IsMacOS()</c>.
+    /// </summary>
+    private static int? TryHandleUpdateCli(string[] args)
+    {
+        if (!ConsoleUpdateCli.WantsHandling(args))
+            return null;
+
+        // WinExe has no console attached; attach to the parent (best effort) before writing output.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            AttachConsole(AttachParentProcess);
+
+        var descriptor = new AppUpdateDescriptor
+        {
+            HomebrewPackage = "dotnet-6502",
+            HomebrewIsCask = OperatingSystem.IsMacOS(),
+            ScoopPackage = "dotnet-6502",
+        };
+        // Blocking is safe: this is the process entry point, before any UI/synchronization context exists.
+#pragma warning disable VSTHRD002
+        return ConsoleUpdateCli.RunAsync(args, descriptor, Console.Out).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+    }
 
     /// <summary>
     /// Parses the log level from command line arguments.

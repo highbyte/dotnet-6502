@@ -11,6 +11,17 @@ using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Updates;
+
+// ----------
+// Update check CLI flags (--version / --check-update / --update). Handled before any startup work.
+// Headless is opt-in only: no automatic startup notice, just these explicit flags.
+// ----------
+if (ConsoleUpdateCli.WantsHandling(args))
+    return await ConsoleUpdateCli.RunAsync(
+        args,
+        new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-headless", ScoopPackage = "dotnet-6502-headless" },
+        Console.Out);
 
 // ----------
 // Parse command line arguments

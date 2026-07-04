@@ -29,6 +29,7 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Terminal.Core\Highbyte.DotNet6502.App.Terminal.Core.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\..\libraries\Highbyte.DotNet6502.Updates\Highbyte.DotNet6502.Updates.csproj" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\..\libraries\Highbyte.DotNet6502.Impl.Terminal.*\*.csproj" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Highbyte.DotNet6502.App.Terminal.Shell.*\*.csproj" />
   </ItemGroup>

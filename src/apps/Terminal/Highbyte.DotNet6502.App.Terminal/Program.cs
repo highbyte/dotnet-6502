@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Updates;
 
 // ----------
 // DotNet 6502 emulator — interactive terminal (TUI) host.
@@ -16,6 +17,15 @@ using Microsoft.Extensions.Logging;
 // ISystemConfigurer, and shell plug-ins (App.Terminal.Shell.<System>) optionally contribute a
 // system-specific menu control shown in the controls column.
 // ----------
+
+// Update check CLI flags (--version / --check-update / --update), handled before the TUI takes over
+// the screen. No automatic startup notice here: an ephemeral stdout line would just be wiped by the
+// full-screen TUI. Environment.Exit keeps the app's existing exit-code handling intact.
+if (ConsoleUpdateCli.WantsHandling(args))
+    Environment.Exit(await ConsoleUpdateCli.RunAsync(
+        args,
+        new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-terminal", ScoopPackage = "dotnet-6502-terminal" },
+        Console.Out));
 
 // Anchor file/relative resource access to the built app location.
 Environment.CurrentDirectory = AppContext.BaseDirectory;

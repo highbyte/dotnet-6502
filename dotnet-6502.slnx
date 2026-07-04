@@ -61,6 +61,7 @@
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Generic/Highbyte.DotNet6502.Systems.Generic.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Vic20/Highbyte.DotNet6502.Systems.Vic20.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Updates/Highbyte.DotNet6502.Updates.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502/Highbyte.DotNet6502.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
@@ -95,5 +96,6 @@
     <Project Path="tests/Highbyte.DotNet6502.Monitor.Tests/Highbyte.DotNet6502.Monitor.Tests.csproj" />
     <Project Path="tests/Highbyte.DotNet6502.Systems.Tests/Highbyte.DotNet6502.Systems.Tests.csproj" />
     <Project Path="tests/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj" />
+    <Project Path="tests/Highbyte.DotNet6502.Updates.Tests/Highbyte.DotNet6502.Updates.Tests.csproj" />
   </Folder>
 </Solution>
