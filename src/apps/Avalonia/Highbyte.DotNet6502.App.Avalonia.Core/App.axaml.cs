@@ -15,6 +15,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Caching;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Plugins;
@@ -49,6 +50,7 @@ public partial class App : Application
     private readonly Func<IHostApp, Task>? _automatedStartupRunner;
     private readonly IAppFilePicker? _appFilePicker;
     private readonly IAppFileSaver? _appFileSaver;
+    private readonly Func<IDownloadCache?>? _downloadCacheFactory;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -137,7 +139,8 @@ public partial class App : Application
         Func<Task>? loadExamples = null,
         Func<IHostApp, Task>? automatedStartupRunner = null,
         IAppFilePicker? appFilePicker = null,
-        IAppFileSaver? appFileSaver = null)
+        IAppFileSaver? appFileSaver = null,
+        Func<IDownloadCache?>? downloadCacheFactory = null)
     {
         WriteBootstrapLog("App constructor called");
 
@@ -157,6 +160,7 @@ public partial class App : Application
         _automatedStartupRunner = automatedStartupRunner;
         _appFilePicker = appFilePicker;
         _appFileSaver = appFileSaver;
+        _downloadCacheFactory = downloadCacheFactory;
 
         // Set static reference for external access (e.g., debug adapter)
         Current = this;
@@ -432,7 +436,8 @@ public partial class App : Application
                 _loadScript,
                 _saveScript,
                 _deleteScript,
-                _loadExamples);
+                _loadExamples,
+                _downloadCacheFactory);
 
             // Wire Lua scripting engine (NoScriptingEngine used when null, e.g. in WASM)
             _hostApp.SetScriptingEngine(_scriptingEngine ?? new NoScriptingEngine());

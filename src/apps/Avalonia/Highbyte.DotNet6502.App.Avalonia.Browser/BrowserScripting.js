@@ -122,6 +122,11 @@ function bytesToBase64(bytes) {
     return btoa(binary);
 }
 
+// Expose the base64 helpers so other browser JS modules can reuse them. These modules are
+// loaded as data-URI ES modules (see *Resources.cs), which cannot resolve relative imports,
+// so a shared global is used instead of an import to keep a single implementation.
+globalThis.dn6502Base64 ??= { base64ToBytes, bytesToBase64 };
+
 export function getScriptsFromLocalStorage(prefix) {
     const results = [];
     for (let i = 0; i < localStorage.length; i++) {

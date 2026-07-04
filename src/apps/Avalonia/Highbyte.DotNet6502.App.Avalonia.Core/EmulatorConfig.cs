@@ -71,6 +71,12 @@ public class EmulatorConfig
     public string CorsProxyUrl { get; set; } = BrowserServiceDefaults.DefaultCorsProxyUrl;
 
     /// <summary>
+    /// Enables the read-through cache used by C64 auto-downloaded <c>.d64</c>/<c>.prg</c>
+    /// content. Desktop uses a file-backed cache; Browser uses IndexedDB when available.
+    /// </summary>
+    public bool DownloadCacheEnabled { get; set; } = true;
+
+    /// <summary>
     /// The effective CORS proxy URL to use: the configured <see cref="CorsProxyUrl"/> (falling back
     /// to <see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/> when blank) in the browser, or
     /// <see langword="null"/> on desktop where cross-origin fetches are unrestricted.
@@ -186,6 +192,7 @@ public class EmulatorConfig
             RestoreConfigOnLoad = RestoreConfigOnLoad,
             SnapshotDirectory = OperatingSystem.IsBrowser() ? null : SnapshotDirectory,
             CorsProxyUrl = CorsProxyUrl,
+            DownloadCacheEnabled = DownloadCacheEnabled,
             AudioSettingsProfile = AudioSettingsProfile,
             BrowserSampleAudioMode = BrowserSampleAudioMode,
             Monitor = new EmulatorMonitorUserSettings
@@ -210,6 +217,7 @@ internal sealed class EmulatorConfigUserSettings
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SnapshotDirectory { get; set; }
     public string CorsProxyUrl { get; set; } = BrowserServiceDefaults.DefaultCorsProxyUrl;
+    public bool DownloadCacheEnabled { get; set; } = true;
     [JsonConverter(typeof(JsonStringEnumConverter<WavePlayerSettingsProfile>))]
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
     [JsonConverter(typeof(JsonStringEnumConverter<BrowserSampleAudioMode>))]

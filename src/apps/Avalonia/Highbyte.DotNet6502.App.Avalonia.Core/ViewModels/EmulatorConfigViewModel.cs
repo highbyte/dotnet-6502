@@ -8,6 +8,7 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -17,6 +18,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private readonly AvaloniaHostApp _hostApp;
     private readonly IConfiguration _configuration;
     private readonly EmulatorConfig _emulatorConfig;
+    private readonly ILogger _logger;
 
     private bool _isBusy;
     private string? _statusMessage;
@@ -34,16 +36,19 @@ public class EmulatorConfigViewModel : ViewModelBase
     private string _snapshotDirectory;
     private bool _allowUrlScripts;
     private string _corsProxyUrl;
+    private bool _downloadCacheEnabled;
 
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
     public ReactiveCommand<Unit, Unit> ResetToDefaultsCommand { get; }
+    public ReactiveCommand<Unit, Unit> ClearDownloadCacheCommand { get; }
 
     public EmulatorConfigViewModel(AvaloniaHostApp hostApp, IConfiguration configuration)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _emulatorConfig = hostApp.EmulatorConfig;
+        _logger = hostApp.LoggerFactory.CreateLogger(nameof(EmulatorConfigViewModel));
 
         // Initialize available options. The list of selectable systems comes dynamically from the
         // systems registered with the emulator (e.g. C64, Vic20, Generic), sorted for stable display.
@@ -64,6 +69,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _snapshotDirectory = _emulatorConfig.SnapshotDirectory;
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
         _corsProxyUrl = _emulatorConfig.CorsProxyUrl;
+        _downloadCacheEnabled = _emulatorConfig.DownloadCacheEnabled;
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -93,6 +99,10 @@ public class EmulatorConfigViewModel : ViewModelBase
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
+        ClearDownloadCacheCommand = ReactiveCommandHelper.CreateSafeCommand(
+            ClearDownloadCacheAsync,
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
         // Show info message on desktop about permanent settings
         if (!IsRunningInWebAssembly)
         {
@@ -115,12 +125,17 @@ public class EmulatorConfigViewModel : ViewModelBase
             this.RaiseAndSetIfChanged(ref _isBusy, value);
             this.RaisePropertyChanged(nameof(IsNotBusy));
             this.RaisePropertyChanged(nameof(CanSave));
+            this.RaisePropertyChanged(nameof(CanClearDownloadCache));
         }
     }
 
     public bool IsNotBusy => !IsBusy;
 
     public bool CanSave => IsNotBusy && !HasValidationErrors;
+
+    public bool IsDownloadCacheAvailable => _hostApp.GetDownloadCacheForManagement() != null;
+
+    public bool CanClearDownloadCache => IsNotBusy && IsDownloadCacheAvailable;
 
     public string? StatusMessage
     {
@@ -307,6 +322,22 @@ public class EmulatorConfigViewModel : ViewModelBase
 
     public static string CorsProxyUrlWatermark => BrowserServiceDefaults.DefaultCorsProxyUrl;
 
+    /// <summary>
+    /// Enables the download cache for emulator content. Clearing remains available when the cache
+    /// backend can be opened, even if cache use is disabled.
+    /// </summary>
+    public bool DownloadCacheEnabled
+    {
+        get => _downloadCacheEnabled;
+        set
+        {
+            if (_downloadCacheEnabled == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _downloadCacheEnabled, value);
+        }
+    }
+
     private void UpdateValidation()
     {
         _validationErrors.Clear();
@@ -340,9 +371,42 @@ public class EmulatorConfigViewModel : ViewModelBase
         // Browser-only knob; defaults to disabled.
         AllowUrlScripts = false;
         CorsProxyUrl = defaults.CorsProxyUrl;
+        DownloadCacheEnabled = defaults.DownloadCacheEnabled;
 
         UpdateValidation();
         StatusMessage = "Settings reset to defaults. Click Save to apply.";
+    }
+
+    private async Task ClearDownloadCacheAsync()
+    {
+        var downloadCache = _hostApp.GetDownloadCacheForManagement();
+        if (downloadCache == null)
+        {
+            StatusMessage = "Download cache is not available.";
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "Clearing download cache...";
+
+            var entryCount = (await downloadCache.ListAsync()).Count;
+            await downloadCache.ClearAsync();
+
+            StatusMessage = entryCount == 1
+                ? "Download cache cleared (1 entry)."
+                : $"Download cache cleared ({entryCount} entries).";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear download cache.");
+            StatusMessage = $"Error clearing download cache: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task<bool> TryApplyChangesAsync()
@@ -366,6 +430,7 @@ public class EmulatorConfigViewModel : ViewModelBase
             if (!IsRunningInWebAssembly)
                 _emulatorConfig.SnapshotDirectory = _snapshotDirectory;
             _emulatorConfig.CorsProxyUrl = _corsProxyUrl;
+            _emulatorConfig.DownloadCacheEnabled = _downloadCacheEnabled;
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
             await _hostApp.PersistEmulatorConfigAsync();

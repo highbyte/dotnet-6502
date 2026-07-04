@@ -2,8 +2,10 @@ using System.Collections.ObjectModel;
 using Highbyte.DotNet6502.App.Terminal;
 using Highbyte.DotNet6502.Impl.Terminal.Commodore64;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Caching;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.Download;
@@ -353,7 +355,10 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-        return new C64AutoLoadAndRun(_loggerFactory, _httpClient, _host);
+        // Desktop host: back the download-and-run flow with a persistent file cache so previously
+        // downloaded .d64/.prg content re-runs offline and skips redundant network fetches.
+        var downloadCache = new FileDownloadCache(AppStoragePaths.GetDownloadCacheDirectory(), _loggerFactory);
+        return new C64AutoLoadAndRun(_loggerFactory, _httpClient, _host, downloadCache: downloadCache);
     }
 
     private async Task ApplyPreloadedProgramConfig(C64DownloadProgramInfo programInfo)

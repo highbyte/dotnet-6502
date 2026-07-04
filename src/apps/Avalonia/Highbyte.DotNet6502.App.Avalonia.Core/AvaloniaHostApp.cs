@@ -21,6 +21,8 @@ using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Caching;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -55,6 +57,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     private readonly Action<string, string>? _saveScript;
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
+    private readonly Func<IDownloadCache?>? _downloadCacheFactory;
     private float _defaultAudioVolumePercent;
 
     private readonly SystemList _systemList;
@@ -169,6 +172,62 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// </summary>
     public string? GetShareBaseUrl() => _emulatorConfig.ShareBaseUrl;
 
+    private IDownloadCache? _downloadCache;
+    private bool _downloadCacheResolved;
+
+    /// <summary>
+    /// The read-through cache for auto-downloaded C64 content (<c>.d64</c>/<c>.prg</c>), or null when
+    /// caching is unavailable. Desktop hosts get a <see cref="FileDownloadCache"/> under
+    /// <see cref="AppStoragePaths.GetDownloadCacheDirectory"/>; browser hosts can supply an
+    /// IndexedDB-backed cache factory. Exposed so per-system shell view models can pass it into the
+    /// download-and-run flow without access to the internal config.
+    /// </summary>
+    public IDownloadCache? GetDownloadCache()
+    {
+        if (!_emulatorConfig.DownloadCacheEnabled)
+            return null;
+
+        return GetOrCreateDownloadCache();
+    }
+
+    internal IDownloadCache? GetDownloadCacheForManagement()
+        => GetOrCreateDownloadCache();
+
+    private IDownloadCache? GetOrCreateDownloadCache()
+    {
+        if (_downloadCacheResolved)
+            return _downloadCache;
+
+        _downloadCacheResolved = true;
+        if (OperatingSystem.IsBrowser())
+        {
+            try
+            {
+                _downloadCache = _downloadCacheFactory?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _loggerFactory.CreateLogger(nameof(AvaloniaHostApp))
+                    .LogWarning(ex, "Failed to initialize the browser download cache; downloads will not be cached.");
+            }
+        }
+        else
+        {
+            try
+            {
+                _downloadCache = new FileDownloadCache(AppStoragePaths.GetDownloadCacheDirectory(), _loggerFactory);
+            }
+            catch (Exception ex)
+            {
+                // Never let a cache-setup failure break the download flow; fall back to no caching.
+                _loggerFactory.CreateLogger(nameof(AvaloniaHostApp))
+                    .LogWarning(ex, "Failed to initialize the download cache; downloads will not be cached.");
+            }
+        }
+
+        return _downloadCache;
+    }
+
     // Expose InputHandlerContext for debug views
     internal AvaloniaInputHandlerContext InputHandlerContext => _inputHandlerContext;
 
@@ -187,6 +246,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// <param name="saveScript">Optional callback to persist a script by file name and content (browser: to localStorage).</param>
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
     /// <param name="loadExamples">Optional callback to seed bundled example scripts into the host's script storage.</param>
+    /// <param name="downloadCacheFactory">Optional host-provided cache backend (browser: IndexedDB).</param>
     internal AvaloniaHostApp(
         SystemList systemList,
         ILoggerFactory loggerFactory,
@@ -199,7 +259,8 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         Func<string, string?>? loadScript = null,
         Action<string, string>? saveScript = null,
         Action<string>? deleteScript = null,
-        Func<Task>? loadExamples = null
+        Func<Task>? loadExamples = null,
+        Func<IDownloadCache?>? downloadCacheFactory = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
@@ -212,6 +273,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         _saveScript = saveScript;
         _deleteScript = deleteScript;
         _loadExamples = loadExamples;
+        _downloadCacheFactory = downloadCacheFactory;
 
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;

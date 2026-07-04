@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Caching;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 using Highbyte.DotNet6502.Utils;
@@ -13,10 +14,11 @@ public class C64D64ContentLoader : IC64AutoLoadContentLoader
     public C64D64ContentLoader(
         ILoggerFactory loggerFactory,
         HttpClient httpClient,
-        string? corsProxyUrl = null)
+        string? corsProxyUrl = null,
+        IDownloadCache? downloadCache = null)
     {
         _logger = loggerFactory.CreateLogger(typeof(C64D64ContentLoader).Name);
-        _d64Downloader = new D64Downloader(loggerFactory, httpClient, corsProxyUrl);
+        _d64Downloader = new D64Downloader(loggerFactory, httpClient, corsProxyUrl, downloadCache);
     }
 
     public async Task LoadAsync(C64DownloadProgramInfo programInfo, C64 c64)

@@ -120,6 +120,7 @@
   <!-- Embedded JavaScript resources for browser interop -->
   <ItemGroup>
     <EmbeddedResource Include="BrowserScripting.js" />
+    <EmbeddedResource Include="BrowserDownloadCache.js" />
   </ItemGroup>
 
   <!-- Serve Lua example scripts as browser static assets. -->
