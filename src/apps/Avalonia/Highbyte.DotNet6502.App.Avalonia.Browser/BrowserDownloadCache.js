@@ -38,13 +38,13 @@ export async function tryGetDownloadCacheEntry(url) {
 
     return JSON.stringify({
         entry: record.entry,
-        base64: bytesToBase64(new Uint8Array(record.content))
+        base64: globalThis.dn6502Base64.bytesToBase64(new Uint8Array(record.content))
     });
 }
 
 export async function putDownloadCacheEntry(entryJson, base64) {
     const entry = JSON.parse(entryJson);
-    const content = base64ToBytes(base64);
+    const content = globalThis.dn6502Base64.base64ToBytes(base64);
     const contentCopy = content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
 
     const record = {
@@ -117,23 +117,4 @@ function requestToPromise(request) {
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed."));
     });
-}
-
-function base64ToBytes(base64) {
-    const binary = atob(base64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++)
-        bytes[i] = binary.charCodeAt(i);
-    return bytes;
-}
-
-function bytesToBase64(bytes) {
-    const chunkSize = 0x8000;
-    let binary = "";
-
-    for (let i = 0; i < bytes.length; i += chunkSize)
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-
-    return btoa(binary);
 }
