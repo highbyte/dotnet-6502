@@ -1434,7 +1434,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                    _loggerFactory,
                    _httpClient,
                    hostApp,
-                   corsProxyUrl: _avaloniaHostApp.GetCorsProxyUrl());
+                   corsProxyUrl: _avaloniaHostApp.GetCorsProxyUrl(),
+                   downloadCache: _avaloniaHostApp.GetDownloadCache());
             }
 
             await _c64AutoLoadAndRun.DownloadAndRunProgram(

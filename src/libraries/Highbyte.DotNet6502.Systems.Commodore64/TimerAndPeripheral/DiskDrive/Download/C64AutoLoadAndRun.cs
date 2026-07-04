@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Caching;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -10,18 +11,21 @@ public class C64AutoLoadAndRun
     private readonly HttpClient _httpClient;
     private readonly IHostApp _hostApp;
     private readonly string? _corsProxyUrl;
+    private readonly IDownloadCache? _downloadCache;
 
     public C64AutoLoadAndRun(
         ILoggerFactory loggerFactory,
         HttpClient httpClient,
         IHostApp hostApp,
-        string? corsProxyUrl = null)
+        string? corsProxyUrl = null,
+        IDownloadCache? downloadCache = null)
     {
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(typeof(C64AutoLoadAndRun).Name);
         _httpClient = httpClient;
         _hostApp = hostApp;
         _corsProxyUrl = corsProxyUrl;
+        _downloadCache = downloadCache;
     }
 
     public async Task DownloadAndRunProgram(
@@ -116,11 +120,13 @@ public class C64AutoLoadAndRun
             C64DownloadProgramType.D64 or C64DownloadProgramType.D64Zip => new C64D64ContentLoader(
                 _loggerFactory,
                 _httpClient,
-                _corsProxyUrl),
+                _corsProxyUrl,
+                _downloadCache),
             C64DownloadProgramType.Prg => new C64PrgContentLoader(
                 _loggerFactory,
                 _httpClient,
-                _corsProxyUrl),
+                _corsProxyUrl,
+                _downloadCache),
             _ => throw new InvalidOperationException($"Unsupported C64 download program type: {programInfo.DownloadType}."),
         };
 }

@@ -35,6 +35,20 @@ public class AppStoragePathsTest
     }
 
     [Fact]
+    public void DownloadCacheDirectory_UsesLocalAppDataCacheFolder()
+    {
+        var cacheRoot = AppStoragePaths.GetCacheRoot();
+        var downloads = AppStoragePaths.GetDownloadCacheDirectory();
+
+        Assert.EndsWith(Path.Combine(AppStoragePaths.CompanyFolderName, AppStoragePaths.AppFolderName, "cache"), cacheRoot);
+        Assert.EndsWith(Path.Combine(AppStoragePaths.CompanyFolderName, AppStoragePaths.AppFolderName, "cache", "downloads"), downloads);
+        Assert.StartsWith(cacheRoot, downloads);
+
+        // Cache is machine-local (LocalApplicationData), not under the user-facing content root (MyDocuments).
+        Assert.DoesNotContain(AppStoragePaths.GetUserContentRoot(), cacheRoot);
+    }
+
+    [Fact]
     public async Task MergeSectionAsync_CreatesFileAndMergesNestedSection()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"dotnet6502-settings-{Guid.NewGuid():N}");

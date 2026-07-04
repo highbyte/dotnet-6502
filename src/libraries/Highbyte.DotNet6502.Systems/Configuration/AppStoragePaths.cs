@@ -45,6 +45,22 @@ public static class AppStoragePaths
     public static string GetSnapshotsDirectory()
         => Path.Combine(GetUserContentRoot(), "snapshots");
 
+    /// <summary>
+    /// Root directory for regenerable, machine-local cache data. Anchored at
+    /// <see cref="Environment.SpecialFolder.LocalApplicationData"/> (not <c>MyDocuments</c>) because
+    /// cache is not user-edited content and should stay out of the user's documents / backup / sync.
+    /// Host-agnostic (no per-host segment): cached content is equally valid for any desktop host.
+    /// </summary>
+    public static string GetCacheRoot()
+        => Path.Combine(GetSpecialFolderPath(Environment.SpecialFolder.LocalApplicationData), CompanyFolderName, AppFolderName, "cache");
+
+    /// <summary>
+    /// Directory holding the read-through cache of auto-downloaded content (C64 <c>.d64</c>/<c>.prg</c>).
+    /// See <c>Highbyte.DotNet6502.Systems.Caching.FileDownloadCache</c>.
+    /// </summary>
+    public static string GetDownloadCacheDirectory()
+        => Path.Combine(GetCacheRoot(), "downloads");
+
     private static string GetSpecialFolderPath(Environment.SpecialFolder specialFolder)
     {
         var path = Environment.GetFolderPath(specialFolder);

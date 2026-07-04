@@ -21,6 +21,8 @@ using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Caching;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -168,6 +170,40 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     /// per-system shell view models can build share links without access to the internal config.
     /// </summary>
     public string? GetShareBaseUrl() => _emulatorConfig.ShareBaseUrl;
+
+    private IDownloadCache? _downloadCache;
+    private bool _downloadCacheResolved;
+
+    /// <summary>
+    /// The read-through cache for auto-downloaded C64 content (<c>.d64</c>/<c>.prg</c>), or null when
+    /// caching is unavailable. Desktop hosts get a <see cref="FileDownloadCache"/> under
+    /// <see cref="AppStoragePaths.GetDownloadCacheDirectory"/>; the browser (WASM) host returns null
+    /// for now (a filesystem cache would be non-persistent there — an IndexedDB backend is the
+    /// intended future implementation). Exposed so per-system shell view models can pass it into the
+    /// download-and-run flow without access to the internal config.
+    /// </summary>
+    public IDownloadCache? GetDownloadCache()
+    {
+        if (_downloadCacheResolved)
+            return _downloadCache;
+
+        _downloadCacheResolved = true;
+        if (!OperatingSystem.IsBrowser())
+        {
+            try
+            {
+                _downloadCache = new FileDownloadCache(AppStoragePaths.GetDownloadCacheDirectory(), _loggerFactory);
+            }
+            catch (Exception ex)
+            {
+                // Never let a cache-setup failure break the download flow; fall back to no caching.
+                _loggerFactory.CreateLogger(nameof(AvaloniaHostApp))
+                    .LogWarning(ex, "Failed to initialize the download cache; downloads will not be cached.");
+            }
+        }
+
+        return _downloadCache;
+    }
 
     // Expose InputHandlerContext for debug views
     internal AvaloniaInputHandlerContext InputHandlerContext => _inputHandlerContext;
