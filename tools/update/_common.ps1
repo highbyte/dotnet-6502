@@ -46,17 +46,17 @@ function Get-BinaryDir {
 }
 
 function Reset-UpdateSim {
-    Write-Host "Removing update simulation and restoring a plain dev build for $AppLabel..."
+    Write-Output "Removing update simulation and restoring a plain dev build for $AppLabel..."
     $binDir = Get-BinaryDir
     if ($binDir) { Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $binDir 'install-channel') }
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $FakeScoopRoot
     Remove-Item -Force -ErrorAction SilentlyContinue $CheckCache, $DismissedFile, $PendingFile, $ApplyLog
     dotnet build (Get-ProjectFile) -v quiet | Out-Null
-    Write-Host "Done. $AppLabel is back to normal (unstamped, not managed)."
+    Write-Output "Done. $AppLabel is back to normal (unstamped, not managed)."
 }
 
 function Initialize-UpdateSim {
-    Write-Host "Building $AppLabel stamped with old version v$OldVersion..."
+    Write-Output "Building $AppLabel stamped with old version v$OldVersion..."
     dotnet build (Get-ProjectFile) -p:Version=$OldVersion -v quiet | Out-Null
     if ($LASTEXITCODE -ne 0) { Write-Error "Build failed."; exit 1 }
 
@@ -110,6 +110,6 @@ function Invoke-UpdateTrigger {
     $env:SCOOP = $FakeScoopRoot
     Invoke-App $script:BinDir
 
-    Write-Host ''
-    Write-Host 'Tip: run this script with --reset to restore a normal dev build.'
+    Write-Output ''
+    Write-Output 'Tip: run this script with --reset to restore a normal dev build.'
 }

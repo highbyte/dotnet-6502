@@ -22,8 +22,8 @@ $DllName    = 'Highbyte.DotNet6502.App.Avalonia.Desktop.dll'
 
 function Invoke-App {
     param($BinDir)
-    Write-Host "Launching $AppLabel. Expect a green top banner: 'Update available: v$OldVersion -> v<latest>'."
-    Write-Host "Click the left-panel 'About' button for the version, the scoop command, and What's new."
+    Write-Output "Launching $AppLabel. Expect a green top banner: 'Update available: v$OldVersion -> v<latest>'."
+    Write-Output "Click the left-panel 'About' button for the version, the scoop command, and What's new."
     dotnet (Join-Path $BinDir $DllName) -- --console-log
 }
 

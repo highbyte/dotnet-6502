@@ -19,8 +19,8 @@ $DllName    = 'Highbyte.DotNet6502.App.RemoteClient.dll'
 
 function Invoke-App {
     param($BinDir)
-    Write-Host 'RemoteClient has no automatic check (explicit flags only). Running --check-update:'
-    Write-Host ''
+    Write-Output 'RemoteClient has no automatic check (explicit flags only). Running --check-update:'
+    Write-Output ''
     dotnet (Join-Path $BinDir $DllName) --check-update
 }
 

@@ -21,8 +21,8 @@ $DllName    = 'Highbyte.DotNet6502.App.Headless.dll'
 
 function Invoke-App {
     param($BinDir)
-    Write-Host "Launching $AppLabel as a remote server (stays alive). Watch the console for the"
-    Write-Host '  info: UpdateCheck[0] A newer version ... line. Press Ctrl+C to stop.'
+    Write-Output "Launching $AppLabel as a remote server (stays alive). Watch the console for the"
+    Write-Output '  info: UpdateCheck[0] A newer version ... line. Press Ctrl+C to stop.'
     dotnet (Join-Path $BinDir $DllName) --remote-port 6599
 }
 

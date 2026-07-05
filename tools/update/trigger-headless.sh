@@ -26,6 +26,7 @@ run_app() {
     echo "Launching ${APP_LABEL} as a remote server (stays alive). Watch the console for the"
     echo "  info: UpdateCheck[0] A newer version ... line. Press Ctrl+C to stop."
     dotnet "${bin_dir}/${DLL_NAME}" --remote-port 6599
+    return 0
 }
 
 update_main "$@"

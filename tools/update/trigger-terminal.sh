@@ -27,6 +27,7 @@ run_app() {
     echo "Launching ${APP_LABEL}. The 'update available' line appears in the in-app Logs pane after ~1s."
     echo "Open the Logs pane to see it."
     dotnet "${bin_dir}/${DLL_NAME}"
+    return 0
 }
 
 update_main "$@"

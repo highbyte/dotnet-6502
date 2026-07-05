@@ -19,8 +19,8 @@ $DllName    = 'Highbyte.DotNet6502.App.Terminal.dll'
 
 function Invoke-App {
     param($BinDir)
-    Write-Host "Launching $AppLabel. The 'update available' line appears in the in-app Logs pane after ~1s."
-    Write-Host 'Open the Logs pane to see it.'
+    Write-Output "Launching $AppLabel. The 'update available' line appears in the in-app Logs pane after ~1s."
+    Write-Output 'Open the Logs pane to see it.'
     dotnet (Join-Path $BinDir $DllName)
 }
 

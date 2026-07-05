@@ -24,6 +24,7 @@ run_app() {
     echo "RemoteClient has no automatic check (explicit flags only). Running --check-update:"
     echo
     dotnet "${bin_dir}/${DLL_NAME}" --check-update
+    return 0
 }
 
 update_main "$@"

@@ -27,6 +27,7 @@ run_app() {
     echo "Launching ${APP_LABEL}. Expect a green top banner: 'Update available: v${OLD_VERSION} -> v<latest>'."
     echo "Click the left-panel 'About' button for the version, the brew command, and What's new."
     dotnet "${bin_dir}/${DLL_NAME}" -- --console-log
+    return 0
 }
 
 update_main "$@"

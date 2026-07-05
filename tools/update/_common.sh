@@ -91,7 +91,9 @@ FAKEBREW
 }
 
 update_main() {
-    case "${1:-}" in
+    local mode="${1:-}"
+
+    case "$mode" in
         --reset)
             update_reset
             exit 0
@@ -111,7 +113,7 @@ update_main() {
         "")
             ;;
         *)
-            echo "Unknown option: $1" >&2
+            echo "Unknown option: $mode" >&2
             echo "Usage: $0 [--relaunch | --reset]" >&2
             exit 2
             ;;
