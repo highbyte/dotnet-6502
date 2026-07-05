@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -147,16 +148,40 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
         }
     }
 
-    // How to relaunch the Avalonia GUI after the upgrade. macOS: `open -a "<AppName>"` (robust across
-    // the cask replacing the bundle). Windows/Linux: relaunch the current executable — the Scoop
-    // `current` junction / brew shim path stays valid after the update.
+    // How to relaunch the Avalonia GUI after the upgrade. If the app was started as
+    // `dotnet <app>.dll` (the local dev/update-trigger flow), reconstruct that exact launch on every
+    // OS. Otherwise macOS uses `open -a "<AppName>"` (robust across the cask replacing the bundle),
+    // while Windows/Linux relaunch the current executable — the Scoop `current` junction / brew shim
+    // path stays valid after the update.
     private static RelaunchSpec BuildRelaunchSpec()
     {
+        var processPath = Environment.ProcessPath ?? string.Empty;
+        var commandLineArgs = Environment.GetCommandLineArgs();
+
+        if (IsDotNetHost(processPath) && commandLineArgs.Length > 0)
+        {
+            var relaunchArgs = new List<string>(commandLineArgs.Length);
+            relaunchArgs.AddRange(commandLineArgs);
+            return new RelaunchSpec(processPath, relaunchArgs);
+        }
+
         if (OperatingSystem.IsMacOS())
             return new RelaunchSpec("/usr/bin/open", new[] { "-a", "DotNet 6502 Emulator" });
 
-        var exePath = Environment.ProcessPath ?? "";
-        return new RelaunchSpec(exePath, Array.Empty<string>());
+        var appArgs = commandLineArgs.Length > 1
+            ? commandLineArgs[1..]
+            : Array.Empty<string>();
+        return new RelaunchSpec(processPath, appArgs);
+    }
+
+    private static bool IsDotNetHost(string processPath)
+    {
+        if (string.IsNullOrWhiteSpace(processPath))
+            return false;
+
+        var fileName = Path.GetFileName(processPath);
+        return string.Equals(fileName, "dotnet", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, "dotnet.exe", StringComparison.OrdinalIgnoreCase);
     }
 
     public void DismissVersion(string versionDisplay)
