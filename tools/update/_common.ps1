@@ -33,6 +33,32 @@ $DismissedFile = Join-Path $UpdatesDir 'dismissed-version.txt'
 $PendingFile   = Join-Path $UpdatesDir 'pending-update.txt'
 $ApplyLog      = Join-Path $UpdatesDir 'last-update.log'
 
+function Test-IsFakeScoopRoot {
+    param([string]$Path)
+
+    if (-not $Path) { return $false }
+
+    return [System.IO.Path]::GetFullPath($Path).TrimEnd('\') -ieq [System.IO.Path]::GetFullPath($FakeScoopRoot).TrimEnd('\')
+}
+
+function Invoke-WithFakeScoop {
+    param([scriptblock]$Action)
+
+    $previousScoop = $env:SCOOP
+    try {
+        $env:SCOOP = $FakeScoopRoot
+        & $Action
+    }
+    finally {
+        if ([string]::IsNullOrEmpty($previousScoop)) {
+            Remove-Item Env:SCOOP -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:SCOOP = $previousScoop
+        }
+    }
+}
+
 function Get-ProjectFile {
     Get-ChildItem -Path $ProjectDir -Filter '*.csproj' | Select-Object -First 1 -ExpandProperty FullName
 }
@@ -50,6 +76,9 @@ function Reset-UpdateSim {
     $binDir = Get-BinaryDir
     if ($binDir) { Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $binDir 'install-channel') }
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $FakeScoopRoot
+    if (Test-IsFakeScoopRoot $env:SCOOP) {
+        Remove-Item Env:SCOOP -ErrorAction SilentlyContinue
+    }
     Remove-Item -Force -ErrorAction SilentlyContinue $CheckCache, $DismissedFile, $PendingFile, $ApplyLog
     dotnet build (Get-ProjectFile) -v quiet | Out-Null
     Write-Output "Done. $AppLabel is back to normal (unstamped, not managed)."
@@ -99,16 +128,14 @@ function Invoke-UpdateTrigger {
             (-not (Test-Path (Join-Path $FakeScoopRoot 'shims\scoop.ps1')))) {
             Write-Error "Nothing set up yet - run without --relaunch first."; exit 1
         }
-        $env:SCOOP = $FakeScoopRoot
-        Invoke-App $script:BinDir
+        Invoke-WithFakeScoop { Invoke-App $script:BinDir }
         return
     }
 
     if ($Mode) { Write-Error "Unknown option: $Mode`nUsage: <script> [--relaunch | --reset]"; exit 2 }
 
     Initialize-UpdateSim
-    $env:SCOOP = $FakeScoopRoot
-    Invoke-App $script:BinDir
+    Invoke-WithFakeScoop { Invoke-App $script:BinDir }
 
     Write-Output ''
     Write-Output 'Tip: run this script with --reset to restore a normal dev build.'

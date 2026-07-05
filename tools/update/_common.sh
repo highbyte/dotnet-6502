@@ -38,6 +38,24 @@ DISMISSED_FILE="$UPDATES_DIR/dismissed-version.txt"
 PENDING_FILE="$UPDATES_DIR/pending-update.txt"
 APPLY_LOG="$UPDATES_DIR/last-update.log"
 
+is_fakebrew_root() {
+    [[ -n "${1:-}" && "$1" == "$FAKEBREW_ROOT" ]]
+}
+
+run_with_fakebrew() {
+    local had_homebrew_prefix="${HOMEBREW_PREFIX+set}"
+    local previous_homebrew_prefix="${HOMEBREW_PREFIX:-}"
+
+    export HOMEBREW_PREFIX="$FAKEBREW_ROOT"
+    "$@"
+
+    if [[ -n "$had_homebrew_prefix" ]]; then
+        export HOMEBREW_PREFIX="$previous_homebrew_prefix"
+    else
+        unset HOMEBREW_PREFIX
+    fi
+}
+
 _project_file() { ls "$PROJECT_DIR"/*.csproj 2>/dev/null | head -1; }
 
 _find_binary_dir() {
@@ -51,6 +69,9 @@ update_reset() {
     bin_dir="$(_find_binary_dir || true)"
     [[ -n "${bin_dir:-}" ]] && rm -f "${bin_dir}/install-channel"
     rm -rf "$FAKEBREW_ROOT"
+    if is_fakebrew_root "${HOMEBREW_PREFIX:-}"; then
+        unset HOMEBREW_PREFIX
+    fi
     rm -f "$CHECK_CACHE" "$DISMISSED_FILE" "$PENDING_FILE" "$APPLY_LOG"
     dotnet build "$(_project_file)" -v quiet >/dev/null
     echo "Done. ${APP_LABEL} is back to normal (unstamped, not managed)."
@@ -106,8 +127,7 @@ update_main() {
                 echo "Nothing set up yet - run without --relaunch first." >&2
                 exit 1
             fi
-            export HOMEBREW_PREFIX="$FAKEBREW_ROOT"
-            run_app "$BIN_DIR"
+            run_with_fakebrew run_app "$BIN_DIR"
             exit 0
             ;;
         "")
@@ -120,8 +140,7 @@ update_main() {
     esac
 
     update_setup
-    export HOMEBREW_PREFIX="$FAKEBREW_ROOT"
-    run_app "$BIN_DIR"
+    run_with_fakebrew run_app "$BIN_DIR"
 
     echo
     echo "Tip: run '$0 --reset' to restore a normal dev build."
