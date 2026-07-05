@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Highbyte.DotNet6502.Systems.Vic20.Config;
 using Highbyte.DotNet6502.Systems.Vic20;
 using Highbyte.DotNet6502.Systems.Vic20.Render;
@@ -51,6 +52,49 @@ public class Vic20SystemConfigTests
 
         Assert.Equal(renderProviderType, hostConfig.SystemConfig.RenderProviderType);
         Assert.Equal(renderTargetType, hostConfig.SystemConfig.RenderTargetType);
+    }
+
+    [Fact]
+    public void Serialize_Persists_Type_Names_Without_Assembly_Version_Metadata()
+    {
+        var config = new Vic20SystemConfig();
+        config.SetRenderProviderType(typeof(Vic20VideoCommandStream));
+        config.SetRenderTargetType(typeof(TestRenderTarget));
+
+        var json = JsonSerializer.Serialize(config);
+
+        AssertPersistedType(json, "RenderProviderType", typeof(Vic20VideoCommandStream));
+        AssertPersistedType(json, "RenderTargetType", typeof(TestRenderTarget));
+        Assert.DoesNotContain("Version=", json);
+        Assert.DoesNotContain("Culture=", json);
+        Assert.DoesNotContain("PublicKeyToken=", json);
+    }
+
+    [Fact]
+    public void Deserialize_Accepts_Legacy_Assembly_Qualified_Type_Names()
+    {
+        var json = $$"""
+            {
+              "RenderProviderType": "{{LegacyAssemblyQualifiedName(typeof(Vic20VideoCommandStream))}}",
+              "RenderTargetType": "{{LegacyAssemblyQualifiedName(typeof(TestRenderTarget))}}"
+            }
+            """;
+
+        var config = JsonSerializer.Deserialize<Vic20SystemConfig>(json)!;
+
+        Assert.Equal(typeof(Vic20VideoCommandStream), config.RenderProviderType);
+        Assert.Equal(typeof(TestRenderTarget), config.RenderTargetType);
+    }
+
+    private static string LegacyAssemblyQualifiedName(Type type)
+        => $"{type.FullName}, {type.Assembly.GetName().Name}, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null";
+
+    private static void AssertPersistedType(string json, string propertyName, Type expectedType)
+    {
+        using var document = JsonDocument.Parse(json);
+        var actual = document.RootElement.GetProperty(propertyName).GetString();
+
+        Assert.Equal($"{expectedType.FullName}, {expectedType.Assembly.GetName().Name}", actual);
     }
 
     private sealed class TestVic20HostConfig : HostSystemConfigBase<Vic20SystemConfig>
