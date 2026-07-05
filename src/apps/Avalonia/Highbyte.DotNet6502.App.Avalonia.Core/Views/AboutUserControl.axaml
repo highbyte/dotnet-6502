@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.AboutUserControl"
+        x:DataType="vm:AboutViewModel"
+        AutomationProperties.AutomationId="AboutDialog"
+        AutomationProperties.Name="About and updates"
+        Width="480"
+        MinWidth="360">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="16">
+
+        <!-- Title header -->
+        <Border Grid.Row="0" CornerRadius="4" Classes="panel-container" Margin="0,0,0,12">
+            <TextBlock Text="DotNet 6502 Emulator" Classes="h-center h2"/>
+        </Border>
+
+        <!-- Current version -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <TextBlock Text="Version:" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding CurrentVersionDisplay}" Classes="monospace" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Update status line -->
+        <TextBlock Grid.Row="2"
+                   Text="{Binding StatusText}"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,8"/>
+
+        <!-- Indeterminate progress while checking -->
+        <ProgressBar Grid.Row="3"
+                     IsIndeterminate="True"
+                     IsVisible="{Binding IsChecking}"
+                     Height="4"
+                     Margin="0,0,0,8"/>
+
+        <!-- Suggested upgrade command (managed + update available) -->
+        <Grid Grid.Row="4"
+              ColumnDefinitions="*,Auto"
+              IsVisible="{Binding HasSuggestedCommand}"
+              Margin="0,0,0,12">
+            <TextBox Grid.Column="0"
+                     Text="{Binding SuggestedCommand}"
+                     Classes="monospace"
+                     IsReadOnly="True"
+                     VerticalAlignment="Center"/>
+            <Button Grid.Column="1"
+                    x:Name="CopyCommandButton"
+                    Content="Copy"
+                    Margin="8,0,0,0"
+                    Click="OnCopyCommandClick"/>
+        </Grid>
+
+        <!-- Action buttons: secondary "What's new" link on the left; dismiss + the positive primary
+             action ("Update now", rightmost, green) on the right. Close stays the Enter-default so an
+             accidental Enter can't trigger the quit-and-relaunch update. -->
+        <Grid Grid.Row="5" ColumnDefinitions="*,Auto">
+            <Button Grid.Column="0"
+                    x:Name="ReleaseNotesButton"
+                    Content="What's new"
+                    HorizontalAlignment="Left"
+                    Classes="text"
+                    IsVisible="{Binding HasReleaseNotes}"
+                    Click="OnReleaseNotesClick"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Content="Close"
+                        IsDefault="True"
+                        Command="{Binding CloseCommand}"/>
+                <Button Content="Update now"
+                        AutomationProperties.AutomationId="UpdateNowButton"
+                        Classes="primary"
+                        IsVisible="{Binding CanUpdateNow}"
+                        Command="{Binding UpdateNowCommand}"
+                        ToolTip.Tip="Quits the app, runs the package-manager upgrade, and reopens it."/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

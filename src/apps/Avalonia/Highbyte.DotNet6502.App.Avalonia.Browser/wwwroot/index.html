@@ -37,10 +37,12 @@ function checkForUpdates() {
 function showUpdateNotification() {
     const notification = document.createElement('div');
     notification.id = 'update-notification';
+    // Update-notice green (Material Green 800). Kept in sync with the Avalonia desktop app's update
+    // banner (Core/Views/MainWindow.axaml) so both surfaces match; deep enough for readable white text.
     notification.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; right: 0; background: #4CAF50; color: white; padding: 12px; text-align: center; z-index: 10000; font-family: Arial, sans-serif;">
+        <div style="position: fixed; top: 0; left: 0; right: 0; background: #2E7D32; color: white; padding: 12px; text-align: center; z-index: 10000; font-family: Arial, sans-serif;">
             <span>🔄 A new version is available! </span>
-            <button onclick="forceRefresh()" style="margin-left: 10px; padding: 4px 12px; background: white; color: #4CAF50; border: none; border-radius: 4px; cursor: pointer;">
+            <button onclick="forceRefresh()" style="margin-left: 10px; padding: 4px 12px; background: white; color: #2E7D32; border: none; border-radius: 4px; cursor: pointer;">
                 Update Now
             </button>
             <button onclick="dismissUpdate()" style="margin-left: 8px; padding: 4px 8px; background: transparent; color: white; border: 1px solid white; border-radius: 4px; cursor: pointer;">

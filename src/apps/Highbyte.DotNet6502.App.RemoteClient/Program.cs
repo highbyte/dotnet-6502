@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Highbyte.DotNet6502.App.RemoteClient;
+using Highbyte.DotNet6502.Updates;
 
 // Remote client for the DotNet 6502 emulator TCP remote control server.
 // Usage: dotnet-6502-remote [--port <port>] [--host <host>] <command> [params...]
@@ -47,6 +48,15 @@ var commands = new[]
     ("screenshot",    "[--output <file.png>]",      "Capture screenshot (Base64 PNG or saved to file)"),
     ("ui.message",    "--text <string> [--level info|warning|error]", "Display message in emulator UI"),
 };
+
+// Update check: explicit flags (--version / --check-update / --update) only, to stdout. RemoteClient
+// is a request/response automation tool whose stdout is the server response, so it does NO automatic
+// startup check/notice and adds no logging that could interfere with scripted consumers.
+if (ConsoleUpdateCli.WantsHandling(args))
+    return await ConsoleUpdateCli.RunAsync(
+        args,
+        new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-remote", ScoopPackage = "dotnet-6502-remote" },
+        Console.Out);
 
 if (args.Contains("--help") || args.Contains("-h") || args.Length == 0)
 {

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
@@ -26,26 +25,26 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
     public Type? RenderProviderType { get; private set; }
 
     /// <summary>
-    /// Serializable version of RenderProviderType as assembly qualified name
+    /// Serializable version of RenderProviderType as simple assembly-qualified name.
     /// </summary>
     [JsonPropertyName("RenderProviderType")]
     public string? RenderProviderTypeName
     {
-        get => RenderProviderType?.AssemblyQualifiedName;
-        set => SetRenderProviderType(ResolveConfiguredType(value));
+        get => ConfiguredTypeName.Format(RenderProviderType);
+        set => SetRenderProviderType(ConfiguredTypeName.Resolve(value));
     }
 
     [JsonIgnore]
     public Type? RenderTargetType { get; private set; }
 
     /// <summary>
-    /// Serializable version of RenderTargetType as assembly qualified name
+    /// Serializable version of RenderTargetType as simple assembly-qualified name.
     /// </summary>
     [JsonPropertyName("RenderTargetType")]
     public string? RenderTargetTypeTypeName
     {
-        get => RenderTargetType?.AssemblyQualifiedName;
-        set => SetRenderTargetType(ResolveConfiguredType(value));
+        get => ConfiguredTypeName.Format(RenderTargetType);
+        set => SetRenderTargetType(ConfiguredTypeName.Resolve(value));
     }
 
 
@@ -94,31 +93,27 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
     public Type? AudioProviderType { get; private set; }
 
     /// <summary>
-    /// Serializable version of AudioProviderType as assembly qualified name.
+    /// Serializable version of AudioProviderType as simple assembly-qualified name.
     /// </summary>
     [JsonPropertyName("AudioProviderType")]
     public string? AudioProviderTypeName
     {
-        get => AudioProviderType?.AssemblyQualifiedName;
-        set => SetAudioProviderType(ResolveConfiguredType(value));
+        get => ConfiguredTypeName.Format(AudioProviderType);
+        set => SetAudioProviderType(ConfiguredTypeName.Resolve(value));
     }
 
     [JsonIgnore]
     public Type? AudioTargetType { get; private set; }
 
     /// <summary>
-    /// Serializable version of AudioTargetType as assembly qualified name.
+    /// Serializable version of AudioTargetType as simple assembly-qualified name.
     /// </summary>
     [JsonPropertyName("AudioTargetType")]
     public string? AudioTargetTypeName
     {
-        get => AudioTargetType?.AssemblyQualifiedName;
-        set => SetAudioTargetType(ResolveConfiguredType(value));
+        get => ConfiguredTypeName.Format(AudioTargetType);
+        set => SetAudioTargetType(ConfiguredTypeName.Resolve(value));
     }
-
-    [UnconditionalSuppressMessage("Trimming", "IL2057", Justification = "Configured type names are persisted application types and are immediately validated by the receiving setters.")]
-    private static Type? ResolveConfiguredType(string? typeName)
-        => string.IsNullOrWhiteSpace(typeName) ? null : Type.GetType(typeName);
 
     public List<Type> GetSupportedAudioProviderTypes()
     {

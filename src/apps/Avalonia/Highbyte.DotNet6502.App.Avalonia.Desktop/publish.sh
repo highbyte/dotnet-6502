@@ -68,6 +68,14 @@ if [[ "$INCLUDE_PDB" == false ]]; then
     PUBLISH_ARGS+=(-p:DebugType=None -p:DebugSymbols=false)
 fi
 
+# Stamp the release version if provided (set by CI from the git tag, e.g. "0.40.2-alpha").
+# Locally this is unset, so the app keeps its default 1.0.0 which the update checker
+# treats as "unknown -> skip update check" (dev builds never nag).
+if [[ -n "$RELEASE_VERSION" ]]; then
+    echo "  Version: $RELEASE_VERSION"
+    PUBLISH_ARGS+=(-p:Version="$RELEASE_VERSION")
+fi
+
 # Run dotnet publish
 dotnet publish "${PUBLISH_ARGS[@]}"
 

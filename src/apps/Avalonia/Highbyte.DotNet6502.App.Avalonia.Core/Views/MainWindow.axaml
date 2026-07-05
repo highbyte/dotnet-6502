@@ -19,6 +19,35 @@
         <vm:MainViewModel/>
     </Design.DataContext>
 
-    <!-- MainView will inherit DataContext from Window -->
-    <views:MainView />
+    <DockPanel LastChildFill="True">
+        <!-- Dismissible top banner: green "update available" (Material Green 800, kept in sync with the
+             Avalonia Browser banner in wwwroot/index.html), or amber "update didn't complete" after a
+             failed one-click update. The background brush is chosen in UpdateBannerViewModel. Hidden
+             otherwise (desktop only; UpdateBanner is inert in the browser host). -->
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding UpdateBanner.IsVisible}"
+                Background="{Binding UpdateBanner.Background}"
+                Padding="10,6">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding UpdateBanner.Message}"
+                           Foreground="White"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"/>
+                <Button Grid.Column="1"
+                        Content="Details"
+                        AutomationProperties.AutomationId="UpdateBannerDetailsButton"
+                        Margin="8,0,0,0"
+                        Command="{Binding UpdateBanner.ShowDetailsCommand}"/>
+                <Button Grid.Column="2"
+                        Content="Dismiss"
+                        AutomationProperties.AutomationId="UpdateBannerDismissButton"
+                        Margin="8,0,0,0"
+                        Command="{Binding UpdateBanner.DismissCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- MainView will inherit DataContext from Window -->
+        <views:MainView />
+    </DockPanel>
 </Window>

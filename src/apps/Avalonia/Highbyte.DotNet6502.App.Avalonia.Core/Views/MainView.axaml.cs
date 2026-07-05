@@ -129,6 +129,7 @@ public partial class MainView : UserControl
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _subscribedViewModel.EmulatorOptionsRequested -= OnEmulatorOptionsRequested;
+            _subscribedViewModel.AboutRequested -= OnAboutRequested;
         }
 
         // Subscribe to new ViewModel's property changes
@@ -137,6 +138,7 @@ public partial class MainView : UserControl
         {
             _subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
             _subscribedViewModel.EmulatorOptionsRequested += OnEmulatorOptionsRequested;
+            _subscribedViewModel.AboutRequested += OnAboutRequested;
             _subscribedViewModel.RequestAddScript += OnRequestAddScript;
             _subscribedViewModel.RequestEditScript += OnRequestEditScript;
             _subscribedViewModel.RequestDeleteScript += OnRequestDeleteScript;
@@ -281,7 +283,9 @@ public partial class MainView : UserControl
 
     private void MainView_Loaded(object? sender, RoutedEventArgs e)
     {
-        // Initialization complete
+        // Kick off the non-blocking startup update check (a no-op in the browser host).
+        if (_subscribedViewModel != null)
+            SafeAsyncHelper.Execute(_subscribedViewModel.CheckForUpdatesOnStartupAsync);
     }
 
     // ComboBox SelectionChanged handlers - invoke commands
@@ -468,6 +472,7 @@ public partial class MainView : UserControl
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _subscribedViewModel.EmulatorOptionsRequested -= OnEmulatorOptionsRequested;
+            _subscribedViewModel.AboutRequested -= OnAboutRequested;
             _subscribedViewModel.RequestAddScript -= OnRequestAddScript;
             _subscribedViewModel.RequestEditScript -= OnRequestEditScript;
             _subscribedViewModel.RequestDeleteScript -= OnRequestDeleteScript;
@@ -895,6 +900,38 @@ public partial class MainView : UserControl
 
     private void OnEmulatorOptionsRequested(object? sender, EventArgs e)
         => SafeAsyncHelper.Execute(EmulatorOptionsUserControlOverlayAsync);
+
+    private void OnAboutRequested(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(ShowAboutOverlayAsync);
+
+    private async Task ShowAboutOverlayAsync()
+    {
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+            return;
+
+        var updateService = serviceProvider.GetRequiredService<Services.IAppUpdateService>();
+        var aboutControl = new AboutUserControl
+        {
+            DataContext = new AboutViewModel(updateService),
+        };
+
+        var tcs = new TaskCompletionSource<bool>();
+        aboutControl.DialogClosed += (_, _) => tcs.TrySetResult(true);
+
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(aboutControl);
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
+
+        try
+        {
+            await tcs.Task;
+        }
+        finally
+        {
+            mainGrid.Children.Remove(overlayPanel);
+        }
+    }
 
     private void OnRequestAddScript(object? sender, EventArgs e)
         => SafeAsyncHelper.Execute(ShowAddScriptDialogAsync);

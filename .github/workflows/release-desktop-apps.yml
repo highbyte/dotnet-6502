@@ -33,6 +33,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Stamp the release version (tag without leading "v", e.g. "0.40.2-alpha") into the
+      # published app assemblies so the in-app update checker can compare against GitHub
+      # releases. Only set on the `release` trigger; for `workflow_dispatch` it stays empty,
+      # so publish.sh leaves the default 1.0.0 (treated as "unknown -> skip update check").
+      - name: Determine release version
+        if: github.event_name == 'release'
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
+
       - name: Publish SilkNetNative App
         run: |
           chmod u+x src/apps/SilkNetNative/Highbyte.DotNet6502.App.SilkNetNative/publish.sh

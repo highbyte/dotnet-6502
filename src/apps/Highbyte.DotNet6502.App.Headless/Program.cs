@@ -11,6 +11,17 @@ using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Updates;
+
+// ----------
+// Update check CLI flags (--version / --check-update / --update). Handled before any startup work.
+// Headless also performs a gated non-blocking startup check after logging is configured.
+// ----------
+if (ConsoleUpdateCli.WantsHandling(args))
+    return await ConsoleUpdateCli.RunAsync(
+        args,
+        new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-headless", ScoopPackage = "dotnet-6502-headless" },
+        Console.Out);
 
 // ----------
 // Parse command line arguments
@@ -87,6 +98,14 @@ var loggerFactory = LoggerFactory.Create(logBuilder =>
 });
 
 var logger = loggerFactory.CreateLogger(nameof(Program));
+
+// Non-blocking startup update check (Headless logs to console). Gated by the UpdateCheckEnabled
+// setting and the standard CI / DOTNET6502_NO_UPDATE_CHECK suppressors, so scripted/CI runs make no
+// network call. Uses the config built above.
+_ = ConsoleUpdateCli.CheckAndLogOnStartupAsync(
+    new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-headless", ScoopPackage = "dotnet-6502-headless" },
+    loggerFactory.CreateLogger("UpdateCheck"),
+    configuration.GetValue("UpdateCheckEnabled", true));
 
 // ----------
 // Get emulator host config
