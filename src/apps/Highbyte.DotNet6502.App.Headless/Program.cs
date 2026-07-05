@@ -15,7 +15,7 @@ using Highbyte.DotNet6502.Updates;
 
 // ----------
 // Update check CLI flags (--version / --check-update / --update). Handled before any startup work.
-// Headless is opt-in only: no automatic startup notice, just these explicit flags.
+// Headless also performs a gated non-blocking startup check after logging is configured.
 // ----------
 if (ConsoleUpdateCli.WantsHandling(args))
     return await ConsoleUpdateCli.RunAsync(
