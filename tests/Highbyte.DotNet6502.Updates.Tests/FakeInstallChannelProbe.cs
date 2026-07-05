@@ -20,9 +20,18 @@ internal sealed class FakeInstallChannelProbe : IInstallChannelProbe
     public string? GetEnvironmentVariable(string name)
         => EnvironmentVariables.TryGetValue(name, out var v) ? v : null;
 
-    public bool DirectoryExists(string path) => Directories.Contains(path);
+    public bool DirectoryExists(string path)
+        => Directories.Contains(path)
+           || Directories.Any(x => PathEquals(x, path));
 
-    public string? ReadFileFirstLine(string path) => Files.TryGetValue(path, out var v) ? v : null;
+    public string? ReadFileFirstLine(string path)
+    {
+        if (Files.TryGetValue(path, out var value))
+            return value;
+
+        var matchingPath = Files.Keys.FirstOrDefault(x => PathEquals(x, path));
+        return matchingPath is null ? null : Files[matchingPath];
+    }
 
     public string? ResolveExecutable(string command, IEnumerable<string> preferredDirectories)
         => ResolvableExecutables.TryGetValue(command, out var path) ? path : null;
@@ -32,4 +41,10 @@ internal sealed class FakeInstallChannelProbe : IInstallChannelProbe
         var key = executablePath + " " + string.Join(' ', arguments);
         return CommandResults.TryGetValue(key, out var result) ? result : null;
     }
+
+    private static bool PathEquals(string left, string right)
+        => string.Equals(NormalizePath(left), NormalizePath(right), StringComparison.Ordinal);
+
+    private static string NormalizePath(string path)
+        => path.Replace('\\', '/');
 }
