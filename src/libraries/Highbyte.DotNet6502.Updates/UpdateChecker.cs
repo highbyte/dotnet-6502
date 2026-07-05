@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Highbyte.DotNet6502.Updates;
 
 /// <summary>
@@ -6,6 +9,10 @@ namespace Highbyte.DotNet6502.Updates;
 /// caching the result. Returns a fully-formed <see cref="UpdateCheckResult"/> including the exact
 /// <c>brew</c>/<c>scoop</c> command to run — never throws for the expected failure modes
 /// (offline, rate-limited, not-managed, unstamped).
+///
+/// When an update is available it also logs one <see cref="LogLevel.Information"/> line via the
+/// supplied <see cref="ILogger"/>. This is the single shared log point so every host emits the same
+/// message; only where those logs are routed (in-app Logs pane, console, ...) differs per host.
 /// </summary>
 public sealed class UpdateChecker
 {
@@ -15,10 +22,11 @@ public sealed class UpdateChecker
     private readonly UpdateCheckCache _cache;
     private readonly Func<SemanticVersion?> _currentVersionProvider;
     private readonly Func<DateTimeOffset> _utcNow;
+    private readonly ILogger _logger;
 
     /// <summary>Convenience factory wiring the production GitHub release source over the given <see cref="HttpClient"/>.</summary>
-    public static UpdateChecker CreateDefault(AppUpdateDescriptor descriptor, HttpClient httpClient)
-        => new(descriptor, new GitHubReleaseClient(httpClient));
+    public static UpdateChecker CreateDefault(AppUpdateDescriptor descriptor, HttpClient httpClient, ILogger? logger = null)
+        => new(descriptor, new GitHubReleaseClient(httpClient), logger: logger);
 
     public UpdateChecker(
         AppUpdateDescriptor descriptor,
@@ -26,7 +34,8 @@ public sealed class UpdateChecker
         InstallChannelDetector? channelDetector = null,
         UpdateCheckCache? cache = null,
         Func<SemanticVersion?>? currentVersionProvider = null,
-        Func<DateTimeOffset>? utcNow = null)
+        Func<DateTimeOffset>? utcNow = null,
+        ILogger? logger = null)
     {
         _descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
         _releaseSource = releaseSource ?? throw new ArgumentNullException(nameof(releaseSource));
@@ -34,6 +43,7 @@ public sealed class UpdateChecker
         _cache = cache ?? new UpdateCheckCache();
         _currentVersionProvider = currentVersionProvider ?? (() => AppVersion.GetCurrent());
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
+        _logger = logger ?? NullLogger.Instance;
     }
 
     public async Task<UpdateCheckResult> CheckAsync(UpdateCheckContext? context = null, CancellationToken cancellationToken = default)
@@ -120,6 +130,12 @@ public sealed class UpdateChecker
     private UpdateCheckResult BuildResult(SemanticVersion current, SemanticVersion latest, string? releaseUrl, InstallChannelInfo channelInfo)
     {
         var updateAvailable = latest > current;
+        if (updateAvailable)
+        {
+            _logger.LogInformation(
+                "A newer version v{LatestVersion} is available (you have v{CurrentVersion}). Run '{UpgradeCommand}' to update.",
+                latest, current, BuildUpgradeCommand(channelInfo.Channel));
+        }
         return new UpdateCheckResult
         {
             Status = updateAvailable ? UpdateCheckStatus.UpdateAvailable : UpdateCheckStatus.UpToDate,

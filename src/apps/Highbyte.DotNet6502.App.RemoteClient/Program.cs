@@ -49,13 +49,14 @@ var commands = new[]
     ("ui.message",    "--text <string> [--level info|warning|error]", "Display message in emulator UI"),
 };
 
-// Update check: explicit flags (--version / --check-update / --update) short-circuit to stdout;
-// otherwise a quiet, gated one-line "update available" notice goes to stderr so it never pollutes
-// the machine-readable command output on stdout.
-var updateDescriptor = new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-remote", ScoopPackage = "dotnet-6502-remote" };
+// Update check: explicit flags (--version / --check-update / --update) only, to stdout. RemoteClient
+// is a request/response automation tool whose stdout is the server response, so it does NO automatic
+// startup check/notice and adds no logging that could interfere with scripted consumers.
 if (ConsoleUpdateCli.WantsHandling(args))
-    return await ConsoleUpdateCli.RunAsync(args, updateDescriptor, Console.Out);
-await ConsoleUpdateCli.NotifyOnStartupAsync(updateDescriptor, Console.Error);
+    return await ConsoleUpdateCli.RunAsync(
+        args,
+        new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-remote", ScoopPackage = "dotnet-6502-remote" },
+        Console.Out);
 
 if (args.Contains("--help") || args.Contains("-h") || args.Length == 0)
 {

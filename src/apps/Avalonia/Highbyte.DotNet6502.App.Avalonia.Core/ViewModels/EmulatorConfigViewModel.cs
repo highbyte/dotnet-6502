@@ -37,6 +37,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private bool _allowUrlScripts;
     private string _corsProxyUrl;
     private bool _downloadCacheEnabled;
+    private bool _updateCheckEnabled;
 
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
@@ -70,6 +71,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
         _corsProxyUrl = _emulatorConfig.CorsProxyUrl;
         _downloadCacheEnabled = _emulatorConfig.DownloadCacheEnabled;
+        _updateCheckEnabled = _emulatorConfig.UpdateCheckEnabled;
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -338,6 +340,23 @@ public class EmulatorConfigViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Enables the automatic startup check for a newer released version (brew/scoop installs only).
+    /// Also suppressed by the <c>CI</c> env var or <c>DOTNET6502_NO_UPDATE_CHECK</c>; the About
+    /// dialog's "Check now" button always checks regardless.
+    /// </summary>
+    public bool UpdateCheckEnabled
+    {
+        get => _updateCheckEnabled;
+        set
+        {
+            if (_updateCheckEnabled == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _updateCheckEnabled, value);
+        }
+    }
+
     private void UpdateValidation()
     {
         _validationErrors.Clear();
@@ -372,6 +391,7 @@ public class EmulatorConfigViewModel : ViewModelBase
         AllowUrlScripts = false;
         CorsProxyUrl = defaults.CorsProxyUrl;
         DownloadCacheEnabled = defaults.DownloadCacheEnabled;
+        UpdateCheckEnabled = defaults.UpdateCheckEnabled;
 
         UpdateValidation();
         StatusMessage = "Settings reset to defaults. Click Save to apply.";
@@ -431,6 +451,7 @@ public class EmulatorConfigViewModel : ViewModelBase
                 _emulatorConfig.SnapshotDirectory = _snapshotDirectory;
             _emulatorConfig.CorsProxyUrl = _corsProxyUrl;
             _emulatorConfig.DownloadCacheEnabled = _downloadCacheEnabled;
+            _emulatorConfig.UpdateCheckEnabled = _updateCheckEnabled;
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
             await _hostApp.PersistEmulatorConfigAsync();

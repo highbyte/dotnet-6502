@@ -63,6 +63,14 @@ using var loggerFactory = LoggerFactory.Create(logBuilder =>
 
 var bootstrapLogger = loggerFactory.CreateLogger("Program");
 
+// Non-blocking startup update check. On a managed (brew/scoop) install with a newer release it logs
+// one Information line to the in-mem store shown in the "Logs" pane. Gated by the UpdateCheckEnabled
+// setting and the standard CI / DOTNET6502_NO_UPDATE_CHECK suppressors.
+_ = ConsoleUpdateCli.CheckAndLogOnStartupAsync(
+    new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-terminal", ScoopPackage = "dotnet-6502-terminal" },
+    loggerFactory.CreateLogger("UpdateCheck"),
+    configuration.GetValue("UpdateCheckEnabled", true));
+
 try
 {
     // ----------

@@ -956,7 +956,8 @@ internal sealed partial class Program
                 remoteControlController: remoteControlController,
                 scriptingEngine: scriptingEngine,
                 loadExamples: loadExamples,
-                automatedStartupRunner: automatedStartupRunner))
+                automatedStartupRunner: automatedStartupRunner,
+                appUpdateService: new DesktopAppUpdateService(loggerFactory, emulatorConfig)))
             .UsePlatformDetect()
             .LogToTrace()
             .AfterSetup(_ =>
@@ -1065,15 +1066,9 @@ internal sealed partial class Program
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             AttachConsole(AttachParentProcess);
 
-        var descriptor = new AppUpdateDescriptor
-        {
-            HomebrewPackage = "dotnet-6502",
-            HomebrewIsCask = OperatingSystem.IsMacOS(),
-            ScoopPackage = "dotnet-6502",
-        };
         // Blocking is safe: this is the process entry point, before any UI/synchronization context exists.
 #pragma warning disable VSTHRD002
-        return ConsoleUpdateCli.RunAsync(args, descriptor, Console.Out).GetAwaiter().GetResult();
+        return ConsoleUpdateCli.RunAsync(args, DesktopAppUpdateService.CreateDescriptor(), Console.Out).GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
     }
 

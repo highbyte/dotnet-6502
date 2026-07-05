@@ -77,6 +77,13 @@ public class EmulatorConfig
     public bool DownloadCacheEnabled { get; set; } = true;
 
     /// <summary>
+    /// Enables the automatic startup check for a newer released version (brew/scoop installs only).
+    /// Also suppressed by the <c>CI</c> env var or <c>DOTNET6502_NO_UPDATE_CHECK</c>. The explicit
+    /// "Check now" button in the About dialog ignores this and always checks.
+    /// </summary>
+    public bool UpdateCheckEnabled { get; set; } = true;
+
+    /// <summary>
     /// The effective CORS proxy URL to use: the configured <see cref="CorsProxyUrl"/> (falling back
     /// to <see cref="BrowserServiceDefaults.DefaultCorsProxyUrl"/> when blank) in the browser, or
     /// <see langword="null"/> on desktop where cross-origin fetches are unrestricted.
@@ -193,6 +200,7 @@ public class EmulatorConfig
             SnapshotDirectory = OperatingSystem.IsBrowser() ? null : SnapshotDirectory,
             CorsProxyUrl = CorsProxyUrl,
             DownloadCacheEnabled = DownloadCacheEnabled,
+            UpdateCheckEnabled = UpdateCheckEnabled,
             AudioSettingsProfile = AudioSettingsProfile,
             BrowserSampleAudioMode = BrowserSampleAudioMode,
             Monitor = new EmulatorMonitorUserSettings
@@ -218,6 +226,7 @@ internal sealed class EmulatorConfigUserSettings
     public string? SnapshotDirectory { get; set; }
     public string CorsProxyUrl { get; set; } = BrowserServiceDefaults.DefaultCorsProxyUrl;
     public bool DownloadCacheEnabled { get; set; } = true;
+    public bool UpdateCheckEnabled { get; set; } = true;
     [JsonConverter(typeof(JsonStringEnumConverter<WavePlayerSettingsProfile>))]
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
     [JsonConverter(typeof(JsonStringEnumConverter<BrowserSampleAudioMode>))]

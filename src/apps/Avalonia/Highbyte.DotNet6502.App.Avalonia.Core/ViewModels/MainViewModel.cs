@@ -28,6 +28,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly AvaloniaHostApp _hostApp;
     private readonly EmulatorConfig _emulatorConfig;
+    private readonly Services.IAppUpdateService _appUpdateService;
     private readonly ILogger _logger;
 
     // Expose HostApp for EmulatorView that currently needs it (TODO: Consider removing this dependency via MainViewModel. Better that EmulatorViewModel provides it.)
@@ -638,6 +639,14 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     public ReactiveCommand<Unit, Unit> EmulatorOptionsCommand { get; }
 
+    // Event for requesting the About / updates overlay (UI operation handled in View)
+    public event EventHandler? AboutRequested;
+
+    public ReactiveCommand<Unit, Unit> AboutCommand { get; }
+
+    /// <summary>Drives the dismissible "update available" banner (desktop host only). Never null.</summary>
+    public UpdateBannerViewModel UpdateBanner { get; }
+
     // --- End ReactiveUI Commands ---
 
     //public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
@@ -675,15 +684,21 @@ public class MainViewModel : ViewModelBase, IDisposable
         StatisticsViewModel statisticsViewModel,
         EmulatorViewModel emulatorViewModel,
         EmulatorPlaceholderViewModel emulatorPlaceholderViewModel,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        Services.IAppUpdateService appUpdateService)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _emulatorConfig = emulatorConfig;
+        _appUpdateService = appUpdateService ?? throw new ArgumentNullException(nameof(appUpdateService));
         _logger = loggerFactory?.CreateLogger(nameof(MainViewModel)) ?? throw new ArgumentNullException(nameof(loggerFactory));
 
         _shellPlugins = (shellPlugins ?? throw new ArgumentNullException(nameof(shellPlugins)))
             .ToDictionary(p => p.SystemName, p => p, StringComparer.OrdinalIgnoreCase);
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+
+        // Update-available banner (desktop host only; a no-op NullAppUpdateService keeps it hidden in browser).
+        UpdateBanner = new UpdateBannerViewModel(_appUpdateService);
+        UpdateBanner.DetailsRequested += (_, _) => AboutRequested?.Invoke(this, EventArgs.Empty);
 
         // Store injected child ViewModels
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
@@ -1115,6 +1130,11 @@ public class MainViewModel : ViewModelBase, IDisposable
                 state => state == EmulatorState.Uninitialized),
             RxSchedulers.MainThreadScheduler);
 
+        AboutCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => AboutRequested?.Invoke(this, EventArgs.Empty),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
         // Initialize timer for batched log UI updates
         InitializeLogUpdateTimer();
 
@@ -1158,6 +1178,12 @@ public class MainViewModel : ViewModelBase, IDisposable
         RefreshScriptStatuses();
         _hostApp.ScriptingEngine.ScriptStatusChanged += OnScriptStatusChanged;
     }
+
+    /// <summary>
+    /// Runs the (cadence-cached, non-blocking) startup update check and shows the banner if a managed
+    /// update is available. Called from the view once loaded; a no-op in the browser host.
+    /// </summary>
+    public Task CheckForUpdatesOnStartupAsync() => UpdateBanner.RefreshAsync();
 
     private string GetAudioToolTip(IHostSystemConfig config)
     {

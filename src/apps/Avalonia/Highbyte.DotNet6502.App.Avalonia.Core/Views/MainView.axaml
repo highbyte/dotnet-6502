@@ -239,6 +239,14 @@
                                     Classes="grid small"
                                     ToolTip.Tip="Configure general emulator settings"/>
 
+                            <!-- About / check for updates -->
+                            <Button Grid.Column="2"
+                                    Content="About"
+                                    AutomationProperties.AutomationId="AboutButton"
+                                    Command="{Binding AboutCommand}"
+                                    Classes="grid small"
+                                    ToolTip.Tip="Version and check for updates"/>
+
                        </Grid>
                     </StackPanel>
 

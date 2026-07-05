@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Updates;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Highbyte.DotNet6502.Updates.Tests;
@@ -57,14 +58,52 @@ public class UpdateCheckerTests : IDisposable
     private InstallChannelDetector NotManagedDetector()
         => new(new FakeInstallChannelProbe { OS = OSPlatformKind.Linux }); // no marker
 
-    private UpdateChecker MakeChecker(IReleaseSource source, InstallChannelDetector detector, string currentVersion)
+    private UpdateChecker MakeChecker(IReleaseSource source, InstallChannelDetector detector, string currentVersion, ILogger? logger = null)
         => new(
             Descriptor,
             source,
             detector,
             new UpdateCheckCache(_cacheFile),
             currentVersionProvider: () => AppVersion.Parse(currentVersion),
-            utcNow: () => DateTimeOffset.UnixEpoch + TimeSpan.FromDays(1000));
+            utcNow: () => DateTimeOffset.UnixEpoch + TimeSpan.FromDays(1000),
+            logger: logger);
+
+    private sealed class CapturingLogger : ILogger
+    {
+        public List<string> Messages { get; } = new();
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullDisposable.Instance;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            => Messages.Add(formatter(state, exception));
+
+        private sealed class NullDisposable : IDisposable
+        {
+            public static readonly NullDisposable Instance = new();
+            public void Dispose() { }
+        }
+    }
+
+    [Fact]
+    public async Task LogsInformation_WhenUpdateAvailable()
+    {
+        var logger = new CapturingLogger();
+        var checker = MakeChecker(new FakeReleaseSource(Releases("v0.40.1-alpha", "v0.40.2-alpha")), ManagedHomebrewDetector(), "0.40.1-alpha", logger);
+
+        await checker.CheckAsync();
+
+        Assert.Contains(logger.Messages, m => m.Contains("v0.40.2-alpha") && m.Contains("brew upgrade dotnet-6502-terminal"));
+    }
+
+    [Fact]
+    public async Task DoesNotLog_WhenUpToDate()
+    {
+        var logger = new CapturingLogger();
+        var checker = MakeChecker(new FakeReleaseSource(Releases("v0.40.2-alpha")), ManagedHomebrewDetector(), "0.40.2-alpha", logger);
+
+        await checker.CheckAsync();
+
+        Assert.Empty(logger.Messages);
+    }
 
     [Fact]
     public async Task UpdateAvailable_BuildsCommandAndReleaseUrl()

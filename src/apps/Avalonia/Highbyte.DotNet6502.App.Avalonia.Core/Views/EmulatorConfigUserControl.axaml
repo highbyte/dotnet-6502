@@ -265,6 +265,27 @@
           </Border>
         </StackPanel>
 
+        <!-- Updates Section (desktop only; the browser app has no package-manager update path) -->
+        <StackPanel Width="400" Classes="wrap-item" IsVisible="{Binding !IsRunningInWebAssembly}">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Updates" Classes=""/>
+
+              <TextBlock Text="Only applies when installed via Homebrew or Scoop."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"/>
+              <CheckBox Content="Check for updates on startup"
+                        AutomationProperties.AutomationId="UpdateCheckEnabledCheckBox"
+                        AutomationProperties.Name="Check for updates on startup"
+                        IsChecked="{Binding UpdateCheckEnabled}"/>
+              <TextBlock Text="When enabled, the app checks about once a day for a newer released version and shows a banner if one is available. The About dialog's 'Check now' button always checks regardless."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"
+                         Margin="20,0,0,0"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
         <!-- Lua Scripting Section -->
         <StackPanel Width="400" Classes="wrap-item">
           <Border Classes="content-section">

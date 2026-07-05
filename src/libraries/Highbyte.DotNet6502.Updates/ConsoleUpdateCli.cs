@@ -1,10 +1,13 @@
+using Microsoft.Extensions.Logging;
+
 namespace Highbyte.DotNet6502.Updates;
 
 /// <summary>
-/// Console-host glue for the update flow: the <c>--version</c> / <c>--check-update</c> / <c>--update</c>
-/// flags, and a quiet, gated one-line "update available" startup notice. Kept host-agnostic by writing
-/// to caller-supplied <see cref="TextWriter"/>s; suppression follows the npm <c>update-notifier</c>
-/// conventions (skip when non-interactive, in CI, or opted out).
+/// Console-host glue for the update flow: the explicit <c>--version</c> / <c>--check-update</c> /
+/// <c>--update</c> flags (output to a caller-supplied <see cref="TextWriter"/> = stdout), and a gated
+/// automatic startup check that logs an "update available" line via <see cref="ILogger"/> (routing is
+/// the host's concern). Suppression of the automatic check follows the npm <c>update-notifier</c>
+/// conventions (skip in CI or when opted out).
 /// </summary>
 public static class ConsoleUpdateCli
 {
@@ -47,41 +50,39 @@ public static class ConsoleUpdateCli
     }
 
     /// <summary>
-    /// Prints a single "update available" line to <paramref name="errorOutput"/> (stderr, so it never
-    /// pollutes machine-readable stdout) when appropriate. No-op when suppressed, not managed, or up to
-    /// date. Respects the daily cadence cache and never throws — a failed notice must not break startup.
+    /// Runs the automatic (cadence-cached) startup update check and, if an update is available, logs one
+    /// <see cref="LogLevel.Information"/> line via <paramref name="logger"/> (the checker emits it — the
+    /// shared log point; the host decides where it's routed). Gated: a no-op when
+    /// <paramref name="updateCheckEnabled"/> is false or the environment suppresses it (CI / opt-out env
+    /// var). Never throws — a failed startup check must not disrupt the app.
     /// </summary>
-    public static async Task NotifyOnStartupAsync(AppUpdateDescriptor descriptor, TextWriter errorOutput, CancellationToken cancellationToken = default)
+    public static async Task CheckAndLogOnStartupAsync(
+        AppUpdateDescriptor descriptor,
+        ILogger logger,
+        bool updateCheckEnabled,
+        CancellationToken cancellationToken = default)
     {
-        if (IsSuppressed())
+        if (!updateCheckEnabled || IsSuppressedByEnvironment())
             return;
 
         try
         {
             using var http = CreateHttpClient();
-            var checker = UpdateChecker.CreateDefault(descriptor, http);
-            var result = await checker.CheckAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (result.IsUpdateAvailable)
-                errorOutput.WriteLine(FormatNoticeLine(result));
+            var checker = UpdateChecker.CreateDefault(descriptor, http, logger);
+            await checker.CheckAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch
         {
-            // Best effort: never let the update notice break or delay-fail the host.
+            // Best effort: never let the update check break or delay-fail startup.
         }
     }
 
-    /// <summary>Standard suppressors: opt-out env var, CI, or a non-interactive (redirected) stderr.</summary>
-    public static bool IsSuppressed()
-    {
-        if (IsEnvFlagSet(OptOutEnvVar))
-            return true;
-        if (IsEnvFlagSet("CI"))
-            return true;
-        // The notice is written to stderr; if that's redirected we're likely scripted/piped.
-        if (Console.IsErrorRedirected)
-            return true;
-        return false;
-    }
+    /// <summary>
+    /// Environmental suppressors for the <em>automatic</em> check: the opt-out env var
+    /// (<see cref="OptOutEnvVar"/>) or a CI environment. Explicit flags (<c>--check-update</c>) ignore these.
+    /// </summary>
+    public static bool IsSuppressedByEnvironment()
+        => IsEnvFlagSet(OptOutEnvVar) || IsEnvFlagSet("CI");
 
     private static bool IsEnvFlagSet(string name)
     {

@@ -34,13 +34,13 @@ public class ConsoleUpdateCliTests
     }
 
     [Fact]
-    public void IsSuppressed_WhenOptOutEnvSet()
+    public void IsSuppressedByEnvironment_WhenOptOutEnvSet()
     {
         var previous = Environment.GetEnvironmentVariable(ConsoleUpdateCli.OptOutEnvVar);
         try
         {
             Environment.SetEnvironmentVariable(ConsoleUpdateCli.OptOutEnvVar, "1");
-            Assert.True(ConsoleUpdateCli.IsSuppressed());
+            Assert.True(ConsoleUpdateCli.IsSuppressedByEnvironment());
         }
         finally
         {

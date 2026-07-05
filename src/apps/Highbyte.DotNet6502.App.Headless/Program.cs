@@ -99,6 +99,14 @@ var loggerFactory = LoggerFactory.Create(logBuilder =>
 
 var logger = loggerFactory.CreateLogger(nameof(Program));
 
+// Non-blocking startup update check (Headless logs to console). Gated by the UpdateCheckEnabled
+// setting and the standard CI / DOTNET6502_NO_UPDATE_CHECK suppressors, so scripted/CI runs make no
+// network call. Uses the config built above.
+_ = ConsoleUpdateCli.CheckAndLogOnStartupAsync(
+    new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-headless", ScoopPackage = "dotnet-6502-headless" },
+    loggerFactory.CreateLogger("UpdateCheck"),
+    configuration.GetValue("UpdateCheckEnabled", true));
+
 // ----------
 // Get emulator host config
 // ----------

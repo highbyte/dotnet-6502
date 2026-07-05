@@ -19,6 +19,36 @@
         <vm:MainViewModel/>
     </Design.DataContext>
 
-    <!-- MainView will inherit DataContext from Window -->
-    <views:MainView />
+    <DockPanel LastChildFill="True">
+        <!-- Dismissible "update available" banner. Hidden unless a package-manager install has a
+             newer release (desktop only; UpdateBanner is inert in the browser host). -->
+        <!-- Update-notice green (Material Green 800). Kept in sync with the Avalonia Browser app's
+             "new version available" banner in wwwroot/index.html so both surfaces match. Deep enough
+             that white text meets contrast and it still stands off the dark app chrome. -->
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding UpdateBanner.IsVisible}"
+                Background="#2E7D32"
+                Padding="10,6">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding UpdateBanner.Message}"
+                           Foreground="White"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"/>
+                <Button Grid.Column="1"
+                        Content="Details"
+                        AutomationProperties.AutomationId="UpdateBannerDetailsButton"
+                        Margin="8,0,0,0"
+                        Command="{Binding UpdateBanner.ShowDetailsCommand}"/>
+                <Button Grid.Column="2"
+                        Content="Dismiss"
+                        AutomationProperties.AutomationId="UpdateBannerDismissButton"
+                        Margin="8,0,0,0"
+                        Command="{Binding UpdateBanner.DismissCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- MainView will inherit DataContext from Window -->
+        <views:MainView />
+    </DockPanel>
 </Window>
