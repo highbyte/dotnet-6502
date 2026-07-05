@@ -1,5 +1,7 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -30,6 +32,7 @@ public partial class AboutUserControl : UserControl
         {
             _subscribedViewModel = vm;
             vm.RequestClose += OnRequestClose;
+            vm.UpdateStarted += OnUpdateStarted;
         }
     }
 
@@ -38,11 +41,20 @@ public partial class AboutUserControl : UserControl
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.RequestClose -= OnRequestClose;
+            _subscribedViewModel.UpdateStarted -= OnUpdateStarted;
             _subscribedViewModel = null;
         }
     }
 
     private void OnRequestClose(object? sender, EventArgs e) => DialogClosed?.Invoke(this, EventArgs.Empty);
+
+    // The self-update helper is now waiting for this app to exit before it upgrades and relaunches,
+    // so quit the app.
+    private void OnUpdateStarted(object? sender, EventArgs e)
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            desktop.Shutdown();
+    }
 
     private void OnCopyCommandClick(object? sender, RoutedEventArgs e)
     {

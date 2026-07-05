@@ -55,4 +55,13 @@ public sealed record AppUpdateDescriptor
         InstallChannel.Scoop => ScoopPackage,
         _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, "No package name for a non-managed channel."),
     };
+
+    /// <summary>Argv (after the manager executable) that upgrades this app for the given channel.</summary>
+    public string[] UpgradeArgs(InstallChannel channel) => channel switch
+    {
+        InstallChannel.Homebrew when HomebrewIsCask => new[] { "upgrade", "--cask", HomebrewPackage },
+        InstallChannel.Homebrew => new[] { "upgrade", HomebrewPackage },
+        InstallChannel.Scoop => new[] { "update", ScoopPackage },
+        _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, "No upgrade args for a non-managed channel."),
+    };
 }

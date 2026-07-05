@@ -30,6 +30,9 @@ public sealed record UpdateCheckResult
     public string? ReleaseNotesUrl { get; init; }
     public string? Error { get; init; }
 
+    /// <summary>Full path to the resolved package manager (brew/scoop), for actually running the upgrade. Null when not managed.</summary>
+    public string? ManagerExecutablePath { get; init; }
+
     public bool IsUpdateAvailable => Status == UpdateCheckStatus.UpdateAvailable;
 
     public static UpdateCheckResult NotManaged(SemanticVersion? current = null) => new()

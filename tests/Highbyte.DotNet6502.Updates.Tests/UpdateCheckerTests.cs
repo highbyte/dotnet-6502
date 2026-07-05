@@ -71,10 +71,14 @@ public class UpdateCheckerTests : IDisposable
     private sealed class CapturingLogger : ILogger
     {
         public List<string> Messages { get; } = new();
+        public List<LogLevel> Levels { get; } = new();
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullDisposable.Instance;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-            => Messages.Add(formatter(state, exception));
+        {
+            Messages.Add(formatter(state, exception));
+            Levels.Add(logLevel);
+        }
 
         private sealed class NullDisposable : IDisposable
         {
@@ -92,6 +96,19 @@ public class UpdateCheckerTests : IDisposable
         await checker.CheckAsync();
 
         Assert.Contains(logger.Messages, m => m.Contains("v0.40.2-alpha") && m.Contains("brew upgrade dotnet-6502-terminal"));
+    }
+
+    [Fact]
+    public async Task LogsWarning_WhenCheckFails()
+    {
+        var logger = new CapturingLogger();
+        var checker = MakeChecker(new FakeReleaseSource(new HttpRequestException("offline")), ManagedHomebrewDetector(), "0.40.1-alpha", logger);
+
+        var result = await checker.CheckAsync();
+
+        Assert.Equal(UpdateCheckStatus.Error, result.Status);
+        Assert.Contains(logger.Messages, m => m.Contains("Update check failed"));
+        Assert.Contains(LogLevel.Warning, logger.Levels);
     }
 
     [Fact]

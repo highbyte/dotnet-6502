@@ -44,6 +44,20 @@ public interface IAppUpdateService
     /// on future launches — but a newer version still will. Persisted; a no-op when unsupported.
     /// </summary>
     void DismissVersion(string versionDisplay);
+
+    /// <summary>
+    /// One-click self-update: spawns the detached "wait for this app to exit → run the package-manager
+    /// upgrade → relaunch" helper. Returns true if the helper was spawned, in which case the caller
+    /// must quit the app so the upgrade can proceed. False when unsupported, not managed, or no update.
+    /// </summary>
+    Task<bool> TryStartSelfUpdateAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One-shot check on startup: if a previous one-click update was started but the version didn't
+    /// change (the upgrade failed / didn't take effect), returns a short notice to show the user (once);
+    /// otherwise null. Consumes the pending-update marker so it never fires twice.
+    /// </summary>
+    string? ConsumeFailedUpdateNotice();
 }
 
 /// <summary>No-op update service for hosts without a package-manager channel (browser). Shows the version only.</summary>
@@ -60,6 +74,11 @@ public sealed class NullAppUpdateService : IAppUpdateService
     {
         // No update path here, so nothing to remember.
     }
+
+    public Task<bool> TryStartSelfUpdateAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    public string? ConsumeFailedUpdateNotice() => null;
 
     private static string ReadEntryAssemblyVersionDisplay()
     {

@@ -45,6 +45,24 @@ public static class ConsoleUpdateCli
             return 0;
         }
 
+        // --update: actually run the package-manager upgrade in the foreground (this invocation is a
+        // short-lived flag handler, not the running app, so no quit/relaunch is needed).
+        if (args.Contains("--update", StringComparer.Ordinal)
+            && result.Status == UpdateCheckStatus.UpdateAvailable
+            && result.ManagerExecutablePath is not null)
+        {
+            output.WriteLine(FormatNoticeLine(result));
+            output.WriteLine($"Updating: {result.SuggestedCommand}");
+            output.WriteLine();
+            var succeeded = await UpdateApplier.RunUpgradeAsync(
+                result.ManagerExecutablePath, descriptor.UpgradeArgs(result.Channel), output, cancellationToken).ConfigureAwait(false);
+            output.WriteLine();
+            output.WriteLine(succeeded
+                ? "Update complete. Restart the app to use the new version."
+                : "Update failed. See the output above; you can run the command manually.");
+            return succeeded ? 0 : 1;
+        }
+
         PrintVerbose(result, output);
         return 0;
     }
@@ -104,7 +122,7 @@ public static class ConsoleUpdateCli
                 output.WriteLine(FormatNoticeLine(result));
                 if (!string.IsNullOrEmpty(result.ReleaseNotesUrl))
                     output.WriteLine($"Release notes: {result.ReleaseNotesUrl}");
-                output.WriteLine("(Automatic in-app update isn't available yet — run the command above to update.)");
+                output.WriteLine("(Run with --update to upgrade automatically, or run the command above yourself.)");
                 break;
             case UpdateCheckStatus.UpToDate:
                 output.WriteLine($"You're on the latest version (v{result.CurrentVersion}).");

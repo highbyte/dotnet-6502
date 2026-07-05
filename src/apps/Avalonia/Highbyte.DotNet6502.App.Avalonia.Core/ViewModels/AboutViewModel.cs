@@ -24,28 +24,36 @@ public class AboutViewModel : ViewModelBase
     /// <summary>Raised when the dialog should close (host removes the overlay).</summary>
     public event EventHandler? RequestClose;
 
+    /// <summary>Raised after the one-click self-update helper was spawned — the host must now quit the app.</summary>
+    public event EventHandler? UpdateStarted;
+
     public AboutViewModel(IAppUpdateService updateService)
     {
         _updateService = updateService;
         CurrentVersionDisplay = updateService.CurrentVersionDisplay;
         IsUpdateCheckSupported = updateService.IsSupported;
 
-        CheckNowCommand = ReactiveCommandHelper.CreateSafeCommand(() => CheckAsync(force: true));
+        UpdateNowCommand = ReactiveCommandHelper.CreateSafeCommand(UpdateNowAsync);
         CloseCommand = ReactiveCommandHelper.CreateSafeCommand(() => RequestClose?.Invoke(this, EventArgs.Empty));
 
         StatusText = IsUpdateCheckSupported
             ? "Checking for updates…"
             : "Update checks aren't available for this build.";
 
+        // Opening the About dialog is an explicit user action, so always run a fresh check (force:true
+        // bypasses the daily cadence and the disabled-setting/CI gating). No separate "Check now" needed.
         if (IsUpdateCheckSupported)
-            _ = CheckAsync(force: false); // populate from the cadence cache on open
+            _ = CheckAsync(force: true);
     }
 
     public string CurrentVersionDisplay { get; }
     public bool IsUpdateCheckSupported { get; }
 
-    public ReactiveCommand<Unit, Unit> CheckNowCommand { get; }
+    public ReactiveCommand<Unit, Unit> UpdateNowCommand { get; }
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
+
+    /// <summary>True when a one-click update can be started (managed install with an available update).</summary>
+    public bool CanUpdateNow => IsUpdateCheckSupported && _isUpdateAvailable;
 
     public string StatusText
     {
@@ -62,7 +70,11 @@ public class AboutViewModel : ViewModelBase
     public bool IsUpdateAvailable
     {
         get => _isUpdateAvailable;
-        private set => this.RaiseAndSetIfChanged(ref _isUpdateAvailable, value);
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _isUpdateAvailable, value);
+            this.RaisePropertyChanged(nameof(CanUpdateNow));
+        }
     }
 
     public string? LatestVersionDisplay
@@ -95,6 +107,16 @@ public class AboutViewModel : ViewModelBase
     }
 
     public bool HasReleaseNotes => !string.IsNullOrEmpty(_releaseNotesUrl);
+
+    private async Task UpdateNowAsync()
+    {
+        StatusText = "Starting update...";
+        var started = await _updateService.TryStartSelfUpdateAsync();
+        if (started)
+            UpdateStarted?.Invoke(this, EventArgs.Empty); // host quits the app so the upgrade can proceed
+        else
+            StatusText = "Could not start the automatic update. Copy the command above and run it manually.";
+    }
 
     private async Task CheckAsync(bool force)
     {

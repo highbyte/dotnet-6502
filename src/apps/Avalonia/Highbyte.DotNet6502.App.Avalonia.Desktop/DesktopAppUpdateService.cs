@@ -22,11 +22,13 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
     private readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(5) };
     private readonly UpdateChecker _checker;
     private readonly EmulatorConfig _emulatorConfig;
+    private readonly ILogger _logger;
 
     public DesktopAppUpdateService(ILoggerFactory loggerFactory, EmulatorConfig emulatorConfig)
     {
         _emulatorConfig = emulatorConfig;
-        _checker = UpdateChecker.CreateDefault(CreateDescriptor(), _httpClient, loggerFactory.CreateLogger("UpdateCheck"));
+        _logger = loggerFactory.CreateLogger("UpdateCheck");
+        _checker = UpdateChecker.CreateDefault(CreateDescriptor(), _httpClient, _logger);
         var current = AppVersion.GetCurrent();
         CurrentVersionDisplay = current is null ? "development build" : $"v{current}";
     }
@@ -64,6 +66,97 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
             SuggestedCommand: result.SuggestedCommand,
             ReleaseNotesUrl: result.ReleaseNotesUrl,
             IsDismissed: latestDisplay is not null && string.Equals(dismissed, latestDisplay, StringComparison.Ordinal));
+    }
+
+    public async Task<bool> TryStartSelfUpdateAsync(CancellationToken cancellationToken = default)
+    {
+        // Confirm managed + update-available right now, and get the resolved manager path.
+        var result = await _checker.CheckAsync(new UpdateCheckContext { ForceCheck = true }, cancellationToken).ConfigureAwait(false);
+        if (!result.IsUpdateAvailable || result.ManagerExecutablePath is null)
+        {
+            _logger.LogWarning("Self-update requested, but no update is available or the package manager could not be resolved.");
+            return false;
+        }
+
+        var spawned = UpdateApplier.TrySpawnDetachedRelaunch(
+            result.ManagerExecutablePath,
+            CreateDescriptor().UpgradeArgs(result.Channel),
+            Environment.ProcessId,
+            BuildRelaunchSpec());
+
+        if (spawned)
+        {
+            // Remember what we were on, so the next launch can tell whether the upgrade took effect.
+            WritePendingUpdate(CurrentVersionDisplay);
+            _logger.LogInformation(
+                "Starting self-update ({Command}). The app will quit, upgrade, and relaunch; upgrade output goes to {LogPath}.",
+                result.SuggestedCommand, UpdateApplier.GetUpdateLogPath());
+        }
+        else
+        {
+            _logger.LogWarning("Could not start the update helper process; the app will stay open.");
+        }
+
+        return spawned;
+    }
+
+    public string? ConsumeFailedUpdateNotice()
+    {
+        string fromVersion;
+        var path = PendingUpdateFilePath();
+        try
+        {
+            if (!File.Exists(path))
+                return null;
+            fromVersion = File.ReadAllText(path).Trim();
+            File.Delete(path); // consume: only ever notify once per attempt
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        // Version changed since the attempt → the upgrade took effect → nothing to report.
+        if (string.IsNullOrEmpty(fromVersion) || !string.Equals(fromVersion, CurrentVersionDisplay, StringComparison.Ordinal))
+        {
+            if (!string.IsNullOrEmpty(fromVersion))
+                _logger.LogInformation("Self-update completed: now on {Version}.", CurrentVersionDisplay);
+            return null;
+        }
+
+        // Still on the same version → the upgrade failed or didn't take effect.
+        _logger.LogWarning("A previous one-click update did not complete; still on {Version}. See {LogPath}.",
+            fromVersion, UpdateApplier.GetUpdateLogPath());
+        return $"The last update didn't complete — you're still on {fromVersion}. See the log at {UpdateApplier.GetUpdateLogPath()}";
+    }
+
+    private static string PendingUpdateFilePath()
+        => Path.Combine(AppStoragePaths.GetCacheRoot(), "updates", "pending-update.txt");
+
+    private static void WritePendingUpdate(string fromVersionDisplay)
+    {
+        try
+        {
+            var path = PendingUpdateFilePath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, fromVersionDisplay);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: not remembering just means no post-update notice.
+        }
+    }
+
+    // How to relaunch the Avalonia GUI after the upgrade. macOS: `open -a "<AppName>"` (robust across
+    // the cask replacing the bundle). Windows/Linux: relaunch the current executable — the Scoop
+    // `current` junction / brew shim path stays valid after the update.
+    private static RelaunchSpec BuildRelaunchSpec()
+    {
+        if (OperatingSystem.IsMacOS())
+            return new RelaunchSpec("/usr/bin/open", new[] { "-a", "DotNet 6502 Emulator" });
+
+        var exePath = Environment.ProcessPath ?? "";
+        return new RelaunchSpec(exePath, Array.Empty<string>());
     }
 
     public void DismissVersion(string versionDisplay)

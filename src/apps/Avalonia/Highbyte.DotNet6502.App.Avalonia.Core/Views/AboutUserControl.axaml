@@ -51,18 +51,29 @@
                     Click="OnCopyCommandClick"/>
         </Grid>
 
-        <!-- Action buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button x:Name="ReleaseNotesButton"
+        <!-- Action buttons: secondary "What's new" link on the left; dismiss + the positive primary
+             action ("Update now", rightmost, green) on the right. Close stays the Enter-default so an
+             accidental Enter can't trigger the quit-and-relaunch update. -->
+        <Grid Grid.Row="5" ColumnDefinitions="*,Auto">
+            <Button Grid.Column="0"
+                    x:Name="ReleaseNotesButton"
                     Content="What's new"
+                    HorizontalAlignment="Left"
+                    Classes="text"
                     IsVisible="{Binding HasReleaseNotes}"
                     Click="OnReleaseNotesClick"/>
-            <Button Content="Check now"
-                    IsVisible="{Binding IsUpdateCheckSupported}"
-                    Command="{Binding CheckNowCommand}"/>
-            <Button Content="Close"
-                    IsDefault="True"
-                    Command="{Binding CloseCommand}"/>
-        </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Content="Close"
+                        IsDefault="True"
+                        Command="{Binding CloseCommand}"/>
+                <Button Content="Update now"
+                        AutomationProperties.AutomationId="UpdateNowButton"
+                        Classes="primary"
+                        IsVisible="{Binding CanUpdateNow}"
+                        Command="{Binding UpdateNowCommand}"
+                        ToolTip.Tip="Quits the app, runs the package-manager upgrade, and reopens it."/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>

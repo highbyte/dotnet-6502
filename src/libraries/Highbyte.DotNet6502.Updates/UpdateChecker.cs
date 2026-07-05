@@ -111,6 +111,8 @@ public sealed class UpdateChecker
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
+            _logger.LogWarning(ex, "Update check failed (offline, rate-limited, or unexpected response): {Message}", ex.Message);
+
             // Update the timestamp so a persistent failure doesn't hammer GitHub every launch,
             // but keep the previous ETag/latest so a later success is still conditional.
             if (cached is not null)
@@ -145,6 +147,7 @@ public sealed class UpdateChecker
             PackageName = channelInfo.PackageName,
             SuggestedCommand = updateAvailable ? BuildUpgradeCommand(channelInfo.Channel) : null,
             ReleaseNotesUrl = updateAvailable ? releaseUrl : null,
+            ManagerExecutablePath = channelInfo.ManagerExecutablePath,
         };
     }
 

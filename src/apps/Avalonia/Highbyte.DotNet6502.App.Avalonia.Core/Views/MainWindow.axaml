@@ -20,14 +20,13 @@
     </Design.DataContext>
 
     <DockPanel LastChildFill="True">
-        <!-- Dismissible "update available" banner. Hidden unless a package-manager install has a
-             newer release (desktop only; UpdateBanner is inert in the browser host). -->
-        <!-- Update-notice green (Material Green 800). Kept in sync with the Avalonia Browser app's
-             "new version available" banner in wwwroot/index.html so both surfaces match. Deep enough
-             that white text meets contrast and it still stands off the dark app chrome. -->
+        <!-- Dismissible top banner: green "update available" (Material Green 800, kept in sync with the
+             Avalonia Browser banner in wwwroot/index.html), or amber "update didn't complete" after a
+             failed one-click update. The background brush is chosen in UpdateBannerViewModel. Hidden
+             otherwise (desktop only; UpdateBanner is inert in the browser host). -->
         <Border DockPanel.Dock="Top"
                 IsVisible="{Binding UpdateBanner.IsVisible}"
-                Background="#2E7D32"
+                Background="{Binding UpdateBanner.Background}"
                 Padding="10,6">
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0"

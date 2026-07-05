@@ -61,8 +61,11 @@ public sealed class SystemInstallChannelProbe : IInstallChannelProbe
     public string? ResolveExecutable(string command, IEnumerable<string> preferredDirectories)
     {
         var isWindows = OS == OSPlatformKind.Windows;
+        // Prefer a native .exe, then the PowerShell shim (.ps1) — Scoop is a PowerShell tool and its
+        // .cmd shim is just a trampoline to scoop.ps1, so running the .ps1 directly is more direct on
+        // modern Windows. Fall back to .cmd/.bat/bare for robustness.
         var candidateNames = isWindows
-            ? new[] { command + ".exe", command + ".cmd", command + ".bat", command }
+            ? new[] { command + ".exe", command + ".ps1", command + ".cmd", command + ".bat", command }
             : new[] { command };
 
         foreach (var dir in preferredDirectories)
@@ -98,16 +101,11 @@ public sealed class SystemInstallChannelProbe : IInstallChannelProbe
     {
         try
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = executablePath,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            foreach (var arg in arguments)
-                startInfo.ArgumentList.Add(arg);
+            // Launch .ps1/.cmd/.bat (e.g. the Scoop shim scoop.ps1) correctly on Windows, preferring pwsh 7.
+            var startInfo = ProcessLaunch.BuildStartInfo(
+                executablePath, arguments, OS == OSPlatformKind.Windows, ProcessLaunch.ResolveWindowsPowerShellExe());
+            startInfo.RedirectStandardOutput = true;
+            startInfo.RedirectStandardError = true;
 
             using var process = Process.Start(startInfo);
             if (process is null)

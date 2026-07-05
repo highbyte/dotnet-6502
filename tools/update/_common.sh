@@ -35,6 +35,8 @@ case "$(uname -s)" in
 esac
 CHECK_CACHE="$UPDATES_DIR/update-check.json"
 DISMISSED_FILE="$UPDATES_DIR/dismissed-version.txt"
+PENDING_FILE="$UPDATES_DIR/pending-update.txt"
+APPLY_LOG="$UPDATES_DIR/last-update.log"
 
 _project_file() { ls "$PROJECT_DIR"/*.csproj 2>/dev/null | head -1; }
 
@@ -49,7 +51,7 @@ update_reset() {
     bin_dir="$(_find_binary_dir || true)"
     [[ -n "${bin_dir:-}" ]] && rm -f "${bin_dir}/install-channel"
     rm -rf "$FAKEBREW_ROOT"
-    rm -f "$CHECK_CACHE" "$DISMISSED_FILE"
+    rm -f "$CHECK_CACHE" "$DISMISSED_FILE" "$PENDING_FILE" "$APPLY_LOG"
     dotnet build "$(_project_file)" -v quiet >/dev/null
     echo "Done. ${APP_LABEL} is back to normal (unstamped, not managed)."
 }
@@ -68,12 +70,24 @@ update_setup() {
 
     # 2. Fake `brew` that confirms the package on `brew list [--cask] --versions <pkg>`. Echoing all
     #    args guarantees the package name is present regardless of formula/cask arg position.
+    #    Also fakes `upgrade` so --update / the GUI one-click can exercise the upgrade step. Set
+    #    FAKE_UPGRADE_EXIT=1 to make the upgrade FAIL (to test --update failure / the amber
+    #    "update didn't complete" banner on next launch).
     mkdir -p "$FAKEBREW_ROOT/bin"
-    printf '#!/bin/bash\n[[ "$1" == "list" ]] && echo "$@" && exit 0\nexit 1\n' > "$FAKEBREW_ROOT/bin/brew"
+    local upgrade_exit="${FAKE_UPGRADE_EXIT:-0}"
+    cat > "$FAKEBREW_ROOT/bin/brew" <<FAKEBREW
+#!/bin/bash
+# Throwaway fake brew for the dev update scripts.
+case "\$1" in
+    list)    echo "\$@"; exit 0 ;;                                 # detection: confirm the package is installed
+    upgrade) echo "==> (fake) brew \$*"; echo "Upgrade finished (exit ${upgrade_exit})."; exit ${upgrade_exit} ;;
+    *)       exit 1 ;;
+esac
+FAKEBREW
     chmod +x "$FAKEBREW_ROOT/bin/brew"
 
     # 3. Clear the update-check cache AND dismissed-version memory so the check definitely reports available.
-    rm -f "$CHECK_CACHE" "$DISMISSED_FILE"
+    rm -f "$CHECK_CACHE" "$DISMISSED_FILE" "$PENDING_FILE" "$APPLY_LOG"
 }
 
 update_main() {
