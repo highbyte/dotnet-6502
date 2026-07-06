@@ -19,6 +19,7 @@ using Highbyte.DotNet6502.Systems.Caching;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Plugins;
+using Highbyte.DotNet6502.Systems.Configuration;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,6 +49,8 @@ public partial class App : Application
     private readonly Action<string>? _deleteScript;
     private readonly Func<Task>? _loadExamples;
     private readonly Func<IHostApp, Task>? _automatedStartupRunner;
+    private readonly string? _userSettingsFilePath;
+    private readonly ScriptingConfig? _scriptingConfig;
     private readonly IAppFilePicker? _appFilePicker;
     private readonly IAppFileSaver? _appFileSaver;
     private readonly Services.IAppUpdateService? _appUpdateService;
@@ -139,6 +142,8 @@ public partial class App : Application
         Action<string>? deleteScript = null,
         Func<Task>? loadExamples = null,
         Func<IHostApp, Task>? automatedStartupRunner = null,
+        string? userSettingsFilePath = null,
+        ScriptingConfig? scriptingConfig = null,
         IAppFilePicker? appFilePicker = null,
         IAppFileSaver? appFileSaver = null,
         Func<IDownloadCache?>? downloadCacheFactory = null,
@@ -160,6 +165,8 @@ public partial class App : Application
         _deleteScript = deleteScript;
         _loadExamples = loadExamples;
         _automatedStartupRunner = automatedStartupRunner;
+        _userSettingsFilePath = userSettingsFilePath;
+        _scriptingConfig = scriptingConfig;
         _appFilePicker = appFilePicker;
         _appFileSaver = appFileSaver;
         _downloadCacheFactory = downloadCacheFactory;
@@ -444,6 +451,9 @@ public partial class App : Application
                 _deleteScript,
                 _loadExamples,
                 _downloadCacheFactory);
+            _hostApp.SetStoragePathsContext(
+                _userSettingsFilePath ?? AppStoragePaths.GetUserSettingsFilePath("Avalonia"),
+                _scriptingConfig);
 
             // Wire Lua scripting engine (NoScriptingEngine used when null, e.g. in WASM)
             _hostApp.SetScriptingEngine(_scriptingEngine ?? new NoScriptingEngine());

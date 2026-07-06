@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Snapshots;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -277,6 +278,26 @@ public class AutomatedStartupHandlerTests
 
         public Task<(bool IsValid, List<string> Errors)> IsSystemConfigValid(string systemName)
             => Task.FromResult<(bool, List<string>)>((true, []));
+
+        public Task<StoragePathsInfo> GetStoragePathsInfoAsync()
+            => Task.FromResult(new StoragePathsInfo
+            {
+                HostName = HostName,
+                UserContentRoot = "/fake/content",
+                ScriptsDirectory = "/fake/scripts",
+                SnapshotsDirectory = "/fake/snapshots",
+                UserSettingsFile = "/fake/settings.json",
+                CacheRoot = "/fake/cache",
+                DownloadCacheDirectory = "/fake/cache/downloads",
+                Systems =
+                [
+                    new SystemStoragePathsInfo
+                    {
+                        Name = SystemName,
+                        RomDirectory = null
+                    }
+                ]
+            });
 
         public Task<bool> IsAudioSupported() => Task.FromResult(false);
         public Task<bool> IsAudioEnabled() => Task.FromResult(false);

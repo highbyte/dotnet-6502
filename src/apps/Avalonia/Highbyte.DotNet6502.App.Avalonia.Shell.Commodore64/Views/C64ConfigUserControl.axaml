@@ -64,18 +64,23 @@
 
             <!-- ROM Directory setting (only for desktop) -->
             <StackPanel Classes="spacing-tight">
-                <Grid ColumnDefinitions="90,*" Classes="spacing-tight"
+                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto" Classes="spacing-tight"
                     IsVisible="{Binding !IsRunningInWebAssembly}">
-                    <TextBlock Grid.Column="0"
+                    <TextBlock Grid.Row="0" Grid.Column="0"
                                 Text="ROM directory:"
                                 Classes="secondary-text"/>
-                    <TextBox Grid.Column="1"
+                    <TextBox Grid.Row="0" Grid.Column="1"
                             AutomationProperties.AutomationId="RomDirectoryTextBox"
                             AutomationProperties.Name="ROM directory"
                             Text="{Binding RomDirectory}"
                             PlaceholderText="Directory path"
                             ToolTip.Tip="{Binding RomDirectoryToolTip}"
                             Classes="field-aligned"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                               Text="{Binding EffectiveRomDirectory, StringFormat='Effective: {0}'}"
+                               Classes="small secondary-text"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0"/>
                 </Grid>
             </StackPanel>
 

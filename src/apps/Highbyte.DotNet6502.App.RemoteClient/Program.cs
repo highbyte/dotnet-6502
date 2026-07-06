@@ -22,6 +22,7 @@ var commands = new[]
     ("emu.runframes",    "[--count <n>]",                 "Step the emulator deterministically by n frames (default 1) and render (for screenshots); requires a paused/stopped emulator (rejected while running)"),
     ("emu.quit",         "",                              "Quit the emulator (headless only)"),
     ("emu.systems",      "",                              "List available system names"),
+    ("emu.storagepaths", "",                              "Show storage paths used by the running emulator host"),
     ("emu.selectsystem", "--name <system>",               "Select a system (emulator must be stopped)"),
     ("emu.variants",     "",                              "List config variants for the current system"),
     ("emu.selectvariant","--name <variant>",              "Select a config variant (emulator must be stopped)"),
@@ -201,6 +202,7 @@ void PrintHelp()
     Console.WriteLine("  dotnet-6502-remote emu.state");
     Console.WriteLine("  dotnet-6502-remote --port 6510 emu.start");
     Console.WriteLine("  dotnet-6502-remote emu.systems");
+    Console.WriteLine("  dotnet-6502-remote emu.storagepaths");
     Console.WriteLine("  dotnet-6502-remote emu.selectsystem --name C64");
     Console.WriteLine("  dotnet-6502-remote emu.variants");
     Console.WriteLine("  dotnet-6502-remote emu.selectvariant --name \"C64 - Default\"");

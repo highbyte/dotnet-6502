@@ -49,6 +49,7 @@ bool waitForSystemReady = args.Contains("--waitForSystemReady");
 string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrg");
 bool runLoadedProgram = args.Contains("--runLoadedProgram");
 string? loadSnapshotPath = AutomatedStartupHandler.ParseStringArgument(args, "--load-snapshot");
+bool showStoragePaths = args.Contains("--show-storage-paths");
 
 // Parse scripting override arguments
 List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
@@ -130,7 +131,7 @@ Console.CancelKeyPress += (_, e) =>
 var debugEnvironment = new HeadlessDebugServerEnvironment(appCts);
 var debugController = new HeadlessExternalDebugController(debugEnvironment, loggerFactory);
 
-if (enableExternalDebug)
+if (enableExternalDebug && !showStoragePaths)
 {
     var effectiveDebugBindAddress = string.IsNullOrWhiteSpace(debugBindAddress)
         ? IExternalDebugController.DefaultBindAddress
@@ -165,7 +166,7 @@ if (enableExternalDebug)
 // ----------
 var remoteEnvironment = new HeadlessRemoteControlEnvironment(loggerFactory, allowQuit: allowRemoteQuit);
 var remoteController = new RemoteControlController(remoteEnvironment, loggerFactory);
-if (remotePort.HasValue)
+if (remotePort.HasValue && !showStoragePaths)
 {
     var effectiveBindAddress = string.IsNullOrWhiteSpace(remoteBindAddress)
         ? IRemoteControlController.DefaultBindAddress
@@ -186,6 +187,7 @@ if (remotePort.HasValue)
 // Initialize Lua scripting engine
 // ----------
 bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram || loadSnapshotPath != null;
+var scriptingConfig = MoonSharpScriptingConfigurator.CreateEffectiveConfig(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode);
 var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "headless");
 
 // ----------
@@ -225,6 +227,17 @@ foreach (var configurer in serviceProvider
 await systemList.RemoveSystemsWithNoConfigurationVariants(pluginLogger);
 systemList.EnsureUserContentDirectories(pluginLogger);
 
+if (showStoragePaths)
+{
+    var paths = await StoragePathsInfoFactory.CreateAsync(
+        "Headless",
+        AppStoragePaths.GetUserSettingsFilePath("Headless"),
+        systemList,
+        scriptingConfig);
+    Console.Write(StoragePathsInfoFactory.FormatForConsole(paths));
+    return 0;
+}
+
 // No usable system: a headless run cannot do anything without one. There is no UI to show an
 // error dialog in, so log a clear message and exit with a non-zero code.
 if (systemList.Systems.Count == 0)
@@ -236,6 +249,7 @@ if (systemList.Systems.Count == 0)
 }
 
 var hostApp = new HeadlessHostApp(systemList, loggerFactory, appCts);
+hostApp.SetStoragePathsContext(AppStoragePaths.GetUserSettingsFilePath("Headless"), scriptingConfig);
 
 // Wire the debug environment to the host app
 debugEnvironment.HostApp = hostApp;

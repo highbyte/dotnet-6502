@@ -195,6 +195,33 @@ Selects a configuration variant for the current system. **The emulator must be s
 {"id": 9, "ok": true}
 ```
 
+### `emu.storagepaths`
+
+Returns the effective storage paths used by the emulator host. This is a read-only diagnostics command; it does not start or stop the emulator.
+
+```json
+{"id": 10, "cmd": "emu.storagepaths"}
+```
+
+```json
+{
+  "id": 10,
+  "ok": true,
+  "data": {
+    "hostName": "Headless",
+    "userContentRoot": "/Users/me/Documents/Highbyte/DotNet6502",
+    "scriptsDirectory": "/Users/me/Documents/Highbyte/DotNet6502/scripts",
+    "snapshotsDirectory": "/Users/me/Documents/Highbyte/DotNet6502/snapshots",
+    "userSettingsFile": "/Users/me/.local/share/Highbyte/DotNet6502/Headless/appsettings.user.json",
+    "cacheRoot": "/Users/me/.local/share/Highbyte/DotNet6502/cache",
+    "downloadCacheDirectory": "/Users/me/.local/share/Highbyte/DotNet6502/cache/downloads",
+    "systems": [
+      { "name": "C64", "romDirectory": "/Users/me/Documents/Highbyte/DotNet6502/roms/C64" }
+    ]
+  }
+}
+```
+
 ### `emu.savesnapshot`
 
 Saves the current full emulator state to a `.d6502snap` snapshot file. The path is resolved **on the machine the emulator runs on** (the server), not the client. Absolute paths are used as-is; relative paths are resolved from the server's shared snapshot directory. The selected system must support snapshots.

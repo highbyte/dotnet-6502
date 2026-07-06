@@ -27,6 +27,9 @@ dotnet-6502-remote --port 6510 emu.start
 dotnet-6502-remote emu.systems
 dotnet-6502-remote emu.variants
 
+# Show storage paths used by the running emulator host
+dotnet-6502-remote emu.storagepaths
+
 # Switch system (requires emulator to be stopped first)
 dotnet-6502-remote emu.stop
 dotnet-6502-remote emu.selectsystem --name C64

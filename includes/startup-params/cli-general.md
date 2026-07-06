@@ -34,12 +34,13 @@ group. Cartridge images use the C64-specific `.crt` startup flow instead of PRG 
 | `--console-log` / `-c` | *(Avalonia Desktop only — Headless always logs to console.)* Enable console logging output. | — | `--console-log` |
 | `--log-level <level>` / `-l <level>` | Console log level (`Trace` / `Debug` / `Information` / `Warning` / `Error` / `Critical`). | — | `--log-level Debug` |
 
-#### Diagnostics & auto-exit *(Avalonia Desktop only)*
+#### Diagnostics & auto-exit
 
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
-| `--stats-interval <seconds>` | Log an instrumentation snapshot every N seconds after startup completes. | Requires `--start`. | `--stats-interval 5` |
-| `--exit-after <seconds>` | Quit the app N seconds after startup completes. | Requires `--start`. | `--exit-after 60` |
+| `--show-storage-paths` | Print effective storage paths and exit without starting the app. Also supported by Headless. | — | `--show-storage-paths` |
+| `--stats-interval <seconds>` | *(Avalonia Desktop only.)* Log an instrumentation snapshot every N seconds after startup completes. | Requires `--start`. | `--stats-interval 5` |
+| `--exit-after <seconds>` | *(Avalonia Desktop only.)* Quit the app N seconds after startup completes. | Requires `--start`. | `--exit-after 60` |
 
 #### Debug adapter
 

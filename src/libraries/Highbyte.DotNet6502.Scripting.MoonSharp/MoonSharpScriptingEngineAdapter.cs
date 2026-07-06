@@ -553,6 +553,20 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         emuTable["host"] = DynValue.NewCallback((ctx, args) => DynValue.NewString(_hostType));
 
         // Emulator state queries
+        emuTable["storage_paths"] = DynValue.NewCallback((ctx, args) =>
+        {
+            if (hostApp == null)
+                return DynValue.Nil;
+            try
+            {
+                var paths = Task.Run(hostApp.GetStoragePathsInfoAsync).GetAwaiter().GetResult();
+                return BuildStoragePathsTable(paths);
+            }
+            catch (Exception ex)
+            {
+                throw new ScriptRuntimeException($"emu.storage_paths(): {ex.Message}");
+            }
+        });
         emuTable["state"] = DynValue.NewCallback((ctx, args) =>
             DynValue.NewString(hostApp?.EmulatorState switch
             {
@@ -1148,6 +1162,32 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         t["status"] = DynValue.NewNumber(0);
         t["body"] = DynValue.Nil;
         t["error"] = DynValue.NewString(ex.Message);
+        return DynValue.NewTable(t);
+    }
+
+    private DynValue BuildStoragePathsTable(StoragePathsInfo paths)
+    {
+        var t = new Table(_script!);
+        t["host_name"] = paths.HostName;
+        t["user_content_root"] = paths.UserContentRoot;
+        t["scripts_directory"] = paths.ScriptsDirectory;
+        t["snapshots_directory"] = paths.SnapshotsDirectory;
+        t["user_settings_file"] = paths.UserSettingsFile;
+        t["cache_root"] = paths.CacheRoot;
+        t["download_cache_directory"] = paths.DownloadCacheDirectory;
+
+        var systems = new Table(_script!);
+        var i = 1;
+        foreach (var system in paths.Systems)
+        {
+            var st = new Table(_script!);
+            st["name"] = system.Name;
+            st["rom_directory"] = system.RomDirectory != null
+                ? DynValue.NewString(system.RomDirectory)
+                : DynValue.Nil;
+            systems[i++] = st;
+        }
+        t["systems"] = systems;
         return DynValue.NewTable(t);
     }
 

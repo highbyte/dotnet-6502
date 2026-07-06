@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -26,6 +27,7 @@ using Highbyte.DotNet6502.Scripting.MoonSharp;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using Highbyte.DotNet6502.Systems.Plugins;
 using Highbyte.DotNet6502.Updates;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
@@ -438,6 +440,7 @@ internal sealed partial class Program
         // Parse remote control arguments
         int? remotePort = ParsePortArgument(args, "--remote-port");
         string? remoteBindAddress = AutomatedStartupHandler.ParseStringArgument(args, "--remote-bind-address");
+        bool showStoragePaths = args.Contains("--show-storage-paths");
 
         // Parse automated startup arguments
         string? systemName = AutomatedStartupHandler.ParseStringArgument(args, "--system");
@@ -627,6 +630,14 @@ internal sealed partial class Program
         var emulatorConfig = new EmulatorConfig();
         configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 
+        bool automatedStartupMode = autoStart || waitForSystemReady || effectiveLoadPrg != null || effectiveLoadD64 != null || effectiveLoadCrt != null || runLoadedProgram || basicTextEncoded != null || basicUrl != null;
+        var scriptingConfig = MoonSharpScriptingConfigurator.CreateEffectiveConfig(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode);
+
+        if (showStoragePaths)
+        {
+            return ShowStoragePathsAndExit(configuration, loggerFactory, userSettingsFilePath, scriptingConfig);
+        }
+
         // ----------
         // Create SDL2 gamepad for controller input
         // ----------
@@ -700,7 +711,6 @@ internal sealed partial class Program
         // ----------
         // Initialize Lua scripting engine
         // ----------
-        bool automatedStartupMode = autoStart || waitForSystemReady || effectiveLoadPrg != null || effectiveLoadD64 != null || effectiveLoadCrt != null || runLoadedProgram || basicTextEncoded != null || basicUrl != null;
         var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "desktop");
 
         // HTTP-backed load sources for the URL variants (--loadPrgUrl / --loadD64Url / --loadCrtUrl). Desktop
@@ -889,7 +899,7 @@ internal sealed partial class Program
         Func<Task>? loadExampleScripts = scriptingEngine is { IsEnabled: true, CanManageScripts: false } && !string.IsNullOrWhiteSpace(scriptingEngine.ScriptDirectory)
             ? () => CopyBundledExampleScriptsAsync(scriptingEngine.ScriptDirectory, loggerFactory)
             : null;
-        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, remoteController, scriptingEngine, automatedStartupRunner, loadExampleScripts);
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad, debugController, remoteController, scriptingEngine, automatedStartupRunner, loadExampleScripts, userSettingsFilePath, scriptingConfig);
 
         app.StartWithClassicDesktopLifetime(args);
 
@@ -942,7 +952,9 @@ internal sealed partial class Program
         IRemoteControlController? remoteControlController = null,
         IScriptingEngine? scriptingEngine = null,
         Func<IHostApp, Task>? automatedStartupRunner = null,
-        Func<Task>? loadExamples = null)
+        Func<Task>? loadExamples = null,
+        string? userSettingsFilePath = null,
+        ScriptingConfig? scriptingConfig = null)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
@@ -957,6 +969,8 @@ internal sealed partial class Program
                 scriptingEngine: scriptingEngine,
                 loadExamples: loadExamples,
                 automatedStartupRunner: automatedStartupRunner,
+                userSettingsFilePath: userSettingsFilePath,
+                scriptingConfig: scriptingConfig,
                 appUpdateService: new DesktopAppUpdateService(loggerFactory, emulatorConfig)))
             .UsePlatformDetect()
             .LogToTrace()
@@ -1028,6 +1042,46 @@ internal sealed partial class Program
         }
 
         return result;
+    }
+
+    private static int ShowStoragePathsAndExit(
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory,
+        string userSettingsFilePath,
+        ScriptingConfig scriptingConfig)
+    {
+        var logger = loggerFactory.CreateLogger(nameof(Program));
+        var enabledSystems = configuration.GetSection("EnabledSystems").Get<string[]>();
+        var enginePlugins = SystemPluginDiscovery
+            .Discover<ISystemEnginePlugin>(enabledSystems, logger)
+            .ToList();
+
+        var services = new ServiceCollection();
+        services.AddSingleton(loggerFactory);
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(new CustomConfigPersistence(PersistStringToUserSettingsAsync));
+        foreach (var plugin in enginePlugins)
+            plugin.Register(services, configuration);
+
+        var serviceProvider = services.BuildServiceProvider();
+        var systemList = new SystemList();
+        foreach (var configurer in serviceProvider.GetServices<ISystemConfigurer>())
+            systemList.AddSystem(configurer);
+
+#pragma warning disable VSTHRD002
+        systemList.RemoveSystemsWithNoConfigurationVariants(logger).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+        systemList.EnsureUserContentDirectories(logger);
+
+#pragma warning disable VSTHRD002
+        var paths = StoragePathsInfoFactory.CreateAsync(
+            "Avalonia.Desktop",
+            userSettingsFilePath,
+            systemList,
+            scriptingConfig).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+        Console.Write(StoragePathsInfoFactory.FormatForConsole(paths));
+        return 0;
     }
 }
 

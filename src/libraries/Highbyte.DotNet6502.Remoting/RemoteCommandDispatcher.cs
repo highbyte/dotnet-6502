@@ -40,6 +40,7 @@ public class RemoteCommandDispatcher
                 "emu.reset"    => await HandleUiAsync(cmd.Id, async hostApp => await hostApp.Reset()),
                 "emu.quit"          => HandleEmuQuit(cmd.Id),
                 "emu.systems"       => HandleEmuSystems(cmd.Id),
+                "emu.storagepaths"  => await HandleEmuStoragePaths(cmd.Id),
                 "emu.selectsystem"  => string.IsNullOrEmpty(cmd.Name)
                     ? Err(cmd.Id, "Missing 'name' parameter")
                     : await HandleUiAsync(cmd.Id, async hostApp => await hostApp.SelectSystem(cmd.Name)),
@@ -174,6 +175,14 @@ public class RemoteCommandDispatcher
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) return Err(id, "Emulator not initialized");
         return new RemoteCommandResult { Id = id, Ok = true, Data = hostApp.AllSelectedSystemConfigurationVariants.ToArray() };
+    }
+
+    private async Task<RemoteCommandResult> HandleEmuStoragePaths(int? id)
+    {
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        var paths = await hostApp.GetStoragePathsInfoAsync().ConfigureAwait(false);
+        return new RemoteCommandResult { Id = id, Ok = true, Data = paths };
     }
 
     private RemoteCommandResult HandleEmuQuit(int? id)

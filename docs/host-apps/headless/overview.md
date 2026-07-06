@@ -170,6 +170,8 @@ When the ROM and script directory settings are empty, Headless uses the shared u
 
 Headless does not currently have a `SnapshotDirectory` setting. Startup `--load-snapshot` and TCP remote-control `emu.savesnapshot` / `emu.loadsnapshot` use absolute paths as-is and resolve relative paths from the shared snapshots folder above.
 
+Run `dotnet-6502-headless --show-storage-paths` to print the effective user content, scripts, snapshots, settings, cache, and per-system ROM directories without starting the emulator.
+
 Example overlay:
 
 ```json

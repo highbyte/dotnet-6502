@@ -143,6 +143,7 @@ public partial class MainView : UserControl
             _subscribedViewModel.RequestEditScript += OnRequestEditScript;
             _subscribedViewModel.RequestDeleteScript += OnRequestDeleteScript;
             _subscribedViewModel.RequestOpenScriptFolder += OnRequestOpenScriptFolder;
+            _subscribedViewModel.RequestOpenSnapshotFolder += OnRequestOpenSnapshotFolder;
             // Check immediately in case validation errors are already set
             CheckAndSelectValidationErrorsTab();
             // Listen for log changes
@@ -477,6 +478,7 @@ public partial class MainView : UserControl
             _subscribedViewModel.RequestEditScript -= OnRequestEditScript;
             _subscribedViewModel.RequestDeleteScript -= OnRequestDeleteScript;
             _subscribedViewModel.RequestOpenScriptFolder -= OnRequestOpenScriptFolder;
+            _subscribedViewModel.RequestOpenSnapshotFolder -= OnRequestOpenSnapshotFolder;
             _subscribedViewModel.LogMessages.CollectionChanged -= LogMessages_CollectionChanged;
             _subscribedViewModel = null;
         }
@@ -1095,9 +1097,23 @@ public partial class MainView : UserControl
     private void OnRequestOpenScriptFolder(object? sender, EventArgs e)
         => SafeAsyncHelper.Execute(OpenScriptFolderAsync);
 
+    private void OnRequestOpenSnapshotFolder(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(OpenSnapshotFolderAsync);
+
     private Task OpenScriptFolderAsync()
     {
         var dir = _subscribedViewModel?.ScriptDirectory;
+        return OpenFolderAsync(dir);
+    }
+
+    private Task OpenSnapshotFolderAsync()
+    {
+        var dir = _subscribedViewModel?.SnapshotDirectory;
+        return OpenFolderAsync(dir);
+    }
+
+    private Task OpenFolderAsync(string? dir)
+    {
         if (string.IsNullOrEmpty(dir))
             return Task.CompletedTask;
 

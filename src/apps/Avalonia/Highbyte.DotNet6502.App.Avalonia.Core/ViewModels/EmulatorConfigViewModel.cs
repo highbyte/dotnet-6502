@@ -34,6 +34,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     private bool _stopAfterBRKInstruction;
     private bool _stopAfterUnknownInstruction;
     private string _snapshotDirectory;
+    private string _luaScriptDirectory;
     private bool _allowUrlScripts;
     private string _corsProxyUrl;
     private bool _downloadCacheEnabled;
@@ -68,6 +69,9 @@ public class EmulatorConfigViewModel : ViewModelBase
         _stopAfterBRKInstruction = _emulatorConfig.Monitor.StopAfterBRKInstruction;
         _stopAfterUnknownInstruction = _emulatorConfig.Monitor.StopAfterUnknownInstruction;
         _snapshotDirectory = _emulatorConfig.SnapshotDirectory;
+        _luaScriptDirectory = _configuration
+            .GetSection(ScriptingConfig.ConfigSectionName)
+            .GetValue(nameof(ScriptingConfig.ScriptDirectory), string.Empty) ?? string.Empty;
         _allowUrlScripts = _hostApp.ScriptingEngine.AllowUrlScripts;
         _corsProxyUrl = _emulatorConfig.CorsProxyUrl;
         _downloadCacheEnabled = _emulatorConfig.DownloadCacheEnabled;
@@ -269,17 +273,42 @@ public class EmulatorConfigViewModel : ViewModelBase
     public string SnapshotDirectory
     {
         get => _snapshotDirectory;
-        set => this.RaiseAndSetIfChanged(ref _snapshotDirectory, value ?? string.Empty);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _snapshotDirectory, value ?? string.Empty);
+            this.RaisePropertyChanged(nameof(EffectiveSnapshotDirectory));
+        }
     }
 
     public string SnapshotDirectoryDescription =>
         $"Optional snapshot folder override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(EmulatorConfig.DefaultSnapshotDirectory)}.";
 
-    // Lua Scripting (read-only, informational)
-    public string LuaScriptDirectory =>
-        _configuration
-            .GetSection(ScriptingConfig.ConfigSectionName)
-            .GetValue(nameof(ScriptingConfig.ScriptDirectory), string.Empty) ?? string.Empty;
+    public string EffectiveSnapshotDirectory
+    {
+        get
+        {
+            var directory = string.IsNullOrWhiteSpace(_snapshotDirectory)
+                ? EmulatorConfig.DefaultSnapshotDirectory
+                : _snapshotDirectory;
+            return PathHelper.ExpandOSEnvironmentVariables(directory);
+        }
+    }
+
+    public string LuaScriptDirectory
+    {
+        get => _luaScriptDirectory;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _luaScriptDirectory, value ?? string.Empty);
+            this.RaisePropertyChanged(nameof(EffectiveLuaScriptDirectory));
+        }
+    }
+
+    public string EffectiveLuaScriptDirectory =>
+        PathHelper.ExpandOSEnvironmentVariables(
+            string.IsNullOrWhiteSpace(_luaScriptDirectory)
+                ? ScriptingConfig.DefaultScriptDirectory
+                : _luaScriptDirectory);
 
     public string LuaScriptDirectoryDescription =>
         $"Optional script directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(ScriptingConfig.DefaultScriptDirectory)}. Restart the app for changes to take effect.";
@@ -387,6 +416,8 @@ public class EmulatorConfigViewModel : ViewModelBase
         StopAfterBRKInstruction = defaults.Monitor.StopAfterBRKInstruction;
         StopAfterUnknownInstruction = defaults.Monitor.StopAfterUnknownInstruction;
         SnapshotDirectory = defaults.SnapshotDirectory;
+        this.RaisePropertyChanged(nameof(EffectiveSnapshotDirectory));
+        LuaScriptDirectory = string.Empty;
         // Browser-only knob; defaults to disabled.
         AllowUrlScripts = false;
         CorsProxyUrl = defaults.CorsProxyUrl;
@@ -455,6 +486,12 @@ public class EmulatorConfigViewModel : ViewModelBase
 
             // Persist emulator config (note: the _emulatorConfig object is owned by AvaloniaHostApp)
             await _hostApp.PersistEmulatorConfigAsync();
+
+            if (!IsRunningInWebAssembly)
+            {
+                var json = $"{{\"{nameof(ScriptingConfig.ScriptDirectory)}\":{System.Text.Json.JsonSerializer.Serialize(_luaScriptDirectory)}}}";
+                await _hostApp.PersistConfigStringAsync(ScriptingConfig.ConfigSectionName, json);
+            }
 
             // Browser-only: persist AllowUrlScripts under the scripting config section. Writes
             // a single-key JSON; other ScriptingConfig values fall back to defaults on next load
