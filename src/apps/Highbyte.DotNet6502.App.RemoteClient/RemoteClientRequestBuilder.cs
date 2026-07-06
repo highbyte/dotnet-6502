@@ -25,6 +25,7 @@ internal static class RemoteClientRequestBuilder
 
         switch (cmd)
         {
+            case "server.info":
             case "emu.state":
             case "emu.start":
             case "emu.stop":

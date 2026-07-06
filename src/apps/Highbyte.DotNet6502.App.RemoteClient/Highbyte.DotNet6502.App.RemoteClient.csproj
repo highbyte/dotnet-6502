@@ -9,4 +9,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Updates\Highbyte.DotNet6502.Updates.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Highbyte.DotNet6502.App.RemoteClient.Tests" />
+  </ItemGroup>
 </Project>

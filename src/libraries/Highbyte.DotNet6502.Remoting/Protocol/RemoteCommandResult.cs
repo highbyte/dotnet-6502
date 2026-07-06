@@ -32,6 +32,16 @@ public class RemoteCommandResult
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Variant { get; set; }
 
+    // server.info
+    [JsonPropertyName("app")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? App { get; set; }
+
+    // server.info — raw AssemblyInformationalVersion string (the client normalizes and compares it)
+    [JsonPropertyName("appversion")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AppVersion { get; set; }
+
     // mem.read / screenshot
     [JsonPropertyName("data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
