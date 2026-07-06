@@ -157,18 +157,18 @@ Example console output:
 
 ## Configuration
 
-The shipped `appsettings.json` contains packaged defaults. User overrides are read from the Headless host's `appsettings.user.json` under the OS local application data folder:
+The shipped `appsettings.json` contains packaged defaults. User overrides are read from the Headless host's `appsettings.user.json` under the OS local application data directory:
 
 - macOS/Linux: `~/.local/share/Highbyte/DotNet6502/Headless/appsettings.user.json`
 - Windows: `%LOCALAPPDATA%\Highbyte\DotNet6502\Headless\appsettings.user.json`
 
-When the ROM and script directory settings are empty, Headless uses the shared user content folders under `~/Documents/Highbyte/DotNet6502` (or the Windows Documents equivalent):
+When the ROM and script directory settings are empty, Headless uses the shared user content directories under `~/Documents/Highbyte/DotNet6502` (or the Windows Documents equivalent):
 
 - ROMs: `roms/[SYSTEM]`
 - Lua scripts: `scripts`
 - Snapshots: `snapshots`
 
-Headless does not currently have a `SnapshotDirectory` setting. Startup `--load-snapshot` and TCP remote-control `emu.savesnapshot` / `emu.loadsnapshot` use absolute paths as-is and resolve relative paths from the shared snapshots folder above.
+Headless does not currently have a `SnapshotDirectory` setting. Startup `--load-snapshot` and TCP remote-control `emu.savesnapshot` / `emu.loadsnapshot` use absolute paths as-is and resolve relative paths from the shared snapshots directory above.
 
 Run `dotnet-6502-headless --show-storage-paths` to print the effective user content, scripts, snapshots, settings, cache, and per-system ROM directories without starting the emulator.
 

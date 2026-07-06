@@ -5,7 +5,7 @@ using SadRogue.Primitives;
 namespace Highbyte.DotNet6502.App.SadConsole.Core;
 
 /// <summary>
-/// Dialog window for displaying error messages with Continue/Exit options
+/// Dialog window for displaying error messages with Continue/Quit actions.
 /// </summary>
 public class ErrorDialog : Window
 {
@@ -113,11 +113,11 @@ public class ErrorDialog : Window
             Controls.Add(continueButton);
         }
 
-        // Exit/Quit button. Centered when it is the only button (fatal startup error).
+        // Quit button. Centered when it is the only button (fatal startup error).
         var exitButton = new Button(8, 1)
         {
             Name = "exitButton",
-            Text = fatalStartupError ? "Quit" : "Exit",
+            Text = "Quit",
             Position = fatalStartupError ? (Width / 2 - 4, Height - 2) : (Width / 2 + 2, Height - 2)
         };
         exitButton.Click += (s, e) =>

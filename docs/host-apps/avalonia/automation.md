@@ -56,12 +56,12 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 
 - **System selection**: `SystemSelectionComboBox`, `SystemVariantSelectionComboBox`
 - **Emulator control**: `StartButton`, `PauseButton`, `ResetButton`, `StopButton`, `MonitorButton`, `StatsButton`
-- **Display/audio**: `ScaleSlider`, `AudioCheckBox`, `AudioVolumeSlider`, `OptionsButton`
-- **Snapshot section (collapsible, common)**: header `SnapshotSectionHeader`, content `SnapshotSectionContent`; buttons `SaveSnapshotButton`, `LoadSnapshotButton`, folder link `SnapshotFolderLink` (visible only when the section is expanded — collapsed by default; toggle it with the `Emulator` menu / `⌘⌥⇧S` shortcut)
+- **Display/audio/settings**: `ScaleSlider`, `AudioCheckBox`, `AudioVolumeSlider`, settings button `OptionsButton`
+- **Snapshot section (collapsible, common)**: header `SnapshotSectionHeader`, content `SnapshotSectionContent`; buttons `SaveSnapshotButton`, `LoadSnapshotButton`, directory link `SnapshotFolderLink` (visible only when the section is expanded — collapsed by default; toggle it with the `Emulator` menu / `⌘⌥⇧S` shortcut)
 - **Status**: `EmulatorStateText`
 - **Bottom tab control**: `InformationTabControl` with tabs `InformationTab`, `ConfigStatusTab`, `LogTab`, `ScriptsTab`, `GeneralInfoTab`, `DebugAndRemotingTab`
 - **Log tab**: `ClearLogButton`
-- **Scripts tab**: `ScriptsBannerRefreshButton`, `ScriptFolderLink`, `AddScriptButton`, `LoadExamplesButton`, `ScriptsRefreshButton`; sort headers `SortByFileNameButton`, `SortByStatusButton`, `SortByYieldButton`, `SortByHooksButton`
+- **Scripts tab**: `ScriptsBannerRefreshButton`, script directory link `ScriptFolderLink`, `AddScriptButton`, `LoadExamplesButton`, `ScriptsRefreshButton`; sort headers `SortByFileNameButton`, `SortByStatusButton`, `SortByYieldButton`, `SortByHooksButton`
 - **Script rows (dynamic)**: `ScriptRow.ToggleEnabled.<FileName>`, `ScriptRow.Reload.<FileName>`, `ScriptRow.Edit.<FileName>`, `ScriptRow.Delete.<FileName>`
 - **Debug tab**: `ExternalDebugToggleButton`, `ExternalDebugPortInput`, `DebugSoundButton`, `DebugGamepadButton`
 
@@ -85,7 +85,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **AI assistant**: `AiHelpButton`, `AiBackendComboBox`, `OpenAiApiKeyTextBox`, `OllamaEndpointTextBox`, `OllamaModelNameTextBox`, `OllamaApiKeyTextBox`, `CustomEndpointApiKeyTextBox`, `TestAiBackendButton`
 - **Footer**: `CancelButton`, `OkButton`
 
-### EmulatorConfigUserControl (general options)
+### EmulatorConfigUserControl (general settings)
 
 `DefaultEmulatorComboBox`, `DefaultScaleSlider`, `ShowErrorDialogCheckBox`, `ShowDebugToolsCheckBox`, `AudioProfileComboBox`, `StopOnBrkCheckBox`, `StopOnUnknownInstructionCheckBox`, `SnapshotDirectoryTextBox`, `LuaScriptDirectoryTextBox`, `LuaStorePrefixTextBox`, `CancelButton`, `OkButton`.
 

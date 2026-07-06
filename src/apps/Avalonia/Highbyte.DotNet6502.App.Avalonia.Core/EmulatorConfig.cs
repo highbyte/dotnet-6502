@@ -33,7 +33,7 @@ public class EmulatorConfig
     public bool RestoreConfigOnLoad { get; set; } = true;
 
     /// <summary>
-    /// Optional desktop snapshot folder override. When empty, <see cref="DefaultSnapshotDirectory"/> is used.
+    /// Optional desktop snapshot directory override. When empty, <see cref="DefaultSnapshotDirectory"/> is used.
     /// Ignored in browser, where snapshots are uploaded/downloaded through browser file APIs.
     /// </summary>
     public string SnapshotDirectory { get; set; } = string.Empty;

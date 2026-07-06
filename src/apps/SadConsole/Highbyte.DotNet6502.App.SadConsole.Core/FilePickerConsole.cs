@@ -34,7 +34,7 @@ public class FilePickerConsole : Window
         Title = filePickerMode switch
         {
             FilePickerMode.OpenFile => "Open File",
-            FilePickerMode.OpenFolder => "Open Folder",
+            FilePickerMode.OpenFolder => "Open Directory",
             FilePickerMode.SaveFile => "Save File",
             _ => "?"
         };

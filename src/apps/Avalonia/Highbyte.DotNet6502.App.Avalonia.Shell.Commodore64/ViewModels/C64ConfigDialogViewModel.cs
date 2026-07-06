@@ -605,7 +605,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     }
 
     public string RomDirectoryToolTip =>
-        $"Optional ROM folder override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.DefaultROMDirectory)}";
+        $"Optional ROM directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.DefaultROMDirectory)}";
 
     public string EffectiveRomDirectory =>
         PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.EffectiveROMDirectory);

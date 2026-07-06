@@ -1,6 +1,6 @@
 # Configuration
 
-On desktop targets, scripting is configured under the `"Highbyte.DotNet6502.Scripting"` section. The shipped `appsettings.json` contains packaged defaults; user changes are stored in the host-specific `appsettings.user.json` overlay under the OS local application data folder, not beside the shipped executable. On the Avalonia Browser app, the same section is persisted in browser `localStorage` by the settings UI.
+On desktop targets, scripting is configured under the `"Highbyte.DotNet6502.Scripting"` section. The shipped `appsettings.json` contains packaged defaults; user changes are stored in the host-specific `appsettings.user.json` overlay under the OS local application data directory, not beside the shipped executable. On the Avalonia Browser app, the same section is persisted in browser `localStorage` by the settings UI.
 
 When `ScriptDirectory` is empty, desktop hosts use the shared user script directory:
 

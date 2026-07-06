@@ -638,7 +638,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public event EventHandler? RequestOpenScriptFolder;
     public event EventHandler? RequestOpenSnapshotFolder;
 
-    // Event for requesting the emulator options overlay (UI operation handled in View)
+    // Event for requesting the emulator settings overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
 
     public ReactiveCommand<Unit, Unit> EmulatorOptionsCommand { get; }
@@ -1128,7 +1128,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             null,
             RxSchedulers.MainThreadScheduler);
 
-        // Emulator Options command - only enabled when emulator is uninitialized
+        // Emulator Settings command - only enabled when emulator is uninitialized
         EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {

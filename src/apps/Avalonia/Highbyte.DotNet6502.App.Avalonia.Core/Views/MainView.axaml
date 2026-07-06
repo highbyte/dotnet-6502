@@ -226,13 +226,13 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- General Emulator Options Button -->
+                        <!-- General Emulator Settings Button -->
                         <Button Grid.Column="0"
-                                Content="Options"
+                                Content="Settings"
                                 AutomationProperties.AutomationId="OptionsButton"
                                 Command="{Binding EmulatorOptionsCommand}"
                                 Classes="small"
-                                ToolTip.Tip="Configure general emulator settings"/>
+                                ToolTip.Tip="Open general emulator settings"/>
 
                         <!-- About / check for updates -->
                         <Button Grid.Column="1"
@@ -297,7 +297,7 @@
                                         ToolTip.Tip="Restore an emulator state from a .d6502snap file"/>
                             </Grid>
                             <StackPanel Spacing="2">
-                                <TextBlock Text="Folder:"
+                                <TextBlock Text="Directory:"
                                            Classes="small secondary-text"
                                            VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding SnapshotDirectory}"
@@ -305,7 +305,7 @@
                                            TextWrapping="Wrap"/>
                                 <Button Content="Open"
                                         AutomationProperties.AutomationId="SnapshotFolderLink"
-                                        AutomationProperties.Name="Open snapshot folder in file browser"
+                                        AutomationProperties.Name="Open snapshot directory in file browser"
                                         Command="{Binding OpenSnapshotFolderCommand}"
                                         Classes="link"
                                         FontSize="10"
@@ -313,7 +313,7 @@
                                         Margin="0"
                                         BorderThickness="0"
                                         VerticalAlignment="Center"
-                                        ToolTip.Tip="Open snapshot folder in file browser"/>
+                                        ToolTip.Tip="Open snapshot directory in file browser"/>
                             </StackPanel>
 
                             <TextBlock Text="Settings (config)"
@@ -602,32 +602,32 @@
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                                         <Button
                                                                 AutomationProperties.AutomationId="ScriptsBannerRefreshButton"
-                                                                AutomationProperties.Name="Reload scripts from folder"
+                                                                AutomationProperties.Name="Reload scripts from directory"
                                                                 Command="{Binding RefreshScriptsCommand}"
                                                                 FontSize="12"
                                                                 Height="22" Padding="4,0"
                                                                 MinWidth="0" MinHeight="0"
                                                                 VerticalAlignment="Center"
                                                                 VerticalContentAlignment="Center"
-                                                                ToolTip.Tip="Reload scripts from folder">
+                                                                ToolTip.Tip="Reload scripts from directory">
                                                             <views:ReloadIcon Width="12" Height="12"/>
                                                         </Button>
-                                                        <TextBlock Text="Script folder:"
+                                                        <TextBlock Text="Script directory:"
                                                                    Classes="small bold"
                                                                    VerticalAlignment="Center"/>
                                                         <Button Content="{Binding ScriptDirectory}"
                                                                 AutomationProperties.AutomationId="ScriptFolderLink"
-                                                                AutomationProperties.Name="Open script folder in file browser"
+                                                                AutomationProperties.Name="Open script directory in file browser"
                                                                 Command="{Binding OpenScriptFolderCommand}"
                                                                 Classes="small link"
                                                                 FontSize="10"
                                                                 Padding="0"
                                                                 BorderThickness="0"
                                                                 VerticalAlignment="Center"
-                                                                ToolTip.Tip="Open script folder in file browser"/>
+                                                                ToolTip.Tip="Open script directory in file browser"/>
                                                         <Button Content="Copy Examples"
                                                                 AutomationProperties.AutomationId="CopyExampleScriptsButton"
-                                                                AutomationProperties.Name="Copy bundled example scripts to script folder"
+                                                                AutomationProperties.Name="Copy bundled example scripts to script directory"
                                                                 Command="{Binding LoadExamplesCommand}"
                                                                 IsVisible="{Binding CanLoadExamples}"
                                                                 FontSize="10"
@@ -637,9 +637,9 @@
                                                                 MinHeight="0"
                                                                 VerticalAlignment="Center"
                                                                 VerticalContentAlignment="Center"
-                                                                ToolTip.Tip="Copy bundled example scripts to the script folder without overwriting existing files"/>
+                                                                ToolTip.Tip="Copy bundled example scripts to the script directory without overwriting existing files"/>
                                                     </StackPanel>
-                                                    <TextBlock Text="Use your OS file browser and editor to add, edit, or delete scripts. Set script directory can be set in Options."
+                                                    <TextBlock Text="Use your OS file browser and editor to add, edit, or delete scripts. Change the script directory in Settings."
                                                                Classes="small"
                                                                Foreground="{DynamicResource SecondaryText}"
                                                                TextWrapping="Wrap"/>

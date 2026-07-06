@@ -520,7 +520,7 @@ public class SilkNetHostApp : HostApp
 
     /// <summary>
     /// Handles exceptions that occur in event handlers like OnUpdate, OnBeforeRender, and OnAfterRender.
-    /// Logs the exception and shows a popup dialog with options to continue or exit.
+    /// Logs the exception and shows a popup dialog with actions to continue or quit.
     /// </summary>
     /// <param name="exception">The exception that occurred</param>
     /// <param name="methodName">The name of the method where the exception occurred</param>
@@ -591,10 +591,10 @@ public class SilkNetHostApp : HostApp
 
             ImGui.SameLine();
 
-            // Exit button
-            if (ImGui.Button("Exit", new Vector2(buttonWidth, 0)))
+            // Quit button
+            if (ImGui.Button("Quit", new Vector2(buttonWidth, 0)))
             {
-                _logger.LogInformation("User chose to exit application after error dialog.");
+                _logger.LogInformation("User chose to quit the application after an error dialog.");
                 _exceptionExit = true;
                 return;
             }

@@ -2,7 +2,7 @@
 
 ## Extract .prg from D64 image
 
-If the download is a `.zip` (or other compression) file, start by unzipping it to a folder.
+If the download is a `.zip` (or other compression) file, start by unzipping it to a directory.
 
 If the unzipped contents is a `.prg` file, then it can be loaded directly into the emulator. No more extra steps needed.
 
