@@ -71,8 +71,16 @@ public partial class AboutUserControl : UserControl
     }
 
     private void OnReleaseNotesClick(object? sender, RoutedEventArgs e)
+        => LaunchUri((DataContext as AboutViewModel)?.ReleaseNotesUrl);
+
+    private void OnCurrentReleaseNotesClick(object? sender, RoutedEventArgs e)
+        => LaunchUri((DataContext as AboutViewModel)?.CurrentReleaseNotesUrl);
+
+    private void OnRepositoryClick(object? sender, RoutedEventArgs e)
+        => LaunchUri((DataContext as AboutViewModel)?.RepoUrl);
+
+    private void LaunchUri(string? url)
     {
-        var url = (DataContext as AboutViewModel)?.ReleaseNotesUrl;
         if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
             return;
         var launcher = TopLevel.GetTopLevel(this)?.Launcher;

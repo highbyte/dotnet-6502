@@ -1,5 +1,7 @@
 using System;
+using System.Reflection;
 using System.Reactive;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using ReactiveUI;
@@ -12,6 +14,8 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 /// </summary>
 public class AboutViewModel : ViewModelBase
 {
+    private const string RepositoryUrl = "https://github.com/highbyte/dotnet-6502";
+
     private readonly IAppUpdateService _updateService;
 
     private string _statusText = string.Empty;
@@ -32,13 +36,12 @@ public class AboutViewModel : ViewModelBase
         _updateService = updateService;
         CurrentVersionDisplay = updateService.CurrentVersionDisplay;
         IsUpdateCheckSupported = updateService.IsSupported;
+        CurrentReleaseNotesUrl = BuildCurrentReleaseNotesUrl(CurrentVersionDisplay);
 
         UpdateNowCommand = ReactiveCommandHelper.CreateSafeCommand(UpdateNowAsync);
         CloseCommand = ReactiveCommandHelper.CreateSafeCommand(() => RequestClose?.Invoke(this, EventArgs.Empty));
 
-        StatusText = IsUpdateCheckSupported
-            ? "Checking for updates…"
-            : "Update checks aren't available for this build.";
+        StatusText = IsUpdateSectionVisible ? "Checking for updates…" : string.Empty;
 
         // Opening the About dialog is an explicit user action, so always run a fresh check (force:true
         // bypasses the daily cadence and the disabled-setting/CI gating). No separate "Check now" needed.
@@ -48,6 +51,14 @@ public class AboutViewModel : ViewModelBase
 
     public string CurrentVersionDisplay { get; }
     public bool IsUpdateCheckSupported { get; }
+    public bool IsUpdateSectionVisible => IsUpdateCheckSupported;
+    public string? CurrentReleaseNotesUrl { get; }
+    public bool HasCurrentReleaseNotes => !string.IsNullOrEmpty(CurrentReleaseNotesUrl);
+    public string Author => "Highbyte";
+    public string RepoUrl => RepositoryUrl;
+    public string OSVersion => RuntimeInformation.OSDescription;
+    public string DotNetVersion => RuntimeInformation.FrameworkDescription;
+    public string AvaloniaVersion => ReadAvaloniaVersion();
 
     public ReactiveCommand<Unit, Unit> UpdateNowCommand { get; }
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
@@ -147,7 +158,7 @@ public class AboutViewModel : ViewModelBase
     {
         if (status is null)
         {
-            StatusText = "Update checks aren't available for this build.";
+            StatusText = "Update check did not return any result.";
             IsUpdateAvailable = false;
             SuggestedCommand = null;
             ReleaseNotesUrl = null;
@@ -165,5 +176,27 @@ public class AboutViewModel : ViewModelBase
             StatusText = $"Update available: {status.CurrentVersionDisplay} → {status.LatestVersionDisplay}";
         else
             StatusText = $"You're on the latest version ({status.CurrentVersionDisplay}).";
+    }
+
+    private static string? BuildCurrentReleaseNotesUrl(string currentVersionDisplay)
+    {
+        if (!currentVersionDisplay.StartsWith("v", StringComparison.Ordinal))
+            return null;
+
+        return $"{RepositoryUrl}/releases/tag/{currentVersionDisplay}";
+    }
+
+    private static string ReadAvaloniaVersion()
+    {
+        try
+        {
+            var asm = typeof(global::Avalonia.Controls.Control).Assembly;
+            var infoAttr = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+            return infoAttr?.InformationalVersion ?? asm.GetName().Version?.ToString() ?? "Unknown";
+        }
+        catch
+        {
+            return "Unknown";
+        }
     }
 }
