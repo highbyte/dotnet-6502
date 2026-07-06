@@ -196,59 +196,53 @@
                     </Grid>
 
                     <!-- Audio Settings -->
-                    <StackPanel Classes="spacing-tight" >
-                        <Grid Classes="spacing-tight">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <CheckBox Grid.Column="0"
-                                Content="Audio"
-                                AutomationProperties.AutomationId="AudioCheckBox"
-                                IsVisible="true"
-                                IsEnabled="{Binding AudioSettingsEnabled }"
-                                IsChecked="{Binding AudioEnabled}"
-                                ToolTip.Tip="{Binding AudioTooltip}"/>
-                            <Slider Grid.Column="1"
-                                AutomationProperties.AutomationId="AudioVolumeSlider"
-                                AutomationProperties.Name="Audio volume"
-                                Width="100"
-                                Minimum="0" Maximum="100"
-                                Value="{Binding AudioVolumePercent}"
-                                TickFrequency="5"
-                                IsSnapToTickEnabled="False"
-                                IsEnabled="{Binding AudioEnabled }"
-                                Classes="small"/>
-                        </Grid>
-                    </StackPanel>
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0"
+                            Content="Audio"
+                            AutomationProperties.AutomationId="AudioCheckBox"
+                            IsVisible="true"
+                            IsEnabled="{Binding AudioSettingsEnabled }"
+                            IsChecked="{Binding AudioEnabled}"
+                            ToolTip.Tip="{Binding AudioTooltip}"/>
+                        <Slider Grid.Column="1"
+                            AutomationProperties.AutomationId="AudioVolumeSlider"
+                            AutomationProperties.Name="Audio volume"
+                            Minimum="0" Maximum="100"
+                            Value="{Binding AudioVolumePercent}"
+                            TickFrequency="5"
+                            IsSnapToTickEnabled="False"
+                            IsEnabled="{Binding AudioEnabled }"
+                            Classes="small"/>
+                    </Grid>
 
                     <!-- Other general functions -->
-                    <StackPanel Classes="spacing-tight" >
-                        <Grid Classes="spacing-tight">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="4" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+                    <Grid Classes="spacing-tight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                            <!-- General Emulator Options Button -->
-                            <Button Grid.Column="0"
-                                    Content="Options"
-                                    AutomationProperties.AutomationId="OptionsButton"
-                                    Command="{Binding EmulatorOptionsCommand}"
-                                    Classes="grid small"
-                                    ToolTip.Tip="Configure general emulator settings"/>
+                        <!-- General Emulator Options Button -->
+                        <Button Grid.Column="0"
+                                Content="Options"
+                                AutomationProperties.AutomationId="OptionsButton"
+                                Command="{Binding EmulatorOptionsCommand}"
+                                Classes="small"
+                                ToolTip.Tip="Configure general emulator settings"/>
 
-                            <!-- About / check for updates -->
-                            <Button Grid.Column="2"
-                                    Content="About"
-                                    AutomationProperties.AutomationId="AboutButton"
-                                    Command="{Binding AboutCommand}"
-                                    Classes="grid small"
-                                    ToolTip.Tip="Version and check for updates"/>
+                        <!-- About / check for updates -->
+                        <Button Grid.Column="1"
+                                Content="About"
+                                AutomationProperties.AutomationId="AboutButton"
+                                Command="{Binding AboutCommand}"
+                                Classes="small"
+                                ToolTip.Tip="Version and check for updates"/>
 
-                       </Grid>
-                    </StackPanel>
+                   </Grid>
 
                 </StackPanel>
 
