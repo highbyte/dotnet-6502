@@ -54,8 +54,8 @@ public static class ConsoleUpdateCli
             output.WriteLine(FormatNoticeLine(result));
             output.WriteLine($"Updating: {result.SuggestedCommand}");
             output.WriteLine();
-            var succeeded = await UpdateApplier.RunUpgradeAsync(
-                result.ManagerExecutablePath, descriptor.UpgradeArgs(result.Channel), output, cancellationToken).ConfigureAwait(false);
+            var succeeded = await UpdateApplier.RunUpgradeCommandsAsync(
+                result.ManagerExecutablePath, descriptor.UpgradeCommandArgs(result.Channel), output, cancellationToken).ConfigureAwait(false);
             output.WriteLine();
             output.WriteLine(succeeded
                 ? "Update complete. Restart the app to use the new version."

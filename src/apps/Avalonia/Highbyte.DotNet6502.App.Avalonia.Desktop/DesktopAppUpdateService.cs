@@ -81,7 +81,7 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
 
         var spawned = UpdateApplier.TrySpawnDetachedRelaunch(
             result.ManagerExecutablePath,
-            CreateDescriptor().UpgradeArgs(result.Channel),
+            CreateDescriptor().UpgradeCommandArgs(result.Channel),
             Environment.ProcessId,
             BuildRelaunchSpec());
 

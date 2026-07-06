@@ -64,4 +64,27 @@ public sealed record AppUpdateDescriptor
         InstallChannel.Scoop => new[] { "update", ScoopPackage },
         _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, "No upgrade args for a non-managed channel."),
     };
+
+    /// <summary>
+    /// Package-manager command arguments to run, in order, for an upgrade.
+    /// Both managers need a metadata refresh first so the automatic updater matches the documented
+    /// flows instead of using stale data: Homebrew's <c>brew update &amp;&amp; brew upgrade ...</c>, and
+    /// Scoop's <c>scoop update; scoop update ...</c> (bare <c>scoop update</c> git-pulls the bucket
+    /// manifests; without it <c>scoop update &lt;app&gt;</c> upgrades against a stale manifest and never
+    /// sees a freshly published version).
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<string>> UpgradeCommandArgs(InstallChannel channel) => channel switch
+    {
+        InstallChannel.Homebrew => new IReadOnlyList<string>[]
+        {
+            new[] { "update" },
+            UpgradeArgs(channel),
+        },
+        InstallChannel.Scoop => new IReadOnlyList<string>[]
+        {
+            new[] { "update" },
+            UpgradeArgs(channel),
+        },
+        _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, "No upgrade command args for a non-managed channel."),
+    };
 }

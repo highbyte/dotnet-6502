@@ -25,11 +25,11 @@ public class ConsoleUpdateCliTests
             Status = UpdateCheckStatus.UpdateAvailable,
             CurrentVersion = current,
             LatestVersion = latest,
-            SuggestedCommand = "brew upgrade dotnet-6502-terminal",
+            SuggestedCommand = "brew update && brew upgrade dotnet-6502-terminal",
         };
 
         Assert.Equal(
-            "A newer version v0.40.2-alpha is available (you have v0.39.3-alpha). Run 'brew upgrade dotnet-6502-terminal' to update.",
+            "A newer version v0.40.2-alpha is available (you have v0.39.3-alpha). Run 'brew update && brew upgrade dotnet-6502-terminal' to update.",
             ConsoleUpdateCli.FormatNoticeLine(result));
     }
 
