@@ -11,6 +11,7 @@
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="8,6"/>
         <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="CornerRadius" Value="2"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>

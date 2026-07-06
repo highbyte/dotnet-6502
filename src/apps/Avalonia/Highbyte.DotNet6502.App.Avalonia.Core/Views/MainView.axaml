@@ -625,7 +625,7 @@
                                                                 AutomationProperties.AutomationId="ScriptFolderLink"
                                                                 AutomationProperties.Name="Open script folder in file browser"
                                                                 Command="{Binding OpenScriptFolderCommand}"
-                                                                Classes="link"
+                                                                Classes="small link"
                                                                 FontSize="10"
                                                                 Padding="0"
                                                                 Margin="0"

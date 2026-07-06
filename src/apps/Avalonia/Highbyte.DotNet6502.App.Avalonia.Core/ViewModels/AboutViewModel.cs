@@ -65,6 +65,9 @@ public class AboutViewModel : ViewModelBase
 
     /// <summary>True when a one-click update can be started (managed install with an available update).</summary>
     public bool CanUpdateNow => IsUpdateCheckSupported && _isUpdateAvailable;
+    public bool ShowUpdateAvailableStatus => IsUpdateSectionVisible && _isUpdateAvailable;
+    public bool ShowPlainStatus => IsUpdateSectionVisible && !_isUpdateAvailable;
+    public bool ShowInlineReleaseNotes => ShowUpdateAvailableStatus && HasReleaseNotes;
 
     public string StatusText
     {
@@ -85,13 +88,20 @@ public class AboutViewModel : ViewModelBase
         {
             this.RaiseAndSetIfChanged(ref _isUpdateAvailable, value);
             this.RaisePropertyChanged(nameof(CanUpdateNow));
+            this.RaisePropertyChanged(nameof(ShowUpdateAvailableStatus));
+            this.RaisePropertyChanged(nameof(ShowPlainStatus));
+            this.RaisePropertyChanged(nameof(ShowInlineReleaseNotes));
         }
     }
 
     public string? LatestVersionDisplay
     {
         get => _latestVersionDisplay;
-        private set => this.RaiseAndSetIfChanged(ref _latestVersionDisplay, value);
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _latestVersionDisplay, value);
+            this.RaisePropertyChanged(nameof(ShowUpdateAvailableStatus));
+        }
     }
 
     /// <summary>The <c>brew</c>/<c>scoop</c> command to run; non-null only when an update is available.</summary>
@@ -114,6 +124,7 @@ public class AboutViewModel : ViewModelBase
         {
             this.RaiseAndSetIfChanged(ref _releaseNotesUrl, value);
             this.RaisePropertyChanged(nameof(HasReleaseNotes));
+            this.RaisePropertyChanged(nameof(ShowInlineReleaseNotes));
         }
     }
 

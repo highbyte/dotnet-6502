@@ -8,7 +8,7 @@
         Width="520"
         MinWidth="360">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="16">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="16">
 
         <!-- Title header -->
         <Border Grid.Row="0" CornerRadius="4" Classes="panel-container" Margin="0,0,0,12">
@@ -16,22 +16,22 @@
         </Border>
 
         <!-- Current version -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
-            <TextBlock Text="Version:" VerticalAlignment="Center"/>
-            <TextBlock Text="{Binding CurrentVersionDisplay}" Classes="monospace" VerticalAlignment="Center"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <TextBlock Text="Current version:" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding CurrentVersionDisplay}"
+                       Classes="monospace"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding !HasCurrentReleaseNotes}"/>
+            <Button Content="{Binding CurrentVersionDisplay}"
+                    VerticalAlignment="Center"
+                    Classes="text monospace"
+                    IsVisible="{Binding HasCurrentReleaseNotes}"
+                    Click="OnCurrentReleaseNotesClick"/>
         </StackPanel>
 
-        <Button Grid.Row="2"
-                Content="Release notes"
-                HorizontalAlignment="Left"
-                Classes="text"
-                IsVisible="{Binding HasCurrentReleaseNotes}"
-                Click="OnCurrentReleaseNotesClick"/>
-
-        <Border Grid.Row="3" Classes="section-container" Margin="0,0,0,12">
+        <Border Grid.Row="2" Classes="section-container" Margin="0,0,0,12">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -45,26 +45,18 @@
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Row="0" Grid.Column="0" Classes="table-cell">
-                    <TextBlock Text="Version" Classes="small bold" TextWrapping="Wrap" />
-                </Border>
-
-                <Border Grid.Row="0" Grid.Column="1" Classes="table-cell-last-column">
-                    <SelectableTextBlock Text="{Binding CurrentVersionDisplay}" Classes="small" />
-                </Border>
-
-                <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
                     <TextBlock Text="By" Classes="small bold" TextWrapping="Wrap" />
                 </Border>
 
-                <Border Grid.Row="1" Grid.Column="1" Classes="table-cell-last-column">
+                <Border Grid.Row="0" Grid.Column="1" Classes="table-cell-last-column">
                     <SelectableTextBlock Text="{Binding Author}" Classes="small" />
                 </Border>
 
-                <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
+                <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
                     <TextBlock Text="Repo" Classes="small bold" TextWrapping="Wrap" />
                 </Border>
 
-                <Border Grid.Row="2" Grid.Column="1" Classes="table-cell-last-column">
+                <Border Grid.Row="1" Grid.Column="1" Classes="table-cell-last-column">
                     <Grid ColumnDefinitions="*,Auto">
                         <SelectableTextBlock Grid.Column="0" Text="{Binding RepoUrl}" Classes="small" />
                         <Button Grid.Column="1"
@@ -76,48 +68,71 @@
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
+                <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
                     <TextBlock Text="OS" Classes="small bold" TextWrapping="Wrap" />
                 </Border>
 
-                <Border Grid.Row="3" Grid.Column="1" Classes="table-cell-last-column">
+                <Border Grid.Row="2" Grid.Column="1" Classes="table-cell-last-column">
                     <SelectableTextBlock Text="{Binding OSVersion}" Classes="small" />
                 </Border>
 
-                <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">
+                <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
                     <TextBlock Text=".NET" Classes="small bold" TextWrapping="Wrap" />
                 </Border>
 
-                <Border Grid.Row="4" Grid.Column="1" Classes="table-cell-last-column">
+                <Border Grid.Row="3" Grid.Column="1" Classes="table-cell-last-column">
                     <SelectableTextBlock Text="{Binding DotNetVersion}" Classes="small" />
                 </Border>
 
-                <Border Grid.Row="5" Grid.Column="0" Classes="table-cell-last-row">
+                <Border Grid.Row="4" Grid.Column="0" Classes="table-cell-last-row">
                     <TextBlock Text="Avalonia" Classes="small bold" TextWrapping="Wrap" />
                 </Border>
 
-                <Border Grid.Row="5" Grid.Column="1" Classes="table-cell-last">
+                <Border Grid.Row="4" Grid.Column="1" Classes="table-cell-last">
                     <SelectableTextBlock Text="{Binding AvaloniaVersion}" Classes="small" />
                 </Border>
             </Grid>
         </Border>
 
         <!-- Update status line -->
-        <TextBlock Grid.Row="4"
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    Spacing="4"
+                    IsVisible="{Binding ShowUpdateAvailableStatus}"
+                    Margin="0,0,0,8">
+            <TextBlock Text="Update available:"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding CurrentVersionDisplay}"
+                       Classes="monospace"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="→"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding LatestVersionDisplay}"
+                       Classes="monospace"
+                       VerticalAlignment="Center"/>
+            <Button Content="What's new"
+                    VerticalAlignment="Center"
+                    Margin="8,2,0,0"
+                    Classes="text"
+                    IsVisible="{Binding ShowInlineReleaseNotes}"
+                    Click="OnReleaseNotesClick"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="3"
                    Text="{Binding StatusText}"
-                   IsVisible="{Binding IsUpdateSectionVisible}"
+                   IsVisible="{Binding ShowPlainStatus}"
                    TextWrapping="Wrap"
                    Margin="0,0,0,8"/>
 
         <!-- Indeterminate progress while checking -->
-        <ProgressBar Grid.Row="5"
+        <ProgressBar Grid.Row="4"
                      IsIndeterminate="True"
                      IsVisible="{Binding IsChecking}"
                      Height="4"
                      Margin="0,0,0,8"/>
 
         <!-- Suggested upgrade command (managed + update available) -->
-        <Grid Grid.Row="6"
+        <Grid Grid.Row="5"
               ColumnDefinitions="*,Auto"
               IsVisible="{Binding HasSuggestedCommand}"
               Margin="0,0,0,12">
@@ -136,13 +151,13 @@
         <!-- Action buttons: secondary "What's new" link on the left; dismiss + the positive primary
              action ("Update now", rightmost, green) on the right. Close stays the Enter-default so an
              accidental Enter can't trigger the quit-and-relaunch update. -->
-        <Grid Grid.Row="7" ColumnDefinitions="*,Auto">
+        <Grid Grid.Row="6" ColumnDefinitions="*,Auto">
             <Button Grid.Column="0"
                     x:Name="ReleaseNotesButton"
                     Content="What's new"
                     HorizontalAlignment="Left"
                     Classes="text"
-                    IsVisible="{Binding HasReleaseNotes}"
+                    IsVisible="{Binding !ShowInlineReleaseNotes}" 
                     Click="OnReleaseNotesClick"/>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
