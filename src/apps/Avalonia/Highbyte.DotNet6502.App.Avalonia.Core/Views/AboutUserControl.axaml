@@ -5,7 +5,7 @@
         x:DataType="vm:AboutViewModel"
         AutomationProperties.AutomationId="AboutDialog"
         AutomationProperties.Name="About and updates"
-        Width="520"
+        Width="540"
         MinWidth="360">
 
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="16">
@@ -157,7 +157,7 @@
                     Content="What's new"
                     HorizontalAlignment="Left"
                     Classes="text"
-                    IsVisible="{Binding !ShowInlineReleaseNotes}" 
+                    IsVisible="{Binding ShowSecondaryReleaseNotes}"
                     Click="OnReleaseNotesClick"/>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
