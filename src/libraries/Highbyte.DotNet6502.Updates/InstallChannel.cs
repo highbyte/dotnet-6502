@@ -59,8 +59,8 @@ public sealed record AppUpdateDescriptor
     /// <summary>Argv (after the manager executable) that upgrades this app for the given channel.</summary>
     public string[] UpgradeArgs(InstallChannel channel) => channel switch
     {
-        InstallChannel.Homebrew when HomebrewIsCask => new[] { "upgrade", "--cask", HomebrewPackage },
-        InstallChannel.Homebrew => new[] { "upgrade", HomebrewPackage },
+        InstallChannel.Homebrew when HomebrewIsCask => new[] { "upgrade", "--no-ask", "--cask", HomebrewPackage },
+        InstallChannel.Homebrew => new[] { "upgrade", "--no-ask", "--formula", HomebrewPackage },
         InstallChannel.Scoop => new[] { "update", ScoopPackage },
         _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, "No upgrade args for a non-managed channel."),
     };

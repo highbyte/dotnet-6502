@@ -64,7 +64,7 @@ public class UpdateApplierTests
 
             var spawned = UpdateApplier.TrySpawnDetachedRelaunch(
                 manager,
-                new IReadOnlyList<string>[] { new[] { "update" }, new[] { "upgrade", "--cask", "dotnet-6502" } },
+                new IReadOnlyList<string>[] { new[] { "update" }, new[] { "upgrade", "--no-ask", "--cask", "dotnet-6502" } },
                 app.Id,
                 new RelaunchSpec("/bin/bash", new[] { relaunchScript }),
                 logFilePath: Path.Combine(dir, "update.log"));
@@ -76,7 +76,7 @@ public class UpdateApplierTests
             Assert.True(await WaitForFileAsync(relaunchMarker, TimeSpan.FromSeconds(15)), "relaunch did not run");
             var commandLogAppeared = await WaitForFileAsync(log, TimeSpan.FromSeconds(5));
             Assert.True(commandLogAppeared, "manager command log was not written");
-            Assert.Equal(new[] { "update", "upgrade --cask dotnet-6502" }, await File.ReadAllLinesAsync(log));
+            Assert.Equal(new[] { "update", "upgrade --no-ask --cask dotnet-6502" }, await File.ReadAllLinesAsync(log));
         }
         finally
         {

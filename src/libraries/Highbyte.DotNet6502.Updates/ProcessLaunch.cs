@@ -34,6 +34,7 @@ public static class ProcessLaunch
             case ".ps1":
                 psi.FileName = powerShellExe;
                 psi.ArgumentList.Add("-NoProfile");
+                psi.ArgumentList.Add("-NonInteractive");
                 psi.ArgumentList.Add("-ExecutionPolicy");
                 psi.ArgumentList.Add("Bypass");
                 psi.ArgumentList.Add("-File");

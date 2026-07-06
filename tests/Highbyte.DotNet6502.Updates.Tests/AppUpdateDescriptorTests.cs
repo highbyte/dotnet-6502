@@ -20,7 +20,7 @@ public class AppUpdateDescriptorTests
         Assert.Collection(
             commands,
             command => Assert.Equal(new[] { "update" }, command),
-            command => Assert.Equal(new[] { "upgrade", "--cask", "dotnet-6502" }, command));
+            command => Assert.Equal(new[] { "upgrade", "--no-ask", "--cask", "dotnet-6502" }, command));
     }
 
     [Fact]

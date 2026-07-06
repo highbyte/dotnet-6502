@@ -22,6 +22,7 @@ public class ProcessLaunchTests
         var psi = ProcessLaunch.BuildStartInfo(@"C:\scoop\shims\scoop.ps1", new[] { "update", "dotnet-6502" }, isWindows: true);
 
         Assert.Equal("powershell.exe", psi.FileName);
+        Assert.Contains("-NonInteractive", psi.ArgumentList);
         Assert.Contains("-File", psi.ArgumentList);
         Assert.Contains(@"C:\scoop\shims\scoop.ps1", psi.ArgumentList);
         Assert.Contains("update", psi.ArgumentList);
@@ -33,6 +34,7 @@ public class ProcessLaunchTests
         var psi = ProcessLaunch.BuildStartInfo(@"C:\scoop\shims\scoop.ps1", new[] { "update", "x" }, isWindows: true, powerShellExe: "pwsh.exe");
 
         Assert.Equal("pwsh.exe", psi.FileName);
+        Assert.Contains("-NonInteractive", psi.ArgumentList);
         Assert.Contains("-File", psi.ArgumentList);
     }
 

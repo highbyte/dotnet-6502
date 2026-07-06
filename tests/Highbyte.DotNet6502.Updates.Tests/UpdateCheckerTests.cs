@@ -95,7 +95,7 @@ public class UpdateCheckerTests : IDisposable
 
         await checker.CheckAsync();
 
-        Assert.Contains(logger.Messages, m => m.Contains("v0.40.2-alpha") && m.Contains("brew update && brew upgrade dotnet-6502-terminal"));
+        Assert.Contains(logger.Messages, m => m.Contains("v0.40.2-alpha") && m.Contains("brew update && brew upgrade --no-ask --formula dotnet-6502-terminal"));
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public class UpdateCheckerTests : IDisposable
         Assert.Equal(UpdateCheckStatus.UpdateAvailable, result.Status);
         Assert.True(result.IsUpdateAvailable);
         Assert.Equal("0.40.2-alpha", result.LatestVersion!.ToString());
-        Assert.Equal("brew update && brew upgrade dotnet-6502-terminal", result.SuggestedCommand);
+        Assert.Equal("brew update && brew upgrade --no-ask --formula dotnet-6502-terminal", result.SuggestedCommand);
         Assert.Equal("https://example/releases/v0.40.2-alpha", result.ReleaseNotesUrl);
     }
 
@@ -184,7 +184,7 @@ public class UpdateCheckerTests : IDisposable
         // Second check within the 24h window reuses the cache written by the first.
         var second = await MakeChecker(source, detector, "0.40.1-alpha").CheckAsync();
         Assert.Equal(UpdateCheckStatus.UpdateAvailable, second.Status);
-        Assert.Equal("brew update && brew upgrade dotnet-6502-terminal", second.SuggestedCommand);
+        Assert.Equal("brew update && brew upgrade --no-ask --formula dotnet-6502-terminal", second.SuggestedCommand);
         Assert.Equal(1, source.CallCount); // no new network call
     }
 
