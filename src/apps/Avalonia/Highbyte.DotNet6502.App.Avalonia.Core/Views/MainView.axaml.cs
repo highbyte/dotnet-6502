@@ -55,7 +55,6 @@ public partial class MainView : UserControl
         (Key.L, "LogTabItem",              "Log"),
         (Key.S, "ScriptsTabItem",          "Scripts"),
         (Key.D, "DebugAndRemotingTabItem", "Debug & Remoting"),
-        (Key.G, "GeneralInfoTabItem",      "General info"),
     };
 
     // Parameterless constructor - child views created by XAML!

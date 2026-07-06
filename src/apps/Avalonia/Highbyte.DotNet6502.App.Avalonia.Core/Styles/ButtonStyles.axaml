@@ -130,13 +130,37 @@
 
     <!-- Text-only button for dialogs -->
     <Style Selector="Button.text">
-        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
     </Style>
 
+    <Style Selector="Button.monospace">
+        <Setter Property="FontFamily" Value="{StaticResource MonospaceFontFamily}"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
     <Style Selector="Button.text:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <Style Selector="Button.link">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="Button.link:pointerover">
         <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
     </Style>
 
@@ -175,7 +199,7 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"/>
         <Setter Property="Foreground" Value="White"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Padding" Value="6,2"/>
