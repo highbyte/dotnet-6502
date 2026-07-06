@@ -19,8 +19,7 @@ acknowledgement is required). See [Systems / C64 / ROMs](../../systems/c64/roms.
     Upload the ROM binaries via the C64 config UI, or use the auto-download option.
 
 === "Desktop"
-    Point the app at a directory containing the ROM files. Defaults are set in `appsettings.json`
-    and can be changed in the UI, or use the auto-download option.
+    Point the app at a directory containing the ROM files. When no directory override is set, the default is `~/Documents/Highbyte/DotNet6502/roms/C64` (or the Windows Documents equivalent). Desktop user changes are saved to the host-specific `appsettings.user.json` overlay and can be changed in the UI, or use the auto-download option.
 
 ## Display / renderers
 

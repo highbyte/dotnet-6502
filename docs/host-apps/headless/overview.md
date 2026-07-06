@@ -52,6 +52,7 @@ The headless app supports the [Debug Adapter Protocol (DAP)](https://microsoft.g
 ### Remote control
 
 The headless app can expose a TCP remote control endpoint that lets external processes drive the running emulator. See [Tools / Remote control](../../tools/remote-control/overview.md).
+The remote protocol includes `emu.savesnapshot` and `emu.loadsnapshot`; both commands require an explicit snapshot path on the machine running the headless emulator.
 
 ## CLI arguments
 
@@ -156,17 +157,30 @@ Example console output:
 
 ## Configuration
 
-Edit `appsettings.json` in the app directory to configure ROM paths and scripting settings:
+The shipped `appsettings.json` contains packaged defaults. User overrides are read from the Headless host's `appsettings.user.json` under the OS local application data folder:
+
+- macOS/Linux: `~/.local/share/Highbyte/DotNet6502/Headless/appsettings.user.json`
+- Windows: `%LOCALAPPDATA%\Highbyte\DotNet6502\Headless\appsettings.user.json`
+
+When the ROM and script directory settings are empty, Headless uses the shared user content folders under `~/Documents/Highbyte/DotNet6502` (or the Windows Documents equivalent):
+
+- ROMs: `roms/[SYSTEM]`
+- Lua scripts: `scripts`
+- Snapshots: `snapshots`
+
+Headless does not currently have a `SnapshotDirectory` setting. Startup `--load-snapshot` and TCP remote-control `emu.savesnapshot` / `emu.loadsnapshot` use the explicit path passed to the command. For consistency with the desktop app, use the shared snapshots folder above unless a workflow needs another server-side path.
+
+Example overlay:
 
 ```json
 {
   "Highbyte.DotNet6502.Scripting": {
     "Enabled": true,
-    "ScriptDirectory": "scripts"
+    "ScriptDirectory": ""
   },
   "Highbyte.DotNet6502.C64.Headless": {
     "SystemConfig": {
-      "ROMDirectory": "%HOME%/Downloads/C64"
+      "ROMDirectory": ""
     }
   }
 }

@@ -7,7 +7,7 @@ These are interpreted by the shared startup pipeline and are valid for any syste
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
 | `--script <path>` | Load and run a Lua script. Can be specified multiple times. | Exclusive with all automated-startup parameters. | `--script scripts/demo.lua` |
-| `--scriptDir <path>` | Override the script directory from `appsettings.json`. | Exclusive with all automated-startup parameters. | `--scriptDir ./scripts` |
+| `--scriptDir <path>` | Override the effective script directory. When omitted, desktop hosts use the configured directory or `~/Documents/Highbyte/DotNet6502/scripts`. | Exclusive with all automated-startup parameters. | `--scriptDir ./scripts` |
 
 #### System selection & lifecycle
 

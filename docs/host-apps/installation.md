@@ -73,7 +73,7 @@ scoop bucket add dotnet-6502 https://github.com/highbyte/scoop-dotnet-6502
 |-------------|-------------|-------|
 | **Avalonia** | `dotnet-6502` | On macOS also launchable from Launchpad / Spotlight / Finder (installed to `/Applications`); on Windows from the **DotNet 6502 Emulator** Start Menu shortcut. |
 | **Terminal (TUI)** | `dotnet-6502-terminal` | Needs a terminal with **Unicode** + **24-bit true color** (on Windows use Windows Terminal, not legacy `conhost`). C64 / VIC-20 ROMs required — auto-downloadable from the in-app Config dialog. See [Terminal requirements](terminal/overview.md#terminal-requirements). |
-| **Headless** | `dotnet-6502-headless --system C64 --start --script scripts/example_c64_basic_readwrite.lua` | CLI / Lua automation. C64 ROMs must be available (path set in `appsettings.json`). |
+| **Headless** | `dotnet-6502-headless --system C64 --start --script scripts/example_c64_basic_readwrite.lua` | CLI / Lua automation. C64 ROMs must be available in the default user ROM folder or a configured override. |
 | **Remote client** | `dotnet-6502-remote emu.state` | Drives a *separate* running Avalonia Desktop / Headless emulator over TCP — start that emulator with remote control enabled first. See [Remote control](../tools/remote-control/overview.md); run `dotnet-6502-remote --help` for all commands. |
 
 ROM details: [Systems / C64 / ROMs](../systems/c64/roms.md), [Systems / VIC-20 / ROMs](../systems/vic20/roms.md).
