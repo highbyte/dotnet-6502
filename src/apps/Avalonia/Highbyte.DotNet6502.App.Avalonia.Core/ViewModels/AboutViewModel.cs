@@ -68,6 +68,7 @@ public class AboutViewModel : ViewModelBase
     public bool ShowUpdateAvailableStatus => IsUpdateSectionVisible && _isUpdateAvailable;
     public bool ShowPlainStatus => IsUpdateSectionVisible && !_isUpdateAvailable;
     public bool ShowInlineReleaseNotes => ShowUpdateAvailableStatus && HasReleaseNotes;
+    public bool ShowSecondaryReleaseNotes => HasReleaseNotes && !ShowInlineReleaseNotes;
 
     public string StatusText
     {
@@ -91,6 +92,7 @@ public class AboutViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(ShowUpdateAvailableStatus));
             this.RaisePropertyChanged(nameof(ShowPlainStatus));
             this.RaisePropertyChanged(nameof(ShowInlineReleaseNotes));
+            this.RaisePropertyChanged(nameof(ShowSecondaryReleaseNotes));
         }
     }
 
@@ -125,6 +127,7 @@ public class AboutViewModel : ViewModelBase
             this.RaiseAndSetIfChanged(ref _releaseNotesUrl, value);
             this.RaisePropertyChanged(nameof(HasReleaseNotes));
             this.RaisePropertyChanged(nameof(ShowInlineReleaseNotes));
+            this.RaisePropertyChanged(nameof(ShowSecondaryReleaseNotes));
         }
     }
 
