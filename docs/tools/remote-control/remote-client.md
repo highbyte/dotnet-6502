@@ -6,13 +6,18 @@ Pre-built binaries are available for Windows, Linux, and macOS. The remote clien
 
 ## Global options
 
-| Option          | Default     | Description                  |
-|-----------------|-------------|------------------------------|
-| `--host <host>` | `127.0.0.1` | Server hostname or IP        |
-| `--port <port>` | `6510`      | TCP port                     |
-| `--help`        |             | Print usage and exit         |
+| Option           | Default     | Description                  |
+|------------------|-------------|------------------------------|
+| `--host <host>`  | `127.0.0.1` | Server hostname or IP        |
+| `--port <port>`  | `6510`      | TCP port                     |
+| `--help`         |             | Print usage and exit         |
+| `--version`      |             | Print the client version and exit |
+| `--check-update` |             | Check for a newer release of `dotnet-6502-remote` and print the result (no automatic check otherwise). Package-manager installs only. |
+| `--update`       |             | Check and, if a newer release is available on a package-manager install, run the `brew`/`scoop` upgrade, then exit. |
 
 Exit codes: `0` = success, `1` = server returned an error or connection failed, `2` = bad arguments.
+
+The Remote Client never checks for updates automatically (its stdout stays script-friendly); the flags above are the only update surface. See [Staying up to date](../../host-apps/installation.md#staying-up-to-date).
 
 ## Usage examples
 

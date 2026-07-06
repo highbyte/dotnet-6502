@@ -2,6 +2,23 @@
 
 These are interpreted by the shared startup pipeline and are valid for any system.
 
+#### Updates
+
+Handled before the emulator/UI starts; each prints its result and exits immediately. Update checks
+require a package-manager install (Homebrew / Scoop) — manual-download and development builds report
+*not managed*. For how detection works and the on/off setting, see
+[Staying up to date](../../host-apps/installation.md#staying-up-to-date).
+
+| Parameter | Description | Depends on | Example |
+|---|---|---|---|
+| `--version` | Print the app version and exit. | — | `--version` |
+| `--check-update` | Check for a newer release and print the result. Ignores the `UpdateCheckEnabled` setting and the CI / `DOTNET6502_NO_UPDATE_CHECK` suppression. | — | `--check-update` |
+| `--update` | Check and, if an update is available on a package-manager install, run the `brew`/`scoop` upgrade in the foreground, then exit. | — | `--update` |
+
+Host-specific notes: on **Avalonia Desktop** these flags run before the GUI window opens and, on
+Windows, attach to the invoking console so their output is visible. On **Headless** the output goes to
+stdout. The **Remote Client** exposes the same flags (see its [Global options](../../tools/remote-control/remote-client.md#global-options)) but never checks automatically.
+
 #### Scripting
 
 | Parameter | Description | Depends on | Example |
