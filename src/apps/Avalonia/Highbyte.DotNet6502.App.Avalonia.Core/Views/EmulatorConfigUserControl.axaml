@@ -9,7 +9,7 @@
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8" MaxWidth="1240">
     <!-- Title Header -->
     <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
-      <TextBlock Text="General Emulator Options"
+      <TextBlock Text="General Emulator Settings"
                  Classes="h-center h2"/>
     </Border>
 
@@ -104,11 +104,11 @@
           </Border>
         </StackPanel>
 
-        <!-- Developer Options Section -->
+        <!-- Developer Settings Section -->
         <StackPanel Width="400" Classes="wrap-item">
           <Border Classes="content-section">
             <StackPanel Classes="spacing-tight">
-              <TextBlock Text="Developer Options"
+              <TextBlock Text="Developer Settings"
                          Classes=""/>
 
               <CheckBox Content="Show Debug tools"
@@ -217,12 +217,12 @@
 
               <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0"
-                           Text="Snapshot folder:"
+                           Text="Snapshot directory:"
                            Classes="secondary-text"
                            VerticalAlignment="Center"/>
                 <TextBox Grid.Row="0" Grid.Column="1"
                          AutomationProperties.AutomationId="SnapshotDirectoryTextBox"
-                         AutomationProperties.Name="Snapshot folder"
+                         AutomationProperties.Name="Snapshot directory"
                          Text="{Binding SnapshotDirectory}"
                          Width="250"
                          HorizontalAlignment="Left"/>
@@ -422,7 +422,7 @@
               Command="{Binding CancelCommand}"/>
       <Button Grid.Column="3"
               AutomationProperties.AutomationId="OkButton"
-              AutomationProperties.Name="Save emulator options"
+              AutomationProperties.Name="Save emulator settings"
               Content="{Binding OkButtonText}"
               Classes="primary"
               IsDefault="True"

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 /// <summary>
-/// UserControl for displaying error messages with Continue/Exit options.
+/// UserControl for displaying error messages with Continue/Quit actions.
 /// Includes an optional expandable section to show detailed exception information and stack trace.
 /// </summary>
 public partial class ErrorUserControl : UserControl

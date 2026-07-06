@@ -176,7 +176,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     }
 
     public string RomDirectoryToolTip =>
-        $"Optional ROM folder override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(Vic20SystemConfig.DefaultROMDirectory)}";
+        $"Optional ROM directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(Vic20SystemConfig.DefaultROMDirectory)}";
 
     public RenderProviderOption? SelectedRenderProvider
     {

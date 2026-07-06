@@ -281,7 +281,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     }
 
     public string SnapshotDirectoryDescription =>
-        $"Optional snapshot folder override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(EmulatorConfig.DefaultSnapshotDirectory)}.";
+        $"Optional snapshot directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(EmulatorConfig.DefaultSnapshotDirectory)}.";
 
     public string EffectiveSnapshotDirectory
     {
@@ -400,7 +400,7 @@ public class EmulatorConfigViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Resets all options to application defaults in the working copies. Nothing is persisted until
+    /// Resets all settings to application defaults in the working copies. Nothing is persisted until
     /// the user clicks Save. The live <see cref="_emulatorConfig"/> is left untouched here.
     /// </summary>
     private void ResetToDefaults()

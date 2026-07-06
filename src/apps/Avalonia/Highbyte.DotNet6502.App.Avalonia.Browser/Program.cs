@@ -144,7 +144,7 @@ internal sealed partial class Program
     ///     <term><c>loadD64ZipEntry</c></term>
     ///     <description>
     ///       Exact <c>.d64</c> entry to select when <c>loadD64Url</c> points at a ZIP archive. Use
-    ///       forward slashes for folders.
+    ///       forward slashes for directories.
     ///     </description>
     ///   </item>
     ///   <item>
@@ -161,7 +161,7 @@ internal sealed partial class Program
     ///     <term><c>loadCrtZipEntry</c></term>
     ///     <description>
     ///       Exact <c>.crt</c> entry to select when <c>loadCrtUrl</c> points at a ZIP archive. Use
-    ///       forward slashes for folders; this is required for ZIP archives with multiple
+    ///       forward slashes for directories; this is required for ZIP archives with multiple
     ///       <c>.crt</c> files.
     ///     </description>
     ///   </item>

@@ -106,8 +106,8 @@
                         Click="ContinueButton_Click"/>-->
                 <Button x:Name="ExitButton"
                         AutomationProperties.AutomationId="ExitButton"
-                        AutomationProperties.Name="Exit application"
-                        Content="Exit"
+                        AutomationProperties.Name="Quit application"
+                        Content="Quit"
                         Width="100"
                         Height="35"
                         Classes="danger"

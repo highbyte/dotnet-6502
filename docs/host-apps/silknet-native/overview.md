@@ -21,7 +21,7 @@ Manual download, see section in [installation.md](../installation.md)
 
 ### System: C64
 
-- A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. When no directory override is set, the default is the shared user content folder `~/Documents/Highbyte/DotNet6502/roms/C64` (or the Windows Documents equivalent). The directory can be changed in the UI; user changes are saved to this host's `appsettings.user.json` under the OS local application data folder.
+- A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. When no directory override is set, the default is the shared user content directory `~/Documents/Highbyte/DotNet6502/roms/C64` (or the Windows Documents equivalent). The directory can be changed in the UI; user changes are saved to this host's `appsettings.user.json` under the OS local application data directory.
 
 - Renderer provider `Rasterizer` -> target `Skia 2-layer canvas`
     - Character mode (normal and multi-color).
