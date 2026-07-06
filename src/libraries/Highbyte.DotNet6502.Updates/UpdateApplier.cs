@@ -202,6 +202,7 @@ public static class UpdateApplier
             WorkingDirectory = Path.GetTempPath(),
         };
         psi.ArgumentList.Add("-NoProfile");
+        psi.ArgumentList.Add("-NonInteractive");
         psi.ArgumentList.Add("-ExecutionPolicy");
         psi.ArgumentList.Add("Bypass");
         psi.ArgumentList.Add("-WindowStyle");

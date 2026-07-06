@@ -154,8 +154,8 @@ public sealed class UpdateChecker
     /// <summary>Builds the exact upgrade command for the detected channel (Phase A: shown/copied, not auto-run).</summary>
     public string BuildUpgradeCommand(InstallChannel channel) => channel switch
     {
-        InstallChannel.Homebrew when _descriptor.HomebrewIsCask => $"brew update && brew upgrade --cask {_descriptor.HomebrewPackage}",
-        InstallChannel.Homebrew => $"brew update && brew upgrade {_descriptor.HomebrewPackage}",
+        InstallChannel.Homebrew when _descriptor.HomebrewIsCask => $"brew update && brew upgrade --no-ask --cask {_descriptor.HomebrewPackage}",
+        InstallChannel.Homebrew => $"brew update && brew upgrade --no-ask --formula {_descriptor.HomebrewPackage}",
         // ';' (not '&&') separates the metadata refresh from the app upgrade: Scoop runs under
         // PowerShell, where ';' is the portable statement separator ('&&' is PowerShell 7+ only).
         InstallChannel.Scoop => $"scoop update; scoop update {_descriptor.ScoopPackage}",
