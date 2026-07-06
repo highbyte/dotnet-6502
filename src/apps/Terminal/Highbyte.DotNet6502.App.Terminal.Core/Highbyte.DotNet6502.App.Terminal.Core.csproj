@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Updates\Highbyte.DotNet6502.Updates.csproj" />
   </ItemGroup>
 
 </Project>

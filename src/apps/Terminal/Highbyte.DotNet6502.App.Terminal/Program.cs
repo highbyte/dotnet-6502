@@ -63,13 +63,14 @@ using var loggerFactory = LoggerFactory.Create(logBuilder =>
 
 var bootstrapLogger = loggerFactory.CreateLogger("Program");
 
-// Non-blocking startup update check. On a managed (brew/scoop) install with a newer release it logs
-// one Information line to the in-mem store shown in the "Logs" pane. Gated by the UpdateCheckEnabled
-// setting and the standard CI / DOTNET6502_NO_UPDATE_CHECK suppressors.
-_ = ConsoleUpdateCli.CheckAndLogOnStartupAsync(
+// Update service backing the in-TUI Updates dialog (leader-key U) and the "update available"
+// indicator. The startup check is fired below (interactive run only). Gated by the UpdateCheckEnabled
+// setting and the standard CI / DOTNET6502_NO_UPDATE_CHECK suppressors; on a managed (brew/scoop)
+// install with a newer release the checker logs one Information line to the "Logs" pane.
+var updateService = new TerminalUpdateService(
     new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-terminal", ScoopPackage = "dotnet-6502-terminal" },
-    loggerFactory.CreateLogger("UpdateCheck"),
-    configuration.GetValue("UpdateCheckEnabled", true));
+    configuration.GetValue("UpdateCheckEnabled", true),
+    loggerFactory);
 
 try
 {
@@ -141,7 +142,7 @@ try
     // Run the TUI host app (or the headless self-test that needs no TTY).
     // ----------
     var hostApp = new TuiHostApp(systemList, loggerFactory, emulatorConfig, logStore,
-        ResolveMenuContribution, ResolveInfoContribution);
+        ResolveMenuContribution, ResolveInfoContribution, updateService);
     hostAppHolder = hostApp;
 
     if (args.Contains("--selftest"))
@@ -161,7 +162,25 @@ try
     }
     else
     {
+        // Fire the non-blocking startup update check (interactive run only). Result surfaces in the
+        // Logs pane and the "update available" indicator; the Updates dialog (leader-key U) drives it.
+        _ = updateService.CheckAsync();
+
         hostApp.Run();
+
+        // The TUI has released the terminal. If the user chose "Update now", run the package-manager
+        // upgrade in the foreground now (its output is visible on the plain console).
+        if (updateService.PendingUpdateRequested)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Updating: {updateService.Latest!.SuggestedCommand}");
+            Console.WriteLine();
+            var updated = await updateService.RunPendingUpdateAsync(Console.Out);
+            Console.WriteLine();
+            Console.WriteLine(updated
+                ? "Update complete. Restart dotnet-6502-terminal to use the new version."
+                : "Update failed. See the output above; you can run the command manually.");
+        }
     }
 }
 catch (Exception ex)
