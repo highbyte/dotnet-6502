@@ -197,16 +197,16 @@ Selects a configuration variant for the current system. **The emulator must be s
 
 ### `emu.savesnapshot`
 
-Saves the current full emulator state to a `.d6502snap` snapshot file. The path is resolved **on the machine the emulator runs on** (the server), not the client. The selected system must support snapshots.
+Saves the current full emulator state to a `.d6502snap` snapshot file. The path is resolved **on the machine the emulator runs on** (the server), not the client. Absolute paths are used as-is; relative paths are resolved from the server's shared snapshot directory. The selected system must support snapshots.
 
 **Parameters**
 
 | Parameter | Type   | Description                                  |
 |-----------|--------|----------------------------------------------|
-| `path`    | string | Server-side destination path for the snapshot |
+| `path`    | string | Server-side destination path for the snapshot. Relative paths use the server's shared snapshot directory. |
 
 ```json
-{"id": 10, "cmd": "emu.savesnapshot", "path": "/tmp/state.d6502snap"}
+{"id": 10, "cmd": "emu.savesnapshot", "path": "state.d6502snap"}
 ```
 
 ```json
@@ -215,16 +215,16 @@ Saves the current full emulator state to a `.d6502snap` snapshot file. The path 
 
 ### `emu.loadsnapshot`
 
-Restores full emulator state from a `.d6502snap` snapshot file (read from the **server-side** path). The snapshot's manifest determines the system, so no `emu.selectsystem` is needed first. The emulator is left **paused** after restore — send `emu.start` to resume.
+Restores full emulator state from a `.d6502snap` snapshot file (read from the **server-side** path). Absolute paths are used as-is; relative paths are resolved from the server's shared snapshot directory. The snapshot's manifest determines the system, so no `emu.selectsystem` is needed first. The emulator is left **paused** after restore — send `emu.start` to resume.
 
 **Parameters**
 
 | Parameter | Type   | Description                             |
 |-----------|--------|-----------------------------------------|
-| `path`    | string | Server-side path of the snapshot to load |
+| `path`    | string | Server-side path of the snapshot to load. Relative paths use the server's shared snapshot directory. |
 
 ```json
-{"id": 11, "cmd": "emu.loadsnapshot", "path": "/tmp/state.d6502snap"}
+{"id": 11, "cmd": "emu.loadsnapshot", "path": "state.d6502snap"}
 ```
 
 ```json

@@ -1,4 +1,5 @@
 using System.IO;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -499,15 +500,25 @@ public static class AutomatedStartupHandler
         }
         else
         {
-            var expandedPath = PathHelper.ExpandOSEnvironmentVariables(request.LoadSnapshotPath!);
-            if (!File.Exists(expandedPath))
+            string snapshotPath;
+            try
             {
-                logger.LogError($"Snapshot file not found: {expandedPath}");
+                snapshotPath = AppStoragePaths.ResolveSnapshotFilePath(request.LoadSnapshotPath!);
+            }
+            catch (ArgumentException ex)
+            {
+                logger.LogError("Invalid snapshot path: {Message}", ex.Message);
                 fatalError();
                 return;
             }
-            logger.LogInformation($"Loading snapshot file: {expandedPath}");
-            snapshotBytes = await File.ReadAllBytesAsync(expandedPath);
+            if (!File.Exists(snapshotPath))
+            {
+                logger.LogError($"Snapshot file not found: {snapshotPath}");
+                fatalError();
+                return;
+            }
+            logger.LogInformation($"Loading snapshot file: {snapshotPath}");
+            snapshotBytes = await File.ReadAllBytesAsync(snapshotPath);
         }
 
         try

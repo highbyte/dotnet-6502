@@ -25,8 +25,8 @@ var commands = new[]
     ("emu.selectsystem", "--name <system>",               "Select a system (emulator must be stopped)"),
     ("emu.variants",     "",                              "List config variants for the current system"),
     ("emu.selectvariant","--name <variant>",              "Select a config variant (emulator must be stopped)"),
-    ("emu.savesnapshot", "--path <file.d6502snap>",       "Save current emulator state to a snapshot file (path is on the emulator host)"),
-    ("emu.loadsnapshot", "--path <file.d6502snap>",       "Restore emulator state from a snapshot file (path is on the emulator host; leaves it paused)"),
+    ("emu.savesnapshot", "--path <file.d6502snap>",       "Save current emulator state to a snapshot file (relative paths use the emulator host's snapshot folder)"),
+    ("emu.loadsnapshot", "--path <file.d6502snap>",       "Restore emulator state from a snapshot file (relative paths use the emulator host's snapshot folder; leaves it paused)"),
     ("cpu.get",          "",                              "Get CPU registers"),
     ("cpu.set",          "[--pc <hex>] [--a <0-255>] [--x <0-255>] [--y <0-255>] [--sp <0-255>] [--flags <NVUBDIZC>]", "Set CPU registers"),
     ("mem.read",         "--addr <hex> --len <int>",                          "Read bytes from memory"),
@@ -204,8 +204,8 @@ void PrintHelp()
     Console.WriteLine("  dotnet-6502-remote emu.selectsystem --name C64");
     Console.WriteLine("  dotnet-6502-remote emu.variants");
     Console.WriteLine("  dotnet-6502-remote emu.selectvariant --name \"C64 - Default\"");
-    Console.WriteLine("  dotnet-6502-remote emu.savesnapshot --path /tmp/state.d6502snap");
-    Console.WriteLine("  dotnet-6502-remote emu.loadsnapshot --path /tmp/state.d6502snap");
+    Console.WriteLine("  dotnet-6502-remote emu.savesnapshot --path state.d6502snap");
+    Console.WriteLine("  dotnet-6502-remote emu.loadsnapshot --path state.d6502snap");
     Console.WriteLine("  dotnet-6502-remote cpu.get");
     Console.WriteLine("  dotnet-6502-remote cpu.set --pc C000 --a 0");
     Console.WriteLine("  dotnet-6502-remote cpu.set --flags \"----I---\"");

@@ -253,7 +253,7 @@ The operation is deferred (like `emu.start()` etc.) and takes effect after the c
 
 ## Snapshots (`emu.save_snapshot` / `emu.load_snapshot`)
 
-Available when `AllowFileIO: true`. Save and restore the **full emulator state** (CPU, memory, machine-specific chips, and attached disk/cartridge media) to a `.d6502snap` file. Paths are confined to `FileBaseDirectory`, the same as `file.*`. These mirror the remote-control `emu.savesnapshot` / `emu.loadsnapshot` commands.
+Available when `AllowFileIO: true`. Save and restore the **full emulator state** (CPU, memory, machine-specific chips, and attached disk/cartridge media) to a `.d6502snap` file. Absolute paths are used as-is; relative paths are resolved from the shared snapshot directory. These mirror the remote-control `emu.savesnapshot` / `emu.loadsnapshot` commands.
 
 | Function | Description |
 |----------|-------------|

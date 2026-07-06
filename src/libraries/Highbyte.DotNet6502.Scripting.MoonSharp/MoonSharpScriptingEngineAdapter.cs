@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
@@ -702,12 +703,11 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         }
 
         // emu.save_snapshot / emu.load_snapshot — capture/restore full machine state to a .d6502snap file.
-        // Registered only when AllowFileIO is true (paths are sandboxed to the scripting base dir via
-        // LuaFileProxy, same as emu.screenshot / file.*). Mirrors the TCP emu.savesnapshot/emu.loadsnapshot
-        // commands. save_snapshot requires AllowFileWrite; load_snapshot only needs read access.
+        // Registered only when AllowFileIO is true. Relative paths resolve under the shared snapshot
+        // directory, mirroring the CLI and TCP emu.savesnapshot/emu.loadsnapshot commands.
+        // save_snapshot requires AllowFileWrite; load_snapshot only needs read access.
         if (config.AllowFileIO && _fileProxy != null && hostApp != null)
         {
-            var snapshotFileProxy = _fileProxy;
             var snapshotAllowWrite = config.AllowFileWrite;
 
             // save_snapshot runs inline (read-only capture) so the file exists and errors surface
@@ -720,8 +720,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                 var filename = args.Count > 0 ? args[0].CastToString() : null;
                 if (string.IsNullOrWhiteSpace(filename))
                     throw new ScriptRuntimeException("emu.save_snapshot() requires a filename argument.");
-                var safePath = snapshotFileProxy.GetSafePath(filename)
-                    ?? throw new ScriptRuntimeException($"emu.save_snapshot(): unsafe or invalid filename: {filename}");
+                var snapshotPath = ResolveLuaSnapshotPath(filename, "emu.save_snapshot()");
 
                 try
                 {
@@ -730,10 +729,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                         if (!hostApp.CanSnapshotCurrentSystem)
                             throw new InvalidOperationException(
                                 $"system '{hostApp.SelectedSystemName}' does not support snapshots (none selected/running?).");
-                        var dir = Path.GetDirectoryName(safePath);
+                        var dir = Path.GetDirectoryName(snapshotPath);
                         if (!string.IsNullOrEmpty(dir))
                             Directory.CreateDirectory(dir);
-                        await using var fileStream = File.Create(safePath);
+                        await using var fileStream = File.Create(snapshotPath);
                         await hostApp.SaveSnapshotAsync(fileStream);
                     }).GetAwaiter().GetResult();
                 }
@@ -752,14 +751,13 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                 var filename = args.Count > 0 ? args[0].CastToString() : null;
                 if (string.IsNullOrWhiteSpace(filename))
                     throw new ScriptRuntimeException("emu.load_snapshot() requires a filename argument.");
-                var safePath = snapshotFileProxy.GetSafePath(filename)
-                    ?? throw new ScriptRuntimeException($"emu.load_snapshot(): unsafe or invalid filename: {filename}");
+                var snapshotPath = ResolveLuaSnapshotPath(filename, "emu.load_snapshot()");
 
                 enqueueAction(CurrentScriptFileName(), async () =>
                 {
-                    if (!File.Exists(safePath))
-                        throw new FileNotFoundException($"emu.load_snapshot(): snapshot file not found: {safePath}");
-                    await using var fileStream = File.OpenRead(safePath);
+                    if (!File.Exists(snapshotPath))
+                        throw new FileNotFoundException($"emu.load_snapshot(): snapshot file not found: {snapshotPath}");
+                    await using var fileStream = File.OpenRead(snapshotPath);
                     await hostApp.LoadSnapshotAsync(fileStream);
                 });
                 return DynValue.Void;
@@ -1364,6 +1362,18 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             TcpPendingSentinel => ScriptYieldType.TcpPending,
             _ => null
         };
+    }
+
+    private static string ResolveLuaSnapshotPath(string filename, string apiName)
+    {
+        try
+        {
+            return AppStoragePaths.ResolveSnapshotFilePath(filename);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new ScriptRuntimeException($"{apiName}: {ex.Message}");
+        }
     }
 
     private static AdapterCoroutineState MapCoroutineState(CoroutineState state) => state switch

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Systems.Configuration;
 
@@ -44,6 +45,27 @@ public static class AppStoragePaths
 
     public static string GetSnapshotsDirectory()
         => Path.Combine(GetUserContentRoot(), "snapshots");
+
+    public static string ResolveSnapshotFilePath(string snapshotPath)
+    {
+        if (string.IsNullOrWhiteSpace(snapshotPath))
+            throw new ArgumentException("Snapshot path must be specified.", nameof(snapshotPath));
+
+        var expandedPath = PathHelper.ExpandOSEnvironmentVariables(snapshotPath);
+        if (Path.IsPathRooted(expandedPath))
+            return Path.GetFullPath(expandedPath);
+
+        var snapshotDirectory = GetSnapshotsDirectory();
+        var resolvedPath = Path.GetFullPath(Path.Combine(snapshotDirectory, expandedPath));
+        var snapshotDirectoryWithSeparator = Path.GetFullPath(snapshotDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+
+        if (!resolvedPath.StartsWith(snapshotDirectoryWithSeparator, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Relative snapshot path escapes the snapshot directory: {snapshotPath}", nameof(snapshotPath));
+
+        return resolvedPath;
+    }
 
     /// <summary>
     /// Root directory for regenerable, machine-local cache data. Anchored at

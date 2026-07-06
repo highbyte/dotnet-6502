@@ -52,7 +52,7 @@ The headless app supports the [Debug Adapter Protocol (DAP)](https://microsoft.g
 ### Remote control
 
 The headless app can expose a TCP remote control endpoint that lets external processes drive the running emulator. See [Tools / Remote control](../../tools/remote-control/overview.md).
-The remote protocol includes `emu.savesnapshot` and `emu.loadsnapshot`; both commands require an explicit snapshot path on the machine running the headless emulator.
+The remote protocol includes `emu.savesnapshot` and `emu.loadsnapshot`. Absolute paths are used as-is on the machine running the headless emulator; relative paths are resolved from the shared snapshot directory.
 
 ## CLI arguments
 
@@ -168,7 +168,7 @@ When the ROM and script directory settings are empty, Headless uses the shared u
 - Lua scripts: `scripts`
 - Snapshots: `snapshots`
 
-Headless does not currently have a `SnapshotDirectory` setting. Startup `--load-snapshot` and TCP remote-control `emu.savesnapshot` / `emu.loadsnapshot` use the explicit path passed to the command. For consistency with the desktop app, use the shared snapshots folder above unless a workflow needs another server-side path.
+Headless does not currently have a `SnapshotDirectory` setting. Startup `--load-snapshot` and TCP remote-control `emu.savesnapshot` / `emu.loadsnapshot` use absolute paths as-is and resolve relative paths from the shared snapshots folder above.
 
 Example overlay:
 
