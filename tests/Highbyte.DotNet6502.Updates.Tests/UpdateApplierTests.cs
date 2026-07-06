@@ -39,6 +39,52 @@ public class UpdateApplierTests
         Assert.True(relaunched, "relaunch did not run after a failed upgrade (fail-safe broken)");
     }
 
+    [Fact]
+    public async Task TrySpawnDetachedRelaunch_RunsUpgradeCommands_InOrder()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        var dir = Path.Combine(Path.GetTempPath(), "d6502-relaunch-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        Process? app = null;
+        try
+        {
+            var log = Path.Combine(dir, "commands.log");
+            var relaunchMarker = Path.Combine(dir, "relaunched");
+            var manager = Path.Combine(dir, "manager.sh");
+            await File.WriteAllTextAsync(manager, $"#!/bin/bash\necho \"$*\" >> '{log}'\nexit 0\n");
+            var relaunchScript = Path.Combine(dir, "relaunch.sh");
+            await File.WriteAllTextAsync(relaunchScript, $"#!/bin/bash\ntouch '{relaunchMarker}'\n");
+            MakeExecutable(manager);
+            MakeExecutable(relaunchScript);
+
+            app = Process.Start(new ProcessStartInfo { FileName = "/bin/bash", UseShellExecute = false }
+                .WithArgs("-c", "sleep 30"))!;
+
+            var spawned = UpdateApplier.TrySpawnDetachedRelaunch(
+                manager,
+                new IReadOnlyList<string>[] { new[] { "update" }, new[] { "upgrade", "--cask", "dotnet-6502" } },
+                app.Id,
+                new RelaunchSpec("/bin/bash", new[] { relaunchScript }),
+                logFilePath: Path.Combine(dir, "update.log"));
+            Assert.True(spawned, "helper was not spawned");
+
+            app.Kill(entireProcessTree: true);
+            await app.WaitForExitAsync();
+
+            Assert.True(await WaitForFileAsync(relaunchMarker, TimeSpan.FromSeconds(15)), "relaunch did not run");
+            var commandLogAppeared = await WaitForFileAsync(log, TimeSpan.FromSeconds(5));
+            Assert.True(commandLogAppeared, "manager command log was not written");
+            Assert.Equal(new[] { "update", "upgrade --cask dotnet-6502" }, await File.ReadAllLinesAsync(log));
+        }
+        finally
+        {
+            try { if (app is { HasExited: false }) app.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+        }
+    }
+
     // Runs the full detached scenario with a fake manager that touches a marker then exits with the
     // given code, and a fake relaunch that touches another marker. Returns whether the upgrade ran
     // before the app exited (should be false), and whether the upgrade + relaunch markers appeared.

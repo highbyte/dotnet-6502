@@ -78,7 +78,7 @@ public sealed class TerminalUpdateService
         if (!PendingUpdateRequested || Latest?.ManagerExecutablePath is null)
             return false;
 
-        return await UpdateApplier.RunUpgradeAsync(
-            Latest.ManagerExecutablePath, _descriptor.UpgradeArgs(Latest.Channel), output, cancellationToken).ConfigureAwait(false);
+        return await UpdateApplier.RunUpgradeCommandsAsync(
+            Latest.ManagerExecutablePath, _descriptor.UpgradeCommandArgs(Latest.Channel), output, cancellationToken).ConfigureAwait(false);
     }
 }
