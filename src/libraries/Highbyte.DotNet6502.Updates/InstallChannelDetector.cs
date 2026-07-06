@@ -8,9 +8,10 @@ namespace Highbyte.DotNet6502.Updates;
 /// nothing — the safe failure.
 ///
 /// Three stages: (1) an authoritative <c>install-channel</c> marker file dropped by the manifest,
-/// (2) path-heuristic corroboration on the run directory, and (3) a runtime sanity check that the
-/// manager is actually resolvable and reports this package installed. Only stage 3 can *confirm*
-/// managed; anything short of it collapses to not-managed.
+/// (2) a conservative path heuristic on the run directory, used only as a fallback when the marker is
+/// absent (Scoop's <c>apps/&lt;pkg&gt;/current</c> layout, or a Homebrew formula's <c>Cellar</c> path),
+/// and (3) a runtime sanity check that the manager is actually resolvable and reports this package
+/// installed. Only stage 3 can *confirm* managed; anything short of it collapses to not-managed.
 /// </summary>
 public sealed class InstallChannelDetector
 {
@@ -30,9 +31,12 @@ public sealed class InstallChannelDetector
     {
         ArgumentNullException.ThrowIfNull(descriptor);
 
-        var candidate = ReadMarkerChannel();
+        // Authoritative marker first; if it's absent, fall back to a conservative path heuristic on the
+        // run directory. Either way the candidate is only a *guess* — stage 3 (ConfirmHomebrew /
+        // ConfirmScoop) still has to see the package manager report this package installed.
+        var candidate = ReadMarkerChannel() ?? InferChannelFromPath(descriptor);
         if (candidate is null)
-            return InstallChannelInfo.NotManaged; // absent marker ⇒ not-managed (portable)
+            return InstallChannelInfo.NotManaged; // no marker and no matching install path ⇒ not-managed (portable)
 
         var channel = candidate.Value;
         var packageName = descriptor.PackageNameFor(channel);
@@ -97,6 +101,67 @@ public sealed class InstallChannelDetector
         return Path.Combine(home, "Library", "Application Support", "Highbyte", "DotNet6502", MarkerFileName);
     }
 
+    /// <summary>
+    /// Fallback used only when no marker is present: guess a channel from the directory the app runs
+    /// from. Conservative and biased to not-managed — it recognises just the two unambiguous layouts,
+    /// and the guess is still confirmed by the package manager before anything is shown:
+    /// <list type="bullet">
+    ///   <item>Scoop installs the app under <c>&lt;scoop&gt;/apps/&lt;package&gt;/current</c>.</item>
+    ///   <item>A Homebrew <em>formula</em> installs under <c>&lt;prefix&gt;/Cellar/&lt;formula&gt;/&lt;version&gt;/…</c>.</item>
+    /// </list>
+    /// The Homebrew <em>cask</em> is deliberately excluded: the <c>.app</c> normally runs from
+    /// <c>/Applications</c> (not the Cellar), so it stays marker-driven.
+    /// </summary>
+    private InstallChannel? InferChannelFromPath(AppUpdateDescriptor descriptor)
+    {
+        var baseDir = _probe.BaseDirectory;
+        if (string.IsNullOrWhiteSpace(baseDir))
+            return null;
+
+        var normalized = baseDir.Replace('\\', '/');
+
+        if (LooksLikeScoopInstallPath(normalized, descriptor.ScoopPackage))
+            return InstallChannel.Scoop;
+
+        if (!descriptor.HomebrewIsCask && LooksLikeHomebrewCellarPath(normalized, descriptor.HomebrewPackage))
+            return InstallChannel.Homebrew;
+
+        return null;
+    }
+
+    /// <summary>True when the run directory sits under a Scoop <c>apps/&lt;package&gt;/current</c> tree.</summary>
+    private bool LooksLikeScoopInstallPath(string normalizedBaseDir, string package)
+    {
+        var haystack = normalizedBaseDir.ToLowerInvariant();
+        var suffix = $"/apps/{package}/current".ToLowerInvariant();
+
+        // Default install roots are literally named "scoop"; also honour a custom $SCOOP root.
+        if (haystack.Contains($"/scoop{suffix}", StringComparison.Ordinal))
+            return true;
+
+        foreach (var root in ScoopRoots())
+        {
+            var rootPrefix = root.Replace('\\', '/').TrimEnd('/').ToLowerInvariant();
+            if (haystack.Contains($"{rootPrefix}{suffix}", StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>True when the run directory is under a known Homebrew prefix's <c>Cellar/&lt;formula&gt;/…</c> tree.</summary>
+    private bool LooksLikeHomebrewCellarPath(string normalizedBaseDir, string formula)
+    {
+        foreach (var prefix in HomebrewPrefixes())
+        {
+            var cellarRoot = prefix.Replace('\\', '/').TrimEnd('/') + $"/Cellar/{formula}/";
+            if (normalizedBaseDir.StartsWith(cellarRoot, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
     private InstallChannelInfo ConfirmHomebrew(string packageName, bool isCask)
     {
         var brew = _probe.ResolveExecutable("brew", HomebrewBinDirectories());
@@ -129,28 +194,36 @@ public sealed class InstallChannelDetector
     }
 
     private IEnumerable<string> HomebrewBinDirectories()
+        => HomebrewPrefixes().Select(prefix => Path.Combine(prefix, "bin"));
+
+    /// <summary>Known Homebrew install prefixes (env override first, then the platform defaults).</summary>
+    private IEnumerable<string> HomebrewPrefixes()
     {
         var prefix = _probe.GetEnvironmentVariable("HOMEBREW_PREFIX");
         if (!string.IsNullOrWhiteSpace(prefix))
-            yield return Path.Combine(prefix, "bin");
+            yield return prefix;
 
-        yield return "/opt/homebrew/bin";        // Apple Silicon
-        yield return "/usr/local/bin";           // Intel macOS
+        yield return "/opt/homebrew";            // Apple Silicon
+        yield return "/usr/local";               // Intel macOS
 
         var home = _probe.HomeDirectory;
         if (!string.IsNullOrWhiteSpace(home))
-            yield return Path.Combine(home, ".linuxbrew", "bin");
-        yield return "/home/linuxbrew/.linuxbrew/bin"; // Linuxbrew default
+            yield return Path.Combine(home, ".linuxbrew");
+        yield return "/home/linuxbrew/.linuxbrew"; // Linuxbrew default
     }
 
     private IEnumerable<string> ScoopShimDirectories()
+        => ScoopRoots().Select(root => Path.Combine(root, "shims"));
+
+    /// <summary>Known Scoop install roots (env override first, then <c>~/scoop</c>).</summary>
+    private IEnumerable<string> ScoopRoots()
     {
         var scoopHome = _probe.GetEnvironmentVariable("SCOOP");
         if (!string.IsNullOrWhiteSpace(scoopHome))
-            yield return Path.Combine(scoopHome, "shims");
+            yield return scoopHome;
 
         var home = _probe.HomeDirectory;
         if (!string.IsNullOrWhiteSpace(home))
-            yield return Path.Combine(home, "scoop", "shims");
+            yield return Path.Combine(home, "scoop");
     }
 }

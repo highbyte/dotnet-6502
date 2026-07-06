@@ -126,13 +126,18 @@ public class TuiHostApp : HostApp
     // render target directly and dumps the rendered screen as text). Set by RunSelfTest.
     private bool _selfTestMode;
 
+    // Optional update service: drives the "Updates" dialog (leader-key U) and the "update available"
+    // window-title/hint indicator. Null when the host is created without one (e.g. self-test).
+    private readonly TerminalUpdateService? _updateService;
+
     public TuiHostApp(
         SystemList systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
         Func<string, ITerminalMenuContribution?>? resolveMenuContribution = null,
-        Func<string, ITerminalInfoContribution?>? resolveInfoContribution = null)
+        Func<string, ITerminalInfoContribution?>? resolveInfoContribution = null,
+        TerminalUpdateService? updateService = null)
         : base("Terminal", systemList, loggerFactory, useStatsNamePrefix: false)
     {
         _loggerFactory = loggerFactory;
@@ -141,6 +146,7 @@ public class TuiHostApp : HostApp
         _logStore = logStore;
         _resolveMenuContribution = resolveMenuContribution ?? (_ => null);
         _resolveInfoContribution = resolveInfoContribution ?? (_ => null);
+        _updateService = updateService;
     }
 
     public void Run()
@@ -172,6 +178,9 @@ public class TuiHostApp : HostApp
         // off F10/F11 (terminals bind those to their own menu/fullscreen). See OnGlobalKeyDown.
         _leaderKeyCode = ParseLeaderKey(_emulatorConfig.LeaderKey);
         Application.KeyDown += OnGlobalKeyDown;
+        // Reflect update-check results (they arrive from a background thread) in the title/hint indicator.
+        if (_updateService is not null)
+            _updateService.Changed += OnUpdateStatusChanged;
         try
         {
             BuildUi();
@@ -213,6 +222,8 @@ public class TuiHostApp : HostApp
         finally
         {
             Application.KeyDown -= OnGlobalKeyDown;
+            if (_updateService is not null)
+                _updateService.Changed -= OnUpdateStatusChanged;
             StopEmulatorLoop();
             RemoveTimer(ref _displayTimerToken);
             RemoveTimer(ref _statusTimerToken);
@@ -277,7 +288,7 @@ public class TuiHostApp : HostApp
     {
         _window = new Window
         {
-            Title = $"DotNet 6502 — Terminal Host   ({LeaderKeyName} = Menu)",
+            Title = BaseWindowTitle,
             BorderStyle = LineStyle.Single,
         };
 
@@ -625,6 +636,7 @@ public class TuiHostApp : HostApp
             case KeyCode.M: DoMonitor(); break;
             case KeyCode.P: ShowStoragePathsDialog(); break;
             case KeyCode.T: ToggleStats(); break;
+            case KeyCode.U: DoUpdates(); break;
             case KeyCode.Q: Application.RequestStop(_window); break;
             // Tab and F6 both toggle the keyboard between the emulator and the host UI. F6 is accepted
             // because it is the "move between areas" key in the UI, so reaching for it to leave the
@@ -698,15 +710,71 @@ public class TuiHostApp : HostApp
         // In UI mode also advertise the navigation keys (Tab within an area, F6 between areas).
         if (_hostModeActive)
             _hintLabel.Text =
-                $" HOST: S Start/Stop  M Monitor  P Paths  T Stats  Q Quit  Y System  V Variant  Tab/F6 Emu⇄UI";
+                $" HOST: S Start/Stop  M Monitor  P Paths  T Stats  U Updates  Q Quit  Y System  V Variant  Tab/F6 Emu⇄UI   (Esc cancels)";
         else if (InEmulatorMode)
-            _hintLabel.Text = $" [EMULATOR]  {LeaderKeyName} Menu";
+            _hintLabel.Text = $" [EMULATOR]  {LeaderKeyName} Menu{UpdateHintSuffix}";
         else
-            _hintLabel.Text = $" [UI NAV]  {LeaderKeyName} Menu   Tab move · F6 area";
+            _hintLabel.Text = $" [UI NAV]  {LeaderKeyName} Menu   Tab move · F6 area{UpdateHintSuffix}";
     }
+
+    /// <summary>Appended to the normal hint line when an update is available, pointing at the leader-key command.</summary>
+    private string UpdateHintSuffix =>
+        _updateService?.IsUpdateAvailable == true ? $"   ★ Update available ({LeaderKeyName} U)" : string.Empty;
 
     /// <summary>Display name of the configured leader key (e.g. "F9").</summary>
     private string LeaderKeyName => _leaderKeyCode.ToString();
+
+    /// <summary>Window title without the update marker (see <see cref="UpdateWindowTitleForUpdates"/>).</summary>
+    private string BaseWindowTitle => $"DotNet 6502 — Terminal Host   ({LeaderKeyName} = Menu)";
+
+    /// <summary>
+    /// Update-check results arrive from a background thread, so marshal to the UI thread before touching
+    /// Terminal.Gui state, then refresh the title + hint indicators.
+    /// </summary>
+    private void OnUpdateStatusChanged()
+    {
+        if (_selfTestMode)
+            return;
+        Application.Invoke(() =>
+        {
+            UpdateWindowTitleForUpdates();
+            UpdateHintLine();
+        });
+    }
+
+    /// <summary>Reflect update availability in the window title (a persistent, non-focus-stealing indicator).</summary>
+    private void UpdateWindowTitleForUpdates()
+    {
+        if (_window is null)
+            return;
+        _window.Title = _updateService?.IsUpdateAvailable == true
+            ? $"{BaseWindowTitle}   *** Update available: {LeaderKeyName} U ***"
+            : BaseWindowTitle;
+        _window.SetNeedsDraw();
+    }
+
+    /// <summary>
+    /// Open the modal Updates dialog (leader-key <c>U</c>). A no-op when the host was created without an
+    /// update service. Refreshes the indicators afterwards in case a "Check now" changed the status.
+    /// </summary>
+    private void DoUpdates()
+    {
+        if (_updateService is null)
+            return;
+        UpdatesDialog.Show(this, _updateService);
+
+        // "Update now" records a pending upgrade and closes the dialog; quit the TUI so the app can run
+        // the package-manager upgrade in the foreground (see Program).
+        if (_updateService.PendingUpdateRequested)
+        {
+            Application.RequestStop(_window);
+            return;
+        }
+
+        // Otherwise a "Check now" may have changed the status — refresh the indicators.
+        UpdateWindowTitleForUpdates();
+        UpdateHintLine();
+    }
 
     /// <summary>
     /// Parse the configured leader key name (e.g. "F9") into a <see cref="KeyCode"/>. Falls back to F9

@@ -33,6 +33,29 @@ Null-valued fields are omitted from the response.
 
 ## Command Reference
 
+### `server.info`
+
+Cheap, read-only query returning the server's host app name and its release-stamped app version. Used by the client's `--check-server-version` preflight, but usable directly. Works in any emulator state.
+
+**Request**
+
+```json
+{"id": 1, "cmd": "server.info"}
+```
+
+**Response fields**
+
+| Field        | Type   | Description                                                                 |
+|--------------|--------|-----------------------------------------------------------------------------|
+| `app`        | string | Host app name, e.g. `Avalonia` or `Headless`                                |
+| `appversion` | string | Raw `AssemblyInformationalVersion` (e.g. `0.42.0-alpha+<hash>`); `1.0.0…` for an unstamped development build. Omitted if unavailable. The client normalizes and compares it. |
+
+**Response example**
+
+```json
+{"id": 1, "ok": true, "app": "Headless", "appversion": "0.42.0-alpha+abc1234"}
+```
+
 ### `emu.state`
 
 Returns the current emulator state and selected system name.

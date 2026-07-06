@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Highbyte.DotNet6502.Remoting.Protocol;
 using Highbyte.DotNet6502.Systems;
@@ -34,6 +35,7 @@ public class RemoteCommandDispatcher
             return cmd.Cmd switch
             {
                 "emu.state"    => HandleEmuState(cmd.Id),
+                "server.info"  => HandleServerInfo(cmd.Id),
                 "emu.start"    => await HandleUiAsync(cmd.Id, async hostApp => await hostApp.Start()),
                 "emu.stop"     => await HandleUiAsync(cmd.Id, hostApp => { hostApp.Stop();  return Task.CompletedTask; }),
                 "emu.pause"    => await HandleUiAsync(cmd.Id, hostApp => { hostApp.Pause(); return Task.CompletedTask; }),
@@ -86,6 +88,24 @@ public class RemoteCommandDispatcher
     }
 
     // --- Direct read handlers ---
+
+    /// <summary>
+    /// Cheap, read-only server-info query used by the remote client's <c>--check-server-version</c>
+    /// preflight. Returns the host app name and the raw release-stamped app version (the entry
+    /// assembly's <see cref="AssemblyInformationalVersionAttribute"/>); the client normalizes and
+    /// compares it against its own version. Works regardless of emulator state.
+    /// </summary>
+    private RemoteCommandResult HandleServerInfo(int? id)
+    {
+        var informationalVersion = Assembly.GetEntryAssembly()
+            ?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        return new RemoteCommandResult
+        {
+            Id = id, Ok = true,
+            App = _environment.GetHostApp()?.HostName,
+            AppVersion = informationalVersion,
+        };
+    }
 
     private RemoteCommandResult HandleEmuState(int? id)
     {

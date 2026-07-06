@@ -14,6 +14,7 @@ const string DefaultHost = "127.0.0.1";
 // Command definitions for --help output and self-description
 var commands = new[]
 {
+    ("server.info",      "",                              "Get the server host app name and release-stamped version"),
     ("emu.state",        "",                              "Get emulator state, system, and variant"),
     ("emu.start",        "",                              "Start (or resume from paused) the emulator"),
     ("emu.stop",         "",                              "Stop the emulator"),
@@ -100,6 +101,12 @@ if (cmdIndex >= args.Length)
 }
 
 var cmdArgs = args[cmdIndex..];
+
+// Preflight version check: connect, ask the server for its app version, and warn if it differs from
+// this client's version. Kept separate from the normal command path because it does its own compare.
+if (cmdArgs[0] == "--check-server-version")
+    return await CheckServerVersionAsync(host, port);
+
 var buildResult = RemoteClientRequestBuilder.Build(cmdArgs);
 if (buildResult.Error != null)
 {
@@ -176,6 +183,64 @@ catch (Exception ex)
     return 1;
 }
 
+async Task<int> CheckServerVersionAsync(string serverHost, int serverPort)
+{
+    try
+    {
+        using var tcp = new TcpClient();
+        await tcp.ConnectAsync(serverHost, serverPort);
+        using var stream = tcp.GetStream();
+        using var writer = new StreamWriter(stream, Encoding.UTF8, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
+        using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+
+        await writer.WriteLineAsync("{\"id\":1,\"cmd\":\"server.info\"}");
+
+        var line = await reader.ReadLineAsync();
+        if (line == null)
+        {
+            Console.Error.WriteLine("No response from server.");
+            return 1;
+        }
+
+        using var doc = JsonDocument.Parse(line);
+        var root = doc.RootElement;
+
+        bool ok = root.TryGetProperty("ok", out var okProp) && okProp.GetBoolean();
+        if (!ok)
+        {
+            var error = root.TryGetProperty("error", out var errProp) ? errProp.GetString() : null;
+            // A server that predates this feature rejects the unknown command → it's older than the client.
+            if (error != null && error.Contains("Unknown command", StringComparison.OrdinalIgnoreCase))
+                return Emit(ServerVersionCheck.ServerTooOld(null));
+
+            Console.Error.WriteLine($"Error: {error ?? "Unknown error"}");
+            return 1;
+        }
+
+        var app = root.TryGetProperty("app", out var appProp) ? appProp.GetString() : null;
+        var appVersionRaw = root.TryGetProperty("appversion", out var verProp) ? verProp.GetString() : null;
+
+        return Emit(ServerVersionCheck.Evaluate(app, AppVersion.Parse(appVersionRaw), AppVersion.GetCurrent()));
+    }
+    catch (SocketException ex)
+    {
+        Console.Error.WriteLine($"Could not connect to {serverHost}:{serverPort} — {ex.Message}");
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Error: {ex.Message}");
+        return 1;
+    }
+
+    static int Emit(ServerVersionCheck.Result result)
+    {
+        foreach (var l in result.StdoutLines) Console.WriteLine(l);
+        foreach (var l in result.StderrLines) Console.Error.WriteLine(l);
+        return result.ExitCode;
+    }
+}
+
 void PrintHelp()
 {
     Console.WriteLine("dotnet-6502-remote — Remote control client for the DotNet 6502 Emulator");
@@ -187,6 +252,11 @@ void PrintHelp()
     Console.WriteLine("  --host <host>   Server hostname or IP (default: 127.0.0.1)");
     Console.WriteLine($"  --port <port>   TCP port (default: {DefaultPort})");
     Console.WriteLine("  --help          Show this help");
+    Console.WriteLine("  --version       Print the client version and exit");
+    Console.WriteLine("  --check-update  Check for a newer release of dotnet-6502-remote");
+    Console.WriteLine("  --update        Update dotnet-6502-remote via its package manager");
+    Console.WriteLine("  --check-server-version");
+    Console.WriteLine("                  Connect and warn if the server app version differs from this client");
     Console.WriteLine();
     Console.WriteLine("COMMANDS:");
     int maxCmd = commands.Max(c => c.Item1.Length);

@@ -93,6 +93,7 @@
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Plugins/Highbyte.DotNet6502.Systems.Plugins.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="tests/Highbyte.DotNet6502.App.RemoteClient.Tests/Highbyte.DotNet6502.App.RemoteClient.Tests.csproj" />
     <Project Path="tests/Highbyte.DotNet6502.Monitor.Tests/Highbyte.DotNet6502.Monitor.Tests.csproj" />
     <Project Path="tests/Highbyte.DotNet6502.Systems.Tests/Highbyte.DotNet6502.Systems.Tests.csproj" />
     <Project Path="tests/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj" />

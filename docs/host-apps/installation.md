@@ -80,6 +80,30 @@ ROM details: [Systems / C64 / ROMs](../systems/c64/roms.md), [Systems / VIC-20 /
 
 ---
 
+## Staying up to date
+
+The package-manager `Update` commands above always work and are the manual way to update. In addition, the package-manager builds (Homebrew / Scoop) can **detect when a newer release is available** and surface it inside the app, and can hand the actual upgrade back to the package manager for you.
+
+- **How detection works** — an app installed via Homebrew or Scoop knows which package manager installed it (via an `install-channel` marker written at install time) and compares its own version against the latest GitHub release. Manual-download and development builds report *not managed* and do no update check. Detection is skipped in CI and can be turned off (see below); it never blocks or delays startup.
+- **The command shown is the manual command** — when an update is available the app shows the exact `brew upgrade …` / `scoop update …` command from the tables above. Running that yourself is always equivalent to letting the app do it.
+- **Delegated update** — where the app offers an in-app "update now" action (Avalonia Desktop, and the console hosts' `--update` flag) it simply runs that same package-manager command for you.
+
+The update surface differs per app:
+
+| Application | Update surface |
+|-------------|----------------|
+| **Avalonia** (GUI) | Automatic startup check with an in-window update banner and an About dialog offering a one-click **Update now**. |
+| **Terminal (TUI)** | Automatic startup check surfaced as a notice in the **Logs** pane. |
+| **Headless** | Automatic startup check surfaced via console logging. |
+| **Remote client** | No automatic check by design (keeps stdout script-friendly); update flags only. |
+
+All four also accept the `--version` / `--check-update` / `--update` command-line flags (see each app's CLI reference — for Avalonia Desktop and Headless these are in the [General parameters](avalonia/desktop.md#cli-arguments); for the Remote Client in its [Global options](../tools/remote-control/remote-client.md#global-options)).
+
+!!! note "Disabling the automatic check"
+    The automatic (startup) update check can be disabled per app — set `UpdateCheckEnabled` to `false` (Avalonia Desktop: the *Check for updates on startup* option / `appsettings.json`; Terminal and Headless: the top-level `UpdateCheckEnabled` key in `appsettings.json`). It is also suppressed for any app when the `DOTNET6502_NO_UPDATE_CHECK` environment variable is set (to anything other than `0`/`false`) or when `CI` is set. The explicit `--check-update` / `--update` flags ignore these and always run.
+
+---
+
 ## Install via manual download
 
 Download the latest release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page under Assets. Every application ships as its own zip; substitute `<platform>` with one of `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-arm64` (macOS is Apple Silicon / ARM64 only).

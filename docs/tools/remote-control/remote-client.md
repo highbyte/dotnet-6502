@@ -6,13 +6,41 @@ Pre-built binaries are available for Windows, Linux, and macOS. The remote clien
 
 ## Global options
 
-| Option          | Default     | Description                  |
-|-----------------|-------------|------------------------------|
-| `--host <host>` | `127.0.0.1` | Server hostname or IP        |
-| `--port <port>` | `6510`      | TCP port                     |
-| `--help`        |             | Print usage and exit         |
+| Option           | Default     | Description                  |
+|------------------|-------------|------------------------------|
+| `--host <host>`  | `127.0.0.1` | Server hostname or IP        |
+| `--port <port>`  | `6510`      | TCP port                     |
+| `--help`         |             | Print usage and exit         |
+| `--version`      |             | Print the client version and exit |
+| `--check-update` |             | Check for a newer release of `dotnet-6502-remote` and print the result (no automatic check otherwise). Package-manager installs only. |
+| `--update`       |             | Check and, if a newer release is available on a package-manager install, run the `brew`/`scoop` upgrade, then exit. |
+| `--check-server-version` |     | Connect to the server, read its app version, and warn if it differs from this client's version (see [Server version preflight](#server-version-preflight)). |
 
-Exit codes: `0` = success, `1` = server returned an error or connection failed, `2` = bad arguments.
+Exit codes: `0` = success, `1` = server returned an error or connection failed, `2` = bad arguments, `3` = server/client version mismatch (from `--check-server-version`).
+
+The Remote Client never checks for updates automatically (its stdout stays script-friendly); the flags above are the only update surface. See [Staying up to date](../../host-apps/installation.md#staying-up-to-date).
+
+## Server version preflight
+
+`--check-server-version` is a recommended preflight before a scripted control session: it makes sure the `dotnet-6502-remote` client and the emulator it is about to drive are the same release. It sends one cheap, read-only `server.info` command (host app name + release-stamped version), compares that version with the client's own, and reports the result — it does **not** run any other command.
+
+- **Match** → prints an `OK: …` line to stdout and exits `0`.
+- **Mismatch** → prints a warning plus the `brew`/`scoop` commands to update both sides to stderr, and exits `3`. (Warnings go to stderr so normal command stdout stays script-friendly.)
+- **Can't verify** (either side is an unversioned development build, or the server is too old to answer `server.info`) → prints a note to stderr; a development build exits `0`, a too-old server is treated as a mismatch (`3`).
+
+```sh
+# Preflight: bail out of a script if the endpoint version doesn't match this client
+dotnet-6502-remote --port 6510 --check-server-version || exit 1
+```
+
+This is a version-mismatch **warning only** — it is not TCP protocol negotiation or full compatibility handling. Because the Homebrew tap and Scoop bucket normally track only the latest release, the fix for a mismatch is to bring both the client and the server app forward to the latest package-manager version rather than trying to install an older matching pair.
+
+You can also query the server directly:
+
+```sh
+# Print the server host app name and its release-stamped version
+dotnet-6502-remote --port 6510 server.info
+```
 
 ## Usage examples
 

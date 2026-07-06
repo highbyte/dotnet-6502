@@ -8,6 +8,19 @@ For the protocol and full command reference, see [TCP protocol](tcp-protocol.md)
 
 These show end-to-end patterns using the `dotnet-6502-remote` CLI. The same command sequence translates directly to JSON requests over the raw TCP connection.
 
+### Preflight: check the server version
+
+As a best practice, start a scripted control session by confirming the client and the emulator it drives are the same release. `--check-server-version` exits `0` on a match and `3` on a mismatch (printing the update commands to stderr), so a script can bail out early:
+
+```sh
+# Abort the script if the endpoint version doesn't match this client
+dotnet-6502-remote --port 6510 --check-server-version || exit 1
+
+# ... rest of the automation ...
+```
+
+This is a version-mismatch warning only, not full protocol compatibility handling. See [Server version preflight](remote-client.md#server-version-preflight).
+
 ### Typing a BASIC command and running it
 
 Poll `c64.isbasicstarted` before sending text — the C64 BASIC ROM takes several frames to initialize after `emu.start`.

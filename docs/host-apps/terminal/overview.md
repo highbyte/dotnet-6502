@@ -77,6 +77,7 @@ of direct host hotkeys. Instead, host commands hang off a single **leader key** 
 | `S` | Start / Stop toggle |
 | `M` | Toggle the **Monitor** |
 | `T` | Toggle the **Stats** (instrumentation) box |
+| `U` | Open the **Updates** dialog (see [Updates](#updates)) |
 | `Q` | Quit the app |
 | `Y` | Cycle the selected **System** (only while stopped) |
 | `V` | Cycle the selected **Variant** (only while stopped) |
@@ -158,6 +159,27 @@ the `ll <file>` / `llb <file>` variants take an explicit path. See
 
 Press the **Stats** button or `F9` `T` to show host instrumentation (FPS, per-frame timings, …) in the
 right-hand box while a system runs.
+
+## Updates
+
+On a package-manager install (Homebrew formula or Scoop) the app checks about once a day for a newer
+release. Because a full-screen TUI has no useful stdout, the result surfaces **inside** the TUI:
+
+- A one-line notice in the **Logs** tab (right-hand pane) when an update is available.
+- An **update-available indicator** appended to the window title and the bottom hint line
+  (e.g. `★ Update available (F9 U)`), so it never steals emulator keyboard focus.
+
+Press `F9` `U` to open the **Updates** dialog. It shows the current version and update status and, on a
+package-manager install with a newer release, the exact `brew`/`scoop` command plus:
+
+- **Check now** — force an immediate check (ignores the on/off setting).
+- **Update now** — quit the TUI and run the package-manager upgrade in the foreground (its output is
+  shown on the plain console); restart the app afterwards to use the new version.
+
+Manual-download and development builds report *not managed* and do no update check. The automatic check
+is controlled by the top-level `UpdateCheckEnabled` key in `appsettings.json` (default `true`) and is
+suppressed when `DOTNET6502_NO_UPDATE_CHECK` or `CI` is set; the CLI flags `--version` /
+`--check-update` / `--update` remain available (see [Staying up to date](../installation.md#staying-up-to-date)).
 
 ## How to run locally for development
 
