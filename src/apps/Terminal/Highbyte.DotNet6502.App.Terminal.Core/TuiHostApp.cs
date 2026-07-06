@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using Highbyte.DotNet6502.Impl.Terminal;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Utils;
@@ -80,6 +81,7 @@ public class TuiHostApp : HostApp
     private Button _resetButton = default!;
     private Button _monitorButton = default!;
     private Button _statsButton = default!;
+    private Button _pathsButton = default!;
     private Button _quitButton = default!;
     private Label _hintLabel = default!;           // bottom hint line; flips to a command menu in host mode
 
@@ -317,6 +319,7 @@ public class TuiHostApp : HostApp
         _stopButton = new Button { X = col2X, Y = 5, Text = "Stop" };
         _monitorButton = new Button { X = 0, Y = 6, Text = "Monitor", Enabled = false };
         _statsButton = new Button { X = col2X, Y = 6, Text = "Stats" };
+        _pathsButton = new Button { X = col2X, Y = 7, Text = "Paths" };
         // Quit always available via a button (not just the leader-key Q command), since terminals
         // offer no clickable window close control and Esc is reserved for the emulator (RUN/STOP).
         _quitButton = new Button { X = 0, Y = 7, Text = "Quit" };
@@ -326,6 +329,7 @@ public class TuiHostApp : HostApp
         _stopButton.Accepting += (_, e) => { e.Handled = true; DoStop(); };
         _resetButton.Accepting += (_, e) => { e.Handled = true; DoReset(); };
         _statsButton.Accepting += (_, e) => { e.Handled = true; ToggleStats(); };
+        _pathsButton.Accepting += (_, e) => { e.Handled = true; ShowStoragePathsDialog(); };
         // Monitor button and the leader-key Monitor command both open the machine-code monitor
         // (enabled once a system is running).
         _monitorButton.Accepting += (_, e) => { e.Handled = true; DoMonitor(); };
@@ -336,7 +340,7 @@ public class TuiHostApp : HostApp
         foreach (var button in new[]
                  {
                      _systemButton, _variantButton, _startButton, _pauseButton,
-                     _resetButton, _stopButton, _monitorButton, _statsButton, _quitButton,
+                     _resetButton, _stopButton, _monitorButton, _statsButton, _pathsButton, _quitButton,
                  })
         {
             button.ShadowStyle = ShadowStyles.None;
@@ -345,7 +349,7 @@ public class TuiHostApp : HostApp
         controlsFrame.Add(
             _systemButton, _variantButton, _leftStatusLabel,
             _startButton, _pauseButton, _resetButton, _stopButton, _monitorButton, _statsButton,
-            _quitButton);
+            _pathsButton, _quitButton);
 
         // Per-system menu area (below the standard controls). A discovered system plugin may
         // contribute a system-specific control here (see ITerminalMenuContribution); systems without
@@ -354,7 +358,7 @@ public class TuiHostApp : HostApp
         {
             Title = string.Empty,
             X = 0,
-            Y = 8, // below the Monitor/Stats button row (Y=6)
+            Y = 8, // below the Quit/Paths row (Y=7)
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             BorderStyle = LineStyle.Single,
@@ -619,6 +623,7 @@ public class TuiHostApp : HostApp
         {
             case KeyCode.S: DoStartStopToggle(); break;
             case KeyCode.M: DoMonitor(); break;
+            case KeyCode.P: ShowStoragePathsDialog(); break;
             case KeyCode.T: ToggleStats(); break;
             case KeyCode.Q: Application.RequestStop(_window); break;
             // Tab and F6 both toggle the keyboard between the emulator and the host UI. F6 is accepted
@@ -693,7 +698,7 @@ public class TuiHostApp : HostApp
         // In UI mode also advertise the navigation keys (Tab within an area, F6 between areas).
         if (_hostModeActive)
             _hintLabel.Text =
-                $" HOST: S Start/Stop  M Monitor  T Stats  Q Quit  Y System  V Variant  Tab/F6 Emu⇄UI   (Esc cancels)";
+                $" HOST: S Start/Stop  M Monitor  P Paths  T Stats  Q Quit  Y System  V Variant  Tab/F6 Emu⇄UI";
         else if (InEmulatorMode)
             _hintLabel.Text = $" [EMULATOR]  {LeaderKeyName} Menu";
         else
@@ -1495,6 +1500,62 @@ public class TuiHostApp : HostApp
         try { Application.Run(dialog); }
         finally { dialog.Dispose(); }
     }
+
+    private void ShowStoragePathsDialog() => Safe(() =>
+    {
+        var paths = GetStoragePathsInfoAsync().GetAwaiter().GetResult();
+        var lines = new List<string>
+        {
+            $"Host: {paths.HostName}",
+            $"User content root: {paths.UserContentRoot}",
+            $"Scripts directory: {paths.ScriptsDirectory}",
+            $"Snapshots directory: {paths.SnapshotsDirectory}",
+            $"User settings file: {paths.UserSettingsFile}",
+            $"Cache root: {paths.CacheRoot}",
+            $"Download cache directory: {paths.DownloadCacheDirectory}",
+        };
+        foreach (var system in paths.Systems)
+        {
+            if (!string.IsNullOrWhiteSpace(system.RomDirectory))
+                lines.Add($"{system.Name} ROM directory: {system.RomDirectory}");
+        }
+
+        var dialogWidth = Math.Clamp(_window.Frame.Width - 4, 36, 100);
+        var dialogHeight = Math.Clamp(_window.Frame.Height - 4, 10, 24);
+        var wrapWidth = dialogWidth - 4;
+
+        var dialog = new Dialog
+        {
+            Title = "Storage paths  (Esc to close)",
+            Width = dialogWidth,
+            Height = dialogHeight,
+        };
+        ApplyUiScheme(dialog);
+
+        var wrappedLines = lines
+            .SelectMany(line => WrapText(line, wrapWidth))
+            .ToList();
+        var list = new ListView { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(1) };
+        list.SetSource(new ObservableCollection<string>(wrappedLines));
+        list.VerticalScrollBar.VisibilityMode = ScrollBarVisibilityMode.Auto;
+
+        var closeButton = new Button { Text = "Close", ShadowStyle = ShadowStyles.None };
+        closeButton.Accepting += (_, e) => { e.Handled = true; Application.RequestStop(dialog); };
+        dialog.KeyDown += (_, key) =>
+        {
+            if ((key.KeyCode & ~(KeyCode.ShiftMask | KeyCode.CtrlMask | KeyCode.AltMask)) == KeyCode.Esc)
+            {
+                key.Handled = true;
+                Application.RequestStop(dialog);
+            }
+        };
+
+        dialog.Add(list);
+        dialog.AddButton(closeButton);
+
+        try { Application.Run(dialog); }
+        finally { dialog.Dispose(); }
+    });
 
     /// <summary>Greedy word-wrap to <paramref name="width"/> columns, hard-splitting over-long tokens.</summary>
     private static List<string> WrapText(string text, int width)

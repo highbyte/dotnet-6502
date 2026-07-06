@@ -302,6 +302,25 @@
                                         IsEnabled="{Binding CanLoadSnapshot}"
                                         ToolTip.Tip="Restore an emulator state from a .d6502snap file"/>
                             </Grid>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Folder:"
+                                           Classes="small secondary-text"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding SnapshotDirectory}"
+                                           Classes="small secondary-text"
+                                           TextWrapping="Wrap"/>
+                                <Button Content="Open"
+                                        AutomationProperties.AutomationId="SnapshotFolderLink"
+                                        AutomationProperties.Name="Open snapshot folder in file browser"
+                                        Command="{Binding OpenSnapshotFolderCommand}"
+                                        Classes="link"
+                                        FontSize="10"
+                                        Padding="0"
+                                        Margin="0"
+                                        BorderThickness="0"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="Open snapshot folder in file browser"/>
+                            </StackPanel>
 
                             <TextBlock Text="Settings (config)"
                                        Classes="small secondary-text"/>

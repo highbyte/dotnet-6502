@@ -19,6 +19,7 @@ A script must call one of these in its main loop. Scripts that return without yi
 | `emu.time()` | number | Wall-clock seconds elapsed since scripts were loaded. |
 | `emu.state()` | string | Current emulator state: `"running"`, `"paused"`, `"stopped"`, or `"unknown"`. |
 | `emu.host()` | string | Host application type: `"headless"`, `"desktop"`, or `"browser"`. Use this to write scripts that behave differently per host — e.g. call `emu.quit()` only when headless. |
+| `emu.storage_paths()` | table | Effective host storage paths, including user content root, scripts directory, snapshots directory, user settings file, cache directories, and per-system ROM directories. |
 | `emu.systems()` | table | List of available system names (e.g. `{"C64", "Generic"}`). |
 | `emu.selected_system()` | string | Currently selected system name. |
 | `emu.selected_variant()` | string | Currently selected system variant name. |
@@ -217,7 +218,7 @@ Define any of these as global functions in your script. The emulator calls them 
 
 Available when `AllowFileIO: true`. The `file` global is not registered when `AllowFileIO` is `false`, so scripts that use it will fail with a runtime error on platforms without filesystem access (e.g. WASM/browser).
 
-All paths are relative to `FileBaseDirectory` (which defaults to `ScriptDirectory`). Paths that attempt to escape the base directory (e.g. `../`) are blocked and treated as non-existent files or raise a runtime error on write attempts.
+All paths are relative to `FileBaseDirectory` (which defaults to the effective script directory). When no script directory override is configured on desktop, that effective directory is `~/Documents/Highbyte/DotNet6502/scripts` (or the Windows Documents equivalent). Paths that attempt to escape the base directory (e.g. `../`) are blocked and treated as non-existent files or raise a runtime error on write attempts.
 
 ### Read operations (always allowed when `AllowFileIO: true`)
 
@@ -253,7 +254,7 @@ The operation is deferred (like `emu.start()` etc.) and takes effect after the c
 
 ## Snapshots (`emu.save_snapshot` / `emu.load_snapshot`)
 
-Available when `AllowFileIO: true`. Save and restore the **full emulator state** (CPU, memory, machine-specific chips, and attached disk/cartridge media) to a `.d6502snap` file. Paths are confined to `FileBaseDirectory`, the same as `file.*`. These mirror the remote-control `emu.savesnapshot` / `emu.loadsnapshot` commands.
+Available when `AllowFileIO: true`. Save and restore the **full emulator state** (CPU, memory, machine-specific chips, and attached disk/cartridge media) to a `.d6502snap` file. Absolute paths are used as-is; relative paths are resolved from the shared snapshot directory. These mirror the remote-control `emu.savesnapshot` / `emu.loadsnapshot` commands.
 
 | Function | Description |
 |----------|-------------|
@@ -347,7 +348,7 @@ Available when `AllowStore: true`. The `store` global is not registered when `Al
 
 The store provides simple persistent key/value storage. Values are always strings. The storage backend depends on the environment:
 
-- **Desktop:** each key is stored as a file named `<key>` inside `{ScriptDirectory}/{StoreSubDirectory}` (default: `scripts/.store/`). The directory is created automatically on the first write.
+- **Desktop:** each key is stored as a file named `<key>` inside the effective script directory plus `{StoreSubDirectory}` (default: `~/Documents/Highbyte/DotNet6502/scripts/.store/`, or the Windows Documents equivalent). The directory is created automatically on the first write.
 - **Browser/WASM:** each key is stored in `localStorage` under the prefix `dotnet6502.store.`.
 
 Keys must be valid filenames (no path separators, no `..`). Attempting to use an invalid key raises a Lua runtime error.

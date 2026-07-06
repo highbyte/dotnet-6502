@@ -29,6 +29,11 @@ with desktop-specific differences called out inline:
 ### Lua scripting
 
 The Avalonia Desktop app supports Lua scripting via MoonSharp. See [Tools / Scripting](../../tools/scripting/overview.md) for the full guide.
+When the script directory setting is empty, scripts are loaded from `~/Documents/Highbyte/DotNet6502/scripts` (or the Windows Documents equivalent).
+
+### Snapshots
+
+The snapshot save/load UI defaults to `~/Documents/Highbyte/DotNet6502/snapshots` (or the Windows Documents equivalent) unless a snapshot directory override is configured in the desktop settings.
 
 ### VS Code debug adapter
 

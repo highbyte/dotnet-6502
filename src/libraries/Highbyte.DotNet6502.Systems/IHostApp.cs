@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Snapshots;
+using Highbyte.DotNet6502.Systems.Configuration;
 
 namespace Highbyte.DotNet6502.Systems;
 
@@ -54,6 +55,7 @@ public interface IHostApp
     /// still being able to abort to a pristine (no system selected) state.
     /// </summary>
     public Task<(bool IsValid, List<string> Errors)> IsSystemConfigValid(string systemName);
+    public Task<StoragePathsInfo> GetStoragePathsInfoAsync();
     public Task<bool> IsAudioSupported();
     public Task<bool> IsAudioEnabled();
     public Task<ISystem?> GetSelectedSystem();

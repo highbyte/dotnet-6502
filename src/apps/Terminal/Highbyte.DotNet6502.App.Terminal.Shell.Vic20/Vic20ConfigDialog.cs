@@ -57,9 +57,11 @@ internal static class Vic20ConfigDialog
         var kernalField = AddRow(host, dialog, 4, "Kernal:", RomFile(cfg, Vic20SystemConfig.KERNAL_ROM_NAME), isDirectory: false, cfg);
         var basicField = AddRow(host, dialog, 5, "Basic:", RomFile(cfg, Vic20SystemConfig.BASIC_ROM_NAME), isDirectory: false, cfg);
         var chargenField = AddRow(host, dialog, 6, "Chargen:", RomFile(cfg, Vic20SystemConfig.CHARGEN_ROM_NAME), isDirectory: false, cfg);
+        var effectiveRomDirectoryLabel = new Label { X = 1, Y = 7, Width = Dim.Fill(2), Text = "" };
+        dialog.Add(effectiveRomDirectoryLabel);
 
-        var validationLabel = new Label { X = 1, Y = 8, Text = "Validation errors:" };
-        var validationList = new ListView { X = 1, Y = 9, Width = Dim.Fill(2), Height = 3 };
+        var validationLabel = new Label { X = 1, Y = 9, Text = "Validation errors:" };
+        var validationList = new ListView { X = 1, Y = 10, Width = Dim.Fill(2), Height = 3 };
         validationList.VerticalScrollBar.VisibilityMode = ScrollBarVisibilityMode.Auto;
         dialog.Add(validationLabel, validationList);
 
@@ -72,6 +74,7 @@ internal static class Vic20ConfigDialog
             cfg.SetROM(Vic20SystemConfig.KERNAL_ROM_NAME, kernalField.Text);
             cfg.SetROM(Vic20SystemConfig.BASIC_ROM_NAME, basicField.Text);
             cfg.SetROM(Vic20SystemConfig.CHARGEN_ROM_NAME, chargenField.Text);
+            effectiveRomDirectoryLabel.Text = $"Effective: {PathHelper.ExpandOSEnvironmentVariables(cfg.EffectiveROMDirectory)}";
         }
 
         void Validate()

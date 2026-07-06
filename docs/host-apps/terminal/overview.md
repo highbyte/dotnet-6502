@@ -139,6 +139,8 @@ emulator is stopped, with live validation:
 See [Systems / C64 / ROMs](../../systems/c64/roms.md), [Systems / VIC-20 / ROMs](../../systems/vic20/roms.md),
 and [Systems / C64 / SwiftLink](../../systems/c64/swiftlink.md).
 
+The shipped `appsettings.json` contains packaged defaults. User changes are saved to the Terminal host's `appsettings.user.json` under the OS local application data folder, not beside the shipped executable. Empty ROM directory settings use the shared user content folders under `~/Documents/Highbyte/DotNet6502/roms` (or the Windows Documents equivalent).
+
 ## Monitor
 
 Press the **Monitor** button or `F9` `M` (while a system is running or paused) to open the built-in

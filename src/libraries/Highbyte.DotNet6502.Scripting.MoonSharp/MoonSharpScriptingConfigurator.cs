@@ -13,13 +13,12 @@ namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 public static class MoonSharpScriptingConfigurator
 {
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Configuration binding targets the known ScriptingConfig model used directly by the application.")]
-    public static IScriptingEngine Create(
+    public static ScriptingConfig CreateEffectiveConfig(
         IConfiguration configuration,
         ILoggerFactory loggerFactory,
         IReadOnlyList<string>? scriptFilePaths = null,
         string? scriptDirectoryOverride = null,
-        bool suppressConfigScripts = false,
-        string hostType = "unknown")
+        bool suppressConfigScripts = false)
     {
         var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
 
@@ -28,8 +27,8 @@ public static class MoonSharpScriptingConfigurator
 
         if (!config.Enabled)
         {
-            logger.LogInformation("[Scripting] Disabled in configuration. Using NoScriptingEngine.");
-            return new NoScriptingEngine();
+            logger.LogDebug("[Scripting] Disabled in configuration.");
+            return config;
         }
 
         var hasScriptFilePaths = scriptFilePaths is { Count: > 0 };
@@ -39,8 +38,8 @@ public static class MoonSharpScriptingConfigurator
         // unless an explicit CLI script source is present.
         if (suppressConfigScripts && scriptDirectoryOverride == null && !hasScriptFilePaths)
         {
-            logger.LogInformation("[Scripting] Suppressing scripts from configuration (automated startup mode). Using NoScriptingEngine.");
-            return new NoScriptingEngine();
+            logger.LogDebug("[Scripting] Suppressing scripts from configuration (automated startup mode).");
+            return config;
         }
 
         // Apply CLI overrides
@@ -65,6 +64,34 @@ public static class MoonSharpScriptingConfigurator
         if (hasScriptFilePaths || scriptDirectoryOverride != null)
         {
             config.EnableScriptsAtStart = true;
+        }
+
+        return config;
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Configuration binding targets the known ScriptingConfig model used directly by the application.")]
+    public static IScriptingEngine Create(
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory,
+        IReadOnlyList<string>? scriptFilePaths = null,
+        string? scriptDirectoryOverride = null,
+        bool suppressConfigScripts = false,
+        string hostType = "unknown")
+    {
+        var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
+        var config = CreateEffectiveConfig(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts);
+
+        if (!config.Enabled)
+        {
+            logger.LogInformation("[Scripting] Disabled in configuration. Using NoScriptingEngine.");
+            return new NoScriptingEngine();
+        }
+
+        var hasScriptFilePaths = scriptFilePaths is { Count: > 0 };
+        if (suppressConfigScripts && scriptDirectoryOverride == null && !hasScriptFilePaths)
+        {
+            logger.LogInformation("[Scripting] Suppressing scripts from configuration (automated startup mode). Using NoScriptingEngine.");
+            return new NoScriptingEngine();
         }
 
         var resolvedScriptDirectory = config.ResolvedScriptDirectory();

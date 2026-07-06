@@ -27,6 +27,9 @@ dotnet-6502-remote --port 6510 emu.start
 dotnet-6502-remote emu.systems
 dotnet-6502-remote emu.variants
 
+# Show storage paths used by the running emulator host
+dotnet-6502-remote emu.storagepaths
+
 # Switch system (requires emulator to be stopped first)
 dotnet-6502-remote emu.stop
 dotnet-6502-remote emu.selectsystem --name C64
@@ -73,9 +76,9 @@ dotnet-6502-remote keyboard.release --key return
 # Paste text into the C64 keyboard buffer (C64 only; use lowercase — see c64.type section in TCP protocol)
 dotnet-6502-remote c64.type --text "load\"*\",8,1"
 
-# Save / restore a full emulator-state snapshot (path is on the emulator host)
-dotnet-6502-remote emu.savesnapshot --path /tmp/state.d6502snap
-dotnet-6502-remote emu.loadsnapshot --path /tmp/state.d6502snap
+# Save / restore a full emulator-state snapshot (relative paths use the emulator host's snapshot folder)
+dotnet-6502-remote emu.savesnapshot --path state.d6502snap
+dotnet-6502-remote emu.loadsnapshot --path state.d6502snap
 
 # Step the (paused) emulator a fixed number of frames, then screenshot the result
 dotnet-6502-remote emu.runframes --count 1

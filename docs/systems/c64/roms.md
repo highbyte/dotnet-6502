@@ -19,12 +19,17 @@ The Avalonia Browser, Avalonia Desktop, and SadConsole apps also offer an in-app
 
 ## Where to put them
 
-By default `appsettings.json` expects them in `%HOME%/Downloads/C64` (i.e. `~/Downloads/C64` on macOS/Linux, `%USERPROFILE%\Downloads\C64` on Windows). The directory and filenames can be changed in `appsettings.json`:
+By default, desktop hosts look for C64 ROMs in the shared user content folder:
+
+- macOS/Linux: `~/Documents/Highbyte/DotNet6502/roms/C64`
+- Windows: `%USERPROFILE%\Documents\Highbyte\DotNet6502\roms\C64`
+
+The directory and filenames can be changed in app settings. User changes saved by the apps are written to the host-specific `appsettings.user.json` overlay under the OS local application data folder, not beside the shipped executable. A shipped `appsettings.json` can still provide packaged defaults:
 
 ```json
 "Highbyte.DotNet6502.C64.Headless": {
   "SystemConfig": {
-    "ROMDirectory": "%HOME%/Downloads/C64",
+    "ROMDirectory": "",
     "ROMs": [
       { "Name": "basic",   "File": "basic.901226-01.bin" },
       { "Name": "kernal",  "File": "kernal.901227-03.bin" },

@@ -49,6 +49,33 @@ public class AppStoragePathsTest
     }
 
     [Fact]
+    public void ResolveSnapshotFilePath_RelativePath_UsesSnapshotsDirectory()
+    {
+        var path = AppStoragePaths.ResolveSnapshotFilePath(Path.Combine("subdir", "state.d6502snap"));
+
+        Assert.Equal(
+            Path.GetFullPath(Path.Combine(AppStoragePaths.GetSnapshotsDirectory(), "subdir", "state.d6502snap")),
+            path);
+    }
+
+    [Fact]
+    public void ResolveSnapshotFilePath_AbsolutePath_UsesProvidedPath()
+    {
+        var absolutePath = Path.Combine(Path.GetTempPath(), $"state-{Guid.NewGuid():N}.d6502snap");
+
+        var path = AppStoragePaths.ResolveSnapshotFilePath(absolutePath);
+
+        Assert.Equal(Path.GetFullPath(absolutePath), path);
+    }
+
+    [Fact]
+    public void ResolveSnapshotFilePath_RelativeTraversal_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            AppStoragePaths.ResolveSnapshotFilePath(Path.Combine("..", "state.d6502snap")));
+    }
+
+    [Fact]
     public async Task MergeSectionAsync_CreatesFileAndMergesNestedSection()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"dotnet6502-settings-{Guid.NewGuid():N}");

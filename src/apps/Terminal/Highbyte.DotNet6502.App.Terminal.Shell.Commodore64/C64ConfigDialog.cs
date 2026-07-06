@@ -66,6 +66,8 @@ internal static class C64ConfigDialog
         var kernalField = AddRow(host, dialog, 4, "Kernal:", RomFile(cfg, C64SystemConfig.KERNAL_ROM_NAME), isDirectory: false, cfg);
         var basicField = AddRow(host, dialog, 5, "Basic:", RomFile(cfg, C64SystemConfig.BASIC_ROM_NAME), isDirectory: false, cfg);
         var chargenField = AddRow(host, dialog, 6, "Chargen:", RomFile(cfg, C64SystemConfig.CHARGEN_ROM_NAME), isDirectory: false, cfg);
+        var effectiveRomDirectoryLabel = new Label { X = 1, Y = 7, Width = Dim.Fill(2), Text = "" };
+        dialog.Add(effectiveRomDirectoryLabel);
 
         var validationLabel = new Label { X = 1, Y = 17, Text = "Validation errors:" };
         var validationList = new ListView { X = 1, Y = 18, Width = Dim.Fill(2), Height = 3 };
@@ -81,6 +83,7 @@ internal static class C64ConfigDialog
             cfg.SetROM(C64SystemConfig.KERNAL_ROM_NAME, kernalField.Text);
             cfg.SetROM(C64SystemConfig.BASIC_ROM_NAME, basicField.Text);
             cfg.SetROM(C64SystemConfig.CHARGEN_ROM_NAME, chargenField.Text);
+            effectiveRomDirectoryLabel.Text = $"Effective: {PathHelper.ExpandOSEnvironmentVariables(cfg.EffectiveROMDirectory)}";
         }
 
         void Validate()

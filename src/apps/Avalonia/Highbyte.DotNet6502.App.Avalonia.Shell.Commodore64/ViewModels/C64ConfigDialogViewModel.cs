@@ -599,12 +599,16 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _romDirectory, value);
             _workingConfig.SystemConfig.ROMDirectory = value;
+            this.RaisePropertyChanged(nameof(EffectiveRomDirectory));
             UpdateValidationMessageFromConfig();
         }
     }
 
     public string RomDirectoryToolTip =>
         $"Optional ROM folder override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.DefaultROMDirectory)}";
+
+    public string EffectiveRomDirectory =>
+        PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.EffectiveROMDirectory);
 
     public RenderProviderOption? SelectedRenderProvider
     {

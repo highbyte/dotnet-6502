@@ -165,6 +165,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     // regardless of run state, and consistent between a freshly launched app and a stopped one.
     public bool CanLoadSnapshot => _hostApp.SelectedSystemSupportsSnapshots;
 
+    public string SnapshotDirectory => _emulatorConfig.ResolvedSnapshotDirectory();
+
     // Snapshot config options (persisted in EmulatorConfig). "Include" is the capture switch; "Restore"
     // is a host-side load preference (opt-in). See the config extension in the feature design doc.
     public bool IncludeConfigInSnapshot
@@ -626,6 +628,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> LoadExamplesCommand { get; }
     public ReactiveCommand<Unit, Unit> RefreshScriptsCommand { get; }
     public ReactiveCommand<Unit, Unit> OpenScriptFolderCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenSnapshotFolderCommand { get; }
     public ReactiveCommand<ScriptSortColumn, Unit> SortByColumnCommand { get; }
 
     // Events for script editor dialog (UI operation handled in View code-behind)
@@ -633,6 +636,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public event EventHandler<string>? RequestEditScript;
     public event EventHandler<DeleteScriptConfirmationEventArgs>? RequestDeleteScript;
     public event EventHandler? RequestOpenScriptFolder;
+    public event EventHandler? RequestOpenSnapshotFolder;
 
     // Event for requesting the emulator options overlay (UI operation handled in View)
     public event EventHandler? EmulatorOptionsRequested;
@@ -1093,6 +1097,11 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         OpenScriptFolderCommand = ReactiveCommandHelper.CreateSafeCommand(
             () => RequestOpenScriptFolder?.Invoke(this, EventArgs.Empty),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        OpenSnapshotFolderCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => RequestOpenSnapshotFolder?.Invoke(this, EventArgs.Empty),
             null,
             RxSchedulers.MainThreadScheduler);
 

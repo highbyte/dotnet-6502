@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
@@ -168,6 +169,8 @@ public class HostApp : IHostApp, IManualRenderingProvider
     // Scripting
     private IScriptingEngine _scriptingEngine = new NoScriptingEngine();
     private IScriptingTickTimer? _scriptingTickTimer;
+    private string? _userSettingsFilePath;
+    private ScriptingConfig? _scriptingConfig;
 
     /// <summary>
     /// Interval between scripting coroutine resume ticks. Roughly 60 Hz, independent of the emulator frame rate.
@@ -231,6 +234,18 @@ public class HostApp : IHostApp, IManualRenderingProvider
             }
             OnScriptingEngineSet();
         }
+    }
+
+    public void SetStoragePathsContext(string userSettingsFilePath, ScriptingConfig? scriptingConfig = null)
+    {
+        _userSettingsFilePath = userSettingsFilePath;
+        _scriptingConfig = scriptingConfig;
+    }
+
+    public Task<StoragePathsInfo> GetStoragePathsInfoAsync()
+    {
+        var userSettingsFilePath = _userSettingsFilePath ?? AppStoragePaths.GetUserSettingsFilePath(HostName);
+        return StoragePathsInfoFactory.CreateAsync(HostName, userSettingsFilePath, _systemList, _scriptingConfig);
     }
 
     /// <summary>

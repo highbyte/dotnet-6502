@@ -7,7 +7,7 @@ These are interpreted by the shared startup pipeline and are valid for any syste
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
 | `--script <path>` | Load and run a Lua script. Can be specified multiple times. | Exclusive with all automated-startup parameters. | `--script scripts/demo.lua` |
-| `--scriptDir <path>` | Override the script directory from `appsettings.json`. | Exclusive with all automated-startup parameters. | `--scriptDir ./scripts` |
+| `--scriptDir <path>` | Override the effective script directory. When omitted, desktop hosts use the configured directory or `~/Documents/Highbyte/DotNet6502/scripts`. | Exclusive with all automated-startup parameters. | `--scriptDir ./scripts` |
 
 #### System selection & lifecycle
 
@@ -20,7 +20,7 @@ These are interpreted by the shared startup pipeline and are valid for any syste
 | `--loadPrg <path>` | Load a local `.prg` file into memory. | Requires `--start`. Exclusive with `--loadPrgUrl` and C64 `--loadD64` / `--loadD64Url` / `--loadCrt` / `--loadCrtUrl`. | `--loadPrg game.prg` |
 | `--loadPrgUrl <url>` | *(Avalonia Desktop only.)* Fetch a `.prg` over HTTP(S) and load it into memory. | Requires `--start`. Exclusive with `--loadPrg` and C64 `--loadD64` / `--loadD64Url` / `--loadCrt` / `--loadCrtUrl`. | `--loadPrgUrl https://example.com/game.prg` |
 | `--runLoadedProgram` | Run the loaded program after loading. | Requires `--start` and a load source (`--loadPrg` / `--loadPrgUrl`, or C64 `--loadD64` / `--loadD64Url`). | `--runLoadedProgram` |
-| `--load-snapshot <path>` | Restore a full `.d6502snap` emulator-state snapshot. The snapshot's manifest determines the system, so no `--system` is needed. The machine is left paused after restore; add `--start` to resume. | Exclusive with `--system`, `--systemVariant`, `--loadPrg` / `--loadPrgUrl`, `--runLoadedProgram`, and `--script`. `--waitForSystemReady` requires `--start`. | `--load-snapshot state.d6502snap` |
+| `--load-snapshot <path>` | Restore a full `.d6502snap` emulator-state snapshot. Relative paths are resolved from the shared snapshot directory. The snapshot's manifest determines the system, so no `--system` is needed. The machine is left paused after restore; add `--start` to resume. | Exclusive with `--system`, `--systemVariant`, `--loadPrg` / `--loadPrgUrl`, `--runLoadedProgram`, and `--script`. `--waitForSystemReady` requires `--start`. | `--load-snapshot state.d6502snap` |
 
 `--loadPrg` / `--loadPrgUrl` copy the file's bytes to the load address in its 2-byte header — but
 how a loaded `.prg` is *interpreted and run* is system-specific. The systems documented below may
@@ -34,12 +34,13 @@ group. Cartridge images use the C64-specific `.crt` startup flow instead of PRG 
 | `--console-log` / `-c` | *(Avalonia Desktop only — Headless always logs to console.)* Enable console logging output. | — | `--console-log` |
 | `--log-level <level>` / `-l <level>` | Console log level (`Trace` / `Debug` / `Information` / `Warning` / `Error` / `Critical`). | — | `--log-level Debug` |
 
-#### Diagnostics & auto-exit *(Avalonia Desktop only)*
+#### Diagnostics & auto-exit
 
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
-| `--stats-interval <seconds>` | Log an instrumentation snapshot every N seconds after startup completes. | Requires `--start`. | `--stats-interval 5` |
-| `--exit-after <seconds>` | Quit the app N seconds after startup completes. | Requires `--start`. | `--exit-after 60` |
+| `--show-storage-paths` | Print effective storage paths and exit without starting the app. Also supported by Headless. | — | `--show-storage-paths` |
+| `--stats-interval <seconds>` | *(Avalonia Desktop only.)* Log an instrumentation snapshot every N seconds after startup completes. | Requires `--start`. | `--stats-interval 5` |
+| `--exit-after <seconds>` | *(Avalonia Desktop only.)* Quit the app N seconds after startup completes. | Requires `--start`. | `--exit-after 60` |
 
 #### Debug adapter
 

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Highbyte.DotNet6502.Remoting.Protocol;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Remoting;
@@ -39,6 +40,7 @@ public class RemoteCommandDispatcher
                 "emu.reset"    => await HandleUiAsync(cmd.Id, async hostApp => await hostApp.Reset()),
                 "emu.quit"          => HandleEmuQuit(cmd.Id),
                 "emu.systems"       => HandleEmuSystems(cmd.Id),
+                "emu.storagepaths"  => await HandleEmuStoragePaths(cmd.Id),
                 "emu.selectsystem"  => string.IsNullOrEmpty(cmd.Name)
                     ? Err(cmd.Id, "Missing 'name' parameter")
                     : await HandleUiAsync(cmd.Id, async hostApp => await hostApp.SelectSystem(cmd.Name)),
@@ -173,6 +175,14 @@ public class RemoteCommandDispatcher
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) return Err(id, "Emulator not initialized");
         return new RemoteCommandResult { Id = id, Ok = true, Data = hostApp.AllSelectedSystemConfigurationVariants.ToArray() };
+    }
+
+    private async Task<RemoteCommandResult> HandleEmuStoragePaths(int? id)
+    {
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) return Err(id, "Emulator not initialized");
+        var paths = await hostApp.GetStoragePathsInfoAsync().ConfigureAwait(false);
+        return new RemoteCommandResult { Id = id, Ok = true, Data = paths };
     }
 
     private RemoteCommandResult HandleEmuQuit(int? id)
@@ -479,15 +489,20 @@ public class RemoteCommandDispatcher
         if (!hostApp.CanSnapshotCurrentSystem)
             throw new InvalidOperationException(
                 $"System '{hostApp.SelectedSystemName}' does not support snapshots (none selected/running?).");
-        await using var fileStream = System.IO.File.Create(path);
+        var snapshotPath = AppStoragePaths.ResolveSnapshotFilePath(path);
+        var directory = System.IO.Path.GetDirectoryName(snapshotPath);
+        if (!string.IsNullOrEmpty(directory))
+            System.IO.Directory.CreateDirectory(directory);
+        await using var fileStream = System.IO.File.Create(snapshotPath);
         await hostApp.SaveSnapshotAsync(fileStream);
     }
 
     private static async Task LoadSnapshotFromFile(IRemotableHostApp hostApp, string path)
     {
-        if (!System.IO.File.Exists(path))
-            throw new System.IO.FileNotFoundException($"Snapshot file not found: {path}");
-        await using var fileStream = System.IO.File.OpenRead(path);
+        var snapshotPath = AppStoragePaths.ResolveSnapshotFilePath(path);
+        if (!System.IO.File.Exists(snapshotPath))
+            throw new System.IO.FileNotFoundException($"Snapshot file not found: {snapshotPath}");
+        await using var fileStream = System.IO.File.OpenRead(snapshotPath);
         await hostApp.LoadSnapshotAsync(fileStream);
     }
 

@@ -78,8 +78,8 @@ public class RemoteCommand
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
-    // emu.savesnapshot / emu.loadsnapshot — server-side file path (the remote server reads/writes
-    // the .d6502snap on the machine the emulator runs on).
+    // emu.savesnapshot / emu.loadsnapshot — server-side file path. Absolute paths are used as-is;
+    // relative paths resolve under the emulator host's shared snapshot directory.
     [JsonPropertyName("path")]
     public string? Path { get; set; }
 

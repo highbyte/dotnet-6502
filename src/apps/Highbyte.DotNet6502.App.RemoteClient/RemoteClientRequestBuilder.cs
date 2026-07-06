@@ -32,6 +32,7 @@ internal static class RemoteClientRequestBuilder
             case "emu.reset":
             case "emu.quit":
             case "emu.systems":
+            case "emu.storagepaths":
             case "emu.variants":
             case "cpu.get":
             case "keyboard.releaseall":

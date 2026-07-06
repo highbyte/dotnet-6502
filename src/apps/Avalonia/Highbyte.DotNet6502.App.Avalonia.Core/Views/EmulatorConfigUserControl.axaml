@@ -24,7 +24,7 @@
               <TextBlock Text="General Settings"
                          Classes=""/>
               
-              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                            Text="Default emulator:" 
                            Classes="secondary-text"
@@ -54,7 +54,7 @@
               <TextBlock Text="Display Settings"
                          Classes=""/>
               
-              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                            Text="Default scale:" 
                            Classes="secondary-text"
@@ -215,7 +215,7 @@
             <StackPanel Classes="spacing-tight">
               <TextBlock Text="Snapshots" Classes=""/>
 
-              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0"
                            Text="Snapshot folder:"
                            Classes="secondary-text"
@@ -226,12 +226,13 @@
                          Text="{Binding SnapshotDirectory}"
                          Width="250"
                          HorizontalAlignment="Left"/>
-                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                           Text="{Binding SnapshotDirectoryDescription}"
-                           Classes="small secondary-text"
-                           TextWrapping="Wrap"
-                           Margin="0,4,0,0"/>
               </Grid>
+              <TextBlock Text="{Binding EffectiveSnapshotDirectory, StringFormat='Effective: {0}'}"
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding SnapshotDirectoryDescription}"
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"/>
             </StackPanel>
           </Border>
         </StackPanel>
@@ -294,7 +295,7 @@
 
               <!-- Desktop: Script Directory -->
               <Grid IsVisible="{Binding !IsRunningInWebAssembly}"
-                    ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                    ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0"
                            Text="Script directory:"
                            Classes="secondary-text"
@@ -303,11 +304,14 @@
                          AutomationProperties.AutomationId="LuaScriptDirectoryTextBox"
                          AutomationProperties.Name="Lua script directory"
                          Text="{Binding LuaScriptDirectory}"
-                         IsReadOnly="True"
-                         Background="#1A000000"
                          Width="250"
                          HorizontalAlignment="Left"/>
                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="{Binding EffectiveLuaScriptDirectory, StringFormat='Effective: {0}'}"
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                            Text="{Binding LuaScriptDirectoryDescription}"
                            Classes="small secondary-text"
                            TextWrapping="Wrap"
