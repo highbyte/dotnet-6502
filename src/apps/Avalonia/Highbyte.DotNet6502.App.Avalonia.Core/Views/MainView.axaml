@@ -622,7 +622,6 @@
                                                                 Classes="small link"
                                                                 FontSize="10"
                                                                 Padding="0"
-                                                                Margin="0"
                                                                 BorderThickness="0"
                                                                 VerticalAlignment="Center"
                                                                 ToolTip.Tip="Open script folder in file browser"/>

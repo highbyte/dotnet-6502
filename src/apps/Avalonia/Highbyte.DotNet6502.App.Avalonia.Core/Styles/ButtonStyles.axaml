@@ -149,6 +149,21 @@
         <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
     </Style>
 
+    <Style Selector="Button.link">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="Button.link:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
     <!-- Small info icon buttons -->
     <Style Selector="Button.info">
         <Setter Property="FontSize" Value="10"/>
