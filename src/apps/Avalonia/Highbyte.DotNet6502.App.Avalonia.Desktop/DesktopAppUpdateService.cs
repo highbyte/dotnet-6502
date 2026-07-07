@@ -79,11 +79,12 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
             return false;
         }
 
+        var descriptor = CreateDescriptor();
         var spawned = UpdateApplier.TrySpawnDetachedRelaunch(
             result.ManagerExecutablePath,
-            CreateDescriptor().UpgradeCommandArgs(result.Channel),
+            descriptor.UpgradeCommandArgs(result.Channel),
             Environment.ProcessId,
-            BuildRelaunchSpec());
+            BuildRelaunchSpec(result.Channel, result.ManagerExecutablePath, descriptor.HomebrewPackage));
 
         if (spawned)
         {
@@ -151,13 +152,28 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
     // How to relaunch the Avalonia GUI after the upgrade. If the app was started as
     // `dotnet <app>.dll` (the local dev/update-trigger flow), reconstruct that exact launch on every
     // OS. Otherwise macOS uses `open -a "<AppName>"` (robust across the cask replacing the bundle),
-    // while Windows/Linux relaunch the current executable — the Scoop `current` junction / brew shim
-    // path stays valid after the update.
-    private static RelaunchSpec BuildRelaunchSpec()
-    {
-        var processPath = Environment.ProcessPath ?? string.Empty;
-        var commandLineArgs = Environment.GetCommandLineArgs();
+    // Linux Homebrew relaunches via the stable bin symlink, and Windows relaunches the current
+    // executable path (Scoop's `current` junction stays valid after the update).
+    private static RelaunchSpec BuildRelaunchSpec(
+        InstallChannel channel,
+        string managerExecutablePath,
+        string homebrewLauncherName)
+        => BuildRelaunchSpec(
+            channel,
+            managerExecutablePath,
+            homebrewLauncherName,
+            Environment.ProcessPath ?? string.Empty,
+            Environment.GetCommandLineArgs(),
+            GetCurrentOS());
 
+    internal static RelaunchSpec BuildRelaunchSpec(
+        InstallChannel channel,
+        string? managerExecutablePath,
+        string homebrewLauncherName,
+        string processPath,
+        string[] commandLineArgs,
+        OSPlatformKind os)
+    {
         if (IsDotNetHost(processPath) && commandLineArgs.Length > 0)
         {
             var relaunchArgs = new List<string>(commandLineArgs.Length);
@@ -165,13 +181,36 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
             return new RelaunchSpec(processPath, relaunchArgs);
         }
 
-        if (OperatingSystem.IsMacOS())
+        if (os == OSPlatformKind.MacOS)
             return new RelaunchSpec("/usr/bin/open", new[] { "-a", "DotNet 6502 Emulator" });
 
         var appArgs = commandLineArgs.Length > 1
             ? commandLineArgs[1..]
             : Array.Empty<string>();
+
+        if (os == OSPlatformKind.Linux && channel == InstallChannel.Homebrew)
+        {
+            var managerDirectory = string.IsNullOrWhiteSpace(managerExecutablePath)
+                ? null
+                : Path.GetDirectoryName(managerExecutablePath);
+            var launcher = string.IsNullOrWhiteSpace(managerDirectory)
+                ? homebrewLauncherName
+                : Path.Combine(managerDirectory, homebrewLauncherName);
+            return new RelaunchSpec(launcher, appArgs);
+        }
+
         return new RelaunchSpec(processPath, appArgs);
+    }
+
+    private static OSPlatformKind GetCurrentOS()
+    {
+        if (OperatingSystem.IsWindows())
+            return OSPlatformKind.Windows;
+        if (OperatingSystem.IsMacOS())
+            return OSPlatformKind.MacOS;
+        if (OperatingSystem.IsLinux())
+            return OSPlatformKind.Linux;
+        return OSPlatformKind.Other;
     }
 
     private static bool IsDotNetHost(string processPath)
