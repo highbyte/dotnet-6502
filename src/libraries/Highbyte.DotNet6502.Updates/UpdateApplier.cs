@@ -140,7 +140,16 @@ public static class UpdateApplier
             script.Append("fi\n");
         }
         // Relaunch detached from this helper.
-        script.Append(ShJoin(relaunch.Executable, relaunch.Arguments)).Append(" &\n");
+        var relaunchCommand = ShJoin(relaunch.Executable, relaunch.Arguments);
+        script.Append("echo ").Append(ShQuote("Relaunching: " + relaunchCommand)).Append('\n');
+        script.Append(relaunchCommand).Append(" &\n");
+        script.Append("RELAUNCH_PID=$!\n");
+        script.Append("sleep 1\n");
+        script.Append("if ! kill -0 \"$RELAUNCH_PID\" 2>/dev/null; then\n");
+        script.Append("  wait \"$RELAUNCH_PID\"\n");
+        script.Append("  RELAUNCH_STATUS=$?\n");
+        script.Append("  if [ \"$RELAUNCH_STATUS\" -ne 0 ]; then echo \"Relaunch command failed with exit code $RELAUNCH_STATUS\"; fi\n");
+        script.Append("fi\n");
         script.Append("exit 0\n");
 
         var scriptPath = WriteTempScript(script.ToString(), ".sh");
@@ -179,13 +188,17 @@ public static class UpdateApplier
             script.Append("  if ($status -ne 0) { \"Package manager command failed with exit code $status\" | Out-File -FilePath $log -Append }\n");
             script.Append("}\n");
         }
-        script.Append("Start-Process -FilePath ").Append(PsQuote(relaunch.Executable));
+        script.Append("$relaunchFile = ").Append(PsQuote(relaunch.Executable)).Append('\n');
+        script.Append("$relaunchArgs = @(").Append(string.Join(",", relaunch.Arguments.Select(PsQuote))).Append(")\n");
+        script.Append("\"Relaunching: $relaunchFile $($relaunchArgs -join ' ')\" | Out-File -FilePath $log -Append\n");
+        script.Append("try {\n");
+        script.Append("  $relaunchProcess = Start-Process -FilePath $relaunchFile");
         if (relaunch.Arguments.Count > 0)
-        {
-            script.Append(" -ArgumentList ");
-            script.Append(string.Join(",", relaunch.Arguments.Select(PsQuote)));
-        }
-        script.Append('\n');
+            script.Append(" -ArgumentList $relaunchArgs");
+        script.Append(" -PassThru -ErrorAction Stop\n");
+        script.Append("  Start-Sleep -Seconds 1\n");
+        script.Append("  if ($relaunchProcess.HasExited -and $relaunchProcess.ExitCode -ne 0) { \"Relaunch command failed with exit code $($relaunchProcess.ExitCode)\" | Out-File -FilePath $log -Append }\n");
+        script.Append("} catch { \"Relaunch command failed: $($_.Exception.Message)\" | Out-File -FilePath $log -Append }\n");
 
         var scriptPath = WriteTempScript(script.ToString(), ".ps1");
 
