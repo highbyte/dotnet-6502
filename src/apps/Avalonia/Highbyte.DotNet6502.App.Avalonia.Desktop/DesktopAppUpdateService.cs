@@ -192,10 +192,10 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
         {
             var managerDirectory = string.IsNullOrWhiteSpace(managerExecutablePath)
                 ? null
-                : Path.GetDirectoryName(managerExecutablePath);
+                : GetDirectoryName(managerExecutablePath, os);
             var launcher = string.IsNullOrWhiteSpace(managerDirectory)
                 ? homebrewLauncherName
-                : Path.Combine(managerDirectory, homebrewLauncherName);
+                : CombinePath(managerDirectory, homebrewLauncherName, os);
             return new RelaunchSpec(launcher, appArgs);
         }
 
@@ -213,12 +213,33 @@ public sealed class DesktopAppUpdateService : IAppUpdateService
         return OSPlatformKind.Other;
     }
 
+    private static string? GetDirectoryName(string path, OSPlatformKind os)
+    {
+        if (os is OSPlatformKind.Linux or OSPlatformKind.MacOS)
+        {
+            var normalized = path.Replace('\\', '/').TrimEnd('/');
+            var lastSlash = normalized.LastIndexOf('/');
+            return lastSlash > 0 ? normalized[..lastSlash] : null;
+        }
+
+        return Path.GetDirectoryName(path);
+    }
+
+    private static string CombinePath(string directory, string fileName, OSPlatformKind os)
+    {
+        if (os is OSPlatformKind.Linux or OSPlatformKind.MacOS)
+            return $"{directory.TrimEnd('/')}/{fileName.TrimStart('/')}";
+
+        return Path.Combine(directory, fileName);
+    }
+
     private static bool IsDotNetHost(string processPath)
     {
         if (string.IsNullOrWhiteSpace(processPath))
             return false;
 
-        var fileName = Path.GetFileName(processPath);
+        var pathParts = processPath.Replace('\\', '/').Split('/');
+        var fileName = pathParts[^1];
         return string.Equals(fileName, "dotnet", StringComparison.OrdinalIgnoreCase)
             || string.Equals(fileName, "dotnet.exe", StringComparison.OrdinalIgnoreCase);
     }
