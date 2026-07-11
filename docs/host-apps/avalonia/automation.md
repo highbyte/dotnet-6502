@@ -185,11 +185,9 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 
 ## What is NOT surfaced (known gaps)
 
-1. **Individual `TabItem` controls on macOS** — verified with `peekaboo see` after running the app. The `InformationTabControl` surfaces, but its `TabItem` children (`InformationTab`, `LogTab`, etc.) do not appear as distinct clickable elements in the AX tree, *despite* having explicit `AutomationProperties.AutomationId` + `Name`. The AX tree on macOS reports roles limited to `button`, `group`, `menu`, `other`, `slider` — no `AXTabGroup` / `AXTab`.
+1. **Individual `TabItem` controls via `peekaboo see`** — `see` truncates the tree by depth (see "`see` truncates the tree" note above), so it surfaces `InformationTabControl` but not its `TabItem` children as distinct elements. This is a `see`-depth artifact, **not** a genuine AX-bridge limitation: with Accessibility granted and a full-depth enumeration (`peekaboo inspect-ui` or `osascript` `entire contents`), the tab control appears as **`AXTabGroup`** and each tab as an **`AXRadioButton`** carrying its `AutomationId` (`InformationTab`, `ConfigStatusTab`, `LogTab`, `ScriptsTab`, `DebugAndRemotingTab`).
 
-   This is most likely an Avalonia `TabItemAutomationPeer` / macOS NSAccessibility bridge limitation, not a bug in this codebase. Worth filing an issue upstream in `avaloniaui/Avalonia`.
-
-   **Workaround**: use keyboard navigation — this is the **reliable** approach. Find the `InformationTabControl` element via `peekaboo see`, click it to give it focus, then press the right-arrow key once per tab step:
+   **Preferred approach for tab switching**: the named menu **keyboard shortcuts** (`⌘⌥I/C/L/S/D`, see "Tab navigation shortcuts" above) — order-independent and the most robust. Keyboard arrow navigation also works if you need it: give the `InformationTabControl` focus, then press the right-arrow key once per tab step:
 
    ```sh
    # Capture the AX tree and find InformationTabControl's elem_NN
@@ -224,6 +222,8 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 
 [peekaboo](https://peekaboo.dev) is a CLI tool for macOS UI automation (screenshots + AX tree traversal + input). These notes are from hands-on verification with the desktop app.
 
+> **This section targets peekaboo 3.8.0.** All commands, flags, output shapes, and behaviors below are written for and verified against that version.
+
 ### One-time setup
 
 Grant peekaboo these permissions (System Settings → Privacy & Security):
@@ -236,6 +236,8 @@ Verify with:
 ```sh
 peekaboo permissions
 ```
+
+> **Accessibility is mandatory, and its absence is easy to misdiagnose.** If the **Accessibility** permission is missing, AX enumeration of the Avalonia window effectively hangs: `peekaboo see` returns only the top-level container groups (`MainContentGrid`, `CenterPanel`, `EmulatorDisplayGrid`) plus the menu bar and never the interactive controls, and a direct `osascript` "count of UI elements of window 1" times out. Screen Recording alone is **not** enough — `see` will still capture a screenshot, so the failure looks like "controls missing from the tree" rather than "permission missing". If any control you expect is absent, re-check `peekaboo permissions` first.
 
 ### Discovering the AX tree
 
@@ -252,6 +254,15 @@ peekaboo see --app "DotNet 6502 Emulator" --annotate /tmp/ax.png
 # Full JSON dump for scripting
 peekaboo see --app "DotNet 6502 Emulator" --json > /tmp/ax.json
 ```
+
+> **`see` truncates the tree by depth — use `inspect-ui` to reach the controls.** `peekaboo see` only descends to the top-level container groups and does **not** list the sidebar buttons, comboboxes, or tabs even with Accessibility granted (it also enumerates the full ~96-item Apple menu bar, which dominates the snapshot). Use `inspect-ui` with raised limits to get the full control tree with each `AutomationProperties.AutomationId` reported as `identifier`:
+>
+> ```sh
+> peekaboo inspect-ui --app-target "DotNet 6502 Emulator" \
+>   --max-depth 60 --max-elements 5000 --max-children 500 --json
+> ```
+>
+> The `Snapshot ID:` is embedded in the returned `data.content[0].text` (parse it with a regex, and use a lenient JSON parser — the `debug_logs` field contains raw control characters). The `elem_NN` ids from this snapshot are usable with `click --on … --snapshot …`. Only currently-enabled controls are reported actionable (e.g. `Pause`/`Reset`/`Stop` show `[not actionable]` while the emulator is Uninitialized).
 
 The app's process name under macOS is `DotNet 6502 Emulator` (set via `Application.Name` in `App.axaml`, which Avalonia applies to `NSApplication` at startup). Confirm with:
 
@@ -277,6 +288,8 @@ peekaboo click "Start" --app "DotNet 6502 Emulator" --window-index 0
 peekaboo click --coords "440,595" --app "DotNet 6502 Emulator" --window-index 0
 ```
 
+> **For this app, use mode 1/2 (element id).** Source the `elem_NN` from `inspect-ui` (mode 1's "latest `see` snapshot" won't contain most controls — `see` truncates). **Avoid mode 3 (text query)** — it matches globally and can hit a same-named element in another app or inside tab content (e.g. Ghostty's "Log Out"). **Avoid mode 4 (coordinates)** — brittle across window moves/resizes/display density; the controls have a proper AX surface, so there is no need for coordinate clicking.
+
 ### Gotchas (learned the hard way)
 
 - **Always pass `--window-index 0`** when targeting this app. The Avalonia runtime creates a secondary hidden window, and without a window scope the focus step in `click` times out with `Error: Timeout while waiting for condition`.
@@ -287,44 +300,67 @@ peekaboo click --coords "440,595" --app "DotNet 6502 Emulator" --window-index 0
 
 - **Screenshot coordinates vs. screen coordinates.** The annotated screenshot from `peekaboo see --annotate` is scaled to roughly 0.75× the window-point size. To convert a pixel position in the screenshot to a click coordinate, scale by ~1.33× and add the window's screen offset (`peekaboo list` shows the window Position).
 
-- **AXIdentifier-based clicking isn't directly supported.** peekaboo's `--id` / `--on` flags take the `elem_NN` token from a `see` snapshot, not the `AutomationProperties.AutomationId` string. To select by AutomationId, parse the JSON from `peekaboo see --json` and look for `identifier == "StartButton"` to find the corresponding `elem_NN`, then pass that to `click --on`.
+- **AXIdentifier-based clicking isn't directly supported.** peekaboo's `--id` / `--on` flags take the `elem_NN` token from a snapshot, not the `AutomationProperties.AutomationId` string. To select by AutomationId, parse the JSON from `peekaboo inspect-ui … --json` (not `see` — `see` truncates and won't contain most controls), look for `identifier == "StartButton"` to find the corresponding `elem_NN` and the `Snapshot ID:`, then pass both to `click --on … --snapshot …`.
 
-- **Sidebar buttons (C64MenuView) are not reachable via peekaboo `click`.** Controls in the left-hand sidebar — `DownloadAndRunDiskButton`, `PreloadedDiskComboBox`, `LoadBasicButton`, etc. — do not appear in the AX tree that peekaboo enumerates, so neither text-query nor `elem_NN` clicks work. `peekaboo click --coords` also fails because it still attempts AX focus resolution internally when `--app` is given. The reliable fallback is **AppleScript coordinate-click**, which does a raw hit-test outside the AX tree:
+- **Sidebar buttons are reachable coordinate-free — do NOT use coordinate clicking.** The left-hand sidebar controls (`StartButton`, `StopButton`, `DownloadAndRunDiskButton`, `PreloadedDiskComboBox`, `LoadBasicButton`, etc.) are absent from `peekaboo see` (depth truncation). Do not fall back to screen-coordinate clicking — it is brittle (breaks on window move/resize/density), and this app has a proper AX surface once Accessibility is granted. Two verified coordinate-free methods:
 
-  ```applescript
-  tell application "DotNet 6502 Emulator" to activate
-  delay 0.5
-  tell application "System Events"
-      tell process "DotNet 6502 Emulator"
-          set winPos to position of window 1
-          -- Replace (dx, dy) with the button's offset from the window's top-left corner
-          click at {(item 1 of winPos) + dx, (item 2 of winPos) + dy}
-      end tell
-  end tell
-  ```
+  1. **peekaboo via `inspect-ui`** — enumerate with `inspect-ui` (not `see`), find the `elem_NN` for the target `identifier`, then click by element id:
 
-  From a shell script, wrap this in `osascript -e '...'` or `osascript <<'EOF' ... EOF`. Verified working for `DownloadAndRunDiskButton` (offset approx. `x+90, y+585` at default window size). For sidebar actions that have a C64 menu shortcut (toggle sections, set joystick port), prefer `peekaboo menu click` over coordinate hacks — those are more robust to window size changes.
+     ```sh
+     peekaboo inspect-ui --app-target "DotNet 6502 Emulator" \
+       --max-depth 60 --max-elements 5000 --max-children 500 --json > /tmp/insp.json
+     # parse Snapshot ID + the elem_NN whose identifier == "StartButton", then:
+     peekaboo click --on <elem_NN> --snapshot <snapshotId> --app "DotNet 6502 Emulator" --window-index 0
+     ```
+
+  2. **System Events `AXPress` by `AXIdentifier`** — snapshot the tree first, then match on `AXIdentifier`:
+
+     ```applescript
+     tell application "System Events"
+         tell process "DotNet 6502 Emulator"
+             set allEls to entire contents of window 1
+             repeat with e in allEls
+                 try
+                     if (value of attribute "AXIdentifier" of e) is "StartButton" then
+                         perform action "AXPress" of e
+                     end if
+                 end try
+             end repeat
+         end tell
+     end tell
+     ```
+
+  Both were verified to boot the C64 (Start → Running) and stop it (Stop → Uninitialized). For sidebar section toggles / joystick ports, the C64 **menu keyboard shortcuts** remain the simplest option (see the shortcuts tables above).
+
+- **osascript: snapshot the tree before iterating.** Use `set allEls to entire contents of window 1` then `repeat with e in allEls`. The inline form `repeat with e in (entire contents of window 1)` silently fails to resolve elements and returns zero matches — this can masquerade as an "intermittent" or "missing" AX tree. Also, `items` is an AppleScript reserved word; don't use it as a variable name. Read state with `value of attribute "AXValue"`, enabled state with `AXEnabled`, id with `value of attribute "AXIdentifier"`.
 
 ### Worked example: start the emulator, then open the Log tab
 
 ```sh
-# Snapshot and find Start button
-SNAP=$(peekaboo see --app "DotNet 6502 Emulator" --json | jq -r '.snapshot_id')
-START=$(peekaboo see --app "DotNet 6502 Emulator" --json \
-        | jq -r '.. | objects | select(.identifier == "StartButton") | .id')
+# Snapshot the full control tree and find the Start button (see does NOT surface it — use inspect-ui)
+peekaboo app switch --to "DotNet 6502 Emulator"
+peekaboo inspect-ui --app-target "DotNet 6502 Emulator" \
+  --max-depth 60 --max-elements 5000 --max-children 500 --json > /tmp/insp.json
+
+read SNAP START < <(python3 -c "
+import json,re
+d=json.load(open('/tmp/insp.json'), strict=False)   # strict=False: debug_logs hold raw control chars
+t=d['data']['content'][0]['text']
+print(re.search(r'Snapshot ID: (\S+)', t).group(1),
+      re.search(r'(elem_\d+) - .*identifier: StartButton', t).group(1))
+")
 
 # 1. Click Start — emulator boots into C64 BASIC
-peekaboo click --on "$START" --snapshot "$SNAP" \
-               --app "DotNet 6502 Emulator" --window-index 0
+peekaboo click --on "$START" --snapshot "$SNAP" --app "DotNet 6502 Emulator" --window-index 0
 
-# 2. Navigate to the Log tab via its named menu shortcut (order-independent)
-peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > View > Log"
+# 2. Switch to the Log tab via its keyboard shortcut (order-independent, most robust)
+peekaboo hotkey --keys "cmd,option,l" --app "DotNet 6502 Emulator"
 
-# Verify
-peekaboo see --app "DotNet 6502 Emulator" --annotate /tmp/after.png
+# Verify (screenshot needs Screen Recording; or read EmulatorStateText via inspect-ui/AXValue)
+peekaboo image --app "DotNet 6502 Emulator" --window-index 0 --path /tmp/after.png
 ```
 
-The JSON path shapes above are illustrative — adjust with your peekaboo version's output schema. `peekaboo list` + `peekaboo see --json` are the two fundamental queries to script anything more involved.
+The JSON path shapes above match peekaboo 3.8.0 output. `peekaboo list` + `peekaboo inspect-ui --json` are the two fundamental queries to script anything more involved (`see` is fine for a screenshot but truncates the control tree).
 
 ## See also
 
