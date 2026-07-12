@@ -89,6 +89,14 @@ public class SystemList
         return system;
     }
 
+    public IScreen? GetScreenInfo(string systemName, string configurationVariant, IHostSystemConfig hostSystemConfig)
+    {
+        if (!Systems.Contains(systemName))
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
+
+        return _systemConfigurers[systemName].GetScreenInfo(configurationVariant, hostSystemConfig.SystemConfig);
+    }
+
     public async Task<SystemRunner> BuildSystemRunner(
         string systemName,
         string configurationVariant)

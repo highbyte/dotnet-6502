@@ -4,6 +4,7 @@ public interface ISystemConfigurer
 {
     public string SystemName { get; }
     public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig);
+    public IScreen? GetScreenInfo(string configurationVariant, ISystemConfig systemConfig) => null;
     public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig);
     public Task<IHostSystemConfig> GetNewHostSystemConfig();
     public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig);

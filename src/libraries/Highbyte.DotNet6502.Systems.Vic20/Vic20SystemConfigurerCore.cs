@@ -45,6 +45,17 @@ public class Vic20SystemConfigurerCore : ISystemConfigurer
     public virtual Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
         => Task.FromResult(new List<string> { VariantNtsc, VariantPal });
 
+    public IScreen? GetScreenInfo(string configurationVariant, ISystemConfig systemConfig)
+    {
+        var vic20Config = BuildVic20ConfigForVariant(configurationVariant);
+        return new ScreenInfo(
+            Vic20Config.DrawableAreaWidth,
+            Vic20Config.DrawableAreaHeight,
+            vic20Config.MaxVisibleWidth,
+            vic20Config.MaxVisibleHeight,
+            vic20Config.ScreenRefreshFrequencyHz);
+    }
+
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Host config binding is limited to known application config models that are rooted by the host application.")]
     public virtual Task<IHostSystemConfig> GetNewHostSystemConfig()
     {

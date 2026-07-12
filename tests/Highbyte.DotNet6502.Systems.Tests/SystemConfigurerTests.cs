@@ -23,6 +23,9 @@ public class SystemConfigurerTests
         public string SystemName => TestSystem.SystemName;
         public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
 
+        public IScreen? GetScreenInfo(string configurationVariant, ISystemConfig systemConfig)
+            => new ScreenInfo(100, 50, 123, 67, 60);
+
         public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
             return Task.FromResult<IHostSystemConfig>(new TestHostSystemConfig());
@@ -51,7 +54,13 @@ public class SystemConfigurerTests
     public class TestSystem2Configurer : ISystemConfigurer
     {
         public string SystemName => TestSystem2.SystemName;
-        public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
+        public const string Variant = "TEST2";
+        public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { Variant });
+
+        public IScreen? GetScreenInfo(string configurationVariant, ISystemConfig systemConfig)
+            => configurationVariant == Variant
+                ? new ScreenInfo(200, 100, 246, 134, 60)
+                : throw new ArgumentException($"Unexpected variant '{configurationVariant}'.", nameof(configurationVariant));
 
         public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {

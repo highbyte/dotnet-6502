@@ -73,15 +73,19 @@ public class HostApp : IHostApp, IManualRenderingProvider
         }
         set
         {
-            _allSelectedSystemConfigurationVariants = value;
-            OnAfterAllSystemConfigurationVariantsChanged();
+            SetAllSelectedSystemConfigurationVariants(value);
         }
     }
 
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
-    public IScreen? CurrentSystemScreenInfo => _systemRunner != null ? _systemRunner?.System.Screen : _selectedSystemTemporary?.Screen;
+    public IScreen? CurrentSystemScreenInfo => _systemRunner != null
+        ? _systemRunner.System.Screen
+        : _selectedSystemTemporary?.Screen
+            ?? (_currentHostSystemConfig != null
+                ? _systemList.GetScreenInfo(_selectedSystemName, _selectedSystemConfigurationVariant, _currentHostSystemConfig)
+                : null);
     public EmulatorState EmulatorState
     {
         get
@@ -437,19 +441,16 @@ public class HostApp : IHostApp, IManualRenderingProvider
         _selectedSystemName = systemName;
         CurrentHostSystemConfig = await _systemList.GetHostSystemConfig(_selectedSystemName);
 
-        OnAfterSelectedSystemChanged();
-
-        SelectedSystemChanged?.Invoke(this, EventArgs.Empty);
-        _scriptingEngine.InvokeEvent("on_system_selected", SelectedSystemName);
-
         // If system changed, make sure any state regarding the system variant is also in sync
         if (systemChanged)
         {
-            AllSelectedSystemConfigurationVariants = await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig);
+            SetAllSelectedSystemConfigurationVariants(
+                await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig),
+                notify: false);
             if (_allSelectedSystemConfigurationVariants.Count > 0)
             {
-                var selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
-                await SelectSystemConfigurationVariant(selectedSystemConfigurationVariant);
+                _selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
+                await UpdateSelectedSystemTemporary();
             }
             else
             {
@@ -466,9 +467,25 @@ public class HostApp : IHostApp, IManualRenderingProvider
                 _selectedSystemTemporary = null;
             }
         }
+
+        OnAfterAllSystemConfigurationVariantsChanged();
+        OnAfterSelectedSystemVariantChanged();
+        OnAfterSelectedSystemChanged();
+
+        SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
+        SelectedSystemChanged?.Invoke(this, EventArgs.Empty);
+        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
+        _scriptingEngine.InvokeEvent("on_system_selected", SelectedSystemName);
     }
 
     public virtual void OnAfterAllSystemConfigurationVariantsChanged() { }
+
+    private void SetAllSelectedSystemConfigurationVariants(List<string> variants, bool notify = true)
+    {
+        _allSelectedSystemConfigurationVariants = variants;
+        if (notify)
+            OnAfterAllSystemConfigurationVariantsChanged();
+    }
 
     public async Task SelectSystemConfigurationVariant(string configurationVariant)
     {
@@ -479,7 +496,16 @@ public class HostApp : IHostApp, IManualRenderingProvider
             throw new DotNet6502Exception($"System configuration variant not found: {configurationVariant}");
 
         _selectedSystemConfigurationVariant = configurationVariant;
+        await UpdateSelectedSystemTemporary();
 
+        OnAfterSelectedSystemVariantChanged();
+
+        SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
+        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
+    }
+
+    private async Task UpdateSelectedSystemTemporary()
+    {
         // Pre-create a temporary variable to contain the system if it is valid.
         // This is useful if the system has not been started yet, but client requests the system object.
         if (CurrentHostSystemConfig.IsValid(out _))
@@ -490,11 +516,6 @@ public class HostApp : IHostApp, IManualRenderingProvider
         {
             _selectedSystemTemporary = null;
         }
-
-        OnAfterSelectedSystemVariantChanged();
-
-        SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
-        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
     }
 
     public virtual void OnAfterSelectedSystemChanged() { }

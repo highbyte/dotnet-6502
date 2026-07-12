@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Cartridge;
 using Highbyte.DotNet6502.Systems.Commodore64.Cartridge.SwiftLink;
 using Highbyte.DotNet6502.Systems.Commodore64.Transport;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -64,6 +65,14 @@ public class C64SystemConfigurerCore : ISystemConfigurer
 
     public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
         => Task.FromResult(C64ModelInventory.C64Models.Keys.ToList());
+
+    public IScreen? GetScreenInfo(string configurationVariant, ISystemConfig systemConfig)
+    {
+        if (!C64ModelInventory.C64Models.TryGetValue(configurationVariant, out var c64Model))
+            return null;
+
+        return new Vic2Screen(c64Model.Vic2Models.First(), c64Model.CPUFrequencyHz);
+    }
 
     /// <summary>
     /// Creates a fresh host config via the supplied factory and binds it from the matching

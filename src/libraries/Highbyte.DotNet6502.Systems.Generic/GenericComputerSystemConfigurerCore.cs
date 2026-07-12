@@ -55,6 +55,22 @@ public class GenericComputerSystemConfigurerCore : ISystemConfigurer
     public virtual Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
         => Task.FromResult(((GenericComputerSystemConfig)systemConfig).ExamplePrograms.Keys.ToList());
 
+    public IScreen? GetScreenInfo(string configurationVariant, ISystemConfig systemConfig)
+    {
+        var genericSystemConfig = (GenericComputerSystemConfig)systemConfig;
+        var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericSystemConfig);
+        var screen = genericComputerConfig.Memory.Screen;
+        const int characterWidth = 8;
+        const int characterHeight = 8;
+
+        return new ScreenInfo(
+            screen.Cols * characterWidth,
+            screen.Rows * characterHeight,
+            (screen.Cols + (2 * screen.BorderCols)) * characterWidth,
+            (screen.Rows + (2 * screen.BorderRows)) * characterHeight,
+            genericComputerConfig.ScreenRefreshFrequencyHz);
+    }
+
     /// <summary>
     /// Creates a fresh host config via the supplied factory and binds it from the matching
     /// <see cref="IConfiguration"/> section. Hosts that store config elsewhere (e.g. browser
