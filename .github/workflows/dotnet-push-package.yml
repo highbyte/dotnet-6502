@@ -85,7 +85,7 @@ jobs:
       # Exchange the GitHub Actions OIDC token for a short-lived, single-use NuGet API key.
       - name: NuGet login (OIDC to temporary API key)
         if: steps.core_changes.outputs.should_publish == 'true'
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         id: nuget_login
         with:
           user: ${{ secrets.NUGET_USER }}
