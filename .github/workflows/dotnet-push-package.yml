@@ -19,6 +19,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       # Checkout the code
       - uses: actions/checkout@v5
@@ -69,17 +73,29 @@ jobs:
         if: steps.core_changes.outputs.should_publish == 'false'
         run: echo "Core library package inputs are unchanged since the previous release tag. No new NuGet package will be built or published."
 
-      # Build, pack and push NuGet package
-      - name: Build, pack and push NuGet package
+      # Build and pack NuGet package
+      - name: Build and pack NuGet package
         if: steps.core_changes.outputs.should_publish == 'true'
-        env:
-          GITHUB_PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
 
           dotnet build "${PROJECT_FILE}" -c "${CONFIGURATION}" /Property:Version="$VERSION"
           dotnet pack "${PROJECT_FILE}" --no-build -c "${CONFIGURATION}" -p:PackageVersion="$VERSION" -o out
+
+      # Exchange the GitHub Actions OIDC token for a short-lived, single-use NuGet API key.
+      - name: NuGet login (OIDC to temporary API key)
+        if: steps.core_changes.outputs.should_publish == 'true'
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        id: nuget_login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push NuGet package
+        if: steps.core_changes.outputs.should_publish == 'true'
+        env:
+          GITHUB_PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUGET_API_KEY: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
+        run: |
           dotnet nuget push "./out/*.nupkg" --source "${PACKAGE_REPO}" --api-key "${GITHUB_PACKAGE_TOKEN}" --skip-duplicate
           dotnet nuget push "./out/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "${NUGET_API_KEY}" --skip-duplicate
         
