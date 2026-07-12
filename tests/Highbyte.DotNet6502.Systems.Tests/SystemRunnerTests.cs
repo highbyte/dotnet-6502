@@ -77,7 +77,7 @@ public class TestSystem : ISystem
 
     public Memory Mem => throw new NotImplementedException();
 
-    public IScreen Screen => throw new NotImplementedException();
+    public IScreen Screen => new ScreenInfo(100, 50, 123, 67, 60);
 
     public bool InstrumentationEnabled { get; set; } = false;
 
@@ -112,7 +112,7 @@ public class TestSystem2 : ISystem
 
     public Memory Mem => throw new NotImplementedException();
 
-    public IScreen Screen => throw new NotImplementedException();
+    public IScreen Screen => new ScreenInfo(200, 100, 246, 134, 60);
 
     public bool InstrumentationEnabled { get; set; } = false;
 

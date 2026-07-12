@@ -66,7 +66,7 @@ public partial class App : Application
     public bool IsHostAppReady => _hostApp != null;
 
     /// <summary>
-    /// Optional async runner invoked from <see cref="ViewModels.MainViewModel.SetDefaultSystemSelectionAsync"/>
+    /// Optional async runner invoked from <see cref="ViewModels.MainViewModel.InitializeAsync"/>
     /// when an automated startup has been requested (e.g. via URL query parameters in the Browser host).
     /// Running automation from there guarantees the Avalonia view tree has been loaded and rendered
     /// at least once, so subsequent <c>InvalidateVisual</c> calls actually trigger paint.
@@ -119,7 +119,7 @@ public partial class App : Application
     /// <param name="deleteScript">Optional callback to remove a script by file name (browser: from localStorage).</param>
     /// <param name="loadExamples">Optional callback to seed bundled example scripts into the host's script storage.</param>
     /// <param name="automatedStartupRunner">
-    /// Optional automated-startup delegate invoked from <see cref="ViewModels.MainViewModel.SetDefaultSystemSelectionAsync"/>
+    /// Optional automated-startup delegate invoked from <see cref="ViewModels.MainViewModel.InitializeAsync"/>
     /// after the view tree has been loaded. When non-null, the UI's default system selection is
     /// suppressed and the runner is invoked instead — used by the Browser host for URL-driven
     /// automation, by Desktop for CLI-driven automation, and as a no-op (<c>_ =&gt; Task.CompletedTask</c>)
@@ -457,6 +457,20 @@ public partial class App : Application
 
             // Wire Lua scripting engine (NoScriptingEngine used when null, e.g. in WASM)
             _hostApp.SetScriptingEngine(_scriptingEngine ?? new NoScriptingEngine());
+
+            // Normal startup should have a selected system before the first view layout. Otherwise
+            // bindings that size the emulator display evaluate with no selected system and briefly
+            // fall back to 320x200 before MainView.Loaded selects the default system. Automated
+            // startup still runs after the view is loaded because it may need a rendered tree.
+            if (_automatedStartupRunner == null)
+            {
+                _logger.LogInformation(
+                    "Selecting default system '{DefaultEmulator}' before Avalonia view creation",
+                    _emulatorConfig.DefaultEmulator);
+#pragma warning disable VSTHRD002
+                _hostApp.SelectSystem(_emulatorConfig.DefaultEmulator).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+            }
 
             // Signal waiters (e.g. automated startup on a background thread) that HostApp is ready.
             // TrySetResult guarantees all writes above are visible to awaiters before they resume.

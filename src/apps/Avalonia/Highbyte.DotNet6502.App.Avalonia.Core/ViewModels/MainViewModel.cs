@@ -872,11 +872,9 @@ public class MainViewModel : ViewModelBase, IDisposable
             .Select(config => GetAudioToolTip(config))
             .ToProperty(this, x => x.AudioTooltip);
 
-        // A host-config update can rebuild the selected system's temporary instance and thereby
-        // change its screen dimensions (e.g. ROMs downloaded during automated startup make the C64
-        // buildable, so CurrentSystemScreenInfo goes from the default fallback to the real size).
-        // The system/variant identity does not change in that case, so refresh the emulator display
-        // size here too — otherwise the display container keeps the default 320x200 size.
+        // A host-config update can rebuild the selected system's temporary instance or change the
+        // config-derived pre-build screen dimensions. The system/variant identity does not change in
+        // that case, so refresh the emulator display size here too.
         _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
             .Subscribe(_ =>
@@ -1245,8 +1243,11 @@ public class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _logger.LogInformation($"Setting default system '{_emulatorConfig.DefaultEmulator}' during MainViewModel initialization");
-        await HostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
+        if (HostApp.SelectedSystemName != _emulatorConfig.DefaultEmulator)
+        {
+            _logger.LogInformation($"Setting default system '{_emulatorConfig.DefaultEmulator}' during MainViewModel initialization");
+            await HostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
+        }
     }
 
     /// <summary>

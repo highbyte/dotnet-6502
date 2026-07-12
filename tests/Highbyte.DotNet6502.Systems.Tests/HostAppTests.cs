@@ -137,12 +137,60 @@ public class HostAppTests
         Assert.NotNull(systemAfterFixup);
     }
 
+    [Fact]
+    public async Task CurrentSystemScreenInfo_WhenSelectedSystemCannotBeBuilt_UsesConfigurerScreenInfo()
+    {
+        // Arrange: select a system, then make config invalid so no temporary system can be built.
+        var testApp = BuildTestHostApp();
+        await testApp.SelectSystem(TestSystem.SystemName);
+        testApp.UpdateHostSystemConfig(new TestHostSystemConfig { TestIsValid = false });
+
+        // Act
+        var screenInfo = testApp.CurrentSystemScreenInfo;
+
+        // Assert
+        Assert.NotNull(screenInfo);
+        Assert.Equal(123, screenInfo.VisibleWidth);
+        Assert.Equal(67, screenInfo.VisibleHeight);
+    }
+
+    [Fact]
+    public async Task SelectSystem_WhenPreviousSystemIsInvalid_UpdatesVariantBeforeSystemChangedNotification()
+    {
+        // Arrange: the first system is selected but cannot be built, so screen info must come from
+        // the selected system/variant rather than from a temporary system instance.
+        var testApp = BuildTestHostApp();
+        await testApp.SelectSystem(TestSystem.SystemName);
+        testApp.UpdateHostSystemConfig(new TestHostSystemConfig { TestIsValid = false });
+        testApp.ReadScreenInfoOnSelectedSystemChanged = true;
+
+        // Act: switch to a system whose GetScreenInfo rejects stale variants.
+        await testApp.SelectSystem(TestSystem2.SystemName);
+
+        // Assert: reading screen info during the selected-system notification saw the new variant.
+        Assert.Equal(TestSystem2Configurer.Variant, testApp.SelectedSystemConfigurationVariant);
+        Assert.NotNull(testApp.ScreenInfoReadDuringSelectedSystemChanged);
+        Assert.Equal(246, testApp.ScreenInfoReadDuringSelectedSystemChanged.VisibleWidth);
+        Assert.Equal(134, testApp.ScreenInfoReadDuringSelectedSystemChanged.VisibleHeight);
+    }
+
     public class TestHostApp : HostApp
     {
         public TestHostApp(
             SystemList systemList
             ) : base("TestHost", systemList, new NullLoggerFactory())
         {
+        }
+
+        public bool ReadScreenInfoOnSelectedSystemChanged { get; set; }
+        public IScreen? ScreenInfoReadDuringSelectedSystemChanged { get; private set; }
+
+        public override void OnAfterSelectedSystemChanged()
+        {
+            if (ReadScreenInfoOnSelectedSystemChanged)
+                ScreenInfoReadDuringSelectedSystemChanged = CurrentSystemScreenInfo;
+
+            base.OnAfterSelectedSystemChanged();
         }
     }
 
