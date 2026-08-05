@@ -37,6 +37,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
     private bool _isBusy;
     private string? _statusMessage;
+    private bool _statusMessageIsError;
     private string? _validationMessage;
     private string _romDirectory = string.Empty;
     private RenderProviderOption? _selectedRenderProvider;
@@ -144,7 +145,29 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _statusMessage, value);
             this.RaisePropertyChanged(nameof(HasStatusMessage));
+            this.RaisePropertyChanged(nameof(HasNonErrorStatusMessage));
+            this.RaisePropertyChanged(nameof(HasErrorStatusMessage));
         }
+    }
+
+    public bool StatusMessageIsError
+    {
+        get => _statusMessageIsError;
+        private set
+        {
+            if (_statusMessageIsError == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _statusMessageIsError, value);
+            this.RaisePropertyChanged(nameof(HasNonErrorStatusMessage));
+            this.RaisePropertyChanged(nameof(HasErrorStatusMessage));
+        }
+    }
+
+    private void SetStatusMessage(string? message, bool isError = false)
+    {
+        StatusMessage = message;
+        StatusMessageIsError = !string.IsNullOrEmpty(message) && isError;
     }
 
     public string? ValidationMessage
@@ -161,6 +184,8 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     }
 
     public bool HasStatusMessage => !string.IsNullOrEmpty(StatusMessage);
+    public bool HasNonErrorStatusMessage => HasStatusMessage && !StatusMessageIsError;
+    public bool HasErrorStatusMessage => HasStatusMessage && StatusMessageIsError;
     public bool HasValidationMessage => !string.IsNullOrEmpty(ValidationMessage);
     public ObservableCollection<string> ValidationErrors => _validationErrors;
     public bool HasValidationErrors => _validationErrors.Count > 0;
@@ -178,9 +203,13 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _romDirectory, value);
             _workingConfig.SystemConfig.ROMDirectory = value;
+            this.RaisePropertyChanged(nameof(EffectiveRomDirectory));
             UpdateValidationMessageFromConfig();
         }
     }
+
+    public string EffectiveRomDirectory =>
+        PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.EffectiveROMDirectory);
 
     public string RomDirectoryToolTip =>
         $"Optional ROM directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(Apple2SystemConfig.DefaultROMDirectory)}";
@@ -286,14 +315,14 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     {
         if (requireAcknowledgement && !await RequestRomLicenseAcknowledgementAsync())
         {
-            StatusMessage = "ROM download cancelled.";
+            SetStatusMessage("ROM download cancelled.");
             return false;
         }
 
         try
         {
             IsBusy = true;
-            StatusMessage = "Downloading ROMs...";
+            SetStatusMessage("Downloading ROMs...");
             ValidationMessage = string.Empty;
 
             var downloadedRoms = await CreateRomDownloader()
@@ -301,12 +330,12 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             foreach (var (romName, romBytes) in downloadedRoms)
                 _workingConfig.SystemConfig.SetROM(romName, data: romBytes);
 
-            StatusMessage = "ROMs downloaded successfully.";
+            SetStatusMessage("ROMs downloaded successfully.");
             return true;
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error downloading ROMs: {ex.Message}";
+            SetStatusMessage($"Error downloading ROMs: {ex.Message}", isError: true);
             return false;
         }
         finally
@@ -321,14 +350,14 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     {
         if (!await RequestRomLicenseAcknowledgementAsync())
         {
-            StatusMessage = string.Empty;
+            SetStatusMessage(string.Empty);
             return;
         }
 
         try
         {
             IsBusy = true;
-            StatusMessage = "Downloading ROMs...";
+            SetStatusMessage("Downloading ROMs...");
             ValidationMessage = string.Empty;
 
             var writtenFiles = await CreateRomDownloader().DownloadRomsToFilesAsync(
@@ -338,11 +367,11 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             foreach (var (romName, fileName) in writtenFiles)
                 _workingConfig.SystemConfig.SetROM(romName, fileName);
 
-            StatusMessage = "ROMs downloaded successfully.";
+            SetStatusMessage("ROMs downloaded successfully.");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error downloading ROMs: {ex.Message}";
+            SetStatusMessage($"Error downloading ROMs: {ex.Message}", isError: true);
         }
         finally
         {
@@ -391,12 +420,12 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
         if (errors.Count == 0)
         {
-            StatusMessage = "ROM files loaded.";
+            SetStatusMessage("ROM files loaded.");
             ValidationMessage = string.Empty;
         }
         else
         {
-            StatusMessage = errors.Count < romData.Count ? "Some ROMs loaded with warnings." : null;
+            SetStatusMessage(errors.Count < romData.Count ? "Some ROMs loaded with warnings." : null, isError: errors.Count < romData.Count);
             ValidationMessage = string.Join(Environment.NewLine, errors);
         }
 
@@ -408,7 +437,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
         _workingConfig.SystemConfig.ROMs = new List<ROM>();
         UpdateRomStatuses();
         UpdateValidationMessageFromConfig();
-        StatusMessage = "All ROMs cleared.";
+        SetStatusMessage("All ROMs cleared.");
     }
 
     public async Task<bool> TryApplyChangesAsync()
@@ -416,12 +445,12 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
         try
         {
             IsBusy = true;
-            StatusMessage = "Saving...";
+            SetStatusMessage("Saving...");
             ValidationMessage = string.Empty;
 
             if (!_workingConfig.IsValid(out var validationErrors))
             {
-                StatusMessage = null;
+                SetStatusMessage(null);
                 ValidationMessage = string.Join(Environment.NewLine, validationErrors);
                 return false;
             }
@@ -440,12 +469,12 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             _hostApp.UpdateHostSystemConfig(_originalConfig);
             await _hostApp.PersistCurrentHostSystemConfig();
 
-            StatusMessage = "Configuration saved.";
+            SetStatusMessage("Configuration saved.");
             return true;
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error saving config: {ex.Message}";
+            SetStatusMessage($"Error saving config: {ex.Message}", isError: true);
             return false;
         }
         finally
@@ -485,7 +514,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
         LoadFromWorkingConfig();
 
-        StatusMessage = "Settings reset to defaults. Click Save to apply.";
+        SetStatusMessage("Settings reset to defaults. Click Save to apply.");
     }
 
     private void InitializeRenderOptions()

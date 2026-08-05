@@ -4,212 +4,281 @@
              x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.Views.Apple2ConfigDialogView"
              x:DataType="vm:Apple2ConfigDialogViewModel"
              AutomationProperties.AutomationId="Apple2ConfigDialogView"
-             AutomationProperties.Name="Apple II configuration"
-             MinWidth="480">
+             AutomationProperties.Name="Apple II configuration">
 
-    <!-- Root must be a Grid so OverlayDialogHelper can host overlay dialogs
-         (e.g. the ROM licence acknowledgement prompt) on top of this view. -->
-    <Grid>
-    <ScrollViewer Classes="auto-scroll">
-        <StackPanel Classes="spacing-tight" Margin="10">
+  <!-- Same layout pattern as C64ConfigUserControl. The root must be a Grid so
+       OverlayDialogHelper can host overlay dialogs (e.g. the ROM licence acknowledgement
+       prompt) on top of this view. MaxWidth caps the dialog so the WrapPanel inside wraps
+       to at most 3 columns of 368 px wide panels. -->
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8" MaxWidth="1140">
+    <!-- Title Header -->
+    <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
+      <TextBlock Text="Apple II Configuration"
+                 Classes="h-center h2"/>
+    </Border>
 
-            <!-- ROMs -->
-            <TextBlock Text="ROMs" Classes="bold"/>
-            <Border Classes="section-container">
-                <StackPanel Classes="spacing-tight">
+    <!-- Main content with wrapping layout - scrollable -->
+    <ScrollViewer Grid.Row="1" Classes="vertical-only">
+      <WrapPanel Orientation="Horizontal">
 
-                    <TextBlock Text="{Binding RomStatusSummary}"
-                               AutomationProperties.AutomationId="RomStatusSummaryText"
-                               Classes="small secondary-text"/>
+        <!-- ROM Section -->
+        <StackPanel Width="368" Classes="wrap-item">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+            <TextBlock Text="ROM Management"
+                        Classes=""/>
+            <TextBlock Text="The emulator requires the Apple II Plus system ROM and the character generator ROM."
+                        Classes="small secondary-text"
+                        TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding RomStatusSummary}"
+                        AutomationProperties.AutomationId="RomStatusSummaryText"
+                        Classes="accent bold"/>
 
-                    <ItemsControl ItemsSource="{Binding RomStatuses}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:Apple2RomStatusViewModel">
-                                <Grid Classes="spacing-tight" Margin="0,2">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="90"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Grid.Column="0"
-                                               Text="{Binding Name}"
-                                               Classes="small"
-                                               VerticalAlignment="Center"/>
-
-                                    <TextBox Grid.Column="1"
-                                             AutomationProperties.AutomationId="{Binding Name, StringFormat='RomFileTextBox.{0}'}"
-                                             AutomationProperties.Name="{Binding Name, StringFormat='{}{0} ROM file name'}"
-                                             Text="{Binding RomFile, Mode=TwoWay}"
-                                             IsVisible="{Binding !IsRunningInWebAssembly}"
-                                             Classes="small"/>
-
-                                    <TextBlock Grid.Column="2"
-                                               Text="{Binding Details}"
-                                               Foreground="{Binding ForegroundColor}"
-                                               Classes="small"
-                                               Margin="8,0,0,0"
-                                               VerticalAlignment="Center"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <Grid Classes="spacing-tight" IsVisible="{Binding !IsRunningInWebAssembly}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+            <ItemsControl ItemsSource="{Binding RomStatuses}">
+                <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:Apple2RomStatusViewModel">
+                    <StackPanel Classes="spacing-tight">
+                    <!-- WebAssembly version - display only -->
+                    <Grid ColumnDefinitions="90,*" Classes="spacing-tight"
+                            IsVisible="{Binding IsRunningInWebAssembly}">
                         <TextBlock Grid.Column="0"
-                                   Text="ROM directory:"
-                                   Classes="small secondary-text"
-                                   VerticalAlignment="Center"/>
+                                    Text="{Binding Name, StringFormat='{}{0}:'}"
+                                    Classes="secondary-text"/>
+                        <TextBlock Grid.Column="1"
+                                    Text="{Binding Details}"
+                                    Foreground="{Binding ForegroundColor}"/>
+                    </Grid>
+
+                    <!-- Desktop version - editable File name -->
+                    <Grid ColumnDefinitions="90,*" Classes="spacing-tight"
+                            IsVisible="{Binding !IsRunningInWebAssembly}">
+                        <TextBlock Grid.Column="0"
+                                    Text="{Binding Name, StringFormat='{}{0}:'}"
+                                    Classes="secondary-text"/>
                         <TextBox Grid.Column="1"
-                                 AutomationProperties.AutomationId="RomDirectoryTextBox"
-                                 AutomationProperties.Name="ROM directory"
-                                 Text="{Binding RomDirectory, Mode=TwoWay}"
-                                 ToolTip.Tip="{Binding RomDirectoryToolTip}"
-                                 Classes="small"
-                                 Margin="8,0,0,0"/>
+                                AutomationProperties.AutomationId="{Binding Name, StringFormat='RomFileTextBox.{0}'}"
+                                AutomationProperties.Name="{Binding Name, StringFormat='{}{0} ROM file name'}"
+                                Text="{Binding RomFile, Mode=TwoWay}"
+                                PlaceholderText="File name"
+                                Classes="field-aligned"/>
                     </Grid>
-
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button Content="Load ROM files…"
-                                AutomationProperties.AutomationId="LoadRomsButton"
-                                Classes="small"
-                                IsVisible="{Binding !IsRunningInWebAssembly}"
-                                Click="LoadRoms_Click"/>
-                        <Button Content="Download ROMs"
-                                AutomationProperties.AutomationId="DownloadRomsToFilesButton"
-                                AutomationProperties.Name="Download ROMs to the ROM directory"
-                                Classes="small"
-                                IsVisible="{Binding !IsRunningInWebAssembly}"
-                                IsEnabled="{Binding IsNotBusy}"
-                                Command="{Binding DownloadRomsToFilesCommand}"/>
-                        <Button Content="Download ROMs"
-                                AutomationProperties.AutomationId="DownloadRomsToMemoryButton"
-                                AutomationProperties.Name="Download ROMs into browser storage"
-                                Classes="small"
-                                IsVisible="{Binding IsRunningInWebAssembly}"
-                                IsEnabled="{Binding IsNotBusy}"
-                                Command="{Binding DownloadRomsToByteArrayCommand}"/>
-                        <Button Content="Clear ROMs"
-                                AutomationProperties.AutomationId="ClearRomsButton"
-                                Classes="small"
-                                IsEnabled="{Binding IsNotBusy}"
-                                Command="{Binding ClearRomsCommand}"/>
                     </StackPanel>
-                </StackPanel>
-            </Border>
+                </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
-            <!-- Display -->
-            <TextBlock Text="Display" Classes="bold"/>
-            <Border Classes="section-container">
-                <StackPanel Classes="spacing-tight">
-                    <Grid Classes="spacing-tight">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Monitor colour:" Classes="small secondary-text" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1"
-                                  AutomationProperties.AutomationId="MonitorColorComboBox"
-                                  AutomationProperties.Name="Monitor colour"
-                                  ItemsSource="{Binding MonitorColors}"
-                                  SelectedItem="{Binding SelectedMonitorColor, Mode=TwoWay}"
-                                  DisplayMemberBinding="{Binding DisplayName}"
-                                  Classes="small"/>
-                    </Grid>
-                    <TextBlock Text="{Binding SelectedMonitorColorHelpText}" Classes="small secondary-text" TextWrapping="Wrap"/>
-
-                    <Grid Classes="spacing-tight">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Render provider:" Classes="small secondary-text" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1"
-                                  AutomationProperties.AutomationId="RenderProviderComboBox"
-                                  AutomationProperties.Name="Render provider"
-                                  ItemsSource="{Binding RenderProviders}"
-                                  SelectedItem="{Binding SelectedRenderProvider, Mode=TwoWay}"
-                                  DisplayMemberBinding="{Binding DisplayName}"
-                                  Classes="small"/>
-                    </Grid>
-                    <TextBlock Text="{Binding SelectedRenderProviderHelpText}" Classes="small secondary-text" TextWrapping="Wrap"/>
-
-                    <Grid Classes="spacing-tight">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Render target:" Classes="small secondary-text" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1"
-                                  AutomationProperties.AutomationId="RenderTargetComboBox"
-                                  AutomationProperties.Name="Render target"
-                                  ItemsSource="{Binding RenderTargets}"
-                                  SelectedItem="{Binding SelectedRenderTarget, Mode=TwoWay}"
-                                  DisplayMemberBinding="{Binding DisplayName}"
-                                  Classes="small"/>
-                    </Grid>
-                    <TextBlock Text="{Binding SelectedRenderTargetHelpText}" Classes="small secondary-text" TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-
-            <!-- CPU -->
-            <TextBlock Text="CPU" Classes="bold"/>
-            <Border Classes="section-container">
-                <StackPanel Classes="spacing-tight">
-                    <Grid Classes="spacing-tight">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Compatibility:" Classes="small secondary-text" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1"
-                                  AutomationProperties.AutomationId="CpuCompatibilityProfileComboBox"
-                                  AutomationProperties.Name="CPU compatibility profile"
-                                  ItemsSource="{Binding CpuCompatibilityProfiles}"
-                                  SelectedItem="{Binding SelectedCpuCompatibilityProfile, Mode=TwoWay}"
-                                  DisplayMemberBinding="{Binding DisplayName}"
-                                  Classes="small"/>
-                    </Grid>
-                    <TextBlock Text="{Binding SelectedCpuCompatibilityProfileHelpText}" Classes="small secondary-text" TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Messages -->
-            <TextBlock Text="{Binding StatusMessage}"
-                       AutomationProperties.AutomationId="ConfigStatusMessageText"
-                       IsVisible="{Binding HasStatusMessage}"
-                       Classes="small secondary-text"
-                       TextWrapping="Wrap"/>
-            <TextBlock Text="{Binding ValidationMessage}"
-                       AutomationProperties.AutomationId="ConfigValidationMessageText"
-                       IsVisible="{Binding HasValidationMessage}"
-                       Foreground="#F56565"
-                       Classes="small"
-                       TextWrapping="Wrap"/>
-
-            <!-- Buttons -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
-                <Button Content="Reset to defaults"
-                        AutomationProperties.AutomationId="ResetToDefaultsButton"
-                        Classes="small"
-                        IsEnabled="{Binding IsNotBusy}"
-                        Command="{Binding ResetToDefaultsCommand}"/>
-                <Button Content="Cancel"
-                        AutomationProperties.AutomationId="CancelButton"
-                        Classes="small cancel"
-                        Command="{Binding CancelCommand}"/>
-                <Button Content="{Binding OkButtonText}"
-                        AutomationProperties.AutomationId="OkButton"
-                        AutomationProperties.Name="Save configuration"
-                        Classes="small primary"
-                        IsEnabled="{Binding CanSave}"
-                        Command="{Binding SaveCommand}"/>
+            <!-- ROM Directory setting (only for desktop) -->
+            <StackPanel Classes="spacing-tight">
+                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto" Classes="spacing-tight"
+                    IsVisible="{Binding !IsRunningInWebAssembly}">
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                Text="ROM directory:"
+                                Classes="secondary-text"/>
+                    <TextBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="RomDirectoryTextBox"
+                            AutomationProperties.Name="ROM directory"
+                            Text="{Binding RomDirectory}"
+                            PlaceholderText="Directory path"
+                            ToolTip.Tip="{Binding RomDirectoryToolTip}"
+                            Classes="field-aligned"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                               Text="{Binding EffectiveRomDirectory, StringFormat='Effective: {0}'}"
+                               Classes="small secondary-text"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0"/>
+                </Grid>
             </StackPanel>
+
+            <!-- WrapPanel so the row of ROM buttons reflows to a second row when the column is too narrow.
+                 WrapPanel has no Spacing property, so per-button Margin provides the gap. -->
+            <WrapPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <WrapPanel.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="Margin" Value="0,0,6,6"/>
+                    </Style>
+                </WrapPanel.Styles>
+                <!-- Clear ROMs (desktop resets file names; WASM clears ROM byte arrays) -->
+                <Button Content="Clear"
+                        AutomationProperties.AutomationId="ClearRomsButton"
+                        Command="{Binding ClearRomsCommand}"
+                        MinWidth="90"
+                        Classes="danger"
+                        IsEnabled="{Binding IsNotBusy}"/>
+                <!-- Load button to load ROMs from files via file picker (desktop only) -->
+                <Button Content="Load ROMs from files"
+                        AutomationProperties.AutomationId="LoadRomsButton"
+                        MinWidth="150"
+                        Classes="extraWide"
+                        IsVisible="{Binding !IsRunningInWebAssembly}"
+                        IsEnabled="{Binding IsNotBusy}"
+                        Click="LoadRoms_Click"/>
+                <!-- Download button for WASM app to in-memory byte array -->
+                <Button Content="Download ROMs"
+                        AutomationProperties.AutomationId="DownloadRomsToMemoryButton"
+                        AutomationProperties.Name="Download ROMs into browser storage"
+                        Command="{Binding DownloadRomsToByteArrayCommand}"
+                        MinWidth="130"
+                        Classes="primary wide"
+                        IsVisible="{Binding IsRunningInWebAssembly}"
+                        IsEnabled="{Binding IsNotBusy}"/>
+
+                <!-- Download button for Desktop app to files -->
+                <Button Content="Download ROM Files"
+                        AutomationProperties.AutomationId="DownloadRomsToFilesButton"
+                        AutomationProperties.Name="Download ROMs to the ROM directory"
+                        Command="{Binding DownloadRomsToFilesCommand}"
+                        MinWidth="130"
+                        Classes="primary extraWide"
+                        IsVisible="{Binding !IsRunningInWebAssembly}"
+                        IsEnabled="{Binding IsNotBusy}"/>
+            </WrapPanel>
+
+            </StackPanel>
+        </Border>
         </StackPanel>
+
+        <!-- CPU Section -->
+        <StackPanel Width="368" Classes="wrap-item">
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
+                <TextBlock Text="CPU"
+                            Classes=""/>
+
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-tight">
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                Text="Profile:"
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="CpuCompatibilityProfileComboBox"
+                            AutomationProperties.Name="CPU opcode compatibility profile"
+                            ItemsSource="{Binding CpuCompatibilityProfiles}"
+                            SelectedItem="{Binding SelectedCpuCompatibilityProfile}"
+                            DisplayMemberBinding="{Binding DisplayName}"
+                            ToolTip.Tip="{Binding SelectedCpuCompatibilityProfileHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200"/>
+                </Grid>
+
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Render Section -->
+        <StackPanel Width="368" Classes="wrap-item">
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Video"
+                            Classes=""/>
+
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                Text="Monitor colour:"
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="MonitorColorComboBox"
+                            AutomationProperties.Name="Monitor colour"
+                            ItemsSource="{Binding MonitorColors}"
+                            SelectedItem="{Binding SelectedMonitorColor}"
+                            DisplayMemberBinding="{Binding DisplayName}"
+                            ToolTip.Tip="{Binding SelectedMonitorColorHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                Text="Render provider:"
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                            AutomationProperties.AutomationId="RenderProviderComboBox"
+                            AutomationProperties.Name="Render provider"
+                            ItemsSource="{Binding RenderProviders}"
+                            SelectedItem="{Binding SelectedRenderProvider}"
+                            DisplayMemberBinding="{Binding DisplayName}"
+                            ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                                Text="Render target:"
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1"
+                            AutomationProperties.AutomationId="RenderTargetComboBox"
+                            AutomationProperties.Name="Render target"
+                            ItemsSource="{Binding RenderTargets}"
+                            SelectedItem="{Binding SelectedRenderTarget}"
+                            DisplayMemberBinding="{Binding DisplayName}"
+                            ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200"/>
+                </Grid>
+
+                </StackPanel>
+            </Border>
+        </StackPanel>
+      </WrapPanel>
     </ScrollViewer>
+
+    <!-- Messages and status in separate row -->
+    <StackPanel Grid.Row="2" Classes="spacing-tight">
+        <TextBlock Text="{Binding StatusMessage}"
+                    AutomationProperties.AutomationId="ConfigStatusMessageText"
+                    Foreground="{DynamicResource SuccessColor}"
+                    TextWrapping="Wrap"
+                    IsVisible="{Binding HasNonErrorStatusMessage}"/>
+
+        <Border Classes="error-container-small"
+                IsVisible="{Binding HasErrorStatusMessage}">
+          <TextBlock Text="{Binding StatusMessage}"
+                     AutomationProperties.AutomationId="ConfigErrorStatusMessageText"
+                     Classes="small"
+                     TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- Validation Error Messages with Border (same pattern as the C64 dialog) -->
+        <Border Classes="error-container-small"
+                IsVisible="{Binding HasValidationErrors}">
+          <ItemsControl ItemsSource="{Binding ValidationErrors}"
+                        AutomationProperties.AutomationId="ConfigValidationMessageText">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                  <TextBlock Text="•"
+                              Classes="error"/>
+                  <TextBlock Text="{Binding}"
+                              Classes="small"
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+    </StackPanel>
+
+    <!-- Button Section in separate row -->
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" Classes="spacing-wide">
+      <Button Grid.Column="0"
+              AutomationProperties.AutomationId="ResetToDefaultsButton"
+              AutomationProperties.Name="Reset to defaults"
+              Content="Reset to defaults"
+              IsEnabled="{Binding IsNotBusy}"
+              Command="{Binding ResetToDefaultsCommand}"/>
+      <ProgressBar Grid.Column="1"
+                   IsVisible="{Binding IsBusy}"
+                   IsIndeterminate="True"/>
+      <Button Grid.Column="2"
+              AutomationProperties.AutomationId="CancelButton"
+              AutomationProperties.Name="Cancel"
+              Content="Cancel"
+              Classes="cancel"
+              Command="{Binding CancelCommand}"/>
+      <Button Grid.Column="3"
+              AutomationProperties.AutomationId="OkButton"
+              AutomationProperties.Name="Save configuration"
+              Content="{Binding OkButtonText}"
+              Classes="primary"
+              IsDefault="True"
+              IsEnabled="{Binding CanSave}"
+              Command="{Binding SaveCommand}"/>
     </Grid>
+
+  </Grid>
 </UserControl>

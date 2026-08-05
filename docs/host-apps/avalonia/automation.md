@@ -99,7 +99,8 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
   `DownloadRomsToFilesButton`, `DownloadRomsToMemoryButton`, `ClearRomsButton`
 - **Display**: `MonitorColorComboBox`, `RenderProviderComboBox`, `RenderTargetComboBox`
 - **CPU**: `CpuCompatibilityProfileComboBox`
-- **Messages**: `ConfigStatusMessageText`, `ConfigValidationMessageText`
+- **Messages**: `ConfigStatusMessageText` (non-error status), `ConfigErrorStatusMessageText`
+  (error status), `ConfigValidationMessageText` (bulleted validation-error list)
 - **Footer**: `ResetToDefaultsButton`, `CancelButton`, `OkButton`
 
 ### EmulatorConfigUserControl (general settings)
