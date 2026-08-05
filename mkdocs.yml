@@ -144,6 +144,9 @@ nav:
           - Overview: systems/vic20/overview.md
           - Libraries: systems/vic20/libraries.md
           - ROMs: systems/vic20/roms.md
+      - Apple II:
+          - Overview: systems/apple2/overview.md
+          - ROMs: systems/apple2/roms.md
   - Tools:
       - Overview: tools/overview.md
       - VSCode debugger extension:

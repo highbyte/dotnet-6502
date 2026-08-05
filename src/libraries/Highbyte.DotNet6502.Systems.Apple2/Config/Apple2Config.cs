@@ -1,0 +1,43 @@
+using Highbyte.DotNet6502.Systems.Apple2.Video;
+
+namespace Highbyte.DotNet6502.Systems.Apple2.Config;
+
+/// <summary>
+/// Machine constants and non-user-facing settings for the Apple II.
+/// The user-facing counterpart is <see cref="Apple2SystemConfig"/>.
+/// </summary>
+public class Apple2Config
+{
+    public const int Cols = Apple2TextScreen.Columns;
+    public const int Rows = Apple2TextScreen.Rows;
+
+    /// <summary>
+    /// The hardware character cell: 7x8 pixels. The character generator stores 5 dot columns
+    /// per scan line and the remaining 2 columns are the inter-character gap.
+    /// </summary>
+    public const int CharacterWidth = 7;
+    public const int CharacterHeight = 8;
+
+    public const int DrawableAreaWidth = Cols * CharacterWidth;    // 280
+    public const int DrawableAreaHeight = Rows * CharacterHeight;  // 192
+
+    /// <summary>
+    /// The Apple II video signal has no separately coloured border area like the VIC-I or
+    /// VIC-II — the text field fills the active display.
+    /// </summary>
+    public const bool HasBorder = false;
+
+    /// <summary>Frames between flash-attribute toggles: roughly the hardware's ~2 Hz blink.</summary>
+    public const int FlashFramesPerToggle = 15;
+
+    /// <summary>
+    /// 65 CPU cycles per scan line x 262 lines. At the Apple II's 1.0205 MHz that is ~59.92 Hz.
+    /// </summary>
+    public ulong CpuCyclesPerFrame { get; set; } = 17030;
+
+    public float ScreenRefreshFrequencyHz { get; set; } = 59.92f;
+
+    public Apple2MonitorColor MonitorColor { get; set; } = Apple2MonitorColor.Green;
+
+    public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
+}
