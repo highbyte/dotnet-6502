@@ -234,12 +234,25 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
         ? DefaultROMDirectory
         : ROMDirectory;
 
-    public Dictionary<string, string> ROMDownloadUrls { get; } = new()
+    /// <summary>
+    /// Where each ROM can be downloaded from. Canonical; <see cref="ROMDownloadUrls"/> is a
+    /// projection of it. All C64 ROMs are published as bare files, so none needs ZIP extraction.
+    /// </summary>
+    [JsonIgnore]
+    public Dictionary<string, RomDownloadSource> ROMDownloadSources { get; } = new()
     {
-        { KERNAL_ROM_NAME, DEFAULT_KERNAL_ROM_DOWNLOAD_URL },
-        { BASIC_ROM_NAME, DEFAULT_BASIC_ROM_DOWNLOAD_URL },
-        { CHARGEN_ROM_NAME, DEFAULT_CHARGEN_ROM_DOWNLOAD_URL }
+        { KERNAL_ROM_NAME, new RomDownloadSource(DEFAULT_KERNAL_ROM_DOWNLOAD_URL) },
+        { BASIC_ROM_NAME, new RomDownloadSource(DEFAULT_BASIC_ROM_DOWNLOAD_URL) },
+        { CHARGEN_ROM_NAME, new RomDownloadSource(DEFAULT_CHARGEN_ROM_DOWNLOAD_URL) }
     };
+
+    /// <summary>
+    /// URL-only view of <see cref="ROMDownloadSources"/>, kept for the hosts that have not moved
+    /// to <see cref="RomDownloader"/> yet (Terminal, SilkNet, SadConsole, Blazor WASM). It cannot
+    /// express a ZIP-sourced ROM — those hosts would download the archive itself.
+    /// </summary>
+    public Dictionary<string, string> ROMDownloadUrls
+        => ROMDownloadSources.ToDictionary(entry => entry.Key, entry => entry.Value.Url);
 
     private bool _audioEnabled;
     public bool AudioEnabled

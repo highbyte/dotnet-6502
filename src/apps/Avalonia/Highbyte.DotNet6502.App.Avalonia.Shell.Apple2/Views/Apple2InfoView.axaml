@@ -1,0 +1,123 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.Views.Apple2InfoView"
+             x:DataType="vm:Apple2InfoViewModel"
+             AutomationProperties.AutomationId="Apple2InfoView"
+             AutomationProperties.Name="Apple II information panel"
+             Focusable="False">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+    </UserControl.Styles>
+
+    <ScrollViewer Classes="auto-scroll">
+        <StackPanel Classes="spacing-tight">
+            <TextBlock Text="Apple II keyboard mapping"/>
+
+            <Border Classes="section-container">
+                <Grid Classes="spacing-none">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="150"/>
+                        <ColumnDefinition Width="*" MinWidth="110"/>
+                        <ColumnDefinition Width="*" MinWidth="130"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Row="0" Grid.Column="0" Classes="table-header-cell">
+                        <TextBlock Text="Command" Classes="small bold"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="1" Classes="table-header-cell">
+                        <TextBlock Text="Apple II key" Classes="small bold"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="2" Classes="table-header-cell-last">
+                        <TextBlock Text="PC / Mac key" Classes="small bold"/>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Enter a BASIC line" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="RETURN" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Enter" Classes="small"/>
+                    </Border>
+
+                    <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Stop running BASIC program" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="2" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="CTRL-C" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="2" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Ctrl + C" Classes="small"/>
+                    </Border>
+
+                    <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Cancel the current input line" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="3" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="ESC" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="3" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Esc" Classes="small"/>
+                    </Border>
+
+                    <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Backspace / retype" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="4" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="← and →" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="4" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Left/Right arrow, Backspace" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="5" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Ring the bell / control codes" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="5" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="CTRL + letter" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="5" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="Ctrl + letter" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="6" Grid.Column="0" Classes="table-cell">
+                        <TextBlock Text="Letters (uppercase only)" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="6" Grid.Column="1" Classes="table-cell">
+                        <TextBlock Text="A-Z" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="6" Grid.Column="2" Classes="table-cell-last-column">
+                        <TextBlock Text="A-Z (Shift ignored)" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="7" Grid.Column="0" Classes="table-cell-last-row">
+                        <TextBlock Text="Reset (warm start)" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                    <Border Grid.Row="7" Grid.Column="1" Classes="table-cell-last-row">
+                        <TextBlock Text="CTRL-RESET" Classes="small"/>
+                    </Border>
+                    <Border Grid.Row="7" Grid.Column="2" Classes="table-cell-last">
+                        <TextBlock Text="Ctrl + F12 (fn + Ctrl + F12 on Mac)" Classes="small" TextWrapping="Wrap"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <TextBlock Text="The Apple II Plus character generator has no lowercase glyphs, so letters are always uppercase."
+                       Classes="small secondary-text"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

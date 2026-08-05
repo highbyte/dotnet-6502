@@ -12,17 +12,21 @@ The Apple II system requires two ROM files:
 
 ## Where to get them
 
-Unlike zimmers.net for Commodore machines, there is no equally canonical Apple II ROM host, so
-the apps do **not** offer an in-app download. Supply the file yourself.
+The Avalonia app can download both ROMs for you — open the Apple II **Configuration** section in
+the sidebar, click **Apple II config…**, then **Download ROMs**. A licence acknowledgement is
+shown first. Alternatively, supply the files yourself.
 
 The most actively maintained archive is the Asimov mirror, under
 [`emulators/rom_images/`](https://mirrors.apple2.org.za/ftp.apple.asimov.net/emulators/rom_images/)
 — note that this is *not* under `images/`, which holds floppy disk images.
 
-- **System ROM** — `apple_ii+_rom.zip` contains the combined Apple II Plus image.
-- **Character generator** — `ROMS.ZIP`, whose index (`ROMS.ZIP.TXT`) lists `341-0036` as the
-  "][plus character ROM". No standalone II/II+ character generator dump is published at the top
-  level of that directory.
+- **System ROM** — `apple.rom`, a bare 12 KB `$D000`-`$FFFF` image. (`apple_ii+_rom.zip` and
+  `APPLE2_.ROM` hold the same ROM in the 20 KB layout.)
+- **Character generator** — entry `3410036.BIN` inside `ROMS.ZIP`, whose index (`ROMS.ZIP.TXT`)
+  lists `341-0036` as the "][plus character ROM". No standalone II/II+ character generator dump
+  is published at the top level of that directory, so the emulator extracts it from the archive
+  by entry name — the archive holds 42 `.bin` files, so matching on extension alone would be
+  ambiguous.
 
 Other sources include AppleWin's source tree and archive.org TOSEC firmware sets; MAME's
 `apple2p` set definition is the authoritative reference for per-chip file names and SHA-1s.

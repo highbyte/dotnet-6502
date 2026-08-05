@@ -21,4 +21,19 @@
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Avalonia.Apple2\Highbyte.DotNet6502.Impl.Avalonia.Apple2.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Views\Apple2MenuView.axaml.cs">
+      <DependentUpon>Apple2MenuView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Apple2InfoView.axaml.cs">
+      <DependentUpon>Apple2InfoView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Apple2ConfigDialogView.axaml.cs">
+      <DependentUpon>Apple2ConfigDialogView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\Apple2ConfigDialog.axaml.cs">
+      <DependentUpon>Apple2ConfigDialog.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
 </Project>

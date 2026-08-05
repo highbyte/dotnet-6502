@@ -100,6 +100,7 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext, IHostInputState
     public void ClearKeysDown()
     {
         KeysDown.Clear();
+        _hostKeyOverrides.Clear();
     }
 
     /// <summary>

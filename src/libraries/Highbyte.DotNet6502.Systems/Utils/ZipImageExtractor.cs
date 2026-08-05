@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.Systems.Commodore64.Utils;
+namespace Highbyte.DotNet6502.Systems.Utils;
 
 /// <summary>
 /// Controls what to do when a ZIP archive contains more than one entry matching the requested

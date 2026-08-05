@@ -27,11 +27,20 @@ public class Apple2SystemConfig : ISystemConfig
 
     /// <summary>
     /// Where to obtain the ROMs. Unlike zimmers.net for Commodore machines there is no equally
-    /// canonical Apple II ROM host; the Asimov mirror is the most actively maintained archive,
-    /// but it publishes the II Plus ROM as a zip archive rather than a directly loadable image.
-    /// <see cref="ROMDownloadUrls"/> is therefore left empty — the user supplies the file.
+    /// canonical Apple II ROM host; the Asimov mirror is the most actively maintained archive.
     /// </summary>
     public const string ROM_SOURCE_INFO_URL = "https://mirrors.apple2.org.za/ftp.apple.asimov.net/emulators/rom_images/";
+
+    /// <summary>The 12 KB $D000-$FFFF image, published as a bare file.</summary>
+    public static string DEFAULT_SYSTEM_ROM_DOWNLOAD_URL = $"{ROM_SOURCE_INFO_URL}apple.rom";
+
+    /// <summary>
+    /// The character generator is only published inside a multi-file archive, so it has to be
+    /// extracted by entry name — the archive holds 42 <c>.bin</c> files, so matching on extension
+    /// alone would be ambiguous.
+    /// </summary>
+    public static string DEFAULT_CHARGEN_ROM_DOWNLOAD_URL = $"{ROM_SOURCE_INFO_URL}ROMS.ZIP";
+    public const string DEFAULT_CHARGEN_ROM_ZIP_ENTRY = "3410036.BIN";
 
     /// <summary>
     /// SHA1 checksums of accepted Apple II Plus system ROM images (version label → sha1 hex).
@@ -110,8 +119,27 @@ public class Apple2SystemConfig : ISystemConfig
         ? DefaultROMDirectory
         : ROMDirectory;
 
-    /// <summary>Empty: there is no stable direct-download URL — see <see cref="ROM_SOURCE_INFO_URL"/>.</summary>
-    public Dictionary<string, string> ROMDownloadUrls { get; } = new();
+    /// <summary>
+    /// Where each ROM can be downloaded from. Canonical; <see cref="ROMDownloadUrls"/> is a
+    /// projection of it. Both URLs and the resulting checksums are verified against the archive.
+    /// </summary>
+    [JsonIgnore]
+    public Dictionary<string, RomDownloadSource> ROMDownloadSources { get; } = new()
+    {
+        { SYSTEM_ROM_NAME, new RomDownloadSource(DEFAULT_SYSTEM_ROM_DOWNLOAD_URL) },
+        {
+            CHARGEN_ROM_NAME,
+            new RomDownloadSource(DEFAULT_CHARGEN_ROM_DOWNLOAD_URL, ZipEntryName: DEFAULT_CHARGEN_ROM_ZIP_ENTRY)
+        },
+    };
+
+    /// <summary>
+    /// URL-only view of <see cref="ROMDownloadSources"/>. Note that it cannot express the
+    /// character generator's ZIP entry — a host using this instead of <see cref="RomDownloader"/>
+    /// would download the archive itself, not the ROM.
+    /// </summary>
+    public Dictionary<string, string> ROMDownloadUrls
+        => ROMDownloadSources.ToDictionary(entry => entry.Key, entry => entry.Value.Url);
 
     private List<ROM> _roms = new();
     public List<ROM> ROMs

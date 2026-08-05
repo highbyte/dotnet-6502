@@ -9,22 +9,28 @@ using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
-using Highbyte.DotNet6502.Impl.Avalonia.Vic20;
+using Highbyte.DotNet6502.Impl.Avalonia.Apple2;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Vic20.Config;
+using Highbyte.DotNet6502.Systems.Apple2.Config;
+using Highbyte.DotNet6502.Systems.Apple2.Video;
 using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Utils;
 using ReactiveUI;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.ViewModels;
+namespace Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.ViewModels;
 
-public class Vic20ConfigDialogViewModel : ViewModelBase
+/// <summary>
+/// Apple II configuration dialog: ROM files, ROM directory, monitor colour, render provider and
+/// CPU compatibility profile.
+/// </summary>
+public class Apple2ConfigDialogViewModel : ViewModelBase
 {
-    private const long MaxRomFileSizeBytes = 8 * 1024;
+    /// <summary>The largest Apple II ROM is the 20 KB $B000-$FFFF system image layout.</summary>
+    private const long MaxRomFileSizeBytes = 32 * 1024;
 
     private readonly AvaloniaHostApp _hostApp;
-    private readonly Vic20HostConfig _originalConfig;
-    private Vic20HostConfig _workingConfig;
+    private readonly Apple2HostConfig _originalConfig;
+    private Apple2HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
     private readonly HttpClient _httpClient;
     private readonly ObservableCollection<string> _validationErrors = new();
@@ -37,6 +43,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
     private CpuCompatibilityProfileOption? _selectedCpuCompatibilityProfile;
+    private MonitorColorOption? _selectedMonitorColor;
 
     public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
@@ -45,13 +52,13 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
 
-    public Vic20ConfigDialogViewModel(AvaloniaHostApp hostApp)
+    public Apple2ConfigDialogViewModel(AvaloniaHostApp hostApp)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
-        _originalConfig = hostApp.CurrentHostSystemConfig as Vic20HostConfig
-            ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type Vic20HostConfig");
+        _originalConfig = hostApp.CurrentHostSystemConfig as Apple2HostConfig
+            ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type Apple2HostConfig");
         _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
-        _workingConfig = (Vic20HostConfig)_originalConfig.Clone();
+        _workingConfig = (Apple2HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
         LoadFromWorkingConfig();
@@ -71,7 +78,6 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
                 return Task.CompletedTask;
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
-
 
         ResetToDefaultsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
@@ -99,13 +105,14 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     }
 
     public event EventHandler<bool>? ConfigurationChanged;
-    public event EventHandler<Vic20RomLicenseAcknowledgementEventArgs>? RomLicenseAcknowledgementRequested;
+    public event EventHandler<Apple2RomLicenseAcknowledgementEventArgs>? RomLicenseAcknowledgementRequested;
 
-    public ObservableCollection<Vic20RomStatusViewModel> RomStatuses { get; } = new();
+    public ObservableCollection<Apple2RomStatusViewModel> RomStatuses { get; } = new();
     public ObservableCollection<RenderProviderOption> RenderProviders { get; } = new();
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
     public ObservableCollection<CpuCompatibilityProfileOption> CpuCompatibilityProfiles { get; } =
         new(CpuCompatibilityProfileOption.All);
+    public ObservableCollection<MonitorColorOption> MonitorColors { get; } = new(MonitorColorOption.All);
 
     public bool IsRunningInWebAssembly { get; } = PlatformDetection.IsRunningInWebAssembly();
 
@@ -159,7 +166,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     public bool HasValidationErrors => _validationErrors.Count > 0;
 
     public string RomStatusSummary =>
-        $"{RomStatuses.Count(r => r.IsRequired && r.IsLoaded)}/{Vic20SystemConfig.RequiredROMs.Count} ROMs loaded";
+        $"{RomStatuses.Count(r => r.IsRequired && r.IsLoaded)}/{Apple2SystemConfig.RequiredROMs.Count} ROMs loaded";
 
     public string RomDirectory
     {
@@ -176,7 +183,9 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     }
 
     public string RomDirectoryToolTip =>
-        $"Optional ROM directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(Vic20SystemConfig.DefaultROMDirectory)}";
+        $"Optional ROM directory override. Leave blank to use the default: {PathHelper.ExpandOSEnvironmentVariables(Apple2SystemConfig.DefaultROMDirectory)}";
+
+    public string RomSourceUrl => Apple2SystemConfig.ROM_SOURCE_INFO_URL;
 
     public RenderProviderOption? SelectedRenderProvider
     {
@@ -237,6 +246,25 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     }
 
     public string SelectedCpuCompatibilityProfileHelpText => SelectedCpuCompatibilityProfile?.HelpText ?? string.Empty;
+
+    public MonitorColorOption? SelectedMonitorColor
+    {
+        get => _selectedMonitorColor;
+        set
+        {
+            if (ReferenceEquals(_selectedMonitorColor, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedMonitorColor, value);
+
+            if (value != null)
+                _workingConfig.SystemConfig.MonitorColor = value.MonitorColor;
+
+            this.RaisePropertyChanged(nameof(SelectedMonitorColorHelpText));
+        }
+    }
+
+    public string SelectedMonitorColorHelpText => SelectedMonitorColor?.HelpText ?? string.Empty;
 
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
@@ -341,10 +369,12 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
                     continue;
                 }
 
-                var romName = DetectRomName(fileName);
+                var romName = DetectRomName(fileName, data.Length);
                 if (romName == null)
                 {
-                    errors.Add($"Could not determine ROM type for file {fileName}. Expected names containing 'kern', 'bas', or 'char'.");
+                    errors.Add(
+                        $"Could not determine ROM type for file {fileName}. Expected a name containing " +
+                        $"'apple' or 'char'/'3410036', or a 2 KB character generator / 12 KB system ROM.");
                     continue;
                 }
 
@@ -399,6 +429,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             _originalConfig.SystemConfig.ROMDirectory = _workingConfig.SystemConfig.ROMDirectory;
             _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
             _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
+            _originalConfig.SystemConfig.MonitorColor = _workingConfig.SystemConfig.MonitorColor;
 
             if (_workingConfig.SystemConfig.RenderProviderType != null)
                 _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);
@@ -431,6 +462,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     {
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
         SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
+        SelectedMonitorColor = MonitorColorOption.FromMonitorColor(_workingConfig.SystemConfig.MonitorColor);
 
         InitializeRenderOptions();
         UpdateRomStatuses();
@@ -447,7 +479,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         var preservedRoms = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         var preservedRomDirectory = _workingConfig.SystemConfig.ROMDirectory;
 
-        _workingConfig = new Vic20HostConfig();
+        _workingConfig = new Apple2HostConfig();
         _workingConfig.SystemConfig.ROMs = preservedRoms;
         _workingConfig.SystemConfig.ROMDirectory = preservedRomDirectory;
 
@@ -515,15 +547,15 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
     private void UpdateRomStatuses()
     {
         var roms = _workingConfig.SystemConfig.ROMs;
-        var desiredStatuses = new List<Vic20RomStatusData>();
+        var desiredStatuses = new List<Apple2RomStatusData>();
 
-        foreach (var required in Vic20SystemConfig.RequiredROMs)
+        foreach (var required in Apple2SystemConfig.RequiredROMs)
         {
             var rom = roms.FirstOrDefault(r => string.Equals(r.Name, required, StringComparison.OrdinalIgnoreCase));
             desiredStatuses.Add(CreateRomStatusData(required, rom, isRequired: true));
         }
 
-        foreach (var additional in roms.Where(r => !Vic20SystemConfig.RequiredROMs.Contains(r.Name)))
+        foreach (var additional in roms.Where(r => !Apple2SystemConfig.RequiredROMs.Contains(r.Name)))
         {
             desiredStatuses.Add(CreateRomStatusData(additional.Name, additional, isRequired: false));
         }
@@ -544,7 +576,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             else
             {
                 var romName = statusData.Name;
-                RomStatuses.Insert(i, new Vic20RomStatusViewModel(
+                RomStatuses.Insert(i, new Apple2RomStatusViewModel(
                     romName,
                     statusData.IsLoaded,
                     statusData.IsRequired,
@@ -563,7 +595,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(RomStatusSummary));
     }
 
-    private Vic20RomStatusData CreateRomStatusData(string romName, ROM? rom, bool isRequired)
+    private Apple2RomStatusData CreateRomStatusData(string romName, ROM? rom, bool isRequired)
     {
         var romFile = rom?.File ?? string.Empty;
         var romDataLength = rom?.Data?.Length ?? 0;
@@ -597,7 +629,7 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             ? isLoaded ? "#68D391" : "#F56565"
             : !hasFile ? "#F56565" : fileExists ? "#68D391" : "#F6AD55";
 
-        return new Vic20RomStatusData(romName, isLoaded, isRequired, details, foregroundColor, romFile);
+        return new Apple2RomStatusData(romName, isLoaded, isRequired, details, foregroundColor, romFile);
     }
 
     private void UpdateRomFile(string romName, string romFile)
@@ -635,45 +667,52 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(CanSave));
     }
 
-    private static string? DetectRomName(string fileName)
+    /// <summary>
+    /// Works out which ROM a picked file is. Falls back to size, because the two Apple II ROMs
+    /// have unmistakably different sizes and the common file names (<c>APPLE2.ROM</c>,
+    /// <c>3410036.BIN</c>) share no obvious keyword.
+    /// </summary>
+    internal static string? DetectRomName(string fileName, int byteLength)
     {
-        if (fileName.Contains("kern", StringComparison.OrdinalIgnoreCase))
-            return Vic20SystemConfig.KERNAL_ROM_NAME;
-        if (fileName.Contains("bas", StringComparison.OrdinalIgnoreCase))
-            return Vic20SystemConfig.BASIC_ROM_NAME;
-        if (fileName.Contains("char", StringComparison.OrdinalIgnoreCase))
-            return Vic20SystemConfig.CHARGEN_ROM_NAME;
+        if (fileName.Contains("char", StringComparison.OrdinalIgnoreCase)
+            || fileName.Contains("chargen", StringComparison.OrdinalIgnoreCase)
+            || fileName.Contains("3410036", StringComparison.OrdinalIgnoreCase))
+            return Apple2SystemConfig.CHARGEN_ROM_NAME;
 
-        var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-        return Vic20SystemConfig.RequiredROMs.FirstOrDefault(required =>
-            nameWithoutExtension.Contains(required, StringComparison.OrdinalIgnoreCase));
+        if (fileName.Contains("apple", StringComparison.OrdinalIgnoreCase))
+            return Apple2SystemConfig.SYSTEM_ROM_NAME;
+
+        return byteLength switch
+        {
+            Highbyte.DotNet6502.Systems.Apple2.Apple2.SystemRomSize => Apple2SystemConfig.SYSTEM_ROM_NAME,
+            20480 => Apple2SystemConfig.SYSTEM_ROM_NAME,
+            2048 or 512 => Apple2SystemConfig.CHARGEN_ROM_NAME,
+            _ => null,
+        };
     }
 
     private Task<bool> RequestRomLicenseAcknowledgementAsync()
     {
         var tcs = new TaskCompletionSource<bool>();
-        var args = new Vic20RomLicenseAcknowledgementEventArgs(tcs);
+        var args = new Apple2RomLicenseAcknowledgementEventArgs(tcs);
         RomLicenseAcknowledgementRequested?.Invoke(this, args);
         return tcs.Task;
     }
 }
 
-public class Vic20RomLicenseAcknowledgementEventArgs : EventArgs
+public class Apple2RomLicenseAcknowledgementEventArgs : EventArgs
 {
     private readonly TaskCompletionSource<bool> _taskCompletionSource;
 
-    public Vic20RomLicenseAcknowledgementEventArgs(TaskCompletionSource<bool> taskCompletionSource)
+    public Apple2RomLicenseAcknowledgementEventArgs(TaskCompletionSource<bool> taskCompletionSource)
     {
         _taskCompletionSource = taskCompletionSource;
     }
 
-    public void SetResult(bool acknowledged)
-    {
-        _taskCompletionSource.TrySetResult(acknowledged);
-    }
+    public void SetResult(bool acknowledged) => _taskCompletionSource.TrySetResult(acknowledged);
 }
 
-public class Vic20RomStatusViewModel : ReactiveObject
+public class Apple2RomStatusViewModel : ReactiveObject
 {
     private readonly Action<string>? _onRomFileChanged;
     private bool _suppressRomFileChanged;
@@ -682,7 +721,7 @@ public class Vic20RomStatusViewModel : ReactiveObject
     private string _foregroundColor;
     private string _romFile;
 
-    public Vic20RomStatusViewModel(
+    public Apple2RomStatusViewModel(
         string name,
         bool isLoaded,
         bool isRequired,
@@ -730,7 +769,7 @@ public class Vic20RomStatusViewModel : ReactiveObject
         set => SetRomFile(value, suppressCallback: false);
     }
 
-    public void UpdateFromData(Vic20RomStatusData data)
+    public void UpdateFromData(Apple2RomStatusData data)
     {
         IsLoaded = data.IsLoaded;
         Details = data.Details;
@@ -760,7 +799,7 @@ public class Vic20RomStatusViewModel : ReactiveObject
     }
 }
 
-public record Vic20RomStatusData(
+public record Apple2RomStatusData(
     string Name,
     bool IsLoaded,
     bool IsRequired,
@@ -771,3 +810,17 @@ public record Vic20RomStatusData(
 public record RenderProviderOption(Type Type, string DisplayName, string HelpText);
 
 public record RenderTargetOption(Type Type, string DisplayName, string HelpText);
+
+/// <summary>Selectable monitor phosphor colour — a property of the screen, not the machine.</summary>
+public record MonitorColorOption(Apple2MonitorColor MonitorColor, string DisplayName, string HelpText)
+{
+    public static readonly IReadOnlyList<MonitorColorOption> All = new[]
+    {
+        new MonitorColorOption(Apple2MonitorColor.Green, "Green", "Classic green phosphor monitor."),
+        new MonitorColorOption(Apple2MonitorColor.White, "White", "White phosphor / composite monochrome monitor."),
+        new MonitorColorOption(Apple2MonitorColor.Amber, "Amber", "Amber phosphor monitor."),
+    };
+
+    public static MonitorColorOption FromMonitorColor(Apple2MonitorColor monitorColor)
+        => All.FirstOrDefault(o => o.MonitorColor == monitorColor) ?? All[0];
+}

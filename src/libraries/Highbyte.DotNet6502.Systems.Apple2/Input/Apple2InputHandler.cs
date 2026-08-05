@@ -53,6 +53,15 @@ public class Apple2InputHandler : IInputConsumer
         var shift = keysDown.Contains(HostKey.ShiftLeft) || keysDown.Contains(HostKey.ShiftRight);
         var control = keysDown.Contains(HostKey.ControlLeft) || keysDown.Contains(HostKey.ControlRight);
 
+        // CTRL-RESET. The RESET key is wired to the 6502 /RES line (not the keyboard encoder),
+        // with CTRL required on later II Plus keyboards. Mapped to Ctrl+F12, the same host combo
+        // Virtual ][ uses. Edge-triggered so holding it does not reset every frame.
+        if (control && keysDown.Contains(HostKey.F12) && !_previousKeysDown.Contains(HostKey.F12))
+        {
+            _apple2.Reset();
+            _logger.LogDebug("Apple II input: CTRL-RESET (Ctrl+F12) — warm reset via the reset vector.");
+        }
+
         var key = ResolveKeyToLatch(keysDown);
         if (key != HostKey.None && Apple2HostKeyboard.TryGetAscii(key, shift, control, out var ascii))
         {

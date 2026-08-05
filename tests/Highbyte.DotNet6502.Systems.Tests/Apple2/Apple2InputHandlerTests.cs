@@ -120,6 +120,58 @@ public class Apple2InputHandlerTests
     }
 
     [Fact]
+    public void Ctrl_F12_Performs_A_Warm_Reset()
+    {
+        var (apple2, handler, inputState) = Build();
+
+        // Leave a stale key in the latch so the reset's effect is observable.
+        inputState.SetKeysDown(HostKey.KeyA);
+        handler.BeforeFrame();
+        Assert.True(apple2.Keyboard.StrobeSet);
+
+        inputState.SetKeysDown(HostKey.ControlLeft, HostKey.F12);
+        handler.BeforeFrame();
+
+        // Only Reset clears the keyboard latch and strobe, so this proves it ran.
+        Assert.False(apple2.Keyboard.StrobeSet);
+        Assert.Equal((byte)0x00, apple2.Keyboard.Latch);
+    }
+
+    [Fact]
+    public void Holding_Ctrl_F12_Resets_Only_Once()
+    {
+        var (apple2, handler, inputState) = Build();
+        inputState.SetKeysDown(HostKey.ControlLeft, HostKey.F12);
+
+        handler.BeforeFrame();
+
+        // Poke a key into the latch; further frames with the combo still held must not reset again.
+        apple2.Keyboard.KeyPressed(0xC1);
+        for (var frame = 0; frame < 5; frame++)
+            handler.BeforeFrame();
+
+        Assert.True(apple2.Keyboard.StrobeSet);
+        Assert.Equal((byte)0xC1, apple2.Keyboard.Latch);
+    }
+
+    [Fact]
+    public void F12_Without_Ctrl_Does_Not_Reset_Or_Latch()
+    {
+        var (apple2, handler, inputState) = Build();
+
+        inputState.SetKeysDown(HostKey.KeyA);
+        handler.BeforeFrame();
+        Assert.True(apple2.Keyboard.StrobeSet);
+
+        inputState.SetKeysDown(HostKey.F12);
+        handler.BeforeFrame();
+
+        // No reset: the previously latched key survives.
+        Assert.True(apple2.Keyboard.StrobeSet);
+        Assert.Equal((byte)0xC1, apple2.Keyboard.Latch);
+    }
+
+    [Fact]
     public void Only_One_Code_Is_Latched_When_Several_Keys_Go_Down_Together()
     {
         var (apple2, handler, inputState) = Build();

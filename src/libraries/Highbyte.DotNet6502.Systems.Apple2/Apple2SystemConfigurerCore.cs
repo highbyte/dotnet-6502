@@ -41,13 +41,15 @@ public class Apple2SystemConfigurerCore : ISystemConfigurer
         => [Apple2SystemConfig.DefaultROMDirectory];
 
     /// <summary>
-    /// Only the Apple II Plus is emulated. The original (non-Autostart, Integer BASIC) machine
-    /// is a plausible later variant — it needs a different ROM set, not different hardware.
+    /// The variant names the emulated machine model, following the C64 precedent
+    /// (C64NTSC/C64PAL). Only the Apple II Plus is emulated. The original (non-Autostart,
+    /// Integer BASIC) machine is a plausible later variant — it needs a different ROM set,
+    /// not different hardware.
     /// </summary>
-    public const string VariantDefault = "DEFAULT";
+    public const string VariantApple2Plus = "APPLE2PLUS";
 
     public virtual Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
-        => Task.FromResult(new List<string> { VariantDefault });
+        => Task.FromResult(new List<string> { VariantApple2Plus });
 
     public IScreen? GetScreenInfo(string configurationVariant, ISystemConfig systemConfig)
     {

@@ -133,7 +133,7 @@ public class Apple2SystemConfigTests
 
         Assert.Equal(Apple2System.SystemName, configurer.SystemName);
         Assert.Equal(
-            new List<string> { Apple2SystemConfigurerCore.VariantDefault },
+            new List<string> { Apple2SystemConfigurerCore.VariantApple2Plus },
             await configurer.GetConfigurationVariants(new Apple2SystemConfig()));
     }
 
@@ -142,7 +142,7 @@ public class Apple2SystemConfigTests
     {
         var configurer = BuildConfigurer(new ConfigurationBuilder().Build());
 
-        var screen = configurer.GetScreenInfo(Apple2SystemConfigurerCore.VariantDefault, new Apple2SystemConfig());
+        var screen = configurer.GetScreenInfo(Apple2SystemConfigurerCore.VariantApple2Plus, new Apple2SystemConfig());
 
         Assert.NotNull(screen);
         Assert.Equal(Apple2Config.DrawableAreaWidth, screen.DrawableAreaWidth);
@@ -156,7 +156,7 @@ public class Apple2SystemConfigTests
         var configurer = BuildConfigurer(new ConfigurationBuilder().Build());
         var systemConfig = new Apple2SystemConfig { MonitorColor = Apple2MonitorColor.Amber };
 
-        var system = await configurer.BuildSystem(Apple2SystemConfigurerCore.VariantDefault, systemConfig);
+        var system = await configurer.BuildSystem(Apple2SystemConfigurerCore.VariantApple2Plus, systemConfig);
 
         var apple2 = Assert.IsType<Apple2System>(system);
         Assert.Equal(Apple2MonitorColor.Amber, apple2.Apple2Config.MonitorColor);

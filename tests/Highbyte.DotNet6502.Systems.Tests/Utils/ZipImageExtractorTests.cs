@@ -1,7 +1,7 @@
 using System.IO.Compression;
-using Highbyte.DotNet6502.Systems.Commodore64.Utils;
+using Highbyte.DotNet6502.Systems.Utils;
 
-namespace Highbyte.DotNet6502.Systems.Tests.Commodore64;
+namespace Highbyte.DotNet6502.Systems.Tests.Utils;
 
 public class ZipImageExtractorTests
 {
