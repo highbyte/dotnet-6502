@@ -64,6 +64,11 @@ public partial class EmulatorView : UserControl
         KeyDown += OnKeyDown;
         KeyUp += OnKeyUp;
 
+        // A key-up delivered elsewhere (focus moved, app switched, the macOS screenshot overlay
+        // grabbed input mid-chord) would leave that key held in the emulator forever, so clear
+        // all tracked keys whenever this control stops receiving keyboard input.
+        LostFocus += OnInputFocusLost;
+
         // Wire up pointer events to handle focus
         PointerPressed += OnPointerPressed;
 
@@ -207,6 +212,37 @@ public partial class EmulatorView : UserControl
         control.SetDisplaySize(320, 200);
         return control;
     }
+
+    private Window? _attachedWindow;
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        // LostFocus does not fire when the whole window deactivates (Cmd+Tab, the macOS
+        // screenshot overlay) — the control keeps in-window focus — so also clear on window
+        // deactivation. In the browser (WASM) the top level is not a Window; there LostFocus
+        // is the only signal.
+        if (TopLevel.GetTopLevel(this) is Window window)
+        {
+            _attachedWindow = window;
+            window.Deactivated += OnInputFocusLost;
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+
+        if (_attachedWindow != null)
+        {
+            _attachedWindow.Deactivated -= OnInputFocusLost;
+            _attachedWindow = null;
+        }
+    }
+
+    private void OnInputFocusLost(object? sender, EventArgs e)
+        => HostApp?.OnEmulatorInputFocusLost();
 
     /// <summary>
     /// Handle key down events and forward them to the host app

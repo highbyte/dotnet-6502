@@ -147,8 +147,9 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    // Expose LoggerFactory for use in views that are note created through DI.
-    internal ILoggerFactory LoggerFactory => _loggerFactory;
+    // Expose LoggerFactory for use in views and shell plug-ins that are not created through DI
+    // (e.g. a per-system config dialog constructed directly from its menu view's code-behind).
+    public ILoggerFactory LoggerFactory => _loggerFactory;
 
     // Expose LogStore for use in views that are not created through DI (e.g., to display logs in the UI).
     internal DotNet6502InMemLogStore? LogStore => _logStore;
@@ -941,6 +942,16 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
 
         // Publish KeyUp event for subscribers
         KeyUpEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
+    }
+
+    /// <summary>
+    /// The emulator view stopped receiving keyboard input (control lost focus or the window
+    /// deactivated). Any key-up that happens now is delivered elsewhere, so the tracked
+    /// keys-down state can no longer be trusted — clear it to avoid permanently stuck keys.
+    /// </summary>
+    internal void OnEmulatorInputFocusLost()
+    {
+        _inputHandlerContext.ClearKeysDown();
     }
 
     internal async Task PersistEmulatorConfigAsync()

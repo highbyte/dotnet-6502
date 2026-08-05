@@ -30,7 +30,7 @@ describe("cors download proxy worker", () => {
 			config: {
 				proxyPath: "/fetch",
 				allowedOrigins: ["https://highbyte.se"],
-				allowedTargetHosts: ["www.zimmers.net", "csdb.dk", "compunet.live", "highbyte.se"],
+				allowedTargetHosts: ["www.zimmers.net", "csdb.dk", "compunet.live", "highbyte.se", "mirrors.apple2.org.za"],
 			},
 		});
 

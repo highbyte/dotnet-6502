@@ -761,46 +761,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
             SetStatusMessage("Downloading ROMs...");
             ValidationMessage = string.Empty;
 
-            foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
-            {
-                var romName = romDownload.Key;
-                var romUrl = romDownload.Value;
-                var proxyUrl = _hostApp.GetCorsProxyUrl();
-                var fullROMUrl = !string.IsNullOrEmpty(proxyUrl)
-                    ? $"{proxyUrl}{Uri.EscapeDataString(romUrl)}"
-                    : romUrl;
-
-                try
-                {
-                    _logger.LogInformation(
-                        "Downloading ROM {RomName} from {SourceUrl} using request URL {RequestUrl}",
-                        romName,
-                        romUrl,
-                        fullROMUrl);
-
-                    var romBytes = await _httpClient.GetByteArrayAsync(fullROMUrl);
-                    _workingConfig.SystemConfig.SetROM(romName, data: romBytes);
-                    _logger.LogInformation("Downloaded ROM {RomName}: {ByteCount} bytes", romName, romBytes.Length);
-                }
-                catch (Exception ex)
-                {
-                    var userMessage = DownloadErrorHelper.BuildDownloadFailureMessage(
-                        $"ROM '{romName}'",
-                        romUrl,
-                        fullROMUrl,
-                        ex);
-
-                    _logger.LogError(
-                        ex,
-                        "Failed to download ROM {RomName}. Source URL: {SourceUrl}. Request URL: {RequestUrl}. Details: {ErrorSummary}",
-                        romName,
-                        romUrl,
-                        fullROMUrl,
-                        DownloadErrorHelper.FlattenExceptionMessages(ex));
-
-                    throw new InvalidOperationException(userMessage, ex);
-                }
-            }
+            var downloadedRoms = await CreateRomDownloader()
+                .DownloadRomsAsync(_workingConfig.SystemConfig.ROMDownloadSources);
+            foreach (var (romName, romBytes) in downloadedRoms)
+                _workingConfig.SystemConfig.SetROM(romName, data: romBytes);
 
             SetStatusMessage("ROMs downloaded successfully.");
             return true;
@@ -823,6 +787,17 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Builds the shared ROM downloader. Supplying the host's download cache means a repeated
+    /// download is served locally, and the CORS proxy keeps the browser host working.
+    /// </summary>
+    private RomDownloader CreateRomDownloader()
+        => new(
+            _hostApp.LoggerFactory,
+            _httpClient,
+            _hostApp.GetCorsProxyUrl(),
+            _hostApp.GetDownloadCache());
+
     public async Task AutoDownloadROMsToFilesAsync()
     {
         // Request acknowledgement before downloading
@@ -840,62 +815,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
             SetStatusMessage("Downloading ROMs...");
             ValidationMessage = string.Empty;
 
-            var romFolder = PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.EffectiveROMDirectory);
-            if (!Directory.Exists(romFolder))
-            {
-                Directory.CreateDirectory(romFolder);
-            }
+            var writtenFiles = await CreateRomDownloader().DownloadRomsToFilesAsync(
+                _workingConfig.SystemConfig.ROMDownloadSources,
+                _workingConfig.SystemConfig.EffectiveROMDirectory);
 
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            //_httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-            _httpClient.DefaultRequestHeaders.Accept.ParseAdd("*/*");
-
-            foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
-            {
-                var romName = romDownload.Key;
-                var romUrl = romDownload.Value;
-                var filename = Path.GetFileName(new Uri(romUrl).LocalPath);
-                var dest = Path.Combine(romFolder, filename);
-                try
-                {
-                    _logger.LogInformation(
-                        "Downloading ROM {RomName} from {SourceUrl} to {Destination}",
-                        romName,
-                        romUrl,
-                        dest);
-
-                    using var response = await _httpClient.GetAsync(romUrl);
-                    if (!response.IsSuccessStatusCode)
-                        throw new Exception($"Failed to get '{romUrl}' ({(int)response.StatusCode})");
-                    await using var fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None);
-                    await response.Content.CopyToAsync(fs);
-                    _logger.LogInformation("Downloaded {Filename} to {Destination}", filename, dest);
-
-                    // Update the C64SystemConfig with the downloaded ROM file
-                    _workingConfig.SystemConfig.SetROM(romName, filename);
-                }
-                catch (Exception ex)
-                {
-                    if (File.Exists(dest))
-                        File.Delete(dest);
-
-                    var userMessage = DownloadErrorHelper.BuildDownloadFailureMessage(
-                        $"ROM '{romName}'",
-                        romUrl,
-                        romUrl,
-                        ex);
-
-                    _logger.LogError(
-                        ex,
-                        "Failed to download ROM {RomName}. Source URL: {SourceUrl}. Destination: {Destination}. Details: {ErrorSummary}",
-                        romName,
-                        romUrl,
-                        dest,
-                        DownloadErrorHelper.FlattenExceptionMessages(ex));
-
-                    throw new InvalidOperationException(userMessage, ex);
-                }
-            }
+            foreach (var (romName, fileName) in writtenFiles)
+                _workingConfig.SystemConfig.SetROM(romName, fileName);
 
             SetStatusMessage("ROMs downloaded successfully.");
 

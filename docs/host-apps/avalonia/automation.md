@@ -85,6 +85,24 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **AI assistant**: `AiHelpButton`, `AiBackendComboBox`, `OpenAiApiKeyTextBox`, `OllamaEndpointTextBox`, `OllamaModelNameTextBox`, `OllamaApiKeyTextBox`, `CustomEndpointApiKeyTextBox`, `TestAiBackendButton`
 - **Footer**: `CancelButton`, `OkButton`
 
+### Apple2MenuView (sidebar)
+
+- **Root**: `Apple2MenuView`
+- **Collapsible section header**: `ConfigSectionHeader`, `ConfigSectionContent`
+- **Config section**: `OpenApple2ConfigButton`
+
+### Apple2ConfigDialog / Apple2ConfigDialogView
+
+- **Window / root**: `Apple2ConfigDialog`, `Apple2ConfigDialogView`
+- **ROMs (dynamic per ROM)**: `RomFileTextBox.apple2`, `RomFileTextBox.chargen`
+- **ROM actions**: `RomStatusSummaryText`, `RomDirectoryTextBox`, `LoadRomsButton`,
+  `DownloadRomsToFilesButton`, `DownloadRomsToMemoryButton`, `ClearRomsButton`
+- **Display**: `MonitorColorComboBox`, `RenderProviderComboBox`, `RenderTargetComboBox`
+- **CPU**: `CpuCompatibilityProfileComboBox`
+- **Messages**: `ConfigStatusMessageText` (non-error status), `ConfigErrorStatusMessageText`
+  (error status), `ConfigValidationMessageText` (bulleted validation-error list)
+- **Footer**: `ResetToDefaultsButton`, `CancelButton`, `OkButton`
+
 ### EmulatorConfigUserControl (general settings)
 
 `DefaultEmulatorComboBox`, `DefaultScaleSlider`, `ShowErrorDialogCheckBox`, `ShowDebugToolsCheckBox`, `AudioProfileComboBox`, `StopOnBrkCheckBox`, `StopOnUnknownInstructionCheckBox`, `SnapshotDirectoryTextBox`, `LuaScriptDirectoryTextBox`, `LuaStorePrefixTextBox`, `CancelButton`, `OkButton`.
@@ -114,6 +132,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - `EmulatorPlaceholderView` (root, pre-start logo)
 - `StatisticsView` (root)
 - `C64InfoView` (root, keyboard mapping reference)
+- `Apple2InfoView` (root, keyboard mapping reference)
 
 ## Keyboard shortcuts
 
@@ -182,6 +201,29 @@ On macOS, click via the menu bar:
 ```sh
 peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > C64 > Toggle Configuration section"
 ```
+
+### Apple II shortcuts (active when the Apple2 system is selected)
+
+| Action                           | macOS               | Windows / Linux       |
+| -------------------------------- | ------------------- | --------------------- |
+| Toggle Configuration section     | `⌘⌥⇧C`         | `Ctrl+Alt+Shift+C`    |
+
+The Apple II has no disk, tape or joystick support, so its menu contributes only the
+Configuration section — which is the route to the ROM settings dialog.
+
+In addition to the menu shortcut above, the running Apple II emulator itself handles
+**Ctrl+F12** as CTRL-RESET (warm reset through the reset vector). It is emulator keyboard
+input, not a menu item, so it only works while the emulator screen has focus and the system
+is running.
+
+## Emulator keyboard state and focus
+
+The emulator view clears all tracked keys-down whenever it stops receiving keyboard input —
+when focus moves to another control, or when the window deactivates (app switch, the macOS
+screenshot overlay). This prevents permanently "stuck" keys whose key-up was delivered
+elsewhere (e.g. the Shift of a Cmd+Shift+4 screenshot chord). Automation consequence: a key
+held across a click on another control (or an app switch) is released, not held — press keys
+only while the emulator view keeps focus for the whole down/up pair.
 
 ## What is NOT surfaced (known gaps)
 

@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.ViewModels"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.Views.Apple2MenuView"
+             x:DataType="vm:Apple2MenuViewModel"
+             AutomationProperties.AutomationId="Apple2MenuView"
+             AutomationProperties.Name="Apple II menu">
+
+    <StackPanel Classes="spacing-tight">
+        <Button Name="ConfigSectionHeader"
+                AutomationProperties.AutomationId="ConfigSectionHeader"
+                AutomationProperties.Name="Toggle Configuration section"
+                Classes="section-toggle"
+                Command="{Binding ToggleConfigSectionCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Grid Width="10" Height="10" VerticalAlignment="Center">
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleRight"
+                                         IsVisible="{Binding !IsConfigSectionExpanded}"/>
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleDown"
+                                         IsVisible="{Binding IsConfigSectionExpanded}"/>
+                </Grid>
+                <TextBlock Text="Configuration" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <Border Name="ConfigSectionContent"
+                AutomationProperties.AutomationId="ConfigSectionContent"
+                Classes="collapsible-content"
+                IsVisible="{Binding IsConfigSectionExpanded}">
+            <StackPanel Classes="spacing-tight">
+                <Button Content="Apple II config…"
+                        Name="OpenApple2ConfigButton"
+                        AutomationProperties.AutomationId="OpenApple2ConfigButton"
+                        AutomationProperties.Name="Open Apple II configuration"
+                        Classes="small"
+                        IsEnabled="{Binding IsApple2ConfigEnabled}"
+                        Click="OpenApple2Config_Click"/>
+
+                <TextBlock Text="ROM files, monitor colour, render provider and CPU compatibility. Only editable while the emulator is stopped."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

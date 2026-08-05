@@ -13,6 +13,7 @@
     <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj" />
     <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
     <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/Highbyte.DotNet6502.App.Avalonia.Desktop.csproj" />
+    <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.Apple2/Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.csproj" />
     <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64/Highbyte.DotNet6502.App.Avalonia.Shell.Commodore64.csproj" />
     <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.Generic/Highbyte.DotNet6502.App.Avalonia.Shell.Generic.csproj" />
     <Project Path="src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.Vic20/Highbyte.DotNet6502.App.Avalonia.Shell.Vic20.csproj" />
@@ -38,6 +39,7 @@
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.AspNet.Commodore64/Highbyte.DotNet6502.Impl.AspNet.Commodore64.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.AspNet.Generic/Highbyte.DotNet6502.Impl.AspNet.Generic.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.AspNet/Highbyte.DotNet6502.Impl.AspNet.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia.Apple2/Highbyte.DotNet6502.Impl.Avalonia.Apple2.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia.Commodore64/Highbyte.DotNet6502.Impl.Avalonia.Commodore64.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia.Generic/Highbyte.DotNet6502.Impl.Avalonia.Generic.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Avalonia.Vic20/Highbyte.DotNet6502.Impl.Avalonia.Vic20.csproj" />
@@ -57,6 +59,7 @@
     <Project Path="src/libraries/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Remoting/Highbyte.DotNet6502.Remoting.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Scripting.MoonSharp/Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Apple2/Highbyte.DotNet6502.Systems.Apple2.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Commodore64/Highbyte.DotNet6502.Systems.Commodore64.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Generic/Highbyte.DotNet6502.Systems.Generic.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Vic20/Highbyte.DotNet6502.Systems.Vic20.csproj" />

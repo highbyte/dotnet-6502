@@ -240,6 +240,17 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
 
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
+    /// <summary>
+    /// Builds the shared ROM downloader. Supplying the host's download cache means a repeated
+    /// download is served locally, and the CORS proxy keeps the browser host working.
+    /// </summary>
+    private RomDownloader CreateRomDownloader()
+        => new(
+            _hostApp.LoggerFactory,
+            _httpClient,
+            _hostApp.GetCorsProxyUrl(),
+            _hostApp.GetDownloadCache());
+
     public Task AutoDownloadRomsToByteArrayAsync()
         => DownloadRomsToByteArrayAsync(requireAcknowledgement: true);
 
@@ -257,16 +268,10 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             StatusMessage = "Downloading ROMs...";
             ValidationMessage = string.Empty;
 
-            foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
-            {
-                var proxyUrl = _hostApp.GetCorsProxyUrl();
-                var fullROMUrl = !string.IsNullOrEmpty(proxyUrl)
-                    ? $"{proxyUrl}{Uri.EscapeDataString(romDownload.Value)}"
-                    : romDownload.Value;
-
-                var romBytes = await _httpClient.GetByteArrayAsync(fullROMUrl);
-                _workingConfig.SystemConfig.SetROM(romDownload.Key, data: romBytes);
-            }
+            var downloadedRoms = await CreateRomDownloader()
+                .DownloadRomsAsync(_workingConfig.SystemConfig.ROMDownloadSources);
+            foreach (var (romName, romBytes) in downloadedRoms)
+                _workingConfig.SystemConfig.SetROM(romName, data: romBytes);
 
             StatusMessage = "ROMs downloaded successfully.";
             return true;
@@ -298,36 +303,12 @@ public class Vic20ConfigDialogViewModel : ViewModelBase
             StatusMessage = "Downloading ROMs...";
             ValidationMessage = string.Empty;
 
-            var romFolder = PathHelper.ExpandOSEnvironmentVariables(_workingConfig.SystemConfig.EffectiveROMDirectory);
-            if (!Directory.Exists(romFolder))
-                Directory.CreateDirectory(romFolder);
+            var writtenFiles = await CreateRomDownloader().DownloadRomsToFilesAsync(
+                _workingConfig.SystemConfig.ROMDownloadSources,
+                _workingConfig.SystemConfig.EffectiveROMDirectory);
 
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            _httpClient.DefaultRequestHeaders.Accept.ParseAdd("*/*");
-
-            foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
-            {
-                var romName = romDownload.Key;
-                var romUrl = romDownload.Value;
-                var filename = Path.GetFileName(new Uri(romUrl).LocalPath);
-                var dest = Path.Combine(romFolder, filename);
-                try
-                {
-                    using var response = await _httpClient.GetAsync(romUrl);
-                    if (!response.IsSuccessStatusCode)
-                        throw new Exception($"Failed to get '{romUrl}' ({(int)response.StatusCode})");
-
-                    await using var fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None);
-                    await response.Content.CopyToAsync(fs);
-                    _workingConfig.SystemConfig.SetROM(romName, filename);
-                }
-                catch (Exception ex)
-                {
-                    if (File.Exists(dest))
-                        File.Delete(dest);
-                    throw new Exception($"Error downloading {romUrl}: {ex.Message}", ex);
-                }
-            }
+            foreach (var (romName, fileName) in writtenFiles)
+                _workingConfig.SystemConfig.SetROM(romName, fileName);
 
             StatusMessage = "ROMs downloaded successfully.";
         }

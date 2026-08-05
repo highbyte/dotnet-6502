@@ -1,4 +1,4 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Utils;
+using Highbyte.DotNet6502.Systems.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
