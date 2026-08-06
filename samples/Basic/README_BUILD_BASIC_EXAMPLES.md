@@ -119,3 +119,54 @@ demonstrate the VIC-20 lowercase/uppercase character set, switch modes with
 
 If running an expanded VIC-20 (8K+), use `-l 1201` instead. The
 `Build/` subdirectory must exist before running these commands.
+
+# Convert Apple II Basic text files to tokenized Applesoft files
+
+VICE's `petcat` only understands Commodore BASIC dialects — it cannot tokenize
+Applesoft. Use **CiderPress II** (`cp2`, a cross-platform .NET CLI) instead. Its
+`import` command tokenizes Applesoft text into a disk image, and `extract` writes
+the bare tokenized bytes back out (no header; the program always loads at `$0801`).
+
+Assuming `cp2` is in your `PATH` (adjust `$CP2` otherwise):
+
+``` sh
+cd Apple2/Text
+cp2 cdi work.do 140k dos
+cp2 import work.do bas HelloWorld.txt
+cp2 extract work.do HELLOWORLD
+mv HELLOWORLD Build/HelloWorld.bas
+rm work.do
+```
+
+Notes:
+
+- The intermediate DOS 3.3 disk image is required by `cp2`; it is deleted afterwards.
+- `import bas` derives the DOS file name from the source file name (uppercased,
+  truncated) — `HelloWorld.txt` becomes `HELLOWORLD`.
+- The resulting `.bas` file is bare tokenized Applesoft: exactly the bytes that live
+  at `$0801` on a real machine. The emulator's "Load Basic" and the machine code
+  monitor's `lb`/`llb` commands expect this format.
+- Applesoft is uppercase-only on the Apple II Plus; keep the source text uppercase.
+
+## Why `.txt` for source and `.bas` for the tokenized file
+
+Note that here `.bas` means a **tokenized** program, not BASIC source text — the opposite
+of the common PC convention where `.bas` is a source listing. The source is the `.txt`
+file, as for the C64 and VIC-20 examples.
+
+The reason is that `.bas` names the Apple II *file type*, not the file's authoring format:
+ProDOS file type `$FC` is called **BAS** and means a tokenized Applesoft program, exactly
+as Commodore's **PRG** means a tokenized/loadable program. So `HelloWorld.txt` →
+`HelloWorld.bas` mirrors the C64's `HelloWorld.txt` → `HelloWorld.prg`.
+
+There is no cross-platform standard for tokenized Applesoft on a modern filesystem, because
+the Apple II carries the type as filesystem metadata rather than in the name. For reference,
+CiderPress II itself uses neither convention directly:
+
+- `cp2 extract --preserve=naps` writes `HELLOWORLD#fc0801` — the NAPS scheme, encoding the
+  ProDOS type (`fc`) and load address (`0801`) in the name. Same family as the `#06xxxx`
+  naming seen for extracted ProDOS binaries.
+- `cp2 export <img> bas <file>` de-tokenizes back to a listing and writes `.txt`.
+
+`.bas` was chosen over the NAPS form because it works in GUI file-picker filters and as an
+embedded resource name, while still naming the correct Apple II file type.

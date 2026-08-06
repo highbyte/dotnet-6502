@@ -8,6 +8,117 @@
              AutomationProperties.Name="Apple II menu">
 
     <StackPanel Classes="spacing-tight">
+        <!-- Load/Save -->
+        <Button Name="LoadSaveSectionHeader"
+                AutomationProperties.AutomationId="LoadSaveSectionHeader"
+                AutomationProperties.Name="Toggle Load/Save section"
+                Classes="section-toggle"
+                Command="{Binding ToggleLoadSaveSectionCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Grid Width="10" Height="10" VerticalAlignment="Center">
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleRight"
+                                         IsVisible="{Binding !IsLoadSaveSectionExpanded}"/>
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleDown"
+                                         IsVisible="{Binding IsLoadSaveSectionExpanded}"/>
+                </Grid>
+                <TextBlock Text="Load/Save" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <Border Name="LoadSaveSectionContent"
+                AutomationProperties.AutomationId="LoadSaveSectionContent"
+                Classes="collapsible-content"
+                IsVisible="{Binding IsLoadSaveSectionExpanded}">
+            <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Load/save Applesoft Basic files"
+                           Classes="small secondary-text"/>
+
+                <Grid Classes="spacing-tight">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0"
+                            Content="Load Basic"
+                            AutomationProperties.AutomationId="LoadBasicButton"
+                            IsEnabled="{Binding IsFileOperationEnabled}"
+                            Click="LoadBasicFile_Click"
+                            Classes="small"/>
+                    <Button Grid.Column="1"
+                            Content="Save Basic"
+                            AutomationProperties.AutomationId="SaveBasicButton"
+                            IsEnabled="{Binding IsFileOperationEnabled}"
+                            Click="SaveBasicFile_Click"
+                            Classes="small"/>
+                </Grid>
+
+                <Button Content="Load &amp; start binary"
+                        AutomationProperties.AutomationId="LoadBinaryButton"
+                        Classes="primary small"
+                        IsEnabled="{Binding IsFileOperationEnabled}"
+                        Click="LoadBinaryFile_Click"/>
+
+                <TextBlock Text="Assembly example files"
+                           Classes="small secondary-text"/>
+                <Grid Classes="spacing-tight">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox Grid.Column="0"
+                              AutomationProperties.AutomationId="AssemblyExampleComboBox"
+                              AutomationProperties.Name="Assembly example file"
+                              ItemsSource="{Binding AssemblyExamples}"
+                              SelectedValue="{Binding SelectedAssemblyExample}"
+                              DisplayMemberBinding="{Binding Value}"
+                              SelectedValueBinding="{Binding Key}"
+                              IsEnabled="{Binding IsFileOperationEnabled}"
+                              Classes="small"
+                              VerticalAlignment="Stretch"
+                              MinWidth="60"/>
+                    <Button Grid.Column="1"
+                            Content="Load &amp; start"
+                            AutomationProperties.AutomationId="LoadAssemblyExampleButton"
+                            VerticalAlignment="Stretch"
+                            Classes="primary small"
+                            Command="{Binding LoadAssemblyExampleCommand}"/>
+                </Grid>
+
+                <TextBlock Text="Basic example files"
+                           Classes="small secondary-text"/>
+                <Grid Classes="spacing-tight">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox Grid.Column="0"
+                              AutomationProperties.AutomationId="BasicExampleComboBox"
+                              AutomationProperties.Name="Basic example file"
+                              ItemsSource="{Binding BasicExamples}"
+                              SelectedValue="{Binding SelectedBasicExample}"
+                              DisplayMemberBinding="{Binding Value}"
+                              SelectedValueBinding="{Binding Key}"
+                              IsEnabled="{Binding IsFileOperationEnabled}"
+                              Classes="small"
+                              VerticalAlignment="Stretch"
+                              MinWidth="60"/>
+                    <Button Grid.Column="1"
+                            Content="Load"
+                            AutomationProperties.AutomationId="LoadBasicExampleButton"
+                            VerticalAlignment="Stretch"
+                            Classes="primary small"
+                            Command="{Binding LoadBasicExampleCommand}"/>
+                </Grid>
+
+                <TextBlock Text="After loading a Basic program, type LIST or RUN at the ] prompt."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Configuration -->
         <Button Name="ConfigSectionHeader"
                 AutomationProperties.AutomationId="ConfigSectionHeader"
                 AutomationProperties.Name="Toggle Configuration section"

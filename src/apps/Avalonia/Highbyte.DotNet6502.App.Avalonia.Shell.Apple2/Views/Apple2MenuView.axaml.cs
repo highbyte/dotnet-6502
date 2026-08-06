@@ -4,7 +4,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Apple2.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Apple2;
@@ -27,6 +29,111 @@ public partial class Apple2MenuView : UserControl
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var selectedFile = await OpenLocalFileAsync(
+                "Load tokenized Applesoft Basic file",
+                "Basic Files",
+                "*.bas");
+            if (selectedFile != null)
+            {
+                try
+                {
+                    // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                    _ = ViewModel!.LoadBasicFileCommand.Execute(selectedFile.Bytes);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error loading Basic file");
+                }
+            }
+        });
+
+    private void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+            var storageProvider = topLevel.StorageProvider;
+            if (!storageProvider.CanSave)
+                return;
+
+            try
+            {
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Save tokenized Applesoft Basic file",
+                    SuggestedFileName = "program.bas",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("Basic Files") { Patterns = new[] { "*.bas" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    }
+                });
+
+                if (file != null)
+                {
+                    // Call ViewModel method directly to get the byte array
+                    var saveData = await ViewModel!.GetBasicProgramAsFileBytesAsync();
+
+                    await using var stream = await file.OpenWriteAsync();
+                    await stream.WriteAsync(saveData);
+                    Logger.LogInformation("Basic program saved to {FileName}", file.Name);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error saving Basic file");
+            }
+        });
+
+    private void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var selectedFile = await OpenLocalFileAsync(
+                "Load & start DOS 3.3 binary (B) file",
+                "Binary Files",
+                "*.bin", "*.b");
+            if (selectedFile != null)
+            {
+                try
+                {
+                    // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                    _ = ViewModel!.LoadBinaryFileCommand.Execute(selectedFile.Bytes);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error loading binary file");
+                }
+            }
+        });
+
+    private async Task<SelectedBinaryFile?> OpenLocalFileAsync(
+        string title,
+        string fileTypeName,
+        params string[] patterns)
+    {
+        var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+        var filePicker = serviceProvider?.GetService<IAppFilePicker>();
+        var file = filePicker == null
+            ? null
+            : await filePicker.OpenFileAsync(
+                this,
+                new AppFilePickerOpenOptions(
+                    title,
+                    AllowMultiple: false,
+                    [
+                        new AppFilePickerFileType(fileTypeName, patterns),
+                        AppFilePickerFileType.AllFiles
+                    ]));
+        if (file == null)
+            return null;
+        return new SelectedBinaryFile(file.Name, file.Bytes);
+    }
+
+    private sealed record SelectedBinaryFile(string Name, byte[] Bytes);
 
     private void OpenApple2Config_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>

@@ -60,6 +60,59 @@ public class Apple2RealRomBootTests
         Assert.Equal(0xFA62, apple2.CPU.PC);
     }
 
+    /// <summary>
+    /// A hand-tokenized <c>10 PRINT 3</c>: line link, line number 10, PRINT token ($BA), '3',
+    /// end-of-line, then the $00 $00 end-of-program link.
+    /// </summary>
+    private static readonly byte[] s_tokenizedPrint3 =
+    {
+        0x08, 0x08,     // link to next line ($0808)
+        0x0A, 0x00,     // line number 10
+        0xBA,           // PRINT
+        0x33,           // '3'
+        0x00,           // end of line
+        0x00, 0x00,     // end of program
+    };
+
+    [Fact]
+    public void Injected_Basic_Program_Runs_And_Lists()
+    {
+        var apple2 = BootRealRom();
+        if (apple2 == null)
+            return;
+
+        // Inject the tokenized program the way any external loader would: place the bytes at
+        // $0801 and initialise the Applesoft zero-page pointers.
+        for (var i = 0; i < s_tokenizedPrint3.Length; i++)
+            apple2.Mem[(ushort)(Apple2System.BASIC_LOAD_ADDRESS + i)] = s_tokenizedPrint3[i];
+        apple2.InitBasicMemoryVariables(Apple2System.BASIC_LOAD_ADDRESS, s_tokenizedPrint3.Length);
+
+        var inputState = new ScriptedHostInputState();
+        var inputHandler = new Apple2InputHandler(apple2, NullLoggerFactory.Instance);
+        inputHandler.Init(inputState);
+
+        foreach (var key in new[] { HostKey.KeyR, HostKey.KeyU, HostKey.KeyN, HostKey.Enter })
+            TypeKey(apple2, inputHandler, inputState, key, shift: false);
+        for (var frame = 0; frame < 30; frame++)
+            apple2.ExecuteOneFrame();
+
+        var screen = ReadScreen(apple2);
+        var runRow = Array.FindIndex(screen, row => row.TrimEnd() == "]RUN");
+        Assert.True(runRow >= 0, "RUN was not echoed to the screen.");
+        Assert.Equal("3", screen[runRow + 1].TrimEnd());
+
+        foreach (var key in new[] { HostKey.KeyL, HostKey.KeyI, HostKey.KeyS, HostKey.KeyT, HostKey.Enter })
+            TypeKey(apple2, inputHandler, inputState, key, shift: false);
+        for (var frame = 0; frame < 30; frame++)
+            apple2.ExecuteOneFrame();
+
+        screen = ReadScreen(apple2);
+        var listRow = Array.FindIndex(screen, row => row.TrimEnd() == "]LIST");
+        Assert.True(listRow >= 0, "LIST was not echoed to the screen.");
+        Assert.Contains("10", screen[listRow + 1]);
+        Assert.Contains("PRINT 3", screen[listRow + 1]);
+    }
+
     [Fact]
     public void Typed_Input_Reaches_Applesoft_And_Is_Evaluated()
     {

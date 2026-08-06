@@ -88,7 +88,11 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 ### Apple2MenuView (sidebar)
 
 - **Root**: `Apple2MenuView`
-- **Collapsible section header**: `ConfigSectionHeader`, `ConfigSectionContent`
+- **Collapsible section headers**: `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
+  `ConfigSectionHeader`, `ConfigSectionContent`
+- **Load/Save section**: `LoadBasicButton`, `SaveBasicButton`, `LoadBinaryButton`,
+  `AssemblyExampleComboBox`, `LoadAssemblyExampleButton`, `BasicExampleComboBox`,
+  `LoadBasicExampleButton`
 - **Config section**: `OpenApple2ConfigButton`
 
 ### Apple2ConfigDialog / Apple2ConfigDialogView
@@ -206,10 +210,12 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 
 | Action                           | macOS               | Windows / Linux       |
 | -------------------------------- | ------------------- | --------------------- |
+| Toggle Load/Save section         | `⌘⌥⇧L`         | `Ctrl+Alt+Shift+L`    |
 | Toggle Configuration section     | `⌘⌥⇧C`         | `Ctrl+Alt+Shift+C`    |
 
-The Apple II has no disk, tape or joystick support, so its menu contributes only the
-Configuration section — which is the route to the ROM settings dialog.
+The Apple II menu contributes the Load/Save section (Applesoft Basic and DOS 3.3 binary
+files, plus example programs) and the Configuration section — which is the route to the
+ROM settings dialog.
 
 In addition to the menu shortcut above, the running Apple II emulator itself handles
 **Ctrl+F12** as CTRL-RESET (warm reset through the reset vector). It is emulator keyboard
