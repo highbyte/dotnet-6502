@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Apple2.Disk2;
+
 namespace Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 
 /// <summary>
@@ -44,10 +46,12 @@ public class Apple2SoftSwitches
     public const byte UnconnectedReadValue = 0xFF;
 
     private readonly Apple2Keyboard _keyboard;
+    private readonly Disk2Controller? _diskController;
 
-    public Apple2SoftSwitches(Apple2Keyboard keyboard)
+    public Apple2SoftSwitches(Apple2Keyboard keyboard, Disk2Controller? diskController = null)
     {
         _keyboard = keyboard;
+        _diskController = diskController;
     }
 
     /// <summary>Text mode ($C051) vs. graphics mode ($C050).</summary>
@@ -90,6 +94,19 @@ public class Apple2SoftSwitches
             mem.MapReader(address, static _ => UnconnectedReadValue);
             mem.MapWriter(address, static (_, _) => { });
         }
+
+        // Slot 6 ROM space ($C600-$C6FF): the Disk II boot ROM, visible only while the
+        // controller is enabled (boot ROM configured and a disk inserted) so the Autostart
+        // slot scan otherwise falls through to BASIC.
+        if (_diskController != null)
+        {
+            for (var address = Disk2Controller.BootRomBaseAddress;
+                address < Disk2Controller.BootRomBaseAddress + Disk2Controller.BootRomSize;
+                address++)
+            {
+                mem.MapReader(address, _diskController.ReadBootRom);
+            }
+        }
     }
 
     /// <summary>Applies the side effect of an access and returns the value the CPU reads.</summary>
@@ -102,12 +119,18 @@ public class Apple2SoftSwitches
             0x30 => ToggleSpeaker(),                         // $C030-$C03F  speaker
             0x50 => ApplyDisplaySwitch(address),             // $C050-$C05F  display mode
             0x60 => 0x00,                                    // $C060-$C06F  cassette in, buttons, paddles: idle
+            0xE0 => ReadDiskController(address),             // $C0E0-$C0EF  Disk II controller (slot 6)
             _ => UnconnectedReadValue,
         };
     }
 
     /// <summary>A write triggers the same side effect as a read; the value is ignored.</summary>
     public void Write(ushort address, byte value) => Read(address);
+
+    private byte ReadDiskController(ushort address)
+        => _diskController != null && _diskController.IsEnabled
+            ? _diskController.BusAccess(address)
+            : UnconnectedReadValue;
 
     private byte ToggleSpeaker()
     {

@@ -28,9 +28,9 @@
                     Classes="small"/>
         </Grid>
 
-        <!-- Download & Run programs.
-             Note: there is no "Attach disk image" here on purpose — that concept is reserved
-             for future Disk II hardware emulation. .dsk images are a file *source* only. -->
+        <!-- Download & Run programs: downloads a .dsk and injects a program from its catalog
+             straight into RAM, no drive involved. Booting a disk lives in the Disk drive
+             section below. -->
         <Button Name="DownloadSectionHeader"
                 AutomationProperties.AutomationId="DownloadSectionHeader"
                 AutomationProperties.Name="Toggle Download and Run section"
@@ -54,7 +54,7 @@
                 Classes="collapsible-content"
                 IsVisible="{Binding IsDownloadSectionExpanded}">
             <StackPanel Classes="spacing-tight">
-                <TextBlock Text="Download a known RAM-resident program and run it"
+                <TextBlock Text="Download a known program and run it. Disk-booting titles need the disk2 ROM."
                            TextWrapping="Wrap"
                            Classes="small secondary-text"/>
 
@@ -83,6 +83,61 @@
                                TextWrapping="Wrap"
                                Classes="small"/>
                 </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Disk drive: real Disk II emulation — insert a disk image and boot from it. -->
+        <Button Name="DiskSectionHeader"
+                AutomationProperties.AutomationId="DiskSectionHeader"
+                AutomationProperties.Name="Toggle Disk drive section"
+                Classes="section-toggle"
+                Command="{Binding ToggleDiskSectionCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Grid Width="10" Height="10" VerticalAlignment="Center">
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleRight"
+                                         IsVisible="{Binding !IsDiskSectionExpanded}"/>
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleDown"
+                                         IsVisible="{Binding IsDiskSectionExpanded}"/>
+                </Grid>
+                <TextBlock Text="Disk drive" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <Border Name="DiskSectionContent"
+                AutomationProperties.AutomationId="DiskSectionContent"
+                Classes="collapsible-content"
+                IsVisible="{Binding IsDiskSectionExpanded}">
+            <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Insert a DOS 3.3 disk image in drive 1 (read-only). Boot from it, or — once DOS is running — just swap disks and use CATALOG, BRUN and friends."
+                           TextWrapping="Wrap"
+                           Classes="small secondary-text"/>
+
+                <!-- Name is bound to the same text as Content so the accessibility tree reports
+                     what the button does *now* ("Insert .dsk image" / "Eject disk"); a static
+                     name would override the state-bound caption and hide the drive's state. -->
+                <Button Content="{Binding DiskToggleButtonText}"
+                        Name="DiskToggleButton"
+                        AutomationProperties.AutomationId="DiskToggleButton"
+                        AutomationProperties.Name="{Binding DiskToggleButtonText}"
+                        Click="ToggleDiskImage_Click"
+                        Classes="small"/>
+
+                <!-- Unlike the toggle above, this caption is static, so a descriptive Name is
+                     kept: it spells out what the "PR#6" jargon in the caption means. -->
+                <Button Content="Boot from disk (PR#6)"
+                        Name="BootDiskButton"
+                        AutomationProperties.AutomationId="BootDiskButton"
+                        AutomationProperties.Name="Boot the machine from the disk in drive 1"
+                        IsVisible="{Binding HasInsertedDisk}"
+                        Command="{Binding BootDiskCommand}"
+                        Classes="small"/>
+
+                <TextBlock Text="{Binding DriveStatusText}"
+                           AutomationProperties.AutomationId="DriveStatusText"
+                           TextWrapping="Wrap"
+                           Classes="small secondary-text"/>
             </StackPanel>
         </Border>
 

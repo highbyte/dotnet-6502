@@ -59,7 +59,7 @@ public class Apple2SystemConfigTests
     public void A_Config_Without_The_Character_Generator_Is_Invalid()
     {
         var config = new Apple2SystemConfig();
-        config.SetROM(Apple2SystemConfig.SYSTEM_ROM_NAME, file: "APPLE2.ROM");
+        config.SetROM(Apple2SystemConfig.SYSTEM_ROM_NAME, file: "apple.rom");
 
         Assert.False(config.IsValid(out var errors));
         Assert.Contains(errors, e => e.Contains(Apple2SystemConfig.CHARGEN_ROM_NAME));
@@ -105,12 +105,12 @@ public class Apple2SystemConfigTests
     public void Clone_Deep_Copies_The_Rom_List()
     {
         var config = new Apple2SystemConfig();
-        config.SetROM(Apple2SystemConfig.SYSTEM_ROM_NAME, file: "APPLE2.ROM");
+        config.SetROM(Apple2SystemConfig.SYSTEM_ROM_NAME, file: "apple.rom");
 
         var clone = (Apple2SystemConfig)config.Clone();
         clone.GetROM(Apple2SystemConfig.SYSTEM_ROM_NAME).File = "OTHER.ROM";
 
-        Assert.Equal("APPLE2.ROM", config.GetROM(Apple2SystemConfig.SYSTEM_ROM_NAME).File);
+        Assert.Equal("apple.rom", config.GetROM(Apple2SystemConfig.SYSTEM_ROM_NAME).File);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Apple2.Config;
+using Highbyte.DotNet6502.Systems.Apple2.Disk2;
 using Highbyte.DotNet6502.Systems.Apple2.Input;
 using Highbyte.DotNet6502.Systems.Apple2.Monitor;
 using Highbyte.DotNet6502.Systems.Apple2.Utils;
@@ -85,6 +86,9 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     public Apple2Keyboard Keyboard { get; }
     public Apple2SoftSwitches SoftSwitches { get; }
 
+    /// <summary>The Disk II controller card in slot 6 (read-only; boots when a disk is inserted).</summary>
+    public Disk2Controller DiskController { get; }
+
     /// <summary>Types text into the machine by feeding the keyboard latch, one char per frame.</summary>
     public Apple2TextPaste TextPaste { get; }
 
@@ -118,13 +122,15 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         _apple2Config = config;
 
         Keyboard = new Apple2Keyboard();
-        SoftSwitches = new Apple2SoftSwitches(Keyboard);
+        CPU = new CPU(loggerFactory, config.CpuCompatibilityProfile);
+        // The controller times its motor spin-down off the CPU's cumulative cycle count.
+        DiskController = new Disk2Controller(() => CPU.ExecState.CyclesConsumed);
+        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController);
         TextPaste = new Apple2TextPaste(this, loggerFactory);
         BasicTokenParser = new Apple2BasicTokenParser(this, loggerFactory);
         InputInjector = new Apple2InputInjector(this);
 
         Mem = CreateMemory();
-        CPU = new CPU(loggerFactory, config.CpuCompatibilityProfile);
         DefaultExecOptions = new ExecOptions();
 
         _hasSystemRom = romData != null && MapROMs(romData);
@@ -188,6 +194,9 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         // circuitry only, so the rasterizer reads it directly from CharacterRom.
         if (romData.TryGetValue(Apple2SystemConfig.CHARGEN_ROM_NAME, out var characterRom))
             CharacterRom = ExtractCharacterRomImage(characterRom);
+
+        if (romData.TryGetValue(Apple2SystemConfig.DISK2_ROM_NAME, out var disk2Rom))
+            DiskController.SetBootRom(disk2Rom);
 
         if (!romData.TryGetValue(Apple2SystemConfig.SYSTEM_ROM_NAME, out var systemRom))
             return false;
@@ -303,6 +312,7 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     {
         Keyboard.Reset();
         SoftSwitches.Reset();
+        DiskController.Reset();
 
         if (cpuStartPos == null)
             CPU.Reset(Mem);
@@ -366,6 +376,21 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         var softEvHigh = Mem[0x03F3];
         var powerUpByte = Mem[0x03F4];
         return powerUpByte == (byte)(softEvHigh ^ 0xA5);
+    }
+
+    /// <summary>
+    /// Invalidates the Autostart Monitor's power-up byte so that the next <see cref="Reset()"/>
+    /// takes the <em>cold</em>-start path.
+    ///
+    /// The ROM's reset handler compares $03F4 against the complement of the soft-entry vector's
+    /// high byte: a match means "already initialised", and it warm-starts straight back into
+    /// BASIC. Only the cold path scans the peripheral slots for a bootable card, so booting a
+    /// disk on a machine that has already reached the BASIC prompt requires breaking that match
+    /// first — which is exactly what pressing the real machine's power switch does.
+    /// </summary>
+    public void InvalidatePowerUpByte()
+    {
+        Mem[0x03F4] = (byte)(Mem[0x03F3] ^ 0xA5 ^ 0xFF);
     }
 
     bool ISystemState.IsSystemReady() => HasBasicStarted();

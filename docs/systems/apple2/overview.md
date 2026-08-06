@@ -28,7 +28,10 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
       honored by the rasterizer render path.
     - `$C030` speaker toggle counted but silent.
 - Empty peripheral slots at `$C100`–`$CFFF` read as `$FF`, which makes the Autostart ROM's disk
-  scan fail cleanly so it falls through to BASIC.
+  scan fail cleanly so it falls through to BASIC. Slot 6 answers instead when the Disk II
+  controller is active (see below).
+- Disk II controller card in slot 6, read-only: boots and runs standard 16-sector DOS 3.3
+  disk images (`.dsk`/`.do`). See [Disk II](disk2.md).
 - 40 &times; 24 text display in the hardware's 7&times;8 character cell (280&times;192 pixels),
   page 1 (`$0400`–`$07FF`) or page 2 (`$0800`–`$0BFF`).
     - Interleaved row addressing: `address = base + (row % 8) * $80 + (row / 8) * $28`.
@@ -65,19 +68,22 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
       BRUN-style at the load address.
     - Bundled example programs (one Basic, one ca65 assembly) loadable directly from the
       sidebar; sources in the repository's `samples/` folder.
-- DOS 3.3 `.dsk`/`.do` disk images as a **file source** (no Disk II hardware emulation, so
-  there is no "attach disk" concept — that is reserved for a future Disk II increment):
-  the Avalonia sidebar's Load/Save section can open an image, list its catalog, and load +
-  run an Applesoft (A) or Binary (B) file — B files BRUN-style, A files at `$0801` with
-  pointer init and an automatic `RUN`. A curated "Download &amp; Run programs" section
-  fetches known RAM-resident games (with download caching). Programs that access the disk
-  at runtime (DOS calls, level streaming) cannot work without Disk II emulation.
+- DOS 3.3 `.dsk`/`.do` disk images as a **file source**, separate from the drive: the
+  Avalonia sidebar's Load/Save section can open an image, list its catalog, and load + run an
+  Applesoft (A) or Binary (B) file — B files BRUN-style, A files at `$0801` with pointer init
+  and an automatic `RUN`. This path injects into RAM with no drive present, so programs that
+  read the disk at runtime (DOS calls, level streaming) have to be booted instead.
+- A curated **"Download &amp; Run programs"** section (with download caching) that covers both:
+  each entry declares whether it is injected into RAM or booted in the [Disk II](disk2.md)
+  drive, so RAM-resident titles and self-booting ones sit in the same list. Booting entries
+  need the optional `disk2` ROM.
 - Copy/Paste of Applesoft BASIC in the Avalonia sidebar: **Copy** detokenizes the program in
   memory to source text on the clipboard; **Paste** types clipboard text into the machine via
   the keyboard latch (paced by consumption, letters typed as uppercase).
 - Remote control support: the generic `keyboard.press`/`release` commands work through the
-  system's input injector, and `apple2.type`, `apple2.isbasicstarted` and
-  `apple2.getbasicsource` mirror the C64's typing/BASIC-source commands — see
+  system's input injector; `apple2.type`, `apple2.isbasicstarted` and `apple2.getbasicsource`
+  mirror the C64's typing/BASIC-source commands; and `apple2.insertdisk`, `apple2.bootdisk`,
+  `apple2.ejectdisk` and `apple2.diskstatus` drive the Disk II — see
   [TCP protocol](../../tools/remote-control/tcp-protocol.md).
 
 - Avalonia Desktop and Avalonia Browser (WASM) UI, with a configuration dialog for ROM files,
@@ -101,8 +107,9 @@ For general monitor commands, see [Monitor library](../../libraries/core/dotnet6
 - Hi-res colour. Hi-res renders as the monochrome dot pattern in the configured phosphor
   colour; the NTSC artifact colours (bit 7 + column parity) are not modelled.
 - Audio. `$C030` speaker toggles are counted but not turned into sound.
-- Disk II — the controller is software-driven and is a large, separate effort.
-- Peripheral slots, cassette, paddles and game-port input, light pen.
+- Disk II writing (the drive is always write-protected), a second drive, ProDOS-ordered `.po`
+  images, and nibble/flux (`.nib`/`.woz`) media. See [Disk II](disk2.md) for what is supported.
+- Peripheral slots other than slot 6, cassette, paddles and game-port input, light pen.
 - The language card / 16 KB RAM expansion.
 - The original, non-Autostart Apple II with Integer BASIC. That is a different ROM set rather
   than different hardware, so it is a plausible later configuration variant.

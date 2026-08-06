@@ -16,6 +16,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Apple2.Disk2;
 using Highbyte.DotNet6502.Systems.Apple2.DiskImage;
 using Highbyte.DotNet6502.Systems.Apple2.DiskImage.Download;
 using Highbyte.DotNet6502.Utils;
@@ -46,7 +47,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     private readonly Assembly _examplesAssembly = typeof(AvaloniaHostApp).Assembly;
     private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
 
-    private enum Apple2MenuSection { Download, LoadSave, Config }
+    private enum Apple2MenuSection { Download, Disk, LoadSave, Config }
 
     // Accordion behavior (like the C64 menu): expanding one section collapses the others.
     private readonly AccordionSections<Apple2MenuSection> _sections;
@@ -56,15 +57,39 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     private Apple2AutoLoadAndRun? _apple2AutoLoadAndRun;
 
     /// <summary>
-    /// The curated "Download & Run" list. Only RAM-resident programs belong here — the machine
-    /// has no Disk II emulation, so anything that touches the disk at runtime will not work.
-    /// Each entry must be verified in the running emulator before inclusion.
+    /// The curated "Download &amp; Run" list. Each entry says how it runs: RAM-resident programs
+    /// are injected into memory, while self-booting titles are booted in the Disk II drive (and
+    /// so need the optional <c>disk2</c> ROM).
+    ///
+    /// Every entry must be verified in the running emulator before inclusion — and prefer a
+    /// cracked release for commercial titles. Copy protection is not emulated, so an untouched
+    /// original typically reads the disk and then sits on a black screen: the plain
+    /// <c>choplifter.dsk</c> and <c>bolo.dsk</c> on the archive do exactly that, while the 4am
+    /// cracks of the same games boot fine.
     /// </summary>
     private readonly Dictionary<string, Apple2DownloadProgramInfo> _preloadedPrograms = new()
     {
         { "applepanic", new Apple2DownloadProgramInfo(
             "Apple Panic",
             "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/apple_panic/apple_panic.dsk") },
+
+        { "loderunner", new Apple2DownloadProgramInfo(
+            "Lode Runner",
+            "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/lode_runner/Lode%20Runner%20%284am%20crack%29.zip",
+            zipEntryName: "Lode Runner (4am crack)/Lode Runner (4am crack).dsk",
+            runMode: Apple2DownloadRunMode.BootDisk) },
+
+        { "choplifter", new Apple2DownloadProgramInfo(
+            "Choplifter",
+            "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/Choplifter%20%284am%20and%20san%20inc%20crack%29.zip",
+            zipEntryName: "Choplifter (4am and san inc crack)/Choplifter (4am and san inc crack).dsk",
+            runMode: Apple2DownloadRunMode.BootDisk) },
+
+        { "bolo", new Apple2DownloadProgramInfo(
+            "Bolo",
+            "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/Bolo%20%284am%20crack%29.zip",
+            zipEntryName: "Bolo (4am crack)/Bolo (4am crack).dsk",
+            runMode: Apple2DownloadRunMode.BootDisk) },
     };
 
     public AvaloniaHostApp HostApp => _hostApp;
@@ -72,6 +97,10 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDownloadSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleDiskSectionCommand { get; }
+    public ReactiveCommand<byte[], Unit> InsertDiskCommand { get; }
+    public ReactiveCommand<Unit, Unit> BootDiskCommand { get; }
+    public ReactiveCommand<Unit, Unit> EjectDiskCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
@@ -169,6 +198,32 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             this.WhenAnyValue(x => x.IsLoadingPreloadedProgram).Select(loading => !loading),
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
+        ToggleDiskSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                _sections.Toggle(Apple2MenuSection.Disk);
+                return Task.CompletedTask;
+            },
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        InsertDiskCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
+            async fileBytes => await InsertDiskAsync(fileBytes),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        BootDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await BootDiskAsync(),
+            this.WhenAnyValue(x => x.HasInsertedDisk),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        EjectDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                EjectDisk();
+                return Task.CompletedTask;
+            },
+            this.WhenAnyValue(x => x.HasInsertedDisk),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
         InitExampleFiles();
         InitPreloadedPrograms();
     }
@@ -179,11 +234,14 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     public bool IsDownloadSectionExpanded => _sections.IsExpanded(Apple2MenuSection.Download);
 
+    public bool IsDiskSectionExpanded => _sections.IsExpanded(Apple2MenuSection.Disk);
+
     private void OnSectionStateChanged(Apple2MenuSection section)
     {
         var propertyName = section switch
         {
             Apple2MenuSection.Download => nameof(IsDownloadSectionExpanded),
+            Apple2MenuSection.Disk => nameof(IsDiskSectionExpanded),
             Apple2MenuSection.LoadSave => nameof(IsLoadSaveSectionExpanded),
             _ => nameof(IsConfigSectionExpanded),
         };
@@ -204,6 +262,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
         this.RaisePropertyChanged(nameof(IsApple2ConfigEnabled));
         this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
         this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
+        RaiseDriveStateChanged();   // stopping the emulator empties the drive
     }
 
     // --- Example files (embedded resources) ---
@@ -397,9 +456,9 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
-    // --- .dsk disk images as a file source (file-level access — no Disk II hardware
-    // emulation, so this is a program-loading feature, not a drive "attach". The
-    // attach-disk-image concept is reserved for future Disk II emulation.) ---
+    // --- .dsk disk images as a file source: catalog-level access with no drive involved,
+    // for RAM-resident programs. Inserting a disk in the emulated Disk II drive, and booting
+    // from it, is the separate Disk drive section. ---
 
     /// <summary>Runnable files (Binary/Applesoft) of the opened disk image, name → display text.</summary>
     public ObservableCollection<KeyValuePair<string, string>> DskFiles { get; } = new();
@@ -470,6 +529,86 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             DiskStatusText = string.IsNullOrWhiteSpace(ex.Message) ? "Could not load the file." : ex.Message;
             _logger.LogError(ex, "Error loading file from .dsk image");
         }
+    }
+
+    // --- Disk drive (Disk II emulation): insert a disk image and boot from it ---
+
+    /// <summary>
+    /// Read from the drive itself rather than tracked here, so the button cannot disagree with
+    /// the machine — the disk can also be changed from the remote control interface, or vanish
+    /// when the emulator is stopped.
+    /// </summary>
+    public bool HasInsertedDisk
+        => _hostApp.CurrentRunningSystem is Apple2System apple2 && apple2.DiskController.IsDiskInserted;
+
+    private void RaiseDriveStateChanged()
+    {
+        this.RaisePropertyChanged(nameof(HasInsertedDisk));
+        this.RaisePropertyChanged(nameof(DiskToggleButtonText));
+        this.RaisePropertyChanged(nameof(DriveStatusText));
+    }
+
+    /// <summary>
+    /// One button covers both directions, like the C64 menu's attach/detach: with a disk in the
+    /// drive it ejects, otherwise it asks for one to insert.
+    /// </summary>
+    public string DiskToggleButtonText => HasInsertedDisk ? "Eject disk" : "Insert .dsk image";
+
+    /// <summary>Last error from a drive operation; cleared as soon as one succeeds.</summary>
+    private string? _driveErrorMessage;
+
+    /// <summary>
+    /// Derived from the drive for the same reason as <see cref="HasInsertedDisk"/>: a status line
+    /// with its own copy of the state goes stale the moment the disk changes by any other route
+    /// (the remote control interface, or stopping the emulator).
+    /// </summary>
+    /// Kept to one short line: the sidebar has no scroll region, so taller section content grows
+    /// the window itself. The section's description above already explains the workflow.
+    public string DriveStatusText => _driveErrorMessage ?? (HasInsertedDisk
+        ? "Disk in drive."
+        : "No disk in drive.");
+
+    /// <summary>
+    /// Puts a diskette in drive 1 without disturbing the running machine. Resident DOS picks it
+    /// up on its next access, so this is the "swap disks" half of the workflow; booting is the
+    /// separate <see cref="BootDiskCommand"/>.
+    /// </summary>
+    private async Task InsertDiskAsync(byte[] fileBytes)
+    {
+        try
+        {
+            await Apple2DiskBoot.InsertAsync(_hostApp, fileBytes, _logger);
+            _driveErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            _driveErrorMessage = string.IsNullOrWhiteSpace(ex.Message) ? "Could not read the disk image." : ex.Message;
+            _logger.LogError(ex, "Error inserting .dsk image");
+        }
+        RaiseDriveStateChanged();
+    }
+
+    /// <summary>Boots the machine from the disk in drive 1 — the equivalent of typing PR#6.</summary>
+    private async Task BootDiskAsync()
+    {
+        try
+        {
+            await Apple2DiskBoot.BootAsync(_hostApp, _logger);
+            _driveErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            _driveErrorMessage = string.IsNullOrWhiteSpace(ex.Message) ? "Could not boot from the disk." : ex.Message;
+            _logger.LogError(ex, "Error booting from disk");
+        }
+        RaiseDriveStateChanged();
+    }
+
+    private void EjectDisk()
+    {
+        Apple2DiskBoot.Eject(_hostApp, _logger);
+        _driveErrorMessage = null;
+        RaiseDriveStateChanged();
     }
 
     // --- Download & Run programs ---

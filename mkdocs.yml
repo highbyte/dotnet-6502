@@ -147,6 +147,7 @@ nav:
       - Apple II:
           - Overview: systems/apple2/overview.md
           - ROMs: systems/apple2/roms.md
+          - Disk II: systems/apple2/disk2.md
   - Tools:
       - Overview: tools/overview.md
       - VSCode debugger extension:

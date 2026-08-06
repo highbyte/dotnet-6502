@@ -51,6 +51,10 @@ var commands = new[]
     ("apple2.isbasicstarted", "",                                     "Check if Applesoft BASIC has finished initializing (Apple II only)"),
     ("apple2.getbasicsource", "",                                     "Get the current Applesoft BASIC program as text (Apple II only)"),
     ("apple2.loadbasic",      "--file <path.bas> | --data <base64>",  "Load bare tokenized Applesoft bytes at $0801 and init BASIC pointers (Apple II only)"),
+    ("apple2.insertdisk",     "--file <path.dsk> | --data <base64>",  "Put a DOS 3.3 disk image in drive 1, without rebooting (Apple II only)"),
+    ("apple2.bootdisk",       "",                                     "Boot from the disk in drive 1, like typing PR#6 (Apple II only)"),
+    ("apple2.ejectdisk",      "",                                     "Eject the disk image from drive 1 (Apple II only)"),
+    ("apple2.diskstatus",     "",                                     "Show Disk II drive state: disk inserted, motor, track, bytes read (Apple II only)"),
     ("screenshot",    "[--output <file.png>]",      "Capture screenshot (Base64 PNG or saved to file)"),
     ("ui.message",    "--text <string> [--level info|warning|error]", "Display message in emulator UI"),
 };

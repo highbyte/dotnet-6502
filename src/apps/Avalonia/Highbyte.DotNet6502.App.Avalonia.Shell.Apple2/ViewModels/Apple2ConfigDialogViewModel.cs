@@ -697,9 +697,10 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Works out which ROM a picked file is. Falls back to size, because the two Apple II ROMs
-    /// have unmistakably different sizes and the common file names (<c>APPLE2.ROM</c>,
-    /// <c>3410036.BIN</c>) share no obvious keyword.
+    /// Works out which ROM a picked file is. Falls back to size, because the Apple II ROMs
+    /// have unmistakably different sizes and the archive's file names (<c>apple.rom</c>,
+    /// <c>3410036.BIN</c>) share no obvious keyword. "disk"/"0027" is checked before "apple"
+    /// because the archive's Disk II ROM file name contains both words.
     /// </summary>
     internal static string? DetectRomName(string fileName, int byteLength)
     {
@@ -707,6 +708,10 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             || fileName.Contains("chargen", StringComparison.OrdinalIgnoreCase)
             || fileName.Contains("3410036", StringComparison.OrdinalIgnoreCase))
             return Apple2SystemConfig.CHARGEN_ROM_NAME;
+
+        if (fileName.Contains("disk", StringComparison.OrdinalIgnoreCase)
+            || fileName.Contains("0027", StringComparison.OrdinalIgnoreCase))
+            return Apple2SystemConfig.DISK2_ROM_NAME;
 
         if (fileName.Contains("apple", StringComparison.OrdinalIgnoreCase))
             return Apple2SystemConfig.SYSTEM_ROM_NAME;
@@ -716,6 +721,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             Highbyte.DotNet6502.Systems.Apple2.Apple2.SystemRomSize => Apple2SystemConfig.SYSTEM_ROM_NAME,
             20480 => Apple2SystemConfig.SYSTEM_ROM_NAME,
             2048 or 512 => Apple2SystemConfig.CHARGEN_ROM_NAME,
+            Highbyte.DotNet6502.Systems.Apple2.Disk2.Disk2Controller.BootRomSize => Apple2SystemConfig.DISK2_ROM_NAME,
             _ => null,
         };
     }

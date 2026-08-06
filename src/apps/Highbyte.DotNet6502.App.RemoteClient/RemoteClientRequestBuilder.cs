@@ -40,6 +40,9 @@ internal static class RemoteClientRequestBuilder
             case "keyboard.getall":
             case "c64.isbasicstarted":
             case "c64.getbasicsource":
+            case "apple2.bootdisk":
+            case "apple2.ejectdisk":
+            case "apple2.diskstatus":
             case "apple2.isbasicstarted":
             case "apple2.getbasicsource":
                 break;
@@ -142,6 +145,7 @@ internal static class RemoteClientRequestBuilder
 
             case "c64.loadprg":
             case "apple2.loadbasic":
+            case "apple2.insertdisk":
                 if (parameters.TryGetValue("file", out var prgFile))
                 {
                     if (!File.Exists(prgFile))

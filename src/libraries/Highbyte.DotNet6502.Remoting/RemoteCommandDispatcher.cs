@@ -79,6 +79,10 @@ public class RemoteCommandDispatcher
                 "apple2.isbasicstarted" => HandleApple2IsBasicStarted(cmd.Id),
                 "apple2.getbasicsource" => HandleApple2GetBasicSource(cmd.Id),
                 "apple2.loadbasic"      => await HandleFrameAsync(cmd.Id, hostApp => Apple2LoadBasicDirect(hostApp, cmd)),
+                "apple2.insertdisk"     => await HandleApple2InsertDiskAsync(cmd.Id, cmd),
+                "apple2.bootdisk"       => await HandleApple2BootDiskAsync(cmd.Id),
+                "apple2.ejectdisk"      => await HandleFrameAsync(cmd.Id, _ => Apple2EjectDisk(cmd.Id)),
+                "apple2.diskstatus"     => HandleApple2DiskStatus(cmd.Id),
                 "screenshot"   => HandleScreenshot(cmd.Id),
                 "ui.message"   => HandleUiMessage(cmd.Id, cmd),
                 _              => Err(cmd.Id, $"Unknown command: {cmd.Cmd}"),
@@ -545,6 +549,75 @@ public class RemoteCommandDispatcher
         for (int i = 0; i < basicBytes.Length; i++)
             apple2.Mem[(ushort)((loadAddress + i) & 0xFFFF)] = basicBytes[i];
         apple2.InitBasicMemoryVariables(loadAddress, basicBytes.Length);
+    }
+
+    /// <summary>
+    /// Puts a DOS-ordered disk image in drive 1 without disturbing the running machine — a
+    /// diskette swap. Booting from it is the separate <c>apple2.bootdisk</c>.
+    /// </summary>
+    private async Task<RemoteCommandResult> HandleApple2InsertDiskAsync(int? id, RemoteCommand cmd)
+    {
+        var apple2 = GetApple2System(id, out var err);
+        if (apple2 == null) return err!;
+
+        if (cmd.Data == null || cmd.Data.Value.ValueKind != System.Text.Json.JsonValueKind.String)
+            return Err(id, "'data' must be a base64-encoded 140 KB DOS-ordered disk image");
+
+        byte[] diskBytes;
+        try { diskBytes = Convert.FromBase64String(cmd.Data.Value.GetString()!); }
+        catch { return Err(id, "'data' is not valid base64"); }
+
+        try
+        {
+            return await HandleFrameAsync(id, _ => apple2.DiskController.InsertDiskImage(diskBytes));
+        }
+        catch (InvalidDataException ex)
+        {
+            return Err(id, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Boots from the disk in drive 1, like typing <c>PR#6</c>. The Autostart slot scan only runs
+    /// on a cold start, so the power-up byte is invalidated first.
+    /// </summary>
+    private async Task<RemoteCommandResult> HandleApple2BootDiskAsync(int? id)
+    {
+        var apple2 = GetApple2System(id, out var err);
+        if (apple2 == null) return err!;
+
+        if (apple2.DiskController.BootRom == null)
+            return Err(id, "No Disk II boot ROM configured (add the 'disk2' ROM to boot disk images)");
+        if (!apple2.DiskController.IsDiskInserted)
+            return Err(id, "There is no disk in the drive to boot from");
+
+        return await HandleFrameAsync(id, _ =>
+        {
+            apple2.InvalidatePowerUpByte();
+            apple2.Reset();
+        });
+    }
+
+    private void Apple2EjectDisk(int? id)
+    {
+        var apple2 = GetApple2System(id, out _);
+        apple2?.DiskController.RemoveDiskImage();
+    }
+
+    private RemoteCommandResult HandleApple2DiskStatus(int? id)
+    {
+        var apple2 = GetApple2System(id, out var err);
+        if (apple2 == null) return err!;
+
+        var controller = apple2.DiskController;
+        return new RemoteCommandResult
+        {
+            Id = id,
+            Ok = true,
+            Data = $"inserted={controller.IsDiskInserted}, bootRom={controller.BootRom != null}, " +
+                   $"motor={controller.IsMotorOn}, spinning={controller.IsSpinning}, " +
+                   $"track={controller.CurrentTrack}, reads={controller.DataReadCount}",
+        };
     }
 
     private Systems.Apple2.Apple2? GetApple2System(int? id, out RemoteCommandResult? error)
