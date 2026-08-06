@@ -22,6 +22,14 @@ public class Apple2Config
     public const int DrawableAreaHeight = Rows * CharacterHeight;  // 192
 
     /// <summary>
+    /// In mixed mode ($C053) the bottom 4 text rows stay text while graphics fill the area above
+    /// them (160 scan lines).
+    /// </summary>
+    public const int MixedModeTextRows = 4;
+    public const int MixedModeFirstTextRow = Rows - MixedModeTextRows;                  // 20
+    public const int MixedModeGraphicsHeight = MixedModeFirstTextRow * CharacterHeight; // 160
+
+    /// <summary>
     /// The Apple II video signal has no separately coloured border area like the VIC-I or
     /// VIC-II — the text field fills the active display.
     /// </summary>

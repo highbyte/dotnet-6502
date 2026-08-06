@@ -9,8 +9,8 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 /// $C000-$C07F are decoded on bits 7-4 only (each switch occupies 16 consecutive addresses),
 /// which is why software may equivalently use e.g. $C010 or $C01F to clear the keyboard strobe.
 ///
-/// v1 scope: keyboard ($C000 / $C010), display-mode switches tracked as state, everything else
-/// answering as unconnected. Nothing here generates an interrupt — the machine has no timer.
+/// Scope: keyboard ($C000 / $C010), display-mode switches, everything else answering as
+/// unconnected. Nothing here generates an interrupt — the machine has no timer.
 /// </summary>
 public class Apple2SoftSwitches
 {
@@ -50,7 +50,7 @@ public class Apple2SoftSwitches
         _keyboard = keyboard;
     }
 
-    /// <summary>Text mode ($C051) vs. graphics mode ($C050). v1 always renders the text page.</summary>
+    /// <summary>Text mode ($C051) vs. graphics mode ($C050).</summary>
     public bool TextMode { get; private set; } = true;
 
     /// <summary>Mixed text/graphics ($C053) vs. full screen ($C052).</summary>
@@ -59,7 +59,7 @@ public class Apple2SoftSwitches
     /// <summary>Display page 2 ($C055) vs. page 1 ($C054).</summary>
     public bool Page2 { get; private set; }
 
-    /// <summary>Hi-res ($C057) vs. lo-res ($C056) graphics. Tracked only; no graphics in v1.</summary>
+    /// <summary>Hi-res ($C057) vs. lo-res ($C056) graphics.</summary>
     public bool HiRes { get; private set; }
 
     /// <summary>Number of $C030 accesses. A speaker/audio provider would consume this.</summary>
@@ -69,6 +69,11 @@ public class Apple2SoftSwitches
     public ushort ActiveTextPageBaseAddress => Page2
         ? Video.Apple2TextScreen.TextPage2BaseAddress
         : Video.Apple2TextScreen.TextPage1BaseAddress;
+
+    /// <summary>Base address of the hi-res page the display switches currently select.</summary>
+    public ushort ActiveHiResPageBaseAddress => Page2
+        ? Video.Apple2HiResScreen.HiResPage2BaseAddress
+        : Video.Apple2HiResScreen.HiResPage1BaseAddress;
 
     /// <summary>Wires the I/O page and slot space into the memory map.</summary>
     public void MapIOLocations(Memory mem)
