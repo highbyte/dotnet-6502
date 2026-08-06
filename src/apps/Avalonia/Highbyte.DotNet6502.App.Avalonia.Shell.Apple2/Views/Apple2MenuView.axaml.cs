@@ -83,6 +83,26 @@ public partial class Apple2MenuView : UserControl
             }
         });
 
+    private void OpenDskImage_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var selectedFile = await OpenLocalFileAsync(
+                "Open DOS 3.3 disk image",
+                "Disk Images",
+                "*.dsk", "*.do");
+            if (selectedFile != null)
+            {
+                try
+                {
+                    _ = ViewModel!.AttachDskImageCommand.Execute(selectedFile.Bytes);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error opening .dsk image");
+                }
+            }
+        });
+
     private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {

@@ -87,6 +87,9 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
     // --- End ReactiveUI Commands ---
 
+    // Accordion behavior: expanding one sidebar section collapses the others.
+    private readonly AccordionSections<C64MenuSection> _sections;
+
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveUI WhenAnyValue is used intentionally for ViewModel bindings; members are rooted by XAML and direct references.")]
     public C64MenuViewModel(
         AvaloniaHostApp avaloniaHostApp,
@@ -95,6 +98,9 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         _avaloniaHostApp = avaloniaHostApp ?? throw new ArgumentNullException(nameof(avaloniaHostApp));
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(typeof(C64MenuViewModel).Name);
+
+        _sections = new AccordionSections<C64MenuSection>(
+            OnSectionStateChanged, initiallyExpanded: C64MenuSection.Disk);
 
         InitializeC64Data();
 
@@ -542,61 +548,15 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
     }
 
     // Section expansion state — bound from XAML so both UI clicks and keyboard shortcuts
-    // go through the same ViewModel state.
-    private bool _isDiskSectionExpanded = true;
-    public bool IsDiskSectionExpanded
-    {
-        get => _isDiskSectionExpanded;
-        private set
-        {
-            if (_isDiskSectionExpanded == value)
-                return;
-            _isDiskSectionExpanded = value;
-            this.RaisePropertyChanged(nameof(IsDiskSectionExpanded));
-            this.RaisePropertyChanged(nameof(DiskSectionHeaderText));
-        }
-    }
+    // go through the same ViewModel state. Accordion coordination (expanding one section
+    // collapses the others) is handled by the shared AccordionSections helper.
+    public bool IsDiskSectionExpanded => _sections.IsExpanded(C64MenuSection.Disk);
 
-    private bool _isCartridgeSectionExpanded;
-    public bool IsCartridgeSectionExpanded
-    {
-        get => _isCartridgeSectionExpanded;
-        private set
-        {
-            if (_isCartridgeSectionExpanded == value)
-                return;
-            _isCartridgeSectionExpanded = value;
-            this.RaisePropertyChanged(nameof(IsCartridgeSectionExpanded));
-        }
-    }
+    public bool IsCartridgeSectionExpanded => _sections.IsExpanded(C64MenuSection.Cartridge);
 
-    private bool _isLoadSaveSectionExpanded = false;
-    public bool IsLoadSaveSectionExpanded
-    {
-        get => _isLoadSaveSectionExpanded;
-        private set
-        {
-            if (_isLoadSaveSectionExpanded == value)
-                return;
-            _isLoadSaveSectionExpanded = value;
-            this.RaisePropertyChanged(nameof(IsLoadSaveSectionExpanded));
-            this.RaisePropertyChanged(nameof(LoadSaveSectionHeaderText));
-        }
-    }
+    public bool IsLoadSaveSectionExpanded => _sections.IsExpanded(C64MenuSection.LoadSave);
 
-    private bool _isConfigSectionExpanded = false;
-    public bool IsConfigSectionExpanded
-    {
-        get => _isConfigSectionExpanded;
-        private set
-        {
-            if (_isConfigSectionExpanded == value)
-                return;
-            _isConfigSectionExpanded = value;
-            this.RaisePropertyChanged(nameof(IsConfigSectionExpanded));
-            this.RaisePropertyChanged(nameof(ConfigSectionHeaderText));
-        }
-    }
+    public bool IsConfigSectionExpanded => _sections.IsExpanded(C64MenuSection.Config);
 
     public string DiskSectionHeaderText => "Disk Drive & .D64 images";
     public string LoadSaveSectionHeaderText => "Load/Save";
@@ -604,73 +564,36 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private enum C64MenuSection { Disk, Cartridge, LoadSave, Config }
 
-    private void ToggleSection(C64MenuSection section)
-    {
-        bool newState = section switch
-        {
-            C64MenuSection.Disk => !IsDiskSectionExpanded,
-            C64MenuSection.Cartridge => !IsCartridgeSectionExpanded,
-            C64MenuSection.LoadSave => !IsLoadSaveSectionExpanded,
-            C64MenuSection.Config => !IsConfigSectionExpanded,
-            _ => false,
-        };
-
-        SetSectionExpanded(section, newState, collapseOthers: newState);
-    }
-
-    private void SetSectionExpanded(C64MenuSection section, bool expanded, bool collapseOthers)
+    private void OnSectionStateChanged(C64MenuSection section)
     {
         switch (section)
         {
             case C64MenuSection.Disk:
-                IsDiskSectionExpanded = expanded;
-                if (collapseOthers && expanded)
-                {
-                    IsLoadSaveSectionExpanded = false;
-                    IsConfigSectionExpanded = false;
-                    IsCartridgeSectionExpanded = false;
-                }
+                this.RaisePropertyChanged(nameof(IsDiskSectionExpanded));
+                this.RaisePropertyChanged(nameof(DiskSectionHeaderText));
                 break;
             case C64MenuSection.Cartridge:
-                IsCartridgeSectionExpanded = expanded;
-                if (collapseOthers && expanded)
-                {
-                    IsDiskSectionExpanded = false;
-                    IsLoadSaveSectionExpanded = false;
-                    IsConfigSectionExpanded = false;
-                }
+                this.RaisePropertyChanged(nameof(IsCartridgeSectionExpanded));
                 break;
             case C64MenuSection.LoadSave:
-                IsLoadSaveSectionExpanded = expanded;
-                if (collapseOthers && expanded)
-                {
-                    IsDiskSectionExpanded = false;
-                    IsConfigSectionExpanded = false;
-                    IsCartridgeSectionExpanded = false;
-                }
+                this.RaisePropertyChanged(nameof(IsLoadSaveSectionExpanded));
+                this.RaisePropertyChanged(nameof(LoadSaveSectionHeaderText));
                 break;
             case C64MenuSection.Config:
-                IsConfigSectionExpanded = expanded;
-                if (collapseOthers && expanded)
-                {
-                    IsDiskSectionExpanded = false;
-                    IsLoadSaveSectionExpanded = false;
-                    IsCartridgeSectionExpanded = false;
-                }
+                this.RaisePropertyChanged(nameof(IsConfigSectionExpanded));
+                this.RaisePropertyChanged(nameof(ConfigSectionHeaderText));
                 break;
         }
     }
 
+    private void ToggleSection(C64MenuSection section) => _sections.Toggle(section);
+
     /// <summary>
-    /// Called by the View when validation errors are present: collapse Disk/LoadSave and expand Config.
+    /// Called by the View when validation errors are present: collapse the other sections and
+    /// expand Config.
     /// </summary>
     public void ExpandConfigSectionOnValidationError()
-    {
-        IsDiskSectionExpanded = false;
-        IsCartridgeSectionExpanded = false;
-        IsLoadSaveSectionExpanded = false;
-        IsConfigSectionExpanded = true;
-    }
+        => _sections.SetExpanded(C64MenuSection.Config, true);
 
     // ===== Share link =====
     // URL-length thresholds (total generated URL chars). The binding limit is the host/CDN that

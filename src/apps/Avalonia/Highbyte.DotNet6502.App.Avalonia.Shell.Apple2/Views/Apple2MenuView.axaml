@@ -28,6 +28,64 @@
                     Classes="small"/>
         </Grid>
 
+        <!-- Download & Run programs.
+             Note: there is no "Attach disk image" here on purpose — that concept is reserved
+             for future Disk II hardware emulation. .dsk images are a file *source* only. -->
+        <Button Name="DownloadSectionHeader"
+                AutomationProperties.AutomationId="DownloadSectionHeader"
+                AutomationProperties.Name="Toggle Download and Run section"
+                Classes="section-toggle"
+                Command="{Binding ToggleDownloadSectionCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Grid Width="10" Height="10" VerticalAlignment="Center">
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleRight"
+                                         IsVisible="{Binding !IsDownloadSectionExpanded}"/>
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleDown"
+                                         IsVisible="{Binding IsDownloadSectionExpanded}"/>
+                </Grid>
+                <TextBlock Text="Download &amp; Run programs" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <Border Name="DownloadSectionContent"
+                AutomationProperties.AutomationId="DownloadSectionContent"
+                Classes="collapsible-content"
+                IsVisible="{Binding IsDownloadSectionExpanded}">
+            <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Download a known RAM-resident program and run it"
+                           TextWrapping="Wrap"
+                           Classes="small secondary-text"/>
+
+                <ComboBox AutomationProperties.AutomationId="PreloadedDiskComboBox"
+                          AutomationProperties.Name="Downloadable program"
+                          ItemsSource="{Binding PreloadedPrograms}"
+                          SelectedValue="{Binding SelectedPreloadedProgram}"
+                          DisplayMemberBinding="{Binding Value}"
+                          SelectedValueBinding="{Binding Key}"
+                          HorizontalAlignment="Stretch"/>
+
+                <Button Content="Download &amp; run"
+                        AutomationProperties.AutomationId="DownloadAndRunDiskButton"
+                        AutomationProperties.Name="Download and run the selected program"
+                        IsVisible="{Binding SelectedPreloadedProgram, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Command="{Binding LoadPreloadedProgramCommand}"
+                        Classes="small"/>
+
+                <TextBlock Text="Downloading and starting program..."
+                           IsVisible="{Binding IsLoadingPreloadedProgram}"
+                           Classes="small secondary-text"/>
+
+                <Border Classes="error-container-small"
+                        IsVisible="{Binding HasLatestPreloadedProgramError}">
+                    <TextBlock Text="{Binding LatestPreloadedProgramError}"
+                               TextWrapping="Wrap"
+                               Classes="small"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
         <!-- Load/Save -->
         <Button Name="LoadSaveSectionHeader"
                 AutomationProperties.AutomationId="LoadSaveSectionHeader"
@@ -79,6 +137,39 @@
                         Classes="primary small"
                         IsEnabled="{Binding IsFileOperationEnabled}"
                         Click="LoadBinaryFile_Click"/>
+
+                <TextBlock Text="Load a file from a DOS 3.3 .dsk image (RAM-resident programs only)"
+                           TextWrapping="Wrap"
+                           Classes="small secondary-text"/>
+
+                <Button Content="Load file from .dsk image"
+                        AutomationProperties.AutomationId="LoadFromDskButton"
+                        AutomationProperties.Name="Load file from .dsk disk image"
+                        ToolTip.Tip="Pick a DOS 3.3 .dsk/.do image, then choose a catalog file to load into memory and run. No Disk II emulation — the image is a file source only."
+                        Click="OpenDskImage_Click"
+                        IsEnabled="{Binding IsFileOperationEnabled}"
+                        Classes="small"/>
+
+                <TextBlock Text="{Binding DiskStatusText}"
+                           IsVisible="{Binding DiskStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           TextWrapping="Wrap"
+                           Classes="small secondary-text"/>
+
+                <ComboBox AutomationProperties.AutomationId="DskFileComboBox"
+                          AutomationProperties.Name="Disk catalog file"
+                          IsVisible="{Binding HasAttachedDiskImage}"
+                          ItemsSource="{Binding DskFiles}"
+                          SelectedValue="{Binding SelectedDskFile}"
+                          DisplayMemberBinding="{Binding Value}"
+                          SelectedValueBinding="{Binding Key}"
+                          HorizontalAlignment="Stretch"/>
+
+                <Button Content="Load &amp; run file"
+                        AutomationProperties.AutomationId="RunDskFileButton"
+                        AutomationProperties.Name="Load and run the selected disk file"
+                        IsVisible="{Binding HasAttachedDiskImage}"
+                        Command="{Binding RunDskFileCommand}"
+                        Classes="small"/>
 
                 <TextBlock Text="Assembly example files"
                            Classes="small secondary-text"/>

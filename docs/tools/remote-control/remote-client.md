@@ -110,6 +110,9 @@ dotnet-6502-remote apple2.type --text "PRINT 123"
 # Get the current Applesoft BASIC program as text (Apple II only)
 dotnet-6502-remote apple2.getbasicsource
 
+# Load a tokenized Applesoft program at $0801 with pointer init (Apple II only)
+dotnet-6502-remote apple2.loadbasic --file /path/to/program.bas
+
 # Save / restore a full emulator-state snapshot (relative paths use the emulator host's snapshot directory)
 dotnet-6502-remote emu.savesnapshot --path state.d6502snap
 dotnet-6502-remote emu.loadsnapshot --path state.d6502snap

@@ -78,6 +78,7 @@ public class RemoteCommandDispatcher
                 "apple2.type"           => await HandleApple2TypeAsync(cmd.Id, cmd),
                 "apple2.isbasicstarted" => HandleApple2IsBasicStarted(cmd.Id),
                 "apple2.getbasicsource" => HandleApple2GetBasicSource(cmd.Id),
+                "apple2.loadbasic"      => await HandleFrameAsync(cmd.Id, hostApp => Apple2LoadBasicDirect(hostApp, cmd)),
                 "screenshot"   => HandleScreenshot(cmd.Id),
                 "ui.message"   => HandleUiMessage(cmd.Id, cmd),
                 _              => Err(cmd.Id, $"Unknown command: {cmd.Cmd}"),
@@ -523,6 +524,27 @@ public class RemoteCommandDispatcher
         if (apple2 == null) return err!;
         var source = apple2.HasBasicStarted() ? apple2.BasicTokenParser.GetBasicText() : string.Empty;
         return new RemoteCommandResult { Id = id, Ok = true, Data = source };
+    }
+
+    private static void Apple2LoadBasicDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
+    {
+        if (cmd.Data == null || cmd.Data.Value.ValueKind != System.Text.Json.JsonValueKind.String)
+            throw new ArgumentException("'data' must be a base64-encoded string containing bare tokenized Applesoft bytes (no header)");
+
+        byte[] basicBytes;
+        try { basicBytes = Convert.FromBase64String(cmd.Data.Value.GetString()!); }
+        catch { throw new ArgumentException("'data' is not valid base64"); }
+
+        if (basicBytes.Length < 4)
+            throw new ArgumentException("Applesoft data too short: minimum 4 bytes (line link + line number)");
+
+        var sys = hostApp.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
+        if (sys is not Systems.Apple2.Apple2 apple2) throw new InvalidOperationException("Current system is not an Apple II");
+
+        var loadAddress = Systems.Apple2.Apple2.BASIC_LOAD_ADDRESS;
+        for (int i = 0; i < basicBytes.Length; i++)
+            apple2.Mem[(ushort)((loadAddress + i) & 0xFFFF)] = basicBytes[i];
+        apple2.InitBasicMemoryVariables(loadAddress, basicBytes.Length);
     }
 
     private Systems.Apple2.Apple2? GetApple2System(int? id, out RemoteCommandResult? error)

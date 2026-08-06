@@ -141,6 +141,7 @@ internal static class RemoteClientRequestBuilder
                 break;
 
             case "c64.loadprg":
+            case "apple2.loadbasic":
                 if (parameters.TryGetValue("file", out var prgFile))
                 {
                     if (!File.Exists(prgFile))
@@ -153,7 +154,7 @@ internal static class RemoteClientRequestBuilder
                 }
                 else
                 {
-                    return new RemoteClientRequestBuildResult { Error = "c64.loadprg requires --file <path.prg> or --data <base64>" };
+                    return new RemoteClientRequestBuildResult { Error = $"{cmd} requires --file <path> or --data <base64>" };
                 }
                 break;
 

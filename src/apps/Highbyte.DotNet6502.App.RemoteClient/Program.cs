@@ -50,6 +50,7 @@ var commands = new[]
     ("apple2.type",           "--text <string>",                      "Type text into the Apple II via the keyboard latch (Apple II only)"),
     ("apple2.isbasicstarted", "",                                     "Check if Applesoft BASIC has finished initializing (Apple II only)"),
     ("apple2.getbasicsource", "",                                     "Get the current Applesoft BASIC program as text (Apple II only)"),
+    ("apple2.loadbasic",      "--file <path.bas> | --data <base64>",  "Load bare tokenized Applesoft bytes at $0801 and init BASIC pointers (Apple II only)"),
     ("screenshot",    "[--output <file.png>]",      "Capture screenshot (Base64 PNG or saved to file)"),
     ("ui.message",    "--text <string> [--level info|warning|error]", "Display message in emulator UI"),
 };

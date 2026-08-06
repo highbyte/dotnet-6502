@@ -65,6 +65,13 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
       BRUN-style at the load address.
     - Bundled example programs (one Basic, one ca65 assembly) loadable directly from the
       sidebar; sources in the repository's `samples/` folder.
+- DOS 3.3 `.dsk`/`.do` disk images as a **file source** (no Disk II hardware emulation, so
+  there is no "attach disk" concept — that is reserved for a future Disk II increment):
+  the Avalonia sidebar's Load/Save section can open an image, list its catalog, and load +
+  run an Applesoft (A) or Binary (B) file — B files BRUN-style, A files at `$0801` with
+  pointer init and an automatic `RUN`. A curated "Download &amp; Run programs" section
+  fetches known RAM-resident games (with download caching). Programs that access the disk
+  at runtime (DOS calls, level streaming) cannot work without Disk II emulation.
 - Copy/Paste of Applesoft BASIC in the Avalonia sidebar: **Copy** detokenizes the program in
   memory to source text on the clipboard; **Paste** types clipboard text into the machine via
   the keyboard latch (paced by consumption, letters typed as uppercase).
