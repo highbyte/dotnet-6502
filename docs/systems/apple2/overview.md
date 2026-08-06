@@ -24,8 +24,8 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
 - Soft switches at `$C000`–`$C0FF`, decoded on bits 7-4 so each switch covers 16 addresses:
     - `$C000` keyboard data (ASCII in bits 6-0) + strobe (bit 7).
     - `$C010` clears the strobe.
-    - `$C050`–`$C057` display-mode switches tracked as state (text/graphics, mixed, page 1/2,
-      lo-res/hi-res).
+    - `$C050`–`$C057` display-mode switches (text/graphics, mixed, page 1/2, lo-res/hi-res),
+      honored by the rasterizer render path.
     - `$C030` speaker toggle counted but silent.
 - Empty peripheral slots at `$C100`–`$CFFF` read as `$FF`, which makes the Autostart ROM's disk
   scan fail cleanly so it falls through to BASIC.
@@ -37,13 +37,21 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
     - Normal (`$80`–`$FF`), inverse (`$00`–`$3F`) and flashing (`$40`–`$7F`) video; flashing
       alternates at roughly 2 Hz.
     - Uppercase-only 64-glyph character set, matching the Apple II / II Plus character generator.
-- Monochrome display with a selectable phosphor colour (green, white, amber).
-- Pixel-exact render path (`Apple2Rasterizer`, the default): draws every cell from the real 5&times;7
-  dot patterns in the character generator ROM, in two compositing layers.
+- Lo-res graphics (GR): the active text page reinterpreted as 40&times;48 colour blocks (two
+  stacked 4-bit colours per screen byte), rendered with the 16-colour lo-res palette.
+- Hi-res graphics (HGR): 280&times;192 monochrome dot pattern from page 1 (`$2000`) or page 2
+  (`$4000`), with the same interleaved line addressing as real hardware
+  (`offset = (y % 8) * $400 + ((y / 8) % 8) * $80 + (y / 64) * $28`). Bit 7 of each byte (the
+  NTSC colour-shift bit) is ignored — no colour model yet.
+- Mixed mode: graphics with the bottom 4 text rows, for both lo-res and hi-res.
+- Monochrome text/hi-res display with a selectable phosphor colour (green, white, amber).
+- Pixel-exact render path (`Apple2Rasterizer`, the default): draws text cells from the real 5&times;7
+  dot patterns in the character generator ROM and all graphics modes, in two compositing layers.
 - Lightweight glyph command-stream render path (`Apple2VideoCommandStream`) for hosts that draw
   characters rather than pixels. It renders on an 8-pixel grid using a host font, so on a host
-  with fixed 8&times;8 cells it overflows the 280-pixel display slightly — prefer the rasterizer
-  for a faithful picture.
+  with fixed 8&times;8 cells it overflows the 280-pixel display slightly — and its glyph command
+  vocabulary cannot express pixel graphics, so it always shows the text page. Prefer the
+  rasterizer for a faithful picture and for graphics modes.
 - Host-agnostic input handling — host key to ASCII with Shift and Control, plus typematic
   auto-repeat.
 - CTRL-RESET (warm reset through the reset vector, like the RESET key on the real keyboard)
@@ -76,8 +84,8 @@ For general monitor commands, see [Monitor library](../../libraries/core/dotnet6
 
 ## Not yet implemented
 
-- Graphics modes. The lo-res (GR) and hi-res (HGR) soft switches are tracked but the display
-  always renders the text page.
+- Hi-res colour. Hi-res renders as the monochrome dot pattern in the configured phosphor
+  colour; the NTSC artifact colours (bit 7 + column parity) are not modelled.
 - Audio. `$C030` speaker toggles are counted but not turned into sound.
 - Disk II — the controller is software-driven and is a large, separate effort.
 - Peripheral slots, cassette, paddles and game-port input, light pen.

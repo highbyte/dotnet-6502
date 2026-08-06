@@ -12,8 +12,9 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Render;
 /// of the active 40x24 text page, resolving the interleaved row addressing and the
 /// inverse/flash attributes carried in bits 7-6 of each screen byte.
 ///
-/// v1 always renders the text page, even while the display soft switches select a graphics
-/// mode — the graphics modes themselves are not emulated yet.
+/// The glyph command vocabulary cannot express pixel graphics, so this path always renders the
+/// text page, even while the display soft switches select a graphics mode. Graphics modes are
+/// rendered by the default <see cref="Apple2Rasterizer"/> provider.
 /// </summary>
 [DisplayName("Text Commands")]
 [HelpText("Emits the Apple II 40x24 text page as DrawGlyph video commands.")]

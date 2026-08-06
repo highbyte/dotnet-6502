@@ -9,14 +9,19 @@ using Apple2System = Highbyte.DotNet6502.Systems.Apple2.Apple2;
 namespace Highbyte.DotNet6502.Systems.Apple2.Render;
 
 /// <summary>
-/// Pixel-exact Apple II text renderer: draws each character cell from the real 5x7 dot patterns
-/// in the character generator ROM, into the hardware's 7x8 cell and 280x192 display.
+/// Pixel-exact Apple II renderer for the 280x192 display, honoring the display soft switches:
+/// 40x24 text (each cell drawn from the real 5x7 dot patterns in the character generator ROM),
+/// lo-res 40x48 color blocks, hi-res 280x192 monochrome with page flipping ($2000/$4000), and
+/// mixed mode (graphics with the bottom 4 text rows).
+///
+/// Hi-res is rendered as the monochrome dot pattern (bit 7, the NTSC color-shift bit, is
+/// ignored) in the configured monitor color; lo-res uses the 16-color lo-res palette.
 ///
 /// Two layers, matching the VIC-20 rasterizer: layer 0 is the background, layer 1 the lit
 /// pixels (transparent where unlit) so hosts can composite them.
 /// </summary>
 [DisplayName("Rasterizer")]
-[HelpText("Renders the Apple II text screen as exact pixels using the character generator ROM.")]
+[HelpText("Renders the Apple II text and graphics modes as exact pixels.")]
 public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 {
     private readonly Apple2System _apple2;
@@ -140,15 +145,34 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         Array.Fill(_backBackground, background);
         Array.Clear(_backForeground);
 
+        var switches = _apple2.SoftSwitches;
+        if (switches.TextMode)
+        {
+            RasterizeTextRows(0, Apple2Config.Rows, foreground, background);
+            return;
+        }
+
+        var graphicsHeight = switches.MixedMode ? Apple2Config.MixedModeGraphicsHeight : NativeSize.Height;
+        if (switches.HiRes)
+            RasterizeHiRes(graphicsHeight, foreground, background);
+        else
+            RasterizeLoRes(graphicsHeight, background);
+
+        if (switches.MixedMode)
+            RasterizeTextRows(Apple2Config.MixedModeFirstTextRow, Apple2Config.Rows, foreground, background);
+    }
+
+    private void RasterizeTextRows(int firstRow, int rowsEnd, uint foreground, uint background)
+    {
         var characterRom = _apple2.CharacterRom;
         if (characterRom == null)
-            return;   // No character generator: a blank screen rather than garbage.
+            return;   // No character generator: blank text rows rather than garbage.
 
         var mem = _apple2.Mem;
         var pageBaseAddress = _apple2.SoftSwitches.ActiveTextPageBaseAddress;
         var flashInverted = FlashPhaseInverted;
 
-        for (var row = 0; row < Apple2Config.Rows; row++)
+        for (var row = firstRow; row < rowsEnd; row++)
         {
             var rowStartAddress = Apple2TextScreen.GetRowStartAddress(row, pageBaseAddress);
             var cellPixelY = row * Apple2Config.CharacterHeight;
@@ -185,6 +209,65 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                     }
                 }
             }
+        }
+    }
+
+    private void RasterizeHiRes(int lines, uint foreground, uint background)
+    {
+        var mem = _apple2.Mem;
+        var pageBaseAddress = _apple2.SoftSwitches.ActiveHiResPageBaseAddress;
+
+        for (var y = 0; y < lines; y++)
+        {
+            var lineStartAddress = Apple2HiResScreen.GetLineStartAddress(y, pageBaseAddress);
+            var rowOffset = y * NativeSize.Width;
+
+            for (var byteIndex = 0; byteIndex < Apple2HiResScreen.BytesPerLine; byteIndex++)
+            {
+                var screenByte = mem[(ushort)(lineStartAddress + byteIndex)];
+                var pixelX = byteIndex * Apple2HiResScreen.PixelsPerByte;
+
+                for (var bit = 0; bit < Apple2HiResScreen.PixelsPerByte; bit++)
+                {
+                    var lit = ((screenByte >> bit) & 0x01) != 0;
+                    SetRasterPixel(rowOffset + pixelX + bit, background, lit ? foreground : background);
+                }
+            }
+        }
+    }
+
+    private void RasterizeLoRes(int graphicsHeight, uint background)
+    {
+        var mem = _apple2.Mem;
+        var pageBaseAddress = _apple2.SoftSwitches.ActiveTextPageBaseAddress;
+        var textRows = graphicsHeight / Apple2Config.CharacterHeight;
+
+        for (var row = 0; row < textRows; row++)
+        {
+            var rowStartAddress = Apple2TextScreen.GetRowStartAddress(row, pageBaseAddress);
+            var cellPixelY = row * Apple2Config.CharacterHeight;
+
+            for (var col = 0; col < Apple2Config.Cols; col++)
+            {
+                var screenByte = mem[(ushort)(rowStartAddress + col)];
+                var cellPixelX = col * Apple2LoResScreen.BlockPixelWidth;
+
+                RasterizeLoResBlock(screenByte, upperBlock: true, cellPixelX, cellPixelY, background);
+                RasterizeLoResBlock(screenByte, upperBlock: false, cellPixelX, cellPixelY + Apple2LoResScreen.BlockPixelHeight, background);
+            }
+        }
+    }
+
+    private void RasterizeLoResBlock(byte screenByte, bool upperBlock, int pixelX, int pixelY, uint background)
+    {
+        var color = Apple2LoResScreen.Palette[Apple2LoResScreen.GetColorIndex(screenByte, upperBlock)];
+        var packedColor = PackBgra(color.B, color.G, color.R, color.A);
+
+        for (var y = 0; y < Apple2LoResScreen.BlockPixelHeight; y++)
+        {
+            var rowOffset = (pixelY + y) * NativeSize.Width;
+            for (var x = 0; x < Apple2LoResScreen.BlockPixelWidth; x++)
+                SetRasterPixel(rowOffset + pixelX + x, background, packedColor);
         }
     }
 
