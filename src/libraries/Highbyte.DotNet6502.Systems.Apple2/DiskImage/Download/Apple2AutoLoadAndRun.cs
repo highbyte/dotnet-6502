@@ -38,7 +38,10 @@ public class Apple2AutoLoadAndRun
         _hostApp = hostApp;
     }
 
-    /// <summary>Downloads the program's disk image and loads + runs the chosen file.</summary>
+    /// <summary>
+    /// Downloads the program's disk image and runs it the way the entry asks for: either
+    /// injecting a catalog file into RAM, or booting the disk in the emulated Disk II.
+    /// </summary>
     public async Task DownloadAndRunProgram(Apple2DownloadProgramInfo programInfo)
     {
         // Restart for a clean machine state, like the C64 flow.
@@ -50,6 +53,11 @@ public class Apple2AutoLoadAndRun
 
         await _hostApp.Start();
         var apple2 = (Apple2System)_hostApp.CurrentRunningSystem!;
+
+        if (programInfo.RequiresDisk2Rom && apple2.DiskController.BootRom == null)
+            throw new InvalidOperationException(
+                $"'{programInfo.DisplayName}' boots from disk, which needs the optional 'disk2' ROM. " +
+                "Add it in the Apple II configuration.");
 
         var waited = 0;
         while (!apple2.HasBasicStarted() && waited < BasicBootTimeoutMs)
@@ -63,6 +71,14 @@ public class Apple2AutoLoadAndRun
         var dskBytes = await _downloader.DownloadRomAsync(
             programInfo.DisplayName,
             new RomDownloadSource(programInfo.DownloadUrl, programInfo.ZipEntryName));
+
+        if (programInfo.RunMode == Apple2DownloadRunMode.BootDisk)
+        {
+            // Self-booting titles usually have no DOS catalog at all, so the image goes
+            // straight in the drive without being parsed.
+            await Disk2.Apple2DiskBoot.InsertAndBootAsync(_hostApp, dskBytes, _logger);
+            return;
+        }
 
         var diskImage = DskParser.ParseDskFile(dskBytes, _logger);
         await LoadAndRunFileAsync(_hostApp, diskImage, programInfo.FileName, _logger);

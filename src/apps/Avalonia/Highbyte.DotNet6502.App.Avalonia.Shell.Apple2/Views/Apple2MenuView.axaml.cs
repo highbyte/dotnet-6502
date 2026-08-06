@@ -103,6 +103,33 @@ public partial class Apple2MenuView : UserControl
             }
         });
 
+    /// <summary>One button both ways: eject what is in the drive, or ask for a disk to insert.</summary>
+    private void ToggleDiskImage_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (ViewModel?.HasInsertedDisk == true)
+            {
+                _ = ViewModel.EjectDiskCommand.Execute();
+                return;
+            }
+
+            var selectedFile = await OpenLocalFileAsync(
+                "Insert DOS 3.3 disk image in drive 1",
+                "Disk Images",
+                "*.dsk", "*.do");
+            if (selectedFile != null)
+            {
+                try
+                {
+                    _ = ViewModel!.InsertDiskCommand.Execute(selectedFile.Bytes);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error inserting .dsk image");
+                }
+            }
+        });
+
     private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {

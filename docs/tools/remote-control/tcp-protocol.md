@@ -878,6 +878,80 @@ dotnet-6502-remote apple2.loadbasic --file /path/to/program.bas
 dotnet-6502-remote apple2.type --text "RUN"
 ```
 
+### `apple2.insertdisk`
+
+Puts a DOS 3.3 disk image (140 KB, DOS sector order) in the emulated Disk II drive 1 without
+disturbing the running machine — a diskette swap, which resident DOS picks up on its next access.
+Booting from it is the separate `apple2.bootdisk`. Executed at the next frame boundary, so the
+emulator must be `Running`.
+
+**Apple II only.** Returns an error on other systems.
+
+**Parameters**
+
+| Parameter | Type   | Description                                     |
+|-----------|--------|-------------------------------------------------|
+| `data`    | string | Base64-encoded 140 KB DOS-ordered disk image    |
+
+```json
+{"id": 23, "cmd": "apple2.insertdisk", "data": "<base64 .dsk>"}
+```
+
+```json
+{"id": 23, "ok": true}
+```
+
+```sh
+dotnet-6502-remote apple2.insertdisk --file /path/to/game.dsk
+dotnet-6502-remote apple2.bootdisk
+```
+
+### `apple2.bootdisk`
+
+Boots the machine from the disk in drive 1, the equivalent of typing `PR#6`. Requires the optional
+`disk2` boot ROM and a disk in the drive. Applesoft has no disk commands of its own, so this is
+also how DOS gets loaded in the first place; see
+[Apple II Disk II](../../systems/apple2/disk2.md), which also covers why booting takes a while.
+
+```json
+{"id": 24, "cmd": "apple2.bootdisk"}
+```
+
+```json
+{"id": 24, "ok": true}
+```
+
+### `apple2.ejectdisk`
+
+Removes the disk image from drive 1, leaving the machine running.
+
+```json
+{"id": 24, "cmd": "apple2.ejectdisk"}
+```
+
+```json
+{"id": 24, "ok": true}
+```
+
+### `apple2.diskstatus`
+
+Reports the drive state, which is useful for telling "still loading" from "stuck": the read
+counter keeps climbing while software is reading the disk.
+
+**Response**
+
+| Field  | Type   | Description                                                                    |
+|--------|--------|--------------------------------------------------------------------------------|
+| `data` | string | `inserted`, `bootRom`, `motor`, `spinning`, `track` and `reads` as text         |
+
+```json
+{"id": 25, "cmd": "apple2.diskstatus"}
+```
+
+```json
+{"id": 25, "ok": true, "data": "inserted=True, bootRom=True, motor=False, spinning=False, track=3, reads=81091"}
+```
+
 ---
 
 ## Architecture

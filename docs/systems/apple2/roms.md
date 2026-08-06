@@ -1,11 +1,15 @@
 # ROMs
 
-The Apple II system requires two ROM files:
+The Apple II system requires two ROM files, and can use a third:
 
 | ROM name | Chip | Purpose |
 |---|---|---|
 | `apple2` | `341-011`…`341-015` + `341-020` | Applesoft BASIC + Autostart Monitor, mapped at `$D000`–`$FFFF` |
 | `chargen` | `341-0036` | Character generator — the 64 glyph bitmaps the rasterizer draws |
+| `disk2` *(optional)* | `341-0027` | Disk II 16-sector boot ROM (P5), mapped at `$C600` while a disk is inserted |
+
+Without `disk2` the machine is simply a diskless Apple II Plus; only [booting disk
+images](disk2.md) is unavailable.
 
 !!! important
     Apple II ROMs are copyrighted by Apple. You may need to own a real Apple II to use them.
@@ -27,6 +31,10 @@ The most actively maintained archive is the Asimov mirror, under
   is published at the top level of that directory, so the emulator extracts it from the archive
   by entry name — the archive holds 42 `.bin` files, so matching on extension alone would be
   ambiguous.
+- **Disk II boot ROM** — `Apple Disk II 16 Sector Interface Card ROM P5 - 341-0027.bin-with-D4-D7
+  data bits swapped.bin`. Note the long name: the plainly-named `341-0027` file next to it is a
+  raw PROM dump with the D4–D7 data lines in hardware order, which the CPU cannot execute. The
+  "swapped" variant is the one in CPU bit order, recognisable by starting with `A2 20 A0 00`.
 
 Other sources include AppleWin's source tree and archive.org TOSEC firmware sets; MAME's
 `apple2p` set definition is the authoritative reference for per-chip file names and SHA-1s.
@@ -64,6 +72,20 @@ with bit 7 set and then duplicates both halves. The loader takes the leading 512
 The 64 glyphs are `@ A–Z [ \ ] ^ _` followed by `space ! " # … ?` — uppercase only, which is why
 an Apple II Plus cannot display lowercase.
 
+## The Disk II boot ROM (optional)
+
+| Layout | Size | SHA-1 |
+|--------|------|-------|
+| `341-0027` P5, CPU bit order | 256 bytes | `d4181c9f046aafc3fb326b381baac809d9e38d16` |
+
+This is the controller card's boot PROM, mapped at `$C600` while a disk is inserted. Only the
+16-sector P5 (`341-0027`) is supported; the 13-sector `341-0009` boots the older DOS 3.2 format,
+which the drive emulation does not read.
+
+Watch out for the two circulating dumps of this chip. The one named plainly `341-0027` is a raw
+PROM read with the D4–D7 data lines in hardware order and will not execute; the usable image is
+the one whose name ends "with D4-D7 data bits swapped", and it starts `A2 20 A0 00 A2 03`.
+
 ## Where to put them
 
 By default, desktop hosts look for Apple II ROMs in the shared user content directory:
@@ -81,8 +103,9 @@ packaged defaults:
   "SystemConfig": {
     "ROMDirectory": "",
     "ROMs": [
-      { "Name": "apple2",  "File": "APPLE2.ROM" },
-      { "Name": "chargen", "File": "3410036.BIN" }
+      { "Name": "apple2",  "File": "apple.rom" },
+      { "Name": "chargen", "File": "3410036.BIN" },
+      { "Name": "disk2",   "File": "Apple Disk II 16 Sector Interface Card ROM P5 - 341-0027.bin-with-D4-D7 data bits swapped.bin" }
     ]
   }
 }

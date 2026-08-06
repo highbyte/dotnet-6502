@@ -14,8 +14,9 @@ namespace Highbyte.DotNet6502.Systems.Tests.Apple2;
 /// Boot-to-BASIC verification against a genuine Apple II Plus ROM.
 ///
 /// The ROM is copyrighted and cannot be checked in, so these tests are opt-in: they skip unless
-/// an image is found. Put <c>APPLE2.ROM</c> in the Apple II ROM directory
-/// (<see cref="Apple2SystemConfig.DefaultROMDirectory"/>) or point
+/// an image is found. Put the ROMs in the Apple II ROM directory
+/// (<see cref="Apple2SystemConfig.DefaultROMDirectory"/>) under the names the archive publishes
+/// them with — which is exactly what the app's own ROM download writes — or point
 /// <c>DOTNET6502_APPLE2_ROM</c> at a file, then run:
 /// <code>dotnet test --filter TestType=Integration</code>
 /// The CI-friendly equivalent that needs no third-party ROM is
@@ -26,7 +27,12 @@ public class Apple2RealRomBootTests
 {
     private const string RomPathEnvironmentVariable = "DOTNET6502_APPLE2_ROM";
     private const string CharacterRomPathEnvironmentVariable = "DOTNET6502_APPLE2_CHARGEN_ROM";
-    private const string DefaultRomFileName = "APPLE2.ROM";
+    /// <summary>
+    /// The archive publishes the system ROM as the bare 12 KB image and in the 20 KB layout;
+    /// the loader accepts either. These are also the names the app's ROM download writes.
+    /// </summary>
+    private static readonly string[] s_systemRomFileNames = ["apple.rom", "APPLE2_.ROM"];
+
     private const string DefaultCharacterRomFileName = "3410036.BIN";
 
     /// <summary>Frames to run before the Autostart ROM has reached the Applesoft prompt.</summary>
@@ -201,8 +207,8 @@ public class Apple2RealRomBootTests
         if (romPath == null)
         {
             _output.WriteLine(
-                $"SKIPPED: no Apple II ROM found. Set {RomPathEnvironmentVariable} or place {DefaultRomFileName} in " +
-                $"{Apple2SystemConfig.DefaultROMDirectory}.");
+                $"SKIPPED: no Apple II ROM found. Set {RomPathEnvironmentVariable}, or place one of " +
+                $"[{string.Join(", ", s_systemRomFileNames)}] in {Apple2SystemConfig.DefaultROMDirectory}.");
             return null;
         }
 
@@ -234,8 +240,9 @@ public class Apple2RealRomBootTests
         if (!string.IsNullOrWhiteSpace(fromEnvironment) && File.Exists(fromEnvironment))
             return fromEnvironment;
 
-        var fromRomDirectory = Path.Combine(Apple2SystemConfig.DefaultROMDirectory, DefaultRomFileName);
-        return File.Exists(fromRomDirectory) ? fromRomDirectory : null;
+        return s_systemRomFileNames
+            .Select(name => Path.Combine(Apple2SystemConfig.DefaultROMDirectory, name))
+            .FirstOrDefault(File.Exists);
     }
 
     private static string? ResolveCharacterRomPath()

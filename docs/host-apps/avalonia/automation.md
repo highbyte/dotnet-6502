@@ -45,6 +45,7 @@ Because of this, controls with `Name="…"` already get a stable identifier for 
    ```
 3. **Icon-only buttons** (`↻`, `+`, `i`, pencil, trash) need *both* `AutomationId` and a descriptive `Name`, because the `Content` is a glyph that doesn't describe the action.
 4. **Text-only buttons** (`Content="Start"`) — `Content` already becomes the AX label, so only `AutomationId` is strictly needed. `Name` is added when `Content` is bound or ambiguous.
+   **State-toggling buttons** whose `Content` is bound (e.g. `DiskToggleButton`, whose caption flips between "Insert .dsk image" and "Eject disk") should bind `Name` to that *same* property. A static `Name` overrides the caption in the accessibility tree, so agents and screen readers would no longer be able to tell which state the control is in.
 5. **Decorative elements** (`TextBlock` labels, `Border`, `Image`, layout `Grid`) do not get AutomationProperties unless an agent needs to read their text (e.g. status strings).
 6. **Container-level AutomationId** on root `UserControl`/`Window` elements (`StatisticsView`, `C64InfoView`, `EmulatorPlaceholderView`, dialog windows) so agents can locate and scope to a view.
 
@@ -90,9 +91,13 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **Root**: `Apple2MenuView`
 - **Basic clipboard**: `CopyBasicButton`, `PasteTextButton`
 - **Collapsible section headers**: `DownloadSectionHeader`, `DownloadSectionContent`,
+  `DiskSectionHeader`, `DiskSectionContent`,
   `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
   `ConfigSectionHeader`, `ConfigSectionContent`
 - **Download &amp; Run section**: `PreloadedDiskComboBox`, `DownloadAndRunDiskButton`
+- **Disk drive section** (Disk II): `DiskToggleButton` (insert/eject, label bound to state like
+  the C64's `DiskToggleButton`), `BootDiskButton` (only visible with a disk inserted),
+  `DriveStatusText`
 - **Load/Save section**: `LoadBasicButton`, `SaveBasicButton`, `LoadBinaryButton`,
   `LoadFromDskButton`, `DskFileComboBox`, `RunDskFileButton`,
   `AssemblyExampleComboBox`, `LoadAssemblyExampleButton`, `BasicExampleComboBox`,
@@ -102,7 +107,8 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 ### Apple2ConfigDialog / Apple2ConfigDialogView
 
 - **Window / root**: `Apple2ConfigDialog`, `Apple2ConfigDialogView`
-- **ROMs (dynamic per ROM)**: `RomFileTextBox.apple2`, `RomFileTextBox.chargen`
+- **ROMs (dynamic per ROM)**: `RomFileTextBox.apple2`, `RomFileTextBox.chargen`,
+  `RomFileTextBox.disk2` (optional Disk II boot ROM)
 - **ROM actions**: `RomStatusSummaryText`, `RomDirectoryTextBox`, `LoadRomsButton`,
   `DownloadRomsToFilesButton`, `DownloadRomsToMemoryButton`, `ClearRomsButton`
 - **Display**: `MonitorColorComboBox`, `RenderProviderComboBox`, `RenderTargetComboBox`
@@ -226,8 +232,9 @@ controls exist in the accessibility tree.
 The Apple II menu contributes the Download & Run section (curated downloadable programs),
 the Load/Save section (Applesoft Basic and DOS 3.3 binary files, loading files from .dsk
 images, plus example programs) and the Configuration section — which is the route to the
-ROM settings dialog. There is deliberately no "attach disk image" function: .dsk images
-are a file source only, and the attach concept is reserved for future Disk II emulation.
+ROM settings dialog. It also contributes the Disk drive section, which inserts a .dsk image
+in the emulated Disk II and boots from it — distinct from the Load/Save section, where .dsk
+images are only a file source for injecting a program into RAM.
 
 In addition to the menu shortcut above, the running Apple II emulator itself handles
 **Ctrl+F12** as CTRL-RESET (warm reset through the reset vector). It is emulator keyboard

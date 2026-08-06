@@ -113,6 +113,16 @@ dotnet-6502-remote apple2.getbasicsource
 # Load a tokenized Applesoft program at $0801 with pointer init (Apple II only)
 dotnet-6502-remote apple2.loadbasic --file /path/to/program.bas
 
+# Put a disk image in drive 1 without rebooting, then boot from it (Apple II only)
+dotnet-6502-remote apple2.insertdisk --file /path/to/game.dsk
+dotnet-6502-remote apple2.bootdisk
+
+# Check the drive: a climbing read counter means software is reading the disk (Apple II only)
+dotnet-6502-remote apple2.diskstatus
+
+# Eject the disk (Apple II only)
+dotnet-6502-remote apple2.ejectdisk
+
 # Save / restore a full emulator-state snapshot (relative paths use the emulator host's snapshot directory)
 dotnet-6502-remote emu.savesnapshot --path state.d6502snap
 dotnet-6502-remote emu.loadsnapshot --path state.d6502snap
