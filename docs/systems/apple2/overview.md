@@ -48,8 +48,31 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
   auto-repeat.
 - CTRL-RESET (warm reset through the reset vector, like the RESET key on the real keyboard)
   on **Ctrl + F12**, the same combo the Virtual ][ emulator uses.
+- Program loading without disk emulation, via the Avalonia sidebar's Load/Save section and
+  the machine code monitor:
+    - Applesoft BASIC files as bare tokenized bytes (no header, always at `$0801`); after
+      loading, the Applesoft zero-page pointers are initialised so RUN and LIST work.
+      Save Basic exports the same format.
+    - Binary files in the DOS 3.3 "B" layout (4-byte header: load address + length), started
+      BRUN-style at the load address.
+    - Bundled example programs (one Basic, one ca65 assembly) loadable directly from the
+      sidebar; sources in the repository's `samples/` folder.
+
 - Avalonia Desktop and Avalonia Browser (WASM) UI, with a configuration dialog for ROM files,
   ROM download, monitor colour, render provider and CPU compatibility profile.
+
+## Monitor commands
+
+Additional machine code monitor commands specific to the Apple II system:
+
+```
+Commands:
+  lb     Apple II - Load a tokenized Applesoft BASIC file (no header) from file picker dialog.
+  llb    Apple II - Load a tokenized Applesoft BASIC file (no header) from host file system.
+  sb     Apple II - Save a tokenized Applesoft BASIC file (no header) to host file system.
+```
+
+For general monitor commands, see [Monitor library](../../libraries/core/dotnet6502-monitor.md).
 
 ## Not yet implemented
 

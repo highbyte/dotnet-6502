@@ -1,4 +1,6 @@
+using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Apple2.Config;
+using Highbyte.DotNet6502.Systems.Apple2.Monitor;
 using Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 using Highbyte.DotNet6502.Systems.Apple2.Render;
 using Highbyte.DotNet6502.Systems.Apple2.Video;
@@ -20,9 +22,14 @@ namespace Highbyte.DotNet6502.Systems.Apple2;
 /// Autostart Monitor and Applesoft BASIC poll the keyboard latch directly — so a frame is just
 /// "run the CPU for a frame's worth of cycles, then render".
 /// </summary>
-public class Apple2 : ISystem, ITextMode, IScreen, ISystemState
+public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
 {
     public const string SystemName = "Apple2";
+
+    /// <summary>
+    /// Where a tokenized Applesoft BASIC program starts (TXTTAB points here after boot).
+    /// </summary>
+    public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
     public string Name => SystemName;
     public List<string> SystemInfo => new() { "Apple II Plus", "48 KB RAM" };
@@ -282,6 +289,50 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState
             CPU.Reset(Mem);
         else
             CPU.PC = cpuStartPos.Value;
+    }
+
+    private readonly Apple2MonitorCommands _apple2MonitorCommands = new();
+
+    public ISystemMonitorCommands GetSystemMonitorCommands() => _apple2MonitorCommands;
+
+    /// <summary>
+    /// Initialise the Applesoft zero-page state after a tokenized BASIC program has been placed
+    /// in memory manually (outside of Applesoft's own LOAD code), so that RUN and LIST work.
+    ///
+    /// The Apple II equivalent of <c>C64.InitBasicMemoryVariables</c>.
+    /// </summary>
+    /// <param name="loadedAtAddress">Where the program was placed (normally <see cref="BASIC_LOAD_ADDRESS"/>).</param>
+    /// <param name="fileLength">Length of the tokenized program, including its terminating $00 $00 link.</param>
+    public void InitBasicMemoryVariables(ushort loadedAtAddress, int fileLength)
+    {
+        // Applesoft requires the byte immediately before the program text to be zero.
+        Mem[(ushort)(loadedAtAddress - 1)] = 0x00;
+
+        // TXTTAB $67-$68: start of BASIC program text. Set explicitly so injection also works
+        // when a program is placed before BASIC's cold start has run.
+        Mem.WriteWord(0x67, loadedAtAddress);
+
+        // The variable pointers must point one byte past the program's terminating $00 $00 link:
+        // VARTAB $69-$6A  start of simple variables
+        // ARYTAB $6B-$6C  start of arrays
+        // STREND $6D-$6E  end of arrays (+1) / start of free space
+        // PRGEND $AF-$B0  end of program (Applesoft LOAD/NEW keep this in sync with VARTAB)
+        ushort varStartAddress = (ushort)(loadedAtAddress + fileLength);
+        Mem.WriteWord(0x69, varStartAddress);
+        Mem.WriteWord(0x6B, varStartAddress);
+        Mem.WriteWord(0x6D, varStartAddress);
+        Mem.WriteWord(0xAF, varStartAddress);
+    }
+
+    /// <summary>
+    /// Returns the end address of the current tokenized BASIC program in memory, as an
+    /// <em>exclusive</em> bound (one byte past the program's terminating $00 $00 link) — the
+    /// convention <see cref="Utils.BinarySaver.BuildSaveData"/> and the monitor's save command
+    /// expect, matching <c>C64.GetBasicProgramEndAddress</c>. That is exactly VARTAB.
+    /// </summary>
+    public ushort GetBasicProgramEndAddress()
+    {
+        return Mem.FetchWord(0x69);
     }
 
     /// <summary>
