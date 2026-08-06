@@ -75,7 +75,7 @@ By default the server binds to `127.0.0.1`, so it is only reachable from the sam
 
 ## Limitations
 
-- **Frame-boundary commands require the emulator to be running.** `mem.write`, `cpu.set`, `keyboard.press/release/releaseall`, `joystick.set/press/release/releaseall`, `c64.type`, and `c64.loadprg` return an immediate error if the emulator state is `Paused` or `Uninitialized`. Use `emu.state` to confirm `Running` before sending these commands, or send `emu.start` first.
+- **Frame-boundary commands require the emulator to be running.** `mem.write`, `cpu.set`, `keyboard.press/release/releaseall`, `joystick.set/press/release/releaseall`, `c64.type`, `c64.loadprg`, and `apple2.type` return an immediate error if the emulator state is `Paused` or `Uninitialized`. Use `emu.state` to confirm `Running` before sending these commands, or send `emu.start` first.
 - **There is no `emu.resume` command.** `emu.start` serves dual purpose: it starts the emulator from `Uninitialized` *and* resumes from `Paused`. The existing system state is preserved on resume; use `emu.reset` for a hard restart.
 - **`emu.selectsystem` and `emu.selectvariant` require the emulator to be stopped** (`Uninitialized`). Call `emu.stop` first, then select, then `emu.start`.
 - **`emu.loadsnapshot` leaves the emulator paused**, and **`emu.runframes` requires the emulator to be stopped/paused** (it is rejected while `Running`, since the real-time run loop would make the frame step non-deterministic). The typical automation flow is `emu.loadsnapshot` → `emu.runframes` → `screenshot`. `emu.savesnapshot` / `emu.loadsnapshot` paths are resolved on the **server** (the machine the emulator runs on), not the client; relative paths use the server's shared snapshot directory.
@@ -84,6 +84,7 @@ By default the server binds to `127.0.0.1`, so it is only reachable from the sam
 - **Loopback by default.** The server binds to `127.0.0.1` unless `--remote-bind-address` (or the **Bind** field in the Debug & Remoting tab) is set to a different interface. The wire protocol is unauthenticated — only bind to non-loopback addresses on trusted networks.
 - **`keyboard.press` holds a key until `keyboard.release` or `keyboard.releaseall`.** The client controls press duration by choosing when to release. Keys are applied at frame boundary and remain held until released.
 - **`joystick.press` holds joystick actions until `joystick.release` or `joystick.releaseall`.** Use this for ergonomic hold/release remote control.
-- **`c64.type` and `c64.loadprg` are C64-specific.** Other systems do not implement these and will return an error. The text/PRG is applied at the next frame boundary.
+- **`c64.type` and `c64.loadprg` are C64-specific; `apple2.type` is Apple II-specific.** Other systems do not implement these and will return an error. The text/PRG is applied at the next frame boundary.
 - **`c64.type` feeds text across frames** — if the C64 keyboard buffer is full the remaining characters wait until space is available.
+- **`apple2.type` feeds text across frames** — the Apple II has a single-key latch instead of a buffer, so each character waits until the program has consumed the previous one (at most one per frame).
 - **Injected joystick actions from `joystick.set` are not persistent** — they must be resent every frame to hold a direction. Use `joystick.press` if you want stateful joystick hold/release behavior.

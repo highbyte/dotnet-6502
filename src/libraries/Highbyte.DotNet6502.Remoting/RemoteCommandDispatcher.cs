@@ -75,6 +75,9 @@ public class RemoteCommandDispatcher
                 "c64.type"           => await HandleC64TypeAsync(cmd.Id, cmd),
                 "c64.isbasicstarted" => HandleC64IsBasicStarted(cmd.Id),
                 "c64.getbasicsource" => HandleC64GetBasicSource(cmd.Id),
+                "apple2.type"           => await HandleApple2TypeAsync(cmd.Id, cmd),
+                "apple2.isbasicstarted" => HandleApple2IsBasicStarted(cmd.Id),
+                "apple2.getbasicsource" => HandleApple2GetBasicSource(cmd.Id),
                 "screenshot"   => HandleScreenshot(cmd.Id),
                 "ui.message"   => HandleUiMessage(cmd.Id, cmd),
                 _              => Err(cmd.Id, $"Unknown command: {cmd.Cmd}"),
@@ -497,6 +500,40 @@ public class RemoteCommandDispatcher
         if (sys == null) { error = Err(id, "Emulator not started"); return null; }
         if (sys is not C64 c64) { error = Err(id, "Current system is not a C64"); return null; }
         return c64;
+    }
+
+    private async Task<RemoteCommandResult> HandleApple2TypeAsync(int? id, RemoteCommand cmd)
+    {
+        if (string.IsNullOrEmpty(cmd.Text)) return Err(id, "Missing 'text' parameter");
+        var apple2 = GetApple2System(id, out var err);
+        if (apple2 == null) return err!;
+        return await HandleFrameAsync(id, _ => apple2.TextPaste.Paste(cmd.Text));
+    }
+
+    private RemoteCommandResult HandleApple2IsBasicStarted(int? id)
+    {
+        var apple2 = GetApple2System(id, out var err);
+        if (apple2 == null) return err!;
+        return new RemoteCommandResult { Id = id, Ok = true, IsBasicStarted = apple2.HasBasicStarted() };
+    }
+
+    private RemoteCommandResult HandleApple2GetBasicSource(int? id)
+    {
+        var apple2 = GetApple2System(id, out var err);
+        if (apple2 == null) return err!;
+        var source = apple2.HasBasicStarted() ? apple2.BasicTokenParser.GetBasicText() : string.Empty;
+        return new RemoteCommandResult { Id = id, Ok = true, Data = source };
+    }
+
+    private Systems.Apple2.Apple2? GetApple2System(int? id, out RemoteCommandResult? error)
+    {
+        error = null;
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) { error = Err(id, "Emulator not initialized"); return null; }
+        var sys = hostApp.CurrentRunningSystem;
+        if (sys == null) { error = Err(id, "Emulator not started"); return null; }
+        if (sys is not Systems.Apple2.Apple2 apple2) { error = Err(id, "Current system is not an Apple II"); return null; }
+        return apple2;
     }
 
     // --- Helpers ---

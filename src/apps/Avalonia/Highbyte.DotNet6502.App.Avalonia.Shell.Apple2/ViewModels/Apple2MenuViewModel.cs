@@ -51,6 +51,8 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
+    public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
+    public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
 
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveCommand usage is limited to application-defined view models rooted by the host application.")]
     public Apple2MenuViewModel(AvaloniaHostApp hostApp, ILoggerFactory loggerFactory)
@@ -98,6 +100,16 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
+        CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await CopyBasicSourceCodeAsync(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        PasteTextCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await PasteTextInternalAsync(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
         InitExampleFiles();
     }
 
@@ -119,10 +131,14 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     /// <summary>Load/save needs a started (running or paused) system to load into.</summary>
     public bool IsFileOperationEnabled => _hostApp.EmulatorState != EmulatorState.Uninitialized;
 
+    /// <summary>Copy/paste needs a running system: paste feeds keys the machine must consume.</summary>
+    public bool IsCopyPasteEnabled => _hostApp.EmulatorState == EmulatorState.Running;
+
     public void RaiseEmulatorStateChanged()
     {
         this.RaisePropertyChanged(nameof(IsApple2ConfigEnabled));
         this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
+        this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
     }
 
     // --- Example files (embedded resources) ---
@@ -314,6 +330,70 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             if (wasRunning)
                 await hostApp.Start();
         }
+    }
+
+    // --- Copy/paste of Applesoft BASIC ---
+
+    /// <summary>
+    /// Detokenizes the Applesoft program in memory and asks the View to put the source text on
+    /// the clipboard.
+    /// </summary>
+    private async Task CopyBasicSourceCodeAsync()
+    {
+        if (_hostApp.EmulatorState != EmulatorState.Running ||
+            _hostApp.CurrentRunningSystem is not Apple2System apple2)
+            return;
+
+        try
+        {
+            var sourceCode = apple2.BasicTokenParser.GetBasicText();
+            await RequestClipboardCopyAsync(sourceCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error copying Basic source: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Asks the View for the clipboard text and types it into the machine via the keyboard
+    /// latch (letters become uppercase; the II Plus has no lowercase).
+    /// </summary>
+    private async Task PasteTextInternalAsync()
+    {
+        if (_hostApp.EmulatorState != EmulatorState.Running ||
+            _hostApp.CurrentRunningSystem is not Apple2System apple2)
+            return;
+
+        try
+        {
+            var text = await RequestClipboardPasteAsync();
+            if (!string.IsNullOrEmpty(text))
+                apple2.TextPaste.Paste(text);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error pasting text: {ex.Message}");
+        }
+    }
+
+    // Events for View to handle clipboard operations
+    public event EventHandler<string>? ClipboardCopyRequested;
+    public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
+
+    private async Task RequestClipboardCopyAsync(string text)
+    {
+        ClipboardCopyRequested?.Invoke(this, text);
+        await Task.CompletedTask;
+    }
+
+    private async Task<string?> RequestClipboardPasteAsync()
+    {
+        if (ClipboardPasteRequested == null)
+            return null;
+        var tcs = new TaskCompletionSource<string?>();
+        ClipboardPasteRequested.Invoke(this, tcs);
+        return await tcs.Task;
     }
 
     // --- ISystemMenuContributor ---

@@ -40,6 +40,8 @@ internal static class RemoteClientRequestBuilder
             case "keyboard.getall":
             case "c64.isbasicstarted":
             case "c64.getbasicsource":
+            case "apple2.isbasicstarted":
+            case "apple2.getbasicsource":
                 break;
 
             case "emu.selectsystem":
@@ -134,6 +136,7 @@ internal static class RemoteClientRequestBuilder
                 break;
 
             case "c64.type":
+            case "apple2.type":
                 if (parameters.TryGetValue("text", out var text)) request["text"] = text;
                 break;
 

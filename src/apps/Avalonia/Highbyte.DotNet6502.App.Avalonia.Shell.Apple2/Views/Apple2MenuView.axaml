@@ -8,6 +8,26 @@
              AutomationProperties.Name="Apple II menu">
 
     <StackPanel Classes="spacing-tight">
+        <!-- Copy/Paste buttons -->
+        <Grid Classes="spacing-tight">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0"
+                    Content="Copy"
+                    AutomationProperties.AutomationId="CopyBasicButton"
+                    AutomationProperties.Name="Copy BASIC source to clipboard"
+                    Command="{Binding CopyBasicSourceCommand}"
+                    Classes="small"/>
+            <Button Grid.Column="1"
+                    Content="Paste"
+                    AutomationProperties.AutomationId="PasteTextButton"
+                    AutomationProperties.Name="Paste text from clipboard"
+                    Command="{Binding PasteTextCommand}"
+                    Classes="small"/>
+        </Grid>
+
         <!-- Load/Save -->
         <Button Name="LoadSaveSectionHeader"
                 AutomationProperties.AutomationId="LoadSaveSectionHeader"
