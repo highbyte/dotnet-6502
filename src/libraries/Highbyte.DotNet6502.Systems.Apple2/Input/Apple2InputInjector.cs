@@ -1,0 +1,180 @@
+using Highbyte.DotNet6502.Systems.Input;
+using Apple2System = Highbyte.DotNet6502.Systems.Apple2.Apple2;
+
+namespace Highbyte.DotNet6502.Systems.Apple2.Input;
+
+/// <summary>
+/// Remote-control input injector for the Apple II.
+///
+/// Injected key names resolve to <see cref="HostKey"/> values that are merged into the host's
+/// keys-down set each frame, so injected input flows through the same edge-detection,
+/// auto-repeat, and ASCII mapping in <see cref="Apple2InputHandler"/> as real keyboard input.
+/// A <c>KeyPress</c> lasts one frame (one latch write); <c>HoldKey</c> keeps the key down until
+/// released, which also engages the handler's typematic auto-repeat. "shift" and "ctrl" act as
+/// modifiers combining with other injected keys, exactly like the physical keyboard.
+///
+/// The machine has no per-key state (only the single ASCII latch), so <see cref="IsKeyDown"/>
+/// reflects injected state only. There is no game/joystick port emulation yet, so no joystick
+/// actions are exposed.
+/// </summary>
+public class Apple2InputInjector : IInputInjector
+{
+    private readonly Apple2System _apple2;
+
+    private readonly HashSet<HostKey> _frameInjectedKeys = new();
+    private readonly HashSet<HostKey> _heldKeys = new();
+
+    private static readonly Dictionary<string, HostKey> StringToHostKey = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["a"] = HostKey.KeyA,
+        ["b"] = HostKey.KeyB,
+        ["c"] = HostKey.KeyC,
+        ["d"] = HostKey.KeyD,
+        ["e"] = HostKey.KeyE,
+        ["f"] = HostKey.KeyF,
+        ["g"] = HostKey.KeyG,
+        ["h"] = HostKey.KeyH,
+        ["i"] = HostKey.KeyI,
+        ["j"] = HostKey.KeyJ,
+        ["k"] = HostKey.KeyK,
+        ["l"] = HostKey.KeyL,
+        ["m"] = HostKey.KeyM,
+        ["n"] = HostKey.KeyN,
+        ["o"] = HostKey.KeyO,
+        ["p"] = HostKey.KeyP,
+        ["q"] = HostKey.KeyQ,
+        ["r"] = HostKey.KeyR,
+        ["s"] = HostKey.KeyS,
+        ["t"] = HostKey.KeyT,
+        ["u"] = HostKey.KeyU,
+        ["v"] = HostKey.KeyV,
+        ["w"] = HostKey.KeyW,
+        ["x"] = HostKey.KeyX,
+        ["y"] = HostKey.KeyY,
+        ["z"] = HostKey.KeyZ,
+        ["0"] = HostKey.Digit0,
+        ["1"] = HostKey.Digit1,
+        ["2"] = HostKey.Digit2,
+        ["3"] = HostKey.Digit3,
+        ["4"] = HostKey.Digit4,
+        ["5"] = HostKey.Digit5,
+        ["6"] = HostKey.Digit6,
+        ["7"] = HostKey.Digit7,
+        ["8"] = HostKey.Digit8,
+        ["9"] = HostKey.Digit9,
+        ["space"] = HostKey.Space,
+        ["return"] = HostKey.Enter,
+        ["tab"] = HostKey.Tab,
+        ["esc"] = HostKey.Escape,
+        ["backspace"] = HostKey.Backspace,
+        ["left"] = HostKey.ArrowLeft,
+        ["right"] = HostKey.ArrowRight,
+        ["up"] = HostKey.ArrowUp,
+        ["down"] = HostKey.ArrowDown,
+        ["-"] = HostKey.Minus,
+        ["="] = HostKey.Equal,
+        ["["] = HostKey.BracketLeft,
+        ["]"] = HostKey.BracketRight,
+        ["\\"] = HostKey.Backslash,
+        [";"] = HostKey.Semicolon,
+        ["'"] = HostKey.Quote,
+        [","] = HostKey.Comma,
+        ["."] = HostKey.Period,
+        ["/"] = HostKey.Slash,
+        ["`"] = HostKey.Backquote,
+        ["shift"] = HostKey.ShiftLeft,
+        ["ctrl"] = HostKey.ControlLeft,
+    };
+
+    public Apple2InputInjector(Apple2System apple2)
+    {
+        _apple2 = apple2;
+    }
+
+    /// <summary>Whether any injected keys are active, so callers can skip merge work.</summary>
+    public bool HasInjectedKeys => _frameInjectedKeys.Count > 0 || _heldKeys.Count > 0;
+
+    public IReadOnlyList<string> GetAvailableKeys()
+    {
+        return StringToHostKey.Keys.ToList();
+    }
+
+    public IReadOnlyList<string> GetAvailableJoystickActions()
+    {
+        return Array.Empty<string>();
+    }
+
+    public int JoystickPortCount => 0;
+
+    public void BeginFrame()
+    {
+        _frameInjectedKeys.Clear();
+    }
+
+    public void KeyPress(string keyName)
+    {
+        if (StringToHostKey.TryGetValue(keyName, out var hostKey))
+            _frameInjectedKeys.Add(hostKey);
+    }
+
+    public void KeyRelease(string keyName)
+    {
+        if (StringToHostKey.TryGetValue(keyName, out var hostKey))
+            _frameInjectedKeys.Remove(hostKey);
+    }
+
+    public void KeyReleaseAll()
+    {
+        _frameInjectedKeys.Clear();
+    }
+
+    public void HoldKey(string keyName)
+    {
+        if (StringToHostKey.TryGetValue(keyName, out var hostKey))
+            _heldKeys.Add(hostKey);
+    }
+
+    public void ReleaseHeldKey(string keyName)
+    {
+        if (StringToHostKey.TryGetValue(keyName, out var hostKey))
+            _heldKeys.Remove(hostKey);
+    }
+
+    public void ReleaseAllHeldKeys()
+    {
+        _heldKeys.Clear();
+    }
+
+    public bool IsKeyDown(string keyName)
+    {
+        if (!StringToHostKey.TryGetValue(keyName, out var hostKey))
+            return false;
+        return _heldKeys.Contains(hostKey) || _frameInjectedKeys.Contains(hostKey);
+    }
+
+    public void SetJoystickAction(int port, string actionName, bool pressed) { }
+
+    public void HoldJoystickAction(int port, string actionName) { }
+
+    public void ReleaseHeldJoystickAction(int port, string actionName) { }
+
+    public void ReleaseAllHeldJoystickActions(int port) { }
+
+    public bool IsJoystickActionDown(int port, string actionName) => false;
+
+    public void Clear()
+    {
+        _heldKeys.Clear();
+        BeginFrame();
+    }
+
+    /// <summary>Merges injected keys into the host keys-down set for this frame.</summary>
+    public void ApplyInjectedKeysTo(HashSet<HostKey> hostKeysDown)
+    {
+        foreach (var key in _heldKeys)
+            hostKeysDown.Add(key);
+
+        foreach (var key in _frameInjectedKeys)
+            hostKeysDown.Add(key);
+    }
+}

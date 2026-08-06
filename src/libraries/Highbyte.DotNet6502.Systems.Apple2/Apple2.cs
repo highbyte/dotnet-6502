@@ -1,6 +1,8 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Apple2.Config;
+using Highbyte.DotNet6502.Systems.Apple2.Input;
 using Highbyte.DotNet6502.Systems.Apple2.Monitor;
+using Highbyte.DotNet6502.Systems.Apple2.Utils;
 using Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 using Highbyte.DotNet6502.Systems.Apple2.Render;
 using Highbyte.DotNet6502.Systems.Apple2.Video;
@@ -83,6 +85,16 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     public Apple2Keyboard Keyboard { get; }
     public Apple2SoftSwitches SoftSwitches { get; }
 
+    /// <summary>Types text into the machine by feeding the keyboard latch, one char per frame.</summary>
+    public Apple2TextPaste TextPaste { get; }
+
+    /// <summary>Detokenizes the Applesoft program in memory to BASIC source text.</summary>
+    public Apple2BasicTokenParser BasicTokenParser { get; }
+
+    /// <summary>Remote-control input injector (generic keyboard.* remote commands).</summary>
+    public Apple2InputInjector InputInjector { get; }
+    IInputInjector? ISystem.InputInjector => InputInjector;
+
     private IRenderProvider? _renderProvider;
     public IRenderProvider? RenderProvider => _renderProvider;
     public List<IRenderProvider> RenderProviders { get; } = new();
@@ -107,6 +119,9 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
 
         Keyboard = new Apple2Keyboard();
         SoftSwitches = new Apple2SoftSwitches(Keyboard);
+        TextPaste = new Apple2TextPaste(this, loggerFactory);
+        BasicTokenParser = new Apple2BasicTokenParser(this, loggerFactory);
+        InputInjector = new Apple2InputInjector(this);
 
         Mem = CreateMemory();
         CPU = new CPU(loggerFactory, config.CpuCompatibilityProfile);
@@ -243,6 +258,10 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         }
 
         _renderProviderPerInstructionStat.Stop();
+
+        // Deliver at most one pending pasted character per frame, gated on the previous one
+        // having been consumed (strobe cleared).
+        TextPaste.InsertNextCharacterToLatch();
 
         _renderProviderPerFrameStat.Start();
         _renderProvider?.OnEndFrame();

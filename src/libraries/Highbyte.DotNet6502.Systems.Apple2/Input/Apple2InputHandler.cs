@@ -48,7 +48,16 @@ public class Apple2InputHandler : IInputConsumer
     public void BeforeFrame()
     {
         _inputState.UpdatePerFrame();
-        var keysDown = _inputState.KeysDown;
+        IReadOnlySet<HostKey> keysDown = _inputState.KeysDown;
+
+        // Merge remotely injected keys so they flow through the same edge detection,
+        // auto-repeat, and ASCII mapping as real keyboard input.
+        if (_apple2.InputInjector.HasInjectedKeys)
+        {
+            var merged = new HashSet<HostKey>(keysDown);
+            _apple2.InputInjector.ApplyInjectedKeysTo(merged);
+            keysDown = merged;
+        }
 
         var shift = keysDown.Contains(HostKey.ShiftLeft) || keysDown.Contains(HostKey.ShiftRight);
         var control = keysDown.Contains(HostKey.ControlLeft) || keysDown.Contains(HostKey.ControlRight);

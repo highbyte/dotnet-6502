@@ -47,6 +47,9 @@ var commands = new[]
     ("c64.loadprg",        "--file <path.prg> | --data <base64>",    "Load a PRG file into C64 memory (C64 only)"),
     ("c64.isbasicstarted", "",                                        "Check if C64 BASIC has finished initializing (C64 only)"),
     ("c64.getbasicsource", "",                                        "Get the current BASIC program as text (C64 only)"),
+    ("apple2.type",           "--text <string>",                      "Type text into the Apple II via the keyboard latch (Apple II only)"),
+    ("apple2.isbasicstarted", "",                                     "Check if Applesoft BASIC has finished initializing (Apple II only)"),
+    ("apple2.getbasicsource", "",                                     "Get the current Applesoft BASIC program as text (Apple II only)"),
     ("screenshot",    "[--output <file.png>]",      "Capture screenshot (Base64 PNG or saved to file)"),
     ("ui.message",    "--text <string> [--level info|warning|error]", "Display message in emulator UI"),
 };

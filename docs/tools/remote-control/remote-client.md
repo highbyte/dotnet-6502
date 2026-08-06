@@ -104,6 +104,12 @@ dotnet-6502-remote keyboard.release --key return
 # Paste text into the C64 keyboard buffer (C64 only; use lowercase — see c64.type section in TCP protocol)
 dotnet-6502-remote c64.type --text "load\"*\",8,1"
 
+# Type text into the Apple II via the keyboard latch (Apple II only; typed as uppercase)
+dotnet-6502-remote apple2.type --text "PRINT 123"
+
+# Get the current Applesoft BASIC program as text (Apple II only)
+dotnet-6502-remote apple2.getbasicsource
+
 # Save / restore a full emulator-state snapshot (relative paths use the emulator host's snapshot directory)
 dotnet-6502-remote emu.savesnapshot --path state.d6502snap
 dotnet-6502-remote emu.loadsnapshot --path state.d6502snap

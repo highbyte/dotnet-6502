@@ -65,6 +65,13 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
       BRUN-style at the load address.
     - Bundled example programs (one Basic, one ca65 assembly) loadable directly from the
       sidebar; sources in the repository's `samples/` folder.
+- Copy/Paste of Applesoft BASIC in the Avalonia sidebar: **Copy** detokenizes the program in
+  memory to source text on the clipboard; **Paste** types clipboard text into the machine via
+  the keyboard latch (paced by consumption, letters typed as uppercase).
+- Remote control support: the generic `keyboard.press`/`release` commands work through the
+  system's input injector, and `apple2.type`, `apple2.isbasicstarted` and
+  `apple2.getbasicsource` mirror the C64's typing/BASIC-source commands — see
+  [TCP protocol](../../tools/remote-control/tcp-protocol.md).
 
 - Avalonia Desktop and Avalonia Browser (WASM) UI, with a configuration dialog for ROM files,
   ROM download, monitor colour, render provider and CPU compatibility profile.

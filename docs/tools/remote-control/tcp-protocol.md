@@ -785,6 +785,68 @@ Returns the current BASIC program in memory as a human-readable string with line
 {"id": 18, "ok": true, "data": "10 PRINT \"HELLO\"\n20 GOTO 10\n"}
 ```
 
+### `apple2.type`
+
+Types a string of text into the Apple II by feeding characters through the keyboard latch. The machine has no keyboard buffer — pacing is driven by consumption: the next character is latched only after software has read the previous one and cleared the strobe (at most one character per frame). Letters are typed as uppercase (the II Plus has no lowercase); newline (`\n`) maps to RETURN (`$0D`); characters the Apple II keyboard cannot produce are dropped with a log warning.
+
+**Apple II only.** Returns an error on other systems.
+
+**Parameters**
+
+| Parameter | Type   | Description                                    |
+|-----------|--------|------------------------------------------------|
+| `text`    | string | Text to type, e.g. `10 PRINT "HI"\nRUN\n`      |
+
+```json
+{"id": 19, "cmd": "apple2.type", "text": "PRINT 123\n"}
+```
+
+```json
+{"id": 19, "ok": true}
+```
+
+Unlike `c64.type`, letter case in `text` does not matter — everything is typed uppercase.
+
+### `apple2.isbasicstarted`
+
+Returns whether Applesoft BASIC has finished initializing (the machine has booted to the `]` prompt). Use this to poll before sending `apple2.type` commands.
+
+**Apple II only.**
+
+**Response fields**
+
+| Field            | Type | Description                              |
+|------------------|------|------------------------------------------|
+| `isbasicstarted` | bool | `true` once BASIC initialization is done |
+
+```json
+{"id": 20, "cmd": "apple2.isbasicstarted"}
+```
+
+```json
+{"id": 20, "ok": true, "isbasicstarted": true}
+```
+
+### `apple2.getbasicsource`
+
+Returns the current Applesoft BASIC program in memory as a human-readable string with line numbers (keywords detokenized, LIST-style spacing). Returns an empty string if BASIC has not initialized yet.
+
+**Apple II only.**
+
+**Response fields**
+
+| Field  | Type   | Description                          |
+|--------|--------|--------------------------------------|
+| `data` | string | BASIC source text with line numbers  |
+
+```json
+{"id": 21, "cmd": "apple2.getbasicsource"}
+```
+
+```json
+{"id": 21, "ok": true, "data": "10 PRINT \"HELLO\"\n20 GOTO 10\n"}
+```
+
 ---
 
 ## Architecture

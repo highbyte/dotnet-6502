@@ -88,6 +88,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 ### Apple2MenuView (sidebar)
 
 - **Root**: `Apple2MenuView`
+- **Basic clipboard**: `CopyBasicButton`, `PasteTextButton`
 - **Collapsible section headers**: `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
   `ConfigSectionHeader`, `ConfigSectionContent`
 - **Load/Save section**: `LoadBasicButton`, `SaveBasicButton`, `LoadBinaryButton`,

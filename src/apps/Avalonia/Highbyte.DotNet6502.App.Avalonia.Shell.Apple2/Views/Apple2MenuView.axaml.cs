@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -23,12 +24,64 @@ public partial class Apple2MenuView : UserControl
 
     private Apple2MenuViewModel? ViewModel => DataContext as Apple2MenuViewModel;
 
+    private Apple2MenuViewModel? _subscribedViewModel;
+
     public Apple2MenuView()
     {
         InitializeComponent();
+
+        // Keep clipboard-event subscriptions in sync with the current DataContext.
+        this.DataContextChanged += (s, e) => UpdateViewModelSubscriptions(ViewModel);
+        this.AttachedToVisualTree += (s, e) => UpdateViewModelSubscriptions(ViewModel);
+        this.DetachedFromVisualTree += (s, e) => UpdateViewModelSubscriptions(null);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private void UpdateViewModelSubscriptions(Apple2MenuViewModel? newViewModel)
+    {
+        if (ReferenceEquals(_subscribedViewModel, newViewModel))
+            return;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested -= OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested -= OnClipboardPasteRequested;
+        }
+
+        _subscribedViewModel = newViewModel;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
+        }
+    }
+
+    private void OnClipboardCopyRequested(object? sender, string text)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
+            {
+                using var data = new DataTransfer();
+                data.Add(DataTransferItem.CreateText(text));
+                await clipboard.SetDataAsync(data);
+            }
+        });
+
+    private void OnClipboardPasteRequested(object? sender, TaskCompletionSource<string?> tcs)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is { } topLevel && topLevel.Clipboard is { } clipboard)
+            {
+                using var data = await clipboard.TryGetDataAsync();
+                tcs.TrySetResult(data is not null ? await data.TryGetTextAsync() : null);
+            }
+            else
+            {
+                tcs.TrySetResult(null);
+            }
+        });
 
     private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
