@@ -48,7 +48,7 @@
 
                 <TextBlock Text="{Binding StatusSystemText}"
                            AutomationProperties.AutomationId="StatusBarSystem"
-                           Width="100"
+                           MinWidth="100"
                            FontSize="11"
                            Foreground="{DynamicResource SystemControlForegroundBaseMediumHighBrush}"
                            VerticalAlignment="Center"

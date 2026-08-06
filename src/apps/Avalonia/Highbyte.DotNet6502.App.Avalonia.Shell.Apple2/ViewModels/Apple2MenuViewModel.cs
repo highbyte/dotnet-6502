@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Net.Http;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -13,6 +16,8 @@ using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Apple2.DiskImage;
+using Highbyte.DotNet6502.Systems.Apple2.DiskImage.Download;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
@@ -36,29 +41,56 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
 {
     private readonly AvaloniaHostApp _hostApp;
     private readonly ILogger _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
     private readonly Assembly _examplesAssembly = typeof(AvaloniaHostApp).Assembly;
     private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
 
-    private bool _isConfigSectionExpanded = true;
-    private bool _isLoadSaveSectionExpanded = true;
+    private enum Apple2MenuSection { Download, LoadSave, Config }
+
+    // Accordion behavior (like the C64 menu): expanding one section collapses the others.
+    private readonly AccordionSections<Apple2MenuSection> _sections;
+
+    private readonly HttpClient _httpClient = new();
+    private DskDiskImage? _attachedDiskImage;
+    private Apple2AutoLoadAndRun? _apple2AutoLoadAndRun;
+
+    /// <summary>
+    /// The curated "Download & Run" list. Only RAM-resident programs belong here — the machine
+    /// has no Disk II emulation, so anything that touches the disk at runtime will not work.
+    /// Each entry must be verified in the running emulator before inclusion.
+    /// </summary>
+    private readonly Dictionary<string, Apple2DownloadProgramInfo> _preloadedPrograms = new()
+    {
+        { "applepanic", new Apple2DownloadProgramInfo(
+            "Apple Panic",
+            "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/apple_panic/apple_panic.dsk") },
+    };
 
     public AvaloniaHostApp HostApp => _hostApp;
 
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleDownloadSectionCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
     public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
+    public ReactiveCommand<byte[], Unit> AttachDskImageCommand { get; }
+    public ReactiveCommand<Unit, Unit> RunDskFileCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadPreloadedProgramCommand { get; }
 
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "ReactiveCommand usage is limited to application-defined view models rooted by the host application.")]
     public Apple2MenuViewModel(AvaloniaHostApp hostApp, ILoggerFactory loggerFactory)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _logger = loggerFactory.CreateLogger(nameof(Apple2MenuViewModel));
+        _loggerFactory = loggerFactory;
+
+        _sections = new AccordionSections<Apple2MenuSection>(
+            OnSectionStateChanged, initiallyExpanded: Apple2MenuSection.Download);
 
         _hostApp
             .WhenAnyValue(x => x.EmulatorState)
@@ -67,7 +99,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
         ToggleConfigSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
-                IsConfigSectionExpanded = !IsConfigSectionExpanded;
+                _sections.Toggle(Apple2MenuSection.Config);
                 return Task.CompletedTask;
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
@@ -75,7 +107,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
         ToggleLoadSaveSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
-                IsLoadSaveSectionExpanded = !IsLoadSaveSectionExpanded;
+                _sections.Toggle(Apple2MenuSection.LoadSave);
                 return Task.CompletedTask;
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
@@ -110,19 +142,52 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             this.WhenAnyValue(x => x.IsCopyPasteEnabled),
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
+        ToggleDownloadSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                _sections.Toggle(Apple2MenuSection.Download);
+                return Task.CompletedTask;
+            },
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        AttachDskImageCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
+            fileBytes =>
+            {
+                AttachDskImage(fileBytes);
+                return Task.CompletedTask;
+            },
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        RunDskFileCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await RunDskFileAsync(),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled, x => x.SelectedDskFile,
+                (enabled, selected) => enabled && !string.IsNullOrEmpty(selected)),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        LoadPreloadedProgramCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await LoadPreloadedProgramAsync(),
+            this.WhenAnyValue(x => x.IsLoadingPreloadedProgram).Select(loading => !loading),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
         InitExampleFiles();
+        InitPreloadedPrograms();
     }
 
-    public bool IsConfigSectionExpanded
-    {
-        get => _isConfigSectionExpanded;
-        set => this.RaiseAndSetIfChanged(ref _isConfigSectionExpanded, value);
-    }
+    public bool IsConfigSectionExpanded => _sections.IsExpanded(Apple2MenuSection.Config);
 
-    public bool IsLoadSaveSectionExpanded
+    public bool IsLoadSaveSectionExpanded => _sections.IsExpanded(Apple2MenuSection.LoadSave);
+
+    public bool IsDownloadSectionExpanded => _sections.IsExpanded(Apple2MenuSection.Download);
+
+    private void OnSectionStateChanged(Apple2MenuSection section)
     {
-        get => _isLoadSaveSectionExpanded;
-        set => this.RaiseAndSetIfChanged(ref _isLoadSaveSectionExpanded, value);
+        var propertyName = section switch
+        {
+            Apple2MenuSection.Download => nameof(IsDownloadSectionExpanded),
+            Apple2MenuSection.LoadSave => nameof(IsLoadSaveSectionExpanded),
+            _ => nameof(IsConfigSectionExpanded),
+        };
+        this.RaisePropertyChanged(propertyName);
     }
 
     /// <summary>Configuration may only be edited while the emulator is not running.</summary>
@@ -332,6 +397,156 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
         }
     }
 
+    // --- .dsk disk images as a file source (file-level access — no Disk II hardware
+    // emulation, so this is a program-loading feature, not a drive "attach". The
+    // attach-disk-image concept is reserved for future Disk II emulation.) ---
+
+    /// <summary>Runnable files (Binary/Applesoft) of the opened disk image, name → display text.</summary>
+    public ObservableCollection<KeyValuePair<string, string>> DskFiles { get; } = new();
+
+    private string _selectedDskFile = "";
+    public string SelectedDskFile
+    {
+        get => _selectedDskFile;
+        set => this.RaiseAndSetIfChanged(ref _selectedDskFile, value);
+    }
+
+    public bool HasAttachedDiskImage => _attachedDiskImage != null;
+
+    private string _diskStatusText = "";
+    public string DiskStatusText
+    {
+        get => _diskStatusText;
+        set => this.RaiseAndSetIfChanged(ref _diskStatusText, value);
+    }
+
+    /// <summary>Parses a .dsk image and populates the runnable-file list.</summary>
+    private void AttachDskImage(byte[] fileBytes)
+    {
+        try
+        {
+            var diskImage = DskParser.ParseDskFile(fileBytes, _logger);
+            _attachedDiskImage = diskImage;
+
+            DskFiles.Clear();
+            foreach (var file in diskImage.Files.Where(f =>
+                f.FileType is DskFileType.Binary or DskFileType.ApplesoftBasic))
+            {
+                var typeLetter = file.FileType == DskFileType.Binary ? "B" : "A";
+                DskFiles.Add(new KeyValuePair<string, string>(
+                    file.FileName, $"{file.FileName} ({typeLetter}, {file.Sectors} sectors)"));
+            }
+
+            SelectedDskFile = diskImage.GetFirstRunnableFileName() ?? "";
+            DiskStatusText = DskFiles.Count > 0
+                ? $"Disk volume {diskImage.Volume}: {DskFiles.Count} runnable file(s) of {diskImage.Files.Count} total."
+                : $"Disk volume {diskImage.Volume}: no runnable (Binary/Applesoft) files found.";
+            this.RaisePropertyChanged(nameof(HasAttachedDiskImage));
+        }
+        catch (Exception ex)
+        {
+            _attachedDiskImage = null;
+            DskFiles.Clear();
+            SelectedDskFile = "";
+            DiskStatusText = string.IsNullOrWhiteSpace(ex.Message) ? "Could not parse the disk image." : ex.Message;
+            this.RaisePropertyChanged(nameof(HasAttachedDiskImage));
+            _logger.LogError(ex, "Error parsing .dsk image");
+        }
+    }
+
+    /// <summary>Loads and runs the selected catalog file from the opened disk image.</summary>
+    private async Task RunDskFileAsync()
+    {
+        if (_attachedDiskImage == null || string.IsNullOrEmpty(SelectedDskFile) ||
+            _hostApp.EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        try
+        {
+            await Apple2AutoLoadAndRun.LoadAndRunFileAsync(_hostApp, _attachedDiskImage, SelectedDskFile, _logger);
+        }
+        catch (Exception ex)
+        {
+            DiskStatusText = string.IsNullOrWhiteSpace(ex.Message) ? "Could not load the file." : ex.Message;
+            _logger.LogError(ex, "Error loading file from .dsk image");
+        }
+    }
+
+    // --- Download & Run programs ---
+
+    public ObservableCollection<KeyValuePair<string, string>> PreloadedPrograms { get; } = new();
+
+    private string _selectedPreloadedProgram = "";
+    public string SelectedPreloadedProgram
+    {
+        get => _selectedPreloadedProgram;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedPreloadedProgram, value);
+            LatestPreloadedProgramError = "";
+        }
+    }
+
+    private bool _isLoadingPreloadedProgram;
+    public bool IsLoadingPreloadedProgram
+    {
+        get => _isLoadingPreloadedProgram;
+        set => this.RaiseAndSetIfChanged(ref _isLoadingPreloadedProgram, value);
+    }
+
+    private string _latestPreloadedProgramError = "";
+    public string LatestPreloadedProgramError
+    {
+        get => _latestPreloadedProgramError;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _latestPreloadedProgramError, value);
+            this.RaisePropertyChanged(nameof(HasLatestPreloadedProgramError));
+        }
+    }
+
+    public bool HasLatestPreloadedProgramError => !string.IsNullOrEmpty(LatestPreloadedProgramError);
+
+    private void InitPreloadedPrograms()
+    {
+        PreloadedPrograms.Clear();
+        PreloadedPrograms.Add(new KeyValuePair<string, string>("", "-- Select a program --"));
+        foreach (var (key, info) in _preloadedPrograms)
+            PreloadedPrograms.Add(new KeyValuePair<string, string>(key, info.DisplayName));
+    }
+
+    private async Task LoadPreloadedProgramAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedPreloadedProgram) ||
+            !_preloadedPrograms.TryGetValue(SelectedPreloadedProgram, out var programInfo))
+            return;
+
+        IsLoadingPreloadedProgram = true;
+        LatestPreloadedProgramError = "";
+        try
+        {
+            _apple2AutoLoadAndRun ??= new Apple2AutoLoadAndRun(
+                _loggerFactory,
+                _httpClient,
+                _hostApp,
+                corsProxyUrl: _hostApp.GetCorsProxyUrl(),
+                downloadCache: _hostApp.GetDownloadCache());
+
+            await _apple2AutoLoadAndRun.DownloadAndRunProgram(programInfo);
+        }
+        catch (Exception ex)
+        {
+            LatestPreloadedProgramError = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not download and start the program."
+                : ex.Message;
+            _logger.LogError(ex, "Error downloading and running program {Program}", programInfo.DisplayName);
+        }
+        finally
+        {
+            IsLoadingPreloadedProgram = false;
+        }
+    }
+
     // --- Copy/paste of Applesoft BASIC ---
 
     /// <summary>
@@ -406,6 +621,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         return new NativeMenuItemBase[]
         {
+            BuildMenuItem("Toggle Download & Run section", new KeyGesture(Key.D, macShift), ToggleDownloadSectionCommand),
             BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macShift), ToggleLoadSaveSectionCommand),
             BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macShift), ToggleConfigSectionCommand),
         };
@@ -417,6 +633,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         return new[]
         {
+            BuildKeyBinding(new KeyGesture(Key.D, nonMacShift), ToggleDownloadSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.L, nonMacShift), ToggleLoadSaveSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.C, nonMacShift), ToggleConfigSectionCommand),
         };

@@ -847,6 +847,37 @@ Returns the current Applesoft BASIC program in memory as a human-readable string
 {"id": 21, "ok": true, "data": "10 PRINT \"HELLO\"\n20 GOTO 10\n"}
 ```
 
+### `apple2.loadbasic`
+
+Loads a tokenized Applesoft BASIC program into memory at `$0801` and initialises the
+Applesoft zero-page pointers so `RUN` and `LIST` work. The data is *bare* tokenized bytes —
+no length header (the in-memory/`SAVE`d layout, the same format the sidebar's Load Basic
+uses). Executed at the next frame boundary, so the emulator must be `Running`.
+
+**Apple II only.** Returns an error on other systems.
+
+**Parameters**
+
+| Parameter | Type   | Description                                              |
+|-----------|--------|----------------------------------------------------------|
+| `data`    | string | Base64-encoded bare tokenized Applesoft program bytes    |
+
+```json
+{"id": 22, "cmd": "apple2.loadbasic", "data": "DAgKALoiRFNLIgAAAA=="}
+```
+
+```json
+{"id": 22, "ok": true}
+```
+
+When using `dotnet-6502-remote`, pass `--file <path.bas>` and the client reads and encodes
+the file for you:
+
+```sh
+dotnet-6502-remote apple2.loadbasic --file /path/to/program.bas
+dotnet-6502-remote apple2.type --text "RUN"
+```
+
 ---
 
 ## Architecture

@@ -89,9 +89,12 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 
 - **Root**: `Apple2MenuView`
 - **Basic clipboard**: `CopyBasicButton`, `PasteTextButton`
-- **Collapsible section headers**: `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
+- **Collapsible section headers**: `DownloadSectionHeader`, `DownloadSectionContent`,
+  `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
   `ConfigSectionHeader`, `ConfigSectionContent`
+- **Download &amp; Run section**: `PreloadedDiskComboBox`, `DownloadAndRunDiskButton`
 - **Load/Save section**: `LoadBasicButton`, `SaveBasicButton`, `LoadBinaryButton`,
+  `LoadFromDskButton`, `DskFileComboBox`, `RunDskFileButton`,
   `AssemblyExampleComboBox`, `LoadAssemblyExampleButton`, `BasicExampleComboBox`,
   `LoadBasicExampleButton`
 - **Config section**: `OpenApple2ConfigButton`
@@ -211,12 +214,20 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 
 | Action                           | macOS               | Windows / Linux       |
 | -------------------------------- | ------------------- | --------------------- |
+| Toggle Download & Run section    | `⌘⌥⇧D`         | `Ctrl+Alt+Shift+D`    |
 | Toggle Load/Save section         | `⌘⌥⇧L`         | `Ctrl+Alt+Shift+L`    |
 | Toggle Configuration section     | `⌘⌥⇧C`         | `Ctrl+Alt+Shift+C`    |
 
-The Apple II menu contributes the Load/Save section (Applesoft Basic and DOS 3.3 binary
-files, plus example programs) and the Configuration section — which is the route to the
-ROM settings dialog.
+Sidebar sections behave as an accordion in both the C64 and Apple II menus (shared
+`AccordionSections` helper): expanding one section collapses the others. Automation
+scripts must therefore expand a section (header button or shortcut) before its inner
+controls exist in the accessibility tree.
+
+The Apple II menu contributes the Download & Run section (curated downloadable programs),
+the Load/Save section (Applesoft Basic and DOS 3.3 binary files, loading files from .dsk
+images, plus example programs) and the Configuration section — which is the route to the
+ROM settings dialog. There is deliberately no "attach disk image" function: .dsk images
+are a file source only, and the attach concept is reserved for future Disk II emulation.
 
 In addition to the menu shortcut above, the running Apple II emulator itself handles
 **Ctrl+F12** as CTRL-RESET (warm reset through the reset vector). It is emulator keyboard
