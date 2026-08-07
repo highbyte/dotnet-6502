@@ -13,7 +13,12 @@ namespace Highbyte.DotNet6502.Systems.Tests.Apple2;
 /// </summary>
 public class Apple2RasterizerGraphicsTests
 {
-    private static Apple2System BuildApple2()
+    /// <summary>
+    /// Defaults to a phosphor monitor so the hi-res tests below see the raw dot pattern. Artifact
+    /// colour, which reinterprets those same dots, is covered by
+    /// <see cref="Apple2RasterizerHiResColorTests"/>.
+    /// </summary>
+    private static Apple2System BuildApple2(Apple2MonitorColor monitorColor = Apple2MonitorColor.Green)
     {
         // An all-zero character generator: text cells render blank except inverse video, which
         // lights the whole 7x8 cell — handy for asserting where text rows land in mixed mode.
@@ -21,7 +26,10 @@ public class Apple2RasterizerGraphicsTests
         {
             { Apple2SystemConfig.CHARGEN_ROM_NAME, new byte[Apple2CharSet.CharacterRomSize] },
         };
-        return new Apple2System(new Apple2Config(), NullLoggerFactory.Instance, romData);
+        return new Apple2System(
+            new Apple2Config { MonitorColor = monitorColor },
+            NullLoggerFactory.Instance,
+            romData);
     }
 
     private static Apple2Rasterizer GetRasterizer(Apple2System apple2)

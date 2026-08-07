@@ -22,7 +22,12 @@ public class Apple2SyntheticRomTests
         {
             { Apple2SystemConfig.SYSTEM_ROM_NAME, Apple2SyntheticRom.Build() },
         };
-        return new Apple2System(new Apple2Config(), NullLoggerFactory.Instance, romData);
+        // Pinned to a phosphor monitor so the colour assertions below stay independent of
+        // whichever monitor the shipped config defaults to.
+        return new Apple2System(
+            new Apple2Config { MonitorColor = Apple2MonitorColor.Green },
+            NullLoggerFactory.Instance,
+            romData);
     }
 
     /// <summary>The rasterizer is the default provider, so select the command stream explicitly.</summary>

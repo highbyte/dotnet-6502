@@ -48,7 +48,12 @@ public class Apple2RasterizerTests
         {
             { Apple2SystemConfig.CHARGEN_ROM_NAME, characterRom ?? BuildTestCharacterRom() },
         };
-        return new Apple2System(new Apple2Config(), NullLoggerFactory.Instance, romData);
+        // Pinned to a phosphor monitor: these tests assert green text, independently of whichever
+        // monitor the shipped config defaults to.
+        return new Apple2System(
+            new Apple2Config { MonitorColor = Apple2MonitorColor.Green },
+            NullLoggerFactory.Instance,
+            romData);
     }
 
     private static Apple2Rasterizer GetRasterizer(Apple2System apple2)

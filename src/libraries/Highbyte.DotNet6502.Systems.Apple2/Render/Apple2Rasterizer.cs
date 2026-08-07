@@ -14,8 +14,10 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Render;
 /// lo-res 40x48 color blocks, hi-res 280x192 monochrome with page flipping ($2000/$4000), and
 /// mixed mode (graphics with the bottom 4 text rows).
 ///
-/// Hi-res is rendered as the monochrome dot pattern (bit 7, the NTSC color-shift bit, is
-/// ignored) in the configured monitor color; lo-res uses the 16-color lo-res palette.
+/// How hi-res is drawn follows the configured monitor: the three phosphor settings render the
+/// raw dot pattern in that phosphor's color (bit 7, the NTSC color-shift bit, is ignored), while
+/// <see cref="Apple2MonitorColor.Color"/> decodes the dots as artifact colors — see
+/// <see cref="Apple2HiResColors"/>. Lo-res uses the 16-color lo-res palette either way.
 ///
 /// Two layers, matching the VIC-20 rasterizer: layer 0 is the background, layer 1 the lit
 /// pixels (transparent where unlit) so hosts can composite them.
@@ -32,6 +34,11 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     private uint[] _backBackground;
     private uint[] _backForeground;
     private readonly ReadOnlyMemory<uint>[] _cachedLayerBuffers;
+
+    // One hi-res scan line's dot stream, reused per line. Artifact color needs a pixel's
+    // neighbors, which cross byte boundaries, so the whole line is expanded before it is drawn.
+    private readonly bool[] _hiResLineLit = new bool[Apple2Config.DrawableAreaWidth];
+    private readonly bool[] _hiResLineHighBit = new bool[Apple2Config.DrawableAreaWidth];
 
     private int _frameCounter;
 
@@ -135,6 +142,9 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     public static uint PackBgra(byte b, byte g, byte r, byte a)
         => (uint)(b | (g << 8) | (r << 16) | (a << 24));
 
+    private static uint PackColor(System.Drawing.Color color)
+        => PackBgra(color.B, color.G, color.R, color.A);
+
     private void RasterizeFrame()
     {
         var foregroundArgb = Apple2Colors.GetForeground(_apple2.Apple2Config.MonitorColor);
@@ -214,6 +224,14 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     private void RasterizeHiRes(int lines, uint foreground, uint background)
     {
+        if (Apple2Colors.IsColorMonitor(_apple2.Apple2Config.MonitorColor))
+            RasterizeHiResColor(lines, background);
+        else
+            RasterizeHiResMonochrome(lines, foreground, background);
+    }
+
+    private void RasterizeHiResMonochrome(int lines, uint foreground, uint background)
+    {
         var mem = _apple2.Mem;
         var pageBaseAddress = _apple2.SoftSwitches.ActiveHiResPageBaseAddress;
 
@@ -232,6 +250,71 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
                     var lit = ((screenByte >> bit) & 0x01) != 0;
                     SetRasterPixel(rowOffset + pixelX + bit, background, lit ? foreground : background);
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws hi-res as a color monitor decodes it. The unit is the color cycle — two dots — not
+    /// the dot, because a monitor's chroma bandwidth is far below the 7.16 MHz dot rate and it
+    /// cannot resolve the dots inside a cycle. So a lit dot colors both columns of its cycle,
+    /// which is what makes a colored area continuous instead of a comb of dots and black gaps,
+    /// and why color resolution is 140 across rather than 280.
+    ///
+    /// White is still decided per dot: two adjacent lit dots cover a whole cycle and read as a
+    /// white blob two columns wide, rather than widening to the four columns of both cycles they
+    /// happen to straddle.
+    /// </summary>
+    private void RasterizeHiResColor(int lines, uint background)
+    {
+        var mem = _apple2.Mem;
+        var pageBaseAddress = _apple2.SoftSwitches.ActiveHiResPageBaseAddress;
+
+        var white = PackColor(Apple2HiResColors.White);
+        Span<uint> artifactColors = stackalloc uint[4];
+        for (var i = 0; i < artifactColors.Length; i++)
+            artifactColors[i] = PackColor(Apple2HiResColors.GetArtifactColor(column: i & 1, highBitSet: i >= 2));
+
+        var lit = _hiResLineLit;
+        var highBit = _hiResLineHighBit;
+        var width = lit.Length;
+
+        for (var y = 0; y < lines; y++)
+        {
+            var lineStartAddress = Apple2HiResScreen.GetLineStartAddress(y, pageBaseAddress);
+
+            for (var byteIndex = 0; byteIndex < Apple2HiResScreen.BytesPerLine; byteIndex++)
+            {
+                var screenByte = mem[(ushort)(lineStartAddress + byteIndex)];
+                var byteHighBit = (screenByte & 0x80) != 0;
+                var pixelX = byteIndex * Apple2HiResScreen.PixelsPerByte;
+
+                for (var bit = 0; bit < Apple2HiResScreen.PixelsPerByte; bit++)
+                {
+                    lit[pixelX + bit] = ((screenByte >> bit) & 0x01) != 0;
+                    highBit[pixelX + bit] = byteHighBit;
+                }
+            }
+
+            var rowOffset = y * NativeSize.Width;
+            for (var even = 0; even < width; even += 2)
+            {
+                var odd = even + 1;
+
+                // A lit dot next to another lit dot covers a whole cycle on its own: white.
+                var evenIsWhite = lit[even] && ((even > 0 && lit[even - 1]) || lit[odd]);
+                var oddIsWhite = lit[odd] && (lit[even] || (odd + 1 < width && lit[odd + 1]));
+
+                // Otherwise one lit dot tints the entire cycle. Both dots of a cycle can never be
+                // lit here — that makes them adjacent, so both took the white branch above.
+                var cycleColor = background;
+                if (lit[even] && !evenIsWhite)
+                    cycleColor = artifactColors[highBit[even] ? 2 : 0];
+                else if (lit[odd] && !oddIsWhite)
+                    cycleColor = artifactColors[(highBit[odd] ? 2 : 0) | 1];
+
+                SetRasterPixel(rowOffset + even, background, evenIsWhite ? white : cycleColor);
+                SetRasterPixel(rowOffset + odd, background, oddIsWhite ? white : cycleColor);
             }
         }
     }
@@ -260,8 +343,7 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     private void RasterizeLoResBlock(byte screenByte, bool upperBlock, int pixelX, int pixelY, uint background)
     {
-        var color = Apple2LoResScreen.Palette[Apple2LoResScreen.GetColorIndex(screenByte, upperBlock)];
-        var packedColor = PackBgra(color.B, color.G, color.R, color.A);
+        var packedColor = PackColor(Apple2LoResScreen.Palette[Apple2LoResScreen.GetColorIndex(screenByte, upperBlock)]);
 
         for (var y = 0; y < Apple2LoResScreen.BlockPixelHeight; y++)
         {

@@ -113,7 +113,7 @@ public class Apple2SystemConfig : ISystemConfig
     /// <summary>The Apple II speaker is not emulated yet.</summary>
     public bool AudioEnabled { get; set; } = false;
 
-    private Apple2MonitorColor _monitorColor = Apple2MonitorColor.Green;
+    private Apple2MonitorColor _monitorColor = Apple2MonitorColor.Color;
     public Apple2MonitorColor MonitorColor
     {
         get => _monitorColor;

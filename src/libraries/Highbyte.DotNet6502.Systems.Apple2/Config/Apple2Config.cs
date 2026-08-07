@@ -45,7 +45,7 @@ public class Apple2Config
 
     public float ScreenRefreshFrequencyHz { get; set; } = 59.92f;
 
-    public Apple2MonitorColor MonitorColor { get; set; } = Apple2MonitorColor.Green;
+    public Apple2MonitorColor MonitorColor { get; set; } = Apple2MonitorColor.Color;
 
     public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
 }

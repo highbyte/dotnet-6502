@@ -42,12 +42,19 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
     - Uppercase-only 64-glyph character set, matching the Apple II / II Plus character generator.
 - Lo-res graphics (GR): the active text page reinterpreted as 40&times;48 colour blocks (two
   stacked 4-bit colours per screen byte), rendered with the 16-colour lo-res palette.
-- Hi-res graphics (HGR): 280&times;192 monochrome dot pattern from page 1 (`$2000`) or page 2
-  (`$4000`), with the same interleaved line addressing as real hardware
-  (`offset = (y % 8) * $400 + ((y / 8) % 8) * $80 + (y / 64) * $28`). Bit 7 of each byte (the
-  NTSC colour-shift bit) is ignored — no colour model yet.
+- Hi-res graphics (HGR): 280&times;192 from page 1 (`$2000`) or page 2 (`$4000`), with the same
+  interleaved line addressing as real hardware
+  (`offset = (y % 8) * $400 + ((y / 8) % 8) * $80 + (y / 64) * $28`).
+- Hi-res NTSC artifact colour on a colour monitor: an isolated lit dot takes its colour from the
+  parity of its column across the scan line (violet or green) shifted by bit 7 of its byte (blue
+  or orange), and a dot with a lit neighbour reads as white. These are the six colours Applesoft
+  exposes through `HCOLOR`. The unit of colour is the two-dot colour cycle, so one lit dot tints
+  both of its columns and colour resolution is 140 across rather than 280 — as on the hardware,
+  where the monitor cannot resolve the dots inside a cycle. On the phosphor monitor settings the
+  same dots render as the plain monochrome pattern at the full 280 instead.
 - Mixed mode: graphics with the bottom 4 text rows, for both lo-res and hi-res.
-- Monochrome text/hi-res display with a selectable phosphor colour (green, white, amber).
+- Selectable monitor: a composite colour monitor (the default) or a green, white or amber
+  phosphor monitor. Text is monochrome either way — a colour monitor renders it white.
 - Pixel-exact render path (`Apple2Rasterizer`, the default): draws text cells from the real 5&times;7
   dot patterns in the character generator ROM and all graphics modes, in two compositing layers.
 - Lightweight glyph command-stream render path (`Apple2VideoCommandStream`) for hosts that draw
@@ -104,8 +111,9 @@ For general monitor commands, see [Monitor library](../../libraries/core/dotnet6
 
 ## Not yet implemented
 
-- Hi-res colour. Hi-res renders as the monochrome dot pattern in the configured phosphor
-  colour; the NTSC artifact colours (bit 7 + column parity) are not modelled.
+- NTSC-accurate hi-res colour. The six artifact colours are modelled, but the underlying
+  half-dot shift is not: bit 7 selects a colour rather than moving the dots half a pixel, so
+  colour fringing at black/white boundaries does not appear.
 - Audio. `$C030` speaker toggles are counted but not turned into sound.
 - Disk II writing (the drive is always write-protected), a second drive, ProDOS-ordered `.po`
   images, and nibble/flux (`.nib`/`.woz`) media. See [Disk II](disk2.md) for what is supported.
