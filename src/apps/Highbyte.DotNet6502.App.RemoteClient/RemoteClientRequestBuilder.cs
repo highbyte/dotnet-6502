@@ -184,7 +184,7 @@ internal static class RemoteClientRequestBuilder
 
     private static string? ApplyJoystickState(Dictionary<string, string?> parameters, Dictionary<string, object?> request, bool allowExplicitFalse)
     {
-        foreach (var action in new[] { "up", "down", "left", "right", "fire" })
+        foreach (var action in new[] { "up", "down", "left", "right", "fire", "fire2" })
         {
             var parseResult = ParseJoystickState(parameters, action, allowExplicitFalse);
             if (parseResult.Error != null)

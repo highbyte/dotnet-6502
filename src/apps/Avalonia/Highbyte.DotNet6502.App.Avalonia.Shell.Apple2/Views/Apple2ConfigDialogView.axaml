@@ -214,6 +214,26 @@
                 </StackPanel>
             </Border>
         </StackPanel>
+
+        <!-- Input Section -->
+        <StackPanel Width="368" Classes="wrap-item">
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Input &amp; Joystick"
+                            Classes=""/>
+
+                <CheckBox AutomationProperties.AutomationId="KeyboardJoystickEnableCheckBox"
+                        AutomationProperties.Name="Enable keyboard joystick controls"
+                        Content="Enable keyboard joystick controls"
+                        IsChecked="{Binding KeyboardJoystickEnabled}"/>
+
+                <TextBlock Text="W A S D steer the game port, Space is button 1 and Left Shift is button 2. Those keys stop reaching the Apple II keyboard while this is on. A host gamepad always works and needs no setting."
+                            Classes="small secondary-text"
+                            TextWrapping="Wrap"/>
+
+                </StackPanel>
+            </Border>
+        </StackPanel>
       </WrapPanel>
     </ScrollViewer>
 

@@ -120,6 +120,18 @@ public class Apple2SystemConfig : ISystemConfig
         set { _monitorColor = value; _isDirty = true; }
     }
 
+    /// <summary>
+    /// Whether host keys drive the game port. Lives here, on the persisted system config, rather
+    /// than on the runtime mapping — the same place the C64 keeps it, so there is one source of
+    /// truth that survives a restart and one place the config dialog and the sidebar both bind to.
+    /// </summary>
+    private bool _keyboardJoystickEnabled;
+    public bool KeyboardJoystickEnabled
+    {
+        get => _keyboardJoystickEnabled;
+        set { _keyboardJoystickEnabled = value; _isDirty = true; }
+    }
+
     private CpuCompatibilityProfile _cpuCompatibilityProfile = CpuCompatibilityProfile.StableUnofficial;
     public CpuCompatibilityProfile CpuCompatibilityProfile
     {

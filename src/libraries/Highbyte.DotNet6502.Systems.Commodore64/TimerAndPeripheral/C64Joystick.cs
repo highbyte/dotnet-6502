@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Input;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -6,7 +7,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 public class C64Joystick
 {
     private readonly ILogger _logger;
-    public Dictionary<int, HashSet<C64JoystickAction>> CurrentJoystickActions { get; private set; } = new()
+    public Dictionary<int, HashSet<JoystickAction>> CurrentJoystickActions { get; private set; } = new()
     {
         {1, new() },
         {2, new() }
@@ -32,7 +33,7 @@ public class C64Joystick
         }
     }
 
-    public void SetJoystickActions(int joystick, HashSet<C64JoystickAction> joystickActions, bool overwrite = true)
+    public void SetJoystickActions(int joystick, HashSet<JoystickAction> joystickActions, bool overwrite = true)
     {
         if (joystick != 1 && joystick != 2)
             throw new ArgumentException($"Joystick number {joystick} is not supported. Valid values are 1 and 2.");
@@ -53,16 +54,21 @@ public class C64Joystick
             }
         }
     }
-}
-/// <summary>
-/// Possible joystick actions. More than one can be active at the same time.
-/// The integer value corresponds to the bit position in the joystick register (set = not active, clear = active).
-/// </summary>
-public enum C64JoystickAction
-{
-    Up = 0,
-    Down = 1,
-    Left = 2,
-    Right = 3,
-    Fire = 4
+
+    /// <summary>
+    /// The CIA 1 data-port bit a joystick action pulls low. Stated here rather than cast from the
+    /// enum's numeric value: <see cref="JoystickAction"/> is shared with other systems, and a
+    /// reorder or a new member added for one of them would otherwise silently change which bit
+    /// the C64 clears.
+    /// </summary>
+    public static int GetPortBit(JoystickAction action) => action switch
+    {
+        JoystickAction.Up => 0,
+        JoystickAction.Down => 1,
+        JoystickAction.Left => 2,
+        JoystickAction.Right => 3,
+        JoystickAction.Fire => 4,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(action), action, "No C64 joystick port bit for this action."),
+    };
 }

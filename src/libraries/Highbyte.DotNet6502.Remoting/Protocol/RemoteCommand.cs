@@ -44,6 +44,12 @@ public class RemoteCommand
     [JsonPropertyName("fire")]
     public bool? Fire { get; set; }
 
+    /// <summary>
+    /// The second joystick button. Only the Apple II game port has one; systems without it ignore
+    /// the field rather than erroring, so one script can drive either machine.
+    /// </summary>
+    public bool? Fire2 { get; set; }
+
     // keyboard.press / keyboard.release / keyboard.iskeydown
     [JsonPropertyName("key")]
     public string? Key { get; set; }

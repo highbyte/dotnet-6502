@@ -42,7 +42,13 @@ public class Apple2AutoLoadAndRun
     /// Downloads the program's disk image and runs it the way the entry asks for: either
     /// injecting a catalog file into RAM, or booting the disk in the emulated Disk II.
     /// </summary>
-    public async Task DownloadAndRunProgram(Apple2DownloadProgramInfo programInfo)
+    /// <param name="setConfigCallback">
+    /// Applies per-program emulator settings. Called while the emulator is stopped, so the machine
+    /// picks them up as it starts — the same hook the C64 flow uses.
+    /// </param>
+    public async Task DownloadAndRunProgram(
+        Apple2DownloadProgramInfo programInfo,
+        Func<Apple2DownloadProgramInfo, Task>? setConfigCallback = null)
     {
         // Restart for a clean machine state, like the C64 flow.
         if (_hostApp.EmulatorState is EmulatorState.Running or EmulatorState.Paused)
@@ -50,6 +56,9 @@ public class Apple2AutoLoadAndRun
             _logger.LogInformation("Stopping emulator before program download.");
             _hostApp.Stop();
         }
+
+        if (setConfigCallback != null)
+            await setConfigCallback(programInfo);
 
         await _hostApp.Start();
         var apple2 = (Apple2System)_hostApp.CurrentRunningSystem!;

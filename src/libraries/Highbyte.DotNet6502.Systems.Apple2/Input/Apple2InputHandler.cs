@@ -24,6 +24,10 @@ public class Apple2InputHandler : IInputConsumer
 
     private readonly Apple2System _apple2;
     private readonly ILogger _logger;
+    private readonly Apple2InputConfig _inputConfig;
+
+    // Reused per frame so a held stick does not allocate 60 times a second.
+    private readonly HashSet<JoystickAction> _joystickActions = new();
 
     private IHostInputState _inputState = default!;
 
@@ -34,11 +38,15 @@ public class Apple2InputHandler : IInputConsumer
     public ISystem System => _apple2;
     public Instrumentations Instrumentations { get; } = new();
 
-    public Apple2InputHandler(Apple2System apple2, ILoggerFactory loggerFactory)
+    public Apple2InputHandler(Apple2System apple2, ILoggerFactory loggerFactory, Apple2InputConfig? inputConfig = null)
     {
         _apple2 = apple2;
         _logger = loggerFactory.CreateLogger(nameof(Apple2InputHandler));
+        _inputConfig = inputConfig ?? new Apple2InputConfig();
     }
+
+    /// <summary>The gamepad and keyboard-joystick mapping in force.</summary>
+    public Apple2InputConfig InputConfig => _inputConfig;
 
     public void Init(IHostInputState inputState)
     {
@@ -58,6 +66,8 @@ public class Apple2InputHandler : IInputConsumer
             _apple2.InputInjector.ApplyInjectedKeysTo(merged);
             keysDown = merged;
         }
+
+        keysDown = ApplyJoystick(keysDown);
 
         var shift = keysDown.Contains(HostKey.ShiftLeft) || keysDown.Contains(HostKey.ShiftRight);
         var control = keysDown.Contains(HostKey.ControlLeft) || keysDown.Contains(HostKey.ControlRight);
@@ -81,6 +91,50 @@ public class Apple2InputHandler : IInputConsumer
         _previousKeysDown.Clear();
         foreach (var k in keysDown)
             _previousKeysDown.Add(k);
+    }
+
+    /// <summary>
+    /// Turns the gamepad — and the host keyboard, when the keyboard joystick is enabled — into
+    /// game-port state, and returns the keys that are still the keyboard's to handle.
+    ///
+    /// Keys claimed by the joystick are withheld from the keyboard: a key cannot both steer and
+    /// type, and the arrow keys the joystick uses by default are real Apple II keys.
+    /// </summary>
+    private IReadOnlySet<HostKey> ApplyJoystick(IReadOnlySet<HostKey> keysDown)
+    {
+        _joystickActions.Clear();
+
+        foreach (var (buttons, actions) in _inputConfig.GamePadToJoystickMap)
+        {
+            if (buttons.All(_inputState.GamepadButtonsDown.Contains))
+            {
+                foreach (var action in actions)
+                    _joystickActions.Add(action);
+            }
+        }
+
+        var remainingKeys = keysDown;
+        if (_inputConfig.KeyboardJoystickEnabled)
+        {
+            HashSet<HostKey>? claimed = null;
+            foreach (var (key, action) in _inputConfig.KeyboardToJoystickMap)
+            {
+                if (!keysDown.Contains(key))
+                    continue;
+                _joystickActions.Add(action);
+                (claimed ??= new HashSet<HostKey>(keysDown)).Remove(key);
+            }
+            if (claimed != null)
+                remainingKeys = claimed;
+        }
+
+        // Remotely injected actions join the same set, so a script drives the port through the
+        // identical path a gamepad does.
+        _apple2.InputInjector.ApplyInjectedJoystickActionsTo(_joystickActions);
+        _apple2.InputInjector.ClearFrameInjectedJoystickActions();
+
+        _apple2.GamePort.ApplyJoystickActions(_joystickActions);
+        return remainingKeys;
     }
 
     public void Cleanup() { }

@@ -295,6 +295,23 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
     public string SelectedMonitorColorHelpText => SelectedMonitorColor?.HelpText ?? string.Empty;
 
+    /// <summary>
+    /// Whether host keys drive the game port. Edits the working copy like every other setting in
+    /// this dialog, so Cancel discards it; the sidebar checkbox is the live counterpart for
+    /// toggling it while a game is running.
+    /// </summary>
+    public bool KeyboardJoystickEnabled
+    {
+        get => _workingConfig.SystemConfig.KeyboardJoystickEnabled;
+        set
+        {
+            if (_workingConfig.SystemConfig.KeyboardJoystickEnabled == value)
+                return;
+            _workingConfig.SystemConfig.KeyboardJoystickEnabled = value;
+            this.RaisePropertyChanged();
+        }
+    }
+
     public string OkButtonText => IsRunningInWebAssembly ? "Save" : "Ok";
 
     /// <summary>
@@ -459,6 +476,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
             _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
             _originalConfig.SystemConfig.MonitorColor = _workingConfig.SystemConfig.MonitorColor;
+            _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
 
             if (_workingConfig.SystemConfig.RenderProviderType != null)
                 _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);

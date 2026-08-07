@@ -32,9 +32,9 @@ public class C64InputHandlerTests
         Assert.True(c64.Cia1.Keyboard.IsKeyCurrentlyPressed(C64Key.Return));
         Assert.False(c64.Cia1.Keyboard.IsKeyCurrentlyPressed(C64Key.W));
         Assert.False(c64.Cia1.Keyboard.IsKeyCurrentlyPressed(C64Key.Space));
-        Assert.Contains(C64JoystickAction.Up, c64.Cia1.Joystick.CurrentJoystickActions[2]);
-        Assert.Contains(C64JoystickAction.Fire, c64.Cia1.Joystick.CurrentJoystickActions[2]);
-        Assert.Contains(C64JoystickAction.Left, c64.Cia1.Joystick.CurrentJoystickActions[2]);
+        Assert.Contains(JoystickAction.Up, c64.Cia1.Joystick.CurrentJoystickActions[2]);
+        Assert.Contains(JoystickAction.Fire, c64.Cia1.Joystick.CurrentJoystickActions[2]);
+        Assert.Contains(JoystickAction.Left, c64.Cia1.Joystick.CurrentJoystickActions[2]);
     }
 
     [Fact]

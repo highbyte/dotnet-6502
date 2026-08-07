@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Apple2.Input;
+using Highbyte.DotNet6502.Impl.Avalonia.Apple2;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -77,13 +79,15 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             "Lode Runner",
             "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/lode_runner/Lode%20Runner%20%284am%20crack%29.zip",
             zipEntryName: "Lode Runner (4am crack)/Lode Runner (4am crack).dsk",
-            runMode: Apple2DownloadRunMode.BootDisk) },
+            runMode: Apple2DownloadRunMode.BootDisk,
+            keyboardJoystickEnabled: true) },
 
         { "choplifter", new Apple2DownloadProgramInfo(
             "Choplifter",
             "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/Choplifter%20%284am%20and%20san%20inc%20crack%29.zip",
             zipEntryName: "Choplifter (4am and san inc crack)/Choplifter (4am and san inc crack).dsk",
-            runMode: Apple2DownloadRunMode.BootDisk) },
+            runMode: Apple2DownloadRunMode.BootDisk,
+            keyboardJoystickEnabled: true) },
 
         { "bolo", new Apple2DownloadProgramInfo(
             "Bolo",
@@ -95,6 +99,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     public AvaloniaHostApp HostApp => _hostApp;
 
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleJoystickKeyboardCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDownloadSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDiskSectionCommand { get; }
@@ -125,10 +130,24 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             .WhenAnyValue(x => x.EmulatorState)
             .Subscribe(_ => RaiseEmulatorStateChanged());
 
+        // The config dialog's OK replaces the host system config, so the sidebar checkbox has to
+        // re-read; without this the two show different values until something else refreshes.
+        _hostApp
+            .WhenAnyValue(x => x.CurrentHostSystemConfig)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(KeyboardJoystickEnabled)));
+
         ToggleConfigSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 _sections.Toggle(Apple2MenuSection.Config);
+                return Task.CompletedTask;
+            },
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        ToggleJoystickKeyboardCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                KeyboardJoystickEnabled = !KeyboardJoystickEnabled;
                 return Task.CompletedTask;
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
@@ -251,6 +270,42 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     /// <summary>Configuration may only be edited while the emulator is not running.</summary>
     public bool IsApple2ConfigEnabled => _hostApp.EmulatorState == EmulatorState.Uninitialized;
 
+    /// <summary>
+    /// The running machine's input handler, or null when nothing is running.
+    /// </summary>
+    private Apple2InputHandler? RunningInputHandler
+        => _hostApp.CurrentRunningSystem is Apple2System { InputConsumer: Apple2InputHandler handler }
+            ? handler
+            : null;
+
+    /// <summary>
+    /// Whether host keys drive the game port — the same setting the configuration dialog shows, so
+    /// the two always agree, and usable whether or not a machine is running.
+    ///
+    /// Changing it here is not written to disk. It updates the in-memory config, so it applies to
+    /// the next start, and is pushed straight into a running machine so it takes effect at once;
+    /// saving stays the dialog's job, reached by pressing OK there.
+    /// </summary>
+    public bool KeyboardJoystickEnabled
+    {
+        get => _hostApp.CurrentHostSystemConfig is Apple2HostConfig config
+               && config.SystemConfig.KeyboardJoystickEnabled;
+        set
+        {
+            if (_hostApp.CurrentHostSystemConfig is not Apple2HostConfig config
+                || config.SystemConfig.KeyboardJoystickEnabled == value)
+                return;
+
+            config.SystemConfig.KeyboardJoystickEnabled = value;
+
+            // Apply to the machine already running, which took its copy when it started.
+            if (RunningInputHandler is { } handler)
+                handler.InputConfig.KeyboardJoystickEnabled = value;
+
+            this.RaisePropertyChanged();
+        }
+    }
+
     /// <summary>Load/save needs a started (running or paused) system to load into.</summary>
     public bool IsFileOperationEnabled => _hostApp.EmulatorState != EmulatorState.Uninitialized;
 
@@ -260,6 +315,9 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     public void RaiseEmulatorStateChanged()
     {
         this.RaisePropertyChanged(nameof(IsApple2ConfigEnabled));
+        // Starting a machine applies the persisted setting, so the checkbox must re-read rather
+        // than keep whatever it last showed for the previous machine.
+        this.RaisePropertyChanged(nameof(KeyboardJoystickEnabled));
         this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
         this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
         RaiseDriveStateChanged();   // stopping the emulator empties the drive
@@ -671,7 +729,19 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
                 corsProxyUrl: _hostApp.GetCorsProxyUrl(),
                 downloadCache: _hostApp.GetDownloadCache());
 
-            await _apple2AutoLoadAndRun.DownloadAndRunProgram(programInfo);
+            await _apple2AutoLoadAndRun.DownloadAndRunProgram(
+                programInfo,
+                setConfigCallback: info =>
+                {
+                    // Applied while the emulator is stopped so the machine starts with it. Only the
+                    // in-memory config is touched — as with the sidebar checkbox, launching a game
+                    // must not quietly rewrite the user's saved settings.
+                    if (_hostApp.CurrentHostSystemConfig is Apple2HostConfig apple2HostConfig)
+                        apple2HostConfig.SystemConfig.KeyboardJoystickEnabled = info.KeyboardJoystickEnabled;
+                    return Task.CompletedTask;
+                });
+
+            this.RaisePropertyChanged(nameof(KeyboardJoystickEnabled));
         }
         catch (Exception ex)
         {
@@ -756,6 +826,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     public IReadOnlyList<NativeMenuItemBase> GetNativeMenuItems()
     {
+        const KeyModifiers macBase = KeyModifiers.Meta | KeyModifiers.Alt;
         const KeyModifiers macShift = KeyModifiers.Meta | KeyModifiers.Alt | KeyModifiers.Shift;
 
         return new NativeMenuItemBase[]
@@ -763,11 +834,16 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             BuildMenuItem("Toggle Download & Run section", new KeyGesture(Key.D, macShift), ToggleDownloadSectionCommand),
             BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macShift), ToggleLoadSaveSectionCommand),
             BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macShift), ToggleConfigSectionCommand),
+            new NativeMenuItemSeparator(),
+            // Same key as the C64's and VIC-20's, so the shortcut means the same thing whichever
+            // machine is loaded.
+            BuildMenuItem("Toggle Joystick KB", new KeyGesture(Key.K, macBase), ToggleJoystickKeyboardCommand),
         };
     }
 
     public IReadOnlyList<KeyBinding> GetKeyBindings()
     {
+        const KeyModifiers nonMacBase = KeyModifiers.Control | KeyModifiers.Alt;
         const KeyModifiers nonMacShift = KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift;
 
         return new[]
@@ -775,6 +851,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             BuildKeyBinding(new KeyGesture(Key.D, nonMacShift), ToggleDownloadSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.L, nonMacShift), ToggleLoadSaveSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.C, nonMacShift), ToggleConfigSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.K, nonMacBase), ToggleJoystickKeyboardCommand),
         };
     }
 

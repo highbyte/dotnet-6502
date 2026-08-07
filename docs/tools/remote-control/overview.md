@@ -84,6 +84,8 @@ By default the server binds to `127.0.0.1`, so it is only reachable from the sam
 - **Loopback by default.** The server binds to `127.0.0.1` unless `--remote-bind-address` (or the **Bind** field in the Debug & Remoting tab) is set to a different interface. The wire protocol is unauthenticated — only bind to non-loopback addresses on trusted networks.
 - **`keyboard.press` holds a key until `keyboard.release` or `keyboard.releaseall`.** The client controls press duration by choosing when to release. Keys are applied at frame boundary and remain held until released.
 - **`joystick.press` holds joystick actions until `joystick.release` or `joystick.releaseall`.** Use this for ergonomic hold/release remote control.
+- **The Apple II has one game port**, so `--port` is accepted and ignored there rather than rejected, and scripts written for the C64's two ports keep working. Its stick is analog: a held direction drives that axis to the end of its travel, so `PDL(0)`/`PDL(1)` read 0 or 255 and return to 127 on release, and fire is button 0 at `$C061`. It also accepts `fire2` for the second game-port button at
+`$C062`, which the C64 has no equivalent of.
 - **`c64.type` and `c64.loadprg` are C64-specific; `apple2.type` is Apple II-specific.** Other systems do not implement these and will return an error. The text/PRG is applied at the next frame boundary.
 - **`c64.type` feeds text across frames** — if the C64 keyboard buffer is full the remaining characters wait until space is available.
 - **`apple2.type` feeds text across frames** — the Apple II has a single-key latch instead of a buffer, so each character waits until the program has consumed the previous one (at most one per frame).

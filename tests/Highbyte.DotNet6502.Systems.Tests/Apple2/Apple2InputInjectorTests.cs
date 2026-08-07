@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 using Highbyte.DotNet6502.Systems.Apple2.Config;
 using Highbyte.DotNet6502.Systems.Apple2.Input;
 using Highbyte.DotNet6502.Systems.Input;
@@ -40,13 +41,73 @@ public class Apple2InputInjectorTests
     }
 
     [Fact]
-    public void No_Joystick_Actions_Are_Exposed()
+    public void The_Single_Game_Port_Is_Exposed_With_Both_Its_Buttons()
     {
         var apple2 = new Apple2System(new Apple2Config(), NullLoggerFactory.Instance);
 
-        Assert.Empty(apple2.InputInjector.GetAvailableJoystickActions());
-        Assert.Equal(0, apple2.InputInjector.JoystickPortCount);
+        var actions = apple2.InputInjector.GetAvailableJoystickActions();
+        Assert.Equal(6, actions.Count);
+        // "fire2" is the second game-port button, which Apple II sticks have and C64 sticks do not.
+        foreach (var expected in new[] { "up", "down", "left", "right", "fire", "fire2" })
+            Assert.Contains(expected, actions);
+
+        // One game port, unlike the C64's two.
+        Assert.Equal(1, apple2.InputInjector.JoystickPortCount);
         Assert.False(apple2.InputInjector.IsJoystickActionDown(1, "fire"));
+    }
+
+    [Fact]
+    public void An_Injected_Direction_Moves_The_Paddle_It_Belongs_To()
+    {
+        var (apple2, handler) = Build();
+
+        apple2.InputInjector.HoldJoystickAction(1, "left");
+        handler.BeforeFrame();
+        Assert.Equal(Apple2GamePort.PaddleMin, apple2.GamePort.GetPaddlePosition(0));
+
+        apple2.InputInjector.ReleaseHeldJoystickAction(1, "left");
+        handler.BeforeFrame();
+        Assert.Equal(Apple2GamePort.PaddleCentre, apple2.GamePort.GetPaddlePosition(0));
+    }
+
+    [Fact]
+    public void An_Injected_Fire_Presses_Button_0()
+    {
+        var (apple2, handler) = Build();
+
+        apple2.InputInjector.HoldJoystickAction(1, "fire");
+        handler.BeforeFrame();
+        Assert.True(apple2.GamePort.IsButtonPressed(0));
+        Assert.Equal(0x80, apple2.Mem[Apple2GamePort.Button0Address]);
+
+        apple2.InputInjector.ReleaseAllHeldJoystickActions(1);
+        handler.BeforeFrame();
+        Assert.False(apple2.GamePort.IsButtonPressed(0));
+    }
+
+    [Fact]
+    public void An_Injected_Fire2_Presses_Button_1()
+    {
+        var (apple2, handler) = Build();
+
+        apple2.InputInjector.HoldJoystickAction(1, "fire2");
+        handler.BeforeFrame();
+
+        Assert.True(apple2.GamePort.IsButtonPressed(1));
+        Assert.False(apple2.GamePort.IsButtonPressed(0));
+        Assert.Equal(0x80, apple2.Mem[0xC062]);
+    }
+
+    [Fact]
+    public void An_Unknown_Joystick_Action_Is_Ignored_Rather_Than_Throwing()
+    {
+        var (apple2, handler) = Build();
+
+        apple2.InputInjector.HoldJoystickAction(1, "diagonal");
+        handler.BeforeFrame();
+
+        Assert.Equal(Apple2GamePort.PaddleCentre, apple2.GamePort.GetPaddlePosition(0));
+        Assert.Equal(Apple2GamePort.PaddleCentre, apple2.GamePort.GetPaddlePosition(1));
     }
 
     [Fact]
