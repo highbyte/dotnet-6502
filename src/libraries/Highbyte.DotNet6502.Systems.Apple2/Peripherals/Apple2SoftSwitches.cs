@@ -48,12 +48,18 @@ public class Apple2SoftSwitches
     private readonly Apple2Keyboard _keyboard;
     private readonly Disk2Controller? _diskController;
     private readonly Apple2GamePort? _gamePort;
+    private readonly Apple2Speaker? _speaker;
 
-    public Apple2SoftSwitches(Apple2Keyboard keyboard, Disk2Controller? diskController = null, Apple2GamePort? gamePort = null)
+    public Apple2SoftSwitches(
+        Apple2Keyboard keyboard,
+        Disk2Controller? diskController = null,
+        Apple2GamePort? gamePort = null,
+        Apple2Speaker? speaker = null)
     {
         _keyboard = keyboard;
         _diskController = diskController;
         _gamePort = gamePort;
+        _speaker = speaker;
     }
 
     /// <summary>
@@ -78,8 +84,13 @@ public class Apple2SoftSwitches
     /// <summary>Hi-res ($C057) vs. lo-res ($C056) graphics.</summary>
     public bool HiRes { get; private set; }
 
-    /// <summary>Number of $C030 accesses. A speaker/audio provider would consume this.</summary>
-    public ulong SpeakerToggleCount { get; private set; }
+    /// <summary>
+    /// Number of $C030 accesses. Delegates to the speaker when one is attached, so there is a
+    /// single count rather than two that can disagree.
+    /// </summary>
+    public ulong SpeakerToggleCount => _speaker?.ToggleCount ?? _speakerTogglesWithoutSpeaker;
+
+    private ulong _speakerTogglesWithoutSpeaker;
 
     /// <summary>Base address of the text page the display switches currently select.</summary>
     public ushort ActiveTextPageBaseAddress => Page2
@@ -147,7 +158,11 @@ public class Apple2SoftSwitches
 
     private byte ToggleSpeaker()
     {
-        SpeakerToggleCount++;
+        if (_speaker != null)
+            _speaker.Toggle();
+        else
+            _speakerTogglesWithoutSpeaker++;
+
         return UnconnectedReadValue;
     }
 
@@ -174,6 +189,7 @@ public class Apple2SoftSwitches
         MixedMode = false;
         Page2 = false;
         HiRes = false;
-        SpeakerToggleCount = 0;
+        _speaker?.Reset();
+        _speakerTogglesWithoutSpeaker = 0;
     }
 }

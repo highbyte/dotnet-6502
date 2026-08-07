@@ -353,6 +353,8 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
         BasicExamples.Add(new KeyValuePair<string, string>(
             $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.Apple2.HelloWorld.bas", "HelloWorld"));
+        BasicExamples.Add(new KeyValuePair<string, string>(
+            $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.Apple2.PlayNotes.bas", "PlayNotes"));
     }
 
     private byte[] ReadExampleResource(string resourceName)

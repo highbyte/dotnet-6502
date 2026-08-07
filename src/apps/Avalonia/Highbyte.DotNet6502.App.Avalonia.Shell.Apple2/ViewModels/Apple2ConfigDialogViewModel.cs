@@ -32,6 +32,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     private readonly Apple2HostConfig _originalConfig;
     private Apple2HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
+    private readonly List<(Type audioProviderType, Type audioTargetType)> _audioCombinations;
     private readonly HttpClient _httpClient;
     private readonly ObservableCollection<string> _validationErrors = new();
 
@@ -59,6 +60,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
         _originalConfig = hostApp.CurrentHostSystemConfig as Apple2HostConfig
             ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type Apple2HostConfig");
         _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
+        _audioCombinations = hostApp.GetAvailableSystemAudioProviderTypesAndAudioTargetTypeCombinations() ?? new List<(Type, Type)>();
         _workingConfig = (Apple2HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
@@ -110,6 +112,8 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
     public ObservableCollection<Apple2RomStatusViewModel> RomStatuses { get; } = new();
     public ObservableCollection<RenderProviderOption> RenderProviders { get; } = new();
+    public ObservableCollection<AudioProviderOption> AudioProviders { get; } = new();
+    public ObservableCollection<AudioTargetOption> AudioTargets { get; } = new();
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
     public ObservableCollection<CpuCompatibilityProfileOption> CpuCompatibilityProfiles { get; } =
         new(CpuCompatibilityProfileOption.All);
@@ -254,6 +258,62 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     }
 
     public string SelectedRenderProviderHelpText => SelectedRenderProvider?.HelpText ?? string.Empty;
+
+    private AudioProviderOption? _selectedAudioProvider;
+    public AudioProviderOption? SelectedAudioProvider
+    {
+        get => _selectedAudioProvider;
+        set
+        {
+            if (ReferenceEquals(_selectedAudioProvider, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAudioProvider, value);
+
+            if (value != null)
+            {
+                _workingConfig.SystemConfig.SetAudioProviderType(value.Type);
+                UpdateAudioTargetsForProvider(value.Type);
+            }
+
+            this.RaisePropertyChanged(nameof(SelectedAudioProviderHelpText));
+        }
+    }
+
+    private bool _suppressAudioTargetUpdate;
+    private AudioTargetOption? _selectedAudioTarget;
+    public AudioTargetOption? SelectedAudioTarget
+    {
+        get => _selectedAudioTarget;
+        set
+        {
+            if (ReferenceEquals(_selectedAudioTarget, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAudioTarget, value);
+
+            if (value != null && !_suppressAudioTargetUpdate)
+                _workingConfig.SystemConfig.SetAudioTargetType(value.Type);
+
+            this.RaisePropertyChanged(nameof(SelectedAudioTargetHelpText));
+        }
+    }
+
+    public string SelectedAudioProviderHelpText => SelectedAudioProvider?.HelpText ?? string.Empty;
+    public string SelectedAudioTargetHelpText => SelectedAudioTarget?.HelpText ?? string.Empty;
+
+    /// <summary>Whether the speaker is emulated at all.</summary>
+    public bool AudioEnabled
+    {
+        get => _workingConfig.SystemConfig.AudioEnabled;
+        set
+        {
+            if (_workingConfig.SystemConfig.AudioEnabled == value)
+                return;
+            _workingConfig.SystemConfig.AudioEnabled = value;
+            this.RaisePropertyChanged();
+        }
+    }
 
     public string SelectedRenderTargetHelpText => SelectedRenderTarget?.HelpText ?? string.Empty;
 
@@ -477,6 +537,9 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
             _originalConfig.SystemConfig.MonitorColor = _workingConfig.SystemConfig.MonitorColor;
             _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
+            _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+            _originalConfig.SystemConfig.SetAudioProviderType(_workingConfig.SystemConfig.AudioProviderType);
+            _originalConfig.SystemConfig.SetAudioTargetType(_workingConfig.SystemConfig.AudioTargetType);
 
             if (_workingConfig.SystemConfig.RenderProviderType != null)
                 _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);
@@ -512,6 +575,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
         SelectedMonitorColor = MonitorColorOption.FromMonitorColor(_workingConfig.SystemConfig.MonitorColor);
 
         InitializeRenderOptions();
+        InitializeAudioOptions();
         UpdateRomStatuses();
         UpdateValidationMessageFromConfig();
     }
@@ -556,6 +620,64 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
         if (SelectedRenderProvider != null)
             _workingConfig.SystemConfig.SetRenderProviderType(SelectedRenderProvider.Type);
+    }
+
+    /// <summary>
+    /// Populates the audio provider/target lists and picks a default. Without this the pipeline has
+    /// nothing selected and stays silent no matter how the enable checkbox is set — audio needs
+    /// both halves chosen, not just a provider that exists.
+    /// </summary>
+    private void InitializeAudioOptions()
+    {
+        AudioProviders.Clear();
+
+        var providerTypes = _audioCombinations.Select(c => c.audioProviderType).Distinct().ToList();
+        foreach (var providerType in providerTypes)
+        {
+            AudioProviders.Add(new AudioProviderOption(
+                providerType,
+                TypeDisplayHelper.GetDisplayName(providerType),
+                TypeDisplayHelper.GetHelpText(providerType)));
+        }
+
+        SelectedAudioProvider = AudioProviders.FirstOrDefault(ap => ap.Type == _workingConfig.SystemConfig.AudioProviderType)
+            ?? AudioProviders.FirstOrDefault();
+
+        if (SelectedAudioProvider != null)
+            _workingConfig.SystemConfig.SetAudioProviderType(SelectedAudioProvider.Type);
+    }
+
+    private void UpdateAudioTargetsForProvider(Type providerType)
+    {
+        try
+        {
+            _suppressAudioTargetUpdate = true;
+            AudioTargets.Clear();
+
+            var targetTypes = _audioCombinations
+                .Where(c => c.audioProviderType == providerType)
+                .Select(c => c.audioTargetType)
+                .Distinct()
+                .ToList();
+
+            foreach (var targetType in targetTypes)
+            {
+                AudioTargets.Add(new AudioTargetOption(
+                    targetType,
+                    TypeDisplayHelper.GetDisplayName(targetType),
+                    TypeDisplayHelper.GetHelpText(targetType)));
+            }
+
+            SelectedAudioTarget = AudioTargets.FirstOrDefault(at => at.Type == _workingConfig.SystemConfig.AudioTargetType)
+                ?? AudioTargets.FirstOrDefault();
+
+            if (SelectedAudioTarget != null)
+                _workingConfig.SystemConfig.SetAudioTargetType(SelectedAudioTarget.Type);
+        }
+        finally
+        {
+            _suppressAudioTargetUpdate = false;
+        }
     }
 
     private void UpdateRenderTargetsForProvider(Type providerType)
@@ -861,6 +983,10 @@ public record Apple2RomStatusData(
     string RomFile);
 
 public record RenderProviderOption(Type Type, string DisplayName, string HelpText);
+
+public record AudioProviderOption(Type Type, string DisplayName, string HelpText);
+
+public record AudioTargetOption(Type Type, string DisplayName, string HelpText);
 
 public record RenderTargetOption(Type Type, string DisplayName, string HelpText);
 

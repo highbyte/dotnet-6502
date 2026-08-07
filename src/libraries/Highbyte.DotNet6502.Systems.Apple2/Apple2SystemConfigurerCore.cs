@@ -102,6 +102,8 @@ public class Apple2SystemConfigurerCore : ISystemConfigurer
         var apple2Config = BuildApple2ConfigForVariant(configurationVariant);
         apple2Config.CpuCompatibilityProfile = apple2SystemConfig.CpuCompatibilityProfile;
         apple2Config.MonitorColor = apple2SystemConfig.MonitorColor;
+        apple2Config.AudioEnabled = apple2SystemConfig.AudioEnabled;
+        apple2Config.AudioProviderType = apple2SystemConfig.AudioProviderType;
 
         Dictionary<string, byte[]>? romData = null;
         if (apple2SystemConfig.ROMs.Count > 0)

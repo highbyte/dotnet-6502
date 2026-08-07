@@ -4,6 +4,8 @@ using Highbyte.DotNet6502.Systems.Apple2.Disk2;
 using Highbyte.DotNet6502.Systems.Apple2.Input;
 using Highbyte.DotNet6502.Systems.Apple2.Monitor;
 using Highbyte.DotNet6502.Systems.Apple2.Utils;
+using Highbyte.DotNet6502.Systems.Apple2.Audio.Sample;
+using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 using Highbyte.DotNet6502.Systems.Apple2.Render;
 using Highbyte.DotNet6502.Systems.Apple2.Video;
@@ -62,6 +64,13 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
 
     public ulong CPUCyclesPerFrame => _apple2Config.CpuCyclesPerFrame;
 
+    /// <summary>
+    /// Effective CPU frequency, derived from the frame timing rather than stated separately so the
+    /// two cannot disagree. Audio pitch comes straight from this: a wrong value here detunes every
+    /// sound the machine makes.
+    /// </summary>
+    public double CpuFrequencyHz => _apple2Config.CpuCyclesPerFrame * _apple2Config.ScreenRefreshFrequencyHz;
+
     private readonly Apple2Config _apple2Config;
     public Apple2Config Apple2Config => _apple2Config;
 
@@ -92,6 +101,9 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     /// <summary>The game port: pushbuttons and analog paddles. See <see cref="Apple2GamePort"/>.</summary>
     public Apple2GamePort GamePort { get; }
 
+    /// <summary>The one-bit speaker. See <see cref="Apple2Speaker"/>.</summary>
+    public Apple2Speaker Speaker { get; }
+
     /// <summary>Types text into the machine by feeding the keyboard latch, one char per frame.</summary>
     public Apple2TextPaste TextPaste { get; }
 
@@ -106,6 +118,10 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     public IRenderProvider? RenderProvider => _renderProvider;
     public List<IRenderProvider> RenderProviders { get; } = new();
 
+    private IAudioProvider? _audioProvider;
+    public IAudioProvider? AudioProvider => _audioProvider;
+    public List<IAudioProvider> AudioProviders { get; } = new();
+
     public IInputConsumer? InputConsumer { get; set; }
 
     // Instrumentations
@@ -115,6 +131,10 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerInstructionStat;
     private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerFrameStat;
     private const string StatsCategoryRenderProvider = "RenderProvider";
+
+    private readonly ElapsedMillisecondsTimedStatSystem _audioProviderPerInstructionStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _audioProviderPerFrameStat;
+    private const string StatsCategoryAudioProvider = "AudioProvider";
 
     private readonly bool _hasSystemRom;
 
@@ -129,7 +149,8 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         // The controller times its motor spin-down off the CPU's cumulative cycle count.
         DiskController = new Disk2Controller(() => CPU.ExecState.CyclesConsumed);
         GamePort = new Apple2GamePort(() => CPU.ExecState.CyclesConsumed);
-        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController, GamePort);
+        Speaker = new Apple2Speaker(() => CPU.ExecState.CyclesConsumed);
+        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController, GamePort, Speaker);
         TextPaste = new Apple2TextPaste(this, loggerFactory);
         BasicTokenParser = new Apple2BasicTokenParser(this, loggerFactory);
         InputInjector = new Apple2InputInjector(this);
@@ -148,10 +169,40 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         RenderProviders.Add(new Apple2VideoCommandStream(this));
         SetCurrentRenderProvider(typeof(Apple2Rasterizer));
 
+        AddAudioProviders(this, _apple2Config);
+
         _renderProviderPerInstructionStat = Instrumentations.Add(
             $"{StatsCategoryRenderProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
         _renderProviderPerFrameStat = Instrumentations.Add(
             $"{StatsCategoryRenderProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));
+        _audioProviderPerInstructionStat = Instrumentations.Add(
+            $"{StatsCategoryAudioProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
+        _audioProviderPerFrameStat = Instrumentations.Add(
+            $"{StatsCategoryAudioProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));
+    }
+
+    /// <summary>
+    /// Builds the audio provider, if audio is on. With it off no provider is created, so
+    /// <see cref="AudioProvider"/> stays null, the host builds no audio coordinator and the machine
+    /// is silent — the same arrangement the C64 uses.
+    /// </summary>
+    private static void AddAudioProviders(Apple2 apple2, Apple2Config config)
+    {
+        if (!config.AudioEnabled)
+            return;
+
+        apple2.AudioProviders.Add(new Apple2SpeakerSampleProvider(apple2));
+
+        // Only one provider exists — the machine emits no note or voice information a synth-command
+        // stream could use — so an unset type simply means "the speaker".
+        apple2.SetCurrentAudioProvider(config.AudioProviderType ?? typeof(Apple2SpeakerSampleProvider));
+    }
+
+    private void SetCurrentAudioProvider(Type? audioProviderType)
+    {
+        if (audioProviderType == null) { _audioProvider = null; return; }
+        _audioProvider = AudioProviders.SingleOrDefault(ap => ap.GetType() == audioProviderType)
+            ?? throw new ArgumentException($"Audio provider type not found: {audioProviderType.FullName}");
     }
 
     private void SetCurrentRenderProvider(Type? renderProviderType)
@@ -259,6 +310,7 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     public ExecEvaluatorTriggerResult ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
     {
         _renderProviderPerInstructionStat.Reset();
+        _audioProviderPerInstructionStat.Reset();
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < CPUCyclesPerFrame)
@@ -271,6 +323,7 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         }
 
         _renderProviderPerInstructionStat.Stop();
+        _audioProviderPerInstructionStat.Stop();
 
         // Deliver at most one pending pasted character per frame, gated on the previous one
         // having been consumed (strobe cleared).
@@ -279,6 +332,10 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         _renderProviderPerFrameStat.Start();
         _renderProvider?.OnEndFrame();
         _renderProviderPerFrameStat.Stop();
+
+        _audioProviderPerFrameStat.Start();
+        _audioProvider?.OnEndFrame();
+        _audioProviderPerFrameStat.Stop();
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -308,6 +365,10 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         _renderProviderPerInstructionStat.Start(cont: true);
         _renderProvider?.OnAfterInstruction();
         _renderProviderPerInstructionStat.Stop(cont: true);
+
+        _audioProviderPerInstructionStat.Start(cont: true);
+        _audioProvider?.OnAfterInstruction();
+        _audioProviderPerInstructionStat.Stop(cont: true);
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }

@@ -138,6 +138,15 @@ mv HELLOWORLD Build/HelloWorld.bas
 rm work.do
 ```
 
+``` sh
+cd Apple2/Sound
+cp2 cdi work.do 140k dos
+cp2 import work.do bas PlayNotes.txt
+cp2 extract work.do PLAYNOTES
+mv PLAYNOTES Build/PlayNotes.bas
+rm work.do
+```
+
 Notes:
 
 - The intermediate DOS 3.3 disk image is required by `cp2`; it is deleted afterwards.

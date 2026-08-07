@@ -114,6 +114,9 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **ROM actions**: `RomStatusSummaryText`, `RomDirectoryTextBox`, `LoadRomsButton`,
   `DownloadRomsToFilesButton`, `DownloadRomsToMemoryButton`, `ClearRomsButton`
 - **Display**: `MonitorColorComboBox`, `RenderProviderComboBox`, `RenderTargetComboBox`
+- **Audio**: `AudioEnableCheckBox`, `AudioProviderComboBox`, `AudioTargetComboBox`. Audio needs
+  *both* a provider and a target selected; a provider alone leaves the host building no audio
+  coordinator, and the machine is then silent with nothing logged to say why.
 - **Input &amp; Joystick**: `KeyboardJoystickEnableCheckBox` — the persisted setting. Its live
   counterpart is `KeyboardJoystickCheckBox` in the sidebar, needed because this dialog only opens
   while the emulator is stopped. Both show the same setting and stay in step; the difference is

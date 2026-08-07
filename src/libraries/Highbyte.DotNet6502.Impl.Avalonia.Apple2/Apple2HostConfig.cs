@@ -9,7 +9,10 @@ public class Apple2HostConfig : HostSystemConfigBase<Apple2SystemConfig>
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.Apple2.Avalonia";
 
-    public override bool AudioSupported => false;
+    /// <summary>
+    /// The speaker is emulated as PCM via <c>Apple2SpeakerSampleProvider</c>.
+    /// </summary>
+    public override bool AudioSupported => true;
 
     /// <summary>Gamepad and keyboard-joystick mapping for the game port.</summary>
     public Apple2InputConfig InputConfig { get; set; } = new();
