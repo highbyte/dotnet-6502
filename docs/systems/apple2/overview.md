@@ -69,6 +69,13 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
   port arrives playable: `W`/`A`/`S`/`D` steer, Space is
   button 0 and Left Shift is button 1. WASD rather than the arrows so the Apple II's own arrow keys
   keep working, and Left Shift so Right Shift is still free for typing shifted characters.
+- Speaker audio. The machine has no sound chip: `$C030` toggles a one-bit cone, and every sound it
+  makes — beeps, game effects, digitised speech — is software flipping that bit at chosen moments.
+  Reproducing it is therefore resampling rather than synthesis: the cone's level is averaged over
+  each output sample, which is what makes pulse-width modulation (how the Apple II fakes
+  intermediate levels, and plays sampled audio at all) come out as sound rather than aliasing
+  noise. A DC blocker removes the offset of a cone left parked on one side. Off by default;
+  enable it in the configuration dialog.
 - Selectable monitor: a composite colour monitor (the default) or a green, white or amber
   phosphor monitor. The choice applies to every mode, not just hi-res: text is monochrome either
   way (a colour monitor renders it white), and lo-res is full colour on a colour monitor and
@@ -132,9 +139,9 @@ For general monitor commands, see [Monitor library](../../libraries/core/dotnet6
 - NTSC-accurate hi-res colour. The six artifact colours are modelled, but the underlying
   half-dot shift is not: bit 7 selects a colour rather than moving the dots half a pixel, so
   colour fringing at black/white boundaries does not appear.
-- Audio. `$C030` speaker toggles are counted but not turned into sound.
 - Disk II writing (the drive is always write-protected), a second drive, ProDOS-ordered `.po`
   images, and nibble/flux (`.nib`/`.woz`) media. See [Disk II](disk2.md) for what is supported.
+- Sound cards (Mockingboard and friends). The built-in speaker is emulated; expansion audio is not.
 - Peripheral slots other than slot 6, cassette, the second paddle pair (2 and 3), light pen.
 - The language card / 16 KB RAM expansion.
 - The original, non-Autostart Apple II with Integer BASIC. That is a different ROM set rather

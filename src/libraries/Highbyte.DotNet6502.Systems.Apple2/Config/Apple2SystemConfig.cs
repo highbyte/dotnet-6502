@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Apple2.Render;
+using Highbyte.DotNet6502.Systems.Apple2.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Apple2.Video;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Utils;
@@ -110,7 +111,10 @@ public class Apple2SystemConfig : ISystemConfig
         set => SetRenderTargetType(ConfiguredTypeName.Resolve(value));
     }
 
-    /// <summary>The Apple II speaker is not emulated yet.</summary>
+    /// <summary>
+    /// Off by default. The speaker is faithful but shrill — it is a small cone driven by a square
+    /// wave — so it is the user's choice to switch on rather than something sprung on them.
+    /// </summary>
     public bool AudioEnabled { get; set; } = false;
 
     private Apple2MonitorColor _monitorColor = Apple2MonitorColor.Color;
@@ -231,15 +235,36 @@ public class Apple2SystemConfig : ISystemConfig
     }
 
     [JsonIgnore]
-    public Type? AudioProviderType => null;
+    public Type? AudioProviderType { get; private set; }
+
+    /// <summary>Serializable form of <see cref="AudioProviderType"/>.</summary>
+    [JsonPropertyName("AudioProviderType")]
+    public string? AudioProviderTypeName
+    {
+        get => ConfiguredTypeName.Format(AudioProviderType);
+        set => SetAudioProviderType(ConfiguredTypeName.Resolve(value));
+    }
 
     [JsonIgnore]
-    public Type? AudioTargetType => null;
+    public Type? AudioTargetType { get; private set; }
+
+    /// <summary>Serializable form of <see cref="AudioTargetType"/>.</summary>
+    [JsonPropertyName("AudioTargetType")]
+    public string? AudioTargetTypeName
+    {
+        get => ConfiguredTypeName.Format(AudioTargetType);
+        set => SetAudioTargetType(ConfiguredTypeName.Resolve(value));
+    }
 
     public List<Type> GetSupportedRenderProviderTypes() =>
         new() { typeof(Apple2Rasterizer), typeof(Apple2VideoCommandStream) };
 
-    public List<Type> GetSupportedAudioProviderTypes() => new();
+    /// <summary>
+    /// Only the sample path. The machine emits no note or voice information for a synth-command
+    /// stream to describe — its whole output is a one-bit cone position over time.
+    /// </summary>
+    public List<Type> GetSupportedAudioProviderTypes() =>
+        new() { typeof(Apple2SpeakerSampleProvider) };
 
     public void SetRenderProviderType(Type? renderProviderType)
     {
@@ -261,14 +286,23 @@ public class Apple2SystemConfig : ISystemConfig
 
     public void SetAudioProviderType(Type? audioProviderType)
     {
-        if (audioProviderType != null)
-            throw new DotNet6502Exception("The Apple II system has no audio providers.");
+        if (audioProviderType == null)
+        {
+            AudioProviderType = null;
+            _isDirty = true;
+            return;
+        }
+
+        if (!GetSupportedAudioProviderTypes().Contains(audioProviderType))
+            throw new DotNet6502Exception($"AudioProvider type {audioProviderType.FullName} is not supported.");
+        AudioProviderType = audioProviderType;
+        _isDirty = true;
     }
 
     public void SetAudioTargetType(Type? audioTargetType)
     {
-        if (audioTargetType != null)
-            throw new DotNet6502Exception("The Apple II system has no audio targets.");
+        AudioTargetType = audioTargetType;
+        _isDirty = true;
     }
 
     public Apple2SystemConfig()

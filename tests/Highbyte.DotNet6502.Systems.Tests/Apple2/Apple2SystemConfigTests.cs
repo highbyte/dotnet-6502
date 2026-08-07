@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Apple2;
+using Highbyte.DotNet6502.Systems.Apple2.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Apple2.Config;
 using Highbyte.DotNet6502.Systems.Apple2.Render;
 using Highbyte.DotNet6502.Systems.Apple2.Video;
@@ -28,15 +29,27 @@ public class Apple2SystemConfigTests
     }
 
     [Fact]
-    public void The_System_Has_No_Audio()
+    public void Audio_Offers_Only_The_Speaker_Sample_Path_And_Is_Off_By_Default()
     {
         var config = new Apple2SystemConfig();
 
+        // Off by default: the speaker is faithful but shrill, so switching it on is the user's call.
         Assert.False(config.AudioEnabled);
-        Assert.Empty(config.GetSupportedAudioProviderTypes());
+
+        // One provider only. There is no register set describing notes or voices for a
+        // synth-command stream to work from — the machine's whole output is a one-bit cone
+        // position over time, so the waveform path is the only one that can reproduce it.
+        Assert.Equal(
+            new[] { typeof(Apple2SpeakerSampleProvider) },
+            config.GetSupportedAudioProviderTypes());
+
+        config.SetAudioProviderType(typeof(Apple2SpeakerSampleProvider));
+        Assert.Equal(typeof(Apple2SpeakerSampleProvider), config.AudioProviderType);
+
+        config.SetAudioProviderType(null);
         Assert.Null(config.AudioProviderType);
+
         Assert.Throws<DotNet6502Exception>(() => config.SetAudioProviderType(typeof(object)));
-        Assert.Throws<DotNet6502Exception>(() => config.SetAudioTargetType(typeof(object)));
     }
 
     [Fact]

@@ -219,6 +219,50 @@
         <StackPanel Width="368" Classes="wrap-item">
             <Border Classes="content-section">
                 <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Audio"
+                            Classes=""/>
+
+                <CheckBox AutomationProperties.AutomationId="AudioEnableCheckBox"
+                        AutomationProperties.Name="Enable speaker audio"
+                        Content="Enable speaker audio"
+                        IsChecked="{Binding AudioEnabled}"/>
+
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                Text="Audio provider:"
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="AudioProviderComboBox"
+                            AutomationProperties.Name="Audio provider"
+                            ItemsSource="{Binding AudioProviders}"
+                            SelectedItem="{Binding SelectedAudioProvider}"
+                            DisplayMemberBinding="{Binding DisplayName}"
+                            ToolTip.Tip="{Binding SelectedAudioProviderHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                Text="Audio target:"
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                            AutomationProperties.AutomationId="AudioTargetComboBox"
+                            AutomationProperties.Name="Audio target"
+                            ItemsSource="{Binding AudioTargets}"
+                            SelectedItem="{Binding SelectedAudioTarget}"
+                            DisplayMemberBinding="{Binding DisplayName}"
+                            ToolTip.Tip="{Binding SelectedAudioTargetHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200"/>
+                </Grid>
+
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Input Section -->
+        <StackPanel Width="368" Classes="wrap-item">
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
                 <TextBlock Text="Input &amp; Joystick"
                             Classes=""/>
 

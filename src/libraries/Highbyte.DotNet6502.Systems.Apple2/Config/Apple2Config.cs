@@ -47,5 +47,14 @@ public class Apple2Config
 
     public Apple2MonitorColor MonitorColor { get; set; } = Apple2MonitorColor.Color;
 
+    /// <summary>
+    /// Whether to build an audio provider at all. With this off no provider is created, so the
+    /// host builds no audio coordinator and the machine stays silent — matching how the C64 does it.
+    /// </summary>
+    public bool AudioEnabled { get; set; }
+
+    /// <summary>Which audio provider to select; defaults to the only one when unset.</summary>
+    public Type? AudioProviderType { get; set; }
+
     public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
 }
