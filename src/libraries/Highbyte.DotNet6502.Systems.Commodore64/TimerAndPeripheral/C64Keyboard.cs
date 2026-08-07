@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -13,7 +14,7 @@ public class C64Keyboard
     private readonly List<C64Key> _pressedKeys = new List<C64Key>();
     private readonly C64 _c64;
     private readonly List<int> _selectedMatrixRowBitPositions = new();
-    private readonly HashSet<C64JoystickAction> _keyboardJoystickActionsBuffer = new();
+    private readonly HashSet<JoystickAction> _keyboardJoystickActionsBuffer = new();
     private bool _capsLockOn;
     private bool _restorePressedLastFrame;
     private bool _runStopPressedLastFrame;

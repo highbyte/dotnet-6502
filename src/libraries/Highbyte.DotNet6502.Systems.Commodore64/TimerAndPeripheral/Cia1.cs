@@ -95,7 +95,7 @@ public class Cia1 : CiaBase
         // low regardless of the DDR direction, so bits are cleared on the composed result rather
         // than on inputValue (which ComposePortReadValue ignores for output-configured bits).
         foreach (var action in Joystick.CurrentJoystickActions[2])
-            result.ClearBit((int)action);
+            result.ClearBit(C64Joystick.GetPortBit(action));
 
         return result;
     }
@@ -120,7 +120,7 @@ public class Cia1 : CiaBase
         // Joystick port 1 pins are shared with Port B. Same reasoning as DataALoad: joystick can
         // pull a pin low regardless of DDR direction, so bits are cleared on the composed result.
         foreach (var action in Joystick.CurrentJoystickActions[1])
-            result.ClearBit((int)action);
+            result.ClearBit(C64Joystick.GetPortBit(action));
 
         return result;
     }

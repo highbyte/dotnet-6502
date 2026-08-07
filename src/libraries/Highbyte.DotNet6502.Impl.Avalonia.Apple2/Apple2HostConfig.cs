@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Apple2.Config;
+using Highbyte.DotNet6502.Systems.Apple2.Input;
 
 namespace Highbyte.DotNet6502.Impl.Avalonia.Apple2;
 
@@ -10,5 +11,13 @@ public class Apple2HostConfig : HostSystemConfigBase<Apple2SystemConfig>
 
     public override bool AudioSupported => false;
 
-    public override object Clone() => (Apple2HostConfig)base.Clone();
+    /// <summary>Gamepad and keyboard-joystick mapping for the game port.</summary>
+    public Apple2InputConfig InputConfig { get; set; } = new();
+
+    public override object Clone()
+    {
+        var clone = (Apple2HostConfig)base.Clone();
+        clone.InputConfig = (Apple2InputConfig)InputConfig.Clone();
+        return clone;
+    }
 }

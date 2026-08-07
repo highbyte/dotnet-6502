@@ -89,6 +89,9 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     /// <summary>The Disk II controller card in slot 6 (read-only; boots when a disk is inserted).</summary>
     public Disk2Controller DiskController { get; }
 
+    /// <summary>The game port: pushbuttons and analog paddles. See <see cref="Apple2GamePort"/>.</summary>
+    public Apple2GamePort GamePort { get; }
+
     /// <summary>Types text into the machine by feeding the keyboard latch, one char per frame.</summary>
     public Apple2TextPaste TextPaste { get; }
 
@@ -125,7 +128,8 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
         CPU = new CPU(loggerFactory, config.CpuCompatibilityProfile);
         // The controller times its motor spin-down off the CPU's cumulative cycle count.
         DiskController = new Disk2Controller(() => CPU.ExecState.CyclesConsumed);
-        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController);
+        GamePort = new Apple2GamePort(() => CPU.ExecState.CyclesConsumed);
+        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController, GamePort);
         TextPaste = new Apple2TextPaste(this, loggerFactory);
         BasicTokenParser = new Apple2BasicTokenParser(this, loggerFactory);
         InputInjector = new Apple2InputInjector(this);

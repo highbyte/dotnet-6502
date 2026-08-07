@@ -374,6 +374,7 @@ public class RemoteCommandDispatcher
         SetJoystickBool(input, port, "Left",  cmd.Left);
         SetJoystickBool(input, port, "Right", cmd.Right);
         SetJoystickBool(input, port, "Fire",  cmd.Fire);
+        SetJoystickBool(input, port, "Fire2", cmd.Fire2);
     }
 
     private static void JoystickPressDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
@@ -386,6 +387,7 @@ public class RemoteCommandDispatcher
         SetHeldJoystickBool(input, port, "Left", cmd.Left, pressed: true);
         SetHeldJoystickBool(input, port, "Right", cmd.Right, pressed: true);
         SetHeldJoystickBool(input, port, "Fire", cmd.Fire, pressed: true);
+        SetHeldJoystickBool(input, port, "Fire2", cmd.Fire2, pressed: true);
     }
 
     private static void JoystickReleaseDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
@@ -398,6 +400,7 @@ public class RemoteCommandDispatcher
         SetHeldJoystickBool(input, port, "Left", cmd.Left, pressed: false);
         SetHeldJoystickBool(input, port, "Right", cmd.Right, pressed: false);
         SetHeldJoystickBool(input, port, "Fire", cmd.Fire, pressed: false);
+        SetHeldJoystickBool(input, port, "Fire2", cmd.Fire2, pressed: false);
     }
 
     private static void JoystickReleaseAllDirect(IRemotableHostApp hostApp, RemoteCommand cmd)

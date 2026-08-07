@@ -43,7 +43,14 @@ public class Apple2Setup : Apple2SystemConfigurerCore
     public override Task<SystemRunner> BuildSystemRunner(ISystem system, IHostSystemConfig hostSystemConfig)
     {
         var apple2 = (Apple2System)system;
-        apple2.InputConsumer = new Apple2InputHandler(apple2, _loggerFactory);
+        var apple2HostConfig = (Apple2HostConfig)hostSystemConfig;
+
+        // The persisted setting is the source of truth; the mapping object carries it at runtime so
+        // the input handler has everything it needs in one place.
+        apple2HostConfig.InputConfig.KeyboardJoystickEnabled =
+            apple2HostConfig.SystemConfig.KeyboardJoystickEnabled;
+
+        apple2.InputConsumer = new Apple2InputHandler(apple2, _loggerFactory, apple2HostConfig.InputConfig);
         return Task.FromResult(new SystemRunner(apple2));
     }
 }

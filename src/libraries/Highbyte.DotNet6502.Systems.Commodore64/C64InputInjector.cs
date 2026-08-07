@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems;
 
@@ -9,15 +10,15 @@ public class C64InputInjector : IInputInjector
 
     private readonly HashSet<C64Key> _frameInjectedKeys = new();
     private readonly HashSet<C64Key> _heldKeys = new();
-    private readonly Dictionary<int, HashSet<C64JoystickAction>> _heldJoystickActions = new()
+    private readonly Dictionary<int, HashSet<JoystickAction>> _heldJoystickActions = new()
     {
-        { 1, new HashSet<C64JoystickAction>() },
-        { 2, new HashSet<C64JoystickAction>() }
+        { 1, new HashSet<JoystickAction>() },
+        { 2, new HashSet<JoystickAction>() }
     };
-    private readonly Dictionary<int, HashSet<C64JoystickAction>> _frameInjectedJoystickActions = new()
+    private readonly Dictionary<int, HashSet<JoystickAction>> _frameInjectedJoystickActions = new()
     {
-        { 1, new HashSet<C64JoystickAction>() },
-        { 2, new HashSet<C64JoystickAction>() }
+        { 1, new HashSet<JoystickAction>() },
+        { 2, new HashSet<JoystickAction>() }
     };
 
     private static readonly Dictionary<string, C64Key> StringToC64Key = new(StringComparer.OrdinalIgnoreCase)
@@ -88,13 +89,13 @@ public class C64InputInjector : IInputInjector
         ["f7"]       = C64Key.F7,
     };
 
-    private static readonly Dictionary<string, C64JoystickAction> StringToC64JoystickAction = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, JoystickAction> StringToJoystickAction = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["up"]    = C64JoystickAction.Up,
-        ["down"]  = C64JoystickAction.Down,
-        ["left"]  = C64JoystickAction.Left,
-        ["right"] = C64JoystickAction.Right,
-        ["fire"]  = C64JoystickAction.Fire,
+        ["up"]    = JoystickAction.Up,
+        ["down"]  = JoystickAction.Down,
+        ["left"]  = JoystickAction.Left,
+        ["right"] = JoystickAction.Right,
+        ["fire"]  = JoystickAction.Fire,
     };
 
     public C64InputInjector(C64 c64)
@@ -237,10 +238,10 @@ public class C64InputInjector : IInputInjector
         }
     }
 
-    private static bool TryGetJoystickAction(int port, string actionName, out C64JoystickAction action)
+    private static bool TryGetJoystickAction(int port, string actionName, out JoystickAction action)
     {
         action = default;
         if (port < 1 || port > 2) return false;
-        return StringToC64JoystickAction.TryGetValue(actionName, out action);
+        return StringToJoystickAction.TryGetValue(actionName, out action);
     }
 }

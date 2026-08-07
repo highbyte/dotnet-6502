@@ -56,6 +56,19 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
   where the monitor cannot resolve the dots inside a cycle. On the phosphor monitor settings the
   same dots render as the plain monochrome pattern at the full 280 instead.
 - Mixed mode: graphics with the bottom 4 text rows, for both lo-res and hi-res.
+- Game port: the three pushbuttons at `$C061`-`$C063` and the analog paddles at `$C064`-`$C067`,
+  fired by the `$C070` strobe. There is no digital joystick on this machine — a stick is two
+  potentiometers, so a gamepad direction drives its axis to the end of its travel and `PDL(n)`
+  reads it back. Both stick buttons are wired — games do use the second, e.g. Choplifter turns the
+  helicopter with it. A host gamepad works out of the box (A and B are the two buttons); the
+  keyboard can drive it too, enabled by "Enable keyboard joystick controls" in the configuration
+  dialog, which is the only place the setting is saved. The "Joystick KB"
+  checkbox in the sidebar shows and changes that same setting without saving it — handy for trying
+  it mid-game — and takes effect immediately on a running machine. Entries in "Download &amp; Run
+  programs" can switch it on for themselves, as the C64 list does, so a title that needs the game
+  port arrives playable: `W`/`A`/`S`/`D` steer, Space is
+  button 0 and Left Shift is button 1. WASD rather than the arrows so the Apple II's own arrow keys
+  keep working, and Left Shift so Right Shift is still free for typing shifted characters.
 - Selectable monitor: a composite colour monitor (the default) or a green, white or amber
   phosphor monitor. The choice applies to every mode, not just hi-res: text is monochrome either
   way (a colour monitor renders it white), and lo-res is full colour on a colour monitor and
@@ -122,7 +135,7 @@ For general monitor commands, see [Monitor library](../../libraries/core/dotnet6
 - Audio. `$C030` speaker toggles are counted but not turned into sound.
 - Disk II writing (the drive is always write-protected), a second drive, ProDOS-ordered `.po`
   images, and nibble/flux (`.nib`/`.woz`) media. See [Disk II](disk2.md) for what is supported.
-- Peripheral slots other than slot 6, cassette, paddles and game-port input, light pen.
+- Peripheral slots other than slot 6, cassette, the second paddle pair (2 and 3), light pen.
 - The language card / 16 KB RAM expansion.
 - The original, non-Autostart Apple II with Integer BASIC. That is a different ROM set rather
   than different hardware, so it is a plausible later configuration variant.

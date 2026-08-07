@@ -30,7 +30,7 @@ public class C64InputHandler : IInputConsumer
     private C64HostKeyboard _c64HostKeyboard = default!;
     private readonly List<C64Key> _c64KeysDownBuffer = new();
     private readonly List<HostKey[]> _foundHostKeyMappingsBuffer = new();
-    private readonly HashSet<C64JoystickAction> _c64JoystickActionsBuffer = new();
+    private readonly HashSet<JoystickAction> _c64JoystickActionsBuffer = new();
     private readonly List<GamepadButton[]> _foundGamepadMappingsBuffer = new();
     private readonly HashSet<HostKey> _swappedHostKeysBuffer = new();
     private readonly HashSet<HostKey> _lastSwappedSourceKeysBuffer = new();
@@ -288,13 +288,13 @@ public class C64InputHandler : IInputConsumer
 
     private void CaptureJoystick()
     {
-        var c64JoystickActions = GetC64JoystickActionsFromGamepad(_inputState.GamepadButtonsDown);
+        var c64JoystickActions = GetJoystickActionsFromGamepad(_inputState.GamepadButtonsDown);
         _c64.Cia1.Joystick.SetJoystickActions(_inputConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
 
         _c64.InputInjector?.ApplyInjectedJoystickActionsTo(_c64.Cia1.Joystick);
     }
 
-    private HashSet<C64JoystickAction> GetC64JoystickActionsFromGamepad(IReadOnlySet<GamepadButton> gamepadButtonsDown)
+    private HashSet<JoystickAction> GetJoystickActionsFromGamepad(IReadOnlySet<GamepadButton> gamepadButtonsDown)
     {
         var c64JoystickActions = _c64JoystickActionsBuffer;
         c64JoystickActions.Clear();

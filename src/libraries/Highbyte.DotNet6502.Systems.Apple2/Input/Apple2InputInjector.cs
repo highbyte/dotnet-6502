@@ -14,8 +14,12 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Input;
 /// modifiers combining with other injected keys, exactly like the physical keyboard.
 ///
 /// The machine has no per-key state (only the single ASCII latch), so <see cref="IsKeyDown"/>
-/// reflects injected state only. There is no game/joystick port emulation yet, so no joystick
-/// actions are exposed.
+/// reflects injected state only.
+///
+/// Joystick actions are injected the same way and merged into the handler's action set, so they
+/// reach the analog game port through exactly the path a gamepad takes. There is one game port,
+/// so the port argument is accepted and ignored rather than rejected — scripts written against
+/// the C64's two ports keep working.
 /// </summary>
 public class Apple2InputInjector : IInputInjector
 {
@@ -23,6 +27,20 @@ public class Apple2InputInjector : IInputInjector
 
     private readonly HashSet<HostKey> _frameInjectedKeys = new();
     private readonly HashSet<HostKey> _heldKeys = new();
+
+    private readonly HashSet<JoystickAction> _frameInjectedJoystickActions = new();
+    private readonly HashSet<JoystickAction> _heldJoystickActions = new();
+
+    private static readonly Dictionary<string, JoystickAction> StringToJoystickAction =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["up"] = JoystickAction.Up,
+            ["down"] = JoystickAction.Down,
+            ["left"] = JoystickAction.Left,
+            ["right"] = JoystickAction.Right,
+            ["fire"] = JoystickAction.Fire,
+            ["fire2"] = JoystickAction.Fire2,
+        };
 
     private static readonly Dictionary<string, HostKey> StringToHostKey = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -101,10 +119,14 @@ public class Apple2InputInjector : IInputInjector
 
     public IReadOnlyList<string> GetAvailableJoystickActions()
     {
-        return Array.Empty<string>();
+        return StringToJoystickAction.Keys.ToList();
     }
 
-    public int JoystickPortCount => 0;
+    /// <summary>One game port, so one joystick.</summary>
+    public int JoystickPortCount => 1;
+
+    public bool HasInjectedJoystickActions
+        => _frameInjectedJoystickActions.Count > 0 || _heldJoystickActions.Count > 0;
 
     public void BeginFrame()
     {
@@ -152,15 +174,53 @@ public class Apple2InputInjector : IInputInjector
         return _heldKeys.Contains(hostKey) || _frameInjectedKeys.Contains(hostKey);
     }
 
-    public void SetJoystickAction(int port, string actionName, bool pressed) { }
+    public void SetJoystickAction(int port, string actionName, bool pressed)
+    {
+        if (!StringToJoystickAction.TryGetValue(actionName, out var action))
+            return;
 
-    public void HoldJoystickAction(int port, string actionName) { }
+        if (pressed)
+            _frameInjectedJoystickActions.Add(action);
+        else
+        {
+            _frameInjectedJoystickActions.Remove(action);
+            _heldJoystickActions.Remove(action);
+        }
+    }
 
-    public void ReleaseHeldJoystickAction(int port, string actionName) { }
+    public void HoldJoystickAction(int port, string actionName)
+    {
+        if (StringToJoystickAction.TryGetValue(actionName, out var action))
+            _heldJoystickActions.Add(action);
+    }
 
-    public void ReleaseAllHeldJoystickActions(int port) { }
+    public void ReleaseHeldJoystickAction(int port, string actionName)
+    {
+        if (StringToJoystickAction.TryGetValue(actionName, out var action))
+            _heldJoystickActions.Remove(action);
+    }
 
-    public bool IsJoystickActionDown(int port, string actionName) => false;
+    public void ReleaseAllHeldJoystickActions(int port) => _heldJoystickActions.Clear();
+
+    public bool IsJoystickActionDown(int port, string actionName)
+        => StringToJoystickAction.TryGetValue(actionName, out var action)
+           && (_heldJoystickActions.Contains(action) || _frameInjectedJoystickActions.Contains(action));
+
+    /// <summary>
+    /// Merges injected joystick actions into the set the handler is about to apply to the game
+    /// port. Held actions persist; one-frame ones are consumed by the handler clearing them.
+    /// </summary>
+    public void ApplyInjectedJoystickActionsTo(HashSet<JoystickAction> actions)
+    {
+        foreach (var action in _heldJoystickActions)
+            actions.Add(action);
+
+        foreach (var action in _frameInjectedJoystickActions)
+            actions.Add(action);
+    }
+
+    /// <summary>Drops the one-frame joystick actions, mirroring how injected keys are consumed.</summary>
+    public void ClearFrameInjectedJoystickActions() => _frameInjectedJoystickActions.Clear();
 
     public void Clear()
     {

@@ -319,6 +319,20 @@
                 <TextBlock Text="ROM files, monitor colour, render provider and CPU compatibility. Only editable while the emulator is stopped."
                            Classes="small secondary-text"
                            TextWrapping="Wrap"/>
+
+                <!-- Live counterpart of the dialog's "Enable keyboard joystick controls": the
+                     dialog only opens while the emulator is stopped, so this is the one that can be
+                     flipped mid-game. Both write the same persisted setting. -->
+                <CheckBox Content="Joystick KB"
+                          Name="KeyboardJoystickCheckBox"
+                          AutomationProperties.AutomationId="KeyboardJoystickCheckBox"
+                          AutomationProperties.Name="Use the keyboard as a joystick"
+                          Classes="small"
+                          IsChecked="{Binding KeyboardJoystickEnabled, Mode=TwoWay}"/>
+
+                <TextBlock Text="W A S D steer, Space is button 1 and Left Shift is button 2 (some games, e.g. Choplifter, turn with it). Those keys stop reaching the Apple II keyboard while this is on. Mirrors the configuration dialog setting, but changing it here is not saved — press OK in that dialog to keep it."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
     </StackPanel>

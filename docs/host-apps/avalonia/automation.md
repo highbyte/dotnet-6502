@@ -98,6 +98,8 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **Disk drive section** (Disk II): `DiskToggleButton` (insert/eject, label bound to state like
   the C64's `DiskToggleButton`), `BootDiskButton` (only visible with a disk inserted),
   `DriveStatusText`
+- **Configuration section**: `OpenApple2ConfigButton` (only enabled while the emulator is
+  stopped — see the note below), `KeyboardJoystickCheckBox` (usable while running)
 - **Load/Save section**: `LoadBasicButton`, `SaveBasicButton`, `LoadBinaryButton`,
   `LoadFromDskButton`, `DskFileComboBox`, `RunDskFileButton`,
   `AssemblyExampleComboBox`, `LoadAssemblyExampleButton`, `BasicExampleComboBox`,
@@ -112,6 +114,14 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **ROM actions**: `RomStatusSummaryText`, `RomDirectoryTextBox`, `LoadRomsButton`,
   `DownloadRomsToFilesButton`, `DownloadRomsToMemoryButton`, `ClearRomsButton`
 - **Display**: `MonitorColorComboBox`, `RenderProviderComboBox`, `RenderTargetComboBox`
+- **Input &amp; Joystick**: `KeyboardJoystickEnableCheckBox` — the persisted setting. Its live
+  counterpart is `KeyboardJoystickCheckBox` in the sidebar, needed because this dialog only opens
+  while the emulator is stopped. Both show the same setting and stay in step; the difference is
+  that only the dialog's OK writes it to disk. The sidebar checkbox is always enabled.
+  <br/>**Caveat:** `CheckBox` controls do not appear in the macOS accessibility tree in this app at
+  all — verified against this dialog, where every button and combobox enumerates but no checkbox
+  does. Their AutomationIds are set correctly and are right for other hosts, but on macOS a
+  checkbox has to be verified from a screenshot rather than from `inspect-ui`.
 - **CPU**: `CpuCompatibilityProfileComboBox`
 - **Messages**: `ConfigStatusMessageText` (non-error status), `ConfigErrorStatusMessageText`
   (error status), `ConfigValidationMessageText` (bulleted validation-error list)
@@ -223,6 +233,15 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 | Toggle Download & Run section    | `⌘⌥⇧D`         | `Ctrl+Alt+Shift+D`    |
 | Toggle Load/Save section         | `⌘⌥⇧L`         | `Ctrl+Alt+Shift+L`    |
 | Toggle Configuration section     | `⌘⌥⇧C`         | `Ctrl+Alt+Shift+C`    |
+| Toggle Joystick KB               | `⌘⌥K`           | `Ctrl+Alt+K`          |
+
+`Toggle Joystick KB` uses the same key as the C64's and VIC-20's, so the shortcut means the same
+thing whichever machine is loaded.
+
+**Testing the keyboard joystick from automation:** `apple2.type` will not do it. That command goes
+through the text-paste service, which writes ASCII straight to the keyboard latch and never becomes
+a `HostKey`, so the joystick mapping cannot see it. Use `keyboard.press --key w` and read back
+`PDL(1)` — 0 means the key steered, 128 means it did not.
 
 Sidebar sections behave as an accordion in both the C64 and Apple II menus (shared
 `AccordionSections` helper): expanding one section collapses the others. Automation

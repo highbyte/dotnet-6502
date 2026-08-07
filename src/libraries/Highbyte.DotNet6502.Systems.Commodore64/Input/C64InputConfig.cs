@@ -43,28 +43,28 @@ public class C64InputConfig : ICloneable
     /// Per C64 joystick port: which host keyboard key maps to which C64 joystick action, for
     /// using the host keyboard as a joystick. Keyed by the neutral <see cref="HostKey"/> abstraction.
     /// </summary>
-    public Dictionary<int, Dictionary<HostKey, C64JoystickAction>> KeyboardToC64JoystickMap = new()
+    public Dictionary<int, Dictionary<HostKey, JoystickAction>> KeyboardToC64JoystickMap = new()
     {
         {
             1,
-            new Dictionary<HostKey, C64JoystickAction>
+            new Dictionary<HostKey, JoystickAction>
             {
-                { HostKey.Space, C64JoystickAction.Fire },
-                { HostKey.ArrowUp, C64JoystickAction.Up },
-                { HostKey.ArrowDown, C64JoystickAction.Down },
-                { HostKey.ArrowLeft, C64JoystickAction.Left },
-                { HostKey.ArrowRight, C64JoystickAction.Right },
+                { HostKey.Space, JoystickAction.Fire },
+                { HostKey.ArrowUp, JoystickAction.Up },
+                { HostKey.ArrowDown, JoystickAction.Down },
+                { HostKey.ArrowLeft, JoystickAction.Left },
+                { HostKey.ArrowRight, JoystickAction.Right },
             }
         },
         {
             2,
-            new Dictionary<HostKey, C64JoystickAction>
+            new Dictionary<HostKey, JoystickAction>
             {
-                { HostKey.ControlLeft, C64JoystickAction.Fire },
-                { HostKey.KeyW, C64JoystickAction.Up },
-                { HostKey.KeyS, C64JoystickAction.Down },
-                { HostKey.KeyA, C64JoystickAction.Left },
-                { HostKey.KeyD, C64JoystickAction.Right },
+                { HostKey.ControlLeft, JoystickAction.Fire },
+                { HostKey.KeyW, JoystickAction.Up },
+                { HostKey.KeyS, JoystickAction.Down },
+                { HostKey.KeyA, JoystickAction.Left },
+                { HostKey.KeyD, JoystickAction.Right },
             }
         }
     };
@@ -72,28 +72,28 @@ public class C64InputConfig : ICloneable
     /// <summary>
     /// Per C64 joystick port: which gamepad-button combination triggers which C64 joystick action.
     /// </summary>
-    public Dictionary<int, Dictionary<GamepadButton[], C64JoystickAction[]>> GamePadToC64JoystickMap = new()
+    public Dictionary<int, Dictionary<GamepadButton[], JoystickAction[]>> GamePadToC64JoystickMap = new()
     {
         {
             1,
-            new Dictionary<GamepadButton[], C64JoystickAction[]>
+            new Dictionary<GamepadButton[], JoystickAction[]>
             {
-                { new[] { GamepadButton.A }, new[] { C64JoystickAction.Fire } },
-                { new[] { GamepadButton.DPadUp }, new[] { C64JoystickAction.Up } },
-                { new[] { GamepadButton.DPadDown }, new[] { C64JoystickAction.Down } },
-                { new[] { GamepadButton.DPadLeft }, new[] { C64JoystickAction.Left } },
-                { new[] { GamepadButton.DPadRight }, new[] { C64JoystickAction.Right } },
+                { new[] { GamepadButton.A }, new[] { JoystickAction.Fire } },
+                { new[] { GamepadButton.DPadUp }, new[] { JoystickAction.Up } },
+                { new[] { GamepadButton.DPadDown }, new[] { JoystickAction.Down } },
+                { new[] { GamepadButton.DPadLeft }, new[] { JoystickAction.Left } },
+                { new[] { GamepadButton.DPadRight }, new[] { JoystickAction.Right } },
             }
         },
         {
             2,
-            new Dictionary<GamepadButton[], C64JoystickAction[]>
+            new Dictionary<GamepadButton[], JoystickAction[]>
             {
-                { new[] { GamepadButton.A }, new[] { C64JoystickAction.Fire } },
-                { new[] { GamepadButton.DPadUp }, new[] { C64JoystickAction.Up } },
-                { new[] { GamepadButton.DPadDown }, new[] { C64JoystickAction.Down } },
-                { new[] { GamepadButton.DPadLeft }, new[] { C64JoystickAction.Left } },
-                { new[] { GamepadButton.DPadRight }, new[] { C64JoystickAction.Right } },
+                { new[] { GamepadButton.A }, new[] { JoystickAction.Fire } },
+                { new[] { GamepadButton.DPadUp }, new[] { JoystickAction.Up } },
+                { new[] { GamepadButton.DPadDown }, new[] { JoystickAction.Down } },
+                { new[] { GamepadButton.DPadLeft }, new[] { JoystickAction.Left } },
+                { new[] { GamepadButton.DPadRight }, new[] { JoystickAction.Right } },
             }
         }
     };

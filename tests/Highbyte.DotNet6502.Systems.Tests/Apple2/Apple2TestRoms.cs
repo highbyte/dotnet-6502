@@ -82,6 +82,19 @@ public sealed class RequiresApple2RomFactAttribute : FactAttribute
     }
 }
 
+/// <summary>The <see cref="TheoryAttribute"/> counterpart of <see cref="RequiresApple2RomFactAttribute"/>.</summary>
+public sealed class RequiresApple2RomTheoryAttribute : TheoryAttribute
+{
+    public RequiresApple2RomTheoryAttribute()
+    {
+        if (Apple2TestRoms.ResolveSystemRomPath() == null)
+            Skip = Apple2TestRoms.MissingFileReason(
+                "Apple II system ROM",
+                Apple2TestRoms.SystemRomPathEnvironmentVariable,
+                Apple2TestRoms.SystemRomFileNames);
+    }
+}
+
 /// <summary>A test needing the system ROM <em>and</em> the character generator ROM.</summary>
 public sealed class RequiresApple2RomAndCharacterRomFactAttribute : FactAttribute
 {

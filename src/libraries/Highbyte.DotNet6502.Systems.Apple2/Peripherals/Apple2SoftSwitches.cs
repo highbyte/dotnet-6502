@@ -47,11 +47,23 @@ public class Apple2SoftSwitches
 
     private readonly Apple2Keyboard _keyboard;
     private readonly Disk2Controller? _diskController;
+    private readonly Apple2GamePort? _gamePort;
 
-    public Apple2SoftSwitches(Apple2Keyboard keyboard, Disk2Controller? diskController = null)
+    public Apple2SoftSwitches(Apple2Keyboard keyboard, Disk2Controller? diskController = null, Apple2GamePort? gamePort = null)
     {
         _keyboard = keyboard;
         _diskController = diskController;
+        _gamePort = gamePort;
+    }
+
+    /// <summary>
+    /// $C070 (PTRIG) restarts every paddle's one-shot. Reads and writes both strobe it, which the
+    /// generic write-forwards-to-read path below already gives us.
+    /// </summary>
+    private byte TriggerPaddles()
+    {
+        _gamePort?.Trigger();
+        return 0x00;
     }
 
     /// <summary>Text mode ($C051) vs. graphics mode ($C050).</summary>
@@ -118,7 +130,8 @@ public class Apple2SoftSwitches
             0x10 => _keyboard.ReadAndClearStrobe(),          // $C010-$C01F  clear strobe
             0x30 => ToggleSpeaker(),                         // $C030-$C03F  speaker
             0x50 => ApplyDisplaySwitch(address),             // $C050-$C05F  display mode
-            0x60 => 0x00,                                    // $C060-$C06F  cassette in, buttons, paddles: idle
+            0x60 => _gamePort?.ReadGamePort(address) ?? 0x00, // $C060-$C06F  cassette in, buttons, paddles
+            0x70 => TriggerPaddles(),                        // $C070-$C07F  PTRIG: restart paddle timers
             0xE0 => ReadDiskController(address),             // $C0E0-$C0EF  Disk II controller (slot 6)
             _ => UnconnectedReadValue,
         };

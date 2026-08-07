@@ -30,13 +30,15 @@ public class Apple2DownloadProgramInfo
         string downloadUrl,
         string fileName = "*",
         string? zipEntryName = null,
-        Apple2DownloadRunMode runMode = Apple2DownloadRunMode.InjectFileIntoRam)
+        Apple2DownloadRunMode runMode = Apple2DownloadRunMode.InjectFileIntoRam,
+        bool keyboardJoystickEnabled = false)
     {
         DisplayName = displayName;
         DownloadUrl = downloadUrl;
         FileName = fileName;
         ZipEntryName = zipEntryName;
         RunMode = runMode;
+        KeyboardJoystickEnabled = keyboardJoystickEnabled;
     }
 
     public string DisplayName { get; }
@@ -59,4 +61,11 @@ public class Apple2DownloadProgramInfo
 
     /// <summary>Booting needs the optional Disk II boot ROM; injecting does not.</summary>
     public bool RequiresDisk2Rom => RunMode == Apple2DownloadRunMode.BootDisk;
+
+    /// <summary>
+    /// Whether to switch the keyboard joystick on for this program, as the C64 list does per entry.
+    /// Set it for titles that read the game port, so they are playable without the user first
+    /// having to work out that they need a joystick and where the setting lives.
+    /// </summary>
+    public bool KeyboardJoystickEnabled { get; }
 }
