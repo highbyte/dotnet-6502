@@ -21,32 +21,20 @@ public static class BranchHelper
     /// <returns></returns>
     public static ushort CalculateNewAbsoluteBranchAddress(ushort PC, sbyte branchOffset, out ulong cyclesConsumed, out bool addressCalculationCrossedPageBoundary)
     {
-        cyclesConsumed = 0;
-        addressCalculationCrossedPageBoundary = false;
-        // Check if adding offset to current address will cross page boundary. If so, one more cycle is consumed
-        // TODO: Can smarter logic be written to handle positive vs negative branchOffset?
-        if (branchOffset >= 0)
-        {
-            if ((PC & 0x00ff) + branchOffset > 0xff)
-            {
-                cyclesConsumed++;
-                addressCalculationCrossedPageBoundary = true;
-            }
-        }
-        else
-        {
-            // Abs(-128) = 128 which leads to Exception:
-            //'System.OverflowException' occurred in System.Private.CoreLib.dll: 'Negating the minimum value of a twos complement number is invalid.'
-            // Must cast to ushort first
-            if ((PC & 0x00ff) < Math.Abs((ushort)branchOffset))
-            {
-                cyclesConsumed++;
-                addressCalculationCrossedPageBoundary = true;
-            }
-        }
-
-        cyclesConsumed++;
-        return (ushort)(PC + branchOffset);
+        // PC is already past the instruction, which is what the offset is relative to. A taken
+        // branch costs one cycle, plus one more when the target lands in a different page — and
+        // "different page" is simply a different high byte, whichever direction the branch goes.
+        //
+        // This used to be computed from the offset in separate positive and negative cases. The
+        // negative case read `Math.Abs((ushort)branchOffset)`, and casting a negative sbyte to
+        // ushort gives its two's-complement value — 65528 for -8, not 8 — so the comparison was
+        // always true and every backward branch was charged a page crossing it never made. Since
+        // loops branch backwards, that was an extra cycle on essentially every loop iteration in
+        // every emulated program.
+        var target = (ushort)(PC + branchOffset);
+        addressCalculationCrossedPageBoundary = (PC & 0xFF00) != (target & 0xFF00);
+        cyclesConsumed = addressCalculationCrossedPageBoundary ? 2UL : 1UL;
+        return target;
     }
 
 }
