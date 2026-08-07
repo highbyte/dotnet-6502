@@ -13,8 +13,9 @@ namespace Highbyte.DotNet6502.Systems.Tests.Apple2;
 /// <summary>
 /// Boot-to-BASIC verification against a genuine Apple II Plus ROM.
 ///
-/// The ROM is copyrighted and cannot be checked in, so these tests are opt-in: they skip unless
-/// an image is found. Put the ROMs in the Apple II ROM directory
+/// The ROM is copyrighted and cannot be checked in, so these tests are opt-in: without one they
+/// report as <em>skipped</em>, with the reason, rather than silently passing — see
+/// <see cref="Apple2TestRoms"/>. Put the ROMs in the Apple II ROM directory
 /// (<see cref="Apple2SystemConfig.DefaultROMDirectory"/>) under the names the archive publishes
 /// them with — which is exactly what the app's own ROM download writes — or point
 /// <c>DOTNET6502_APPLE2_ROM</c> at a file, then run:
@@ -25,16 +26,6 @@ namespace Highbyte.DotNet6502.Systems.Tests.Apple2;
 [Trait("TestType", "Integration")]
 public class Apple2RealRomBootTests
 {
-    private const string RomPathEnvironmentVariable = "DOTNET6502_APPLE2_ROM";
-    private const string CharacterRomPathEnvironmentVariable = "DOTNET6502_APPLE2_CHARGEN_ROM";
-    /// <summary>
-    /// The archive publishes the system ROM as the bare 12 KB image and in the 20 KB layout;
-    /// the loader accepts either. These are also the names the app's ROM download writes.
-    /// </summary>
-    private static readonly string[] s_systemRomFileNames = ["apple.rom", "APPLE2_.ROM"];
-
-    private const string DefaultCharacterRomFileName = "3410036.BIN";
-
     /// <summary>Frames to run before the Autostart ROM has reached the Applesoft prompt.</summary>
     private const int BootFrames = 180;
 
@@ -42,12 +33,10 @@ public class Apple2RealRomBootTests
 
     public Apple2RealRomBootTests(ITestOutputHelper output) => _output = output;
 
-    [Fact]
+    [RequiresApple2RomFact]
     public void Boots_To_The_Applesoft_Prompt()
     {
         var apple2 = BootRealRom();
-        if (apple2 == null)
-            return;
 
         Assert.True(apple2.HasBasicStarted());
 
@@ -56,12 +45,10 @@ public class Apple2RealRomBootTests
         Assert.StartsWith("]", screen[2]);     // the Applesoft prompt
     }
 
-    [Fact]
+    [RequiresApple2RomFact]
     public void Reset_Vector_Points_At_The_Autostart_Monitor()
     {
         var apple2 = BootRealRom(runFrames: 0);
-        if (apple2 == null)
-            return;
 
         Assert.Equal(0xFA62, apple2.CPU.PC);
     }
@@ -80,12 +67,10 @@ public class Apple2RealRomBootTests
         0x00, 0x00,     // end of program
     };
 
-    [Fact]
+    [RequiresApple2RomFact]
     public void Injected_Basic_Program_Runs_And_Lists()
     {
         var apple2 = BootRealRom();
-        if (apple2 == null)
-            return;
 
         // Inject the tokenized program the way any external loader would: place the bytes at
         // $0801 and initialise the Applesoft zero-page pointers.
@@ -115,16 +100,23 @@ public class Apple2RealRomBootTests
         screen = ReadScreen(apple2);
         var listRow = Array.FindIndex(screen, row => row.TrimEnd() == "]LIST");
         Assert.True(listRow >= 0, "LIST was not echoed to the screen.");
-        Assert.Contains("10", screen[listRow + 1]);
-        Assert.Contains("PRINT 3", screen[listRow + 1]);
+
+        // Applesoft's LIST starts with a carriage return, so the listing is not on the row
+        // immediately below the echoed command — unlike ordinary output such as PRINT. Find the
+        // listing rather than assuming a fixed offset. Applesoft renders it "10  PRINT 3", with
+        // two spaces, so match on the parts rather than the exact spacing.
+        var listing = screen.Skip(listRow + 1)
+            .Select(row => row.TrimEnd())
+            .FirstOrDefault(row => row.Length > 0 && row != "]");
+        Assert.NotNull(listing);
+        Assert.Contains("10", listing);
+        Assert.Contains("PRINT 3", listing);
     }
 
-    [Fact]
+    [RequiresApple2RomFact]
     public void Typed_Input_Reaches_Applesoft_And_Is_Evaluated()
     {
         var apple2 = BootRealRom();
-        if (apple2 == null)
-            return;
 
         var inputState = new ScriptedHostInputState();
         var inputHandler = new Apple2InputHandler(apple2, NullLoggerFactory.Instance);
@@ -148,15 +140,11 @@ public class Apple2RealRomBootTests
         Assert.Equal("5", screen[3].TrimEnd());
     }
 
-    [Fact]
+    [RequiresApple2RomAndCharacterRomFact]
     public void The_Rasterizer_Draws_The_Banner_From_The_Real_Character_Generator()
     {
         var apple2 = BootRealRom();
-        if (apple2 == null || apple2.CharacterRom == null)
-        {
-            _output.WriteLine("SKIPPED: no character generator ROM available.");
-            return;
-        }
+        Assert.NotNull(apple2.CharacterRom);
 
         var rasterizer = (Apple2Rasterizer)apple2.RenderProviders.Single(p => p is Apple2Rasterizer);
         rasterizer.OnEndFrame();
@@ -197,20 +185,14 @@ public class Apple2RealRomBootTests
     }
 
     /// <summary>
-    /// Boots the machine on a real ROM, or returns <c>null</c> when no ROM is available so the
-    /// test can bow out. xUnit v2 has no run-time skip, so the reason is written to the test
-    /// output instead of failing a build that legitimately has no ROM to test with.
+    /// Boots the machine on a real ROM. Callers are guarded by
+    /// <see cref="RequiresApple2RomFactAttribute"/>, so a missing ROM is a skipped test rather
+    /// than something to handle here.
     /// </summary>
-    private Apple2System? BootRealRom(int runFrames = BootFrames)
+    private Apple2System BootRealRom(int runFrames = BootFrames)
     {
-        var romPath = ResolveRomPath();
-        if (romPath == null)
-        {
-            _output.WriteLine(
-                $"SKIPPED: no Apple II ROM found. Set {RomPathEnvironmentVariable}, or place one of " +
-                $"[{string.Join(", ", s_systemRomFileNames)}] in {Apple2SystemConfig.DefaultROMDirectory}.");
-            return null;
-        }
+        var romPath = Apple2TestRoms.ResolveSystemRomPath();
+        Assert.NotNull(romPath);
 
         _output.WriteLine($"Using Apple II ROM: {romPath}");
 
@@ -219,7 +201,7 @@ public class Apple2RealRomBootTests
             { Apple2SystemConfig.SYSTEM_ROM_NAME, File.ReadAllBytes(romPath) },
         };
 
-        var characterRomPath = ResolveCharacterRomPath();
+        var characterRomPath = Apple2TestRoms.ResolveCharacterRomPath();
         if (characterRomPath != null)
         {
             _output.WriteLine($"Using Apple II character generator ROM: {characterRomPath}");
@@ -234,26 +216,7 @@ public class Apple2RealRomBootTests
         return apple2;
     }
 
-    private static string? ResolveRomPath()
-    {
-        var fromEnvironment = Environment.GetEnvironmentVariable(RomPathEnvironmentVariable);
-        if (!string.IsNullOrWhiteSpace(fromEnvironment) && File.Exists(fromEnvironment))
-            return fromEnvironment;
 
-        return s_systemRomFileNames
-            .Select(name => Path.Combine(Apple2SystemConfig.DefaultROMDirectory, name))
-            .FirstOrDefault(File.Exists);
-    }
-
-    private static string? ResolveCharacterRomPath()
-    {
-        var fromEnvironment = Environment.GetEnvironmentVariable(CharacterRomPathEnvironmentVariable);
-        if (!string.IsNullOrWhiteSpace(fromEnvironment) && File.Exists(fromEnvironment))
-            return fromEnvironment;
-
-        var fromRomDirectory = Path.Combine(Apple2SystemConfig.DefaultROMDirectory, DefaultCharacterRomFileName);
-        return File.Exists(fromRomDirectory) ? fromRomDirectory : null;
-    }
 
     private static void TypeKey(
         Apple2System apple2,

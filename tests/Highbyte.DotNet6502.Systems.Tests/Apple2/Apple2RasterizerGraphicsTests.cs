@@ -149,7 +149,10 @@ public class Apple2RasterizerGraphicsTests
     [Fact]
     public void LoRes_Renders_Both_Nibbles_As_Stacked_7x4_Color_Blocks()
     {
-        var apple2 = BuildApple2();
+        // A colour monitor, so the palette arrives unchanged and this stays a test of the block
+        // geometry. What a phosphor monitor does to those colours is
+        // Apple2LoResMonitorColorTests' subject.
+        var apple2 = BuildApple2(Apple2MonitorColor.Color);
         var rasterizer = GetRasterizer(apple2);
         SelectMode(apple2, text: false, hiRes: false);
 

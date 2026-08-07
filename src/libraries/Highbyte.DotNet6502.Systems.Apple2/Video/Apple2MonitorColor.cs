@@ -27,6 +27,26 @@ public static class Apple2Colors
     public static bool IsColorMonitor(Apple2MonitorColor monitorColor)
         => monitorColor == Apple2MonitorColor.Color;
 
+    /// <summary>
+    /// What the monitor makes of a colour signal. A colour monitor shows it as-is; a monochrome
+    /// monitor has no chroma to show, so it displays the signal's luminance in its phosphor's
+    /// colour — which is why lo-res on a green screen is shades of green, not 16 colours.
+    /// </summary>
+    public static Color ApplyMonitor(Color signalColor, Apple2MonitorColor monitorColor)
+    {
+        if (IsColorMonitor(monitorColor))
+            return signalColor;
+
+        // Rec. 601 luma, the weighting composite video's luminance channel carries.
+        var luma = ((0.299 * signalColor.R) + (0.587 * signalColor.G) + (0.114 * signalColor.B)) / 255.0;
+        var phosphor = GetForeground(monitorColor);
+        return Color.FromArgb(
+            signalColor.A,
+            (byte)Math.Round(phosphor.R * luma),
+            (byte)Math.Round(phosphor.G * luma),
+            (byte)Math.Round(phosphor.B * luma));
+    }
+
     public static Color GetForeground(Apple2MonitorColor monitorColor) => monitorColor switch
     {
         Apple2MonitorColor.White => Color.FromArgb(255, 255, 255, 255),
