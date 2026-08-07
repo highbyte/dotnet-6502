@@ -17,7 +17,8 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Render;
 /// How hi-res is drawn follows the configured monitor: the three phosphor settings render the
 /// raw dot pattern in that phosphor's color (bit 7, the NTSC color-shift bit, is ignored), while
 /// <see cref="Apple2MonitorColor.Color"/> decodes the dots as artifact colors — see
-/// <see cref="Apple2HiResColors"/>. Lo-res uses the 16-color lo-res palette either way.
+/// <see cref="Apple2HiResColors"/>. Lo-res uses the 16-color palette on a color monitor and the
+/// same colors reduced to phosphor-tinted luminance on a monochrome one.
 ///
 /// Two layers, matching the VIC-20 rasterizer: layer 0 is the background, layer 1 the lit
 /// pixels (transparent where unlit) so hosts can composite them.
@@ -39,6 +40,9 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     // neighbors, which cross byte boundaries, so the whole line is expanded before it is drawn.
     private readonly bool[] _hiResLineLit = new bool[Apple2Config.DrawableAreaWidth];
     private readonly bool[] _hiResLineHighBit = new bool[Apple2Config.DrawableAreaWidth];
+
+    // The lo-res palette as the configured monitor displays it, rebuilt per frame.
+    private readonly uint[] _loResPalette = new uint[16];
 
     private int _frameCounter;
 
@@ -321,6 +325,10 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     private void RasterizeLoRes(int graphicsHeight, uint background)
     {
+        var monitorColor = _apple2.Apple2Config.MonitorColor;
+        for (var i = 0; i < _loResPalette.Length; i++)
+            _loResPalette[i] = PackColor(Apple2Colors.ApplyMonitor(Apple2LoResScreen.Palette[i], monitorColor));
+
         var mem = _apple2.Mem;
         var pageBaseAddress = _apple2.SoftSwitches.ActiveTextPageBaseAddress;
         var textRows = graphicsHeight / Apple2Config.CharacterHeight;
@@ -343,7 +351,7 @@ public sealed class Apple2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     private void RasterizeLoResBlock(byte screenByte, bool upperBlock, int pixelX, int pixelY, uint background)
     {
-        var packedColor = PackColor(Apple2LoResScreen.Palette[Apple2LoResScreen.GetColorIndex(screenByte, upperBlock)]);
+        var packedColor = _loResPalette[Apple2LoResScreen.GetColorIndex(screenByte, upperBlock)];
 
         for (var y = 0; y < Apple2LoResScreen.BlockPixelHeight; y++)
         {

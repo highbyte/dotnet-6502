@@ -41,7 +41,10 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
       alternates at roughly 2 Hz.
     - Uppercase-only 64-glyph character set, matching the Apple II / II Plus character generator.
 - Lo-res graphics (GR): the active text page reinterpreted as 40&times;48 colour blocks (two
-  stacked 4-bit colours per screen byte), rendered with the 16-colour lo-res palette.
+  stacked 4-bit colours per screen byte), rendered with the 16-colour lo-res palette on a colour
+  monitor. A phosphor monitor has no chroma to show, so the same blocks arrive as shades of its
+  phosphor — which means colours of equal brightness become indistinguishable, exactly as on the
+  hardware.
 - Hi-res graphics (HGR): 280&times;192 from page 1 (`$2000`) or page 2 (`$4000`), with the same
   interleaved line addressing as real hardware
   (`offset = (y % 8) * $400 + ((y / 8) % 8) * $80 + (y / 64) * $28`).
@@ -54,7 +57,9 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
   same dots render as the plain monochrome pattern at the full 280 instead.
 - Mixed mode: graphics with the bottom 4 text rows, for both lo-res and hi-res.
 - Selectable monitor: a composite colour monitor (the default) or a green, white or amber
-  phosphor monitor. Text is monochrome either way — a colour monitor renders it white.
+  phosphor monitor. The choice applies to every mode, not just hi-res: text is monochrome either
+  way (a colour monitor renders it white), and lo-res is full colour on a colour monitor and
+  phosphor-tinted luminance on a monochrome one.
 - Pixel-exact render path (`Apple2Rasterizer`, the default): draws text cells from the real 5&times;7
   dot patterns in the character generator ROM and all graphics modes, in two compositing layers.
 - Lightweight glyph command-stream render path (`Apple2VideoCommandStream`) for hosts that draw
