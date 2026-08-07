@@ -846,11 +846,13 @@ public record RenderProviderOption(Type Type, string DisplayName, string HelpTex
 
 public record RenderTargetOption(Type Type, string DisplayName, string HelpText);
 
-/// <summary>Selectable monitor phosphor colour — a property of the screen, not the machine.</summary>
+/// <summary>Selectable monitor type — a property of the screen, not the machine.</summary>
 public record MonitorColorOption(Apple2MonitorColor MonitorColor, string DisplayName, string HelpText)
 {
     public static readonly IReadOnlyList<MonitorColorOption> All = new[]
     {
+        new MonitorColorOption(Apple2MonitorColor.Color, "Color",
+            "Composite colour monitor: hi-res graphics show NTSC artifact colours."),
         new MonitorColorOption(Apple2MonitorColor.Green, "Green", "Classic green phosphor monitor."),
         new MonitorColorOption(Apple2MonitorColor.White, "White", "White phosphor / composite monochrome monitor."),
         new MonitorColorOption(Apple2MonitorColor.Amber, "Amber", "Amber phosphor monitor."),
