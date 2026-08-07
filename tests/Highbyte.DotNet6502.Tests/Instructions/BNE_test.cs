@@ -73,6 +73,39 @@ public class BNE_test
         test.Execute_And_Verify(AddrMode.Relative);
     }
 
+    /// <summary>
+    /// Backward branches are how loops are written, so this is the common case at run time — but
+    /// it was the one case with no cycle assertion, which is how an extra cycle went unnoticed
+    /// here for so long. The negative-offset tests below check the destination only.
+    /// </summary>
+    [Fact]
+    public void BNE_I_Takes_3_Cycles_Branching_Backwards_Within_Same_Page()
+    {
+        var test = new TestSpec()
+        {
+            PC             = 0x2050,
+            Z              = false, // BNE branches if Zero flag is clear.
+            OpCode         = OpCodeId.BNE,
+            FinalValue     = 0xf0, // - 16, so $2052 - $10 = $2042: same page.
+            ExpectedCycles = 3,
+        };
+        test.Execute_And_Verify(AddrMode.Relative);
+    }
+
+    [Fact]
+    public void BNE_I_Takes_4_Cycles_Branching_Backwards_Across_A_Page_Boundary()
+    {
+        var test = new TestSpec()
+        {
+            PC             = 0x2005,
+            Z              = false, // BNE branches if Zero flag is clear.
+            OpCode         = OpCodeId.BNE,
+            FinalValue     = 0xf0, // - 16, so $2007 - $10 = $1FF7: crosses into the page below.
+            ExpectedCycles = 4,
+        };
+        test.Execute_And_Verify(AddrMode.Relative);
+    }
+
     [Fact]
     public void BNE_I_Jumps_To_Correct_Location_When_Offset_Is_Negative()
     {

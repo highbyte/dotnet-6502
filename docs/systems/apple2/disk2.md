@@ -72,8 +72,8 @@ polling paces the data and a reader can never miss a byte regardless of how slow
 them. That robustness is deliberate: the machine has no cycle-accurate bus for a rotational model
 to key off.
 
-**Known limitation:** booting the DOS 3.3 System Master takes about 41 emulated seconds, roughly
-30 s of which is DOS's *own* one-second motor spin-up wait, entered 31 times. RWTS decides whether
+**Known limitation:** booting the DOS 3.3 System Master takes about 35 emulated seconds, most of
+it DOS's *own* one-second motor spin-up wait, entered 31 times. RWTS decides whether
 the drive is spinning by comparing successive reads of the data register, and that decision
 depends on real read timing this model does not reproduce. Everything loads correctly, just slower
 than a real machine (~7 s). Two alternatives were implemented and measured, and both are worse: a

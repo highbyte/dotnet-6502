@@ -23,8 +23,8 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Disk2;
 /// byte (any N from 12 to 17 tried): the boot never reached the DOS banner at all.</item>
 /// </list>
 ///
-/// <para><b>Known limitation.</b> Booting the System Master takes ~41 emulated seconds, of which
-/// ~30 s is DOS's own one-second motor spin-up wait, entered 31 times: RWTS decides the drive
+/// <para><b>Known limitation.</b> Booting the System Master takes ~35 emulated seconds, most of it
+/// DOS's own one-second motor spin-up wait, entered 31 times: RWTS decides the drive
 /// is stopped by comparing successive reads of the data register, and that decision depends on
 /// real read timing this model does not reproduce. Everything loads correctly, just slower than
 /// a real machine (~7 s). Nibblizer sync-gap sizes were swept (20/5, 16/16, 12/12, 10/10, 9/9)
