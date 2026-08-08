@@ -29,12 +29,13 @@ public class Apple2SystemConfigTests
     }
 
     [Fact]
-    public void Audio_Offers_Only_The_Speaker_Sample_Path_And_Is_Off_By_Default()
+    public void Audio_Offers_Only_The_Speaker_Sample_Path_And_Is_On_By_Default()
     {
         var config = new Apple2SystemConfig();
 
-        // Off by default: the speaker is faithful but shrill, so switching it on is the user's call.
-        Assert.False(config.AudioEnabled);
+        // On by default, matching the C64. This default is the only one the Browser app sees, since
+        // it builds its configuration from local storage and never reads an appsettings file.
+        Assert.True(config.AudioEnabled);
 
         // One provider only. There is no register set describing notes or voices for a
         // synth-command stream to work from — the machine's whole output is a one-bit cone
