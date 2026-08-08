@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.Services;
@@ -32,11 +33,66 @@ public partial class Apple2MenuView : UserControl
 
         // Keep clipboard-event subscriptions in sync with the current DataContext.
         this.DataContextChanged += (s, e) => UpdateViewModelSubscriptions(ViewModel);
-        this.AttachedToVisualTree += (s, e) => UpdateViewModelSubscriptions(ViewModel);
+
+        // NOTE: the config-attention check is deliberately NOT run from DataContextChanged.
+        // That fires before the view is in the visual tree, and AttachedToVisualTree always
+        // follows shortly after in the plugin architecture — so a second flash would capture the
+        // button's background while it is already orange, making both halves of the pulse the same
+        // colour and the animation look stuck. AttachedToVisualTree is the single reliable trigger.
+        this.AttachedToVisualTree += (s, e) =>
+        {
+            UpdateViewModelSubscriptions(ViewModel);
+            if (ViewModel != null)
+                UpdateSectionStatesIfNeeded();
+        };
+
+        // In the plugin architecture the ContentControl (not this view) carries the IsVisible
+        // binding, so this rarely fires; kept for the case where it does, since it is the same
+        // "the user is now looking at this menu" moment.
+        this.PropertyChanged += (s, e) =>
+        {
+            if (e.Property == IsVisibleProperty && this.IsVisible && ViewModel != null)
+                UpdateSectionStatesIfNeeded();
+        };
+
         this.DetachedFromVisualTree += (s, e) => UpdateViewModelSubscriptions(null);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    /// <summary>
+    /// Points the user at the configuration when it is unusable — the normal state of a fresh
+    /// install, where the ROM files have not been supplied yet. Expands the Configuration section
+    /// and pulses the config button until either the config becomes valid or the button is clicked.
+    /// </summary>
+    private void UpdateSectionStatesIfNeeded()
+    {
+        try
+        {
+            if (ViewModel == null)
+                return;
+
+            if (ViewModel.HasConfigValidationErrors)
+            {
+                ViewModel.ExpandConfigSectionOnValidationError();
+
+                var configButton = this.FindControl<Button>("OpenApple2ConfigButton");
+                if (configButton != null)
+                    _configButtonFlash.Start(configButton, Colors.DarkOrange, stopAfterClick: true);
+            }
+            else
+            {
+                // Valid (or just became valid) — stop any ongoing flash.
+                _configButtonFlash.Cancel();
+            }
+        }
+        catch (Exception ex)
+        {
+            // During Browser startup the host system config may not be resolved yet; the next
+            // trigger will catch it, so a failure here must not take the menu down with it.
+            Logger.LogDebug(ex, "Skipping Apple II config attention update; state not ready yet.");
+        }
+    }
 
     private void UpdateViewModelSubscriptions(Apple2MenuViewModel? newViewModel)
     {
@@ -279,7 +335,15 @@ public partial class Apple2MenuView : UserControl
         }
 
         if (result == true)
+        {
+            // Re-validate so HasConfigValidationErrors and the Config Status tab both reflect what
+            // was just saved, then refresh the menu and re-run the attention check — which stops the
+            // flash if the ROMs are now in place, or keeps it going (restarting from a clean
+            // original-brush capture) if they are still missing.
             await ViewModel!.HostApp.ValidateConfigAsync();
+            ViewModel.RefreshAllBindings();
+            UpdateSectionStatesIfNeeded();
+        }
     }
 
     private async Task Apple2ConfigUserControlOverlayAsync()
@@ -306,11 +370,19 @@ public partial class Apple2MenuView : UserControl
         try
         {
             if (await taskCompletionSource.Task)
+            {
                 await ViewModel!.HostApp.ValidateConfigAsync();
+                ViewModel.RefreshAllBindings();
+                UpdateSectionStatesIfNeeded();
+            }
         }
         finally
         {
             mainGrid.Children.Remove(overlayPanel);
         }
     }
+
+    // Pulses the config button while the Apple II configuration is invalid. Shared with the other
+    // system shells so the race handling around restarting a flash lives in one place.
+    private readonly ButtonFlashController _configButtonFlash = new();
 }

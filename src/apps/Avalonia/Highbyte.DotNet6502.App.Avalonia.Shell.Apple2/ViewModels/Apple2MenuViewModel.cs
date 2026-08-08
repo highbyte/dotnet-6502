@@ -280,6 +280,31 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     public bool IsApple2ConfigEnabled => _hostApp.EmulatorState == EmulatorState.Uninitialized;
 
     /// <summary>
+    /// Whether the Apple II configuration is currently unusable — in practice, on a machine where
+    /// the ROM files have not been supplied yet, which is what a first run after installing looks
+    /// like. The View uses this to expand the Configuration section and draw attention to the
+    /// config button, so the one thing standing between the user and a working emulator is not
+    /// hidden behind a collapsed section.
+    /// </summary>
+    public bool HasConfigValidationErrors
+        => Apple2HostConfig != null && !Apple2HostConfig.IsValid(out _);
+
+    private Apple2HostConfig? Apple2HostConfig => _hostApp.CurrentHostSystemConfig as Apple2HostConfig;
+
+    /// <summary>
+    /// Called by the View when the configuration is invalid: expands Config (which collapses the
+    /// other sections, per the accordion).
+    /// </summary>
+    public void ExpandConfigSectionOnValidationError()
+        => _sections.SetExpanded(Apple2MenuSection.Config, true);
+
+    /// <summary>
+    /// Re-evaluates every binding on this view model. Used after the configuration dialog closes,
+    /// when settings the menu reflects may have changed wholesale.
+    /// </summary>
+    public void RefreshAllBindings() => this.RaisePropertyChanged(string.Empty);
+
+    /// <summary>
     /// The running machine's input handler, or null when nothing is running.
     /// </summary>
     private Apple2InputHandler? RunningInputHandler

@@ -254,6 +254,15 @@ Sidebar sections behave as an accordion in both the C64 and Apple II menus (shar
 scripts must therefore expand a section (header button or shortcut) before its inner
 controls exist in the accessibility tree.
 
+One exception worth knowing when a script asserts on section state: if the selected system's
+configuration is invalid — normally a fresh install whose ROM files are missing — the menu
+expands its Configuration section by itself and pulses the config button (`C64Config` /
+`OpenApple2ConfigButton`) orange until the configuration becomes valid or the button is clicked.
+So a Configuration section found already expanded is a signal about the config, not a leftover from
+an earlier step. The pulse is a `Background` change driven from the view (shared
+`ButtonFlashController`) and is not exposed through the accessibility tree; a screenshot is the only
+way to observe it.
+
 The Apple II menu contributes the Download & Run section (curated downloadable programs),
 the Load/Save section (Applesoft Basic and DOS 3.3 binary files, loading files from .dsk
 images, plus example programs) and the Configuration section — which is the route to the

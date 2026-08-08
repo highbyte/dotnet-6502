@@ -314,7 +314,16 @@
                         AutomationProperties.Name="Open Apple II configuration"
                         Classes="small"
                         IsEnabled="{Binding IsApple2ConfigEnabled}"
-                        Click="OpenApple2Config_Click"/>
+                        Click="OpenApple2Config_Click">
+                    <!-- Fades the attention pulse the view drives while the config is invalid
+                         (missing ROMs). Duration matches ButtonFlashController.FlashOnDuration, so
+                         the colour is never yanked back mid-fade. -->
+                    <Button.Transitions>
+                        <Transitions>
+                            <BrushTransition Property="Background" Duration="0:0:0.7"/>
+                        </Transitions>
+                    </Button.Transitions>
+                </Button>
 
                 <TextBlock Text="ROM files, monitor colour, render provider and CPU compatibility. Only editable while the emulator is stopped."
                            Classes="small secondary-text"
