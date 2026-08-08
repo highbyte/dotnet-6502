@@ -74,8 +74,8 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
   Reproducing it is therefore resampling rather than synthesis: the cone's level is averaged over
   each output sample, which is what makes pulse-width modulation (how the Apple II fakes
   intermediate levels, and plays sampled audio at all) come out as sound rather than aliasing
-  noise. A DC blocker removes the offset of a cone left parked on one side. Off by default;
-  enable it in the configuration dialog.
+  noise. A DC blocker removes the offset of a cone left parked on one side. On by default, as on
+  the C64; turn it off in the configuration dialog.
 - Selectable monitor: a composite colour monitor (the default) or a green, white or amber
   phosphor monitor. The choice applies to every mode, not just hi-res: text is monochrome either
   way (a colour monitor renders it white), and lo-res is full colour on a colour monitor and

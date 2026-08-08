@@ -113,10 +113,16 @@ public partial class Apple2SystemConfig : ISystemConfig, ISnapshotableConfig
     }
 
     /// <summary>
-    /// Off by default. The speaker is faithful but shrill — it is a small cone driven by a square
-    /// wave — so it is the user's choice to switch on rather than something sprung on them.
+    /// On by default, as the C64's is (<c>C64SystemConfig</c> sets the same default in its
+    /// constructor). A machine that boots silently reads as a machine whose sound is not
+    /// implemented, and the speaker is part of how an Apple II sounds — the boot beep included.
+    /// Turn it off in the configuration dialog.
+    ///
+    /// <para>The default has to live here rather than in a host's <c>appsettings.json</c>, because
+    /// the Browser app builds its configuration from browser local storage alone and never reads
+    /// an appsettings file — so on a first visit only this default applies.</para>
     /// </summary>
-    public bool AudioEnabled { get; set; } = false;
+    public bool AudioEnabled { get; set; } = true;
 
     private Apple2MonitorColor _monitorColor = Apple2MonitorColor.Color;
     public Apple2MonitorColor MonitorColor

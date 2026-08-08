@@ -48,7 +48,7 @@ internal sealed class Apple2SystemSnapshotSettings
 {
     /// <summary>Defaults mirror <see cref="Apple2SystemConfig"/>'s own, so a payload that omits a
     /// field leaves the setting where a fresh config would put it.</summary>
-    public bool AudioEnabled { get; set; }
+    public bool AudioEnabled { get; set; } = true;
 
     public bool KeyboardJoystickEnabled { get; set; }
 
