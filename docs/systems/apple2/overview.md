@@ -89,6 +89,21 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
   rasterizer for a faithful picture and for graphics modes.
 - Host-agnostic input handling — host key to ASCII with Shift and Control, plus typematic
   auto-repeat.
+- **Host keyboard layout detection**, so punctuation matches the keys the user is actually
+  pressing. **US English** and **Swedish** are supported, and anything else falls back to US.
+  The layout is resolved once when the input handler starts, in this order: the explicit
+  *Keyboard layout* setting in the Apple II configuration dialog → the host's active keyboard
+  layout, read from the OS → the OS culture → US. Leaving the setting on **Auto** (the default)
+  runs the whole chain; every step is logged, so the Log tab shows which layout was chosen and
+  why. Notes on the Swedish map:
+    - Å, Ä and Ö have no 7-bit ASCII form, so those three keys are bound to `[`, `]` and `\`
+      (shifted: `{`, `}`, `|`) — characters a Swedish keyboard can otherwise only reach through
+      Alt/Option chords that differ between macOS and Windows.
+    - `Alt`/`Option` + `2`, `4`, `8`, `9` give `@`, `$`, `[`, `]`. Only these four are bound,
+      because they are the chords macOS and Windows agree on.
+    - `^` (Applesoft's exponent operator) is on shifted `¨`.
+    - On macOS the two ISO keys `§` and `<` arrive with their hardware codes swapped relative to
+      the W3C convention; this is corrected automatically for non-US layouts.
 - CTRL-RESET (warm reset through the reset vector, like the RESET key on the real keyboard)
   on **Ctrl + F12**, the same combo the Virtual ][ emulator uses.
 - Program loading without disk emulation, via the Avalonia sidebar's Load/Save section and

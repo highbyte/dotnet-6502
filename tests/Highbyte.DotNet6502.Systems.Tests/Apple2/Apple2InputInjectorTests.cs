@@ -12,7 +12,10 @@ public class Apple2InputInjectorTests
     private static (Apple2System Apple2, Apple2InputHandler Handler) Build()
     {
         var apple2 = new Apple2System(new Apple2Config(), NullLoggerFactory.Instance);
-        var handler = new Apple2InputHandler(apple2, NullLoggerFactory.Instance);
+        // Layout pinned so the shifted-digit assertions do not depend on the developer's own
+        // keyboard layout, which auto-detection would otherwise pick up.
+        var handler = new Apple2InputHandler(
+            apple2, NullLoggerFactory.Instance, new Apple2InputConfig { KeyboardLayout = HostKeyboardLayout.US });
         handler.Init(new TestHostInputState());
         return (apple2, handler);
     }

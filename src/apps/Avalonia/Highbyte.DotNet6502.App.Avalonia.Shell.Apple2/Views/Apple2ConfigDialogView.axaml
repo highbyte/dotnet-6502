@@ -266,6 +266,24 @@
                 <TextBlock Text="Input &amp; Joystick"
                             Classes=""/>
 
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-wide">
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                Text="Keyboard layout:"
+                                Classes="secondary-text" />
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="KeyboardLayoutComboBox"
+                            AutomationProperties.Name="Keyboard layout"
+                            ItemsSource="{Binding AvailableKeyboardLayouts}"
+                            SelectedItem="{Binding SelectedKeyboardLayout}"
+                            Classes="small"
+                            MinWidth="100"
+                            MaxDropDownHeight="100" />
+                </Grid>
+
+                <TextBlock Text="Which punctuation the host keys produce. Auto detects the layout from the operating system, and falls back to US English when it cannot tell."
+                            Classes="small secondary-text"
+                            TextWrapping="Wrap"/>
+
                 <CheckBox AutomationProperties.AutomationId="KeyboardJoystickEnableCheckBox"
                         AutomationProperties.Name="Enable keyboard joystick controls"
                         Content="Enable keyboard joystick controls"

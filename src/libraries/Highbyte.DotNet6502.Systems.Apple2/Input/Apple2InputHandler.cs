@@ -1,3 +1,4 @@
+using System.Globalization;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
@@ -31,6 +32,11 @@ public class Apple2InputHandler : IInputConsumer
 
     private IHostInputState _inputState = default!;
 
+    private Apple2HostKeyboard _hostKeyboard = new(HostKeyboardLayout.US);
+    private bool _swapBackquoteAndIntlBackslash;
+    // Reused so the macOS ISO swap does not allocate a set every frame.
+    private readonly HashSet<HostKey> _swappedHostKeysBuffer = new();
+
     private readonly HashSet<HostKey> _previousKeysDown = new();
     private HostKey _repeatingKey = HostKey.None;
     private int _framesHeld;
@@ -48,9 +54,94 @@ public class Apple2InputHandler : IInputConsumer
     /// <summary>The gamepad and keyboard-joystick mapping in force.</summary>
     public Apple2InputConfig InputConfig => _inputConfig;
 
+    /// <summary>The keyboard map in force, built for the resolved host keyboard layout.</summary>
+    public Apple2HostKeyboard HostKeyboard => _hostKeyboard;
+
     public void Init(IHostInputState inputState)
     {
         _inputState = inputState;
+
+        _hostKeyboard = new Apple2HostKeyboard(ResolveKeyboardLayout());
+
+        // macOS reports the two ISO-keyboard keys §/< (the keys left of '1' and left of 'Z') with
+        // hardware keycodes that are swapped relative to the W3C `code` convention that HostKey
+        // follows: the § key arrives as IntlBackslash and the < key as Backquote. The swap only
+        // makes sense on an ISO keyboard, which a non-US layout selection implies. Same correction
+        // C64InputHandler applies.
+        _swapBackquoteAndIntlBackslash =
+            _inputState.IsRunningOnMacOS && _hostKeyboard.Layout != HostKeyboardLayout.US;
+        if (_swapBackquoteAndIntlBackslash)
+            _logger.LogInformation("Applying macOS ISO-keyboard Backquote/IntlBackslash key swap.");
+    }
+
+    /// <summary>
+    /// Resolves the host keyboard layout the Apple II keyboard map is built for. Priority:
+    /// <list type="number">
+    /// <item>The explicit config setting <see cref="Apple2InputConfig.KeyboardLayout"/> — when set
+    ///   (non-null), it forces that layout.</item>
+    /// <item>Auto-detect: the host's native keyboard layout, via
+    ///   <see cref="IHostInputState.DetectNativeKeyboardLayoutId"/> / <see cref="HostKeyboardLayoutResolver"/>.</item>
+    /// <item>The OS/UI culture — inaccurate (it is not the physical keyboard) but better than
+    ///   nothing.</item>
+    /// <item>Default: <see cref="HostKeyboardLayout.US"/>.</item>
+    /// </list>
+    /// </summary>
+    private HostKeyboardLayout ResolveKeyboardLayout()
+    {
+        if (_inputConfig.KeyboardLayout.HasValue)
+        {
+            _logger.LogInformation(
+                $"Apple II keyboard layout: {_inputConfig.KeyboardLayout.Value} (explicit config setting).");
+            return _inputConfig.KeyboardLayout.Value;
+        }
+
+        var nativeLayoutId = _inputState.DetectNativeKeyboardLayoutId();
+        var detected = HostKeyboardLayoutResolver.FromNativeLayoutId(nativeLayoutId);
+        if (detected.HasValue)
+        {
+            _logger.LogInformation(
+                $"Apple II keyboard layout: {detected.Value} (auto-detected from host keyboard layout '{nativeLayoutId}').");
+            return detected.Value;
+        }
+
+        var hostLayoutDesc = nativeLayoutId is null ? "not detectable" : $"'{nativeLayoutId}' unmapped";
+        var culture = CultureInfo.CurrentCulture;
+        var fromCulture = HostKeyboardLayoutResolver.FromCulture(culture);
+        if (fromCulture.HasValue)
+        {
+            _logger.LogInformation(
+                $"Apple II keyboard layout: {fromCulture.Value} (from OS culture '{culture.Name}'; " +
+                $"host keyboard layout {hostLayoutDesc}).");
+            return fromCulture.Value;
+        }
+
+        _logger.LogInformation(
+            $"Apple II keyboard layout: {HostKeyboardLayout.US} (default; no config setting, " +
+            $"host keyboard layout {hostLayoutDesc}, OS culture '{culture.Name}' unmapped).");
+        return HostKeyboardLayout.US;
+    }
+
+    // Returns a copy of the held host keys with HostKey.Backquote and HostKey.IntlBackslash
+    // exchanged — the macOS ISO-keyboard correction (see Init). Returns the input unchanged when
+    // neither key is held, to avoid allocating on every frame.
+    private IReadOnlySet<HostKey> SwapBackquoteAndIntlBackslash(IReadOnlySet<HostKey> hostKeysDown)
+    {
+        var hasBackquote = hostKeysDown.Contains(HostKey.Backquote);
+        var hasIntlBackslash = hostKeysDown.Contains(HostKey.IntlBackslash);
+        if (!hasBackquote && !hasIntlBackslash)
+            return hostKeysDown;
+
+        _swappedHostKeysBuffer.Clear();
+        foreach (var key in hostKeysDown)
+        {
+            if (key == HostKey.Backquote)
+                _swappedHostKeysBuffer.Add(HostKey.IntlBackslash);
+            else if (key == HostKey.IntlBackslash)
+                _swappedHostKeysBuffer.Add(HostKey.Backquote);
+            else
+                _swappedHostKeysBuffer.Add(key);
+        }
+        return _swappedHostKeysBuffer;
     }
 
     public void BeforeFrame()
@@ -67,10 +158,14 @@ public class Apple2InputHandler : IInputConsumer
             keysDown = merged;
         }
 
+        if (_swapBackquoteAndIntlBackslash)
+            keysDown = SwapBackquoteAndIntlBackslash(keysDown);
+
         keysDown = ApplyJoystick(keysDown);
 
         var shift = keysDown.Contains(HostKey.ShiftLeft) || keysDown.Contains(HostKey.ShiftRight);
         var control = keysDown.Contains(HostKey.ControlLeft) || keysDown.Contains(HostKey.ControlRight);
+        var alt = keysDown.Contains(HostKey.AltLeft) || keysDown.Contains(HostKey.AltRight);
 
         // CTRL-RESET. The RESET key is wired to the 6502 /RES line (not the keyboard encoder),
         // with CTRL required on later II Plus keyboards. Mapped to Ctrl+F12, the same host combo
@@ -82,7 +177,7 @@ public class Apple2InputHandler : IInputConsumer
         }
 
         var key = ResolveKeyToLatch(keysDown);
-        if (key != HostKey.None && Apple2HostKeyboard.TryGetAscii(key, shift, control, out var ascii))
+        if (key != HostKey.None && _hostKeyboard.TryGetAscii(key, shift, control, out var ascii, alt))
         {
             _apple2.Keyboard.KeyPressed(ascii);
             _logger.LogTrace("Apple II input: host={HostKey} ascii=${Ascii:X2}", key, ascii);
@@ -155,7 +250,7 @@ public class Apple2InputHandler : IInputConsumer
         {
             if (Apple2HostKeyboard.ModifierKeys.Contains(key))
                 continue;
-            if (!Apple2HostKeyboard.HostKeyToAsciiMap.ContainsKey(key))
+            if (!_hostKeyboard.ProducesCharacter(key))
                 continue;
             if (_previousKeysDown.Contains(key))
                 continue;

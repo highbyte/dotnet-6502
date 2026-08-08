@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Input;
 
 namespace Highbyte.DotNet6502.Systems.Apple2.Input;
@@ -11,6 +12,23 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Input;
 /// </summary>
 public class Apple2InputConfig : ICloneable
 {
+    /// <summary>
+    /// The host physical keyboard layout the Apple II keyboard mapping assumes. Selects which
+    /// punctuation and shifted-digit map <see cref="Apple2HostKeyboard"/> merges in.
+    /// <para>
+    /// <c>null</c> — the default, and what an absent or empty <c>appsettings.json</c> value binds
+    /// to — means <em>auto-detect</em>: the input handler resolves the layout from the host's
+    /// detected keyboard layout, then the OS culture, then falls back to
+    /// <see cref="HostKeyboardLayout.US"/>. A non-null value forces that layout.
+    /// </para>
+    /// <para>
+    /// A property (not a field) so it binds from <c>appsettings.json</c>; the string-enum
+    /// converter keeps the persisted JSON readable (e.g. <c>"Swedish"</c> rather than a number).
+    /// </para>
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<HostKeyboardLayout>))]
+    public HostKeyboardLayout? KeyboardLayout { get; set; }
+
     /// <summary>
     /// Whether host keys drive the joystick. Off by default, and deliberately opt-in: the mapped
     /// keys are taken away from the keyboard while it is on.
