@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -206,12 +205,12 @@ public partial class C64MenuView : UserControl
 
                 var c64ConfigButton = this.FindControl<Button>("C64Config");
                 if (c64ConfigButton != null)
-                    StartButtonFlash(c64ConfigButton, Colors.DarkOrange, stopAfterClick: true);
+                    _configButtonFlash.Start(c64ConfigButton, Colors.DarkOrange, stopAfterClick: true);
             }
             else
             {
                 // Config is valid (or has just become valid) — stop any ongoing flash.
-                CancelButtonFlash();
+                _configButtonFlash.Cancel();
             }
         }
         catch (Exception ex)
@@ -221,81 +220,6 @@ public partial class C64MenuView : UserControl
             System.Diagnostics.Debug.WriteLine($"UpdateSectionStatesIfNeeded: Skipping update due to uninitialized state - {ex.Message}");
         }
     }
-
-    /// <summary>
-    /// Cancels any ongoing button flash animation without starting a new one.
-    /// CancellationTokenSource.Dispose() is safe to call multiple times, so even if
-    /// StartButtonFlash's finally block also disposes it, there is no harm.
-    /// </summary>
-    private void CancelButtonFlash()
-    {
-        var cts = _buttonFlashCancellation;
-        if (cts == null) return;
-        _buttonFlashCancellation = null;
-        SafeAsyncHelper.Execute(async () =>
-        {
-            await cts.CancelAsync();
-            cts.Dispose(); // safe; StartButtonFlash's catch/finally may also dispose it
-        });
-    }
-
-    private void StartButtonFlash(Button button, Color flashColor, bool stopAfterClick)
-        => SafeAsyncHelper.Execute(async () =>
-        {
-            // Capture the field into a local before awaiting so the finally block's
-            // null-clear cannot cause a NullReferenceException on the Dispose() line
-            // if another concurrent call races through the finally while we're awaiting.
-            var existingCancellation = _buttonFlashCancellation;
-            if (existingCancellation != null)
-            {
-                _buttonFlashCancellation = null;
-                await existingCancellation.CancelAsync();
-                existingCancellation.Dispose();
-            }
-
-            var buttonFlashCancellation = new CancellationTokenSource();
-            _buttonFlashCancellation = buttonFlashCancellation;
-            var originalBrush = button.Background;
-            var flashBrush = new SolidColorBrush(flashColor);
-
-            EventHandler<RoutedEventArgs>? tempHandler = null;
-            tempHandler = (s, e) =>
-            {
-                SafeAsyncHelper.Execute(async () =>
-                {
-                    await buttonFlashCancellation.CancelAsync();
-                    button.Click -= tempHandler;
-                });
-            };
-            if (stopAfterClick)
-                button.Click += tempHandler;
-
-            try
-            {
-                while (!buttonFlashCancellation.Token.IsCancellationRequested)
-                {
-                    button.Background = flashBrush;
-                    await Task.Delay(700, buttonFlashCancellation.Token); // Match delay with flash duration to be at least as long as BrushTransition Duration (otherwise abrupt change may occur)
-
-                    button.Background = originalBrush;
-                    await Task.Delay(2000, buttonFlashCancellation.Token);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Animation was cancelled, restore original background
-                button.Background = originalBrush;
-            }
-            finally
-            {
-                // Clean up the handler in case animation completed naturally
-                button.Click -= tempHandler;
-                buttonFlashCancellation.Dispose();
-
-                if (ReferenceEquals(_buttonFlashCancellation, buttonFlashCancellation))
-                    _buttonFlashCancellation = null;
-            }
-        });
 
     private void OpenC64Config_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
@@ -683,5 +607,7 @@ public partial class C64MenuView : UserControl
             }
         });
 
-    private CancellationTokenSource? _buttonFlashCancellation;
+    // Flashes the C64 Config button while the configuration is invalid. Shared with the other
+    // system shells so the race handling around restarting a flash lives in one place.
+    private readonly ButtonFlashController _configButtonFlash = new();
 }
