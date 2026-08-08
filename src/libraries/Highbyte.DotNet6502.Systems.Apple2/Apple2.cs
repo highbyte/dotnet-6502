@@ -13,6 +13,8 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
+using Highbyte.DotNet6502.Systems.Apple2.Snapshots;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,7 +29,7 @@ namespace Highbyte.DotNet6502.Systems.Apple2;
 /// Autostart Monitor and Applesoft BASIC poll the keyboard latch directly — so a frame is just
 /// "run the CPU for a frame's worth of cycles, then render".
 /// </summary>
-public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
+public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor, ISystemSnapshotProvider
 {
     public const string SystemName = "Apple2";
 
@@ -459,4 +461,36 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor
     }
 
     bool ISystemState.IsSystemReady() => HasBasicStarted();
+
+    // --- Snapshot support ---
+
+    /// <summary>
+    /// The 48 KB RAM backing array. Mapped into <see cref="Mem"/> by reference, so the apple2-core
+    /// snapshot module copies bytes into it rather than replacing the instance — reassigning would
+    /// leave the memory map pointing at the old array.
+    /// </summary>
+    internal byte[] SnapshotRam => _ram;
+
+    /// <summary>
+    /// The machine-level snapshot version. The shared <c>SnapshotService</c> already enforces the
+    /// format version, machine name, unknown required modules and module versions, and this machine
+    /// has no model or timing variants to check beyond that — so
+    /// <see cref="ValidateSnapshot"/> adds nothing.
+    /// </summary>
+    public const int SnapshotVersion = 1;
+
+    private readonly IReadOnlyList<ISnapshotModule> _snapshotModules = new ISnapshotModule[]
+    {
+        new Cpu6502SnapshotModule(),
+        new Apple2CoreSnapshotModule(),
+        // apple2-disk2 restores after apple2-core because re-inserting the disk rebuilds the
+        // nibble tracks the restored head position indexes into.
+        new Apple2Disk2SnapshotModule(),
+    };
+
+    public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
+
+    public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
+
+    public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest) => SnapshotCompatibility.Compatible();
 }

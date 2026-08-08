@@ -62,4 +62,22 @@ public class Apple2Speaker
         ToggleCount = 0;
         LastToggleCycle = 0;
     }
+
+    // --- Snapshot support (consumed by the apple2-core snapshot module in the same assembly) ---
+
+    /// <summary>
+    /// Restores the cone position and toggle bookkeeping.
+    ///
+    /// <para>The level matters even though its absolute polarity does not: the audio path measures
+    /// the level across each output sample, so resuming with the cone on the wrong side inverts the
+    /// first sample window and puts a step through the DC blocker — an audible click on every load.
+    /// <see cref="LastToggleCycle"/> is an absolute stamp, which stays meaningful because the CPU's
+    /// cumulative cycle count is restored alongside it.</para>
+    /// </summary>
+    internal void RestoreSnapshotState(bool level, ulong toggleCount, ulong lastToggleCycle)
+    {
+        Level = level;
+        ToggleCount = toggleCount;
+        LastToggleCycle = lastToggleCycle;
+    }
 }

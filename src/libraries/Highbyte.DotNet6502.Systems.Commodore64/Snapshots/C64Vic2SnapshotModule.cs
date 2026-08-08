@@ -19,9 +19,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
 /// </para>
 ///
 /// <para>
-/// The live raster position is captured for diagnostics/forward-compatibility but not forced back:
-/// it is re-derived as the restored machine runs, and the per-frame renderer state rebuilds itself
-/// once execution resumes.
+/// The live raster position is restored too, so a machine captured mid-frame resumes mid-frame:
+/// <see cref="C64.ExecuteOneFrame"/> runs only the remainder of the frame, keeping raster
+/// interrupts where the running program expects them. Only the cycle count is written back — the
+/// raster line is re-derived from it inside <see cref="Vic2"/> so the two cannot disagree. The
+/// per-frame renderer state rebuilds itself once execution resumes.
 /// </para>
 /// </summary>
 public sealed class C64Vic2SnapshotModule : ISnapshotModule
@@ -69,8 +71,8 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
         var c64 = (C64)context.System;
         var vic2 = c64.Vic2;
 
-        _ = reader.ReadUInt16(); // CurrentRasterLine (re-derived during execution)
-        _ = reader.ReadUInt64(); // CyclesConsumedCurrentVblank (re-derived during execution)
+        _ = reader.ReadUInt16(); // CurrentRasterLine (re-derived from the cycle count below)
+        vic2.RestoreSnapshotRasterPosition(reader.ReadUInt64());
 
         var hasConfiguredRasterLine = reader.ReadBool();
         var configuredRasterLine = reader.ReadUInt16();

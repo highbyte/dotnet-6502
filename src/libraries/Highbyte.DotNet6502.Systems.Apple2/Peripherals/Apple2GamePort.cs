@@ -203,6 +203,25 @@ public class Apple2GamePort
         };
     }
 
+    // --- Snapshot support (consumed by the apple2-core snapshot module in the same assembly) ---
+
+    /// <summary>
+    /// When the one-shot was last fired, or null if it never has been. Absolute, and meaningful
+    /// after a restore because the CPU's cumulative cycle count is restored with it.
+    /// </summary>
+    internal ulong? SnapshotTriggeredAtCycle => _triggeredAtCycle;
+
+    /// <summary>
+    /// Restores the one-shot's firing stamp and the strobe count. Paddle positions and button
+    /// states go back through the ordinary public setters — they are plain values with no derived
+    /// state behind them.
+    /// </summary>
+    internal void RestoreSnapshotState(ulong? triggeredAtCycle, ulong paddleTriggerCount)
+    {
+        _triggeredAtCycle = triggeredAtCycle;
+        PaddleTriggerCount = paddleTriggerCount;
+    }
+
     private static void ValidatePaddle(int paddle)
     {
         if (paddle < 0 || paddle >= PaddleCount)

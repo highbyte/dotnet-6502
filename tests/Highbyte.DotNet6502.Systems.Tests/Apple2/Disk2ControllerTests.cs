@@ -49,6 +49,50 @@ public class Disk2ControllerTests
         return 0;
     }
 
+    /// <summary>
+    /// A drive whose motor has never been switched on is not turning. The one-shot that keeps the
+    /// disk coasting after a motor-off is timed against the CPU's cumulative cycle count, which is
+    /// also 0 at power-on — so treating "never switched off" as "switched off at cycle 0" would put
+    /// a brand new drive inside its own spin-down window for its first million cycles.
+    /// </summary>
+    [Fact]
+    public void Drive_Is_Not_Spinning_Before_The_Motor_Has_Ever_Been_Switched_On()
+    {
+        ulong cycles = 0;
+        var controller = new Disk2Controller(() => cycles);
+        controller.SetBootRom(BuildBootRom());
+        controller.InsertDiskImage(BuildDiskImage());
+
+        Assert.False(controller.IsMotorOn);
+        Assert.False(controller.IsSpinning);
+
+        // Still not spinning a little way into the machine's life (inside the spin-down window).
+        cycles = Disk2Controller.SpinDownCycles / 2;
+        Assert.False(controller.IsSpinning);
+    }
+
+    [Fact]
+    public void Motor_Keeps_Spinning_Through_The_Spin_Down_Window_After_Being_Switched_Off()
+    {
+        ulong cycles = 1_000;
+        var controller = new Disk2Controller(() => cycles);
+        controller.SetBootRom(BuildBootRom());
+        controller.InsertDiskImage(BuildDiskImage());
+
+        controller.BusAccess(0xC0E9);   // motor on
+        Assert.True(controller.IsSpinning);
+
+        controller.BusAccess(0xC0E8);   // motor off: the one-shot starts here
+        Assert.False(controller.IsMotorOn);
+        Assert.True(controller.IsSpinning);
+
+        cycles += Disk2Controller.SpinDownCycles - 1;
+        Assert.True(controller.IsSpinning);
+
+        cycles += 1;
+        Assert.False(controller.IsSpinning);
+    }
+
     [Fact]
     public void Controller_Is_Enabled_Only_With_Both_Boot_Rom_And_Disk()
     {

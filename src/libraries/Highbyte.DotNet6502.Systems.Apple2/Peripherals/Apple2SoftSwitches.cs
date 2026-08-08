@@ -192,4 +192,20 @@ public class Apple2SoftSwitches
         _speaker?.Reset();
         _speakerTogglesWithoutSpeaker = 0;
     }
+
+    // --- Snapshot support (consumed by the apple2-core snapshot module in the same assembly) ---
+
+    /// <summary>
+    /// Restores the four display switches. These are the whole of the machine's video state: unlike
+    /// the C64's VIC-II there are no registers to re-derive anything from, because the switches are
+    /// write-only flip-flops that live nowhere in the address space. Restoring them is what makes a
+    /// snapshot taken in hi-res come back in hi-res rather than at the text prompt.
+    /// </summary>
+    internal void RestoreSnapshotDisplaySwitches(bool textMode, bool mixedMode, bool page2, bool hiRes)
+    {
+        TextMode = textMode;
+        MixedMode = mixedMode;
+        Page2 = page2;
+        HiRes = hiRes;
+    }
 }

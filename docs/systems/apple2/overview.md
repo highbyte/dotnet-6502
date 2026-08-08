@@ -26,7 +26,7 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
     - `$C010` clears the strobe.
     - `$C050`–`$C057` display-mode switches (text/graphics, mixed, page 1/2, lo-res/hi-res),
       honored by the rasterizer render path.
-    - `$C030` speaker toggle counted but silent.
+    - `$C030` speaker toggle, driving the one-bit cone (see Speaker audio below).
 - Empty peripheral slots at `$C100`–`$CFFF` read as `$FF`, which makes the Autostart ROM's disk
   scan fail cleanly so it falls through to BASIC. Slot 6 answers instead when the Disk II
   controller is active (see below).
@@ -135,6 +135,43 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
 
 - Avalonia Desktop and Avalonia Browser (WASM) UI, with a configuration dialog for ROM files,
   ROM download, monitor colour, render provider and CPU compatibility profile.
+- Emulator state snapshots — save and restore the whole machine, disk included. See
+  [Snapshots](#snapshots).
+
+## Snapshots
+
+The Apple II supports the shared `.d6502snap` emulator-state snapshots, so the same save/load
+buttons, `emu.savesnapshot`/`emu.loadsnapshot` remote commands, Lua `emu.save_snapshot`, and
+`--load-snapshot` command line work here as on the other machines.
+
+Two machine modules make up an Apple II snapshot, alongside the shared `cpu-6502` one:
+
+| Module | What it holds |
+|---|---|
+| `apple2-core` | The 48 KB RAM, the keyboard latch (strobe included), the four display soft switches, the speaker's cone position, and the game port's paddle positions, buttons and one-shot |
+| `apple2-disk2` | Head half-track, motor, drive select, the Q6/Q7 latches, the read head's position in the current track — plus the inserted `.dsk` image, embedded in the package |
+
+One module rather than one per chip, because the machine has no chips to divide along: the
+display mode is four write-only flip-flops, the keyboard is one byte and the speaker is one bit,
+all decoded from the same page of addresses. The Disk II card is the other seam, because it has
+removable media.
+
+Notes on what a restored machine gets:
+
+- **The disk comes with it.** The image is embedded in the snapshot, so a snapshot of a booted
+  DOS 3.3 session restores complete — no need to have the original file still lying around. The
+  head position travels too, which matters more here than on a C64: this card has no processor of
+  its own, so a running RWTS resumes against a head that is exactly where it left it.
+- **Timing is continuous.** The disk motor's spin-down, the paddle one-shots and the speaker all
+  time themselves against the CPU's cumulative cycle count, which the shared `cpu-6502` module
+  restores. A paddle read caught in flight resumes and expires at the same point it would have.
+- **Settings travel optionally.** Audio enabled, keyboard joystick and monitor colour are carried
+  in the snapshot's portable settings block, applied before the machine is rebuilt (all three are
+  read at build time rather than polled), and only when the user opts into including config.
+- **ROMs are not captured**, by design — the system ROM, character generator and Disk II boot ROM
+  come from the configuration when the machine is rebuilt. Restoring a snapshot taken with a disk
+  inserted on a machine with no `disk2` ROM configured re-inserts the disk but warns that the
+  controller stays invisible.
 
 ## Monitor commands
 
