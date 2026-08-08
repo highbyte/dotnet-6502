@@ -1173,8 +1173,8 @@ public partial class MainView : UserControl
 
     // Emulator state snapshots (save/restore). Cross-system feature, so it lives in the common
     // MainView rather than a per-system menu. Only systems whose ISystem implements
-    // ISystemSnapshotProvider can be snapshotted (currently the Generic computer); for others the
-    // save is skipped with a log message.
+    // ISystemSnapshotProvider can be snapshotted; for others the save is skipped with a log
+    // message.
     private void SaveSnapshot_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>
         {

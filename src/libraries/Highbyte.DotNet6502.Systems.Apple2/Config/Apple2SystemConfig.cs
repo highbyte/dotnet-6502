@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Systems.Apple2.Render;
 using Highbyte.DotNet6502.Systems.Apple2.Audio.Sample;
 using Highbyte.DotNet6502.Systems.Apple2.Video;
 using Highbyte.DotNet6502.Systems.Configuration;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Highbyte.DotNet6502.Utils;
 using Apple2System = Highbyte.DotNet6502.Systems.Apple2.Apple2;
 
@@ -11,7 +12,7 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Config;
 /// <summary>
 /// User-facing Apple II configuration: ROM files and display preferences.
 /// </summary>
-public class Apple2SystemConfig : ISystemConfig
+public partial class Apple2SystemConfig : ISystemConfig, ISnapshotableConfig
 {
     /// <summary>
     /// The combined Applesoft BASIC + Autostart Monitor ROM mapped at $D000-$FFFF.

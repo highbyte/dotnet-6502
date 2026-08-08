@@ -240,4 +240,45 @@ public class C64CoreSnapshotRoundTripTests
         Assert.Equal(sourceBank, restored.CurrentBank);
         Assert.Equal(source.Mem.Read(0x0001), restored.Mem.Read(0x0001));
     }
+
+    /// <summary>
+    /// A machine captured mid-frame resumes mid-frame. Without this the raster restarts at line 0
+    /// on load, so every raster interrupt lands in a different place than the running program
+    /// expects for the first frame — visible as a split-screen effect tearing after a restore.
+    /// </summary>
+    [Fact]
+    public void C64_round_trip_restores_the_raster_position_within_the_frame()
+    {
+        var source = BuildC64();
+        LoadProgram(source);
+        // Run part of a frame's worth of cycles, so the raster ends up well down the screen but
+        // short of the frame boundary. A fixed instruction count rather than a loop on
+        // CurrentRasterLine, which reads ushort.MaxValue as its "no line yet" sentinel until the
+        // first instruction advances it.
+        for (var i = 0; i < 2000; i++)
+            source.ExecuteOneInstruction(out _);
+
+        var sourceRasterLine = source.Vic2.CurrentRasterLine;
+        var sourceVblankCycles = source.Vic2.CyclesConsumedCurrentVblank;
+        Assert.True(sourceVblankCycles > 0);
+        Assert.InRange(sourceRasterLine, (ushort)1, (ushort)(source.Vic2.Vic2Model.TotalHeight - 1));
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+
+        snapshotStream.Position = 0;
+        var restored = BuildC64();
+        new SnapshotService().Restore(restored, snapshotStream);
+
+        Assert.Equal(sourceVblankCycles, restored.Vic2.CyclesConsumedCurrentVblank);
+        Assert.Equal(sourceRasterLine, restored.Vic2.CurrentRasterLine);
+
+        // The re-derived line stays consistent with the cycle count as execution continues.
+        for (var i = 0; i < 200; i++)
+        {
+            source.ExecuteOneInstruction(out _);
+            restored.ExecuteOneInstruction(out _);
+        }
+        Assert.Equal(source.Vic2.CurrentRasterLine, restored.Vic2.CurrentRasterLine);
+    }
 }

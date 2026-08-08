@@ -35,4 +35,13 @@ public class Apple2Keyboard
     public void ClearStrobe() => _latch &= 0x7F;
 
     public void Reset() => _latch = 0;
+
+    // --- Snapshot support (consumed by the apple2-core snapshot module in the same assembly) ---
+
+    /// <summary>
+    /// Restores the raw latch, strobe bit included. Set directly rather than through
+    /// <see cref="KeyPressed"/>, which would force the strobe on and turn a machine that had
+    /// already consumed its keypress into one with a key waiting.
+    /// </summary>
+    internal void RestoreSnapshotLatch(byte latch) => _latch = latch;
 }

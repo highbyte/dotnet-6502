@@ -77,13 +77,28 @@ public class Disk2Controller
     private readonly bool[] _phaseOn = new bool[4];
     private int _halfTrack;
     private bool _motorSwitchedOn;
-    private ulong _motorSwitchedOffAtCycle;
+
+    /// <summary>
+    /// When the motor switch was last turned off, or null if the drive has not been switched off
+    /// since it was last stopped for good. Null rather than 0, for the same reason the game port's
+    /// trigger stamp is nullable: at power-on the CPU cycle counter is 0 too, so treating "never
+    /// switched off" as "switched off at cycle 0" puts the one-shot inside its own spin-down window
+    /// and a drive that has never run reports as spinning for its first million cycles.
+    /// </summary>
+    private ulong? _motorSwitchedOffAtCycle;
     private int _selectedDrive = 1;
     private bool _q6;
     private bool _q7;
     private int _nibblePosition;
 
     private byte[][]? _nibbleTracks;
+
+    /// <summary>
+    /// The inserted image exactly as supplied. Kept alongside the nibblized tracks because
+    /// nibblizing is one-way: a snapshot has to embed the original image to be able to re-insert
+    /// the same disk on restore.
+    /// </summary>
+    private byte[]? _rawDiskImageData;
 
     /// <param name="cpuCycleProvider">
     /// Source of the CPU's cumulative cycle count, used only to time the motor's spin-down.
@@ -110,7 +125,8 @@ public class Disk2Controller
     /// than <see cref="SpinDownCycles"/> ago and the one-shot still holds the motor.
     /// </summary>
     public bool IsSpinning => _motorSwitchedOn
-        || _cpuCycleProvider() - _motorSwitchedOffAtCycle < SpinDownCycles;
+        || (_motorSwitchedOffAtCycle is { } switchedOffAt
+            && _cpuCycleProvider() - switchedOffAt < SpinDownCycles);
 
     /// <summary>The whole track currently under the head.</summary>
     public int CurrentTrack => _halfTrack / 2;
@@ -145,9 +161,14 @@ public class Disk2Controller
     public void InsertDiskImage(byte[] diskImageData)
     {
         _nibbleTracks = Disk2TrackNibblizer.BuildNibbleTracks(diskImageData);
+        _rawDiskImageData = diskImageData;
     }
 
-    public void RemoveDiskImage() => _nibbleTracks = null;
+    public void RemoveDiskImage()
+    {
+        _nibbleTracks = null;
+        _rawDiskImageData = null;
+    }
 
     /// <summary>Value the CPU sees at a boot ROM address ($C600-$C6FF).</summary>
     public byte ReadBootRom(ushort address)
@@ -244,10 +265,46 @@ public class Disk2Controller
     {
         Array.Clear(_phaseOn);
         _motorSwitchedOn = false;
-        _motorSwitchedOffAtCycle = 0;
+        _motorSwitchedOffAtCycle = null;
         _selectedDrive = 1;
         _q6 = false;
         _q7 = false;
         // Head position is intentionally kept — a reset does not move a physical head.
+    }
+
+    // --- Snapshot support (consumed by the apple2-disk2 snapshot module in the same assembly) ---
+
+    /// <summary>
+    /// The inserted image as originally supplied, or null when the drive is empty. The snapshot
+    /// embeds these bytes so the same disk can be re-inserted on restore.
+    /// </summary>
+    internal byte[]? SnapshotRawDiskImageData => _rawDiskImageData;
+
+    /// <summary>
+    /// The mechanical and sequencer state that is not derivable from anything else: where the head
+    /// is, whether the motor is running (and if coasting, since when), which drive is selected, the
+    /// Q6/Q7 latches, and how far into the current track's nibble stream the read head sits.
+    ///
+    /// <para>The nibble position is the one that is easy to dismiss and should not be: a snapshot
+    /// taken during a sector read resumes mid-stream, and starting that stream over would hand the
+    /// running RWTS a field header where it expects data.</para>
+    /// </summary>
+    internal (int HalfTrack, bool MotorOn, ulong? MotorSwitchedOffAtCycle, int SelectedDrive, bool Q6, bool Q7, int NibblePosition)
+        GetSnapshotState()
+        => (_halfTrack, _motorSwitchedOn, _motorSwitchedOffAtCycle, _selectedDrive, _q6, _q7, _nibblePosition);
+
+    internal void RestoreSnapshotState(
+        int halfTrack, bool motorOn, ulong? motorSwitchedOffAtCycle, int selectedDrive, bool q6, bool q7, int nibblePosition)
+    {
+        _halfTrack = Math.Clamp(halfTrack, 0, MaxHalfTrack);
+        _motorSwitchedOn = motorOn;
+        _motorSwitchedOffAtCycle = motorSwitchedOffAtCycle;
+        _selectedDrive = selectedDrive;
+        _q6 = q6;
+        _q7 = q7;
+        // Guarded rather than trusted: the position indexes into the current track's nibble stream,
+        // whose length depends on the nibblizer, so a snapshot written by a different build could
+        // otherwise index out of range. ReadDataNibble wraps modulo the track length anyway.
+        _nibblePosition = nibblePosition < 0 ? 0 : nibblePosition;
     }
 }

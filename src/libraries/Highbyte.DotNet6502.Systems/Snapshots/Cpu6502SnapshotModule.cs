@@ -9,10 +9,19 @@ namespace Highbyte.DotNet6502.Systems.Snapshots;
 /// <para>
 /// Capture (v1): PC, SP, A, X, Y, processor-status byte, compatibility profile, halted flag,
 /// <see cref="ExecState"/> totals, and <see cref="CPUInterrupts"/> (pending-NMI flag plus
-/// active IRQ/NMI sources). Restore applies registers, flags and interrupt sources through the
-/// CPU's public API. The compatibility profile is validated against the rebuilt CPU; the
-/// halted flag and <see cref="ExecState"/> totals are captured for forward-compatibility and
-/// diagnostics but are re-derived as the system runs rather than forced back onto the CPU.
+/// active IRQ/NMI sources). Restore applies registers, flags, interrupt sources and the
+/// <see cref="ExecState"/> totals through the CPU's public API. The compatibility profile is
+/// validated against the rebuilt CPU; the halted flag is captured for diagnostics only.
+/// </para>
+///
+/// <para>
+/// The cumulative cycle count is restored rather than restarted at zero, because peripherals
+/// across machines time themselves against it with <em>absolute</em> stamps — the Apple II disk
+/// motor's spin-down, its paddle one-shots and its speaker toggles, and the C64's SwiftLink
+/// receive pacing. Restarting the counter would put every such stamp in the future, so timers
+/// that had long expired would read as though they were still running. Execution limits are
+/// unaffected: they are evaluated against the per-invocation <see cref="ExecState"/> that
+/// <c>CPU.Execute</c> accumulates, not against these totals.
 /// </para>
 /// </summary>
 public sealed class Cpu6502SnapshotModule : ISnapshotModule
@@ -76,11 +85,14 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
 
         var capturedHalted = reader.ReadBool();
 
-        // ExecState totals are read to keep the stream aligned and for potential diagnostics;
-        // they are re-derived as the restored system runs and are not forced back onto the CPU.
-        _ = reader.ReadUInt64(); // CyclesConsumed
-        _ = reader.ReadUInt64(); // InstructionsExecutionCount
-        _ = reader.ReadUInt64(); // UnknownOpCodeCount
+        // ExecState totals are restored so the cumulative cycle count continues from the saved
+        // machine rather than restarting at zero. Peripherals that time themselves against it hold
+        // absolute cycle stamps, which are only meaningful against a continuous counter — see
+        // ExecState.RestoreTotals.
+        var cyclesConsumed = reader.ReadUInt64();
+        var instructionsExecutionCount = reader.ReadUInt64();
+        var unknownOpCodeCount = reader.ReadUInt64();
+        cpu.ExecState.RestoreTotals(cyclesConsumed, instructionsExecutionCount, unknownOpCodeCount);
 
         RestoreInterrupts(reader, cpu);
 

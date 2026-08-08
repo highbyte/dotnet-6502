@@ -39,6 +39,24 @@ public class ExecState
         };
     }
 
+    /// <summary>
+    /// Overwrites the running totals with values captured earlier. Intended for snapshot restore,
+    /// which has to make the cumulative cycle count continue from where the saved machine left off
+    /// rather than from zero: peripherals that time themselves against it (the Apple II disk motor,
+    /// paddle one-shots and speaker; the C64's SwiftLink receive pacing) hold <em>absolute</em>
+    /// cycle stamps, which are only meaningful against a continuous counter.
+    ///
+    /// <para>This does not affect execution limits. <c>ExecOptions.CyclesRequested</c> and
+    /// <c>MaxNumberOfInstructions</c> are evaluated against the per-invocation <see cref="ExecState"/>
+    /// that <see cref="CPU.Execute"/> accumulates, not against these cumulative totals.</para>
+    /// </summary>
+    public void RestoreTotals(ulong cyclesConsumed, ulong instructionsExecutionCount, ulong unknownOpCodeCount)
+    {
+        CyclesConsumed = cyclesConsumed;
+        InstructionsExecutionCount = instructionsExecutionCount;
+        UnknownOpCodeCount = unknownOpCodeCount;
+    }
+
     internal void UpdateTotal(ExecState newExecState)
     {
         CyclesConsumed += newExecState.CyclesConsumed;
