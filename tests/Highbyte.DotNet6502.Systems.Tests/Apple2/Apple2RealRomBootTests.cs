@@ -79,7 +79,10 @@ public class Apple2RealRomBootTests
         apple2.InitBasicMemoryVariables(Apple2System.BASIC_LOAD_ADDRESS, s_tokenizedPrint3.Length);
 
         var inputState = new ScriptedHostInputState();
-        var inputHandler = new Apple2InputHandler(apple2, NullLoggerFactory.Instance);
+        // Layout pinned: these tests press US key positions (e.g. Shift+Equal for '+'), so they
+        // must not depend on the layout the developer's own machine reports.
+        var inputHandler = new Apple2InputHandler(
+            apple2, NullLoggerFactory.Instance, new Apple2InputConfig { KeyboardLayout = HostKeyboardLayout.US });
         inputHandler.Init(inputState);
 
         foreach (var key in new[] { HostKey.KeyR, HostKey.KeyU, HostKey.KeyN, HostKey.Enter })
@@ -119,7 +122,10 @@ public class Apple2RealRomBootTests
         var apple2 = BootRealRom();
 
         var inputState = new ScriptedHostInputState();
-        var inputHandler = new Apple2InputHandler(apple2, NullLoggerFactory.Instance);
+        // Layout pinned: these tests press US key positions (e.g. Shift+Equal for '+'), so they
+        // must not depend on the layout the developer's own machine reports.
+        var inputHandler = new Apple2InputHandler(
+            apple2, NullLoggerFactory.Instance, new Apple2InputConfig { KeyboardLayout = HostKeyboardLayout.US });
         inputHandler.Init(inputState);
 
         foreach (var key in new[]

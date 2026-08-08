@@ -117,6 +117,9 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **Audio**: `AudioEnableCheckBox`, `AudioProviderComboBox`, `AudioTargetComboBox`. Audio needs
   *both* a provider and a target selected; a provider alone leaves the host building no audio
   coordinator, and the machine is then silent with nothing logged to say why.
+- **Input &amp; Joystick**: `KeyboardLayoutComboBox` — host keyboard layout (`Auto` plus each
+  explicit layout; `Auto` means auto-detect). Same id as the C64 dialog's equivalent, so a check
+  that walks both dialogs uses one name.
 - **Input &amp; Joystick**: `KeyboardJoystickEnableCheckBox` — the persisted setting. Its live
   counterpart is `KeyboardJoystickCheckBox` in the sidebar, needed because this dialog only opens
   while the emulator is stopped. Both show the same setting and stay in step; the difference is

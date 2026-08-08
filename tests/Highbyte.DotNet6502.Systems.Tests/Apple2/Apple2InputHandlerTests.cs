@@ -8,11 +8,18 @@ namespace Highbyte.DotNet6502.Systems.Tests.Apple2;
 
 public class Apple2InputHandlerTests
 {
-    private static (Apple2System Apple2, Apple2InputHandler Handler, TestHostInputState InputState) Build()
+    /// <summary>
+    /// Builds a handler with the keyboard layout pinned, so these assertions never depend on the
+    /// developer's own keyboard layout or OS culture. US unless a test asks for something else —
+    /// auto-detection is covered by its own tests below.
+    /// </summary>
+    private static (Apple2System Apple2, Apple2InputHandler Handler, TestHostInputState InputState) Build(
+        HostKeyboardLayout layout = HostKeyboardLayout.US)
     {
         var apple2 = new Apple2System(new Apple2Config(), NullLoggerFactory.Instance);
         var inputState = new TestHostInputState();
-        var handler = new Apple2InputHandler(apple2, NullLoggerFactory.Instance);
+        var inputConfig = new Apple2InputConfig { KeyboardLayout = layout };
+        var handler = new Apple2InputHandler(apple2, NullLoggerFactory.Instance, inputConfig);
         handler.Init(inputState);
         return (apple2, handler, inputState);
     }
@@ -183,11 +190,22 @@ public class Apple2InputHandlerTests
         Assert.Equal((byte)0xC1, apple2.Keyboard.Latch);
     }
 
-    private sealed class TestHostInputState : IHostInputState
+    internal sealed class TestHostInputState : IHostInputState
     {
         public IReadOnlySet<HostKey> KeysDown { get; private set; } = new HashSet<HostKey>();
         public IReadOnlySet<GamepadButton> GamepadButtonsDown { get; } = new HashSet<GamepadButton>();
         public bool CapsLockOn => false;
+        public bool IsRunningOnMacOS { get; set; }
+
+        /// <summary>
+        /// The layout id auto-detection sees. Null by default so tests never reach the real OS —
+        /// <see cref="IHostInputState.DetectNativeKeyboardLayoutId"/>'s default implementation
+        /// queries the host, which would make every keyboard assertion depend on the layout the
+        /// developer happens to be running.
+        /// </summary>
+        public string? NativeKeyboardLayoutId { get; set; }
+
+        public string? DetectNativeKeyboardLayoutId() => NativeKeyboardLayoutId;
 
         public void SetKeysDown(params HostKey[] keys) => KeysDown = new HashSet<HostKey>(keys);
         public void SetKeysDown(IReadOnlySet<HostKey> keys) => KeysDown = keys;

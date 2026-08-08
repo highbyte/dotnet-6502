@@ -13,6 +13,7 @@ using Highbyte.DotNet6502.Impl.Avalonia.Apple2;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Apple2.Config;
 using Highbyte.DotNet6502.Systems.Apple2.Video;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Utils;
 using ReactiveUI;
@@ -27,6 +28,9 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 {
     /// <summary>The largest Apple II ROM is the 20 KB $B000-$FFFF system image layout.</summary>
     private const long MaxRomFileSizeBytes = 32 * 1024;
+
+    // Keyboard layout dropdown entry meaning "no explicit setting" -> null config -> auto-detect.
+    private const string AutoKeyboardLayoutLabel = "Auto";
 
     private readonly AvaloniaHostApp _hostApp;
     private readonly Apple2HostConfig _originalConfig;
@@ -46,6 +50,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     private bool _suppressRenderTargetUpdate;
     private CpuCompatibilityProfileOption? _selectedCpuCompatibilityProfile;
     private MonitorColorOption? _selectedMonitorColor;
+    private string _selectedKeyboardLayout = AutoKeyboardLayoutLabel;
 
     public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
@@ -118,6 +123,9 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<CpuCompatibilityProfileOption> CpuCompatibilityProfiles { get; } =
         new(CpuCompatibilityProfileOption.All);
     public ObservableCollection<MonitorColorOption> MonitorColors { get; } = new(MonitorColorOption.All);
+    // "Auto" (auto-detect) plus each explicit HostKeyboardLayout, as strings for the dropdown.
+    public ObservableCollection<string> AvailableKeyboardLayouts { get; } =
+        new(new[] { AutoKeyboardLayoutLabel }.Concat(Enum.GetNames<HostKeyboardLayout>()));
 
     public bool IsRunningInWebAssembly { get; } = PlatformDetection.IsRunningInWebAssembly();
 
@@ -356,6 +364,28 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     public string SelectedMonitorColorHelpText => SelectedMonitorColor?.HelpText ?? string.Empty;
 
     /// <summary>
+    /// The host keyboard layout the Apple II keyboard mapping assumes, as a dropdown string.
+    /// <see cref="AutoKeyboardLayoutLabel"/> means "no explicit setting" — a null config value,
+    /// which makes the input handler auto-detect.
+    /// </summary>
+    public string SelectedKeyboardLayout
+    {
+        get => _selectedKeyboardLayout;
+        set
+        {
+            if (_selectedKeyboardLayout == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedKeyboardLayout, value);
+
+            _workingConfig.InputConfig.KeyboardLayout =
+                string.IsNullOrEmpty(value) || value == AutoKeyboardLayoutLabel
+                    ? null
+                    : Enum.Parse<HostKeyboardLayout>(value);
+        }
+    }
+
+    /// <summary>
     /// Whether host keys drive the game port. Edits the working copy like every other setting in
     /// this dialog, so Cancel discards it; the sidebar checkbox is the live counterpart for
     /// toggling it while a game is running.
@@ -537,6 +567,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
             _originalConfig.SystemConfig.MonitorColor = _workingConfig.SystemConfig.MonitorColor;
             _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
+            _originalConfig.InputConfig.KeyboardLayout = _workingConfig.InputConfig.KeyboardLayout;
             _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
             _originalConfig.SystemConfig.SetAudioProviderType(_workingConfig.SystemConfig.AudioProviderType);
             _originalConfig.SystemConfig.SetAudioTargetType(_workingConfig.SystemConfig.AudioTargetType);
@@ -573,6 +604,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
         SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
         SelectedMonitorColor = MonitorColorOption.FromMonitorColor(_workingConfig.SystemConfig.MonitorColor);
+        SelectedKeyboardLayout = _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;
 
         InitializeRenderOptions();
         InitializeAudioOptions();
