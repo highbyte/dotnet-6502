@@ -90,6 +90,12 @@ companion to sequencer-PROM (LSS) emulation, if copy-protected media is ever sup
 - ProDOS-ordered `.po` images, and nibble/flux `.nib`/`.woz` images.
 - Copy protection that depends on bit-level sequencer behaviour or exact rotational timing. Use a
   cracked release of such titles.
+- ProDOS *software*, whatever the image's sector order — but for a reason outside the drive.
+  ProDOS 8 needs 64 KB and the emulated machine is a 48 KB II Plus with no language card, so a
+  ProDOS disk boots only as far as ProDOS's own `RELOCATION / CONFIGURATION ERROR`. This is a
+  limit of the emulated machine, not of the II Plus: ProDOS 8 1.x supports the II and II Plus, on
+  a 64 KB one. Supporting these titles means emulating the language card (`$C080`–`$C08F`), not
+  changing anything here.
 
 ## Verified
 
@@ -109,6 +115,15 @@ Live-verified in the Avalonia desktop host:
   Download & Run list end to end: download → unzip → insert → boot → playing.
 - **Choplifter** (Brøderbund, 4am + san inc crack) and **Bolo** (Synergistic, 4am crack) boot to
   their title screens.
+- **VisiCalc** (1.27, 40-column) boots to the disk's own `HELLO` menu; picking `1` there BRUNs the
+  22 KB `VISICALC` binary and the sheet comes up — cursor on `A1`, columns A–D, rows 1–20. It is
+  booted rather than injected because VisiCalc's `/S` and `/L` file commands call DOS, so DOS has
+  to be resident.
+
+Verified *not* to work, and why it is worth recording: **Dangerous Dave** (Softdisk) is a ProDOS
+title, so it stops at the 64 KB requirement above — the 1988 disk carries `PRODOS 8 V1.4` and the
+1991 one `PRODOS 8 V1.9`. The 1988 disk is also ProDOS *block*-ordered, so it does not even get
+that far; it hangs at track 0 with the motor running.
 
 Automated coverage lives in `Disk2NibbleCodecTests`, `Disk2TrackNibblizerTests` and
 `Disk2ControllerTests`, plus opt-in integration tests (`Apple2RealRomDisk2BootTests`) that boot a

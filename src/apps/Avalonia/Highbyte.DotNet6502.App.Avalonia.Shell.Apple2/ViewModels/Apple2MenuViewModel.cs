@@ -94,6 +94,15 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             "https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/Bolo%20%284am%20crack%29.zip",
             zipEntryName: "Bolo (4am crack)/Bolo (4am crack).dsk",
             runMode: Apple2DownloadRunMode.BootDisk) },
+
+        // The one non-game, and the only entry not on the asimov mirror — that mirror has no
+        // VisiCalc image. Booted rather than injected: the binary is a plain catalog file, but
+        // VisiCalc's /S and /L commands call DOS, so DOS has to be resident. Booting lands on the
+        // disk's own HELLO menu, where 1 starts VisiCalc.
+        { "visicalc", new Apple2DownloadProgramInfo(
+            "VisiCalc",
+            "https://archive.org/download/Visicalc_1.27/Visicalc_1.27.dsk",
+            runMode: Apple2DownloadRunMode.BootDisk) },
     };
 
     public AvaloniaHostApp HostApp => _hostApp;
