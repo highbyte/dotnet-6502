@@ -115,9 +115,13 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
 
     /// <summary>
     /// The 16 KB language card, which takes the machine to the 64 KB ProDOS needs. See
-    /// <see cref="Apple2LanguageCard"/>.
+    /// <see cref="Apple2LanguageCard"/>. Only reachable by the machine when
+    /// <see cref="LanguageCardEnabled"/>; the object exists either way so nothing has to null-check it.
     /// </summary>
     public Apple2LanguageCard LanguageCard { get; }
+
+    /// <summary>Whether the language card is fitted. False makes this a plain 48 KB Apple II Plus.</summary>
+    public bool LanguageCardEnabled => _apple2Config.LanguageCardEnabled;
 
     /// <summary>Types text into the machine by feeding the keyboard latch, one char per frame.</summary>
     public Apple2TextPaste TextPaste { get; }
@@ -166,7 +170,11 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         GamePort = new Apple2GamePort(() => CPU.ExecState.CyclesConsumed);
         Speaker = new Apple2Speaker(() => CPU.ExecState.CyclesConsumed);
         LanguageCard = new Apple2LanguageCard();
-        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController, GamePort, Speaker, LanguageCard);
+        // Passing the card only when it is fitted is what makes $C080-$C08F read as unconnected on a
+        // 48 KB machine, exactly as it would with no card in slot 0.
+        SoftSwitches = new Apple2SoftSwitches(
+            Keyboard, DiskController, GamePort, Speaker,
+            config.LanguageCardEnabled ? LanguageCard : null);
         TextPaste = new Apple2TextPaste(this, loggerFactory);
         BasicTokenParser = new Apple2BasicTokenParser(this, loggerFactory);
         InputInjector = new Apple2InputInjector(this);
@@ -180,8 +188,10 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         Mem = CreateMemory(systemRom);
         DefaultExecOptions = new ExecOptions();
 
-        // A switch access swaps the whole memory map in one assignment.
-        LanguageCard.MemoryConfigurationChanged += Mem.SetMemoryConfiguration;
+        // A switch access swaps the whole memory map in one assignment. Not subscribed on a 48 KB
+        // machine, which has only the one configuration to be in.
+        if (LanguageCardEnabled)
+            LanguageCard.MemoryConfigurationChanged += Mem.SetMemoryConfiguration;
 
         // Only reset through the ROM's reset vector when a ROM is actually present; without one
         // $FFFC/$FFFD read as the unconnected value and the CPU would start executing garbage.
@@ -249,11 +259,15 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
     /// </summary>
     private Memory CreateMemory(byte[]? systemRom)
     {
+        // A 48 KB machine can only ever be in the power-on map, so it gets one configuration rather
+        // than eight — the other seven describe states its address space cannot reach.
+        var configurationCount = LanguageCardEnabled ? Apple2LanguageCard.MemoryConfigurationCount : 1;
+
         var mem = new Memory(
-            numberOfConfigurations: Apple2LanguageCard.MemoryConfigurationCount,
+            numberOfConfigurations: configurationCount,
             mapToDefaultRAM: false);
 
-        for (var configuration = 0; configuration < Apple2LanguageCard.MemoryConfigurationCount; configuration++)
+        for (var configuration = 0; configuration < configurationCount; configuration++)
         {
             mem.SetMemoryConfiguration(configuration);
 
@@ -486,7 +500,8 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         // Put ROM back in the address space before the CPU reads its reset vector: with the card
         // still switched in, $FFFC/$FFFD would come from card RAM and the machine would jump into
         // whatever happened to be there. The card's contents survive, as they do on the hardware.
-        LanguageCard.Reset();
+        if (LanguageCardEnabled)
+            LanguageCard.Reset();
 
         if (cpuStartPos == null)
             CPU.Reset(Mem);

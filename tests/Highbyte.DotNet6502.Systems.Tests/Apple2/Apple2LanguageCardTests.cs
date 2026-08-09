@@ -16,7 +16,7 @@ public class Apple2LanguageCardTests
     private const byte RomFillD000 = 0xAA;
     private const byte RomFillE000 = 0xBB;
 
-    private static Apple2System BuildApple2WithRom()
+    private static Apple2System BuildApple2WithRom(bool languageCardEnabled = true)
     {
         var rom = new byte[Apple2System.SystemRomSize];
         for (var offset = 0; offset < rom.Length; offset++)
@@ -26,7 +26,10 @@ public class Apple2LanguageCardTests
         }
 
         var romData = new Dictionary<string, byte[]> { { Apple2SystemConfig.SYSTEM_ROM_NAME, rom } };
-        return new Apple2System(new Apple2Config(), NullLoggerFactory.Instance, romData);
+        return new Apple2System(
+            new Apple2Config { LanguageCardEnabled = languageCardEnabled },
+            NullLoggerFactory.Instance,
+            romData);
     }
 
     /// <summary>Reads the switch, which is how software drives the card (a write works too).</summary>
@@ -218,6 +221,40 @@ public class Apple2LanguageCardTests
         SwitchTwice(apple2, 0xC083);
         Assert.Equal((byte)0x77, apple2.Mem[0xD000]);
         Assert.Equal((byte)0x88, apple2.Mem[0xE000]);
+    }
+
+    [Fact]
+    public void Without_The_Card_The_Switches_Do_Nothing_And_Rom_Stays_Visible()
+    {
+        var apple2 = BuildApple2WithRom(languageCardEnabled: false);
+
+        Assert.False(apple2.LanguageCardEnabled);
+
+        // The same sequence that switches a fitted card in and unlocks writing.
+        SwitchTwice(apple2, 0xC083);
+
+        // $C080-$C08F reads as unconnected, exactly as an empty slot 0 would.
+        Assert.Equal(Apple2SoftSwitches.UnconnectedReadValue, apple2.Mem[0xC083]);
+
+        // ROM is still what the CPU sees, and writes still go nowhere.
+        Assert.Equal(RomFillD000, apple2.Mem[0xD000]);
+        Assert.Equal(RomFillE000, apple2.Mem[0xE000]);
+        apple2.Mem[0xD000] = 0x42;
+        Assert.Equal(RomFillD000, apple2.Mem[0xD000]);
+    }
+
+    [Fact]
+    public void Without_The_Card_The_Machine_Keeps_Running_Across_A_Reset()
+    {
+        // Reset has to leave a 48 KB machine alone rather than trying to switch a memory
+        // configuration that was never built.
+        var apple2 = BuildApple2WithRom(languageCardEnabled: false);
+
+        SwitchTwice(apple2, 0xC08B);
+        apple2.Reset();
+
+        Assert.Equal(RomFillD000, apple2.Mem[0xD000]);
+        Assert.False(apple2.LanguageCard.ReadRam);
     }
 
     [Fact]

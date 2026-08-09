@@ -18,6 +18,7 @@ public class Apple2SystemConfigSnapshotTests
             AudioEnabled = false,
             KeyboardJoystickEnabled = true,
             MonitorColor = Apple2MonitorColor.Green,
+            LanguageCardEnabled = false,
         };
 
         var json = ((ISnapshotableConfig)source).ExportSnapshotSettings();
@@ -27,12 +28,15 @@ public class Apple2SystemConfigSnapshotTests
         Assert.True(target.AudioEnabled);
         Assert.False(target.KeyboardJoystickEnabled);
         Assert.Equal(Apple2MonitorColor.Color, target.MonitorColor);
+        Assert.True(target.LanguageCardEnabled);
 
         ((ISnapshotableConfig)target).ApplySnapshotSettings(json!);
 
         Assert.False(target.AudioEnabled);
         Assert.True(target.KeyboardJoystickEnabled);
         Assert.Equal(Apple2MonitorColor.Green, target.MonitorColor);
+        // Decides the shape of the rebuilt machine, so it has to travel with the rest.
+        Assert.False(target.LanguageCardEnabled);
     }
 
     [Fact]
@@ -45,6 +49,7 @@ public class Apple2SystemConfigSnapshotTests
         ((ISnapshotableConfig)config).ApplySnapshotSettings("{\"somethingElse\":123}");
 
         Assert.True(config.AudioEnabled);
+        Assert.True(config.LanguageCardEnabled);
         Assert.Equal(Apple2MonitorColor.Color, config.MonitorColor);
     }
 }

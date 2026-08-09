@@ -124,6 +124,23 @@ public partial class Apple2SystemConfig : ISystemConfig, ISnapshotableConfig
     /// </summary>
     public bool AudioEnabled { get; set; } = true;
 
+    private bool _languageCardEnabled = true;
+
+    /// <summary>
+    /// Whether the 16 KB language card is fitted, taking the machine to the 64 KB ProDOS 8 requires.
+    ///
+    /// <para>On by default, because without it none of the ProDOS-era software catalogue runs and a
+    /// stock 48 KB machine is the narrower experience. It is a setting rather than a given because
+    /// the card was an <em>expansion card</em> on real hardware — not part of a stock Apple II Plus,
+    /// whose motherboard held at most 48 KB — and software can tell the difference: the DOS 3.3
+    /// System Master loads Integer BASIC into the card when it finds one.</para>
+    /// </summary>
+    public bool LanguageCardEnabled
+    {
+        get => _languageCardEnabled;
+        set { _languageCardEnabled = value; _isDirty = true; }
+    }
+
     private Apple2MonitorColor _monitorColor = Apple2MonitorColor.Color;
     public Apple2MonitorColor MonitorColor
     {

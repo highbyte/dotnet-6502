@@ -103,6 +103,7 @@ public class Apple2SystemConfigurerCore : ISystemConfigurer
         apple2Config.CpuCompatibilityProfile = apple2SystemConfig.CpuCompatibilityProfile;
         apple2Config.MonitorColor = apple2SystemConfig.MonitorColor;
         apple2Config.AudioEnabled = apple2SystemConfig.AudioEnabled;
+        apple2Config.LanguageCardEnabled = apple2SystemConfig.LanguageCardEnabled;
         apple2Config.AudioProviderType = apple2SystemConfig.AudioProviderType;
 
         Dictionary<string, byte[]>? romData = null;

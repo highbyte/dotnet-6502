@@ -63,6 +63,18 @@ public sealed class Apple2LanguageCardSnapshotModule : ISnapshotModule
             writeEnabled: reader.ReadBool(),
             preWrite: reader.ReadBool());
 
-        apple2.Mem.SetMemoryConfiguration(card.MemoryConfiguration);
+        if (apple2.LanguageCardEnabled)
+        {
+            apple2.Mem.SetMemoryConfiguration(card.MemoryConfiguration);
+        }
+        else if (card.ReadRam || card.WriteEnabled)
+        {
+            // Restoring a 64 KB capture into a machine configured without a card. The bytes are kept
+            // (so re-enabling the card and reloading recovers them) but the address space has only
+            // the one configuration, and switching to another would throw.
+            context.AddWarning(
+                "apple2-languagecard: the snapshot was taken with a language card switched in, but this " +
+                "machine is configured without one — the card's mapping was not applied.");
+        }
     }
 }

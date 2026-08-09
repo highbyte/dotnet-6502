@@ -17,9 +17,9 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
 ## Current capabilities
 
 - Boot to the Applesoft BASIC `]` prompt from a user-supplied Apple II Plus ROM.
-- 48 KB flat RAM at `$0000`–`$BFFF`, plus a **16 KB language card** overlaying the ROM space —
-  64 KB in total, which is the standard Apple II Plus configuration from about 1982 and what
-  ProDOS 8 requires. See [Language card](#language-card).
+- 48 KB flat RAM at `$0000`–`$BFFF`, plus an optional **16 KB language card** overlaying the ROM
+  space — 64 KB in total, which is what ProDOS 8 requires. Fitted by default, and switchable off in
+  the configuration dialog to emulate a plain 48 KB machine. See [Language card](#language-card).
 - 12 KB system ROM (Applesoft BASIC + Autostart Monitor) at `$D000`–`$FFFF`.
     - Accepts both a trimmed 12 KB image and the 20 KB `$B000`–`$FFFF` layout that older
       emulator distributions use (the loadable part is the last 12 KB).
@@ -145,9 +145,16 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
 ## Language card
 
 16 KB of RAM overlaying the ROM space at `$D000`–`$FFFF`, switched by the soft switches at
-`$C080`–`$C08F`. It is always fitted, and at power-on it is invisible: reads come from ROM and
-writes are protected, so software that never touches `$C08x` sees exactly the 48 KB machine it did
-before.
+`$C080`–`$C08F`. At power-on it is invisible: reads come from ROM and writes are protected, so
+software that never touches `$C08x` sees exactly the 48 KB machine it would without one.
+
+On real hardware this was an **expansion card**, normally in slot 0 — not part of a stock Apple II
+Plus, whose motherboard held at most 48 KB. It arrived around 1980 with the Apple Pascal system and
+became a common upgrade because so much later software wanted 64 KB; the IIe folded the equivalent
+into the motherboard in 1983, using these same soft switches. Here it is **fitted by default** but
+can be switched off in the configuration dialog, which gives a genuine 48 KB machine — and that is a
+visible difference, not a cosmetic one: the DOS 3.3 System Master loads Integer BASIC into the card
+when it finds one, and skips that step when it does not.
 
 16 KB covers a 12 KB address range because `$D000`–`$DFFF` has **two** independently selected 4 KB
 banks, while `$E000`–`$FFFF` is a single 8 KB block.

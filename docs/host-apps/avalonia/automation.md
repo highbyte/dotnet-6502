@@ -113,6 +113,9 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
   `RomFileTextBox.disk2` (optional Disk II boot ROM)
 - **ROM actions**: `RomStatusSummaryText`, `RomDirectoryTextBox`, `LoadRomsButton`,
   `DownloadRomsToFilesButton`, `DownloadRomsToMemoryButton`, `ClearRomsButton`
+- **Memory**: `LanguageCardEnableCheckBox` — fits the 16 KB language card (64 KB total). On by
+  default; unchecking it gives a stock 48 KB machine, which cannot run ProDOS software. Read at
+  build time, so it takes effect on the next start rather than live.
 - **Display**: `MonitorColorComboBox`, `RenderProviderComboBox`, `RenderTargetComboBox`
 - **Audio**: `AudioEnableCheckBox`, `AudioProviderComboBox`, `AudioTargetComboBox`. Audio needs
   *both* a provider and a target selected; a provider alone leaves the host building no audio
