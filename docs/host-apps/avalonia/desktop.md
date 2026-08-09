@@ -2,9 +2,25 @@
 
 Cross-platform desktop app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Browser app](../../host-apps/avalonia/browser.md).
 
-![Avalonia Desktop app, C64 Basic](../../assets/screenshots/AvaloniaDesktop_C64_Basic.png){ width="25%" }
-![Avalonia Desktop app, C64 scroll](../../assets/screenshots/AvaloniaDesktop_C64_raster_scroll.png){ width="25%" }
-![Avalonia Desktop app, C64 monitor](../../assets/screenshots/AvaloniaDesktop_C64_Monitor.png){ width="25%" }
+<div class="screenshot-grid" markdown="1">
+
+![Avalonia Desktop app, C64 Basic](../../assets/screenshots/AvaloniaDesktop_C64_Basic.png)
+
+![Avalonia Desktop app, C64 scroll](../../assets/screenshots/AvaloniaDesktop_C64_raster_scroll.png)
+
+![Avalonia Desktop app, C64 monitor](../../assets/screenshots/AvaloniaDesktop_C64_Monitor.png)
+
+![Avalonia Desktop app, VIC-20 BASIC](../../assets/screenshots/AvaloniaDesktop_VIC20_Basic.png)
+
+![Avalonia Desktop app, Apple II BASIC](../../assets/screenshots/AvaloniaDesktop_Apple2_Basic.png)
+
+![Avalonia Desktop app, Apple II Lode Runner](../../assets/screenshots/AvaloniaDesktop_Apple2_LodeRunner.png)
+
+![Avalonia Desktop app, Apple II Dangerous Dave](../../assets/screenshots/AvaloniaDesktop_Apple2_DangerousDave.png)
+
+![Avalonia Desktop app, Apple II VisiCalc](../../assets/screenshots/AvaloniaDesktop_Apple2_VisiCalc.png)
+
+</div>
 
 Technologies:
 
@@ -24,6 +40,8 @@ on the per-system pages — shared with the [Avalonia Browser app](../../host-ap
 with desktop-specific differences called out inline:
 
 - [C64 in the Avalonia apps](c64.md)
+- [VIC-20 in the Avalonia apps](vic20.md)
+- [Apple II Plus in the Avalonia apps](apple2.md)
 - [Generic computer in the Avalonia apps](generic.md)
 
 ### Lua scripting

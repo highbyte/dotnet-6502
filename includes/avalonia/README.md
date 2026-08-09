@@ -16,7 +16,7 @@ See decisions/2026-06-10-avalonia-system-docs-structure.md.
 
 Naming convention
 -----------------
-  <system>-features.md   — e.g. `c64-features.md`, future `vic20-features.md`
+  <system>-features.md   — e.g. `c64-features.md`, `vic20-features.md`
 
 Heading levels
 --------------

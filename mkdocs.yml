@@ -107,6 +107,8 @@ nav:
         - Browser: host-apps/avalonia/browser.md
         - Desktop: host-apps/avalonia/desktop.md
         - C64 features: host-apps/avalonia/c64.md
+        - VIC-20 features: host-apps/avalonia/vic20.md
+        - Apple II Plus features: host-apps/avalonia/apple2.md
         - Generic features: host-apps/avalonia/generic.md
         - Desktop automation: host-apps/avalonia/automation.md
         - Desktop troubleshooting: host-apps/avalonia/troubleshooting.md
