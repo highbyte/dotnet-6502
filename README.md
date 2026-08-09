@@ -25,7 +25,7 @@
 
 # Overview
 
-.NET cross-platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems (such as Commodore 64) in different UI contexts — browser, desktop, and headless.
+.NET cross-platform libraries and applications for executing 6502 CPU machine code and emulating systems including the [Commodore 64](docs/systems/c64/overview.md), [VIC-20](docs/systems/vic20/overview.md), and [Apple II Plus](docs/systems/apple2/overview.md) — in browser, desktop, and headless applications.
 
 > [!IMPORTANT]
 > This is mainly a programming exercise that may or may not turn into something more. See [Limitations](#limitations) below.
@@ -51,7 +51,7 @@ Full documentation lives at **<https://highbyte.github.io/dotnet-6502/docs/>** �
 
 ## Libraries
 
-Published as NuGet packages under `Highbyte.DotNet6502.*` — a core CPU library, system emulation libraries (Commodore 64, Generic), and per-host I/O implementations (Avalonia, Blazor, SadConsole, SilkNet, etc.). See [Libraries](https://highbyte.github.io/dotnet-6502/docs/libraries/) for the full catalog and architecture.
+Published as NuGet packages under `Highbyte.DotNet6502.*` — a core CPU library, system emulation libraries (Commodore 64, VIC-20, Apple II, and Generic), and per-host I/O implementations (Avalonia, Blazor, SadConsole, SilkNet, etc.). See [Libraries](https://highbyte.github.io/dotnet-6502/docs/libraries/) for the full catalog and architecture.
 
 # Limitations
 
