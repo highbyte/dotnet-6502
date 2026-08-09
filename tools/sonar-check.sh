@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Wait for the SonarCloud branch analysis on the current commit, then report
+# Wait for the SonarCloud analysis on the current commit, then report
 # open Sonar issues at or above a severity threshold. Exits non-zero if any
 # blocking issue is present, so it can be used locally as a quality
 # gate before declaring a long task done.
 #
-# Relies on the sonarscan-dotnet.yml workflow firing on push to feature/**.
-#
 # Requirements:
-#   - The current branch must have been pushed (the workflow runs on push).
+#   - The current branch must have been pushed.
 #   - gh CLI authenticated (`gh auth status`).
 #   - curl, jq.
 #
@@ -35,9 +33,8 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 SHA=$(git rev-parse HEAD)
 echo "==> Branch: $BRANCH  sha: ${SHA:0:12}  threshold: $MIN_SEVERITY"
 
-# Fail fast if the current commit hasn't been pushed. The Sonar workflow runs
-# only on push, so a run for an unpushed sha cannot exist — without this check
-# the script would spin for 60s waiting for a run that never appears.
+# Fail fast if the current commit hasn't been pushed. A workflow run for an
+# unpushed sha cannot exist, so waiting for one would only time out.
 if ! REMOTE_SHA=$(git rev-parse --verify --quiet "refs/remotes/origin/${BRANCH}"); then
   echo "Branch '$BRANCH' has not been pushed to origin." >&2
   echo "Push it first:  git push -u origin $BRANCH" >&2
@@ -50,21 +47,52 @@ if [[ "$REMOTE_SHA" != "$SHA" ]]; then
   exit 2
 fi
 
-# Find the Sonar workflow run for the current commit. GitHub may take a few
-# seconds to register the run after a push, so retry briefly.
+# Pull requests use Sonar's PR analysis; master and manually dispatched feature
+# branches use branch analysis. If a feature branch has no open PR, start the
+# existing workflow_dispatch trigger so the local gate remains useful before a
+# PR is opened without restoring the duplicate push + pull_request scans.
+PR_NUMBER=$(gh pr list --head "$BRANCH" --state open --limit 20 \
+  --json number,headRefOid \
+  | jq -r --arg sha "$SHA" '.[] | select(.headRefOid == $sha) | .number' \
+  | head -n1)
+
+if [[ -n "$PR_NUMBER" ]]; then
+  EXPECTED_EVENT="pull_request"
+  ANALYSIS_PARAMETER="pullRequest=${PR_NUMBER}"
+  echo "==> Pull request: #$PR_NUMBER"
+elif [[ "$BRANCH" == "master" ]]; then
+  EXPECTED_EVENT="push"
+  ANALYSIS_PARAMETER="branch=${BRANCH}"
+else
+  EXPECTED_EVENT="workflow_dispatch"
+  ANALYSIS_PARAMETER="branch=${BRANCH}"
+
+  EXISTING_RUN=$(gh run list --workflow="$WORKFLOW_FILE" --branch="$BRANCH" \
+    --json headSha,event --limit 20 \
+    | jq -r --arg sha "$SHA" \
+      '.[] | select(.headSha == $sha and .event == "workflow_dispatch") | .headSha' \
+    | head -n1)
+  if [[ -z "$EXISTING_RUN" ]]; then
+    echo "==> No open PR; starting a manual Sonar branch analysis ..."
+    gh workflow run "$WORKFLOW_FILE" --ref "$BRANCH"
+  fi
+fi
+
+# Find the event-specific Sonar workflow run for the current commit. GitHub may
+# take a few seconds to register a PR or manually dispatched run, so retry.
 RUN_ID=""
 for _ in $(seq 1 12); do
   RUN_ID=$(gh run list --workflow="$WORKFLOW_FILE" --branch="$BRANCH" \
-    --json databaseId,headSha --limit 20 \
-    | jq -r --arg sha "$SHA" '.[] | select(.headSha == $sha) | .databaseId' \
+    --json databaseId,headSha,event --limit 20 \
+    | jq -r --arg sha "$SHA" --arg event "$EXPECTED_EVENT" \
+      '.[] | select(.headSha == $sha and .event == $event) | .databaseId' \
     | head -n1)
   [[ -n "$RUN_ID" ]] && break
   sleep 5
 done
 
 if [[ -z "$RUN_ID" ]]; then
-  echo "No $WORKFLOW_FILE run found for sha ${SHA:0:12} on branch $BRANCH after 60s." >&2
-  echo "Hint: push the branch first; the workflow triggers on push to feature/**." >&2
+  echo "No $EXPECTED_EVENT $WORKFLOW_FILE run found for sha ${SHA:0:12} on branch $BRANCH after 60s." >&2
   exit 2
 fi
 
@@ -83,7 +111,7 @@ fi
 NEW_CODE_FILTER="&inNewCodePeriod=true"
 [[ "${SONAR_INCLUDE_PREEXISTING:-0}" == "1" ]] && NEW_CODE_FILTER=""
 
-API="${SONAR_HOST}/api/issues/search?componentKeys=${PROJECT_KEY}&branch=${BRANCH}&statuses=OPEN&resolved=false&ps=500${NEW_CODE_FILTER}"
+API="${SONAR_HOST}/api/issues/search?componentKeys=${PROJECT_KEY}&${ANALYSIS_PARAMETER}&statuses=OPEN&resolved=false&ps=500${NEW_CODE_FILTER}"
 
 issues_json=""
 for _ in $(seq 1 12); do
