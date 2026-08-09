@@ -23,14 +23,16 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Disk2;
 /// byte (any N from 12 to 17 tried): the boot never reached the DOS banner at all.</item>
 /// </list>
 ///
-/// <para><b>Known limitation.</b> Booting the System Master takes ~35 emulated seconds, most of it
-/// DOS's own one-second motor spin-up wait, entered 31 times: RWTS decides the drive
-/// is stopped by comparing successive reads of the data register, and that decision depends on
-/// real read timing this model does not reproduce. Everything loads correctly, just slower than
-/// a real machine (~7 s). Nibblizer sync-gap sizes were swept (20/5, 16/16, 12/12, 10/10, 9/9)
-/// with no effect on the count, so the cause is the timing model rather than the track layout.
-/// Removing the wait needs a cycle-accurate read path — the natural companion to sequencer-PROM
-/// emulation, if copy-protected media is ever supported.</para>
+/// <para><b>Known limitation.</b> Booting the System Master reaches the DOS banner in ~35 emulated
+/// seconds, and with a language card fitted (the default) the drive keeps loading Integer BASIC
+/// for another minute — ~95 s before it settles, against ~49 s on a 48 KB machine and ~7 s on real
+/// hardware. Most of it is DOS's own one-second motor spin-up wait, entered repeatedly: RWTS
+/// decides the drive is stopped by comparing successive reads of the data register, and that
+/// decision depends on real read timing this model does not reproduce. Everything loads correctly,
+/// just slowly. Nibblizer sync-gap sizes were swept (20/5, 16/16, 12/12, 10/10, 9/9) with no
+/// effect, so the cause is the timing model rather than the track layout. Removing the wait needs
+/// a cycle-accurate read path — the natural companion to sequencer-PROM emulation, if
+/// copy-protected media is ever supported.</para>
 ///
 /// The motor's ~1 second spin-down is modeled: the card's one-shot keeps the disk turning after
 /// the motor-off switch, so an access shortly after a stop still finds data under the head

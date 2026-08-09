@@ -72,16 +72,27 @@ polling paces the data and a reader can never miss a byte regardless of how slow
 them. That robustness is deliberate: the machine has no cycle-accurate bus for a rotational model
 to key off.
 
-**Known limitation:** booting the DOS 3.3 System Master takes about 35 emulated seconds, most of
-it DOS's *own* one-second motor spin-up wait, entered 31 times. RWTS decides whether
-the drive is spinning by comparing successive reads of the data register, and that decision
-depends on real read timing this model does not reproduce. Everything loads correctly, just slower
-than a real machine (~7 s). Two alternatives were implemented and measured, and both are worse: a
-true rotational model (position from elapsed CPU cycles) never completed DOS's sector reads, and a
-latch that holds a byte for N cycles never reached the DOS banner at all. Sync-gap sizes were also
-swept (20/5, 16/16, 12/12, 10/10, 9/9) with no effect, confirming the cause is the timing model
-rather than the track layout. Removing the wait needs a cycle-accurate read path — the natural
-companion to sequencer-PROM (LSS) emulation, if copy-protected media is ever supported.
+**Known limitation:** booting the DOS 3.3 System Master is several times slower than the ~7 s a
+real machine takes. Measured on the emulated machine:
+
+| Configuration | DOS banner | Drive settles |
+|---|---|---|
+| 64 KB, language card fitted (the default) | 35 s | **95 s** |
+| 48 KB, no language card | 35 s | 49 s |
+
+The banner arrives at the same point either way; the card changes what happens *after* it, because
+the System Master goes on to load Integer BASIC into the card once it finds one. That second phase
+is the larger half of the wait in the default configuration.
+
+Most of the time is DOS's *own* one-second motor spin-up wait, entered repeatedly. RWTS decides
+whether the drive is spinning by comparing successive reads of the data register, and that decision
+depends on real read timing this model does not reproduce. Everything loads correctly, just slowly.
+Two alternatives were implemented and measured, and both are worse: a true rotational model
+(position from elapsed CPU cycles) never completed DOS's sector reads, and a latch that holds a
+byte for N cycles never reached the DOS banner at all. Sync-gap sizes were also swept (20/5, 16/16,
+12/12, 10/10, 9/9) with no effect, confirming the cause is the timing model rather than the track
+layout. Removing the wait needs a cycle-accurate read path — the natural companion to
+sequencer-PROM (LSS) emulation, if copy-protected media is ever supported.
 
 ## Sector order
 
