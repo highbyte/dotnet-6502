@@ -45,21 +45,27 @@ public class Apple2SoftSwitches
     /// </summary>
     public const byte UnconnectedReadValue = 0xFF;
 
+    /// <summary>Language card bank switching ($C080-$C08F, slot 0).</summary>
+    public const ushort LanguageCardAddress = 0xC080;
+
     private readonly Apple2Keyboard _keyboard;
     private readonly Disk2Controller? _diskController;
     private readonly Apple2GamePort? _gamePort;
     private readonly Apple2Speaker? _speaker;
+    private readonly Apple2LanguageCard? _languageCard;
 
     public Apple2SoftSwitches(
         Apple2Keyboard keyboard,
         Disk2Controller? diskController = null,
         Apple2GamePort? gamePort = null,
-        Apple2Speaker? speaker = null)
+        Apple2Speaker? speaker = null,
+        Apple2LanguageCard? languageCard = null)
     {
         _keyboard = keyboard;
         _diskController = diskController;
         _gamePort = gamePort;
         _speaker = speaker;
+        _languageCard = languageCard;
     }
 
     /// <summary>
@@ -133,7 +139,16 @@ public class Apple2SoftSwitches
     }
 
     /// <summary>Applies the side effect of an access and returns the value the CPU reads.</summary>
-    public byte Read(ushort address)
+    public byte Read(ushort address) => Access(address, isRead: true);
+
+    /// <summary>
+    /// A write triggers the same side effects as a read and the value is ignored — with one
+    /// exception: the language card's write-enable sequence is armed only by reads, so the access
+    /// kind has to be carried through rather than folded into <see cref="Read"/>.
+    /// </summary>
+    public void Write(ushort address, byte value) => Access(address, isRead: false);
+
+    private byte Access(ushort address, bool isRead)
     {
         return (address & 0x00F0) switch
         {
@@ -143,13 +158,17 @@ public class Apple2SoftSwitches
             0x50 => ApplyDisplaySwitch(address),             // $C050-$C05F  display mode
             0x60 => _gamePort?.ReadGamePort(address) ?? 0x00, // $C060-$C06F  cassette in, buttons, paddles
             0x70 => TriggerPaddles(),                        // $C070-$C07F  PTRIG: restart paddle timers
+            0x80 => AccessLanguageCard(address, isRead),     // $C080-$C08F  language card bank switching
             0xE0 => ReadDiskController(address),             // $C0E0-$C0EF  Disk II controller (slot 6)
             _ => UnconnectedReadValue,
         };
     }
 
-    /// <summary>A write triggers the same side effect as a read; the value is ignored.</summary>
-    public void Write(ushort address, byte value) => Read(address);
+    private byte AccessLanguageCard(ushort address, bool isRead)
+    {
+        _languageCard?.Access(address, isRead);
+        return UnconnectedReadValue;
+    }
 
     private byte ReadDiskController(ushort address)
         => _diskController != null && _diskController.IsEnabled

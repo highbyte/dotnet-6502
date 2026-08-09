@@ -160,7 +160,14 @@ public class Disk2Controller
     /// <exception cref="InvalidDataException">The image is not a 140 KB DOS-ordered image.</exception>
     public void InsertDiskImage(byte[] diskImageData)
     {
-        _nibbleTracks = Disk2TrackNibblizer.BuildNibbleTracks(diskImageData);
+        // Detected from the image's own contents rather than its file name: extensions are not
+        // reliable in the wild (archive.org's "Dangerous Dave in the Deserted Pirate's Hideout" is
+        // named .dsk and is ProDOS-ordered), and nibblizing with the wrong order produces a track
+        // of plausible garbage rather than an error — which presents as a drive fault, not a
+        // misread image.
+        SectorOrder = DiskSectorOrderDetector.Detect(diskImageData);
+        _nibbleTracks = Disk2TrackNibblizer.BuildNibbleTracks(
+            diskImageData, Disk2TrackNibblizer.DefaultVolume, SectorOrder);
         _rawDiskImageData = diskImageData;
     }
 
@@ -168,7 +175,14 @@ public class Disk2Controller
     {
         _nibbleTracks = null;
         _rawDiskImageData = null;
+        SectorOrder = DiskSectorOrder.Dos;
     }
+
+    /// <summary>
+    /// The sector order detected for the inserted image. Exposed because it is the first thing to
+    /// check when a disk boots on other emulators but not here.
+    /// </summary>
+    public DiskSectorOrder SectorOrder { get; private set; } = DiskSectorOrder.Dos;
 
     /// <summary>Value the CPU sees at a boot ROM address ($C600-$C6FF).</summary>
     public byte ReadBootRom(ushort address)

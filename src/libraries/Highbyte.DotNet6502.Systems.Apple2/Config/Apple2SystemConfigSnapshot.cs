@@ -13,8 +13,9 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Config;
 /// these particular settings worth carrying: all three are read at build or init time rather than
 /// polled as live toggles. The audio provider is only constructed if <c>AudioEnabled</c> is set when
 /// the machine is built, the game port is only driven by host keys if
-/// <c>KeyboardJoystickEnabled</c> is set, and the monitor colour is baked into the rasterizer's
-/// palette per frame. Add a portable setting = add a field to
+/// <c>KeyboardJoystickEnabled</c> is set, the monitor colour is baked into the rasterizer's palette
+/// per frame, and <c>LanguageCardEnabled</c> decides how many memory configurations the address
+/// space is even built with. Add a portable setting = add a field to
 /// <see cref="Apple2SystemSnapshotSettings"/> and map it below; the snapshot framework is
 /// untouched.</para>
 /// </summary>
@@ -27,6 +28,7 @@ public partial class Apple2SystemConfig
             AudioEnabled = AudioEnabled,
             KeyboardJoystickEnabled = KeyboardJoystickEnabled,
             MonitorColor = MonitorColor,
+            LanguageCardEnabled = LanguageCardEnabled,
         };
         return JsonSerializer.Serialize(settings, Apple2SystemSnapshotSettingsJsonContext.Default.Apple2SystemSnapshotSettings);
     }
@@ -40,6 +42,7 @@ public partial class Apple2SystemConfig
         AudioEnabled = settings.AudioEnabled;
         KeyboardJoystickEnabled = settings.KeyboardJoystickEnabled;
         MonitorColor = settings.MonitorColor;
+        LanguageCardEnabled = settings.LanguageCardEnabled;
     }
 }
 
@@ -53,6 +56,13 @@ internal sealed class Apple2SystemSnapshotSettings
     public bool KeyboardJoystickEnabled { get; set; }
 
     public Apple2MonitorColor MonitorColor { get; set; } = Apple2MonitorColor.Color;
+
+    /// <summary>
+    /// Whether the machine that was captured had a language card. Carried because it decides the
+    /// <em>shape</em> of the rebuilt machine, not just a preference — a snapshot of a ProDOS session
+    /// restored into a 48 KB machine would have nowhere to put its operating system.
+    /// </summary>
+    public bool LanguageCardEnabled { get; set; } = true;
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

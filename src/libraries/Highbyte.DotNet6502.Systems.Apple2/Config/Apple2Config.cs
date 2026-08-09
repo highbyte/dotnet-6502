@@ -53,6 +53,12 @@ public class Apple2Config
     /// </summary>
     public bool AudioEnabled { get; set; }
 
+    /// <summary>
+    /// Whether the 16 KB language card is fitted. On real hardware it was an expansion card rather
+    /// than part of a stock II Plus, so switching it off gives a genuine 48 KB machine.
+    /// </summary>
+    public bool LanguageCardEnabled { get; set; } = true;
+
     /// <summary>Which audio provider to select; defaults to the only one when unset.</summary>
     public Type? AudioProviderType { get; set; }
 

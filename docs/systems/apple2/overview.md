@@ -17,7 +17,9 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
 ## Current capabilities
 
 - Boot to the Applesoft BASIC `]` prompt from a user-supplied Apple II Plus ROM.
-- 48 KB flat RAM at `$0000`–`$BFFF`, no bank switching.
+- 48 KB flat RAM at `$0000`–`$BFFF`, plus an optional **16 KB language card** overlaying the ROM
+  space — 64 KB in total, which is what ProDOS 8 requires. Fitted by default, and switchable off in
+  the configuration dialog to emulate a plain 48 KB machine. See [Language card](#language-card).
 - 12 KB system ROM (Applesoft BASIC + Autostart Monitor) at `$D000`–`$FFFF`.
     - Accepts both a trimmed 12 KB image and the 20 KB `$B000`–`$FFFF` layout that older
       emulator distributions use (the loadable part is the last 12 KB).
@@ -27,11 +29,13 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
     - `$C050`–`$C057` display-mode switches (text/graphics, mixed, page 1/2, lo-res/hi-res),
       honored by the rasterizer render path.
     - `$C030` speaker toggle, driving the one-bit cone (see Speaker audio below).
+    - `$C080`–`$C08F` language card bank switching (see [Language card](#language-card)).
 - Empty peripheral slots at `$C100`–`$CFFF` read as `$FF`, which makes the Autostart ROM's disk
   scan fail cleanly so it falls through to BASIC. Slot 6 answers instead when the Disk II
   controller is active (see below).
-- Disk II controller card in slot 6, read-only: boots and runs standard 16-sector DOS 3.3
-  disk images (`.dsk`/`.do`). See [Disk II](disk2.md).
+- Disk II controller card in slot 6, read-only: boots and runs standard 16-sector disk images in
+  either DOS 3.3 or ProDOS sector order, detected from the image's contents. ProDOS software runs
+  too, given the language card's 64 KB. See [Disk II](disk2.md).
 - 40 &times; 24 text display in the hardware's 7&times;8 character cell (280&times;192 pixels),
   page 1 (`$0400`–`$07FF`) or page 2 (`$0800`–`$0BFF`).
     - Interleaved row addressing: `address = base + (row % 8) * $80 + (row / 8) * $28`.
@@ -138,6 +142,44 @@ there is no CIA/VIA equivalent to emulate and no keyboard matrix to scan.
 - Emulator state snapshots — save and restore the whole machine, disk included. See
   [Snapshots](#snapshots).
 
+## Language card
+
+16 KB of RAM overlaying the ROM space at `$D000`–`$FFFF`, switched by the soft switches at
+`$C080`–`$C08F`. At power-on it is invisible: reads come from ROM and writes are protected, so
+software that never touches `$C08x` sees exactly the 48 KB machine it would without one.
+
+On real hardware this was an **expansion card**, normally in slot 0 — not part of a stock Apple II
+Plus, whose motherboard held at most 48 KB. It arrived around 1980 with the Apple Pascal system and
+became a common upgrade because so much later software wanted 64 KB; the IIe folded the equivalent
+into the motherboard in 1983, using these same soft switches. Here it is **fitted by default** but
+can be switched off in the configuration dialog, which gives a genuine 48 KB machine — and that is a
+visible difference, not a cosmetic one: the DOS 3.3 System Master loads Integer BASIC into the card
+when it finds one, and skips that step when it does not.
+
+16 KB covers a 12 KB address range because `$D000`–`$DFFF` has **two** independently selected 4 KB
+banks, while `$E000`–`$FFFF` is a single 8 KB block.
+
+| Address | Reads from | Writes |
+|---|---|---|
+| `$C080` / `$C084` | card | protected |
+| `$C081` / `$C085` | ROM | to card, after two accesses |
+| `$C082` / `$C086` | ROM | protected |
+| `$C083` / `$C087` | card | to card, after two accesses |
+| `$C088`–`$C08F` | as above, but bank 1 instead of bank 2 | |
+
+Enabling writes takes **two consecutive accesses** to an odd address, and only a *read* arms the
+first of them — a hardware guard so that one stray access cannot silently unlock RAM under the ROM.
+The emulation models this, because software relies on it: reading the switch twice is the standard
+idiom for filling the card while still executing from ROM.
+
+**What it unlocks.** ProDOS 8 needs 64 KB. Without the card a ProDOS disk boots only as far as
+ProDOS's own memory check and stops with `RELOCATION/  CONFIGURATION ERROR`; with it, ProDOS
+relocates itself into the card and runs from there. DOS 3.3 notices the card too — the System Master
+loads Integer BASIC into it during boot, which it skips on a 48 KB machine.
+
+A reset returns the switches to their power-on state (ROM visible, writes protected, bank 2) so the
+CPU reads its reset vector from ROM, but leaves the card's contents alone, as the hardware does.
+
 ## Snapshots
 
 The Apple II supports the shared `.d6502snap` emulator-state snapshots, so the same save/load
@@ -149,6 +191,7 @@ Two machine modules make up an Apple II snapshot, alongside the shared `cpu-6502
 | Module | What it holds |
 |---|---|
 | `apple2-core` | The 48 KB RAM, the keyboard latch (strobe included), the four display soft switches, the speaker's cone position, and the game port's paddle positions, buttons and one-shot |
+| `apple2-languagecard` | The card's 16 KB and its switch state — without it a restored ProDOS session would come back with its operating system replaced by zeros |
 | `apple2-disk2` | Head half-track, motor, drive select, the Q6/Q7 latches, the read head's position in the current track — plus the inserted `.dsk` image, embedded in the package |
 
 One module rather than one per chip, because the machine has no chips to divide along: the
@@ -191,11 +234,10 @@ For general monitor commands, see [Monitor library](../../libraries/core/dotnet6
 - NTSC-accurate hi-res colour. The six artifact colours are modelled, but the underlying
   half-dot shift is not: bit 7 selects a colour rather than moving the dots half a pixel, so
   colour fringing at black/white boundaries does not appear.
-- Disk II writing (the drive is always write-protected), a second drive, ProDOS-ordered `.po`
-  images, and nibble/flux (`.nib`/`.woz`) media. See [Disk II](disk2.md) for what is supported.
+- Disk II writing (the drive is always write-protected), a second drive, and nibble/flux
+  (`.nib`/`.woz`) media. See [Disk II](disk2.md) for what is supported.
 - Sound cards (Mockingboard and friends). The built-in speaker is emulated; expansion audio is not.
 - Peripheral slots other than slot 6, cassette, the second paddle pair (2 and 3), light pen.
-- The language card / 16 KB RAM expansion.
 - The original, non-Autostart Apple II with Integer BASIC. That is a different ROM set rather
   than different hardware, so it is a plausible later configuration variant.
 

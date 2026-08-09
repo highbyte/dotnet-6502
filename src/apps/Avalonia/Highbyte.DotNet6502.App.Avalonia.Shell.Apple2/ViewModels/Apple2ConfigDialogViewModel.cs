@@ -323,6 +323,22 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Whether the 16 KB language card is fitted, taking the machine to 64 KB. Off gives a stock
+    /// 48 KB Apple II Plus, which cannot run ProDOS software.
+    /// </summary>
+    public bool LanguageCardEnabled
+    {
+        get => _workingConfig.SystemConfig.LanguageCardEnabled;
+        set
+        {
+            if (_workingConfig.SystemConfig.LanguageCardEnabled == value)
+                return;
+            _workingConfig.SystemConfig.LanguageCardEnabled = value;
+            this.RaisePropertyChanged();
+        }
+    }
+
     public string SelectedRenderTargetHelpText => SelectedRenderTarget?.HelpText ?? string.Empty;
 
     public CpuCompatibilityProfileOption? SelectedCpuCompatibilityProfile
@@ -569,6 +585,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
             _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
             _originalConfig.InputConfig.KeyboardLayout = _workingConfig.InputConfig.KeyboardLayout;
             _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+            _originalConfig.SystemConfig.LanguageCardEnabled = _workingConfig.SystemConfig.LanguageCardEnabled;
             _originalConfig.SystemConfig.SetAudioProviderType(_workingConfig.SystemConfig.AudioProviderType);
             _originalConfig.SystemConfig.SetAudioTargetType(_workingConfig.SystemConfig.AudioTargetType);
 

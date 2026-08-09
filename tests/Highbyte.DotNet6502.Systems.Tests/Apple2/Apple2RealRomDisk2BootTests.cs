@@ -32,11 +32,13 @@ namespace Highbyte.DotNet6502.Systems.Tests.Apple2;
 public class Apple2RealRomDisk2BootTests
 {
     /// <summary>
-    /// Frames to allow for the whole boot. A System Master boot measures ~42 M cycles (~2475
-    /// frames), most of it DOS's own motor spin-up waits — see the timing-model limitation
-    /// documented on <c>Disk2Controller</c> — so this leaves generous headroom.
+    /// Upper bound on frames to allow for a boot, used only as a safety cap — the boot is waited
+    /// for by watching the drive rather than by running a fixed number of frames (see
+    /// <see cref="RunUntilBootSettles"/>). A fixed budget was the original approach and proved to be
+    /// the wrong shape: adding the language card made DOS 3.3 also load Integer BASIC into it, which
+    /// legitimately lengthened the boot and failed a test that was not about boot duration at all.
     /// </summary>
-    private const int BootFrames = 3600;
+    private const int MaxBootFrames = 12000;
 
     private readonly ITestOutputHelper _output;
 
@@ -76,8 +78,7 @@ public class Apple2RealRomDisk2BootTests
         apple2.InvalidatePowerUpByte();
         apple2.Reset();
 
-        for (var frame = 0; frame < BootFrames; frame++)
-            apple2.ExecuteOneFrame();
+        RunUntilBootSettles(apple2);
 
         var screenText = string.Join('\n', ReadScreen(apple2));
         _output.WriteLine(screenText);
@@ -162,10 +163,49 @@ public class Apple2RealRomDisk2BootTests
         // Reset after inserting so the Autostart slot scan sees the controller.
         apple2.Reset();
 
-        for (var frame = 0; frame < (runFrames ?? BootFrames); frame++)
+        if (runFrames.HasValue)
+        {
+            for (var frame = 0; frame < runFrames.Value; frame++)
+                apple2.ExecuteOneFrame();
+            return apple2;
+        }
+
+        RunUntilBootSettles(apple2);
+        return apple2;
+    }
+
+    /// <summary>
+    /// Runs the machine until the drive has spun up and then stayed idle for a while — the
+    /// observable end of a boot — rather than for a fixed number of frames. Returns early on the
+    /// safety cap so a boot that never completes still fails on the test's own assertions, with the
+    /// frame count reported either way.
+    /// </summary>
+    private void RunUntilBootSettles(Apple2System apple2)
+    {
+        // Long enough to span DOS's own pauses between loads (it stops the motor between the DOS
+        // image, the greeting program and, with a language card fitted, Integer BASIC).
+        const int IdleFramesRequired = 120;
+
+        var motorHasRun = false;
+        var idleFrames = 0;
+
+        for (var frame = 0; frame < MaxBootFrames; frame++)
+        {
             apple2.ExecuteOneFrame();
 
-        return apple2;
+            if (apple2.DiskController.IsMotorOn)
+            {
+                motorHasRun = true;
+                idleFrames = 0;
+            }
+            else if (motorHasRun && ++idleFrames >= IdleFramesRequired)
+            {
+                _output.WriteLine($"Boot settled after {frame + 1} frames.");
+                return;
+            }
+        }
+
+        _output.WriteLine($"Boot did not settle within the {MaxBootFrames}-frame cap.");
     }
 
 

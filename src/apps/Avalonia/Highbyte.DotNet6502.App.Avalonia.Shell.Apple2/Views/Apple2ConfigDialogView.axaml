@@ -163,6 +163,26 @@
             </Border>
         </StackPanel>
 
+        <!-- Memory Section -->
+        <StackPanel Width="368" Classes="wrap-item">
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Memory"
+                            Classes=""/>
+
+                <CheckBox AutomationProperties.AutomationId="LanguageCardEnableCheckBox"
+                        AutomationProperties.Name="Fit the 16 KB language card"
+                        Content="Language card (64 KB)"
+                        IsChecked="{Binding LanguageCardEnabled}"/>
+
+                <TextBlock Text="Adds 16 KB over the machine's 48 KB, which is what ProDOS 8 needs — without it ProDOS software stops at its own memory check. On real hardware this was an expansion card rather than part of a stock II Plus, so switching it off gives a genuine 48 KB machine."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"/>
+
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
         <!-- Render Section -->
         <StackPanel Width="368" Classes="wrap-item">
             <Border Classes="content-section">
