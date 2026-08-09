@@ -84,6 +84,13 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
     public const ushort SystemRomStartAddress = 0xD000;
     public const int SystemRomSize = 0x3000;
 
+    /// <summary>
+    /// Start of the part of the ROM space the language card covers with a single 8 KB block
+    /// ($E000-$FFFF). Below it, $D000-$DFFF is served by whichever of the card's two 4 KB banks is
+    /// selected — see <see cref="Apple2LanguageCard"/>.
+    /// </summary>
+    public const ushort UpperMemoryStartAddress = 0xE000;
+
     private readonly byte[] _ram = new byte[RamSize];
 
     /// <summary>
@@ -105,6 +112,12 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
 
     /// <summary>The one-bit speaker. See <see cref="Apple2Speaker"/>.</summary>
     public Apple2Speaker Speaker { get; }
+
+    /// <summary>
+    /// The 16 KB language card, which takes the machine to the 64 KB ProDOS needs. See
+    /// <see cref="Apple2LanguageCard"/>.
+    /// </summary>
+    public Apple2LanguageCard LanguageCard { get; }
 
     /// <summary>Types text into the machine by feeding the keyboard latch, one char per frame.</summary>
     public Apple2TextPaste TextPaste { get; }
@@ -152,15 +165,23 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         DiskController = new Disk2Controller(() => CPU.ExecState.CyclesConsumed);
         GamePort = new Apple2GamePort(() => CPU.ExecState.CyclesConsumed);
         Speaker = new Apple2Speaker(() => CPU.ExecState.CyclesConsumed);
-        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController, GamePort, Speaker);
+        LanguageCard = new Apple2LanguageCard();
+        SoftSwitches = new Apple2SoftSwitches(Keyboard, DiskController, GamePort, Speaker, LanguageCard);
         TextPaste = new Apple2TextPaste(this, loggerFactory);
         BasicTokenParser = new Apple2BasicTokenParser(this, loggerFactory);
         InputInjector = new Apple2InputInjector(this);
 
-        Mem = CreateMemory();
+        // ROM images are extracted before the memory map is built, because the map's ROM-reading
+        // configurations need the image in hand — unlike the pre-language-card layout, where a
+        // single ROM mapping could be applied afterwards.
+        var systemRom = LoadRoms(romData);
+        _hasSystemRom = systemRom != null;
+
+        Mem = CreateMemory(systemRom);
         DefaultExecOptions = new ExecOptions();
 
-        _hasSystemRom = romData != null && MapROMs(romData);
+        // A switch access swaps the whole memory map in one assignment.
+        LanguageCard.MemoryConfigurationChanged += Mem.SetMemoryConfiguration;
 
         // Only reset through the ROM's reset vector when a ROM is actually present; without one
         // $FFFC/$FFFD read as the unconnected value and the CPU would start executing garbage.
@@ -216,37 +237,111 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
 
     public void SetCurrentRenderProviderType(Type? renderProviderType) => SetCurrentRenderProvider(renderProviderType);
 
-    private Memory CreateMemory()
+    /// <summary>
+    /// Builds the address space, once per language-card memory configuration.
+    ///
+    /// <para>
+    /// $0000-$BFFF and the I/O page are identical in every configuration; only $D000-$FFFF differs,
+    /// by where reads come from (ROM or one of the card's banks) and whether writes land in the
+    /// card. Pre-building all eight means a bank switch is a configuration swap rather than a
+    /// re-map of 12 KB of handlers — which matters because software toggles banks in tight loops.
+    /// </para>
+    /// </summary>
+    private Memory CreateMemory(byte[]? systemRom)
     {
-        var mem = new Memory(mapToDefaultRAM: false);
+        var mem = new Memory(
+            numberOfConfigurations: Apple2LanguageCard.MemoryConfigurationCount,
+            mapToDefaultRAM: false);
 
-        // $0000-$BFFF: 48 KB RAM.
-        mem.MapRAM(RamStartAddress, _ram);
+        for (var configuration = 0; configuration < Apple2LanguageCard.MemoryConfigurationCount; configuration++)
+        {
+            mem.SetMemoryConfiguration(configuration);
 
-        // $C000-$C0FF soft switches, $C100-$CFFF empty peripheral slots.
-        SoftSwitches.MapIOLocations(mem);
+            // $0000-$BFFF: 48 KB RAM, the same array in every configuration.
+            mem.MapRAM(RamStartAddress, _ram);
 
-        // $D000-$FFFF: ROM socket. Default to "no device" so a ROM-less instance (unit tests,
-        // the no-op system in a host's system list) still has a fully mapped address space;
-        // MapROMs() replaces the readers when an image is supplied.
-        MapUnconnectedRange(mem, SystemRomStartAddress, SystemRomSize);
+            // $C000-$C0FF soft switches, $C100-$CFFF empty peripheral slots.
+            SoftSwitches.MapIOLocations(mem);
 
+            MapHighMemory(mem, configuration, systemRom);
+        }
+
+        mem.SetMemoryConfiguration(LanguageCard.MemoryConfiguration);
         return mem;
     }
 
-    private static void MapUnconnectedRange(Memory mem, ushort startAddress, int length)
+    /// <summary>
+    /// Maps $D000-$FFFF for one language-card configuration: reads from the card or from ROM, and
+    /// writes either into the card or nowhere.
+    /// </summary>
+    private void MapHighMemory(Memory mem, int configuration, byte[]? systemRom)
     {
-        for (var offset = 0; offset < length; offset++)
+        var readRam = (configuration & 4) != 0;
+        var bank1Selected = (configuration & 2) != 0;
+        var writeEnabled = (configuration & 1) != 0;
+
+        var cardRam = LanguageCard.Ram;
+        var bankOffset = bank1Selected ? Apple2LanguageCard.Bank1Offset : Apple2LanguageCard.Bank2Offset;
+
+        if (readRam)
         {
-            var address = (ushort)(startAddress + offset);
-            mem.MapReader(address, static _ => Apple2SoftSwitches.UnconnectedReadValue);
-            mem.MapWriter(address, static (_, _) => { });
+            // The banked 4 KB at $D000, then the shared 8 KB at $E000.
+            MapCardReaders(mem, SystemRomStartAddress, Apple2LanguageCard.BankSize, cardRam, bankOffset);
+            MapCardReaders(mem, UpperMemoryStartAddress, Apple2LanguageCard.UpperSize, cardRam, Apple2LanguageCard.UpperOffset);
+        }
+        else if (systemRom != null)
+        {
+            mem.MapROM(SystemRomStartAddress, systemRom);
+        }
+        else
+        {
+            // No ROM image: a ROM-less instance (unit tests, the placeholder system in a host's
+            // system list) still needs a fully mapped address space.
+            for (var offset = 0; offset < SystemRomSize; offset++)
+                mem.MapReader((ushort)(SystemRomStartAddress + offset), static _ => Apple2SoftSwitches.UnconnectedReadValue);
+        }
+
+        if (writeEnabled)
+        {
+            MapCardWriters(mem, SystemRomStartAddress, Apple2LanguageCard.BankSize, cardRam, bankOffset);
+            MapCardWriters(mem, UpperMemoryStartAddress, Apple2LanguageCard.UpperSize, cardRam, Apple2LanguageCard.UpperOffset);
+        }
+        else
+        {
+            // Write-protected: writes are swallowed, as they are on a machine with no card.
+            for (var offset = 0; offset < SystemRomSize; offset++)
+                mem.MapWriter((ushort)(SystemRomStartAddress + offset), static (_, _) => { });
         }
     }
 
-    /// <summary>Loads the supplied ROM images. Returns whether a system ROM was mapped.</summary>
-    private bool MapROMs(Dictionary<string, byte[]> romData)
+    private static void MapCardReaders(Memory mem, ushort baseAddress, int length, byte[] cardRam, int cardOffset)
     {
+        for (var offset = 0; offset < length; offset++)
+        {
+            var index = cardOffset + offset;
+            mem.MapReader((ushort)(baseAddress + offset), _ => cardRam[index]);
+        }
+    }
+
+    private static void MapCardWriters(Memory mem, ushort baseAddress, int length, byte[] cardRam, int cardOffset)
+    {
+        for (var offset = 0; offset < length; offset++)
+        {
+            var index = cardOffset + offset;
+            mem.MapWriter((ushort)(baseAddress + offset), (_, value) => cardRam[index] = value);
+        }
+    }
+
+    /// <summary>
+    /// Takes the supplied ROM images: hands the character generator to the rasterizer and the boot
+    /// ROM to the disk controller, and returns the normalized system ROM image for the memory map
+    /// (null when none was supplied).
+    /// </summary>
+    private byte[]? LoadRoms(Dictionary<string, byte[]>? romData)
+    {
+        if (romData == null)
+            return null;
+
         // The character generator is not mapped into the CPU address space — it feeds the video
         // circuitry only, so the rasterizer reads it directly from CharacterRom.
         if (romData.TryGetValue(Apple2SystemConfig.CHARGEN_ROM_NAME, out var characterRom))
@@ -255,11 +350,9 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         if (romData.TryGetValue(Apple2SystemConfig.DISK2_ROM_NAME, out var disk2Rom))
             DiskController.SetBootRom(disk2Rom);
 
-        if (!romData.TryGetValue(Apple2SystemConfig.SYSTEM_ROM_NAME, out var systemRom))
-            return false;
-
-        Mem.MapROM(SystemRomStartAddress, ExtractSystemRomImage(systemRom));
-        return true;
+        return romData.TryGetValue(Apple2SystemConfig.SYSTEM_ROM_NAME, out var systemRom)
+            ? ExtractSystemRomImage(systemRom)
+            : null;
     }
 
     /// <summary>
@@ -390,6 +483,11 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         SoftSwitches.Reset();
         DiskController.Reset();
 
+        // Put ROM back in the address space before the CPU reads its reset vector: with the card
+        // still switched in, $FFFC/$FFFD would come from card RAM and the machine would jump into
+        // whatever happened to be there. The card's contents survive, as they do on the hardware.
+        LanguageCard.Reset();
+
         if (cpuStartPos == null)
             CPU.Reset(Mem);
         else
@@ -486,12 +584,16 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
     /// has no model or timing variants to check beyond that — so
     /// <see cref="ValidateSnapshot"/> adds nothing.
     /// </summary>
-    public const int SnapshotVersion = 1;
+    /// <summary>Bumped to 2 when the language card was added, which changed the module set.</summary>
+    public const int SnapshotVersion = 2;
 
     private readonly IReadOnlyList<ISnapshotModule> _snapshotModules = new ISnapshotModule[]
     {
         new Cpu6502SnapshotModule(),
         new Apple2CoreSnapshotModule(),
+        // apple2-languagecard restores after apple2-core and sets the memory configuration, so the
+        // address space ends up matching the switch state it restored.
+        new Apple2LanguageCardSnapshotModule(),
         // apple2-disk2 restores after apple2-core because re-inserting the disk rebuilds the
         // nibble tracks the restored head position indexes into.
         new Apple2Disk2SnapshotModule(),

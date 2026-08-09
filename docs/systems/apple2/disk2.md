@@ -83,20 +83,25 @@ swept (20/5, 16/16, 12/12, 10/10, 9/9) with no effect, confirming the cause is t
 rather than the track layout. Removing the wait needs a cycle-accurate read path — the natural
 companion to sequencer-PROM (LSS) emulation, if copy-protected media is ever supported.
 
+## Sector order
+
+Both **DOS 3.3-ordered** and **ProDOS-ordered** 140 KB images are supported, and the order is
+detected from the image's contents rather than its file name — a ProDOS volume directory header
+where a ProDOS-ordered file would keep it. File names cannot be trusted: the archive.org copy of
+"Dangerous Dave in the Deserted Pirate's Hideout" is named `.dsk` and is ProDOS-ordered. Nibblizing
+with the wrong order yields plausible garbage rather than an error, which presents as a drive fault
+instead of a misread image.
+
+ProDOS *software* runs too, now that the machine has the 64 KB ProDOS 8 requires — see
+[Language card](overview.md#language-card).
+
 ## Not supported
 
 - Writing. The drive reports write-protected, so saving, formatting and copying will fail.
 - A second drive; only drive 1 exists.
-- ProDOS-ordered `.po` images, and nibble/flux `.nib`/`.woz` images.
+- Nibble/flux `.nib`/`.woz` images.
 - Copy protection that depends on bit-level sequencer behaviour or exact rotational timing. Use a
   cracked release of such titles.
-- ProDOS *software*, whatever the image's sector order — but for a reason outside the drive.
-  ProDOS 8 needs 64 KB and the emulated machine is a 48 KB II Plus with no language card, so a
-  ProDOS disk boots only as far as ProDOS's own `RELOCATION / CONFIGURATION ERROR`. This is a
-  limit of the emulated machine, not of the II Plus: ProDOS 8 1.x supports the II and II Plus, on
-  a 64 KB one. Supporting these titles means emulating the language card (`$C080`–`$C08F`), not
-  changing anything here.
-
 ## Verified
 
 The sidebar's **Download & Run programs** list also uses the drive: entries marked as
@@ -120,10 +125,14 @@ Live-verified in the Avalonia desktop host:
   booted rather than injected because VisiCalc's `/S` and `/L` file commands call DOS, so DOS has
   to be resident.
 
-Verified *not* to work, and why it is worth recording: **Dangerous Dave** (Softdisk) is a ProDOS
-title, so it stops at the 64 KB requirement above — the 1988 disk carries `PRODOS 8 V1.4` and the
-1991 one `PRODOS 8 V1.9`. The 1988 disk is also ProDOS *block*-ordered, so it does not even get
-that far; it hangs at track 0 with the motor running.
+- **Dangerous Dave in the Deserted Pirate's Hideout** (Softdisk, 1988) boots through ProDOS 8 and
+  plays. It exercises the whole ProDOS path: the language card's 64 KB, and ProDOS sector order (its
+  archive.org copy is named `.dsk` but is ProDOS-ordered).
+
+Verified *not* to work, and why it is worth recording: the **1991 re-release** of Dangerous Dave is
+built for a **65C02**. It executes `$9C` (`STZ abs`), which this NMOS 6502 does not implement, so the
+instruction stream desynchronises and the CPU eventually lands on `$B2` — JAM on an NMOS part. Same
+game, different build, different CPU requirement; only the 1988 original targets a II Plus.
 
 Automated coverage lives in `Disk2NibbleCodecTests`, `Disk2TrackNibblizerTests` and
 `Disk2ControllerTests`, plus opt-in integration tests (`Apple2RealRomDisk2BootTests`) that boot a

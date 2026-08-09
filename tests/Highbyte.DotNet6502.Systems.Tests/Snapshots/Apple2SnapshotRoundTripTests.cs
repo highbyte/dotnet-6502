@@ -47,8 +47,64 @@ public class Apple2SnapshotRoundTripTests
 
         var moduleNames = provider.GetSnapshotModules().Select(m => m.Name).ToArray();
         Assert.Equal(
-            new[] { Cpu6502SnapshotModule.ModuleName, Apple2CoreSnapshotModule.ModuleName, Apple2Disk2SnapshotModule.ModuleName },
+            new[]
+            {
+                Cpu6502SnapshotModule.ModuleName,
+                Apple2CoreSnapshotModule.ModuleName,
+                Apple2LanguageCardSnapshotModule.ModuleName,
+                Apple2Disk2SnapshotModule.ModuleName,
+            },
             moduleNames);
+    }
+
+    /// <summary>
+    /// The card holds ProDOS itself once a ProDOS disk has booted, so losing it on restore would
+    /// replace the machine's operating system with zeros. The switch state travels too: it decides
+    /// whether the CPU resumes executing from the card or from ROM.
+    /// </summary>
+    [Fact]
+    public void Round_trip_restores_language_card_contents_and_switch_state()
+    {
+        var source = BuildApple2();
+
+        // Read+write the card, bank 1, and leave recognisable bytes in both of its regions.
+        source.Mem.Read(0xC08B);
+        source.Mem.Read(0xC08B);
+        source.Mem.Write(0xD000, 0x11);
+        source.Mem.Write(0xE000, 0x22);
+
+        // Then switch to bank 2 and write something different at the same address.
+        source.Mem.Read(0xC083);
+        source.Mem.Read(0xC083);
+        source.Mem.Write(0xD000, 0x33);
+
+        Assert.True(source.LanguageCard.ReadRam);
+        Assert.True(source.LanguageCard.WriteEnabled);
+        Assert.False(source.LanguageCard.Bank1Selected);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+
+        snapshotStream.Position = 0;
+        var restored = BuildApple2();
+        // A fresh machine powers up reading ROM with the card protected — the opposite of the
+        // captured state, so a module that skipped this would fail rather than pass by accident.
+        Assert.False(restored.LanguageCard.ReadRam);
+        new SnapshotService().Restore(restored, snapshotStream);
+
+        Assert.True(restored.LanguageCard.ReadRam);
+        Assert.True(restored.LanguageCard.WriteEnabled);
+        Assert.False(restored.LanguageCard.Bank1Selected);
+
+        // The restored machine must also be *reading* the card, not just recording that it should:
+        // the memory configuration has to have been applied.
+        Assert.Equal((byte)0x33, restored.Mem.Read(0xD000));
+        Assert.Equal((byte)0x22, restored.Mem.Read(0xE000));
+
+        // The bank that was not selected at capture time survives too.
+        restored.Mem.Read(0xC08B);
+        restored.Mem.Read(0xC08B);
+        Assert.Equal((byte)0x11, restored.Mem.Read(0xD000));
     }
 
     [Fact]

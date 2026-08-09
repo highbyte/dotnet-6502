@@ -20,6 +20,12 @@ internal static class Apple2TestRoms
     public const string BootDskPathEnvironmentVariable = "DOTNET6502_APPLE2_BOOT_DSK";
 
     /// <summary>
+    /// A bootable, DOS-sector-ordered ProDOS disk image. Kept separate from the DOS 3.3 boot disk
+    /// because it tests a different thing: that the machine has the 64 KB ProDOS requires.
+    /// </summary>
+    public const string ProdosDskPathEnvironmentVariable = "DOTNET6502_APPLE2_PRODOS_DSK";
+
+    /// <summary>
     /// File names as published by the ROM archive — the same names the app's ROM download writes
     /// into the ROM directory. The system ROM is published both as the bare 12 KB image and in the
     /// 20 KB layout, and the loader accepts either.
@@ -46,8 +52,14 @@ internal static class Apple2TestRoms
     /// in a known directory.
     /// </summary>
     public static string? ResolveBootDskPath()
+        => ResolveDiskImagePath(BootDskPathEnvironmentVariable);
+
+    public static string? ResolveProdosDskPath()
+        => ResolveDiskImagePath(ProdosDskPathEnvironmentVariable);
+
+    private static string? ResolveDiskImagePath(string environmentVariable)
     {
-        var fromEnvironment = Environment.GetEnvironmentVariable(BootDskPathEnvironmentVariable);
+        var fromEnvironment = Environment.GetEnvironmentVariable(environmentVariable);
         return !string.IsNullOrWhiteSpace(fromEnvironment) && File.Exists(fromEnvironment)
             ? fromEnvironment
             : null;
@@ -134,5 +146,30 @@ public sealed class RequiresApple2Disk2BootFactAttribute : FactAttribute
         else if (Apple2TestRoms.ResolveBootDskPath() == null)
             Skip = $"No bootable DOS 3.3 disk image. Set {Apple2TestRoms.BootDskPathEnvironmentVariable} " +
                    "to a .dsk path (there is deliberately no default location for disk images).";
+    }
+}
+
+/// <summary>
+/// A test needing the genuine ROMs plus a bootable, DOS-ordered ProDOS disk image. Skips, visibly,
+/// when any of them is absent — ProDOS images are user content with no default location, exactly
+/// like the DOS 3.3 boot disk.
+/// </summary>
+public sealed class RequiresApple2ProdosBootFactAttribute : FactAttribute
+{
+    public RequiresApple2ProdosBootFactAttribute()
+    {
+        if (Apple2TestRoms.ResolveSystemRomPath() == null)
+            Skip = Apple2TestRoms.MissingFileReason(
+                "Apple II system ROM",
+                Apple2TestRoms.SystemRomPathEnvironmentVariable,
+                Apple2TestRoms.SystemRomFileNames);
+        else if (Apple2TestRoms.ResolveDisk2RomPath() == null)
+            Skip = Apple2TestRoms.MissingFileReason(
+                "Disk II boot ROM",
+                Apple2TestRoms.Disk2RomPathEnvironmentVariable,
+                Apple2TestRoms.Disk2RomFileNames);
+        else if (Apple2TestRoms.ResolveProdosDskPath() == null)
+            Skip = $"No bootable ProDOS disk image. Set {Apple2TestRoms.ProdosDskPathEnvironmentVariable} " +
+                   "to a DOS-sector-ordered .dsk path.";
     }
 }

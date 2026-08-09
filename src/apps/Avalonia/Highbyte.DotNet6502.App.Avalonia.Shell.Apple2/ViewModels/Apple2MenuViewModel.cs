@@ -95,6 +95,15 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             zipEntryName: "Bolo (4am crack)/Bolo (4am crack).dsk",
             runMode: Apple2DownloadRunMode.BootDisk) },
 
+        // The first ProDOS title in the list: it boots ProDOS 8 into the language card, and its
+        // image is ProDOS-ordered despite the .dsk name (the drive detects the order from the
+        // contents). Keyboard joystick stays off — the game reads the keyboard directly and never
+        // touches the game port, so switching it on would only steal keys from it.
+        { "dangerousdave", new Apple2DownloadProgramInfo(
+            "Dangerous Dave",
+            "https://archive.org/download/a2_asimov_dangerous_dave/dangerous_dave.dsk",
+            runMode: Apple2DownloadRunMode.BootDisk) },
+
         // The one non-game, and the only entry not on the asimov mirror — that mirror has no
         // VisiCalc image. Booted rather than injected: the binary is a plain catalog file, but
         // VisiCalc's /S and /L commands call DOS, so DOS has to be resident. Booting lands on the

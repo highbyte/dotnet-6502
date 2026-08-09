@@ -3,7 +3,7 @@ using Highbyte.DotNet6502.Systems.Apple2.DiskImage;
 namespace Highbyte.DotNet6502.Systems.Apple2.Disk2;
 
 /// <summary>
-/// Converts a DOS-ordered 16-sector disk image (<c>.dsk</c>/<c>.do</c>) into the per-track nibble
+/// Converts a 16-sector disk image (<c>.dsk</c>/<c>.do</c>, or a ProDOS-ordered one) into the per-track nibble
 /// streams the Disk II controller feeds to the CPU — the standard emulator approach: nibblize
 /// once on insert, then let RWTS (or a game's own loader) run unmodified against the stream.
 ///
@@ -53,27 +53,48 @@ public static class Disk2TrackNibblizer
         0, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 15,
     };
 
+    /// <summary>
+    /// The same mapping for a ProDOS-ordered image. ProDOS numbers its logical sectors differently
+    /// from DOS 3.3, so the identical disk dumped in the two orders produces two different files —
+    /// which is why the order has to be known before nibblizing, and why guessing it wrong yields a
+    /// track of plausible-looking garbage rather than an obvious error.
+    /// </summary>
+    public static ReadOnlySpan<byte> PhysicalToProdosSector => new byte[16]
+    {
+        0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15,
+    };
+
+    private static ReadOnlySpan<byte> PhysicalToLogicalSector(DiskSectorOrder sectorOrder)
+        => sectorOrder == DiskSectorOrder.ProDos ? PhysicalToProdosSector : PhysicalToDosSector;
+
     private static ReadOnlySpan<byte> AddressProlog => new byte[] { 0xD5, 0xAA, 0x96 };
     private static ReadOnlySpan<byte> DataProlog => new byte[] { 0xD5, 0xAA, 0xAD };
     private static ReadOnlySpan<byte> FieldEpilog => new byte[] { 0xDE, 0xAA, 0xEB };
 
-    /// <summary>Nibblizes all 35 tracks of a DOS-ordered disk image.</summary>
-    /// <exception cref="InvalidDataException">The image is not a 140 KB DOS-ordered image.</exception>
-    public static byte[][] BuildNibbleTracks(byte[] diskImageData, byte volume = DefaultVolume)
+    /// <summary>Nibblizes all 35 tracks of a 140 KB disk image stored in the given sector order.</summary>
+    /// <exception cref="InvalidDataException">The image is not 140 KB.</exception>
+    public static byte[][] BuildNibbleTracks(
+        byte[] diskImageData,
+        byte volume = DefaultVolume,
+        DiskSectorOrder sectorOrder = DiskSectorOrder.Dos)
     {
         ArgumentNullException.ThrowIfNull(diskImageData);
         if (diskImageData.Length != DskParser.DiskImageSize)
             throw new InvalidDataException(
-                $"Not a 140 KB DOS-ordered disk image: {diskImageData.Length} bytes, expected {DskParser.DiskImageSize}.");
+                $"Not a 140 KB disk image: {diskImageData.Length} bytes, expected {DskParser.DiskImageSize}.");
 
         var tracks = new byte[DskParser.Tracks][];
         for (var track = 0; track < DskParser.Tracks; track++)
-            tracks[track] = BuildNibbleTrack(diskImageData, track, volume);
+            tracks[track] = BuildNibbleTrack(diskImageData, track, volume, sectorOrder);
         return tracks;
     }
 
     /// <summary>Nibblizes one track of a DOS-ordered disk image.</summary>
-    public static byte[] BuildNibbleTrack(byte[] diskImageData, int track, byte volume = DefaultVolume)
+    public static byte[] BuildNibbleTrack(
+        byte[] diskImageData,
+        int track,
+        byte volume = DefaultVolume,
+        DiskSectorOrder sectorOrder = DiskSectorOrder.Dos)
     {
         ArgumentNullException.ThrowIfNull(diskImageData);
         if (track is < 0 or >= DskParser.Tracks)
@@ -103,7 +124,7 @@ public static class Disk2TrackNibblizer
 
             pos += Gap2SyncBytes;
 
-            var logicalSector = PhysicalToDosSector[physicalSector];
+            var logicalSector = PhysicalToLogicalSector(sectorOrder)[physicalSector];
             var sectorOffset = DskParser.SectorOffset(track, logicalSector);
             Disk2NibbleCodec.EncodeSector(
                 diskImageData.AsSpan(sectorOffset, Disk2NibbleCodec.SectorSize), encoded);
