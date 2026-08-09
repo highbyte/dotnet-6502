@@ -247,6 +247,15 @@ public class Vic20 : ISystem, ITextMode, IScreen, ISystemState, ISystemSnapshotP
 
             if (triggerResult.Triggered)
                 return triggerResult;
+
+            // A halted CPU (a JAM/KIL opcode, which the FullUnofficial profile implements) reports
+            // zero cycles for every subsequent instruction, so the cycle budget above could never be
+            // reached and this loop would spin forever — freezing the host's UI thread rather than
+            // merely stopping the emulated machine. End the frame instead, so the host stays
+            // responsive and shows the machine as it was when it locked up. That is also what the
+            // hardware does with a JAM: nothing, until reset.
+            if (CPU.IsHalted)
+                break;
         }
 
         _renderProviderPerInstructionStat.Stop();
