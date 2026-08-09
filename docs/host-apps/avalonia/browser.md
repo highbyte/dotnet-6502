@@ -4,9 +4,19 @@
 
 Cross-platform browser app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Desktop app](../../host-apps/avalonia/desktop.md).
 
-![Avalonia Browser WebAssembly app, C64 Basic](../../assets/screenshots/AvaloniaBrowser_C64_Basic.png){ width="33%" }
-![Avalonia Browser WebAssembly app, C64 Montezuma's Revenge](../../assets/screenshots/AvaloniaBrowser_C64_Montezuma.png){ width="33%" }
-![Avalonia Browser WebAssembly app, C64 monitor](../../assets/screenshots/AvaloniaBrowser_C64_Monitor.png){ width="33%" }
+<div class="screenshot-grid" markdown="1">
+
+![Avalonia Browser WebAssembly app, C64 Basic](../../assets/screenshots/AvaloniaBrowser_C64_Basic.png)
+
+![Avalonia Browser WebAssembly app, C64 Montezuma's Revenge](../../assets/screenshots/AvaloniaBrowser_C64_Montezuma.png)
+
+![Avalonia Browser WebAssembly app, C64 monitor](../../assets/screenshots/AvaloniaBrowser_C64_Monitor.png)
+
+![Avalonia Browser WebAssembly app, VIC-20 BASIC](../../assets/screenshots/AvaloniaBrowser_VIC20_Basic.png)
+
+![Avalonia Browser WebAssembly app, Apple II Lode Runner](../../assets/screenshots/AvaloniaBrowser_Apple2_LodeRunner.png)
+
+</div>
 
 Technologies:
 
@@ -31,6 +41,8 @@ browser-only **share link**) are documented on the per-system pages — shared w
 called out inline:
 
 - [C64 in the Avalonia apps](c64.md)
+- [VIC-20 in the Avalonia apps](vic20.md)
+- [Apple II Plus in the Avalonia apps](apple2.md)
 - [Generic computer in the Avalonia apps](generic.md)
 
 ### Lua scripting

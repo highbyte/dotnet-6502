@@ -26,8 +26,7 @@ $Branch = (& git rev-parse --abbrev-ref HEAD).Trim()
 $Sha    = (& git rev-parse HEAD).Trim()
 Write-Output "==> Branch: $Branch  sha: $($Sha.Substring(0, 12))  threshold: $MinSeverity"
 
-# Fail fast if the current commit hasn't been pushed — see comment in
-# tools/sonar-check.sh.
+# Fail fast if the current commit hasn't been pushed — see tools/sonar-check.sh.
 $RemoteSha = & git rev-parse --verify --quiet "refs/remotes/origin/$Branch" 2>$null
 if (-not $RemoteSha) {
     Write-Error "Branch '$Branch' has not been pushed to origin.`nPush it first:  git push -u origin $Branch"
@@ -39,16 +38,44 @@ if ($RemoteSha -ne $Sha) {
     exit 2
 }
 
+# Pull requests use Sonar's PR analysis; master and manually dispatched feature
+# branches use branch analysis. See tools/sonar-check.sh for the rationale.
+$Prs = & gh pr list --head $Branch --state open --limit 20 --json number,headRefOid | ConvertFrom-Json
+$Pr = $Prs | Where-Object { $_.headRefOid -eq $Sha } | Select-Object -First 1
+
+if ($Pr) {
+    $ExpectedEvent = 'pull_request'
+    $AnalysisParameter = "pullRequest=$($Pr.number)"
+    Write-Output "==> Pull request: #$($Pr.number)"
+} elseif ($Branch -eq 'master') {
+    $ExpectedEvent = 'push'
+    $AnalysisParameter = "branch=$Branch"
+} else {
+    $ExpectedEvent = 'workflow_dispatch'
+    $AnalysisParameter = "branch=$Branch"
+
+    $ExistingRuns = & gh run list --workflow=$WorkflowFile --branch=$Branch --json headSha,event --limit 20 | ConvertFrom-Json
+    $ExistingRun = $ExistingRuns | Where-Object { $_.headSha -eq $Sha -and $_.event -eq $ExpectedEvent } | Select-Object -First 1
+    if (-not $ExistingRun) {
+        Write-Output '==> No open PR; starting a manual Sonar branch analysis ...'
+        & gh workflow run $WorkflowFile --ref $Branch
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error 'Failed to start the Sonar workflow.'
+            exit 2
+        }
+    }
+}
+
 $RunId = $null
 for ($i = 0; $i -lt 12; $i++) {
-    $runs = & gh run list --workflow=$WorkflowFile --branch=$Branch --json databaseId,headSha --limit 20 | ConvertFrom-Json
-    $match = $runs | Where-Object { $_.headSha -eq $Sha } | Select-Object -First 1
+    $runs = & gh run list --workflow=$WorkflowFile --branch=$Branch --json databaseId,headSha,event --limit 20 | ConvertFrom-Json
+    $match = $runs | Where-Object { $_.headSha -eq $Sha -and $_.event -eq $ExpectedEvent } | Select-Object -First 1
     if ($match) { $RunId = $match.databaseId; break }
     Start-Sleep -Seconds 5
 }
 
 if (-not $RunId) {
-    Write-Error "No $WorkflowFile run found for sha $($Sha.Substring(0, 12)) on branch $Branch after 60s.`nHint: push the branch first; the workflow triggers on push to feature/**."
+    Write-Error "No $ExpectedEvent $WorkflowFile run found for sha $($Sha.Substring(0, 12)) on branch $Branch after 60s."
     exit 2
 }
 
@@ -62,7 +89,7 @@ if ($LASTEXITCODE -ne 0) {
 # inNewCodePeriod=true: see comment in tools/sonar-check.sh — restrict to issues
 # introduced on this branch only. Set $env:SONAR_INCLUDE_PREEXISTING=1 to disable.
 $NewCodeFilter = if ($env:SONAR_INCLUDE_PREEXISTING -eq '1') { '' } else { '&inNewCodePeriod=true' }
-$Api = "$SonarHost/api/issues/search?componentKeys=$ProjectKey&branch=$Branch&statuses=OPEN&resolved=false&ps=500$NewCodeFilter"
+$Api = "$SonarHost/api/issues/search?componentKeys=$ProjectKey&$AnalysisParameter&statuses=OPEN&resolved=false&ps=500$NewCodeFilter"
 
 $IssuesJson = $null
 for ($i = 0; $i -lt 12; $i++) {

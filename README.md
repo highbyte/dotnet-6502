@@ -36,9 +36,9 @@ Full documentation lives at **<https://highbyte.github.io/dotnet-6502/docs/>** â
 
 ## Try it in your browser
 
-| [Avalonia WebAssembly](https://highbyte.se/dotnet-6502/app2) | [Blazor WebAssembly](https://highbyte.se/dotnet-6502/app) |
-| ------------------------------------------------------------ | --------------------------------------------------------- |
-| <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="docs/assets/screenshots/AvaloniaBrowser_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma's Revenge"/></a> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="docs/assets/screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/></a> |
+| [Avalonia: C64](https://highbyte.se/dotnet-6502/app2) | [Avalonia: VIC-20](https://highbyte.se/dotnet-6502/app2) | [Avalonia: Apple II Plus](https://highbyte.se/dotnet-6502/app2) | [Blazor: C64](https://highbyte.se/dotnet-6502/app) |
+| ----------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------- |
+| <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="docs/assets/screenshots/AvaloniaBrowser_C64_Montezuma.png" width="300" title="Avalonia WebAssembly app, C64 Montezuma's Revenge"/></a> | <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="docs/assets/screenshots/AvaloniaBrowser_VIC20_Basic.png" width="300" title="Avalonia WebAssembly app, VIC-20 BASIC"/></a> | <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="docs/assets/screenshots/AvaloniaBrowser_Apple2_LodeRunner.png" width="300" title="Avalonia WebAssembly app, Apple II Plus Lode Runner"/></a> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="docs/assets/screenshots/BlazorWASM_C64_LastNinja.png" width="300" title="Blazor WebAssembly app, C64 Last Ninja"/></a> |
 
 ## Other apps and features
 

@@ -4,10 +4,10 @@ name: Sonarscan DotNet
 
 # Controls when the action will run.
 on:
-  # Triggers the workflow on push to master and on pushes to feature branches.
-  # Feature-branch coverage enables local Sonar branch analysis without first having to open a PR.
+  # Analyze master after merge. Feature branches are analyzed by the pull_request
+  # trigger below so an update to an open PR does not start duplicate scans.
   push:
-    branches: [ master, 'feature/**' ]
+    branches: [ master ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'
@@ -34,6 +34,7 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   build:
+    name: CI / Sonar scan
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 

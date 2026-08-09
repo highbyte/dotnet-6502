@@ -10,6 +10,8 @@ Because the two runtimes share their UI, the system-specific features are docume
 with the small Browser-vs-Desktop differences called out inline:
 
 - [C64 in the Avalonia apps](c64.md)
+- [VIC-20 in the Avalonia apps](vic20.md)
+- [Apple II Plus in the Avalonia apps](apple2.md)
 - [Generic computer in the Avalonia apps](generic.md)
 
 Runtime-specific topics:

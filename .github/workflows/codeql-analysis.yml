@@ -36,7 +36,7 @@ on:
  
 jobs:
   analyze:
-    name: Analyze
+    name: CI / CodeQL (${{ matrix.language }})
     runs-on: windows-latest
 
     strategy:
