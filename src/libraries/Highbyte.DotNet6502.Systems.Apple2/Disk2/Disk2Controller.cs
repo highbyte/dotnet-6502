@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Apple2.DiskImage;
 using Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 
@@ -120,11 +121,14 @@ public class Disk2Controller
     /// no byte would ever be due and every read would report "not ready" — which is a silent
     /// wrong answer rather than a loud one, so callers have to say what time it is.
     /// </param>
-    public Disk2Controller(Func<ulong> cpuCycleProvider)
+    public Disk2Controller(Func<ulong> cpuCycleProvider, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(cpuCycleProvider);
         _cpuCycleProvider = cpuCycleProvider;
+        _logger = logger;
     }
+
+    private readonly ILogger? _logger;
 
     /// <summary>The P5 (341-0027) 16-sector boot ROM image, when configured.</summary>
     public byte[]? BootRom { get; private set; }
@@ -139,10 +143,20 @@ public class Disk2Controller
     public bool IsWriteProtected { get; private set; } = true;
 
     /// <summary>Covers or uncovers the write-protect notch. Ignored while no disk is inserted.</summary>
-    public void SetWriteProtected(bool writeProtected) => IsWriteProtected = writeProtected;
+    public void SetWriteProtected(bool writeProtected)
+    {
+        _logger?.LogInformation("Disk2: write-protect notch is now {State}.", writeProtected ? "COVERED (protected)" : "OPEN (writable)");
+        IsWriteProtected = writeProtected;
+    }
 
     /// <summary>Total bytes the machine has shifted out onto the disk surface.</summary>
     public ulong DataWriteCount { get; private set; }
+
+    /// <summary>Stores that arrived before the surface had moved on, and so were not laid down.</summary>
+    public ulong DroppedWriteCount { get; private set; }
+
+    private ulong _refusedWriteCount;
+    private ulong _senseCount;
 
     /// <summary>
     /// True when the machine has written sectors that the host has not persisted yet. The host
@@ -270,11 +284,16 @@ public class Disk2Controller
             case 0x8:
                 if (_motorSwitchedOn)
                 {
+                    _logger?.LogInformation(
+                        "Disk2: motor OFF at track {Track} (reads {Reads}, writes {Writes}).",
+                        CurrentTrack, DataReadCount, DataWriteCount);
                     _motorSwitchedOn = false;
                     _motorSwitchedOffAtCycle = _cpuCycleProvider();   // start the one-shot
                 }
                 return Apple2SoftSwitches.UnconnectedReadValue;
             case 0x9:
+                if (!_motorSwitchedOn)
+                    _logger?.LogInformation("Disk2: motor ON at track {Track}.", CurrentTrack);
                 _motorSwitchedOn = true;
                 return Apple2SoftSwitches.UnconnectedReadValue;
 
@@ -297,11 +316,26 @@ public class Disk2Controller
                     _dataLatch = value;
                 return NoDataLatched;
             case 0xE:   // Q7L: read mode; with Q6 set returns write-protect status in bit 7
+                if (_q6)
+                {
+                    _senseCount++;
+                    if (_senseCount <= 20 || _senseCount % 500 == 0)
+                        _logger?.LogInformation(
+                            "Disk2: write-protect sense #{Count} -> {Answer}.",
+                            _senseCount, IsWriteProtected ? "PROTECTED" : "writable");
+                }
                 if (_q7)
+                {
+                    _logger?.LogTrace(
+                        "Disk2: leaving write mode at track {Track}, {Written} written, {Dropped} dropped.",
+                        CurrentTrack, DataWriteCount, DroppedWriteCount);
                     DecodeDirtyTracks();   // leaving write mode: for RWTS, one sector just landed
+                }
                 _q7 = false;
                 return _q6 && IsWriteProtected ? (byte)0x80 : NoDataLatched;
             default:    // 0xF, Q7H: write mode
+                if (!_q7)
+                    _logger?.LogInformation("Disk2: entering write mode at track {Track}.", CurrentTrack);
                 _q7 = true;
                 return NoDataLatched;
         }
@@ -319,11 +353,15 @@ public class Disk2Controller
         if (!on)
             return;
 
+        var previousTrack = CurrentTrack;
         var currentPhase = _halfTrack & 0x03;
         if (phase == ((currentPhase + 1) & 0x03))
             _halfTrack = Math.Min(_halfTrack + 1, MaxHalfTrack);
         else if (phase == ((currentPhase + 3) & 0x03))
             _halfTrack = Math.Max(_halfTrack - 1, 0);
+
+        if (CurrentTrack != previousTrack)
+            _logger?.LogDebug("Disk2: head moved {From} -> {To}.", previousTrack, CurrentTrack);
     }
 
     /// <summary>
@@ -370,11 +408,25 @@ public class Disk2Controller
     private void WriteDataNibble()
     {
         if (_nibbleTracks == null || !IsSpinning || _selectedDrive != 1 || IsWriteProtected)
+        {
+            _refusedWriteCount++;
+            if (_refusedWriteCount == 1 || _refusedWriteCount % 256 == 0)
+            {
+                _logger?.LogDebug(
+                    "Disk2: write refused ({Count} so far) - disk:{Disk} spinning:{Spinning} drive:{Drive} protected:{Protected}.",
+                    _refusedWriteCount, _nibbleTracks != null, IsSpinning, _selectedDrive, IsWriteProtected);
+            }
             return;
+        }
 
         var elapsed = _cpuCycleProvider() - _lastNibbleCycle;
         if (elapsed < CyclesPerNibble)
+        {
+            DroppedWriteCount++;
+            if (DroppedWriteCount == 1 || DroppedWriteCount % 256 == 0)
+                _logger?.LogDebug("Disk2: dropped an early store ({Count} so far), {Elapsed} cycles since the last byte.", DroppedWriteCount, elapsed);
             return;
+        }
 
         var trackData = _nibbleTracks[CurrentTrack];
         var due = elapsed / CyclesPerNibble;
@@ -383,6 +435,8 @@ public class Disk2Controller
 
         trackData[_nibblePosition] = _dataLatch;
         DataWriteCount++;
+        if (IsWriteProtected)
+            _logger?.LogWarning("Disk2: wrote to a write-protected disk - this should be unreachable.");
         if (_dirtyTracks != null)
             _dirtyTracks[CurrentTrack] = true;
     }
@@ -404,8 +458,12 @@ public class Disk2Controller
                 continue;
 
             _dirtyTracks[track] = false;
-            if (Disk2TrackNibblizer.ApplyNibbleTrackToImage(
-                    _nibbleTracks[track], track, _rawDiskImageData, SectorOrder) > 0)
+            var recovered = Disk2TrackNibblizer.ApplyNibbleTrackToImage(
+                _nibbleTracks[track], track, _rawDiskImageData, SectorOrder);
+            _logger?.LogDebug(
+                "Disk2: decoded track {Track} after writing - {Recovered} of {Total} sectors intact.",
+                track, recovered, DskParser.SectorsPerTrack);
+            if (recovered > 0)
                 changed = true;
         }
 
@@ -415,6 +473,9 @@ public class Disk2Controller
         HasUnsavedChanges = true;
         DiskImageWritten?.Invoke(_rawDiskImageData);
     }
+
+    /// <summary>The disk image as it now stands, including anything the machine has written.</summary>
+    public byte[]? SnapshotDiskImage() => _rawDiskImageData == null ? null : (byte[])_rawDiskImageData.Clone();
 
     /// <summary>Called by the host once it has persisted the image handed to it.</summary>
     public void MarkChangesPersisted() => HasUnsavedChanges = false;
