@@ -32,6 +32,28 @@ public class Apple2DiskSnapshotTests
         return rom;
     }
 
+    /// <summary>
+    /// Moves the emulated clock on by running a NOP sled. The drive turns at a fixed rate, so a
+    /// test that pokes the card's soft switches without letting any time pass is asking a stopped
+    /// disk for data and will read "not ready" forever.
+    /// </summary>
+    private static void AdvanceCycles(Apple2System machine, ulong cycles)
+    {
+        const ushort SledStart = 0x0300;
+        const ushort SledEnd = 0x0400;
+        for (var addr = SledStart; addr < SledEnd; addr++)
+            machine.Mem[addr] = 0xEA;   // NOP
+
+        machine.CPU.PC = SledStart;
+        var target = machine.CPU.ExecState.CyclesConsumed + cycles;
+        while (machine.CPU.ExecState.CyclesConsumed < target)
+        {
+            machine.ExecuteOneInstruction(out _);
+            if (machine.CPU.PC >= SledEnd)
+                machine.CPU.PC = SledStart;
+        }
+    }
+
     [Fact]
     public void Saved_package_embeds_the_inserted_disk_image_bytes()
     {
@@ -64,8 +86,10 @@ public class Apple2DiskSnapshotTests
         // Drive the card the way the boot ROM does: motor on, read mode, step the head off track 0.
         source.Mem.Read(0xC0E9);                    // motor on
         source.Mem.Read(0xC0EE);                    // Q7 off (read mode)
+        AdvanceCycles(source, Disk2Controller.CyclesPerNibble);
         source.Mem.Read(0xC0EC);                    // Q6 off
         StepHeadUpOneTrack(source);
+        AdvanceCycles(source, Disk2Controller.CyclesPerNibble);
         source.Mem.Read(0xC0EC);                    // read a nibble, advancing the stream position
 
         var sourceTrack = source.DiskController.CurrentTrack;
@@ -87,8 +111,13 @@ public class Apple2DiskSnapshotTests
         Assert.Equal(sourceTrack, restored.DiskController.CurrentTrack);
         Assert.True(restored.DiskController.IsMotorOn);
 
-        // The read head resumes where it was: the next nibble matches the source machine's.
-        Assert.Equal(source.Mem.Read(0xC0EC), restored.Mem.Read(0xC0EC));
+        // The read head resumes where it was: given the same byte time on each machine, the next
+        // nibble matches the source's.
+        AdvanceCycles(source, Disk2Controller.CyclesPerNibble);
+        AdvanceCycles(restored, Disk2Controller.CyclesPerNibble);
+        var sourceNibble = source.Mem.Read(0xC0EC);
+        Assert.True((sourceNibble & 0x80) != 0, "A byte was due on the source machine.");
+        Assert.Equal(sourceNibble, restored.Mem.Read(0xC0EC));
     }
 
     [Fact]
