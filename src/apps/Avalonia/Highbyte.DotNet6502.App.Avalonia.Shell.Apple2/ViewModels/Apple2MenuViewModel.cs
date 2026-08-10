@@ -125,6 +125,7 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<InsertedDisk, Unit> InsertDiskCommand { get; }
     public ReactiveCommand<Unit, Unit> BootDiskCommand { get; }
     public ReactiveCommand<Unit, Unit> EjectDiskCommand { get; }
+    public ReactiveCommand<Unit, Unit> NewBlankDiskCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
@@ -260,6 +261,10 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
                 return Task.CompletedTask;
             },
             this.WhenAnyValue(x => x.HasInsertedDisk),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        NewBlankDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await NewBlankDiskAsync(),
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
         InitExampleFiles();
@@ -732,6 +737,35 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
         this.RaisePropertyChanged(nameof(CanEnableDiskWrite));
         this.RaisePropertyChanged(nameof(DiskWriteDisabledReason));
         this.RaisePropertyChanged(nameof(MustSaveDiskImageExplicitly));
+        this.RaisePropertyChanged(nameof(IsDiskWriteEnabled));
+    }
+
+    /// <summary>
+    /// A fresh, empty DOS 3.3 disk in drive 1. Not bootable - it is a data disk, like any blank
+    /// from a disk tool - so the workflow is to boot a DOS disk first and then insert this.
+    ///
+    /// <para>Made here rather than by formatting one in the emulated machine: INIT needs bit-level
+    /// self-sync bytes the drive does not model, and was measured writing every track and then
+    /// failing its own verify pass.</para>
+    /// </summary>
+    private async Task NewBlankDiskAsync()
+    {
+        try
+        {
+            await Apple2DiskBoot.InsertAsync(_hostApp, BlankDiskImageBuilder.CreateDos33(), _logger);
+            _driveErrorMessage = null;
+            // No path: it exists only in memory until the user saves it somewhere.
+            AttachToInsertedDisk(localPath: null);
+            if (_hostApp.CurrentRunningSystem is Apple2System apple2)
+                apple2.DiskController.SetWriteProtected(false);
+            _logger.LogInformation("Inserted a new blank DOS 3.3 disk (not saved to a file yet).");
+        }
+        catch (Exception ex)
+        {
+            _driveErrorMessage = string.IsNullOrWhiteSpace(ex.Message) ? "Could not create a blank disk." : ex.Message;
+            _logger.LogError(ex, "Error creating blank disk image");
+        }
+        RaiseDriveStateChanged();
         this.RaisePropertyChanged(nameof(IsDiskWriteEnabled));
     }
 

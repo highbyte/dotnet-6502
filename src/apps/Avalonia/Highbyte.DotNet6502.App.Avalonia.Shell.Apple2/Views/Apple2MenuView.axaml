@@ -124,6 +124,15 @@
                         Click="ToggleDiskImage_Click"
                         Classes="small"/>
 
+                <!-- A blank data disk to save things onto. Not bootable, so it is offered
+                     alongside insert rather than as a way to start the machine. -->
+                <Button Content="New blank disk"
+                        Name="NewBlankDiskButton"
+                        AutomationProperties.AutomationId="NewBlankDiskButton"
+                        AutomationProperties.Name="Insert a new blank DOS 3.3 disk in drive 1"
+                        Command="{Binding NewBlankDiskCommand}"
+                        Classes="small"/>
+
                 <!-- Unlike the toggle above, this caption is static, so a descriptive Name is
                      kept: it spells out what the "PR#6" jargon in the caption means. -->
                 <Button Content="Boot from disk (PR#6)"
