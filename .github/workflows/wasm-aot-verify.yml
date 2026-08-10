@@ -7,18 +7,12 @@ name: WASM AOT publish smoke
 # regular `dotnet build` / `dotnet test` CI job.
 
 on:
+  # Deliberately unfiltered. A workflow that `paths` filters out never runs, and one that never
+  # runs never reports a status - so branch protection, which requires these two checks to report,
+  # left any PR touching none of those paths stuck at "Expected - Waiting for status to be
+  # reported" forever. The filter moved into the job below, where a miss costs a few seconds
+  # instead of a merge.
   pull_request:
-    paths:
-      - 'src/apps/BlazorWASM/**'
-      - 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/**'
-      # The Browser app transitively pulls in Avalonia.Core and every Shell.* via
-      # ProjectReference, so changes there also need to retrigger the smoke run.
-      - 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Core/**'
-      - 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Shell.*/**'
-      - 'src/libraries/**'
-      - 'src/systems/**'
-      - 'tests/wasm-smoke/**'
-      - '.github/workflows/wasm-aot-verify.yml'
   workflow_dispatch:
 
 concurrency:
@@ -45,16 +39,44 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Needed to diff against the PR base.
+          fetch-depth: 0
+
+      - name: Detect changes affecting the WASM apps
+        id: changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
+          echo "Changed files:"
+          echo "$changed"
+
+          # The Browser app transitively pulls in Avalonia.Core and every Shell.* via
+          # ProjectReference, so changes there also need to retrigger the smoke run.
+          if echo "$changed" | grep -qE '^(src/apps/BlazorWASM/|src/apps/Avalonia/Highbyte\.DotNet6502\.App\.Avalonia\.(Browser|Core|Shell\.)|src/libraries/|src/systems/|tests/wasm-smoke/|\.github/workflows/wasm-aot-verify\.yml)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing the WASM apps are built from changed - reporting success without publishing."
+          fi
 
       - name: Setup .NET
+        if: steps.changes.outputs.relevant == 'true'
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
       - name: Install wasm-tools workload
+        if: steps.changes.outputs.relevant == 'true'
         run: dotnet workload install wasm-tools
 
       - name: Publish ${{ matrix.app.name }} (Release, AOT)
+        if: steps.changes.outputs.relevant == 'true'
         env:
           VERSION: 0.0.0-pr${{ github.event.pull_request.number || github.run_number }}
         # Same flags as .github/workflows/pages-publish.yml so we
@@ -70,7 +92,7 @@ jobs:
             -o "build/${{ matrix.app.name }}"
 
       - name: Replace version placeholders
-        if: matrix.app.needs_version_placeholder_replace
+        if: steps.changes.outputs.relevant == 'true' && matrix.app.needs_version_placeholder_replace
         env:
           VERSION: 0.0.0-pr${{ github.event.pull_request.number || github.run_number }}
         run: |
@@ -78,11 +100,13 @@ jobs:
           find "build/${{ matrix.app.name }}/wwwroot" -name "*.js" -exec sed -i "s/{{APP_VERSION}}/$VERSION/g" {} \;
 
       - name: Setup Node
+        if: steps.changes.outputs.relevant == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install Playwright deps
+        if: steps.changes.outputs.relevant == 'true'
         working-directory: tests/wasm-smoke
         # npm ci enforces install from the committed package-lock.json (exact versions).
         # --ignore-scripts skips arbitrary preinstall/postinstall scripts in transitive
@@ -93,13 +117,14 @@ jobs:
           ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Run smoke test
+        if: steps.changes.outputs.relevant == 'true'
         working-directory: tests/wasm-smoke
         env:
           WASM_SITE_ROOT: ${{ github.workspace }}/build/${{ matrix.app.name }}/wwwroot
         run: ./node_modules/.bin/playwright test "${{ matrix.app.spec }}"
 
       - name: Upload Playwright report on failure
-        if: failure()
+        if: failure() && steps.changes.outputs.relevant == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.app.name }}

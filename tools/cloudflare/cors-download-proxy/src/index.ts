@@ -117,6 +117,22 @@ export function validateConfig(env: Env): ConfigValidationResult {
 		return { ok: false, error: "ALLOWED_TARGET_HOSTS must contain at least one hostname.", proxyPath };
 	}
 
+	// A bare "*" would allow every host on the internet, which is an open proxy. Reject it at
+	// startup rather than discovering it from traffic. Same for a wildcard with nothing after the
+	// dot, and for a suffix so short it cannot name a registrable domain ("*.com").
+	const badWildcard = allowedTargetHosts.find(
+		(entry) => entry === "*" || (entry.startsWith("*.") && !entry.slice(2).includes(".")),
+	);
+	if (badWildcard) {
+		return {
+			ok: false,
+			error:
+				`ALLOWED_TARGET_HOSTS entry '${badWildcard}' is too broad. ` +
+				"Use '*.example.com' to allow subdomains of a specific domain.",
+			proxyPath,
+		};
+	}
+
 	return {
 		ok: true,
 		config: {
@@ -145,8 +161,32 @@ export function isAllowedOrigin(origin: string, config: ProxyConfig): boolean {
 	return config.allowLocalhostOrigins && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
 
+/**
+ * Matches a target hostname against the allowlist.
+ *
+ * An entry is either an exact hostname (`archive.org`) or a subdomain wildcard (`*.archive.org`).
+ * The wildcard is opt-in per entry rather than implied by every entry, so adding one host that
+ * needs subdomains does not quietly widen the others: `csdb.dk` still means only `csdb.dk`.
+ *
+ * A wildcard matches subdomains *only* — `*.archive.org` does not match `archive.org` itself, so a
+ * host that needs both is listed twice. That is deliberate: the two are different trust decisions,
+ * and spelling them out means the allowlist can be read literally.
+ *
+ * The leading dot in the compared suffix is what makes this safe. Testing `endsWith("archive.org")`
+ * would also admit `evilarchive.org`, which is an allowlist that quietly allows anyone willing to
+ * register the right name.
+ */
 export function isAllowedTargetHost(hostname: string, config: ProxyConfig): boolean {
-	return config.allowedTargetHosts.includes(hostname.toLowerCase());
+	const host = hostname.toLowerCase();
+
+	return config.allowedTargetHosts.some((entry) => {
+		if (!entry.startsWith("*.")) {
+			return host === entry;
+		}
+
+		const suffix = entry.slice(1); // "*.archive.org" -> ".archive.org"
+		return host.length > suffix.length && host.endsWith(suffix);
+	});
 }
 
 export function isAuthorized(request: Request, sharedToken: string | null): boolean {

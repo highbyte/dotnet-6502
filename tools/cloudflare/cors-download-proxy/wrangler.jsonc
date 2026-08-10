@@ -11,7 +11,7 @@
 		"PROXY_PATH": "/fetch",
 		"ALLOWED_ORIGINS": "https://highbyte.se",
 		"ALLOW_LOCALHOST_ORIGINS": "true",
-		"ALLOWED_TARGET_HOSTS": "www.zimmers.net,csdb.dk,compunet.live,highbyte.se,mirrors.apple2.org.za",
+		"ALLOWED_TARGET_HOSTS": "www.zimmers.net,csdb.dk,compunet.live,highbyte.se,mirrors.apple2.org.za,archive.org,*.archive.org",
 		"MAX_REDIRECTS": "5",
 		"MAX_RESPONSE_BYTES": "33554432"
 	},
