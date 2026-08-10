@@ -69,7 +69,14 @@ jobs:
           # TypeScript deployables (not the .NET product) and intentionally share small helper
           # functions (path normalization, bearer-token auth). Exclude them from copy/paste
           # duplication detection so that shared boilerplate doesn't fail the new-code gate.
-          sonarBeginArguments: /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" -d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" -d:sonar.coverage.inclusions="src/libraries/Highbyte.DotNet6502/**/*.*" -d:sonar.cpd.exclusions="tools/**"
+          #
+          # sonar.coverage.exclusions: same scope decision, applied to coverage. This gate measures
+          # the .NET product - sonar.coverage.inclusions already narrows it to one library - and no
+          # coverage report is produced for the TypeScript under tools/**, so without this their
+          # lines count as uncovered and drag new_coverage to 0. The Workers do have their own
+          # vitest suites, run by their own workflows; they are simply not reported here. If that
+          # ever changes, drop this and feed the lcov in instead.
+          sonarBeginArguments: /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" -d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" -d:sonar.coverage.inclusions="src/libraries/Highbyte.DotNet6502/**/*.*" -d:sonar.cpd.exclusions="tools/**" -d:sonar.coverage.exclusions="tools/**"
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
