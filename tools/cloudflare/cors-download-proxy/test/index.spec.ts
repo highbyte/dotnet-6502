@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import worker, {
 	csv,
 	isAllowedOrigin,
+	isAllowedTargetHost,
 	isAuthorized,
 	normalizeProxyPath,
 	parseTargetUrl,
@@ -24,13 +25,67 @@ describe("cors download proxy worker", () => {
 		expect(csv(" A.example.com, B.example.com ,, ")).toEqual(["a.example.com", "b.example.com"]);
 	});
 
+	it("matches exact target hosts without allowing their subdomains", () => {
+		const config = { allowedTargetHosts: ["csdb.dk", "archive.org"] } as never;
+
+		expect(isAllowedTargetHost("csdb.dk", config)).toBe(true);
+		expect(isAllowedTargetHost("CSDB.DK", config)).toBe(true);
+		// An exact entry stays exact. Adding a wildcard elsewhere must not widen this one.
+		expect(isAllowedTargetHost("files.csdb.dk", config)).toBe(false);
+	});
+
+	it("matches subdomains only for wildcard entries", () => {
+		const config = { allowedTargetHosts: ["archive.org", "*.archive.org"] } as never;
+
+		// The per-request node hosts archive.org redirects downloads to.
+		expect(isAllowedTargetHost("dn711007.ca.archive.org", config)).toBe(true);
+		expect(isAllowedTargetHost("ia801234.us.archive.org", config)).toBe(true);
+		expect(isAllowedTargetHost("archive.org", config)).toBe(true); // from the exact entry
+
+		// The wildcard alone does not cover the bare domain, which is why both are listed.
+		expect(isAllowedTargetHost("archive.org", { allowedTargetHosts: ["*.archive.org"] } as never)).toBe(false);
+	});
+
+	it("does not let a wildcard match a lookalike domain", () => {
+		const config = { allowedTargetHosts: ["*.archive.org"] } as never;
+
+		// The whole point of comparing against ".archive.org" rather than "archive.org":
+		// anyone can register these.
+		expect(isAllowedTargetHost("evilarchive.org", config)).toBe(false);
+		expect(isAllowedTargetHost("notarchive.org", config)).toBe(false);
+		// And a suffix match must not be fooled by the domain appearing earlier in the name.
+		expect(isAllowedTargetHost("archive.org.evil.com", config)).toBe(false);
+	});
+
+	it("rejects wildcards too broad to be an allowlist", () => {
+		const base = {
+			ALLOWED_ORIGINS: "https://highbyte.se",
+			PROXY_PATH: "/fetch",
+		};
+
+		for (const hosts of ["*", "*.com", "csdb.dk,*"]) {
+			const result = validateConfig({ ...base, ALLOWED_TARGET_HOSTS: hosts } as never);
+			expect(result.ok, `expected '${hosts}' to be rejected`).toBe(false);
+		}
+
+		expect(validateConfig({ ...base, ALLOWED_TARGET_HOSTS: "*.archive.org" } as never).ok).toBe(true);
+	});
+
 	it("validates required config values", () => {
 		expect(validateConfig(env)).toMatchObject({
 			ok: true,
 			config: {
 				proxyPath: "/fetch",
 				allowedOrigins: ["https://highbyte.se"],
-				allowedTargetHosts: ["www.zimmers.net", "csdb.dk", "compunet.live", "highbyte.se", "mirrors.apple2.org.za"],
+				allowedTargetHosts: [
+					"www.zimmers.net",
+					"csdb.dk",
+					"compunet.live",
+					"highbyte.se",
+					"mirrors.apple2.org.za",
+					"archive.org",
+					"*.archive.org",
+				],
 			},
 		});
 
@@ -90,7 +145,15 @@ describe("cors download proxy worker", () => {
 		expect(await response.json()).toMatchObject({
 			ok: true,
 			proxyPath: "/fetch",
-			allowedTargetHosts: ["www.zimmers.net", "csdb.dk", "compunet.live", "highbyte.se"],
+			allowedTargetHosts: [
+				"www.zimmers.net",
+				"csdb.dk",
+				"compunet.live",
+				"highbyte.se",
+				"mirrors.apple2.org.za",
+				"archive.org",
+				"*.archive.org",
+			],
 			rateLimits: {
 				burst: { limit: 8, periodSeconds: 10 },
 				sustained: { limit: 20, periodSeconds: 60 },
@@ -213,6 +276,30 @@ describe("cors download proxy worker", () => {
 		expect(response.status).toBe(403);
 		expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://highbyte.se");
 		expect(await response.text()).toBe("Redirect target host not allowed");
+	});
+
+	it("follows a redirect to a wildcard-allowed subdomain", async () => {
+		// archive.org 302s every download to a per-request node host, so the wildcard has to hold
+		// on the redirect hop and not just on the first request.
+		vi.spyOn(globalThis, "fetch")
+			.mockResolvedValueOnce(
+				new Response(null, {
+					status: 302,
+					headers: { Location: "https://dn711007.ca.archive.org/0/items/Visicalc_1.27/Visicalc_1.27.dsk" },
+				}),
+			)
+			.mockResolvedValueOnce(new Response("disk-bytes", { status: 200 }));
+
+		const request = new Request(
+			"https://proxy.test/fetch?url=https%3A%2F%2Farchive.org%2Fdownload%2FVisicalc_1.27%2FVisicalc_1.27.dsk",
+			{ headers: { Origin: "https://highbyte.se" } },
+		);
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("disk-bytes");
 	});
 
 	it("rejects responses that exceed the configured size limit", async () => {

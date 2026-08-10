@@ -1,0 +1,44 @@
+name: CORS download proxy
+
+# The browser app's downloads all go through this Worker, so its allowlist decides which
+# "Download & Run" entries work in the browser at all. Its tests had been failing unnoticed
+# because nothing ran them - a suite no workflow runs is not a gate.
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'tools/cloudflare/cors-download-proxy/**'
+      - '.github/workflows/cors-proxy.yml'
+
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tools/cloudflare/cors-download-proxy/**'
+      - '.github/workflows/cors-proxy.yml'
+
+jobs:
+  test:
+    name: CORS download proxy / Test
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: tools/cloudflare/cors-download-proxy
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: npm
+        cache-dependency-path: tools/cloudflare/cors-download-proxy/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Test
+      run: npm test
