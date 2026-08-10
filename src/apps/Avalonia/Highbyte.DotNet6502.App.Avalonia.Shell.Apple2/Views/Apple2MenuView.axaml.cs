@@ -177,13 +177,43 @@ public partial class Apple2MenuView : UserControl
             {
                 try
                 {
-                    _ = ViewModel!.InsertDiskCommand.Execute(selectedFile.Bytes);
+                    _ = ViewModel!.InsertDiskCommand.Execute(new InsertedDisk(selectedFile.Bytes, selectedFile.LocalPath));
                 }
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, "Error inserting .dsk image");
                 }
             }
+        });
+
+    /// <summary>
+    /// Writes the disk out to a file the user chooses. On Desktop that is a save dialog; in the
+    /// browser IAppFileSaver falls back to a Blob download, since the File System Access API is
+    /// Chromium-only. This is the only way a browser disk's changes leave the session.
+    /// </summary>
+    private void SaveDiskImage_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var image = ViewModel?.GetInsertedDiskImage();
+            if (image == null)
+                return;
+
+            var serviceProvider = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+            var saver = serviceProvider?.GetService<IAppFileSaver>();
+            if (saver == null)
+                return;
+
+            var saved = await saver.SaveFileAsync(
+                this,
+                new AppFileSaveOptions(
+                    "Save disk image",
+                    "disk.dsk",
+                    "dsk",
+                    [new AppFilePickerFileType("Disk Images", ["*.dsk", "*.do"]), AppFilePickerFileType.AllFiles]),
+                image);
+
+            if (saved)
+                ViewModel?.MarkDiskImageSaved();
         });
 
     private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
@@ -286,10 +316,10 @@ public partial class Apple2MenuView : UserControl
                     ]));
         if (file == null)
             return null;
-        return new SelectedBinaryFile(file.Name, file.Bytes);
+        return new SelectedBinaryFile(file.Name, file.Bytes, file.LocalPath);
     }
 
-    private sealed record SelectedBinaryFile(string Name, byte[] Bytes);
+    private sealed record SelectedBinaryFile(string Name, byte[] Bytes, string? LocalPath = null);
 
     private void OpenApple2Config_Click(object? sender, RoutedEventArgs e)
         => SafeAsyncHelper.Execute(async () =>

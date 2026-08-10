@@ -137,6 +137,115 @@ public static class Disk2TrackNibblizer
         return trackData;
     }
 
+    /// <summary>
+    /// Inverse of <see cref="BuildNibbleTrack"/>: finds every intact address+data field pair in a
+    /// track's nibble stream and writes the decoded sectors back into <paramref name="diskImageData"/>.
+    /// Returns how many sectors were recovered.
+    ///
+    /// <para>The scan is circular, because a rewritten sector does not have to land where the
+    /// original one did. RWTS locates a sector by its address field and then writes only the data
+    /// field, so where that data field starts depends on where the head happened to be — and a
+    /// field that straddles the end of the buffer is still a perfectly good field on a disk that
+    /// has no "end".</para>
+    ///
+    /// <para>Anything that does not decode cleanly is skipped rather than reported: a track being
+    /// written is legitimately inconsistent part-way through, and half a sector must never reach
+    /// the image.</para>
+    /// </summary>
+    public static int ApplyNibbleTrackToImage(
+        ReadOnlySpan<byte> trackData,
+        int track,
+        byte[] diskImageData,
+        DiskSectorOrder sectorOrder = DiskSectorOrder.Dos)
+    {
+        ArgumentNullException.ThrowIfNull(diskImageData);
+        if (track is < 0 or >= DskParser.Tracks)
+            throw new ArgumentOutOfRangeException(nameof(track));
+        if (diskImageData.Length != DskParser.DiskImageSize)
+            throw new InvalidDataException(
+                $"Not a 140 KB disk image: {diskImageData.Length} bytes, expected {DskParser.DiskImageSize}.");
+        if (trackData.Length == 0)
+            return 0;
+
+        // Gap 2 plus enough slack for a drive that wrote its data field a little late.
+        const int MaxGap2Search = 64;
+
+        var physicalToLogical = PhysicalToLogicalSector(sectorOrder);
+        Span<byte> addressField = stackalloc byte[8];
+        Span<byte> encoded = stackalloc byte[Disk2NibbleCodec.EncodedDataSize];
+        Span<byte> sector = stackalloc byte[Disk2NibbleCodec.SectorSize];
+
+        var recovered = 0;
+        var seen = new bool[DskParser.SectorsPerTrack];
+
+        for (var start = 0; start < trackData.Length; start++)
+        {
+            if (!MatchesAt(trackData, start, AddressProlog))
+                continue;
+
+            var pos = start + AddressProlog.Length;
+            CopyCircular(trackData, pos, addressField);
+            pos += addressField.Length;
+
+            if (!Disk2NibbleCodec.TryDecodeAddressField(
+                    addressField, out _, out var fieldTrack, out var physicalSector))
+                continue;
+            if (fieldTrack != track || physicalSector >= DskParser.SectorsPerTrack)
+                continue;
+            if (!MatchesAt(trackData, pos, FieldEpilog))
+                continue;
+            pos += FieldEpilog.Length;
+
+            // Find this sector's data field in the gap that follows.
+            var dataStart = -1;
+            for (var offset = 0; offset < MaxGap2Search; offset++)
+            {
+                if (MatchesAt(trackData, pos + offset, DataProlog))
+                {
+                    dataStart = pos + offset + DataProlog.Length;
+                    break;
+                }
+            }
+            if (dataStart < 0)
+                continue;
+
+            CopyCircular(trackData, dataStart, encoded);
+            if (!MatchesAt(trackData, dataStart + encoded.Length, FieldEpilog))
+                continue;
+            if (!Disk2NibbleCodec.TryDecodeSector(encoded, sector))
+                continue;
+
+            // A track holds each sector once; if the head wrapped mid-scan we can meet the same
+            // one twice, and the first intact copy is the one to trust.
+            if (seen[physicalSector])
+                continue;
+            seen[physicalSector] = true;
+
+            var logicalSector = physicalToLogical[physicalSector];
+            sector.CopyTo(diskImageData.AsSpan(
+                DskParser.SectorOffset(track, logicalSector), Disk2NibbleCodec.SectorSize));
+            recovered++;
+        }
+
+        return recovered;
+    }
+
+    private static bool MatchesAt(ReadOnlySpan<byte> trackData, int start, ReadOnlySpan<byte> pattern)
+    {
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            if (trackData[(start + i) % trackData.Length] != pattern[i])
+                return false;
+        }
+        return true;
+    }
+
+    private static void CopyCircular(ReadOnlySpan<byte> trackData, int start, Span<byte> destination)
+    {
+        for (var i = 0; i < destination.Length; i++)
+            destination[i] = trackData[(start + i) % trackData.Length];
+    }
+
     private static int Write(byte[] trackData, int pos, ReadOnlySpan<byte> data)
     {
         data.CopyTo(trackData.AsSpan(pos));

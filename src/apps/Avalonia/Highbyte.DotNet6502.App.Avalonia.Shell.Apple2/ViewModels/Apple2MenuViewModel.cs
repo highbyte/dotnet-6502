@@ -14,6 +14,7 @@ using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
@@ -121,9 +122,10 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDownloadSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDiskSectionCommand { get; }
-    public ReactiveCommand<byte[], Unit> InsertDiskCommand { get; }
+    public ReactiveCommand<InsertedDisk, Unit> InsertDiskCommand { get; }
     public ReactiveCommand<Unit, Unit> BootDiskCommand { get; }
     public ReactiveCommand<Unit, Unit> EjectDiskCommand { get; }
+    public ReactiveCommand<Unit, Unit> NewBlankDiskCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
@@ -243,8 +245,8 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             },
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
-        InsertDiskCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
-            async fileBytes => await InsertDiskAsync(fileBytes),
+        InsertDiskCommand = ReactiveCommandHelper.CreateSafeCommand<InsertedDisk>(
+            async disk => await InsertDiskAsync(disk),
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
         BootDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -259,6 +261,10 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
                 return Task.CompletedTask;
             },
             this.WhenAnyValue(x => x.HasInsertedDisk),
+            outputScheduler: RxSchedulers.MainThreadScheduler);
+
+        NewBlankDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => await NewBlankDiskAsync(),
             outputScheduler: RxSchedulers.MainThreadScheduler);
 
         InitExampleFiles();
@@ -398,6 +404,10 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.Apple2.HelloWorld.bas", "HelloWorld"));
         BasicExamples.Add(new KeyValuePair<string, string>(
             $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.Apple2.PlayNotes.bas", "PlayNotes"));
+        // Needs a write-enabled DOS 3.3 disk in drive 1: it writes a text file, reads it back and
+        // checks what came back matches what went out.
+        BasicExamples.Add(new KeyValuePair<string, string>(
+            $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.Apple2.DiskSaveLoad.bas", "DiskSaveLoad"));
     }
 
     private byte[] ReadExampleResource(string resourceName)
@@ -657,6 +667,159 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     /// </summary>
     public string DiskToggleButtonText => HasInsertedDisk ? "Eject disk" : "Insert .dsk image";
 
+    /// <summary>Where the inserted disk came from, when it came from a file this host can write.</summary>
+    private string? _insertedDiskPath;
+    private FileWritability _insertedDiskWritability = FileWritability.Writable;
+    private Disk2Controller? _subscribedController;
+
+    /// <summary>
+    /// The write-protect notch, mirrored from the drive rather than cached, for the same reason as
+    /// <see cref="HasInsertedDisk"/>: anything else goes stale when the disk changes by another
+    /// route.
+    /// </summary>
+    public bool IsDiskWriteEnabled
+    {
+        get => _hostApp.CurrentRunningSystem is Apple2System apple2
+               && apple2.DiskController.IsDiskInserted
+               && !apple2.DiskController.IsWriteProtected;
+        set
+        {
+            if (_hostApp.CurrentRunningSystem is not Apple2System apple2)
+            {
+                _logger.LogWarning("Write-enable checkbox changed to {Value} but no Apple II is running.", value);
+                return;
+            }
+            _logger.LogInformation("Write-enable checkbox set to {Value}.", value);
+            apple2.DiskController.SetWriteProtected(!value);
+            this.RaisePropertyChanged();
+            this.RaisePropertyChanged(nameof(DriveStatusText));
+        }
+    }
+
+    /// <summary>
+    /// Whether the user is allowed to enable writing at all. Two separate questions, and merging
+    /// them would produce a checkbox that offers something it cannot do: does the user want this
+    /// disk writable, and can the file be written. Only a disk backed by a file this host can
+    /// write is ever refused - a disk with no file behind it (downloaded, remote, or any disk in
+    /// the browser) is written in memory and saved out explicitly, so nothing blocks it.
+    /// </summary>
+    public bool CanEnableDiskWrite
+        => HasInsertedDisk && (_insertedDiskPath == null || _insertedDiskWritability.CanWrite);
+
+    /// <summary>Why the write-enable box is disabled, or null when it is not.</summary>
+    public string? DiskWriteDisabledReason
+        => !HasInsertedDisk ? "No disk in drive."
+            : CanEnableDiskWrite ? null
+            : _insertedDiskWritability.Reason;
+
+    /// <summary>True when the disk has no file behind it, so saving means writing a new one.</summary>
+    public bool MustSaveDiskImageExplicitly => HasInsertedDisk && _insertedDiskPath == null;
+
+    /// <summary>
+    /// Starts tracking the disk just inserted: where it came from, whether that can be written,
+    /// and where its written sectors should go.
+    /// </summary>
+    private void AttachToInsertedDisk(string? localPath)
+    {
+        DetachFromDisk();
+
+        _insertedDiskPath = localPath;
+        _insertedDiskWritability = localPath == null
+            ? FileWritability.Writable
+            : FileWritability.Probe(localPath);
+
+        if (_hostApp.CurrentRunningSystem is not Apple2System apple2)
+            return;
+
+        _subscribedController = apple2.DiskController;
+        _subscribedController.DiskImageWritten += OnDiskImageWritten;
+
+        this.RaisePropertyChanged(nameof(CanEnableDiskWrite));
+        this.RaisePropertyChanged(nameof(DiskWriteDisabledReason));
+        this.RaisePropertyChanged(nameof(MustSaveDiskImageExplicitly));
+        this.RaisePropertyChanged(nameof(IsDiskWriteEnabled));
+    }
+
+    /// <summary>
+    /// A fresh, empty DOS 3.3 disk in drive 1. Not bootable - it is a data disk, like any blank
+    /// from a disk tool - so the workflow is to boot a DOS disk first and then insert this.
+    ///
+    /// <para>Made here rather than by formatting one in the emulated machine: INIT needs bit-level
+    /// self-sync bytes the drive does not model, and was measured writing every track and then
+    /// failing its own verify pass.</para>
+    /// </summary>
+    private async Task NewBlankDiskAsync()
+    {
+        try
+        {
+            await Apple2DiskBoot.InsertAsync(_hostApp, BlankDiskImageBuilder.CreateDos33(), _logger);
+            _driveErrorMessage = null;
+            // No path: it exists only in memory until the user saves it somewhere.
+            AttachToInsertedDisk(localPath: null);
+            if (_hostApp.CurrentRunningSystem is Apple2System apple2)
+                apple2.DiskController.SetWriteProtected(false);
+            _logger.LogInformation("Inserted a new blank DOS 3.3 disk (not saved to a file yet).");
+        }
+        catch (Exception ex)
+        {
+            _driveErrorMessage = string.IsNullOrWhiteSpace(ex.Message) ? "Could not create a blank disk." : ex.Message;
+            _logger.LogError(ex, "Error creating blank disk image");
+        }
+        RaiseDriveStateChanged();
+        this.RaisePropertyChanged(nameof(IsDiskWriteEnabled));
+    }
+
+    /// <summary>The disk as it now stands, including anything the machine has written.</summary>
+    public byte[]? GetInsertedDiskImage()
+        => _hostApp.CurrentRunningSystem is Apple2System apple2 && apple2.DiskController.IsDiskInserted
+            ? apple2.DiskController.SnapshotDiskImage()
+            : null;
+
+    /// <summary>Called once the user has saved a copy, so the drive stops reporting it unsaved.</summary>
+    public void MarkDiskImageSaved()
+    {
+        if (_hostApp.CurrentRunningSystem is Apple2System apple2)
+            apple2.DiskController.MarkChangesPersisted();
+        this.RaisePropertyChanged(nameof(DriveStatusText));
+    }
+
+    private void DetachFromDisk()
+    {
+        if (_subscribedController != null)
+            _subscribedController.DiskImageWritten -= OnDiskImageWritten;
+        _subscribedController = null;
+        _insertedDiskPath = null;
+        _insertedDiskWritability = FileWritability.Writable;
+    }
+
+    /// <summary>
+    /// Persists sectors the machine just wrote. Only a disk backed by a writable file is written
+    /// here; everything else keeps its changes in memory until the user saves a copy, which is why
+    /// a failure marks the drive rather than throwing into the emulation thread.
+    /// </summary>
+    private void OnDiskImageWritten(byte[] image)
+    {
+        if (_insertedDiskPath == null)
+        {
+            this.RaisePropertyChanged(nameof(DriveStatusText));
+            return;
+        }
+
+        try
+        {
+            System.IO.File.WriteAllBytes(_insertedDiskPath, image);
+            if (_hostApp.CurrentRunningSystem is Apple2System apple2)
+                apple2.DiskController.MarkChangesPersisted();
+            _driveErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            _driveErrorMessage = $"Could not save to the disk image: {ex.Message}";
+            _logger.LogError(ex, "Error writing disk image back to {Path}", _insertedDiskPath);
+        }
+        this.RaisePropertyChanged(nameof(DriveStatusText));
+    }
+
     /// <summary>Last error from a drive operation; cleared as soon as one succeeds.</summary>
     private string? _driveErrorMessage;
 
@@ -667,21 +830,32 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
     /// </summary>
     /// Kept to one short line: the sidebar has no scroll region, so taller section content grows
     /// the window itself. The section's description above already explains the workflow.
-    public string DriveStatusText => _driveErrorMessage ?? (HasInsertedDisk
-        ? "Disk in drive."
-        : "No disk in drive.");
+    public string DriveStatusText
+    {
+        get
+        {
+            if (_driveErrorMessage != null)
+                return _driveErrorMessage;
+            if (!HasInsertedDisk)
+                return "No disk in drive.";
+            if (_hostApp.CurrentRunningSystem is Apple2System apple2 && apple2.DiskController.HasUnsavedChanges)
+                return "Disk in drive - modified, not saved.";
+            return "Disk in drive.";
+        }
+    }
 
     /// <summary>
     /// Puts a diskette in drive 1 without disturbing the running machine. Resident DOS picks it
     /// up on its next access, so this is the "swap disks" half of the workflow; booting is the
     /// separate <see cref="BootDiskCommand"/>.
     /// </summary>
-    private async Task InsertDiskAsync(byte[] fileBytes)
+    private async Task InsertDiskAsync(InsertedDisk disk)
     {
         try
         {
-            await Apple2DiskBoot.InsertAsync(_hostApp, fileBytes, _logger);
+            await Apple2DiskBoot.InsertAsync(_hostApp, disk.Bytes, _logger);
             _driveErrorMessage = null;
+            AttachToInsertedDisk(disk.LocalPath);
         }
         catch (Exception ex)
         {
@@ -914,3 +1088,11 @@ public class Apple2MenuViewModel : ViewModelBase, ISystemMenuContributor
             Command = command,
         };
 }
+
+
+/// <summary>
+/// A disk on its way into the drive: its bytes, and where it came from when that is a meaningful
+/// question. <see cref="LocalPath"/> is null in the browser, and for any disk that did not come
+/// from the user's own file - a download, a remote insert, a snapshot.
+/// </summary>
+public sealed record InsertedDisk(byte[] Bytes, string? LocalPath);

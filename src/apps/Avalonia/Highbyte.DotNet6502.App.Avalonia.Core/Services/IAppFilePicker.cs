@@ -8,7 +8,12 @@ using Avalonia.Platform.Storage;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Services;
 
-public sealed record AppPickedFile(string Name, byte[] Bytes);
+/// <param name="LocalPath">
+/// Where the file lives on disk, when that is a meaningful question. Null in the browser, where a
+/// picked file arrives as bytes with no handle back to it — which is why anything wanting to write
+/// back has to treat "no path" as a first-class case rather than an error.
+/// </param>
+public sealed record AppPickedFile(string Name, byte[] Bytes, string? LocalPath = null);
 
 public sealed record AppFilePickerFileType(string Name, IReadOnlyList<string> Patterns)
 {
@@ -97,7 +102,7 @@ public sealed class AvaloniaStorageAppFilePicker : IAppFilePicker
                 await using var stream = await file.OpenReadAsync();
                 using var buffer = new MemoryStream();
                 await stream.CopyToAsync(buffer);
-                pickedFiles.Add(new AppPickedFile(file.Name, buffer.ToArray()));
+                pickedFiles.Add(new AppPickedFile(file.Name, buffer.ToArray(), file.TryGetLocalPath()));
             }
 
             return pickedFiles;

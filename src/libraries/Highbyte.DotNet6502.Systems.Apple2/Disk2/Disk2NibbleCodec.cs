@@ -39,14 +39,96 @@ public static class Disk2NibbleCodec
         0xF7, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF,
     };
 
+    /// <summary>Marks a byte that is not one of the 64 legal disk bytes.</summary>
+    private const byte InvalidDiskByte = 0xFF;
+
+    /// <summary>
+    /// Inverse of <see cref="WriteTranslateTable"/>: disk byte → 6-bit value, with
+    /// <see cref="InvalidDiskByte"/> for every byte the drive could never legally have written.
+    /// </summary>
+    private static readonly byte[] s_readTranslateTable = BuildReadTranslateTable();
+
+    private static byte[] BuildReadTranslateTable()
+    {
+        var inverse = new byte[256];
+        Array.Fill(inverse, InvalidDiskByte);
+        var table = WriteTranslateTable;
+        for (var i = 0; i < table.Length; i++)
+            inverse[table[i]] = (byte)i;
+        return inverse;
+    }
+
     /// <summary>The low ("odd bits") byte of a 4-and-4 encoded value.</summary>
     public static byte To44Lo(byte value) => (byte)((value >> 1) | 0xAA);
 
     /// <summary>The high ("even bits") byte of a 4-and-4 encoded value.</summary>
     public static byte To44Hi(byte value) => (byte)(value | 0xAA);
 
-    /// <summary>Decodes a 4-and-4 encoded byte pair (used by tests and future write support).</summary>
+    /// <summary>Decodes a 4-and-4 encoded byte pair.</summary>
     public static byte From44(byte lo, byte hi) => (byte)(((lo << 1) | 0x01) & hi);
+
+    /// <summary>
+    /// Inverse of <see cref="EncodeSector"/>: 343 disk bytes back to a 256-byte sector.
+    ///
+    /// <para>Returns false rather than throwing on anything malformed — an illegal disk byte or a
+    /// checksum mismatch. That is the normal case, not an exceptional one: this runs over whatever
+    /// the emulated machine actually wrote, which during a partial or interrupted sector write is
+    /// legitimately garbage, and a half-written sector must be dropped rather than persisted.</para>
+    /// </summary>
+    public static bool TryDecodeSector(ReadOnlySpan<byte> encoded, Span<byte> sectorData)
+    {
+        if (encoded.Length < EncodedDataSize || sectorData.Length < SectorSize)
+            return false;
+
+        // Undo the XOR chain, recovering the 342 six-bit values in written order:
+        // aux[85..0] first, then high6[0..255].
+        Span<byte> values = stackalloc byte[EncodedDataSize - 1];
+        byte previous = 0;
+        for (var i = 0; i < values.Length; i++)
+        {
+            var sixBit = s_readTranslateTable[encoded[i]];
+            if (sixBit == InvalidDiskByte)
+                return false;
+            values[i] = (byte)(sixBit ^ previous);
+            previous = values[i];
+        }
+
+        var checksum = s_readTranslateTable[encoded[EncodedDataSize - 1]];
+        if (checksum == InvalidDiskByte || checksum != previous)
+            return false;
+
+        for (var i = 0; i < SectorSize; i++)
+        {
+            var high6 = values[AuxChunkSize + i];
+            // The encoder fills aux[85 - (i % 86)] and the stream is written aux[85] first, so
+            // byte i's aux value sits at stream position i % 86.
+            var aux = values[i % AuxChunkSize];
+            var lowBitsReversed = (aux >> (2 * (i / AuxChunkSize))) & 0x03;
+            var low2 = ((lowBitsReversed & 0x01) << 1) | ((lowBitsReversed & 0x02) >> 1);
+            sectorData[i] = (byte)((high6 << 2) | low2);
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Decodes an 8-byte 4-and-4 address field, verifying its checksum. False for a field that
+    /// does not check out, for the same reason as <see cref="TryDecodeSector"/>.
+    /// </summary>
+    public static bool TryDecodeAddressField(
+        ReadOnlySpan<byte> fourAndFour, out byte volume, out byte track, out byte sector)
+    {
+        volume = 0;
+        track = 0;
+        sector = 0;
+        if (fourAndFour.Length < 8)
+            return false;
+
+        volume = From44(fourAndFour[0], fourAndFour[1]);
+        track = From44(fourAndFour[2], fourAndFour[3]);
+        sector = From44(fourAndFour[4], fourAndFour[5]);
+        var checksum = From44(fourAndFour[6], fourAndFour[7]);
+        return checksum == (byte)(volume ^ track ^ sector);
+    }
 
     /// <summary>
     /// 6-and-2 encodes one 256-byte sector into 343 disk bytes (342 data values + checksum),

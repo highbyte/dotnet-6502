@@ -110,7 +110,7 @@
                 Classes="collapsible-content"
                 IsVisible="{Binding IsDiskSectionExpanded}">
             <StackPanel Classes="spacing-tight">
-                <TextBlock Text="Insert a DOS 3.3 disk image in drive 1 (read-only). Boot from it, or — once DOS is running — just swap disks and use CATALOG, BRUN and friends."
+                <TextBlock Text="Insert a DOS 3.3 disk image in drive 1. Boot from it, or — once DOS is running — just swap disks and use CATALOG, BRUN and friends."
                            TextWrapping="Wrap"
                            Classes="small secondary-text"/>
 
@@ -124,6 +124,15 @@
                         Click="ToggleDiskImage_Click"
                         Classes="small"/>
 
+                <!-- A blank data disk to save things onto. Not bootable, so it is offered
+                     alongside insert rather than as a way to start the machine. -->
+                <Button Content="New blank disk"
+                        Name="NewBlankDiskButton"
+                        AutomationProperties.AutomationId="NewBlankDiskButton"
+                        AutomationProperties.Name="Insert a new blank DOS 3.3 disk in drive 1"
+                        Command="{Binding NewBlankDiskCommand}"
+                        Classes="small"/>
+
                 <!-- Unlike the toggle above, this caption is static, so a descriptive Name is
                      kept: it spells out what the "PR#6" jargon in the caption means. -->
                 <Button Content="Boot from disk (PR#6)"
@@ -132,6 +141,34 @@
                         AutomationProperties.Name="Boot the machine from the disk in drive 1"
                         IsVisible="{Binding HasInsertedDisk}"
                         Command="{Binding BootDiskCommand}"
+                        Classes="small"/>
+
+                <!-- The write-protect notch. Disabled when the backing file cannot be written, with
+                     the reason in the tooltip: "you may not write this" and "you cannot write this"
+                     are different statements, and a box that offers something it cannot deliver is
+                     worse than one that explains itself. -->
+                <CheckBox Content="Write enabled"
+                          Name="DiskWriteEnabledCheckBox"
+                          AutomationProperties.AutomationId="DiskWriteEnabledCheckBox"
+                          AutomationProperties.Name="Allow the machine to write to the inserted disk"
+                          IsVisible="{Binding HasInsertedDisk}"
+                          IsEnabled="{Binding CanEnableDiskWrite}"
+                          IsChecked="{Binding IsDiskWriteEnabled, Mode=TwoWay}"
+                          ToolTip.Tip="{Binding DiskWriteDisabledReason}"
+                          Classes="small"/>
+
+                <TextBlock Text="Changes are kept in memory — use Save disk image to keep them."
+                           AutomationProperties.AutomationId="DiskSaveHintText"
+                           IsVisible="{Binding MustSaveDiskImageExplicitly}"
+                           TextWrapping="Wrap"
+                           Classes="small secondary-text"/>
+
+                <Button Content="Save disk image"
+                        Name="SaveDiskImageButton"
+                        AutomationProperties.AutomationId="SaveDiskImageButton"
+                        AutomationProperties.Name="Save the inserted disk image to a file"
+                        IsVisible="{Binding HasInsertedDisk}"
+                        Click="SaveDiskImage_Click"
                         Classes="small"/>
 
                 <TextBlock Text="{Binding DriveStatusText}"
