@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Apple2.Peripherals;
 namespace Highbyte.DotNet6502.Systems.Apple2.Disk2;
 
 /// <summary>
-/// The Disk II controller card in slot 6, emulated at the soft-switch level (read-only).
+/// The Disk II controller card in slot 6, emulated at the soft-switch level.
 ///
 /// The card has no CPU and no protocol — the Apple's own 6502 steps the head by toggling four
 /// stepper phase magnets, spins the motor, and polls raw disk bytes out of a shift register, all
@@ -31,9 +31,17 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Disk2;
 /// the motor-off switch, so an access shortly after a stop still finds data under the head
 /// rather than a dead stream.
 ///
+/// <para><b>Writing.</b> A disk is write-protected until something uncovers the notch with
+/// <see cref="SetWriteProtected"/>; the host decides that, gating it on whether the backing file
+/// can be written at all. Bytes go down at the same cadence they come up, so a machine storing
+/// faster than the surface moves has its early store dropped rather than laying down a byte the
+/// hardware could not have written. On leaving write mode — once per sector, the way RWTS works —
+/// written tracks are decoded back into the disk image and <see cref="DiskImageWritten"/> carries
+/// it out. Nothing here touches a file: this library is shared with hosts that have no filesystem.</para>
+///
 /// Simplifications (fine for standard 16-sector software, documented deviations from hardware):
-/// write mode is a no-op (the disk is always write-protected), drive 2 is not present, and the
-/// sequencer PROM's bit-level behavior (needed only by copy-protection schemes) is not modeled.
+/// drive 2 is not present, and the sequencer PROM's bit-level behavior (needed only by
+/// copy-protection schemes) is not modeled.
 /// Three timing details are also approximated: a read arriving before the next byte is due reports
 /// "not ready" where the hardware would still be holding the previous completed byte, so software
 /// gets one read per byte rather than a holding window; the motor reaches full speed the instant
@@ -92,6 +100,12 @@ public class Disk2Controller
 
     private byte[][]? _nibbleTracks;
 
+    /// <summary>Byte the machine has loaded into the data register, waiting to be shifted out.</summary>
+    private byte _dataLatch;
+
+    /// <summary>Tracks whose nibble stream has been written since the last decode back to sectors.</summary>
+    private bool[]? _dirtyTracks;
+
     /// <summary>
     /// The inserted image exactly as supplied. Kept alongside the nibblized tracks because
     /// nibblizing is one-way: a snapshot has to embed the original image to be able to re-insert
@@ -117,8 +131,34 @@ public class Disk2Controller
 
     public bool IsDiskInserted => _nibbleTracks != null;
 
-    /// <summary>Read-only emulation: any inserted disk reports as write-protected.</summary>
-    public bool IsWriteProtected => true;
+    /// <summary>
+    /// The diskette's write-protect notch. Default is protected, so a disk is never modified until
+    /// something explicitly enables it — the host gates this on whether the backing file can be
+    /// written at all, which is a separate question from whether the user wants it writable.
+    /// </summary>
+    public bool IsWriteProtected { get; private set; } = true;
+
+    /// <summary>Covers or uncovers the write-protect notch. Ignored while no disk is inserted.</summary>
+    public void SetWriteProtected(bool writeProtected) => IsWriteProtected = writeProtected;
+
+    /// <summary>Total bytes the machine has shifted out onto the disk surface.</summary>
+    public ulong DataWriteCount { get; private set; }
+
+    /// <summary>
+    /// True when the machine has written sectors that the host has not persisted yet. The host
+    /// clears it by handling <see cref="DiskImageWritten"/>; nothing in this library touches files.
+    /// </summary>
+    public bool HasUnsavedChanges { get; private set; }
+
+    /// <summary>
+    /// Raised when written nibbles have been decoded back into the disk image, carrying the image
+    /// as it now stands. Raised on leaving write mode, which for RWTS is once per sector written —
+    /// so a crash costs at most the sector in flight rather than the session.
+    ///
+    /// <para>Deliberately an event rather than a file write: this class is in the Systems library,
+    /// shared by the desktop, browser and headless hosts, and only one of those has a filesystem.</para>
+    /// </summary>
+    public event Action<byte[]>? DiskImageWritten;
 
     /// <summary>State of the motor soft switch ($C0E9 on / $C0E8 off).</summary>
     public bool IsMotorOn => _motorSwitchedOn;
@@ -171,7 +211,11 @@ public class Disk2Controller
         SectorOrder = DiskSectorOrderDetector.Detect(diskImageData);
         _nibbleTracks = Disk2TrackNibblizer.BuildNibbleTracks(
             diskImageData, Disk2TrackNibblizer.DefaultVolume, SectorOrder);
-        _rawDiskImageData = diskImageData;
+        // Cloned rather than aliased: writes mutate this, and mutating the caller's array would
+        // silently change a snapshot's embedded bytes or a download cache entry under its owner.
+        _rawDiskImageData = (byte[])diskImageData.Clone();
+        _dirtyTracks = new bool[DskParser.Tracks];
+        HasUnsavedChanges = false;
 
         // Same reason as on snapshot restore: start the byte cadence now, so a disk inserted well
         // into a session does not read as an enormous elapsed time on its first access.
@@ -203,7 +247,12 @@ public class Disk2Controller
     /// Applies the side effect of a soft-switch access ($C0E0-$C0EF) and returns the value the
     /// CPU reads. Like the rest of the Apple II I/O page, writes trigger the same side effects.
     /// </summary>
-    public byte BusAccess(ushort address)
+    public byte BusAccess(ushort address) => BusAccess(address, isRead: true, value: 0);
+
+    /// <param name="isRead">False for a CPU store. The Disk II cares: storing to Q6H is what
+    /// loads the data register, while reading the same address is the write-protect sense.</param>
+    /// <param name="value">The stored byte, meaningful only when <paramref name="isRead"/> is false.</param>
+    public byte BusAccess(ushort address, bool isRead, byte value)
     {
         switch (address & 0x0F)
         {
@@ -236,16 +285,23 @@ public class Disk2Controller
                 _selectedDrive = 2;
                 return Apple2SoftSwitches.UnconnectedReadValue;
 
-            case 0xC:   // Q6L: in read mode, the data shift register
+            case 0xC:   // Q6L: shift register — reads data, or in write mode commits the latch
                 _q6 = false;
-                return _q7 ? NoDataLatched : ReadDataNibble();
-            case 0xD:   // Q6H: first half of the write-protect sense sequence
+                if (!_q7)
+                    return ReadDataNibble();
+                WriteDataNibble();
+                return NoDataLatched;
+            case 0xD:   // Q6H: a store here loads the data register; a read is the write-protect sense
                 _q6 = true;
+                if (_q7 && !isRead)
+                    _dataLatch = value;
                 return NoDataLatched;
             case 0xE:   // Q7L: read mode; with Q6 set returns write-protect status in bit 7
+                if (_q7)
+                    DecodeDirtyTracks();   // leaving write mode: for RWTS, one sector just landed
                 _q7 = false;
                 return _q6 && IsWriteProtected ? (byte)0x80 : NoDataLatched;
-            default:    // 0xF, Q7H: write mode (read-only emulation: writes go nowhere)
+            default:    // 0xF, Q7H: write mode
                 _q7 = true;
                 return NoDataLatched;
         }
@@ -304,6 +360,64 @@ public class Disk2Controller
         DataReadCount++;
         return trackData[_nibblePosition];
     }
+
+    /// <summary>
+    /// Shifts the latched byte onto the disk surface, on the same cadence reads come off it: a
+    /// byte occupies <see cref="CyclesPerNibble"/> cycles, and a machine writing faster than that
+    /// is writing faster than the surface moves, so the early store is dropped rather than
+    /// producing a byte the hardware could not have laid down.
+    /// </summary>
+    private void WriteDataNibble()
+    {
+        if (_nibbleTracks == null || !IsSpinning || _selectedDrive != 1 || IsWriteProtected)
+            return;
+
+        var elapsed = _cpuCycleProvider() - _lastNibbleCycle;
+        if (elapsed < CyclesPerNibble)
+            return;
+
+        var trackData = _nibbleTracks[CurrentTrack];
+        var due = elapsed / CyclesPerNibble;
+        _lastNibbleCycle += due * CyclesPerNibble;
+        _nibblePosition = (int)((_nibblePosition + (long)(due % (ulong)trackData.Length)) % trackData.Length);
+
+        trackData[_nibblePosition] = _dataLatch;
+        DataWriteCount++;
+        if (_dirtyTracks != null)
+            _dirtyTracks[CurrentTrack] = true;
+    }
+
+    /// <summary>
+    /// Decodes any written track back into the disk image. Sectors that do not decode cleanly are
+    /// left alone, so a track caught mid-write keeps its previous contents rather than gaining a
+    /// half-written one.
+    /// </summary>
+    private void DecodeDirtyTracks()
+    {
+        if (_dirtyTracks == null || _nibbleTracks == null || _rawDiskImageData == null)
+            return;
+
+        var changed = false;
+        for (var track = 0; track < _dirtyTracks.Length; track++)
+        {
+            if (!_dirtyTracks[track])
+                continue;
+
+            _dirtyTracks[track] = false;
+            if (Disk2TrackNibblizer.ApplyNibbleTrackToImage(
+                    _nibbleTracks[track], track, _rawDiskImageData, SectorOrder) > 0)
+                changed = true;
+        }
+
+        if (!changed)
+            return;
+
+        HasUnsavedChanges = true;
+        DiskImageWritten?.Invoke(_rawDiskImageData);
+    }
+
+    /// <summary>Called by the host once it has persisted the image handed to it.</summary>
+    public void MarkChangesPersisted() => HasUnsavedChanges = false;
 
     public void Reset()
     {

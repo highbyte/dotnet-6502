@@ -139,16 +139,16 @@ public class Apple2SoftSwitches
     }
 
     /// <summary>Applies the side effect of an access and returns the value the CPU reads.</summary>
-    public byte Read(ushort address) => Access(address, isRead: true);
+    public byte Read(ushort address) => Access(address, isRead: true, value: 0);
 
     /// <summary>
     /// A write triggers the same side effects as a read and the value is ignored — with one
     /// exception: the language card's write-enable sequence is armed only by reads, so the access
     /// kind has to be carried through rather than folded into <see cref="Read"/>.
     /// </summary>
-    public void Write(ushort address, byte value) => Access(address, isRead: false);
+    public void Write(ushort address, byte value) => Access(address, isRead: false, value);
 
-    private byte Access(ushort address, bool isRead)
+    private byte Access(ushort address, bool isRead, byte value)
     {
         return (address & 0x00F0) switch
         {
@@ -159,7 +159,7 @@ public class Apple2SoftSwitches
             0x60 => _gamePort?.ReadGamePort(address) ?? 0x00, // $C060-$C06F  cassette in, buttons, paddles
             0x70 => TriggerPaddles(),                        // $C070-$C07F  PTRIG: restart paddle timers
             0x80 => AccessLanguageCard(address, isRead),     // $C080-$C08F  language card bank switching
-            0xE0 => ReadDiskController(address),             // $C0E0-$C0EF  Disk II controller (slot 6)
+            0xE0 => AccessDiskController(address, isRead, value),             // $C0E0-$C0EF  Disk II controller (slot 6)
             _ => UnconnectedReadValue,
         };
     }
@@ -170,9 +170,11 @@ public class Apple2SoftSwitches
         return UnconnectedReadValue;
     }
 
-    private byte ReadDiskController(ushort address)
+    // The written byte matters here and nowhere else on this page: storing to the Disk II's Q6H
+    // is what loads the data register on a write.
+    private byte AccessDiskController(ushort address, bool isRead, byte value)
         => _diskController != null && _diskController.IsEnabled
-            ? _diskController.BusAccess(address)
+            ? _diskController.BusAccess(address, isRead, value)
             : UnconnectedReadValue;
 
     private byte ToggleSpeaker()
