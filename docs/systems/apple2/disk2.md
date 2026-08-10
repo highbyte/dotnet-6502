@@ -65,23 +65,38 @@ the power-up byte at `$03F4` first — what power-cycling a real Apple does.
 The `disk2` ROM is **optional** — without it the machine is simply a diskless Apple II Plus, and
 only disk booting is unavailable. Add it in the Apple II configuration dialog like the other ROMs.
 
-## Timing model and its known limitation
+## Timing model
 
-Each read of the data register delivers the next nibble of the track stream, so the consumer's own
-polling paces the data and a reader can never miss a byte regardless of how slowly it collects
-them. That robustness is deliberate: the machine has no cycle-accurate bus for a rotational model
-to key off.
+The disk turns at its own rate rather than at the speed the CPU polls: one byte passes under the
+head every **32 CPU cycles** (250 kbit/s at 1.023 MHz), and a read arriving before the next byte is
+due reports "not ready" with bit 7 clear, so DOS's `LDA $C08C / BPL` poll loops pace themselves
+against the drive. Bytes the CPU is too slow to collect spin past unread, as on the hardware.
 
-**Known limitation:** booting the DOS 3.3 System Master takes about 35 emulated seconds, most of
-it DOS's *own* one-second motor spin-up wait, entered 31 times. RWTS decides whether
-the drive is spinning by comparing successive reads of the data register, and that decision
-depends on real read timing this model does not reproduce. Everything loads correctly, just slower
-than a real machine (~7 s). Two alternatives were implemented and measured, and both are worse: a
-true rotational model (position from elapsed CPU cycles) never completed DOS's sector reads, and a
-latch that holds a byte for N cycles never reached the DOS banner at all. Sync-gap sizes were also
-swept (20/5, 16/16, 12/12, 10/10, 9/9) with no effect, confirming the cause is the timing model
-rather than the track layout. Removing the wait needs a cycle-accurate read path — the natural
-companion to sequencer-PROM (LSS) emulation, if copy-protected media is ever supported.
+That fidelity is load-bearing rather than decorative, because **DOS measures the byte rate**. RWTS
+decides whether the drive is turning by reading the data register twice about 18 cycles apart, up
+to 8 times, and concluding "stopped" if the value never changes — a timing-ratio test against the
+32-cycle byte rate.
+
+An earlier model delivered the next byte on every read, with no notion of time at all. That reduced
+RWTS's test to "are these 16 consecutive track bytes identical?" — and inside a 20-byte sync gap
+they are. DOS read a spinning drive as stopped and took its full one-second motor spin-up wait on
+every call: 87 of them in a System Master boot, which loaded everything perfectly correctly and
+took 95 seconds doing it. Booting now:
+
+| Configuration | Before | Now |
+|---|---|---|
+| 64 KB, language card fitted (the default) | 95 s | **12 s** |
+| 48 KB, no language card | 49 s | **9 s** |
+
+A real machine takes about 7 s. The remaining difference is not fully accounted for, and the
+approximations below push in both directions.
+
+**Approximations that remain.** A read arriving before the next byte is due reports "not ready",
+where the hardware would still be holding the previous completed byte — so software gets one read
+per byte rather than a holding window. The motor reaches full speed the instant it is switched on,
+where a real drive takes about half a second. Head seeks are immediate, with no per-track settling
+time. None of these affect standard 16-sector software; bit-level sequencer (LSS) behaviour, which
+copy protection depends on, is still not modelled.
 
 ## Sector order
 

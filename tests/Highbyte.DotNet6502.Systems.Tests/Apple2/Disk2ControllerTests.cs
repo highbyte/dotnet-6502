@@ -6,6 +6,13 @@ namespace Highbyte.DotNet6502.Systems.Tests.Apple2;
 
 public class Disk2ControllerTests
 {
+    /// <summary>
+    /// The CPU clock the drive is timed against. The disk turns at a fixed rate, so a test that
+    /// wants the next byte has to let time pass for it — see
+    /// <see cref="A_Byte_Takes_A_Byte_Time_To_Pass_Under_The_Head"/>.
+    /// </summary>
+    private ulong _cycles;
+
     private static byte[] BuildDiskImage()
     {
         var image = new byte[DskParser.DiskImageSize];
@@ -25,25 +32,28 @@ public class Disk2ControllerTests
         return rom;
     }
 
-    private static Disk2Controller CreateEnabledController()
+    private Disk2Controller CreateEnabledController()
     {
-        var controller = new Disk2Controller();
+        var controller = new Disk2Controller(() => _cycles);
         controller.SetBootRom(BuildBootRom());
         controller.InsertDiskImage(BuildDiskImage());
         controller.BusAccess(0xC0E9);   // motor on
         controller.BusAccess(0xC0EE);   // Q7 off: read mode
-        controller.BusAccess(0xC0EC);   // Q6 off
+        _cycles += Disk2Controller.CyclesPerNibble;   // let the first byte come round
+        controller.BusAccess(0xC0EC);   // Q6 off — consumes the byte now under the head
         return controller;
     }
 
     /// <summary>Reads the next delivered nibble, skipping non-data values.</summary>
-    private static byte ReadNibble(Disk2Controller controller)
+    private byte ReadNibble(Disk2Controller controller)
     {
         for (var attempt = 0; attempt < 4; attempt++)
         {
             var value = controller.BusAccess(0xC0EC);
             if ((value & 0x80) != 0)
                 return value;
+            // Not ready: wait a byte time for the next one, which is what a poll loop does.
+            _cycles += Disk2Controller.CyclesPerNibble;
         }
         Assert.Fail("No nibble delivered within 4 reads.");
         return 0;
@@ -96,7 +106,7 @@ public class Disk2ControllerTests
     [Fact]
     public void Controller_Is_Enabled_Only_With_Both_Boot_Rom_And_Disk()
     {
-        var controller = new Disk2Controller();
+        var controller = new Disk2Controller(() => _cycles);
         Assert.False(controller.IsEnabled);
 
         controller.SetBootRom(BuildBootRom());
@@ -112,13 +122,13 @@ public class Disk2ControllerTests
     [Fact]
     public void SetBootRom_Rejects_Wrong_Size()
     {
-        Assert.Throws<DotNet6502Exception>(() => new Disk2Controller().SetBootRom(new byte[512]));
+        Assert.Throws<DotNet6502Exception>(() => new Disk2Controller(() => _cycles).SetBootRom(new byte[512]));
     }
 
     [Fact]
     public void ReadBootRom_Returns_Rom_Bytes_When_Enabled_And_Unconnected_When_Not()
     {
-        var controller = new Disk2Controller();
+        var controller = new Disk2Controller(() => _cycles);
         controller.SetBootRom(BuildBootRom());
 
         // No disk: the slot looks empty so the Autostart scan falls through to BASIC.
@@ -133,7 +143,7 @@ public class Disk2ControllerTests
     [Fact]
     public void Motor_And_Drive_Select_Soft_Switches_Update_State()
     {
-        var controller = new Disk2Controller();
+        var controller = new Disk2Controller(() => _cycles);
         Assert.False(controller.IsMotorOn);
 
         controller.BusAccess(0xC0E9);
@@ -153,7 +163,8 @@ public class Disk2ControllerTests
     {
         var controller = CreateEnabledController();
 
-        controller.BusAccess(0xC0E8);   // motor off
+        controller.BusAccess(0xC0E8);                 // motor off
+        _cycles += Disk2Controller.SpinDownCycles;    // and the one-shot expires: the disk stops
         Assert.Equal(0xFF, controller.BusAccess(0xC0EC));
 
         controller.BusAccess(0xC0E9);   // motor on
@@ -162,19 +173,56 @@ public class Disk2ControllerTests
     }
 
     [Fact]
-    public void Each_Data_Read_Delivers_The_Next_Nibble_Of_The_Track_And_Wraps()
+    public void Successive_Reads_A_Byte_Time_Apart_Deliver_The_Track_In_Order_And_Wrap()
     {
         var image = BuildDiskImage();
+        var track = Disk2TrackNibblizer.BuildNibbleTracks(image)[0];
+
+        var controller = new Disk2Controller(() => _cycles);
+        controller.SetBootRom(BuildBootRom());
+        controller.InsertDiskImage(image);   // the head sits at position 0 when the disk goes in
+        controller.BusAccess(0xC0E9);        // motor on
+        controller.BusAccess(0xC0EE);        // Q7 off: read mode
+
+        // The byte at index i passes under the head i byte times later, and the last one is
+        // followed by index 0 again — the next revolution.
+        for (var i = 1; i <= track.Length; i++)
+        {
+            _cycles += Disk2Controller.CyclesPerNibble;
+            Assert.Equal(track[i % track.Length], controller.BusAccess(0xC0EC));
+        }
+    }
+
+    /// <summary>
+    /// The timing contract the rest of the drive rests on: a byte takes 32 CPU cycles to pass
+    /// under the head, so a read that arrives early gets "not ready" (bit 7 clear) and a poll loop
+    /// waits for it.
+    ///
+    /// <para>This is worth a test of its own because getting it wrong does not fail loudly.
+    /// Delivering a byte on every read instead — which an earlier model did — still boots every
+    /// disk. What it breaks is DOS's drive-spinning check in RWTS, which reads the data register
+    /// twice ~18 cycles apart and concludes the drive is stopped if the value never changes. With
+    /// no time in the model that test degenerates into "are these 16 consecutive track bytes
+    /// identical?", the window lands inside a run of sync bytes, and DOS takes its full one-second
+    /// motor spin-up wait on every call: 87 of them in a System Master boot, 95 seconds instead of
+    /// 12, with everything loading correctly the whole time.</para>
+    /// </summary>
+    [Fact]
+    public void A_Byte_Takes_A_Byte_Time_To_Pass_Under_The_Head()
+    {
         var controller = CreateEnabledController();
-        var expectedTrack = Disk2TrackNibblizer.BuildNibbleTracks(image)[0];
 
-        // CreateEnabledController consumed position 0 with its Q6-off access.
-        for (var i = 1; i < expectedTrack.Length; i++)
-            Assert.Equal(expectedTrack[i], controller.BusAccess(0xC0EC));
+        _cycles += Disk2Controller.CyclesPerNibble;
+        var first = controller.BusAccess(0xC0EC);
+        Assert.True((first & 0x80) != 0, "A byte was due, so one must be delivered.");
 
-        // Past the end of the track buffer the stream wraps to the start — a new revolution.
-        Assert.Equal(expectedTrack[0], controller.BusAccess(0xC0EC));
-        Assert.Equal(expectedTrack[1], controller.BusAccess(0xC0EC));
+        // Too soon — still shifting in.
+        _cycles += Disk2Controller.CyclesPerNibble / 2;
+        Assert.Equal(0x00, controller.BusAccess(0xC0EC));
+
+        // A full byte time after the last delivery, the next one is there.
+        _cycles += Disk2Controller.CyclesPerNibble;
+        Assert.True((controller.BusAccess(0xC0EC) & 0x80) != 0);
     }
 
     [Fact]
@@ -257,8 +305,10 @@ public class Disk2ControllerTests
         controller.BusAccess(0xC0E5);
         Assert.Equal(1, controller.CurrentTrack);
 
-        // Position 0 was consumed on track 0 already; the head position carries over.
-        Assert.Equal(track1[1], controller.BusAccess(0xC0EC));
+        // The head keeps its angular position across a seek, so the next byte time brings the
+        // same point of the new track under it.
+        _cycles += Disk2Controller.CyclesPerNibble;
+        Assert.Equal(track1[2], controller.BusAccess(0xC0EC));
     }
 
     [Fact]

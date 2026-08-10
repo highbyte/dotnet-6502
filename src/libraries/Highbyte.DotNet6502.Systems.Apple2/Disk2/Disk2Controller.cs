@@ -11,26 +11,21 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Disk2;
 /// through 16 soft switches at $C0E0-$C0EF. RWTS and custom game loaders run unmodified on the
 /// emulated CPU against the nibble streams produced by <see cref="Disk2TrackNibblizer"/>.
 ///
-/// Timing model: every read of the data register delivers the next nibble of the track stream.
-/// The consumer's own polling paces the data, so a reader can never miss a byte no matter how
-/// slowly it collects them — the property that makes this robust without a cycle-accurate bus,
-/// which this machine does not have. Two alternatives were implemented and measured against a
-/// real DOS 3.3 System Master boot, and both are worse:
-/// <list type="bullet">
-/// <item>Deriving the head position purely from elapsed CPU cycles (a true rotational model):
-/// the boot ROM stage ran and stepped the head, but DOS's sector reads never completed.</item>
-/// <item>Holding the latch for N cycles so that reads closer together than N return the same
-/// byte (any N from 12 to 17 tried): the boot never reached the DOS banner at all.</item>
-/// </list>
+/// <para><b>Timing model.</b> The disk turns at its own fixed rate rather than at the speed the
+/// CPU polls: one byte passes under the head every <see cref="CyclesPerNibble"/> CPU cycles, and a
+/// read arriving before the next byte is due gets <c>NoDataLatched</c> — bit 7 clear — so RWTS's
+/// <c>LDA $C08C / BPL</c> poll loops pace themselves against the drive. Bytes the CPU is too slow
+/// to collect spin past unread, as they would on the hardware.</para>
 ///
-/// <para><b>Known limitation.</b> Booting the System Master takes ~35 emulated seconds, most of it
-/// DOS's own one-second motor spin-up wait, entered 31 times: RWTS decides the drive
-/// is stopped by comparing successive reads of the data register, and that decision depends on
-/// real read timing this model does not reproduce. Everything loads correctly, just slower than
-/// a real machine (~7 s). Nibblizer sync-gap sizes were swept (20/5, 16/16, 12/12, 10/10, 9/9)
-/// with no effect on the count, so the cause is the timing model rather than the track layout.
-/// Removing the wait needs a cycle-accurate read path — the natural companion to sequencer-PROM
-/// emulation, if copy-protected media is ever supported.</para>
+/// <para>This matters far more than "a rotating disk ought to rotate" suggests, because DOS
+/// <em>measures</em> it. RWTS decides whether the drive is turning by reading the data register
+/// twice about 18 cycles apart, up to 8 times, and concluding "stopped" if the value never
+/// changes — a timing-ratio test against the 32-cycle byte rate. An earlier model here delivered
+/// the next byte on every read, with no notion of time at all, which reduced that test to "are
+/// these 16 consecutive track bytes identical?". Inside a run of sync bytes they are, so DOS read
+/// a spinning drive as stopped and took its full one-second motor spin-up wait every time: 87 of
+/// them in a System Master boot, which is why booting took ~95 s instead of ~12 s while loading
+/// everything perfectly correctly the whole way.</para>
 ///
 /// The motor's ~1 second spin-down is modeled: the card's one-shot keeps the disk turning after
 /// the motor-off switch, so an access shortly after a stop still finds data under the head
@@ -38,8 +33,12 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Disk2;
 ///
 /// Simplifications (fine for standard 16-sector software, documented deviations from hardware):
 /// write mode is a no-op (the disk is always write-protected), drive 2 is not present, and the
-/// sequencer PROM's bit-level behavior and true rotational timing (needed only by
-/// copy-protection schemes) are not modeled.
+/// sequencer PROM's bit-level behavior (needed only by copy-protection schemes) is not modeled.
+/// Three timing details are also approximated: a read arriving before the next byte is due reports
+/// "not ready" where the hardware would still be holding the previous completed byte, so software
+/// gets one read per byte rather than a holding window; the motor reaches full speed the instant
+/// it is switched on, where a real drive takes about half a second; and head seeks are immediate,
+/// with no per-track settling time.
 /// </summary>
 public class Disk2Controller
 {
@@ -101,12 +100,16 @@ public class Disk2Controller
     private byte[]? _rawDiskImageData;
 
     /// <param name="cpuCycleProvider">
-    /// Source of the CPU's cumulative cycle count, used only to time the motor's spin-down.
-    /// Defaults to a stopped clock, which makes spin-down expire immediately.
+    /// Source of the CPU's cumulative cycle count. Required, and deliberately not defaulted: the
+    /// drive turns at a fixed rate, so both the motor's spin-down and the rate bytes arrive under
+    /// the head are measured in CPU cycles. A stopped clock would mean a disk that never turns —
+    /// no byte would ever be due and every read would report "not ready" — which is a silent
+    /// wrong answer rather than a loud one, so callers have to say what time it is.
     /// </param>
-    public Disk2Controller(Func<ulong>? cpuCycleProvider = null)
+    public Disk2Controller(Func<ulong> cpuCycleProvider)
     {
-        _cpuCycleProvider = cpuCycleProvider ?? (static () => 0);
+        ArgumentNullException.ThrowIfNull(cpuCycleProvider);
+        _cpuCycleProvider = cpuCycleProvider;
     }
 
     /// <summary>The P5 (341-0027) 16-sector boot ROM image, when configured.</summary>
@@ -169,6 +172,10 @@ public class Disk2Controller
         _nibbleTracks = Disk2TrackNibblizer.BuildNibbleTracks(
             diskImageData, Disk2TrackNibblizer.DefaultVolume, SectorOrder);
         _rawDiskImageData = diskImageData;
+
+        // Same reason as on snapshot restore: start the byte cadence now, so a disk inserted well
+        // into a session does not read as an enormous elapsed time on its first access.
+        _lastNibbleCycle = _cpuCycleProvider();
     }
 
     public void RemoveDiskImage()
@@ -263,16 +270,39 @@ public class Disk2Controller
             _halfTrack = Math.Max(_halfTrack - 1, 0);
     }
 
+    /// <summary>
+    /// How long one disk byte takes to pass under the head: 250 kbit/s is one bit per 4 µs, so
+    /// one byte per 32 µs, which at the 1.023 MHz CPU clock is 32 cycles.
+    /// </summary>
+    public const ulong CyclesPerNibble = 32;
+
+    /// <summary>Cycle at which the byte currently under the head became complete.</summary>
+    private ulong _lastNibbleCycle;
+
+    /// <summary>
+    /// PROTOTYPE: cycle-paced read. Bytes arrive on the disk's own cadence rather than one per
+    /// read access, so reading faster than the disk delivers returns "not ready" (high bit clear)
+    /// exactly as the hardware does, and RWTS's LDA/BPL poll loops pace themselves against it.
+    /// </summary>
     private byte ReadDataNibble()
     {
         if (_nibbleTracks == null || !IsSpinning || _selectedDrive != 1)
             return NoDataValue;
 
-        DataReadCount++;
+        var elapsed = _cpuCycleProvider() - _lastNibbleCycle;
+        if (elapsed < CyclesPerNibble)
+            return NoDataLatched;   // still shifting in — bit 7 clear, so a poll loop keeps waiting
+
+        // Bytes keep passing under the head whether or not the CPU collects them, so advance by
+        // however many are due. Carry the remainder rather than resetting to now, so the cadence
+        // does not drift a little later with every read.
         var trackData = _nibbleTracks[CurrentTrack];
-        var value = trackData[_nibblePosition % trackData.Length];
-        _nibblePosition = (_nibblePosition + 1) % trackData.Length;
-        return value;
+        var due = elapsed / CyclesPerNibble;
+        _lastNibbleCycle += due * CyclesPerNibble;
+        _nibblePosition = (int)((_nibblePosition + (long)(due % (ulong)trackData.Length)) % trackData.Length);
+
+        DataReadCount++;
+        return trackData[_nibblePosition];
     }
 
     public void Reset()
@@ -320,5 +350,13 @@ public class Disk2Controller
         // whose length depends on the nibblizer, so a snapshot written by a different build could
         // otherwise index out of range. ReadDataNibble wraps modulo the track length anyway.
         _nibblePosition = nibblePosition < 0 ? 0 : nibblePosition;
+
+        // Restart the byte cadence from now. This is not in the snapshot payload on purpose: what
+        // matters is *where* the head is, which is restored above, not the sub-byte phase of the
+        // next arrival — an error of at most 31 cycles, below the resolution of anything RWTS does.
+        // It does have to be stamped though. Left at its old value, the restored CPU cycle count
+        // would read as a huge elapsed time and the first read would advance the head by millions
+        // of bytes, throwing away the position this module just restored.
+        _lastNibbleCycle = _cpuCycleProvider();
     }
 }
