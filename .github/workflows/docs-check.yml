@@ -3,15 +3,17 @@ name: Docs check
 on:
   workflow_dispatch:
 
+  # Deliberately unfiltered for pull_request, unlike the push trigger below.
+  #
+  # A workflow that `paths` filters out never runs, and a workflow that never runs never reports a
+  # status. Branch protection requires "CI / Documentation" to report, so on any PR that touched no
+  # documentation the check sat at "Expected - Waiting for status to be reported" permanently and
+  # the PR could not be merged. That is not a slow check; it is a deadlock, and it only surfaces on
+  # PRs that happen to miss every path in the list.
+  #
+  # So the job always runs and always reports. The path filter moved into the job itself, where a
+  # miss costs a few seconds of runner time instead of a merge.
   pull_request:
-    paths:
-      - 'docs/**'
-      - 'includes/**'
-      - 'mkdocs.yml'
-      - 'requirements-docs.in'
-      - 'requirements-docs.txt'
-      - '.pip-tools.toml'
-      - '.github/workflows/docs-check.yml'
 
   push:
     branches:
@@ -31,8 +33,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Needed to diff against the PR base.
+          fetch-depth: 0
+
+      - name: Detect documentation changes
+        id: changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
+          echo "Changed files:"
+          echo "$changed"
+
+          if echo "$changed" | grep -qE '^(docs/|includes/|mkdocs\.yml|requirements-docs\.(in|txt)|\.pip-tools\.toml|\.github/workflows/docs-check\.yml)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "No documentation sources changed - reporting success without building."
+          fi
 
       - name: Setup Python
+        if: steps.changes.outputs.relevant == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -40,7 +66,9 @@ jobs:
           cache-dependency-path: requirements-docs.txt
 
       - name: Install MkDocs and dependencies
+        if: steps.changes.outputs.relevant == 'true'
         run: "pip install --require-hashes --only-binary :all: -r requirements-docs.txt"
 
       - name: Build static site with MkDocs (strict)
+        if: steps.changes.outputs.relevant == 'true'
         run: mkdocs build --strict --site-dir site

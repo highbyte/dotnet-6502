@@ -11,11 +11,11 @@ on:
       - 'tools/cloudflare/cors-download-proxy/**'
       - '.github/workflows/cors-proxy.yml'
 
+  # Unfiltered for the same reason as docs-check.yml and wasm-aot-verify.yml: a `paths`-filtered
+  # workflow never reports a status, so it can never safely be made a required check. Filtering
+  # happens in the job instead, which keeps that option open.
   pull_request:
     branches: [ master ]
-    paths:
-      - 'tools/cloudflare/cors-download-proxy/**'
-      - '.github/workflows/cors-proxy.yml'
 
 jobs:
   test:
@@ -29,8 +29,33 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+      with:
+        # Needed to diff against the PR base.
+        fetch-depth: 0
+
+    - name: Detect changes to the Worker
+      id: changes
+      shell: bash
+      working-directory: .
+      run: |
+        if [ "${{ github.event_name }}" != "pull_request" ]; then
+          echo "relevant=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        changed=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
+        echo "Changed files:"
+        echo "$changed"
+
+        if echo "$changed" | grep -qE '^(tools/cloudflare/cors-download-proxy/|\.github/workflows/cors-proxy\.yml)'; then
+          echo "relevant=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "relevant=false" >> "$GITHUB_OUTPUT"
+          echo "Worker unchanged - reporting success without installing or testing."
+        fi
 
     - name: Setup Node
+      if: steps.changes.outputs.relevant == 'true'
       uses: actions/setup-node@v4
       with:
         node-version: 22.x
@@ -38,9 +63,11 @@ jobs:
         cache-dependency-path: tools/cloudflare/cors-download-proxy/package-lock.json
 
     - name: Install dependencies
+      if: steps.changes.outputs.relevant == 'true'
       # --ignore-scripts so dependency lifecycle scripts cannot execute in CI. Nothing here
       # needs them: the tests pass from a clean node_modules installed this way.
       run: npm ci --ignore-scripts
 
     - name: Test
+      if: steps.changes.outputs.relevant == 'true'
       run: npm test
