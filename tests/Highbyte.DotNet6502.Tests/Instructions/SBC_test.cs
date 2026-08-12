@@ -716,4 +716,21 @@ public class SBC_test
         };
         test.Execute_And_Verify(AddrMode.I);
     }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Takes_2_Cycles_Same_As_Binary()
+    {
+        // NMOS characterization: decimal mode does not cost an extra cycle (the 65C02 adds +1).
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,
+            A = 0x40,
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x13,
+            ExpectedA = 0x27,
+            ExpectedCycles = 2,
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
 }
