@@ -9,8 +9,8 @@ using Apple2System = Highbyte.DotNet6502.Systems.Apple2.Apple2;
 namespace Highbyte.DotNet6502.Systems.Tests;
 
 /// <summary>
-/// CPU model selection through system configuration (feature cpu-models-65c02, M1
-/// step 6): the Apple II and the Generic computer can be configured with the 65C02;
+/// CPU model selection through system configuration: the Apple II and the Generic
+/// computer can be configured with the 65C02;
 /// defaults stay NMOS. $9C (STZ abs, 3 bytes on a 65C02; undefined on NMOS profiles)
 /// is used as the observable model probe.
 /// </summary>

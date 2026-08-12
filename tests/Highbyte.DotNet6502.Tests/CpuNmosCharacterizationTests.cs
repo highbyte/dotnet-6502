@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Tests;
 
 /// <summary>
 /// Characterization tests locking in the current NMOS 6502 behavior of interrupt/BRK entry
-/// and Reset, recorded before the CPU model refactor (feature cpu-models-65c02).
+/// and Reset, recorded before the CPU model refactor.
 ///
 /// The refactor must keep every behavior below intact for the NMOS model. The 65C02 model
 /// deliberately differs on some of them (it clears the Decimal flag on IRQ/NMI/BRK entry

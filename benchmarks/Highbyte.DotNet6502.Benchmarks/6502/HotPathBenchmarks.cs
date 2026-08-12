@@ -33,8 +33,6 @@ internal class HotPathConfig : ManualConfig
 /// linearly. These benchmarks isolate the smallest units on that path so refactors can
 /// be validated empirically against a baseline before merge.
 ///
-/// See <c>documents/features/hot-path-benchmarking-and-improvements.md</c> in the
-/// design log for the design notes that drove these picks.
 /// </summary>
 [Config(typeof(HotPathConfig))]
 public class HotPathBenchmarks

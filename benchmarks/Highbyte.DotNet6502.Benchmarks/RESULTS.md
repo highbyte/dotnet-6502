@@ -207,7 +207,7 @@ Observations:
 
 ## CPU-model refactor baseline — 2026-08-12 (master `8803350a`, Apple M1)
 
-M0 baseline for the CPU model architecture feature (design log: `cpu-models-65c02`).
+M0 baseline for the CPU model architecture feature .
 Every milestone of that feature re-runs these two suites on the same machine and
 compares against this section; >5% regression on an unaffected benchmark or a new
 allocation blocks the milestone. Recorded on a different machine than the 2026-06
@@ -256,6 +256,37 @@ the other scenarios are recorded for context.
 | `AudioOnly` | `MixedVisibleSprites` | 380.6 μs | - |
 | `RenderAndAudio` | `None` | 603.5 μs | - |
 | `RenderAndAudio` | `MixedVisibleSprites` | 606.8 μs | - |
+
+## Ordered-bus-accesses (M2) baseline — 2026-08-12 (master `75d9678d`, Apple M1)
+
+Baseline for the CPU-model feature's M2 milestone .
+recorded on the M1 merge commit. M2's benchmark policy is PER-CATEGORY: instructions
+that deliberately gain real bus accesses (RMW, indexed page-cross reads, indexed
+stores, interrupt entry) may regress in isolated microbenchmarks — that cost is
+quantified separately and accepted as semantic; instructions whose access sequence
+did not change must stay within noise of these numbers. Same machine/environment as
+the CPU-model refactor baseline above.
+
+### `HotPathBenchmarks` (DefaultJob)
+
+| Method                                         |          Mean | Allocated |
+|------------------------------------------------|--------------:|----------:|
+| `ExecEvaluator_Check_NotTriggered`             |     0.5724 ns |         - |
+| `ExecEvaluator_Check_OneConditionConfigured`   |     8.8737 ns |         - |
+| `ExecEvaluator_Check_AllConditionsConfigured`  |     9.8424 ns |         - |
+| `InstructionExecutor_OneStep`                  |    18.454 ns  |         - |
+| `CPU_Run_1000Instructions`                     | 13,649.27 ns  |         - |
+| `CPU_Execute_NoSubscribers_1000Instructions`   | 16,199.13 ns  |     136 B |
+| `CPU_Execute_WithSubscribers_1000Instructions` | 35,533.29 ns  |  136136 B |
+| `Memory_Read_TightLoop`                        |  1,661.14 ns  |         - |
+| `Memory_Write_TightLoop`                       |  1,605.10 ns  |         - |
+
+### `C64ExecuteFrameBenchmark` (ShortRun) — representative workload
+
+| Scenario | SpriteScenario | 1 frame |
+|----------|----------------|--------:|
+| `CoreOnly` | `None` | 209.7 μs |
+| `CoreOnly` | `MixedVisibleSprites` | 221.0 μs |
 
 ## Confirming `[AggressiveInlining]` folded the ExecEvaluator helpers
 

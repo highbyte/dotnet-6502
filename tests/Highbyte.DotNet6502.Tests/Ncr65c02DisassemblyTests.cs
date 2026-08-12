@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Highbyte.DotNet6502.Tests;
 
 /// <summary>
-/// Model-aware disassembly tests (feature cpu-models-65c02, M1 step 7): the same byte
+/// Model-aware disassembly tests: the same byte
 /// must disassemble according to the CPU's model, new 65C02 addressing modes must
 /// format correctly, and listing advance must use per-model instruction sizes.
 /// </summary>

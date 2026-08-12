@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Highbyte.DotNet6502.Systems.Tests.Snapshots;
 
 /// <summary>
-/// CPU model identity in snapshots (feature cpu-models-65c02, M1 step 5): the cpu-6502
+/// CPU model identity in snapshots: the cpu-6502
 /// module (v2) records which CPU model the state was captured on; restoring onto a
 /// different model is a hard error; v1 payloads (captured before CPU models existed)
 /// restore as nmos6502 — proven against a checked-in fixture written by the REAL v1

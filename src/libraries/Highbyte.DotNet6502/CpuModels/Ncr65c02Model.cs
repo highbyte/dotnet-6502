@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502;
 /// byte defined — bytes without an instruction are NOPs with specific sizes/cycles.
 /// No Rockwell (RMB/SMB/BBR/BBS) or WDC (WAI/STP) extensions; those bytes are NOPs.
 ///
-/// Built up in stages (design log: cpu-models-65c02 M1.4): this stage carries the shared
+/// Built up in stages : this stage carries the shared
 /// official instruction set, the CMOS JMP (addr), and the defined-NOP map. The new
 /// 65C02 instructions, CMOS decimal arithmetic, and shift/rotate abs,X cycle changes
 /// follow in the next stages before the model is wired into any system.

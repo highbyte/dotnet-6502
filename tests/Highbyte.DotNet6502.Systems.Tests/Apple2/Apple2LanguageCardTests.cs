@@ -118,6 +118,29 @@ public class Apple2LanguageCardTests
         Assert.Equal((byte)0x42, apple2.Mem[0xD000]);
     }
 
+    /// <summary>
+    /// Characterization of a KNOWN DEVIATION. Per Sather (UTAIIe:5-23, confirmed against
+    /// two independent emulator implementations): WRITE enable is set only by an odd
+    /// READ while PRE-WRITE is set — a WRITE resets PRE-WRITE without completing the
+    /// sequence. The current implementation lets the write complete it. This is the
+    /// substrate of the CPU-model bus-accuracy work:
+    /// with correct card semantics plus real per-model bus sequences, an NMOS RMW on
+    /// $C083 (read-write-write) must NOT unlock the card while a 65C02 RMW
+    /// (read-read-write) must. When the card is fixed, this test's expectation flips.
+    /// </summary>
+    [Fact]
+    public void Read_Then_Write_Of_The_Switch_Currently_Completes_The_Sequence_Known_Deviation()
+    {
+        var apple2 = BuildApple2WithRom();
+
+        Switch(apple2, 0xC083);         // read: arms PRE-WRITE
+        apple2.Mem[0xC083] = 0x00;      // write: real hardware resets PRE-WRITE, no unlock
+
+        // Current behavior: the write completes the sequence (deviation).
+        Assert.True(apple2.LanguageCard.WriteEnabled);
+        Assert.False(apple2.LanguageCard.PreWrite);
+    }
+
     [Fact]
     public void A_Write_To_The_Switch_Does_Not_Arm_The_Sequence()
     {

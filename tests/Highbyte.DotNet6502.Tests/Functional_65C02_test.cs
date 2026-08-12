@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Tests;
 
 /// <summary>
 /// Klaus Dormann test binaries run against the ncr65c02 model — the external arbiter
-/// for the 65C02 implementation (feature cpu-models-65c02, M1 test gates).
+/// for the 65C02 implementation.
 ///
 /// Both tests assemble from the pinned source revision with settings changed from the
 /// source DEFAULTS, which target a Rockwell/WDC part: the base/NCR 65C02 must execute

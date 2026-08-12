@@ -102,7 +102,7 @@ public class JMP_test
     /// not from $3100. The emulator historically read linearly (CMOS/65C02-style); the
     /// NMOS model now implements the wrap via its $6C handler override
     /// (NmosHandlers.Jmp_Indirect) -- an explicit behavioral change made by the CPU model
-    /// architecture feature (design log: cpu-models-65c02, M1 step 3).
+    /// architecture work.
     /// </summary>
     [Fact]
     public void JMP_IND_With_Pointer_At_Page_End_Wraps_Within_Page_NMOS_Bug()

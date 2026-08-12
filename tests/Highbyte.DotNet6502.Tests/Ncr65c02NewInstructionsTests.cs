@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Tests;
 
 /// <summary>
 /// Tests for the 27 opcode bytes the NCR 65C02 adds over the NMOS 6502
-/// (feature cpu-models-65c02, M1 step 4).
+/// during the CPU model architecture work.
 /// </summary>
 public class Ncr65c02NewInstructionsTests
 {
