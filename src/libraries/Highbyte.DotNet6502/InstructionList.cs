@@ -4,6 +4,15 @@ using Highbyte.DotNet6502.Instructions;
 namespace Highbyte.DotNet6502;
 
 /// <summary>
+/// Byte-indexed instruction table keyed by <see cref="OpCodeId"/> — the public
+/// <b>NMOS 6502 façade</b>. The enum names, the manual list in
+/// <see cref="GetAllInstructions"/>, and the <see cref="CpuCompatibilityProfile"/>
+/// filtering are all NMOS concepts. On a CPU constructed with a non-NMOS model
+/// (e.g. ncr65c02) this view contains only the officially documented instruction
+/// subset shared with the NMOS 6502 — the model's full per-byte truth (redefined
+/// bytes, new instructions, per-model cycles) lives in its internal descriptor
+/// table (<see cref="OpCodeDescriptor"/>), which is also what execution runs on.
+/// Revisit this public type before any 1.0 release.
 /// </summary>
 public class InstructionList
 {
@@ -61,6 +70,13 @@ public class InstructionList
         return new InstructionList(this.OpCodeDictionary, this.InstructionDictionary);
     }
 
+    /// <summary>
+    /// Builds the <b>NMOS 6502</b> instruction table: the official instruction set plus
+    /// the undocumented NMOS opcodes admitted by <paramref name="compatibilityProfile"/>.
+    /// NMOS-specific by design — other CPU models compose their own descriptor tables
+    /// and use this only for the shared official subset (with
+    /// <see cref="CpuCompatibilityProfile.OfficialOnly"/>).
+    /// </summary>
     public static InstructionList GetAllInstructions(CpuCompatibilityProfile compatibilityProfile = CpuCompatibilityProfile.ExperimentalUnofficial)
     {
         // Manual (AOT & trimming safe) list of all instruction implementations.
@@ -325,6 +341,10 @@ public class InstructionList
         var instructionTypes = typesToSearch.Where(p =>
             p.GetTypeInfo().IsSubclassOf(typeof(Instruction))
             && !p.GetTypeInfo().IsAbstract
+            // Only the NMOS instruction set (namespace Highbyte.DotNet6502.Instructions).
+            // CPU-model-specific variants (e.g. CmosAdc in the CpuModels folder) reuse
+            // NMOS opcode bytes and must not enter this NMOS-vs-manual-list comparison.
+            && p.Namespace == typeof(Instructions.ADC).Namespace
         );
 
         var instructions = new List<Instruction>();

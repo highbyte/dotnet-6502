@@ -48,17 +48,32 @@ internal static class Ncr65c02Model
             Execute = CmosHandlers.Jmp_Indirect,
         };
 
+        // ADC/SBC: 65C02 decimal mode has valid N/Z flags, its own SBC correction
+        // sequence, and +1 cycle. Binary mode identical. All existing addressing modes
+        // are re-composed over the CMOS instruction variants.
+        var cmosAdc = new CmosAdc();
+        var cmosSbc = new CmosSbc();
+        ReplaceWithInstruction(table, cmosAdc);
+        ReplaceWithInstruction(table, cmosSbc);
+
         // The "(zp)" addressing mode: the eight ALU/load/store instructions gained a
-        // zero-page-indirect form. Semantics are the shared instruction objects',
-        // composed for the new mode; only the addressing is new. 2 bytes, 5 cycles.
-        AddZpIndirectForm(table, instructionList, newCode: 0x12, existingCode: (byte)OpCodeId.ORA_I);
-        AddZpIndirectForm(table, instructionList, newCode: 0x32, existingCode: (byte)OpCodeId.AND_I);
-        AddZpIndirectForm(table, instructionList, newCode: 0x52, existingCode: (byte)OpCodeId.EOR_I);
-        AddZpIndirectForm(table, instructionList, newCode: 0x72, existingCode: (byte)OpCodeId.ADC_I);
-        AddZpIndirectForm(table, instructionList, newCode: 0x92, existingCode: (byte)OpCodeId.STA_ZP);
-        AddZpIndirectForm(table, instructionList, newCode: 0xB2, existingCode: (byte)OpCodeId.LDA_I);
-        AddZpIndirectForm(table, instructionList, newCode: 0xD2, existingCode: (byte)OpCodeId.CMP_I);
-        AddZpIndirectForm(table, instructionList, newCode: 0xF2, existingCode: (byte)OpCodeId.SBC_I);
+        // zero-page-indirect form. Semantics are the shared instruction objects'
+        // (CMOS variants for ADC/SBC), composed for the new mode. 2 bytes, 5 cycles.
+        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.ORA_I), newCode: 0x12);
+        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.AND_I), newCode: 0x32);
+        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.EOR_I), newCode: 0x52);
+        AddZpIndirectForm(table, cmosAdc, newCode: 0x72);
+        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.STA_ZP), newCode: 0x92);
+        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.LDA_I), newCode: 0xB2);
+        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.CMP_I), newCode: 0xD2);
+        AddZpIndirectForm(table, cmosSbc, newCode: 0xF2);
+
+        // Shift/rotate abs,X: 6 cycles + 1 on page cross on the 65C02 (NMOS: always 7).
+        // INC/DEC abs,X deliberately stay at 7 cycles — the 65C02 only changed the shifts.
+        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.ASL_ABS_X);
+        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.ROL_ABS_X);
+        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.LSR_ABS_X);
+        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.ROR_ABS_X);
 
         // New 65C02 instructions, bound as static handlers.
         Add(table, 0x04, "TSB", AddrMode.ZP, size: 2, cycles: 5, CmosHandlers.Tsb_Zp);
@@ -88,13 +103,36 @@ internal static class Ncr65c02Model
         return table;
     }
 
+    private static Instruction GetInstruction(InstructionList instructionList, byte existingCode)
+        => instructionList.GetInstruction(instructionList.GetOpCode(existingCode));
+
     /// <summary>
-    /// Adds a "(zp)" form of an existing instruction: the instruction object (looked up
-    /// via one of its NMOS opcode bytes) is composed for the ZP_IND addressing mode.
+    /// Replaces the descriptors of all of an instruction's opcode bytes with handlers
+    /// composed over a (CMOS-variant) instruction object. Metadata comes from the
+    /// instruction's own opcode list.
     /// </summary>
-    private static void AddZpIndirectForm(OpCodeDescriptor?[] table, InstructionList instructionList, byte newCode, byte existingCode)
+    private static void ReplaceWithInstruction(OpCodeDescriptor?[] table, Instruction instruction)
     {
-        var instruction = instructionList.GetInstruction(instructionList.GetOpCode(existingCode));
+        foreach (var opCode in instruction.OpCodes)
+        {
+            table[opCode.CodeRaw] = new OpCodeDescriptor
+            {
+                Code = opCode.CodeRaw,
+                Mnemonic = instruction.Name,
+                Addressing = opCode.AddressingMode,
+                Size = (byte)opCode.Size,
+                BaseCycles = opCode.MinimumCycles,
+                Documented = true,
+                Execute = OpCodeDescriptorTableBuilder.ComposeExecuteHandler(opCode, instruction),
+            };
+        }
+    }
+
+    /// <summary>
+    /// Adds a "(zp)" form of an instruction, composed for the ZP_IND addressing mode.
+    /// </summary>
+    private static void AddZpIndirectForm(OpCodeDescriptor?[] table, Instruction instruction, byte newCode)
+    {
         // Metadata carrier for the composed handler. Note OpCode.Code is a byte-valued
         // NMOS-named enum; only the raw byte and addressing mode matter here.
         var opCode = new OpCode
@@ -113,6 +151,34 @@ internal static class Ncr65c02Model
             BaseCycles = 5,
             Documented = true,
             Execute = OpCodeDescriptorTableBuilder.ComposeExecuteHandler(opCode, instruction),
+        };
+    }
+
+    /// <summary>
+    /// Rebinds a shift/rotate abs,X byte with the 65C02's cycle behavior: base 6 cycles
+    /// plus 1 on page cross (the NMOS takes an unconditional 7). The shift semantics are
+    /// the shared instruction object's.
+    /// </summary>
+    private static void ReplaceShiftRmwAbsX(OpCodeDescriptor?[] table, InstructionList instructionList, byte code)
+    {
+        var opCode = instructionList.GetOpCode(code);
+        var instruction = (IInstructionUsesAddress)instructionList.GetInstruction(opCode);
+        var mnemonic = instructionList.GetInstruction(opCode).Name;
+        table[code] = new OpCodeDescriptor
+        {
+            Code = code,
+            Mnemonic = mnemonic,
+            Addressing = AddrMode.ABS_X,
+            Size = 3,
+            BaseCycles = 6,
+            Documented = true,
+            Execute = (cpu, mem) =>
+            {
+                var address = cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out var crossedPageBoundary);
+                var calc = new AddrModeCalcResult { OpCode = opCode, InsAddress = address, AddressCalculationCrossedPageBoundary = crossedPageBoundary };
+                instruction.ExecuteWithWord(cpu, mem, address, calc);
+                return crossedPageBoundary ? 7ul : 6ul;
+            },
         };
     }
 

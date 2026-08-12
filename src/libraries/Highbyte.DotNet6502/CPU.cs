@@ -101,6 +101,12 @@ public class CPU
     public ExecState ExecState { get; private set; }
     public bool IsHalted { get; private set; }
 
+    /// <summary>
+    /// Public NMOS-façade view of the instruction set (see <see cref="InstructionList"/>).
+    /// On a non-NMOS model this contains only the officially documented subset shared
+    /// with the NMOS 6502; execution and per-model tooling metadata use the internal
+    /// <see cref="Descriptors"/> table instead.
+    /// </summary>
     public InstructionList InstructionList { get; private set; }
     public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
