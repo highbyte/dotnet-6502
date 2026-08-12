@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PackageId>Highbyte.DotNet6502.Impl.Terminal.Apple2</PackageId>
+    <Authors>Highbyte</Authors>
+    <PackageDescription>Apple II engine plugin for the Highbyte.DotNet6502 Terminal (TUI) host. Registers the Apple II system configurer and text-mode input/rendering support.</PackageDescription>
+    <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
+    <Version>0.3.0-alpha</Version>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Apple2\Highbyte.DotNet6502.Systems.Apple2.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Plugins\Highbyte.DotNet6502.Systems.Plugins.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Impl.Terminal\Highbyte.DotNet6502.Impl.Terminal.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

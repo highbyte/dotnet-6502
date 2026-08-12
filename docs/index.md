@@ -31,7 +31,7 @@ See [Desktop apps installation](host-apps/installation.md) for download links an
 
 ## Terminal (TUI) app
 
-[Terminal (TUI) app](host-apps/terminal/overview.md) — runs the emulator interactively inside a real terminal, rendering the emulated text-mode screen as colored Unicode cells via [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Works over SSH and in `tmux`/`screen`. Supports the C64 and VIC-20 in character mode (no audio, no bitmap/sprite graphics), and includes the built-in machine code monitor.
+[Terminal (TUI) app](host-apps/terminal/overview.md) — runs the emulator interactively inside a real terminal, rendering the emulated text-mode screen as colored Unicode cells via [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Works over SSH and in `tmux`/`screen`. Supports the C64, VIC-20, and Apple II Plus in character mode (no audio or pixel graphics), and includes the built-in machine code monitor.
 
 <img src="assets/screenshots/Terminal_C64_Basic.png" title="Terminal (TUI) app, C64 Basic" width="50%" />
 

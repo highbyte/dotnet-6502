@@ -11,7 +11,14 @@ public interface IVideoCommandStream : IRenderSource
 
 public interface IVideoCommand { }
 
-public sealed record SetConfig(Func<byte, string> GlyphToUnicodeConverter) : IVideoCommand;
+public sealed record SetConfig(Func<byte, string> GlyphToUnicodeConverter) : IVideoCommand
+{
+    /// <summary>
+    /// Whether glyph IDs with bit 7 set represent Commodore-style reverse video. Most systems
+    /// encode display attributes elsewhere or have no such convention, so this is opt-in.
+    /// </summary>
+    public bool ReverseVideoHighBit { get; init; }
+}
 public sealed record FillRect(int X, int Y, int W, int H, uint ColorArgb) : IVideoCommand;
 public sealed record DrawGlyphArgb(int X, int Y, int GlyphId, uint ForeColorArgb, uint BackColorArgb) : IVideoCommand;
 
