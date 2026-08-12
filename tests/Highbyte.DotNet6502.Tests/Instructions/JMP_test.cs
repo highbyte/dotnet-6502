@@ -94,5 +94,39 @@ public class JMP_test
         Assert.Equal(expectedAValue, cpu.A);
         Assert.Equal(newPos, cpu.PC);
         Assert.Equal(cpuCopy.SP, cpu.SP);
-    }      
+    }
+
+    /// <summary>
+    /// Characterization test documenting a KNOWN NMOS DEVIATION.
+    /// Real NMOS 6502 hardware has the "indirect JMP page-wrap bug": for JMP ($30FF) the
+    /// high byte of the target is read from $3000 (the pointer wraps within its page),
+    /// not from $3100. This emulator currently reads linearly ($3100), i.e. CMOS/65C02-style
+    /// behavior. The NMOS fix is planned as an explicit behavioral change in the CPU model
+    /// architecture feature (design log: cpu-models-65c02, M1 step 3) -- when that lands,
+    /// this test's expectation flips to the NMOS result ($5634 below).
+    /// </summary>
+    [Fact]
+    public void JMP_IND_With_Pointer_At_Page_End_Currently_Reads_Linearly_Known_NMOS_Deviation()
+    {
+        // Arrange
+        ushort startPos = 0x0020;
+        CPU cpu = new();
+        cpu.PC = startPos;
+
+        var mem = new Memory();
+        // Indirect pointer at $30FF. The low byte of the target is at $30FF; where the
+        // high byte is read from is the model-dependent part.
+        mem[0x30FF] = 0x34; // target low byte
+        mem[0x3100] = 0x12; // linear read location (current behavior)     -> target $1234
+        mem[0x3000] = 0x56; // page-wrapped read location (real NMOS)      -> target $5634
+
+        mem.WriteByte(ref startPos, OpCodeId.JMP_IND);
+        mem.WriteWord(ref startPos, 0x30FF);
+
+        // Act
+        cpu.Execute(mem, LegacyExecEvaluator.InstructionCountExecEvaluator(1));
+
+        // Assert: current CMOS-style (linear) result. Real NMOS would land at $5634.
+        Assert.Equal((ushort)0x1234, cpu.PC);
+    }
 }

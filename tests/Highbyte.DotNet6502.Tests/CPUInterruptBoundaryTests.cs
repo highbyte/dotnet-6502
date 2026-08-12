@@ -180,4 +180,25 @@ public class CPUInterruptBoundaryTests
         Assert.Equal((ushort)0x5000, cpu.PC); // NMI handler, not IRQ handler
         Assert.True(cpu.IRQ);                  // IRQ still pending, serviced on a later flush
     }
+
+    [Fact]
+    public void NMI_Servicing_Reads_Each_Vector_Byte_Exactly_Once()
+    {
+        // Real hardware reads $FFFA/$FFFB once per serviced NMI. The reads go through the
+        // current memory mapping, so a duplicated read is observable by mapped handlers
+        // (e.g. banked ROM/IO at the vector addresses).
+        var (cpu, mem) = NewCpuAt(0x1000);
+
+        int loReads = 0, hiReads = 0;
+        mem.MapReader(CPU.NonMaskableIRQHandlerVector, _ => { loReads++; return 0x00; });
+        mem.MapReader((ushort)(CPU.NonMaskableIRQHandlerVector + 1), _ => { hiReads++; return 0x40; });
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+        cpu.CPUInterrupts.SetNMISourceActive("device");
+        cpu.ProcessPendingInterrupts(mem);
+
+        Assert.Equal((ushort)0x4000, cpu.PC); // vector ($4000) was used
+        Assert.Equal(1, loReads);
+        Assert.Equal(1, hiReads);
+    }
 }

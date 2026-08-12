@@ -344,14 +344,20 @@ public class CPU
         if (CPUInterrupts.NMIPending)
         {
             OnNmiAcknowledging();
-            ushort nmiVector = FetchWord(mem, CPU.NonMaskableIRQHandlerVector);
-            _logger.LogDebug(
-                "Servicing NMI. PC={PC:X4}, Vector={Vector:X4}, ActiveSources=[{Sources}]",
-                PC,
-                nmiVector,
-                string.Join(",", CPUInterrupts.ActiveNMISources));
+            // The vector is read exactly once, inside ProcessHardwareNMI (as on real hardware,
+            // where the reads can hit mapped handlers). After entry PC holds the vector target,
+            // so the gated log line below reuses it instead of a second real vector read.
+            var logNmiDebug = _logger.IsEnabled(LogLevel.Debug);
+            ushort pcBeforeNmi = PC;
+            string? nmiSources = logNmiDebug ? string.Join(",", CPUInterrupts.ActiveNMISources) : null;
             CPUInterrupts.ClearPendingNMI();
             ProcessHardwareNMI(mem);
+            if (logNmiDebug)
+                _logger.LogDebug(
+                    "Servicing NMI. PC={PC:X4}, Vector={Vector:X4}, ActiveSources=[{Sources}]",
+                    pcBeforeNmi,
+                    PC,
+                    nmiSources);
         }
         else if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
         {
