@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Tests.Helpers;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Tests;
@@ -200,5 +201,33 @@ public class CPUInterruptBoundaryTests
         Assert.Equal((ushort)0x4000, cpu.PC); // vector ($4000) was used
         Assert.Equal(1, loReads);
         Assert.Equal(1, hiReads);
+    }
+
+    [Fact]
+    public void NMI_Servicing_With_Debug_Logging_Enabled_Still_Reads_Each_Vector_Byte_Exactly_Once()
+    {
+        // The historical double read lived in the debug-logging path: the vector was fetched
+        // once for the log line and again for the actual NMI entry. Verify the logged variant
+        // performs a single read and still emits the log line with the vector and source.
+        var loggerFactory = new RecordingLoggerFactory();
+        var cpu = new CPU(loggerFactory);
+        var mem = new Memory();
+        mem[0x1000] = (byte)OpCodeId.NOP;
+        cpu.PC = 0x1000;
+        cpu.SP = 0xFF;
+
+        int loReads = 0, hiReads = 0;
+        mem.MapReader(CPU.NonMaskableIRQHandlerVector, _ => { loReads++; return 0x00; });
+        mem.MapReader((ushort)(CPU.NonMaskableIRQHandlerVector + 1), _ => { hiReads++; return 0x40; });
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+        cpu.CPUInterrupts.SetNMISourceActive("device");
+        cpu.ProcessPendingInterrupts(mem);
+
+        Assert.Equal((ushort)0x4000, cpu.PC);
+        Assert.Equal(1, loReads);
+        Assert.Equal(1, hiReads);
+        Assert.Contains(loggerFactory.Messages,
+            m => m.Contains("Servicing NMI") && m.Contains("4000") && m.Contains("device"));
     }
 }
