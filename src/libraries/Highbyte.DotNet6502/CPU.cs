@@ -353,11 +353,14 @@ public class CPU
             CPUInterrupts.ClearPendingNMI();
             ProcessHardwareNMI(mem);
             if (logNmiDebug)
+            {
+                ushort nmiVector = PC;
                 _logger.LogDebug(
-                    "Servicing NMI. PC={PC:X4}, Vector={Vector:X4}, ActiveSources=[{Sources}]",
+                    "Servicing NMI. PC={PcBeforeNmi:X4}, Vector={NmiVector:X4}, ActiveSources=[{NmiSources}]",
                     pcBeforeNmi,
-                    PC,
+                    nmiVector,
                     nmiSources);
+            }
         }
         else if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
         {
