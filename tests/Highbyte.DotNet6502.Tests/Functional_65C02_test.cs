@@ -45,8 +45,10 @@ public class Functional_65C02_test
         // so the assembled image is loaded at $000A. Execution starts at $0400.
         ushort loadAddress = 0x000A;
         ushort startAddress = 0x0400;
-        var successAddress = FunctionalTestCompiler.FindLabelAddressInListFile(build.ListFilePath, "success");
-        _output.WriteLine($"Success label address (from .lst): {successAddress.ToHex()}");
+        // "success" is a MACRO expanding to a self-trap (jmp *); its final invocation's
+        // expansion address is where a fully successful run ends up.
+        var successAddress = FunctionalTestCompiler.FindLastMacroInvocationAddressInListFile(build.ListFilePath, "success");
+        _output.WriteLine($"Success trap address (from .lst): {successAddress.ToHex()}");
 
         var mem = BinaryLoader.Load(build.BinaryFilePath, out _, out _, forceLoadAddress: loadAddress);
         var cpu = New65c02Cpu();

@@ -172,6 +172,48 @@ public class FunctionalTestCompiler
         static bool IsHexAddress(string token) => token.Length == 4 && token.All(Uri.IsHexDigit);
         static bool TokenIsLabel(string token, string label) => token == label || token == label + ":";
     }
+
+    /// <summary>
+    /// Finds the code address produced by the LAST invocation of a macro in an AS65
+    /// listing assembled with -m (expand macros). Klaus's tests end in a "success"
+    /// MACRO (a self-trap "jmp *"), not a label: the invocation line carries the macro
+    /// name with no address, and the following expansion line(s) carry the emitted
+    /// code's address. The last invocation is the final success trap.
+    /// </summary>
+    public static ushort FindLastMacroInvocationAddressInListFile(string listFilePath, string macroName)
+    {
+        ushort? lastAddress = null;
+        var pendingInvocation = false;
+        foreach (var line in File.ReadAllLines(listFilePath))
+        {
+            var tokens = line.Split(' ', '\t', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0)
+                continue;
+
+            var colonIndex = Array.IndexOf(tokens, ":");
+            if (pendingInvocation && colonIndex >= 1
+                && tokens[colonIndex - 1].Length == 4 && tokens[colonIndex - 1].All(Uri.IsHexDigit))
+            {
+                lastAddress = Convert.ToUInt16(tokens[colonIndex - 1], 16);
+                pendingInvocation = false;
+                continue;
+            }
+
+            // A macro invocation: the macro name in mnemonic position (first token, or
+            // first after the address/bytes), excluding its "name macro" definition line.
+            var macroNameIndex = Array.IndexOf(tokens, macroName);
+            if (macroNameIndex >= 0 && !tokens.Contains("macro") && !tokens.Contains("endm"))
+            {
+                // If the invocation line itself has an address, use it directly.
+                if (colonIndex >= 1 && tokens[colonIndex - 1].Length == 4 && tokens[colonIndex - 1].All(Uri.IsHexDigit))
+                    lastAddress = Convert.ToUInt16(tokens[colonIndex - 1], 16);
+                else
+                    pendingInvocation = true;
+            }
+        }
+        return lastAddress
+            ?? throw new DotNet6502Exception($"No invocation of macro '{macroName}' with a resolvable address found in listing file {listFilePath}.");
+    }
     public string Get6502FunctionalTestBinary(bool disableDecimalTests = false, string? downloadDir = null)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
