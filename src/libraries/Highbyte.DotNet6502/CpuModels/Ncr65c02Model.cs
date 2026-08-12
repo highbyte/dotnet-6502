@@ -48,11 +48,86 @@ internal static class Ncr65c02Model
             Execute = CmosHandlers.Jmp_Indirect,
         };
 
+        // The "(zp)" addressing mode: the eight ALU/load/store instructions gained a
+        // zero-page-indirect form. Semantics are the shared instruction objects',
+        // composed for the new mode; only the addressing is new. 2 bytes, 5 cycles.
+        AddZpIndirectForm(table, instructionList, newCode: 0x12, existingCode: (byte)OpCodeId.ORA_I);
+        AddZpIndirectForm(table, instructionList, newCode: 0x32, existingCode: (byte)OpCodeId.AND_I);
+        AddZpIndirectForm(table, instructionList, newCode: 0x52, existingCode: (byte)OpCodeId.EOR_I);
+        AddZpIndirectForm(table, instructionList, newCode: 0x72, existingCode: (byte)OpCodeId.ADC_I);
+        AddZpIndirectForm(table, instructionList, newCode: 0x92, existingCode: (byte)OpCodeId.STA_ZP);
+        AddZpIndirectForm(table, instructionList, newCode: 0xB2, existingCode: (byte)OpCodeId.LDA_I);
+        AddZpIndirectForm(table, instructionList, newCode: 0xD2, existingCode: (byte)OpCodeId.CMP_I);
+        AddZpIndirectForm(table, instructionList, newCode: 0xF2, existingCode: (byte)OpCodeId.SBC_I);
+
+        // New 65C02 instructions, bound as static handlers.
+        Add(table, 0x04, "TSB", AddrMode.ZP, size: 2, cycles: 5, CmosHandlers.Tsb_Zp);
+        Add(table, 0x0C, "TSB", AddrMode.ABS, size: 3, cycles: 6, CmosHandlers.Tsb_Abs);
+        Add(table, 0x14, "TRB", AddrMode.ZP, size: 2, cycles: 5, CmosHandlers.Trb_Zp);
+        Add(table, 0x1C, "TRB", AddrMode.ABS, size: 3, cycles: 6, CmosHandlers.Trb_Abs);
+        Add(table, 0x1A, "INC", AddrMode.Accumulator, size: 1, cycles: 2, CmosHandlers.Inc_Accumulator);
+        Add(table, 0x3A, "DEC", AddrMode.Accumulator, size: 1, cycles: 2, CmosHandlers.Dec_Accumulator);
+        Add(table, 0x34, "BIT", AddrMode.ZP_X, size: 2, cycles: 4, CmosHandlers.Bit_ZpX);
+        Add(table, 0x3C, "BIT", AddrMode.ABS_X, size: 3, cycles: 4, CmosHandlers.Bit_AbsX);
+        Add(table, 0x89, "BIT", AddrMode.I, size: 2, cycles: 2, CmosHandlers.Bit_Immediate);
+        Add(table, 0x5A, "PHY", AddrMode.Implied, size: 1, cycles: 3, CmosHandlers.Phy);
+        Add(table, 0x7A, "PLY", AddrMode.Implied, size: 1, cycles: 4, CmosHandlers.Ply);
+        Add(table, 0xDA, "PHX", AddrMode.Implied, size: 1, cycles: 3, CmosHandlers.Phx);
+        Add(table, 0xFA, "PLX", AddrMode.Implied, size: 1, cycles: 4, CmosHandlers.Plx);
+        Add(table, 0x64, "STZ", AddrMode.ZP, size: 2, cycles: 3, CmosHandlers.Stz_Zp);
+        Add(table, 0x74, "STZ", AddrMode.ZP_X, size: 2, cycles: 4, CmosHandlers.Stz_ZpX);
+        Add(table, 0x9C, "STZ", AddrMode.ABS, size: 3, cycles: 4, CmosHandlers.Stz_Abs);     // SHY abs,X on NMOS
+        Add(table, 0x9E, "STZ", AddrMode.ABS_X, size: 3, cycles: 5, CmosHandlers.Stz_AbsX);  // SHX abs,Y on NMOS
+        Add(table, 0x7C, "JMP", AddrMode.ABS_IX_IND, size: 3, cycles: 6, CmosHandlers.Jmp_AbsIndexedIndirect);
+        Add(table, 0x80, "BRA", AddrMode.Relative, size: 2, cycles: 3, CmosHandlers.Bra);
+
         // Every remaining byte is a defined NOP with a specific size and cycle count
         // (base/NCR part: the Rockwell/WDC extension bytes are NOPs too).
         FillDefinedNops(table);
 
         return table;
+    }
+
+    /// <summary>
+    /// Adds a "(zp)" form of an existing instruction: the instruction object (looked up
+    /// via one of its NMOS opcode bytes) is composed for the ZP_IND addressing mode.
+    /// </summary>
+    private static void AddZpIndirectForm(OpCodeDescriptor?[] table, InstructionList instructionList, byte newCode, byte existingCode)
+    {
+        var instruction = instructionList.GetInstruction(instructionList.GetOpCode(existingCode));
+        // Metadata carrier for the composed handler. Note OpCode.Code is a byte-valued
+        // NMOS-named enum; only the raw byte and addressing mode matter here.
+        var opCode = new OpCode
+        {
+            Code = (OpCodeId)newCode,
+            AddressingMode = AddrMode.ZP_IND,
+            Size = 2,
+            MinimumCycles = 5,
+        };
+        table[newCode] = new OpCodeDescriptor
+        {
+            Code = newCode,
+            Mnemonic = instruction.Name,
+            Addressing = AddrMode.ZP_IND,
+            Size = 2,
+            BaseCycles = 5,
+            Documented = true,
+            Execute = OpCodeDescriptorTableBuilder.ComposeExecuteHandler(opCode, instruction),
+        };
+    }
+
+    private static void Add(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing, byte size, byte cycles, ExecuteHandler handler)
+    {
+        table[code] = new OpCodeDescriptor
+        {
+            Code = code,
+            Mnemonic = mnemonic,
+            Addressing = addressing,
+            Size = size,
+            BaseCycles = cycles,
+            Documented = true,
+            Execute = handler,
+        };
     }
 
     private static void FillDefinedNops(OpCodeDescriptor?[] table)

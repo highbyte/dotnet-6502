@@ -76,8 +76,10 @@ internal static class OpCodeDescriptorTableBuilder
     /// then IInstructionUsesAddress (only when the mode produces an address), then
     /// IInstructionUsesStack, then IInstructionUsesOnlyRegOrStatus. An unmappable
     /// combination is a table-construction error, caught here instead of at runtime.
+    /// Internal so model table builders can compose additional (instruction, mode)
+    /// pairs that the NMOS opcode tables don't contain (e.g. 65C02 "(zp)" modes).
     /// </summary>
-    private static ExecuteHandler ComposeExecuteHandler(OpCode opCode, Instruction instruction)
+    internal static ExecuteHandler ComposeExecuteHandler(OpCode opCode, Instruction instruction)
     {
         var oc = opCode;
         var baseCycles = opCode.MinimumCycles;
@@ -160,6 +162,11 @@ internal static class OpCodeDescriptorTableBuilder
             case AddrMode.IX_IND:
                 return ComposeWithAddress(oc, baseCycles, instruction,
                     static (cpu, mem) => (cpu.FetchWord(mem, cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem))), false));
+
+            case AddrMode.ZP_IND:
+                // 65C02 "(zp)": pointer in zero page, no index, no page-cross extra.
+                return ComposeWithAddress(oc, baseCycles, instruction,
+                    static (cpu, mem) => (cpu.FetchWord(mem, cpu.FetchOperand(mem)), false));
 
             case AddrMode.IND_IX:
                 return ComposeWithAddress(oc, baseCycles, instruction,
