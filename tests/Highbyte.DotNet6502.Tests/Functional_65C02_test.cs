@@ -38,7 +38,8 @@ public class Functional_65C02_test
             {
                 ["rkwl_wdc_op"] = "0", // Rockwell RMB/SMB/BBR/BBS bytes: test as NOPs (base/NCR part)
                 ["wdc_op"] = "0",      // WDC WAI/STP bytes: test as NOPs
-            });
+            },
+            additionalAssemblerSwitches: "-x"); // AS65: enable 65C02 extension mnemonics
 
         // Same memory layout convention as the NMOS functional test: zero_page = $a,
         // so the assembled image is loaded at $000A. Execution starts at $0400.

@@ -68,7 +68,7 @@ public class FunctionalTestCompiler
     /// "name = value"), and assembles it. Windows only — the AS65 assembler is a
     /// Windows executable; callers should gate on <see cref="WindowsOnlyFactAttribute"/>.
     /// </summary>
-    public KlausTestBuild GetKlausTestBuild(string sourceFileName, IReadOnlyDictionary<string, string> settingOverrides, string? downloadDir = null)
+    public KlausTestBuild GetKlausTestBuild(string sourceFileName, IReadOnlyDictionary<string, string> settingOverrides, string? downloadDir = null, string? additionalAssemblerSwitches = null)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             throw new PlatformNotSupportedException("Assembling Klaus test sources requires Windows (AS65 assembler is Windows-only).");
@@ -86,7 +86,7 @@ public class FunctionalTestCompiler
         ApplyAsmSettingOverrides(sourceFilePath, modifiedFilePath, settingOverrides);
 
         var as65exeFilePath = GetAS65AssemblerFilePath(downloadDir);
-        var binaryFilePath = Compile6502FunctionalTestBinary(as65exeFilePath, modifiedFilePath);
+        var binaryFilePath = Compile6502FunctionalTestBinary(as65exeFilePath, modifiedFilePath, additionalAssemblerSwitches);
         var listFilePath = Path.Join(Path.GetDirectoryName(binaryFilePath), Path.GetFileNameWithoutExtension(binaryFilePath)) + ".lst";
         return new KlausTestBuild(binaryFilePath, listFilePath);
     }
@@ -142,6 +142,13 @@ public class FunctionalTestCompiler
                     i++;
                 if (i < tokens.Length && TokenIsLabel(tokens[i], label))
                     return Convert.ToUInt16(addressToken, 16);
+            }
+            else if (tokens.Length >= 3 && IsHexAddress(tokens[0]) && tokens[1] == "=")
+            {
+                // Equate/reservation line: "<addr> = <label> ds 1" (AS65 uses '=' instead
+                // of ':' for symbols that emit no code, e.g. zero-page ds variables).
+                if (TokenIsLabel(tokens[2], label))
+                    return Convert.ToUInt16(tokens[0], 16);
             }
             else if (tokens.Length >= 2)
             {
@@ -218,7 +225,7 @@ public class FunctionalTestCompiler
 
         return filePath;
     }
-    private string Compile6502FunctionalTestBinary(string as65exeFilePath, string sourceCodeFilePath)
+    private string Compile6502FunctionalTestBinary(string as65exeFilePath, string sourceCodeFilePath, string? additionalAssemblerSwitches = null)
     {
         // Assume output files of the compilation (.bin and .lst file) are placed 
         // in same directory as the source code that was compiled.
@@ -229,7 +236,8 @@ public class FunctionalTestCompiler
         if (File.Exists(compiledLstFile))
             File.Delete(compiledLstFile);
 
-        string arguments = $"-l -m -w -h0 {sourceCodeFilePath}";
+        // -x enables 65C02 extension mnemonics (needed for the 65C02 test sources).
+        string arguments = $"-l -m -w -h0 {(string.IsNullOrEmpty(additionalAssemblerSwitches) ? "" : additionalAssemblerSwitches + " ")}{sourceCodeFilePath}";
         // Captured so an assembly failure can report WHAT the assembler said — the
         // logger is typically a NullLogger in tests, which would swallow the errors.
         var assemblerOutput = new System.Collections.Concurrent.ConcurrentQueue<string>();
