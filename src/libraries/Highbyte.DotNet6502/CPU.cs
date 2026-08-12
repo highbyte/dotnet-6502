@@ -193,18 +193,25 @@ public class CPU
         : this(execState, loggerFactory, CpuCompatibilityProfile.ExperimentalUnofficial) { }
 
     public CPU(ExecState execState, ILoggerFactory loggerFactory, CpuCompatibilityProfile compatibilityProfile)
+        : this(execState, loggerFactory, CpuModelIds.Nmos6502, compatibilityProfile) { }
+
+    /// <summary>
+    /// Constructs a CPU with an explicit model. Internal until model selection is
+    /// exposed through system configuration (design log: cpu-models-65c02, M1 step 6).
+    /// </summary>
+    internal CPU(ExecState execState, ILoggerFactory loggerFactory, string cpuModelId, CpuCompatibilityProfile compatibilityProfile)
     {
         _logger = loggerFactory.CreateLogger(typeof(CPU).Name);
 
         ProcessorStatus = new ProcessorStatus();
         ExecState = execState;
 
-        ModelDefinition = CpuModels.GetDefinition(CpuModelIds.Nmos6502);
+        ModelDefinition = CpuModels.GetDefinition(cpuModelId);
         if (!ModelDefinition.SupportedProfiles.Contains(compatibilityProfile))
             throw new DotNet6502Exception($"CPU model '{ModelDefinition.ModelId}' does not support compatibility profile '{compatibilityProfile}'.");
         CompatibilityProfile = compatibilityProfile;
         InstructionList = ModelDefinition.CreateInstructionList(compatibilityProfile);
-        Descriptors = OpCodeDescriptorTableBuilder.Build(InstructionList, ModelDefinition);
+        Descriptors = ModelDefinition.CreateDescriptors(InstructionList);
 
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor(loggerFactory);

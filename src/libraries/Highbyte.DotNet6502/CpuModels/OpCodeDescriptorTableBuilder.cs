@@ -17,7 +17,14 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 internal static class OpCodeDescriptorTableBuilder
 {
-    public static OpCodeDescriptor?[] Build(InstructionList instructionList, CpuModelDefinition model)
+    /// <param name="instructionList">Source instruction table (metadata + instruction objects).</param>
+    /// <param name="handlerOverrides">
+    /// Optional per-byte execute handlers replacing the generic composition where the
+    /// model's behavior genuinely diverges (e.g. the NMOS JMP ($xxFF) page-wrap bug).
+    /// Applied last; metadata stays from the instruction table. Overriding a byte the
+    /// instruction table leaves undefined is a construction error.
+    /// </param>
+    public static OpCodeDescriptor?[] Build(InstructionList instructionList, IReadOnlyDictionary<byte, ExecuteHandler>? handlerOverrides = null)
     {
         var table = new OpCodeDescriptor?[256];
         for (var code = 0; code <= 0xff; code++)
@@ -41,12 +48,12 @@ internal static class OpCodeDescriptorTableBuilder
 
         // Model-divergent behavior: replace the generic composition where the model binds
         // its own handler. Metadata stays from the instruction table; only Execute changes.
-        if (model.HandlerOverrides is not null)
+        if (handlerOverrides is not null)
         {
-            foreach (var (code, handler) in model.HandlerOverrides)
+            foreach (var (code, handler) in handlerOverrides)
             {
                 var descriptor = table[code]
-                    ?? throw new DotNet6502Exception($"CPU model table construction error: model '{model.ModelId}' overrides opcode {code:x2}, which is undefined for the active profile.");
+                    ?? throw new DotNet6502Exception($"CPU model table construction error: handler override for opcode {code:x2}, which is undefined in the instruction table.");
                 table[code] = new OpCodeDescriptor
                 {
                     Code = descriptor.Code,

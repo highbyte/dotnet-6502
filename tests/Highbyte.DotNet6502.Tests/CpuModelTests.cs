@@ -123,21 +123,13 @@ public class CpuModelTests
     [Fact]
     public void Handler_Override_For_An_Undefined_OpCode_Is_A_Construction_Error()
     {
-        var definition = new CpuModelDefinition
+        var instructionList = InstructionList.GetAllInstructions(CpuCompatibilityProfile.OfficialOnly);
+        var overrides = new Dictionary<byte, ExecuteHandler>
         {
-            ModelId = "test-model",
-            DisplayName = "Test model",
-            SupportedProfiles = new[] { CpuCompatibilityProfile.OfficialOnly },
-            CreateInstructionList = InstructionList.GetAllInstructions,
-            Traits = new CpuModelTraits(ClearsDecimalOnInterrupt: false, AllBytesDefined: false),
-            HandlerOverrides = new Dictionary<byte, ExecuteHandler>
-            {
-                [(byte)OpCodeId.LAX_ZP] = NmosHandlers.Jmp_Indirect, // LAX is undefined in OfficialOnly
-            },
+            [(byte)OpCodeId.LAX_ZP] = NmosHandlers.Jmp_Indirect, // LAX is undefined in OfficialOnly
         };
 
-        var instructionList = definition.CreateInstructionList(CpuCompatibilityProfile.OfficialOnly);
-        Assert.Throws<DotNet6502Exception>(() => OpCodeDescriptorTableBuilder.Build(instructionList, definition));
+        Assert.Throws<DotNet6502Exception>(() => OpCodeDescriptorTableBuilder.Build(instructionList, overrides));
     }
 
     [Fact]
