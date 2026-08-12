@@ -22,5 +22,10 @@ internal static class Nmos6502Model
         Traits = new CpuModelTraits(
             ClearsDecimalOnInterrupt: false,
             AllBytesDefined: false),
+        HandlerOverrides = new Dictionary<byte, ExecuteHandler>
+        {
+            // NMOS indirect-JMP page-wrap bug (JMP ($xxFF) reads the high byte from $xx00).
+            [(byte)OpCodeId.JMP_IND] = NmosHandlers.Jmp_Indirect,
+        },
     };
 }

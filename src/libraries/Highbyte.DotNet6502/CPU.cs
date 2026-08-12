@@ -204,7 +204,7 @@ public class CPU
             throw new DotNet6502Exception($"CPU model '{ModelDefinition.ModelId}' does not support compatibility profile '{compatibilityProfile}'.");
         CompatibilityProfile = compatibilityProfile;
         InstructionList = ModelDefinition.CreateInstructionList(compatibilityProfile);
-        Descriptors = OpCodeDescriptorTableBuilder.Build(InstructionList);
+        Descriptors = OpCodeDescriptorTableBuilder.Build(InstructionList, ModelDefinition);
 
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor(loggerFactory);

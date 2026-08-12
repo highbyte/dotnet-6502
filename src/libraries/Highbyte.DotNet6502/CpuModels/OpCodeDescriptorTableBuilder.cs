@@ -17,7 +17,7 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 internal static class OpCodeDescriptorTableBuilder
 {
-    public static OpCodeDescriptor?[] Build(InstructionList instructionList)
+    public static OpCodeDescriptor?[] Build(InstructionList instructionList, CpuModelDefinition model)
     {
         var table = new OpCodeDescriptor?[256];
         for (var code = 0; code <= 0xff; code++)
@@ -38,6 +38,28 @@ internal static class OpCodeDescriptorTableBuilder
                 Execute = ComposeExecuteHandler(opCode, instruction),
             };
         }
+
+        // Model-divergent behavior: replace the generic composition where the model binds
+        // its own handler. Metadata stays from the instruction table; only Execute changes.
+        if (model.HandlerOverrides is not null)
+        {
+            foreach (var (code, handler) in model.HandlerOverrides)
+            {
+                var descriptor = table[code]
+                    ?? throw new DotNet6502Exception($"CPU model table construction error: model '{model.ModelId}' overrides opcode {code:x2}, which is undefined for the active profile.");
+                table[code] = new OpCodeDescriptor
+                {
+                    Code = descriptor.Code,
+                    Mnemonic = descriptor.Mnemonic,
+                    Addressing = descriptor.Addressing,
+                    Size = descriptor.Size,
+                    BaseCycles = descriptor.BaseCycles,
+                    Documented = descriptor.Documented,
+                    Execute = handler,
+                };
+            }
+        }
+
         return table;
     }
 

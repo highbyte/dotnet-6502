@@ -33,4 +33,14 @@ internal sealed class CpuModelDefinition
     /// consulted per event — never per instruction.
     /// </summary>
     public required CpuModelTraits Traits { get; init; }
+
+    /// <summary>
+    /// Per-opcode-byte execute handlers that replace the generic composition where this
+    /// model's behavior genuinely diverges (e.g. the NMOS JMP ($xxFF) page-wrap bug).
+    /// Applied last by the table builder; overriding a byte the profile leaves undefined
+    /// is a construction error. This is THE mechanism for model-specific instruction
+    /// behavior — divergence lives in handler binding, never in definition flags or
+    /// per-instruction model branches.
+    /// </summary>
+    public IReadOnlyDictionary<byte, ExecuteHandler>? HandlerOverrides { get; init; }
 }

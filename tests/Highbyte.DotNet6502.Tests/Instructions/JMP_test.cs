@@ -97,16 +97,15 @@ public class JMP_test
     }
 
     /// <summary>
-    /// Characterization test documenting a KNOWN NMOS DEVIATION.
     /// Real NMOS 6502 hardware has the "indirect JMP page-wrap bug": for JMP ($30FF) the
     /// high byte of the target is read from $3000 (the pointer wraps within its page),
-    /// not from $3100. This emulator currently reads linearly ($3100), i.e. CMOS/65C02-style
-    /// behavior. The NMOS fix is planned as an explicit behavioral change in the CPU model
-    /// architecture feature (design log: cpu-models-65c02, M1 step 3) -- when that lands,
-    /// this test's expectation flips to the NMOS result ($5634 below).
+    /// not from $3100. The emulator historically read linearly (CMOS/65C02-style); the
+    /// NMOS model now implements the wrap via its $6C handler override
+    /// (NmosHandlers.Jmp_Indirect) -- an explicit behavioral change made by the CPU model
+    /// architecture feature (design log: cpu-models-65c02, M1 step 3).
     /// </summary>
     [Fact]
-    public void JMP_IND_With_Pointer_At_Page_End_Currently_Reads_Linearly_Known_NMOS_Deviation()
+    public void JMP_IND_With_Pointer_At_Page_End_Wraps_Within_Page_NMOS_Bug()
     {
         // Arrange
         ushort startPos = 0x0020;
@@ -117,16 +116,43 @@ public class JMP_test
         // Indirect pointer at $30FF. The low byte of the target is at $30FF; where the
         // high byte is read from is the model-dependent part.
         mem[0x30FF] = 0x34; // target low byte
-        mem[0x3100] = 0x12; // linear read location (current behavior)     -> target $1234
+        mem[0x3100] = 0x12; // linear read location (CMOS/65C02)           -> target $1234
         mem[0x3000] = 0x56; // page-wrapped read location (real NMOS)      -> target $5634
 
         mem.WriteByte(ref startPos, OpCodeId.JMP_IND);
         mem.WriteWord(ref startPos, 0x30FF);
 
         // Act
+        var execState = cpu.Execute(mem, LegacyExecEvaluator.InstructionCountExecEvaluator(1));
+
+        // Assert: real NMOS page-wrapped result, 5 cycles as before.
+        Assert.Equal((ushort)0x5634, cpu.PC);
+        Assert.Equal(5ul, execState.CyclesConsumed);
+    }
+
+    /// <summary>
+    /// The wrap bug only triggers when the pointer's low byte is $FF; everywhere else the
+    /// NMOS handler must read the two target bytes linearly, exactly as before.
+    /// </summary>
+    [Fact]
+    public void JMP_IND_With_Pointer_Not_At_Page_End_Reads_Linearly()
+    {
+        // Arrange
+        ushort startPos = 0x0020;
+        CPU cpu = new();
+        cpu.PC = startPos;
+
+        var mem = new Memory();
+        mem[0x30FE] = 0x34; // target low byte
+        mem[0x30FF] = 0x12; // target high byte -> target $1234
+
+        mem.WriteByte(ref startPos, OpCodeId.JMP_IND);
+        mem.WriteWord(ref startPos, 0x30FE);
+
+        // Act
         cpu.Execute(mem, LegacyExecEvaluator.InstructionCountExecEvaluator(1));
 
-        // Assert: current CMOS-style (linear) result. Real NMOS would land at $5634.
+        // Assert
         Assert.Equal((ushort)0x1234, cpu.PC);
     }
 }
