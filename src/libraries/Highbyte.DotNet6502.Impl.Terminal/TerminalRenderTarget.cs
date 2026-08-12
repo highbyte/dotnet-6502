@@ -40,6 +40,7 @@ public sealed class TerminalRenderTarget : ICommandTarget
     private int _frameMaxY = -1;
 
     private Func<byte, string>? _glyphToUnicode;
+    private bool _reverseVideoHighBit;
 
     // Caches to avoid per-cell allocations on the hot path.
     private readonly Dictionary<byte, Rune> _glyphCache = new();
@@ -65,8 +66,9 @@ public sealed class TerminalRenderTarget : ICommandTarget
     {
         switch (cmd)
         {
-            case SetConfig(var glyphToUnicodeConverter):
-                _glyphToUnicode = glyphToUnicodeConverter;
+            case SetConfig config:
+                _glyphToUnicode = config.GlyphToUnicodeConverter;
+                _reverseVideoHighBit = config.ReverseVideoHighBit;
                 // The converter's output for a screen code can change at runtime (e.g. the C64
                 // switching between the uppercase/graphics and lowercase charsets), so drop the
                 // cached glyphs. SetConfig is emitted once per frame, so within a frame repeated
@@ -144,7 +146,7 @@ public sealed class TerminalRenderTarget : ICommandTarget
     private void SetGlyphCell(int x, int y, int glyphId, Color fg, Color bg)
     {
         var id = (byte)glyphId;
-        if (IsCommodoreReverseScreenCode(id))
+        if (_reverseVideoHighBit && IsCommodoreReverseScreenCode(id))
         {
             // The C64/VIC-20 command streams pass raw screen codes as glyph ids. Codes with the
             // high bit set are reverse-video variants. Desktop hosts can render those with a C64

@@ -49,9 +49,12 @@ It works over SSH and inside `tmux`/`screen` as long as the outer terminal meets
   PETSCII graphics screen codes are mapped best-effort to Unicode box-drawing / block / shade glyphs
   for the built-in (uppercase/graphics) charset.
 - **VIC-20** (`Impl.Terminal.Vic20` + `App.Terminal.Shell.Vic20`) — character mode only.
+- **Apple II Plus** (`Impl.Terminal.Apple2` + `App.Terminal.Shell.Apple2`) — 40×24 text page
+  with normal, inverse, and flashing characters. Lo-res and hi-res graphics are not represented;
+  while the machine is in a graphics mode, the Terminal host continues to show its text page.
 
 The screen pane resizes automatically to fit the running system's frame (C64 ≈ 40 columns,
-VIC-20 ≈ 22 columns), and the status/logs column reflows around it. The emulated screen is drawn
+VIC-20 ≈ 22 columns, Apple II = 40 columns), and the status/logs column reflows around it. The emulated screen is drawn
 without an extra framing box — each system renders its own coloured screen border, which is wide and
 wasteful in a terminal, so the view crops it down to a thin, consistent border on every side. This
 keeps the C64 (29 cells tall including its border) within a default ~30-row terminal without the user
@@ -136,8 +139,12 @@ emulator is stopped, with live validation:
   interrupt mode, receive mode, transport, TCP host/port, connect-on-boot), and keyboard joystick
   (enable + port 1/2). Keyboard-joystick settings can also be toggled live from the C64 menu.
 - **VIC-20** — ROM directory/files (with auto-download).
+- **Apple II Plus** — required system/character ROMs, optional Disk II boot ROM (with
+  auto-download), monitor colour, and language-card selection. Its system menu also provides
+  Applesoft copy/paste, read-only `.dsk` insertion/booting, and a live WASD keyboard joystick.
 
 See [Systems / C64 / ROMs](../../systems/c64/roms.md), [Systems / VIC-20 / ROMs](../../systems/vic20/roms.md),
+[Systems / Apple II / ROMs](../../systems/apple2/roms.md),
 and [Systems / C64 / SwiftLink](../../systems/c64/swiftlink.md).
 
 The shipped `appsettings.json` contains packaged defaults. User changes are saved to the Terminal host's `appsettings.user.json` under the OS local application data directory, not beside the shipped executable. Empty ROM directory settings use the shared user content directories under `~/Documents/Highbyte/DotNet6502/roms` (or the Windows Documents equivalent).
