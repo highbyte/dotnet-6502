@@ -55,12 +55,15 @@ public static class OutputGen
 
     public static string BuildMemoryString(CPU cpu, Memory mem, ushort address)
     {
+        // Model-aware: per-byte metadata comes from the CPU's descriptor table, so the
+        // same byte disassembles per the CPU's actual model ($9C: SHY/undefined on NMOS
+        // profiles, STZ abs on a 65C02).
         var opCodeByte = mem[address];
-        if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+        if (!cpu.IsOpCodeDefined(opCodeByte))
             return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)}";
 
-        var opCode = cpu.InstructionList.GetOpCode(opCodeByte);
-        var operand = mem.ReadData((ushort)(address + 1), (ushort)(opCode.Size - 1)); // -1 for the opcode itself
+        var size = cpu.GetOpCodeSize(opCodeByte);
+        var operand = mem.ReadData((ushort)(address + 1), (ushort)(size - 1)); // -1 for the opcode itself
 
         return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)} {string.Join(" ", operand.Select(x => x.ToHex(HexPrefix, lowerCase: true)))}";
     }
@@ -68,21 +71,20 @@ public static class OutputGen
     public static string BuildInstructionString(CPU cpu, Memory mem, ushort address)
     {
         var opCodeByte = mem[address];
-        if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+        var descriptor = cpu.Descriptors[opCodeByte];
+        if (descriptor is null)
             return "???";
 
-        var opCode = cpu.InstructionList.GetOpCode(opCodeByte);
-        var operand = mem.ReadData((ushort)(address + 1), (ushort)(opCode.Size - 1)); // -1 for the opcode itself
+        var operand = mem.ReadData((ushort)(address + 1), (ushort)(descriptor.Size - 1)); // -1 for the opcode itself
 
-        var instructionName = BuildInstructionName(cpu, opCode);
-        var operandString = BuildOperandString(opCode.AddressingMode, operand);
-        return $"{instructionName} {operandString}";
+        var operandString = BuildOperandString(descriptor.Addressing, operand);
+        return $"{descriptor.Mnemonic} {operandString}";
     }
 
     public static string BuildInstructionName(CPU cpu, OpCode opCode)
     {
-        var instruction = cpu.InstructionList.GetInstruction(opCode);
-        return instruction.Name;
+        // Model-aware: the descriptor's mnemonic, not the NMOS-façade instruction name.
+        return cpu.Descriptors[opCode.CodeRaw]?.Mnemonic ?? "???";
     }
 
     public static string BuildOperandString(AddrMode addrMode, byte[] operand)
@@ -141,6 +143,14 @@ public static class OutputGen
             case AddrMode.Implied:
             {
                 return "";
+            }
+            case AddrMode.ZP_IND:
+            {
+                return $"(${operand[0].ToHex(HexPrefix)})";
+            }
+            case AddrMode.ABS_IX_IND:
+            {
+                return $"(${operand.ToLittleEndianWord().ToHex(HexPrefix)},X)";
             }
             default:
                 throw new DotNet6502Exception($"Bug detected! Unhandled addressing mode: {addrMode}");

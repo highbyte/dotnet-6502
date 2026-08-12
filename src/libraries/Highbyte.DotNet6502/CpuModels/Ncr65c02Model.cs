@@ -213,7 +213,7 @@ internal static class Ncr65c02Model
             {
                 Code = b,
                 Mnemonic = "NOP",
-                Addressing = size == 1 ? AddrMode.Implied : AddrMode.I,
+                Addressing = size switch { 1 => AddrMode.Implied, 2 => AddrMode.I, _ => AddrMode.ABS },
                 Size = size,
                 BaseCycles = cycles,
                 Documented = false, // defined behavior, but not a documented instruction

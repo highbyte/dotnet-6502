@@ -29,11 +29,6 @@ public static class CPUHelpers
         if (!instructionAddress.HasValue)
             instructionAddress = cpu.PC;
         var opCodeByte = mem[instructionAddress.Value];
-        byte insSize;
-        if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
-            insSize = 1;
-        else
-            insSize = (byte)cpu.InstructionList.GetOpCode(opCodeByte).Size;
-        return insSize;
+        return cpu.GetOpCodeSize(opCodeByte); // model-aware (65C02 sizes differ from NMOS)
     }
 }

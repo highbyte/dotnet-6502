@@ -3342,13 +3342,9 @@ public class DebugAdapterLogic
     private int GetInstructionLength(byte opCode)
     {
         var cpu = _system?.CPU;
-        var memory = _system?.Mem;
 
-        if (cpu != null && cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
-        {
-            return cpu.InstructionList.GetOpCode(opCode).Size;
-        }
-        return 1; // Unknown opcodes are treated as 1 byte
+        // Model-aware: sizes come from the CPU's own model (undefined opcodes report 1).
+        return cpu?.GetOpCodeSize(opCode) ?? 1;
     }
 
     /// <summary>

@@ -485,6 +485,21 @@ public class CPU
     }
 
     /// <summary>
+    /// True if the opcode byte is a defined instruction for THIS CPU's model and
+    /// compatibility profile. Model-aware — on a 65C02 every byte is defined.
+    /// Prefer this over probing <see cref="InstructionList"/>, which only reflects
+    /// the NMOS-façade view.
+    /// </summary>
+    public bool IsOpCodeDefined(byte opCode) => Descriptors[opCode] is not null;
+
+    /// <summary>
+    /// Instruction size in bytes for the opcode byte, per THIS CPU's model
+    /// (e.g. $9C is 1 byte/undefined on NMOS profiles but 3 bytes STZ abs on a 65C02).
+    /// Undefined opcodes report size 1.
+    /// </summary>
+    public byte GetOpCodeSize(byte opCode) => Descriptors[opCode]?.Size ?? 1;
+
+    /// <summary>
     /// Gets the Zero Page address at the current PC with Y offset.
     /// If specified, make sure calculated address wraps around after 0xff.
     /// </summary>

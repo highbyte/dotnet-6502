@@ -280,7 +280,7 @@ public class Vic20 : ISystem, ITextMode, IScreen, ISystemState, ISystemSnapshotP
         if (execEvaluator != null)
         {
             byte opcodeAtPC = Mem[CPU.PC];
-            bool isUnknown  = !CPU.InstructionList.OpCodeDictionary.ContainsKey(opcodeAtPC);
+            bool isUnknown  = !CPU.IsOpCodeDefined(opcodeAtPC); // model-aware
             var preExecResult = isUnknown
                 ? InstructionExecResult.UnknownInstructionResult(opcodeAtPC, CPU.PC)
                 : InstructionExecResult.KnownInstructionResult(opcodeAtPC, CPU.PC, 0);
