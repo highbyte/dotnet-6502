@@ -77,7 +77,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen, ISystemSnapshotProvi
 
         _genericComputerConfig = genericComputerConfig;
         Mem = new Memory();
-        CPU = new CPU(loggerFactory, genericComputerConfig.CpuCompatibilityProfile);
+        CPU = new CPU(loggerFactory, genericComputerConfig.CpuModelId, genericComputerConfig.CpuCompatibilityProfile);
         DefaultExecOptions = new ExecOptions();
 
         _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = CPUCyclesPerFrame });
@@ -189,7 +189,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen, ISystemSnapshotProvi
         if (execEvaluator != null)
         {
             byte opcodeAtPC = Mem[CPU.PC];
-            bool isUnknown = !CPU.InstructionList.OpCodeDictionary.ContainsKey(opcodeAtPC);
+            bool isUnknown = !CPU.IsOpCodeDefined(opcodeAtPC); // model-aware
             var preExecResult = isUnknown
                 ? InstructionExecResult.UnknownInstructionResult(opcodeAtPC, CPU.PC)
                 : InstructionExecResult.KnownInstructionResult(opcodeAtPC, CPU.PC, 0);

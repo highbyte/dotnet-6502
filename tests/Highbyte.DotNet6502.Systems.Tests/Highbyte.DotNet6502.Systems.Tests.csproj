@@ -23,6 +23,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Historical snapshot fixtures captured by OLD writers; regenerating them with a
+         current writer would make the version-compatibility tests test nothing. -->
+    <Content Include="Snapshots\Fixtures\*.d6502snap" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Avalonia.Commodore64\Highbyte.DotNet6502.Impl.Avalonia.Commodore64.csproj" />

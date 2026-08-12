@@ -205,6 +205,58 @@ Observations:
 - So multiplex collision costs roughly **+1.3 to +3.8 us/frame** depending on density, allocation-
   free, and is only active when `Vic2RasterizerPerLineSprites` is enabled.
 
+## CPU-model refactor baseline — 2026-08-12 (master `8803350a`, Apple M1)
+
+M0 baseline for the CPU model architecture feature (design log: `cpu-models-65c02`).
+Every milestone of that feature re-runs these two suites on the same machine and
+compares against this section; >5% regression on an unaffected benchmark or a new
+allocation blocks the milestone. Recorded on a different machine than the 2026-06
+baselines above, so the numbers are not comparable across sections.
+
+Environment:
+
+- BenchmarkDotNet v0.15.6
+- macOS 26.6 (25G72) / Darwin 25.6.0
+- Apple M1, 1 CPU, 8 logical and 8 physical cores
+- .NET SDK 10.0.203, .NET 10.0.7, Arm64 RyuJIT armv8.0-a
+
+### `HotPathBenchmarks` (DefaultJob)
+
+| Method                                         |          Mean | Allocated |
+|------------------------------------------------|--------------:|----------:|
+| `ExecEvaluator_Check_NotTriggered`             |     0.6939 ns |         - |
+| `ExecEvaluator_Check_OneConditionConfigured`   |     8.7203 ns |         - |
+| `ExecEvaluator_Check_AllConditionsConfigured`  |     9.2176 ns |         - |
+| `InstructionExecutor_OneStep`                  |    19.119 ns  |         - |
+| `CPU_Run_1000Instructions`                     | 17,336.85 ns  |         - |
+| `CPU_Execute_NoSubscribers_1000Instructions`   | 20,285 ns *   |     136 B |
+| `CPU_Execute_WithSubscribers_1000Instructions` | 39,790.18 ns  |  136136 B |
+| `Memory_Read_TightLoop`                        |  1,639.82 ns  |         - |
+| `Memory_Write_TightLoop`                       |  1,593.36 ns  |         - |
+
+\* `CPU_Execute_NoSubscribers_1000Instructions` was noisy in the combined run
+(mean 25.0 μs, StdDev 6.7 μs); the value above is from a clean isolated re-run
+(StdDev 0.064 μs). The 136 B it allocates is a stable pre-existing per-`Execute`-call
+constant (not per-instruction) present on master before the CPU-model work; the
+per-instruction paths (`CPU_Run_1000Instructions`, `InstructionExecutor_OneStep`)
+are allocation-free, and that is the property the CPU-model milestones must keep.
+
+### `C64ExecuteFrameBenchmark` (ShortRun) — representative workload
+
+`CoreOnly` is the representative CPU workload for the CPU-model feature gate;
+the other scenarios are recorded for context.
+
+| Scenario | SpriteScenario | 1 frame | Allocated |
+|----------|----------------|--------:|----------:|
+| `CoreOnly` | `None` | 238.3 μs | - |
+| `CoreOnly` | `MixedVisibleSprites` | 239.7 μs | - |
+| `RenderOnly` | `None` | 424.6 μs | - |
+| `RenderOnly` | `MixedVisibleSprites` | 435.9 μs | - |
+| `AudioOnly` | `None` | 375.3 μs | - |
+| `AudioOnly` | `MixedVisibleSprites` | 380.6 μs | - |
+| `RenderAndAudio` | `None` | 603.5 μs | - |
+| `RenderAndAudio` | `MixedVisibleSprites` | 606.8 μs | - |
+
 ## Confirming `[AggressiveInlining]` folded the ExecEvaluator helpers
 
 The `LegacyExecEvaluator.Check` refactor split the original method into three
@@ -220,6 +272,27 @@ separate call sites in the disassembly of `Check`.
 
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
+
+### 2026-08-12 — per-model descriptor dispatch replaces addressing switch + interface probes
+
+CPU-model work (M1.2): the per-instruction addressing-mode `switch` and the up-to-four
+`IInstructionUses*` interface probes moved out of `InstructionExecutor` into per-opcode
+handlers composed once at CPU construction (`OpCodeDescriptorTableBuilder`). The hot path
+is now one byte-indexed array lookup + one delegate call. Same machine as the CPU-model
+refactor baseline above (Apple M1):
+
+| Benchmark | Baseline (`8803350a`) | After | Δ |
+|-----------|----------------------:|------:|--:|
+| `InstructionExecutor_OneStep` | 19.12 ns | 18.27 ns | −4% |
+| `CPU_Run_1000Instructions` | 17.34 us | 13.62 us | −21% |
+| `CPU_Execute_NoSubscribers_1000Instructions` | 20.29 us | 15.73 us | −22% |
+| `CPU_Execute_WithSubscribers_1000Instructions` | 39.79 us | 32.64 us | −18% |
+| `C64ExecuteFrameBenchmark` `CoreOnly`/`None` | 238.3 us | 205.8 us | −14% |
+| `C64ExecuteFrameBenchmark` `CoreOnly`/`MixedVisibleSprites` | 239.7 us | 212.2 us | −11% |
+
+Memory read/write tight loops and `ExecEvaluator` benchmarks unchanged (within noise).
+No allocation changes (the pre-existing 136 B per `Execute` call remains; per-instruction
+paths stay allocation-free).
 
 ### 2026-06-28 — per-line sprite scan reads `$D015` once
 

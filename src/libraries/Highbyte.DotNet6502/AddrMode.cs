@@ -55,6 +55,14 @@ public enum AddrMode
     Relative,
     /// <summary>
     /// Indirect
-    /// </summary>        
-    Indirect
+    /// </summary>
+    Indirect,
+    /// <summary>
+    /// Zero Page Indirect, "(zp)". 65C02 only.
+    /// </summary>
+    ZP_IND,
+    /// <summary>
+    /// Absolute Indexed Indirect, "(abs,X)". 65C02 only (JMP).
+    /// </summary>
+    ABS_IX_IND
 }

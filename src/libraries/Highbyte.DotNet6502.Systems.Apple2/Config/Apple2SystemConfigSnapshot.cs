@@ -29,6 +29,8 @@ public partial class Apple2SystemConfig
             KeyboardJoystickEnabled = KeyboardJoystickEnabled,
             MonitorColor = MonitorColor,
             LanguageCardEnabled = LanguageCardEnabled,
+            CpuModelId = CpuModelId,
+            CpuCompatibilityProfile = CpuCompatibilityProfile,
         };
         return JsonSerializer.Serialize(settings, Apple2SystemSnapshotSettingsJsonContext.Default.Apple2SystemSnapshotSettings);
     }
@@ -43,6 +45,8 @@ public partial class Apple2SystemConfig
         KeyboardJoystickEnabled = settings.KeyboardJoystickEnabled;
         MonitorColor = settings.MonitorColor;
         LanguageCardEnabled = settings.LanguageCardEnabled;
+        CpuModelId = settings.CpuModelId;
+        CpuCompatibilityProfile = settings.CpuCompatibilityProfile;
     }
 }
 
@@ -63,6 +67,15 @@ internal sealed class Apple2SystemSnapshotSettings
     /// restored into a 48 KB machine would have nowhere to put its operating system.
     /// </summary>
     public bool LanguageCardEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Which CPU the captured machine had. Carried for the same machine-shape reason as the
+    /// language card: a 65C02 session restored onto an NMOS 6502 would execute differently.
+    /// Older payloads omit it and get the NMOS default.
+    /// </summary>
+    public string CpuModelId { get; set; } = CpuModelIds.Nmos6502;
+
+    public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

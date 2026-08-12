@@ -4,6 +4,15 @@ using Highbyte.DotNet6502.Instructions;
 namespace Highbyte.DotNet6502;
 
 /// <summary>
+/// Byte-indexed instruction table keyed by <see cref="OpCodeId"/> — the public
+/// <b>NMOS 6502 façade</b>. The enum names, the manual list in
+/// <see cref="GetAllInstructions"/>, and the <see cref="CpuCompatibilityProfile"/>
+/// filtering are all NMOS concepts. On a CPU constructed with a non-NMOS model
+/// (e.g. ncr65c02) this view contains only the officially documented instruction
+/// subset shared with the NMOS 6502 — the model's full per-byte truth (redefined
+/// bytes, new instructions, per-model cycles) lives in its internal descriptor
+/// table (<see cref="OpCodeDescriptor"/>), which is also what execution runs on.
+/// Revisit this public type before any 1.0 release.
 /// </summary>
 public class InstructionList
 {
@@ -61,6 +70,13 @@ public class InstructionList
         return new InstructionList(this.OpCodeDictionary, this.InstructionDictionary);
     }
 
+    /// <summary>
+    /// Builds the <b>NMOS 6502</b> instruction table: the official instruction set plus
+    /// the undocumented NMOS opcodes admitted by <paramref name="compatibilityProfile"/>.
+    /// NMOS-specific by design — other CPU models compose their own descriptor tables
+    /// and use this only for the shared official subset (with
+    /// <see cref="CpuCompatibilityProfile.OfficialOnly"/>).
+    /// </summary>
     public static InstructionList GetAllInstructions(CpuCompatibilityProfile compatibilityProfile = CpuCompatibilityProfile.ExperimentalUnofficial)
     {
         // Manual (AOT & trimming safe) list of all instruction implementations.
@@ -173,7 +189,7 @@ public class InstructionList
     private static bool ShouldIncludeOpCode(OpCodeId opCodeId, CpuCompatibilityProfile compatibilityProfile)
         => compatibilityProfile >= GetMinimumCompatibilityProfile(opCodeId);
 
-    private static CpuCompatibilityProfile GetMinimumCompatibilityProfile(OpCodeId opCodeId)
+    internal static CpuCompatibilityProfile GetMinimumCompatibilityProfile(OpCodeId opCodeId)
         => opCodeId switch
         {
             // Stable undocumented opcodes commonly used on NMOS 6502/6510 machines.
@@ -285,13 +301,36 @@ public class InstructionList
 
 #if DEBUG
     /// <summary>
-    /// Verifies that two instruction lists have the same count of instructions.
-    /// Used internally to ensure the manual instruction list matches dynamic discovery.
+    /// Verifies that the manual instruction list matches dynamic discovery exactly,
+    /// byte by byte: the same opcode bytes must be present, and each byte must map to
+    /// the same instruction type and the same opcode metadata (addressing mode, size,
+    /// minimum cycles). A count-only comparison would miss a byte remapped to the
+    /// wrong instruction, which is exactly the kind of error a per-model table refactor
+    /// could introduce.
     /// </summary>
     internal static void VerifyInstructionListsMatch(InstructionList manualList, InstructionList dynamicList)
     {
-        if (manualList.InstructionDictionary.Count != dynamicList.InstructionDictionary.Count)
-            throw new DotNet6502Exception($"Instruction list count mismatch: manual list has {manualList.InstructionDictionary.Count} instructions, but dynamic discovery found {dynamicList.InstructionDictionary.Count} instructions. The manual list in GetAllInstructions() must be updated.");
+        for (var code = 0; code <= 0xff; code++)
+        {
+            var b = (byte)code;
+            var manualOpCode = manualList.TryGetOpCode(b);
+            var dynamicOpCode = dynamicList.TryGetOpCode(b);
+
+            if (manualOpCode is null && dynamicOpCode is null)
+                continue;
+            if (manualOpCode is null || dynamicOpCode is null)
+                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: defined in {(manualOpCode is null ? "dynamic discovery but not the manual list" : "the manual list but not dynamic discovery")}. The manual list in GetAllInstructions() must be updated.");
+
+            var manualInstruction = manualList.GetInstruction(manualOpCode);
+            var dynamicInstruction = dynamicList.GetInstruction(dynamicOpCode);
+            if (manualInstruction.GetType() != dynamicInstruction.GetType())
+                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: manual list maps it to {manualInstruction.GetType().Name}, dynamic discovery to {dynamicInstruction.GetType().Name}.");
+
+            if (manualOpCode.AddressingMode != dynamicOpCode.AddressingMode
+                || manualOpCode.Size != dynamicOpCode.Size
+                || manualOpCode.MinimumCycles != dynamicOpCode.MinimumCycles)
+                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: opcode metadata differs between the manual list ({manualOpCode.AddressingMode}, size {manualOpCode.Size}, cycles {manualOpCode.MinimumCycles}) and dynamic discovery ({dynamicOpCode.AddressingMode}, size {dynamicOpCode.Size}, cycles {dynamicOpCode.MinimumCycles}).");
+        }
     }
 #endif
 
@@ -302,6 +341,10 @@ public class InstructionList
         var instructionTypes = typesToSearch.Where(p =>
             p.GetTypeInfo().IsSubclassOf(typeof(Instruction))
             && !p.GetTypeInfo().IsAbstract
+            // Only the NMOS instruction set (namespace Highbyte.DotNet6502.Instructions).
+            // CPU-model-specific variants (e.g. CmosAdc in the CpuModels folder) reuse
+            // NMOS opcode bytes and must not enter this NMOS-vs-manual-list comparison.
+            && p.Namespace == typeof(Instructions.ADC).Namespace
         );
 
         var instructions = new List<Instruction>();

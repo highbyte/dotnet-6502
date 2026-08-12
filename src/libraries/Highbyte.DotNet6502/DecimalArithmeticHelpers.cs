@@ -53,6 +53,37 @@ public static class DecimalArithmeticHelpers
         return (byte)sum; //Lower 8 bits of sum is the result
     }
 
+    /// <summary>
+    /// Perform Add with Carry (ADC) in decimal mode as the 65C02 does it.
+    /// Same accumulator/carry sequence as the NMOS 6502, but N and Z are computed from
+    /// the FINAL decimal result ("valid" flags — the reason decimal ADC costs an extra
+    /// cycle on the 65C02). V comes from the same signed intermediate as on NMOS.
+    /// Pseudo code from http://6502.org/tutorials/decimal_mode.html (Appendix A).
+    /// </summary>
+    public static byte AddWithCarryAndOverFlowDecimalModeCmos(byte value1, byte value2, ref ProcessorStatus processorStatus)
+    {
+        byte al = (byte)((value1 & 0x0f) + (value2 & 0x0f) + (byte)(processorStatus.Carry ? 1 : 0));
+        if (al >= 0x0a)
+            al = (byte)(((al + 0x06) & 0x0f) + 0x10);
+        var sum = ((value1 & 0xf0) + (value2 & 0xf0) + al);
+
+        // V from the signed intermediate (before the high-nibble +$60 correction), as on NMOS.
+        var value1Signed = (sbyte)value1;
+        var value2Signed = (sbyte)value2;
+        short a2 = (short)((sbyte)(value1Signed & 0xf0) + (sbyte)(value2Signed & 0xf0) + (sbyte)al);
+        processorStatus.Overflow = a2 < -128 || a2 > 127;
+
+        if (sum >= 0xa0)
+            sum += 0x60;
+        processorStatus.Carry = sum >= 0x100;
+
+        var result = (byte)sum;
+        // 65C02: N and Z are valid — computed from the final decimal result.
+        processorStatus.Negative = (result & 0b10000000) == 0b10000000;
+        processorStatus.Zero = result == 0;
+        return result;
+    }
+
     public static byte SubtractWithCarryAndOverflowDecimalMode(byte value1, byte value2, ref ProcessorStatus processorStatus)
     {
         // Pseudo code from http://6502.org/tutorials/decimal_mode.html
@@ -81,5 +112,40 @@ public static class DecimalArithmeticHelpers
         processorStatus.Zero = processorStatusBinary.Zero;
 
         return (byte)sum;   // Lower 8 bits of sum is the result
+    }
+
+    /// <summary>
+    /// Perform Subtract with Carry (SBC) in decimal mode as the 65C02 does it.
+    /// The 65C02 uses a DIFFERENT correction sequence than the NMOS 6502 (Seq. 4 vs
+    /// Seq. 3 in the tutorial) — for invalid BCD operands the accumulator results can
+    /// differ between the two chips. C and V are the binary-mode results; N and Z are
+    /// computed from the FINAL decimal result ("valid" flags, +1 cycle).
+    /// Pseudo code from http://6502.org/tutorials/decimal_mode.html (Appendix A):
+    /// 4a. AL = (A &amp; $0F) - (B &amp; $0F) + C-1
+    /// 4b. A = A - B + C-1
+    /// 4c. If A &lt; 0, then A = A - $60
+    /// 4d. If AL &lt; 0, then A = A - $06
+    /// </summary>
+    public static byte SubtractWithCarryAndOverflowDecimalModeCmos(byte value1, byte value2, ref ProcessorStatus processorStatus)
+    {
+        var al = (value1 & 0x0f) - (value2 & 0x0f) + (byte)(processorStatus.Carry ? 1 : 0) - 1;
+        var sum = value1 - value2 + (byte)(processorStatus.Carry ? 1 : 0) - 1;
+        if (sum < 0)
+            sum -= 0x60;
+        if (al < 0)
+            sum -= 0x06;
+
+        // C and V are the binary-mode results.
+        var processorStatusBinary = new ProcessorStatus();
+        processorStatusBinary.Carry = processorStatus.Carry;
+        BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(value1, value2, ref processorStatusBinary);
+        processorStatus.Carry = processorStatusBinary.Carry;
+        processorStatus.Overflow = processorStatusBinary.Overflow;
+
+        var result = (byte)sum;
+        // 65C02: N and Z are valid — computed from the final decimal result.
+        processorStatus.Negative = (result & 0b10000000) == 0b10000000;
+        processorStatus.Zero = result == 0;
+        return result;
     }
 }

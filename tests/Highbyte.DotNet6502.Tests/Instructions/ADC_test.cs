@@ -694,4 +694,21 @@ public class ADC_test
         };
         test.Execute_And_Verify(AddrMode.I);
     }
+
+    [Fact]
+    public void ADC_DecimalMode_Takes_2_Cycles_Same_As_Binary()
+    {
+        // NMOS characterization: decimal mode does not cost an extra cycle (the 65C02 adds +1).
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x12,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x34,
+            ExpectedA = 0x46,
+            ExpectedCycles = 2,
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
 }

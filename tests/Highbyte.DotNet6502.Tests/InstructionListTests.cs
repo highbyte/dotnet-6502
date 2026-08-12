@@ -85,18 +85,40 @@ public class InstructionListTests
     }
 
     [Fact]
-    public void VerifyInstructionListsMatch_Should_Throw_When_Counts_Differ()
+    public void VerifyInstructionListsMatch_Should_Throw_When_An_OpCode_Is_Missing()
     {
         // Arrange
         var list1 = new InstructionList(new List<Instruction> { new ADC(), new AND() });
         var list2 = new InstructionList(new List<Instruction> { new ADC() });
 
         // Act & Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => 
+        var ex = Assert.Throws<DotNet6502Exception>(() =>
             InstructionList.VerifyInstructionListsMatch(list1, list2));
-        
-        Assert.Contains("manual list has", ex.Message);
-        Assert.Contains("dynamic discovery found", ex.Message);
+
+        Assert.Contains("Instruction list mismatch at opcode", ex.Message);
+    }
+
+    [Fact]
+    public void VerifyInstructionListsMatch_Should_Throw_When_A_Byte_Maps_To_A_Different_Instruction()
+    {
+        // Arrange: same opcode byte count, but one byte remapped to another instruction
+        // type. A count-only comparison would miss this.
+        var adc = new ADC();
+        var and = new AND();
+        var opCodeByte = adc.OpCodes[0].CodeRaw;
+
+        var correct = new InstructionList(
+            new Dictionary<byte, OpCode> { [opCodeByte] = adc.OpCodes[0] },
+            new Dictionary<byte, Instruction> { [opCodeByte] = adc });
+        var remapped = new InstructionList(
+            new Dictionary<byte, OpCode> { [opCodeByte] = adc.OpCodes[0] },
+            new Dictionary<byte, Instruction> { [opCodeByte] = and });
+
+        // Act & Assert
+        var ex = Assert.Throws<DotNet6502Exception>(() =>
+            InstructionList.VerifyInstructionListsMatch(correct, remapped));
+
+        Assert.Contains("Instruction list mismatch at opcode", ex.Message);
     }
 #endif
 }

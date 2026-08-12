@@ -164,7 +164,7 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         _apple2Config = config;
 
         Keyboard = new Apple2Keyboard();
-        CPU = new CPU(loggerFactory, config.CpuCompatibilityProfile);
+        CPU = new CPU(loggerFactory, config.CpuModelId, config.CpuCompatibilityProfile);
         // The controller times its motor spin-down off the CPU's cumulative cycle count.
         DiskController = new Disk2Controller(
             () => CPU.ExecState.CyclesConsumed,
@@ -467,7 +467,7 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         if (execEvaluator != null)
         {
             byte opcodeAtPC = Mem[CPU.PC];
-            bool isUnknown = !CPU.InstructionList.OpCodeDictionary.ContainsKey(opcodeAtPC);
+            bool isUnknown = !CPU.IsOpCodeDefined(opcodeAtPC); // model-aware
             var preExecResult = isUnknown
                 ? InstructionExecResult.UnknownInstructionResult(opcodeAtPC, CPU.PC)
                 : InstructionExecResult.KnownInstructionResult(opcodeAtPC, CPU.PC, 0);

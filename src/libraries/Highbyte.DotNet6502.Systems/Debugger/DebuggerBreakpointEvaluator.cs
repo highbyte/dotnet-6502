@@ -266,7 +266,7 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
         }
 
         // --- Unknown instruction (pre-execution) ---
-        if (StopAfterUnknownInstruction && !cpu.InstructionList.OpCodeDictionary.ContainsKey(opcode))
+        if (StopAfterUnknownInstruction && !cpu.IsOpCodeDefined(opcode)) // model-aware
         {
             var result = ExecEvaluatorTriggerResult.CreateTrigger(
                 ExecEvaluatorTriggerReasonType.UnknownInstruction,

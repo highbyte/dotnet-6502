@@ -24,7 +24,7 @@ public class GenericComputerBuilder
 
     public GenericComputerBuilder WithCPU()
     {
-        _genericComputer.CPU = new CPU(_loggerFactory, _genericComputer.GenericComputerConfig.CpuCompatibilityProfile);
+        _genericComputer.CPU = new CPU(_loggerFactory, _genericComputer.GenericComputerConfig.CpuModelId, _genericComputer.GenericComputerConfig.CpuCompatibilityProfile);
         return this;
     }
 

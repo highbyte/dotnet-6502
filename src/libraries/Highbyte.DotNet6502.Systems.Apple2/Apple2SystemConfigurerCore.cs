@@ -101,6 +101,7 @@ public class Apple2SystemConfigurerCore : ISystemConfigurer
         var apple2SystemConfig = (Apple2SystemConfig)systemConfig;
         var apple2Config = BuildApple2ConfigForVariant(configurationVariant);
         apple2Config.CpuCompatibilityProfile = apple2SystemConfig.CpuCompatibilityProfile;
+        apple2Config.CpuModelId = apple2SystemConfig.CpuModelId;
         apple2Config.MonitorColor = apple2SystemConfig.MonitorColor;
         apple2Config.AudioEnabled = apple2SystemConfig.AudioEnabled;
         apple2Config.LanguageCardEnabled = apple2SystemConfig.LanguageCardEnabled;

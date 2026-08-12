@@ -7,11 +7,15 @@ namespace Highbyte.DotNet6502.Systems.Snapshots;
 /// machines pair with system-specific RAM/ROM/I-O wiring.
 ///
 /// <para>
-/// Capture (v1): PC, SP, A, X, Y, processor-status byte, compatibility profile, halted flag,
-/// <see cref="ExecState"/> totals, and <see cref="CPUInterrupts"/> (pending-NMI flag plus
-/// active IRQ/NMI sources). Restore applies registers, flags, interrupt sources and the
-/// <see cref="ExecState"/> totals through the CPU's public API. The compatibility profile is
-/// validated against the rebuilt CPU; the halted flag is captured for diagnostics only.
+/// Capture (v2): CPU model id, then the v1 payload: PC, SP, A, X, Y, processor-status byte,
+/// compatibility profile, halted flag, <see cref="ExecState"/> totals, and
+/// <see cref="CPUInterrupts"/> (pending-NMI flag plus active IRQ/NMI sources). Restore applies
+/// registers, flags, interrupt sources and the <see cref="ExecState"/> totals through the
+/// CPU's public API. A CPU MODEL mismatch is a hard error (the saved execution state of one
+/// chip is not meaningful on another) and is checked first, before any state is applied;
+/// a compatibility-PROFILE mismatch stays a warning. The halted flag is captured for
+/// diagnostics only. v1 payloads (no model id) restore as nmos6502 — the only model that
+/// existed when v1 was written.
 /// </para>
 ///
 /// <para>
@@ -29,12 +33,15 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
     public const string ModuleName = "cpu-6502";
 
     public string Name => ModuleName;
-    public int Version => 1;
+    public int Version => 2;
     public bool Required => true;
 
     public void Capture(SnapshotModuleWriter writer, SnapshotCaptureContext context)
     {
         var cpu = context.System.CPU;
+
+        // v2: model id first, so restore can reject a model mismatch before applying anything.
+        writer.WriteString(cpu.CpuModelId);
 
         writer.WriteUInt16(cpu.PC);
         writer.WriteByte(cpu.SP);
@@ -70,6 +77,19 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
     public void Restore(SnapshotModuleReader reader, SnapshotRestoreContext context)
     {
         var cpu = context.System.CPU;
+
+        // The stored module version decides the payload layout (v1 has no model id).
+        var storedVersion = context.Manifest.Modules.FirstOrDefault(m => m.Name == ModuleName)?.Version ?? 1;
+        var capturedModelId = storedVersion >= 2
+            ? reader.ReadString() ?? CpuModelIds.Nmos6502
+            : CpuModelIds.Nmos6502; // v1 predates CPU models; only the NMOS 6502 existed
+
+        // CPU model mismatch is a HARD error: registers/flags/interrupt state saved on one
+        // chip are not meaningful execution state on another. Checked before any state is
+        // applied, so the target system is left untouched.
+        if (capturedModelId != cpu.CpuModelId)
+            throw new SnapshotIncompatibleException(SnapshotCompatibility.Incompatible(
+                $"cpu-6502: snapshot was captured on CPU model '{capturedModelId}' but the target system's CPU is '{cpu.CpuModelId}'. Configure the system with the matching CPU model and try again."));
 
         cpu.PC = reader.ReadUInt16();
         cpu.SP = reader.ReadByte();

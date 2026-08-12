@@ -47,9 +47,172 @@ public class FunctionalTestCompiler
 
     private static readonly HttpClient s_httpClient = new HttpClient();
 
+    /// <summary>
+    /// Pinned revision of the Klaus2m5/6502_65C02_functional_tests repository used for
+    /// parameterized test artifacts (<see cref="GetKlausTestBuild"/>), so that assembled
+    /// binaries, label addresses, and test outcomes are reproducible.
+    /// </summary>
+    public const string PinnedSourceRevision = "7954e2dbb49c469ea286070bf46cdd71aeb29e4b";
+
+    /// <summary>Result of assembling a Klaus test source: the binary and its listing file.</summary>
+    public sealed record KlausTestBuild(string BinaryFilePath, string ListFilePath);
+
     public FunctionalTestCompiler(ILogger<FunctionalTestCompiler> logger)
     {
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Downloads a test source file from the pinned revision of the Klaus test
+    /// repository, applies the given assembler-setting overrides (lines of the form
+    /// "name = value"), and assembles it. Windows only — the AS65 assembler is a
+    /// Windows executable; callers should gate on <see cref="WindowsOnlyFactAttribute"/>.
+    /// </summary>
+    public KlausTestBuild GetKlausTestBuild(string sourceFileName, IReadOnlyDictionary<string, string> settingOverrides, string? downloadDir = null, string? additionalAssemblerSwitches = null)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            throw new PlatformNotSupportedException("Assembling Klaus test sources requires Windows (AS65 assembler is Windows-only).");
+
+        if (string.IsNullOrEmpty(downloadDir))
+            downloadDir = Directory.GetCurrentDirectory();
+
+        var sourceUrl = $"https://raw.githubusercontent.com/Klaus2m5/6502_65C02_functional_tests/{PinnedSourceRevision}/{sourceFileName}";
+        var sourceFilePath = Path.Join(downloadDir, sourceFileName);
+        DownloadFile(sourceUrl, sourceFilePath);
+
+        // Apply setting overrides to a copy, so different configurations don't collide.
+        var modifiedFileName = $"{Path.GetFileNameWithoutExtension(sourceFileName)}_modified{Path.GetExtension(sourceFileName)}";
+        var modifiedFilePath = Path.Join(downloadDir, modifiedFileName);
+        ApplyAsmSettingOverrides(sourceFilePath, modifiedFilePath, settingOverrides);
+
+        var as65exeFilePath = GetAS65AssemblerFilePath(downloadDir);
+        var binaryFilePath = Compile6502FunctionalTestBinary(as65exeFilePath, modifiedFilePath, additionalAssemblerSwitches);
+        var listFilePath = Path.Join(Path.GetDirectoryName(binaryFilePath), Path.GetFileNameWithoutExtension(binaryFilePath)) + ".lst";
+        return new KlausTestBuild(binaryFilePath, listFilePath);
+    }
+
+    private static void ApplyAsmSettingOverrides(string originalFile, string newFile, IReadOnlyDictionary<string, string> settingOverrides)
+    {
+        var appliedSettings = new HashSet<string>();
+        var lines = File.ReadAllLines(originalFile);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            foreach (var (name, value) in settingOverrides)
+            {
+                if (lines[i].StartsWith(name, StringComparison.Ordinal) && lines[i].Contains('='))
+                {
+                    lines[i] = $"{name} = {value}";
+                    appliedSettings.Add(name);
+                }
+            }
+        }
+        var missingSettings = settingOverrides.Keys.Where(k => !appliedSettings.Contains(k)).ToList();
+        if (missingSettings.Count != 0)
+            throw new DotNet6502Exception($"Assembler setting(s) not found in {originalFile}: {string.Join(", ", missingSettings)}. The pinned source revision may not match the expected settings.");
+        File.WriteAllLines(newFile, lines);
+    }
+
+    /// <summary>
+    /// Finds the address of a label DEFINITION in an AS65 listing file. Handles both
+    /// code lines ("&lt;line#&gt; &lt;addr&gt; : &lt;bytes...&gt; label mnemonic ...", where the label is
+    /// the first token after the machine-code bytes — this avoids matching reference
+    /// sites like "beq success") and symbol-table style lines ("label &lt;addr&gt;" /
+    /// "&lt;addr&gt; label"). On failure the exception carries every line mentioning the
+    /// label plus a sample of the file, so a mismatched format is diagnosable from a
+    /// CI log alone.
+    /// </summary>
+    public static ushort FindLabelAddressInListFile(string listFilePath, string label)
+    {
+        var allLines = File.ReadAllLines(listFilePath);
+        foreach (var line in allLines)
+        {
+            var tokens = line.Split(' ', '\t', StringSplitOptions.RemoveEmptyEntries);
+            var colonIndex = Array.IndexOf(tokens, ":");
+            if (colonIndex >= 1)
+            {
+                // Code line: the token just before ':' is the address.
+                var addressToken = tokens[colonIndex - 1];
+                if (!IsHexAddress(addressToken))
+                    continue;
+
+                // Skip the machine-code byte tokens (1-2 hex chars) after ':'; the next
+                // token is the label column (or the mnemonic when the line has no label).
+                var i = colonIndex + 1;
+                while (i < tokens.Length && tokens[i].Length <= 2 && tokens[i].All(Uri.IsHexDigit))
+                    i++;
+                if (i < tokens.Length && TokenIsLabel(tokens[i], label))
+                    return Convert.ToUInt16(addressToken, 16);
+            }
+            else if (tokens.Length >= 3 && IsHexAddress(tokens[0]) && tokens[1] == "=")
+            {
+                // Equate/reservation line: "<addr> = <label> ds 1" (AS65 uses '=' instead
+                // of ':' for symbols that emit no code, e.g. zero-page ds variables).
+                if (TokenIsLabel(tokens[2], label))
+                    return Convert.ToUInt16(tokens[0], 16);
+            }
+            else if (tokens.Length >= 2)
+            {
+                // Symbol-table style: "label addr" or "addr label".
+                if (TokenIsLabel(tokens[0], label) && IsHexAddress(tokens[1]))
+                    return Convert.ToUInt16(tokens[1], 16);
+                if (IsHexAddress(tokens[0]) && TokenIsLabel(tokens[1], label))
+                    return Convert.ToUInt16(tokens[0], 16);
+            }
+        }
+
+        var linesMentioningLabel = allLines
+            .Where(l => l.Contains(label, StringComparison.OrdinalIgnoreCase))
+            .Take(10);
+        var sampleLines = allLines.Take(5).Concat(allLines.TakeLast(15));
+        throw new DotNet6502Exception(
+            $"Label definition '{label}' not found in listing file {listFilePath}.\n" +
+            $"Lines mentioning the label:\n{string.Join('\n', linesMentioningLabel)}\n" +
+            $"File format sample (first 5 + last 15 lines):\n{string.Join('\n', sampleLines)}");
+
+        static bool IsHexAddress(string token) => token.Length == 4 && token.All(Uri.IsHexDigit);
+        static bool TokenIsLabel(string token, string label) => token == label || token == label + ":";
+    }
+
+    /// <summary>
+    /// Finds the code address produced by the LAST invocation of a macro in an AS65
+    /// listing assembled with -m (expand macros). Klaus's tests end in a "success"
+    /// MACRO (a self-trap "jmp *"), not a label: the invocation line carries the macro
+    /// name with no address, and the following expansion line(s) carry the emitted
+    /// code's address. The last invocation is the final success trap.
+    /// </summary>
+    public static ushort FindLastMacroInvocationAddressInListFile(string listFilePath, string macroName)
+    {
+        ushort? lastAddress = null;
+        var pendingInvocation = false;
+        foreach (var line in File.ReadAllLines(listFilePath))
+        {
+            var tokens = line.Split(' ', '\t', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0)
+                continue;
+
+            var colonIndex = Array.IndexOf(tokens, ":");
+            if (pendingInvocation && colonIndex >= 1
+                && tokens[colonIndex - 1].Length == 4 && tokens[colonIndex - 1].All(Uri.IsHexDigit))
+            {
+                lastAddress = Convert.ToUInt16(tokens[colonIndex - 1], 16);
+                pendingInvocation = false;
+                continue;
+            }
+
+            // A macro invocation: the macro name in mnemonic position (first token, or
+            // first after the address/bytes), excluding its "name macro" definition line.
+            var macroNameIndex = Array.IndexOf(tokens, macroName);
+            if (macroNameIndex >= 0 && !tokens.Contains("macro") && !tokens.Contains("endm"))
+            {
+                // If the invocation line itself has an address, use it directly.
+                if (colonIndex >= 1 && tokens[colonIndex - 1].Length == 4 && tokens[colonIndex - 1].All(Uri.IsHexDigit))
+                    lastAddress = Convert.ToUInt16(tokens[colonIndex - 1], 16);
+                else
+                    pendingInvocation = true;
+            }
+        }
+        return lastAddress
+            ?? throw new DotNet6502Exception($"No invocation of macro '{macroName}' with a resolvable address found in listing file {listFilePath}.");
     }
     public string Get6502FunctionalTestBinary(bool disableDecimalTests = false, string? downloadDir = null)
     {
@@ -104,7 +267,7 @@ public class FunctionalTestCompiler
 
         return filePath;
     }
-    private string Compile6502FunctionalTestBinary(string as65exeFilePath, string sourceCodeFilePath)
+    private string Compile6502FunctionalTestBinary(string as65exeFilePath, string sourceCodeFilePath, string? additionalAssemblerSwitches = null)
     {
         // Assume output files of the compilation (.bin and .lst file) are placed 
         // in same directory as the source code that was compiled.
@@ -115,32 +278,39 @@ public class FunctionalTestCompiler
         if (File.Exists(compiledLstFile))
             File.Delete(compiledLstFile);
 
-        string arguments = $"-l -m -w -h0 {sourceCodeFilePath}";
+        // -x enables 65C02 extension mnemonics (needed for the 65C02 test sources).
+        string arguments = $"-l -m -w -h0 {(string.IsNullOrEmpty(additionalAssemblerSwitches) ? "" : additionalAssemblerSwitches + " ")}{sourceCodeFilePath}";
+        // Captured so an assembly failure can report WHAT the assembler said — the
+        // logger is typically a NullLogger in tests, which would swallow the errors.
+        var assemblerOutput = new System.Collections.Concurrent.ConcurrentQueue<string>();
         using (var process = new Process())
         {
             process.StartInfo.FileName = as65exeFilePath;
             process.StartInfo.Arguments = arguments;
-            //process.StartInfo.FileName = @"cmd.exe";
-            //process.StartInfo.Arguments = @"/c dir";      // print the current working directory information
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
 
-            process.OutputDataReceived += (sender, data) => _logger.LogTrace("{Data}", data.Data);
             //Seems every row written to stderr by the as65.exe does not mean it's an error.
-            //Hack: Don't send logs to _logger.LogError(data.Data), insted as trace
-            process.ErrorDataReceived += (sender, data) => _logger.LogTrace("{Data}", data.Data);
+            //Hack: Don't send logs to _logger.LogError(data.Data), instead as trace
+            process.OutputDataReceived += (sender, data) => { if (data.Data != null) { assemblerOutput.Enqueue(data.Data); _logger.LogTrace("{Data}", data.Data); } };
+            process.ErrorDataReceived += (sender, data) => { if (data.Data != null) { assemblerOutput.Enqueue(data.Data); _logger.LogTrace("{Data}", data.Data); } };
             _logger.LogInformation("Executing {As65ExeFilePath}", as65exeFilePath);
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            var exited = process.WaitForExit(1000 * 10);     // (optional) wait up to 10 seconds
+            var exited = process.WaitForExit(1000 * 120);
             _logger.LogInformation("Exited: {Exited}", exited);
+            if (!exited)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+                throw new DotNet6502Exception($"Assembler {as65exeFilePath} did not finish within 120s for {sourceCodeFilePath}. Output so far:\n{string.Join('\n', assemblerOutput)}");
+            }
         }
 
         if (!File.Exists(compiledBinFile))
-            throw new DotNet6502Exception($"Executing {as65exeFilePath} with arguments {arguments} did not generate expected binary file at {compiledBinFile}");
+            throw new DotNet6502Exception($"Executing {as65exeFilePath} with arguments {arguments} did not generate expected binary file at {compiledBinFile}. Assembler output:\n{string.Join('\n', assemblerOutput)}");
         return compiledBinFile;
     }
 
@@ -169,8 +339,22 @@ public class FunctionalTestCompiler
 
     private static void DownloadFile(string uri, string outputPath)
     {
-        byte[] fileBytes = s_httpClient.GetByteArrayAsync(uri).Result;
-        File.WriteAllBytes(outputPath, fileBytes);
+        // CI runners intermittently get "response ended prematurely" from GitHub raw
+        // downloads; retry a few times with backoff before failing the test run.
+        const int maxAttempts = 4;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                byte[] fileBytes = s_httpClient.GetByteArrayAsync(uri).Result;
+                File.WriteAllBytes(outputPath, fileBytes);
+                return;
+            }
+            catch (Exception) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(2 * attempt));
+            }
+        }
     }
 
     private static void ModifyAsmSourceCodeSettings(string originalFile, string newFile, bool disableDecimal)
