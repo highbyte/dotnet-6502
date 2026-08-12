@@ -81,6 +81,13 @@ public class GenericComputerConfig
         }
     }
 
+    /// <summary>
+    /// Which CPU model the computer has (see <see cref="CpuModelIds"/>). Default: NMOS
+    /// 6502. Selectable to ncr65c02 for testing 65C02 code (which requires
+    /// <see cref="CpuCompatibilityProfile.OfficialOnly"/>).
+    /// </summary>
+    public string CpuModelId { get; set; } = CpuModelIds.Nmos6502;
+
     private bool _audioEnabled;
     public bool AudioEnabled
     {

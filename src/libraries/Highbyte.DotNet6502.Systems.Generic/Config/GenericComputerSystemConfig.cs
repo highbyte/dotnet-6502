@@ -49,6 +49,22 @@ public class GenericComputerSystemConfig : ISystemConfig
         }
     }
 
+    /// <summary>
+    /// Which CPU model the computer has (see <see cref="CpuModelIds"/>). Default: NMOS
+    /// 6502; ncr65c02 selectable for easy testing of 65C02 code (requires
+    /// <see cref="Highbyte.DotNet6502.CpuCompatibilityProfile.OfficialOnly"/>).
+    /// </summary>
+    private string _cpuModelId = CpuModelIds.Nmos6502;
+    public string CpuModelId
+    {
+        get => _cpuModelId;
+        set
+        {
+            _cpuModelId = value;
+            _isDirty = true;
+        }
+    }
+
     public Dictionary<string, string?> ExamplePrograms
     {
         get
@@ -152,6 +168,11 @@ public class GenericComputerSystemConfig : ISystemConfig
     public bool IsValid(out List<string> validationErrors)
     {
         validationErrors = new List<string>();
+
+        if (!CpuModelInfo.IsKnownModelId(CpuModelId))
+            validationErrors.Add($"Unknown CPU model id '{CpuModelId}'. Valid: {string.Join(", ", CpuModelInfo.AllModelIds)}.");
+        else if (!CpuModelInfo.IsProfileSupported(CpuModelId, CpuCompatibilityProfile))
+            validationErrors.Add($"CPU model '{CpuModelId}' does not support compatibility profile '{CpuCompatibilityProfile}'. Supported: {string.Join(", ", CpuModelInfo.GetSupportedProfiles(CpuModelId))}.");
 
         return validationErrors.Count == 0;
     }

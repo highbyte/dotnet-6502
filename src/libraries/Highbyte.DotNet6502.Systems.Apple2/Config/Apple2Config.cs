@@ -63,4 +63,11 @@ public class Apple2Config
     public Type? AudioProviderType { get; set; }
 
     public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
+
+    /// <summary>
+    /// Which CPU the machine has (see <see cref="CpuModelIds"/>). Default: NMOS 6502,
+    /// as in the Apple II/II+/unenhanced IIe. Select <see cref="CpuModelIds.Ncr65c02"/>
+    /// for the enhanced IIe's CPU (requires <see cref="CpuCompatibilityProfile.OfficialOnly"/>).
+    /// </summary>
+    public string CpuModelId { get; set; } = CpuModelIds.Nmos6502;
 }

@@ -201,11 +201,15 @@ public class CPU
     public CPU(ExecState execState, ILoggerFactory loggerFactory, CpuCompatibilityProfile compatibilityProfile)
         : this(execState, loggerFactory, CpuModelIds.Nmos6502, compatibilityProfile) { }
 
+    public CPU(ILoggerFactory loggerFactory, string cpuModelId, CpuCompatibilityProfile compatibilityProfile)
+        : this(new ExecState(), loggerFactory, cpuModelId, compatibilityProfile) { }
+
     /// <summary>
-    /// Constructs a CPU with an explicit model. Internal until model selection is
-    /// exposed through system configuration (design log: cpu-models-65c02, M1 step 6).
+    /// Constructs a CPU with an explicit model (see <see cref="CpuModelIds"/>).
+    /// Throws for an unknown model id or a model/profile combination the model does
+    /// not support (query <see cref="CpuModelInfo"/> to validate beforehand).
     /// </summary>
-    internal CPU(ExecState execState, ILoggerFactory loggerFactory, string cpuModelId, CpuCompatibilityProfile compatibilityProfile)
+    public CPU(ExecState execState, ILoggerFactory loggerFactory, string cpuModelId, CpuCompatibilityProfile compatibilityProfile)
     {
         _logger = loggerFactory.CreateLogger(typeof(CPU).Name);
 

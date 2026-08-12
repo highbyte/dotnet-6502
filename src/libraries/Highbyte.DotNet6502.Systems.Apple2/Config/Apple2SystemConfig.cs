@@ -167,6 +167,18 @@ public partial class Apple2SystemConfig : ISystemConfig, ISnapshotableConfig
         set { _cpuCompatibilityProfile = value; _isDirty = true; }
     }
 
+    /// <summary>
+    /// Which CPU the machine has (see <see cref="CpuModelIds"/>). Default: NMOS 6502
+    /// (Apple II/II+/unenhanced IIe); ncr65c02 = the enhanced IIe's CPU, which requires
+    /// <see cref="Highbyte.DotNet6502.CpuCompatibilityProfile.OfficialOnly"/>.
+    /// </summary>
+    private string _cpuModelId = CpuModelIds.Nmos6502;
+    public string CpuModelId
+    {
+        get => _cpuModelId;
+        set { _cpuModelId = value; _isDirty = true; }
+    }
+
     private string _romDirectory = string.Empty;
     public string ROMDirectory
     {
@@ -353,6 +365,11 @@ public partial class Apple2SystemConfig : ISystemConfig, ISnapshotableConfig
     public bool IsValid(out List<string> validationErrors)
     {
         validationErrors = new List<string>();
+
+        if (!CpuModelInfo.IsKnownModelId(CpuModelId))
+            validationErrors.Add($"Unknown CPU model id '{CpuModelId}'. Valid: {string.Join(", ", CpuModelInfo.AllModelIds)}.");
+        else if (!CpuModelInfo.IsProfileSupported(CpuModelId, CpuCompatibilityProfile))
+            validationErrors.Add($"CPU model '{CpuModelId}' does not support compatibility profile '{CpuCompatibilityProfile}'. Supported: {string.Join(", ", CpuModelInfo.GetSupportedProfiles(CpuModelId))}.");
 
         var loadedNames = _roms.Select(x => x.Name).ToList();
         var missing = RequiredROMs.Where(r => !loadedNames.Contains(r)).ToList();

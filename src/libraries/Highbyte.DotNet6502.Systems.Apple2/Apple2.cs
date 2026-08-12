@@ -164,7 +164,7 @@ public class Apple2 : ISystem, ITextMode, IScreen, ISystemState, ISystemMonitor,
         _apple2Config = config;
 
         Keyboard = new Apple2Keyboard();
-        CPU = new CPU(loggerFactory, config.CpuCompatibilityProfile);
+        CPU = new CPU(loggerFactory, config.CpuModelId, config.CpuCompatibilityProfile);
         // The controller times its motor spin-down off the CPU's cumulative cycle count.
         DiskController = new Disk2Controller(
             () => CPU.ExecState.CyclesConsumed,

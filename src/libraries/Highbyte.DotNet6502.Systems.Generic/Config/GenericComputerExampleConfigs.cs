@@ -13,6 +13,7 @@ public static class GenericComputerExampleConfigs
         exampleConfig.ProgramBinaryFile = systemConfig.ExamplePrograms[exampleName] ?? string.Empty;
         exampleConfig.RenderProviderType = systemConfig.RenderProviderType;
         exampleConfig.CpuCompatibilityProfile = systemConfig.CpuCompatibilityProfile;
+        exampleConfig.CpuModelId = systemConfig.CpuModelId;
         return exampleConfig;
     }
 
@@ -22,6 +23,7 @@ public static class GenericComputerExampleConfigs
         exampleConfig.ProgramBinary = prgBytes;
         exampleConfig.RenderProviderType = systemConfig.RenderProviderType;
         exampleConfig.CpuCompatibilityProfile = systemConfig.CpuCompatibilityProfile;
+        exampleConfig.CpuModelId = systemConfig.CpuModelId;
         return exampleConfig;
     }
 
