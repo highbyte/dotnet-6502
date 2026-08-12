@@ -38,7 +38,7 @@ The currently supported system variant is `APPLE2PLUS`.
 - Remote-control commands for keyboard input, BASIC source, and Disk II operations. See the
   [TCP protocol](../../tools/remote-control/tcp-protocol.md).
 - Avalonia Desktop and Avalonia Browser (WASM) apps with configuration for ROMs, display,
-  audio, input, and CPU compatibility.
+  audio, input, and CPU compatibility, plus text-mode support in the Terminal (TUI) app.
 - Emulator state snapshots, including the language card and inserted disk. See
   [Snapshots](#snapshots).
 

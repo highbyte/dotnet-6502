@@ -49,7 +49,11 @@ public class Vic20VideoCommandStream : IRenderProvider, IVideoCommandStream
 
     private void GenerateCommands()
     {
-        _commands.Enqueue(new SetConfig(GlyphToUnicodeConverter: Vic20ScreenCode.ScreenCodeToUnicode));
+        _commands.Enqueue(new SetConfig(
+            GlyphToUnicodeConverter: Vic20ScreenCode.ScreenCodeToUnicode)
+        {
+            ReverseVideoHighBit = true,
+        });
         RenderBorder();
         RenderMainScreen();
     }

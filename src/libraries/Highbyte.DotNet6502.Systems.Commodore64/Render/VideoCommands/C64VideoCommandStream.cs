@@ -68,7 +68,10 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
     private void GenerateConfig(C64 c64)
     {
         var configCommand = new SetConfig(
-            GlyphToUnicodeConverter: FromC64ScreenCodeToUnicode);
+            GlyphToUnicodeConverter: FromC64ScreenCodeToUnicode)
+        {
+            ReverseVideoHighBit = true,
+        };
 
         _commands.Enqueue(configCommand);
     }
