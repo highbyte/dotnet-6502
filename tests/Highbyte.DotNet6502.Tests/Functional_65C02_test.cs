@@ -90,13 +90,17 @@ public class Functional_65C02_test
                 ["chk_z"] = "1",
             });
 
-        // The decimal test's code origin is $0200; ERROR result byte lives at $0B.
+        // The decimal test's code origin is $0200; the DONE label ends the test and the
+        // ERROR result byte lives in zero page — both located via the listing file
+        // rather than hard-coded.
         ushort loadAddress = 0x0200;
-        ushort errorAddress = 0x000B;
-        var doneAddress = FunctionalTestCompiler.FindLabelAddressInListFile(build.ListFilePath, "done");
-        _output.WriteLine($"Done label address (from .lst): {doneAddress.ToHex()}");
+        var doneAddress = FunctionalTestCompiler.FindLabelAddressInListFile(build.ListFilePath, "DONE");
+        var errorAddress = FunctionalTestCompiler.FindLabelAddressInListFile(build.ListFilePath, "ERROR");
+        _output.WriteLine($"DONE label address (from .lst): {doneAddress.ToHex()}");
+        _output.WriteLine($"ERROR byte address (from .lst): {errorAddress.ToHex()}");
 
-        var mem = BinaryLoader.Load(build.BinaryFilePath, out _, out _, forceLoadAddress: loadAddress);
+        var mem = BinaryLoader.Load(build.BinaryFilePath, out _, out var binaryLength, forceLoadAddress: loadAddress);
+        _output.WriteLine($"Binary length: {binaryLength} bytes, loaded at {loadAddress.ToHex()}");
         var cpu = New65c02Cpu();
         cpu.PC = loadAddress;
 

@@ -113,34 +113,57 @@ public class FunctionalTestCompiler
     }
 
     /// <summary>
-    /// Finds the address of a label DEFINITION in an AS65 listing file. A code line looks
-    /// like "&lt;line#&gt; &lt;addr&gt; : &lt;byte&gt; &lt;byte&gt; ... [label] mnemonic operand": the label,
-    /// when present, is the first token after the machine-code bytes. Requiring the label
-    /// in that position avoids matching reference sites ("beq success").
+    /// Finds the address of a label DEFINITION in an AS65 listing file. Handles both
+    /// code lines ("&lt;line#&gt; &lt;addr&gt; : &lt;bytes...&gt; label mnemonic ...", where the label is
+    /// the first token after the machine-code bytes — this avoids matching reference
+    /// sites like "beq success") and symbol-table style lines ("label &lt;addr&gt;" /
+    /// "&lt;addr&gt; label"). On failure the exception carries every line mentioning the
+    /// label plus a sample of the file, so a mismatched format is diagnosable from a
+    /// CI log alone.
     /// </summary>
     public static ushort FindLabelAddressInListFile(string listFilePath, string label)
     {
-        foreach (var line in File.ReadLines(listFilePath))
+        var allLines = File.ReadAllLines(listFilePath);
+        foreach (var line in allLines)
         {
             var tokens = line.Split(' ', '\t', StringSplitOptions.RemoveEmptyEntries);
             var colonIndex = Array.IndexOf(tokens, ":");
-            if (colonIndex < 1)
-                continue;
+            if (colonIndex >= 1)
+            {
+                // Code line: the token just before ':' is the address.
+                var addressToken = tokens[colonIndex - 1];
+                if (!IsHexAddress(addressToken))
+                    continue;
 
-            // The token just before ':' is the address.
-            var addressToken = tokens[colonIndex - 1];
-            if (addressToken.Length != 4 || !addressToken.All(Uri.IsHexDigit))
-                continue;
-
-            // Skip the machine-code byte tokens (1-2 hex chars) after ':'; the next
-            // token is the label column (or the mnemonic when the line has no label).
-            var i = colonIndex + 1;
-            while (i < tokens.Length && tokens[i].Length <= 2 && tokens[i].All(Uri.IsHexDigit))
-                i++;
-            if (i < tokens.Length && tokens[i] == label)
-                return Convert.ToUInt16(addressToken, 16);
+                // Skip the machine-code byte tokens (1-2 hex chars) after ':'; the next
+                // token is the label column (or the mnemonic when the line has no label).
+                var i = colonIndex + 1;
+                while (i < tokens.Length && tokens[i].Length <= 2 && tokens[i].All(Uri.IsHexDigit))
+                    i++;
+                if (i < tokens.Length && TokenIsLabel(tokens[i], label))
+                    return Convert.ToUInt16(addressToken, 16);
+            }
+            else if (tokens.Length >= 2)
+            {
+                // Symbol-table style: "label addr" or "addr label".
+                if (TokenIsLabel(tokens[0], label) && IsHexAddress(tokens[1]))
+                    return Convert.ToUInt16(tokens[1], 16);
+                if (IsHexAddress(tokens[0]) && TokenIsLabel(tokens[1], label))
+                    return Convert.ToUInt16(tokens[0], 16);
+            }
         }
-        throw new DotNet6502Exception($"Label definition '{label}' not found in listing file {listFilePath}.");
+
+        var linesMentioningLabel = allLines
+            .Where(l => l.Contains(label, StringComparison.OrdinalIgnoreCase))
+            .Take(10);
+        var sampleLines = allLines.Take(5).Concat(allLines.TakeLast(15));
+        throw new DotNet6502Exception(
+            $"Label definition '{label}' not found in listing file {listFilePath}.\n" +
+            $"Lines mentioning the label:\n{string.Join('\n', linesMentioningLabel)}\n" +
+            $"File format sample (first 5 + last 15 lines):\n{string.Join('\n', sampleLines)}");
+
+        static bool IsHexAddress(string token) => token.Length == 4 && token.All(Uri.IsHexDigit);
+        static bool TokenIsLabel(string token, string label) => token == label || token == label + ":";
     }
     public string Get6502FunctionalTestBinary(bool disableDecimalTests = false, string? downloadDir = null)
     {
@@ -207,31 +230,37 @@ public class FunctionalTestCompiler
             File.Delete(compiledLstFile);
 
         string arguments = $"-l -m -w -h0 {sourceCodeFilePath}";
+        // Captured so an assembly failure can report WHAT the assembler said — the
+        // logger is typically a NullLogger in tests, which would swallow the errors.
+        var assemblerOutput = new System.Collections.Concurrent.ConcurrentQueue<string>();
         using (var process = new Process())
         {
             process.StartInfo.FileName = as65exeFilePath;
             process.StartInfo.Arguments = arguments;
-            //process.StartInfo.FileName = @"cmd.exe";
-            //process.StartInfo.Arguments = @"/c dir";      // print the current working directory information
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
 
-            process.OutputDataReceived += (sender, data) => _logger.LogTrace("{Data}", data.Data);
             //Seems every row written to stderr by the as65.exe does not mean it's an error.
-            //Hack: Don't send logs to _logger.LogError(data.Data), insted as trace
-            process.ErrorDataReceived += (sender, data) => _logger.LogTrace("{Data}", data.Data);
+            //Hack: Don't send logs to _logger.LogError(data.Data), instead as trace
+            process.OutputDataReceived += (sender, data) => { if (data.Data != null) { assemblerOutput.Enqueue(data.Data); _logger.LogTrace("{Data}", data.Data); } };
+            process.ErrorDataReceived += (sender, data) => { if (data.Data != null) { assemblerOutput.Enqueue(data.Data); _logger.LogTrace("{Data}", data.Data); } };
             _logger.LogInformation("Executing {As65ExeFilePath}", as65exeFilePath);
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            var exited = process.WaitForExit(1000 * 10);     // (optional) wait up to 10 seconds
+            var exited = process.WaitForExit(1000 * 120);
             _logger.LogInformation("Exited: {Exited}", exited);
+            if (!exited)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+                throw new DotNet6502Exception($"Assembler {as65exeFilePath} did not finish within 120s for {sourceCodeFilePath}. Output so far:\n{string.Join('\n', assemblerOutput)}");
+            }
         }
 
         if (!File.Exists(compiledBinFile))
-            throw new DotNet6502Exception($"Executing {as65exeFilePath} with arguments {arguments} did not generate expected binary file at {compiledBinFile}");
+            throw new DotNet6502Exception($"Executing {as65exeFilePath} with arguments {arguments} did not generate expected binary file at {compiledBinFile}. Assembler output:\n{string.Join('\n', assemblerOutput)}");
         return compiledBinFile;
     }
 
