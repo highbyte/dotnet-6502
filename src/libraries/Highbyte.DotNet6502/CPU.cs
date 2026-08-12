@@ -489,6 +489,12 @@ public class CPU
     }
 
     /// <summary>
+    /// The stable id of the CPU model this CPU was constructed with
+    /// (see <see cref="CpuModelIds"/>).
+    /// </summary>
+    public string CpuModelId => ModelDefinition.ModelId;
+
+    /// <summary>
     /// True if the opcode byte is a defined instruction for THIS CPU's model and
     /// compatibility profile. Model-aware — on a 65C02 every byte is defined.
     /// Prefer this over probing <see cref="InstructionList"/>, which only reflects
