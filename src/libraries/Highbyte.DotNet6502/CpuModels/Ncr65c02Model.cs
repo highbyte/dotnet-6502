@@ -107,14 +107,18 @@ internal static class Ncr65c02Model
         => instructionList.GetInstruction(instructionList.GetOpCode(existingCode));
 
     /// <summary>
-    /// Replaces the descriptors of all of an instruction's opcode bytes with handlers
-    /// composed over a (CMOS-variant) instruction object. Metadata comes from the
-    /// instruction's own opcode list.
+    /// Replaces the descriptors of an instruction's opcode bytes with handlers composed
+    /// over a (CMOS-variant) instruction object. Only bytes already present in the table
+    /// (the shared OFFICIAL set) are replaced: the NMOS instruction's opcode list can
+    /// also carry undocumented aliases (e.g. SBC $EB) that do not exist on the 65C02 —
+    /// those bytes must stay free for the defined-NOP fill.
     /// </summary>
     private static void ReplaceWithInstruction(OpCodeDescriptor?[] table, Instruction instruction)
     {
         foreach (var opCode in instruction.OpCodes)
         {
+            if (table[opCode.CodeRaw] is null)
+                continue;
             table[opCode.CodeRaw] = new OpCodeDescriptor
             {
                 Code = opCode.CodeRaw,

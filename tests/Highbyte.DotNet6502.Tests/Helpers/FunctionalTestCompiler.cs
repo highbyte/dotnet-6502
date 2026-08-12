@@ -47,9 +47,100 @@ public class FunctionalTestCompiler
 
     private static readonly HttpClient s_httpClient = new HttpClient();
 
+    /// <summary>
+    /// Pinned revision of the Klaus2m5/6502_65C02_functional_tests repository used for
+    /// parameterized test artifacts (<see cref="GetKlausTestBuild"/>), so that assembled
+    /// binaries, label addresses, and test outcomes are reproducible.
+    /// </summary>
+    public const string PinnedSourceRevision = "7954e2dbb49c469ea286070bf46cdd71aeb29e4b";
+
+    /// <summary>Result of assembling a Klaus test source: the binary and its listing file.</summary>
+    public sealed record KlausTestBuild(string BinaryFilePath, string ListFilePath);
+
     public FunctionalTestCompiler(ILogger<FunctionalTestCompiler> logger)
     {
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Downloads a test source file from the pinned revision of the Klaus test
+    /// repository, applies the given assembler-setting overrides (lines of the form
+    /// "name = value"), and assembles it. Windows only — the AS65 assembler is a
+    /// Windows executable; callers should gate on <see cref="WindowsOnlyFactAttribute"/>.
+    /// </summary>
+    public KlausTestBuild GetKlausTestBuild(string sourceFileName, IReadOnlyDictionary<string, string> settingOverrides, string? downloadDir = null)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            throw new PlatformNotSupportedException("Assembling Klaus test sources requires Windows (AS65 assembler is Windows-only).");
+
+        if (string.IsNullOrEmpty(downloadDir))
+            downloadDir = Directory.GetCurrentDirectory();
+
+        var sourceUrl = $"https://raw.githubusercontent.com/Klaus2m5/6502_65C02_functional_tests/{PinnedSourceRevision}/{sourceFileName}";
+        var sourceFilePath = Path.Join(downloadDir, sourceFileName);
+        DownloadFile(sourceUrl, sourceFilePath);
+
+        // Apply setting overrides to a copy, so different configurations don't collide.
+        var modifiedFileName = $"{Path.GetFileNameWithoutExtension(sourceFileName)}_modified{Path.GetExtension(sourceFileName)}";
+        var modifiedFilePath = Path.Join(downloadDir, modifiedFileName);
+        ApplyAsmSettingOverrides(sourceFilePath, modifiedFilePath, settingOverrides);
+
+        var as65exeFilePath = GetAS65AssemblerFilePath(downloadDir);
+        var binaryFilePath = Compile6502FunctionalTestBinary(as65exeFilePath, modifiedFilePath);
+        var listFilePath = Path.Join(Path.GetDirectoryName(binaryFilePath), Path.GetFileNameWithoutExtension(binaryFilePath)) + ".lst";
+        return new KlausTestBuild(binaryFilePath, listFilePath);
+    }
+
+    private static void ApplyAsmSettingOverrides(string originalFile, string newFile, IReadOnlyDictionary<string, string> settingOverrides)
+    {
+        var appliedSettings = new HashSet<string>();
+        var lines = File.ReadAllLines(originalFile);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            foreach (var (name, value) in settingOverrides)
+            {
+                if (lines[i].StartsWith(name, StringComparison.Ordinal) && lines[i].Contains('='))
+                {
+                    lines[i] = $"{name} = {value}";
+                    appliedSettings.Add(name);
+                }
+            }
+        }
+        var missingSettings = settingOverrides.Keys.Where(k => !appliedSettings.Contains(k)).ToList();
+        if (missingSettings.Count != 0)
+            throw new DotNet6502Exception($"Assembler setting(s) not found in {originalFile}: {string.Join(", ", missingSettings)}. The pinned source revision may not match the expected settings.");
+        File.WriteAllLines(newFile, lines);
+    }
+
+    /// <summary>
+    /// Finds the address of a label DEFINITION in an AS65 listing file. A code line looks
+    /// like "&lt;line#&gt; &lt;addr&gt; : &lt;byte&gt; &lt;byte&gt; ... [label] mnemonic operand": the label,
+    /// when present, is the first token after the machine-code bytes. Requiring the label
+    /// in that position avoids matching reference sites ("beq success").
+    /// </summary>
+    public static ushort FindLabelAddressInListFile(string listFilePath, string label)
+    {
+        foreach (var line in File.ReadLines(listFilePath))
+        {
+            var tokens = line.Split(' ', '\t', StringSplitOptions.RemoveEmptyEntries);
+            var colonIndex = Array.IndexOf(tokens, ":");
+            if (colonIndex < 1)
+                continue;
+
+            // The token just before ':' is the address.
+            var addressToken = tokens[colonIndex - 1];
+            if (addressToken.Length != 4 || !addressToken.All(Uri.IsHexDigit))
+                continue;
+
+            // Skip the machine-code byte tokens (1-2 hex chars) after ':'; the next
+            // token is the label column (or the mnemonic when the line has no label).
+            var i = colonIndex + 1;
+            while (i < tokens.Length && tokens[i].Length <= 2 && tokens[i].All(Uri.IsHexDigit))
+                i++;
+            if (i < tokens.Length && tokens[i] == label)
+                return Convert.ToUInt16(addressToken, 16);
+        }
+        throw new DotNet6502Exception($"Label definition '{label}' not found in listing file {listFilePath}.");
     }
     public string Get6502FunctionalTestBinary(bool disableDecimalTests = false, string? downloadDir = null)
     {

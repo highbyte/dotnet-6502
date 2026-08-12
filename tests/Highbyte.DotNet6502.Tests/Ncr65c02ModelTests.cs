@@ -139,6 +139,28 @@ public class Ncr65c02ModelTests
         Assert.False(cpu.ProcessorStatus.Decimal);
     }
 
+    [Fact]
+    public void Ncr65c02_Table_Has_178_Documented_OpCodes_And_78_Defined_Nops()
+    {
+        // 151 official NMOS opcodes (shared) + 27 new 65C02 bytes = 178 documented;
+        // the remaining 78 bytes are defined NOPs.
+        var officialNmosCount = InstructionList.GetAllInstructions(CpuCompatibilityProfile.OfficialOnly).OpCodeDictionary.Count;
+        Assert.Equal(151, officialNmosCount);
+
+        var cpu = New65c02Cpu();
+        Assert.Equal(178, cpu.Descriptors.Count(d => d!.Documented));
+        Assert.Equal(78, cpu.Descriptors.Count(d => !d!.Documented));
+        Assert.All(cpu.Descriptors.Where(d => !d!.Documented), d => Assert.Equal("NOP", d!.Mnemonic));
+    }
+
+    [Fact]
+    public void Ncr65c02_Descriptor_Codes_Match_Their_Table_Index()
+    {
+        var cpu = New65c02Cpu();
+        for (var code = 0; code <= 0xff; code++)
+            Assert.Equal((byte)code, cpu.Descriptors[(byte)code]!.Code);
+    }
+
     [Theory]
     // byte, expected size, expected cycles — the 65C02's defined-NOP map (base/NCR part).
     [InlineData(0x03, 1, 1)] // $x3 column
