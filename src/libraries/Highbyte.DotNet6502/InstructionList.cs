@@ -285,13 +285,36 @@ public class InstructionList
 
 #if DEBUG
     /// <summary>
-    /// Verifies that two instruction lists have the same count of instructions.
-    /// Used internally to ensure the manual instruction list matches dynamic discovery.
+    /// Verifies that the manual instruction list matches dynamic discovery exactly,
+    /// byte by byte: the same opcode bytes must be present, and each byte must map to
+    /// the same instruction type and the same opcode metadata (addressing mode, size,
+    /// minimum cycles). A count-only comparison would miss a byte remapped to the
+    /// wrong instruction, which is exactly the kind of error a per-model table refactor
+    /// could introduce.
     /// </summary>
     internal static void VerifyInstructionListsMatch(InstructionList manualList, InstructionList dynamicList)
     {
-        if (manualList.InstructionDictionary.Count != dynamicList.InstructionDictionary.Count)
-            throw new DotNet6502Exception($"Instruction list count mismatch: manual list has {manualList.InstructionDictionary.Count} instructions, but dynamic discovery found {dynamicList.InstructionDictionary.Count} instructions. The manual list in GetAllInstructions() must be updated.");
+        for (var code = 0; code <= 0xff; code++)
+        {
+            var b = (byte)code;
+            var manualOpCode = manualList.TryGetOpCode(b);
+            var dynamicOpCode = dynamicList.TryGetOpCode(b);
+
+            if (manualOpCode is null && dynamicOpCode is null)
+                continue;
+            if (manualOpCode is null || dynamicOpCode is null)
+                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: defined in {(manualOpCode is null ? "dynamic discovery but not the manual list" : "the manual list but not dynamic discovery")}. The manual list in GetAllInstructions() must be updated.");
+
+            var manualInstruction = manualList.GetInstruction(manualOpCode);
+            var dynamicInstruction = dynamicList.GetInstruction(dynamicOpCode);
+            if (manualInstruction.GetType() != dynamicInstruction.GetType())
+                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: manual list maps it to {manualInstruction.GetType().Name}, dynamic discovery to {dynamicInstruction.GetType().Name}.");
+
+            if (manualOpCode.AddressingMode != dynamicOpCode.AddressingMode
+                || manualOpCode.Size != dynamicOpCode.Size
+                || manualOpCode.MinimumCycles != dynamicOpCode.MinimumCycles)
+                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: opcode metadata differs between the manual list ({manualOpCode.AddressingMode}, size {manualOpCode.Size}, cycles {manualOpCode.MinimumCycles}) and dynamic discovery ({dynamicOpCode.AddressingMode}, size {dynamicOpCode.Size}, cycles {dynamicOpCode.MinimumCycles}).");
+        }
     }
 #endif
 

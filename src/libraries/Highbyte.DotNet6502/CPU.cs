@@ -104,6 +104,13 @@ public class CPU
     public InstructionList InstructionList { get; private set; }
     public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
+    /// <summary>
+    /// The immutable CPU model definition this CPU was constructed with. Selected once
+    /// here and never consulted on the per-instruction path. Only the NMOS 6502 model
+    /// exists yet; public model selection is added when a second model arrives.
+    /// </summary>
+    internal CpuModelDefinition ModelDefinition { get; private set; }
+
     public event EventHandler<CPUInstructionExecutedEventArgs>? InstructionExecuted;
     protected virtual void OnInstructionExecuted(CPUInstructionExecutedEventArgs e)
     {
@@ -183,9 +190,13 @@ public class CPU
 
         ProcessorStatus = new ProcessorStatus();
         ExecState = execState;
+
+        ModelDefinition = CpuModels.GetDefinition(CpuModelIds.Nmos6502);
+        if (!ModelDefinition.SupportedProfiles.Contains(compatibilityProfile))
+            throw new DotNet6502Exception($"CPU model '{ModelDefinition.ModelId}' does not support compatibility profile '{compatibilityProfile}'.");
         CompatibilityProfile = compatibilityProfile;
-        // TODO: Inject instruction list?
-        InstructionList = InstructionList.GetAllInstructions(compatibilityProfile);
+        InstructionList = ModelDefinition.CreateInstructionList(compatibilityProfile);
+
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor(loggerFactory);
     }
@@ -203,6 +214,7 @@ public class CPU
             ExecState = this.ExecState.Clone(),
             IsHalted = this.IsHalted,
             CompatibilityProfile = this.CompatibilityProfile,
+            ModelDefinition = this.ModelDefinition, // immutable definition, safe to share
             InstructionList = this.InstructionList.Clone(),
             _logger = this._logger
         };
