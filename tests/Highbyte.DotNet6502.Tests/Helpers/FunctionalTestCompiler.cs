@@ -289,8 +289,22 @@ public class FunctionalTestCompiler
 
     private static void DownloadFile(string uri, string outputPath)
     {
-        byte[] fileBytes = s_httpClient.GetByteArrayAsync(uri).Result;
-        File.WriteAllBytes(outputPath, fileBytes);
+        // CI runners intermittently get "response ended prematurely" from GitHub raw
+        // downloads; retry a few times with backoff before failing the test run.
+        const int maxAttempts = 4;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                byte[] fileBytes = s_httpClient.GetByteArrayAsync(uri).Result;
+                File.WriteAllBytes(outputPath, fileBytes);
+                return;
+            }
+            catch (Exception) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(2 * attempt));
+            }
+        }
     }
 
     private static void ModifyAsmSourceCodeSettings(string originalFile, string newFile, bool disableDecimal)
