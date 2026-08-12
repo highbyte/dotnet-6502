@@ -26,6 +26,10 @@ public class BRK : Instruction, IInstructionUsesStack
         cpu.PushByteToStack(processorStatusCopy.Value, mem);
         // BRK sets current Interrupt flag
         cpu.ProcessorStatus.InterruptDisable = true;
+        // Model policy (per event): CMOS parts clear Decimal on BRK entry, after the
+        // status byte (with D intact) was pushed. NMOS leaves D as-is.
+        if (cpu.ModelDefinition.Traits.ClearsDecimalOnInterrupt)
+            cpu.ProcessorStatus.Decimal = false;
         // Change PC to address found at BRK/IRQ handler vector
         cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);
 

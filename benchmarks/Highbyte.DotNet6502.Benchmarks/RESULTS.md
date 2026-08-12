@@ -273,6 +273,27 @@ separate call sites in the disassembly of `Check`.
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 
+### 2026-08-12 — per-model descriptor dispatch replaces addressing switch + interface probes
+
+CPU-model work (M1.2): the per-instruction addressing-mode `switch` and the up-to-four
+`IInstructionUses*` interface probes moved out of `InstructionExecutor` into per-opcode
+handlers composed once at CPU construction (`OpCodeDescriptorTableBuilder`). The hot path
+is now one byte-indexed array lookup + one delegate call. Same machine as the CPU-model
+refactor baseline above (Apple M1):
+
+| Benchmark | Baseline (`8803350a`) | After | Δ |
+|-----------|----------------------:|------:|--:|
+| `InstructionExecutor_OneStep` | 19.12 ns | 18.27 ns | −4% |
+| `CPU_Run_1000Instructions` | 17.34 us | 13.62 us | −21% |
+| `CPU_Execute_NoSubscribers_1000Instructions` | 20.29 us | 15.73 us | −22% |
+| `CPU_Execute_WithSubscribers_1000Instructions` | 39.79 us | 32.64 us | −18% |
+| `C64ExecuteFrameBenchmark` `CoreOnly`/`None` | 238.3 us | 205.8 us | −14% |
+| `C64ExecuteFrameBenchmark` `CoreOnly`/`MixedVisibleSprites` | 239.7 us | 212.2 us | −11% |
+
+Memory read/write tight loops and `ExecEvaluator` benchmarks unchanged (within noise).
+No allocation changes (the pre-existing 136 B per `Execute` call remains; per-instruction
+paths stay allocation-free).
+
 ### 2026-06-28 — per-line sprite scan reads `$D015` once
 
 The per-line sprite path (`Vic2RasterizerUintPixelGenerator`) sampled each sprite's

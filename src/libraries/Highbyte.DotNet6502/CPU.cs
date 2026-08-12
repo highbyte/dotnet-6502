@@ -111,6 +111,14 @@ public class CPU
     /// </summary>
     internal CpuModelDefinition ModelDefinition { get; private set; }
 
+    /// <summary>
+    /// The 256-entry dispatch table for this CPU's model: one pre-composed handler per
+    /// opcode byte (null = undefined byte for the active profile). This is what the
+    /// executor runs; <see cref="InstructionList"/> remains the public metadata view
+    /// the table is composed from.
+    /// </summary>
+    internal OpCodeDescriptor?[] Descriptors { get; private set; }
+
     public event EventHandler<CPUInstructionExecutedEventArgs>? InstructionExecuted;
     protected virtual void OnInstructionExecuted(CPUInstructionExecutedEventArgs e)
     {
@@ -196,6 +204,7 @@ public class CPU
             throw new DotNet6502Exception($"CPU model '{ModelDefinition.ModelId}' does not support compatibility profile '{compatibilityProfile}'.");
         CompatibilityProfile = compatibilityProfile;
         InstructionList = ModelDefinition.CreateInstructionList(compatibilityProfile);
+        Descriptors = OpCodeDescriptorTableBuilder.Build(InstructionList);
 
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor(loggerFactory);
@@ -216,6 +225,9 @@ public class CPU
             CompatibilityProfile = this.CompatibilityProfile,
             ModelDefinition = this.ModelDefinition, // immutable definition, safe to share
             InstructionList = this.InstructionList.Clone(),
+            // Shares handler instances with the original, mirroring InstructionList.Clone()
+            // which shares the underlying OpCode/Instruction objects. Handlers are stateless.
+            Descriptors = this.Descriptors,
             _logger = this._logger
         };
     }
@@ -406,6 +418,10 @@ public class CPU
         PushByteToStack(processorStatusCopy.Value, mem);
         // Set current Interrupt flag
         ProcessorStatus.InterruptDisable = true;
+        // Model policy (per event, not hot path): CMOS parts clear Decimal on interrupt
+        // entry, after the status byte (with D intact) was pushed. NMOS leaves D as-is.
+        if (ModelDefinition.Traits.ClearsDecimalOnInterrupt)
+            ProcessorStatus.Decimal = false;
         // Change PC to address found at BRK/IRQ handler vector
         PC = FetchWord(mem, CPU.BrkIRQHandlerVector);
     }
@@ -427,6 +443,10 @@ public class CPU
         PushByteToStack(processorStatusCopy.Value, mem);
         // Set current Interrupt flag
         ProcessorStatus.InterruptDisable = true;
+        // Model policy (per event, not hot path): CMOS parts clear Decimal on interrupt
+        // entry, after the status byte (with D intact) was pushed. NMOS leaves D as-is.
+        if (ModelDefinition.Traits.ClearsDecimalOnInterrupt)
+            ProcessorStatus.Decimal = false;
         // Change PC to address found at BRK/IRQ handler vector
         PC = FetchWord(mem, CPU.NonMaskableIRQHandlerVector);
     }
@@ -437,6 +457,10 @@ public class CPU
     /// <param name="mem"></param>
     public void Reset(Memory mem)
     {
+        // Model policy: CMOS parts clear Decimal on reset; the emulator's NMOS reset
+        // deliberately touches no flags (see CpuNmosCharacterizationTests).
+        if (ModelDefinition.Traits.ClearsDecimalOnInterrupt)
+            ProcessorStatus.Decimal = false;
         // Change PC to address found at BRK/IRQ handler vector
         PC = FetchWord(mem, CPU.ResetVector);
         IsHalted = false;

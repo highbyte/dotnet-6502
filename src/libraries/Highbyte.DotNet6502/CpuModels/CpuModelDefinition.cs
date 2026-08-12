@@ -22,10 +22,15 @@ internal sealed class CpuModelDefinition
     public required IReadOnlyList<CpuCompatibilityProfile> SupportedProfiles { get; init; }
 
     /// <summary>
-    /// Builds the per-CPU instruction table for a supported profile. The table is still
-    /// the mutable per-instance <see cref="InstructionList"/> graph that today's executor
-    /// consumes unchanged; a frozen descriptor/handler table replaces it in a later step
-    /// of the CPU-model work.
+    /// Builds the per-CPU instruction table for a supported profile. Still the mutable
+    /// per-instance <see cref="InstructionList"/> graph — it remains the public view and
+    /// the source the descriptor dispatch table is composed from.
     /// </summary>
     public required Func<CpuCompatibilityProfile, InstructionList> CreateInstructionList { get; init; }
+
+    /// <summary>
+    /// Non-instruction behavior differences (interrupt/BRK/reset entry effects),
+    /// consulted per event — never per instruction.
+    /// </summary>
+    public required CpuModelTraits Traits { get; init; }
 }

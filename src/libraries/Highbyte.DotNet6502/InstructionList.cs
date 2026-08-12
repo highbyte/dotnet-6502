@@ -173,7 +173,7 @@ public class InstructionList
     private static bool ShouldIncludeOpCode(OpCodeId opCodeId, CpuCompatibilityProfile compatibilityProfile)
         => compatibilityProfile >= GetMinimumCompatibilityProfile(opCodeId);
 
-    private static CpuCompatibilityProfile GetMinimumCompatibilityProfile(OpCodeId opCodeId)
+    internal static CpuCompatibilityProfile GetMinimumCompatibilityProfile(OpCodeId opCodeId)
         => opCodeId switch
         {
             // Stable undocumented opcodes commonly used on NMOS 6502/6510 machines.

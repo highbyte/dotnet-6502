@@ -64,4 +64,65 @@ public class CpuModelTests
 
         Assert.Same(cpu.ModelDefinition, clone.ModelDefinition);
     }
+
+    [Theory]
+    [InlineData(CpuCompatibilityProfile.OfficialOnly)]
+    [InlineData(CpuCompatibilityProfile.StableUnofficial)]
+    [InlineData(CpuCompatibilityProfile.ExperimentalUnofficial)]
+    [InlineData(CpuCompatibilityProfile.FullUnofficial)]
+    public void Descriptor_Table_Matches_InstructionList_Byte_For_Byte(CpuCompatibilityProfile profile)
+    {
+        var cpu = new CPU(profile);
+
+        for (var code = 0; code <= 0xff; code++)
+        {
+            var b = (byte)code;
+            var opCode = cpu.InstructionList.TryGetOpCode(b);
+            var descriptor = cpu.Descriptors[b];
+
+            if (opCode is null)
+            {
+                Assert.Null(descriptor);
+                continue;
+            }
+
+            Assert.NotNull(descriptor);
+            Assert.Equal(b, descriptor.Code);
+            Assert.Equal(opCode.AddressingMode, descriptor.Addressing);
+            Assert.Equal(opCode.Size, descriptor.Size);
+            Assert.Equal(opCode.MinimumCycles, descriptor.BaseCycles);
+            Assert.Equal(cpu.InstructionList.GetInstruction(opCode).Name, descriptor.Mnemonic);
+        }
+    }
+
+    [Fact]
+    public void Descriptor_Documented_Flag_Distinguishes_Official_From_Undocumented_OpCodes()
+    {
+        var cpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
+
+        Assert.True(cpu.Descriptors[(byte)OpCodeId.LDA_I]!.Documented);
+        Assert.True(cpu.Descriptors[(byte)OpCodeId.JMP_IND]!.Documented);
+        Assert.False(cpu.Descriptors[(byte)OpCodeId.LAX_ZP]!.Documented);
+        Assert.False(cpu.Descriptors[(byte)OpCodeId.JAM_02]!.Documented);
+    }
+
+    [Fact]
+    public void Descriptor_Execute_Runs_A_Complete_Instruction_And_Returns_Total_Cycles()
+    {
+        // LDA #$42 through the descriptor handler directly: operand fetch, register
+        // update, flag update, and TOTAL cycle count in one call.
+        var cpu = new CPU();
+        var mem = new Memory();
+        cpu.PC = 0x1000;
+        mem[0x1000] = (byte)OpCodeId.LDA_I;
+        mem[0x1001] = 0x42;
+
+        var descriptor = cpu.Descriptors[(byte)OpCodeId.LDA_I]!;
+        cpu.PC = 0x1001; // Executor fetches the opcode byte first; handler starts at the operand.
+        var cycles = descriptor.Execute(cpu, mem);
+
+        Assert.Equal(0x42, cpu.A);
+        Assert.Equal((ushort)0x1002, cpu.PC);
+        Assert.Equal(2ul, cycles);
+    }
 }
