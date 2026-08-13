@@ -87,4 +87,119 @@ internal static class InstructionCores
         cpu.A = cpu.Y;
         BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
     }
+
+    // --- Logic ---
+
+    public static ulong And(CPU cpu, byte value)
+    {
+        cpu.A &= value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong Ora(CPU cpu, byte value)
+    {
+        cpu.A |= value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong Eor(CPU cpu, byte value)
+    {
+        cpu.A ^= value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong Bit(CPU cpu, byte value)
+    {
+        BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    // --- Compares ---
+
+    public static ulong Cmp(CPU cpu, byte value)
+    {
+        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.A, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong Cpx(CPU cpu, byte value)
+    {
+        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.X, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong Cpy(CPU cpu, byte value)
+    {
+        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    // --- Add/subtract with carry: the decimal-mode behavior is per model ---
+
+    public static ulong AdcNmos(CPU cpu, byte value)
+    {
+        cpu.A = cpu.ProcessorStatus.Decimal
+            ? DecimalArithmeticHelpers.AddWithCarryAndOverFlowDecimalMode(cpu.A, value, ref cpu.ProcessorStatus)
+            : BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong SbcNmos(CPU cpu, byte value)
+    {
+        cpu.A = cpu.ProcessorStatus.Decimal
+            ? DecimalArithmeticHelpers.SubtractWithCarryAndOverflowDecimalMode(cpu.A, value, ref cpu.ProcessorStatus)
+            : BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong AdcCmos(CPU cpu, byte value)
+    {
+        if (cpu.ProcessorStatus.Decimal)
+        {
+            cpu.A = DecimalArithmeticHelpers.AddWithCarryAndOverFlowDecimalModeCmos(cpu.A, value, ref cpu.ProcessorStatus);
+            return 1; // 65C02: decimal mode costs one extra cycle
+        }
+        cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    public static ulong SbcCmos(CPU cpu, byte value)
+    {
+        if (cpu.ProcessorStatus.Decimal)
+        {
+            cpu.A = DecimalArithmeticHelpers.SubtractWithCarryAndOverflowDecimalModeCmos(cpu.A, value, ref cpu.ProcessorStatus);
+            return 1; // 65C02: decimal mode costs one extra cycle
+        }
+        cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    // --- Register increment/decrement ---
+
+    public static void Inx(CPU cpu)
+    {
+        cpu.X++;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, ref cpu.ProcessorStatus);
+    }
+
+    public static void Iny(CPU cpu)
+    {
+        cpu.Y++;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, ref cpu.ProcessorStatus);
+    }
+
+    public static void Dex(CPU cpu)
+    {
+        cpu.X--;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, ref cpu.ProcessorStatus);
+    }
+
+    public static void Dey(CPU cpu)
+    {
+        cpu.Y--;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, ref cpu.ProcessorStatus);
+    }
 }

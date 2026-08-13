@@ -40,6 +40,9 @@ internal static class Nmos6502Model
             // Handler migration (transitional): migrated instruction groups are re-bound
             // as core-based handlers composed for this model's dummy-read policy.
             MigratedInstructionBindings.Apply(table, s_traits.PerformsIndexedDummyReads);
+            MigratedInstructionBindings.ApplyAdcSbc(table,
+                InstructionCores.AdcNmos, InstructionCores.SbcNmos,
+                indexedDummyReads: s_traits.PerformsIndexedDummyReads);
             return table;
         },
     };

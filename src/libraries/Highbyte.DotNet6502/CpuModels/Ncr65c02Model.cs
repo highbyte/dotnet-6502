@@ -62,24 +62,14 @@ internal static class Ncr65c02Model
         };
 
         // ADC/SBC: 65C02 decimal mode has valid N/Z flags, its own SBC correction
-        // sequence, and +1 cycle. Binary mode identical. All existing addressing modes
-        // are re-composed over the CMOS instruction variants.
-        var cmosAdc = new CmosAdc();
-        var cmosSbc = new CmosSbc();
-        ReplaceWithInstruction(table, cmosAdc);
-        ReplaceWithInstruction(table, cmosSbc);
+        // sequence, and +1 cycle. Binary mode identical. Bound from the CMOS cores.
+        MigratedInstructionBindings.ApplyAdcSbc(table,
+            InstructionCores.AdcCmos, InstructionCores.SbcCmos,
+            indexedDummyReads: s_traits.PerformsIndexedDummyReads);
 
         // The "(zp)" addressing mode: the eight ALU/load/store instructions gained a
-        // zero-page-indirect form. Semantics are the shared instruction objects'
-        // (CMOS variants for ADC/SBC), composed for the new mode. 2 bytes, 5 cycles.
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.ORA_I), newCode: 0x12);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.AND_I), newCode: 0x32);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.EOR_I), newCode: 0x52);
-        AddZpIndirectForm(table, cmosAdc, newCode: 0x72);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.STA_ZP), newCode: 0x92);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.LDA_I), newCode: 0xB2);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.CMP_I), newCode: 0xD2);
-        AddZpIndirectForm(table, cmosSbc, newCode: 0xF2);
+        // zero-page-indirect form, bound from the same cores as their other modes.
+        MigratedInstructionBindings.ApplyCmosZpIndirectForms(table);
 
         // Read-modify-write instructions: the 65C02 sequence is read-READ-write (the
         // NMOS classes now perform the NMOS read-WRITE-write), so every RMW byte gets a
@@ -130,61 +120,6 @@ internal static class Ncr65c02Model
         FillDefinedNops(table);
 
         return table;
-    }
-
-    private static Instruction GetInstruction(InstructionList instructionList, byte existingCode)
-        => instructionList.GetInstruction(instructionList.GetOpCode(existingCode));
-
-    /// <summary>
-    /// Replaces the descriptors of an instruction's opcode bytes with handlers composed
-    /// over a (CMOS-variant) instruction object. Only bytes already present in the table
-    /// (the shared OFFICIAL set) are replaced: the NMOS instruction's opcode list can
-    /// also carry undocumented aliases (e.g. SBC $EB) that do not exist on the 65C02 —
-    /// those bytes must stay free for the defined-NOP fill.
-    /// </summary>
-    private static void ReplaceWithInstruction(OpCodeDescriptor?[] table, Instruction instruction)
-    {
-        foreach (var opCode in instruction.OpCodes)
-        {
-            if (table[opCode.CodeRaw] is null)
-                continue;
-            table[opCode.CodeRaw] = new OpCodeDescriptor
-            {
-                Code = opCode.CodeRaw,
-                Mnemonic = instruction.Name,
-                Addressing = opCode.AddressingMode,
-                Size = (byte)opCode.Size,
-                BaseCycles = opCode.MinimumCycles,
-                Documented = true,
-                Execute = OpCodeDescriptorTableBuilder.ComposeExecuteHandler(opCode, instruction),
-            };
-        }
-    }
-
-    /// <summary>
-    /// Adds a "(zp)" form of an instruction, composed for the ZP_IND addressing mode.
-    /// </summary>
-    private static void AddZpIndirectForm(OpCodeDescriptor?[] table, Instruction instruction, byte newCode)
-    {
-        // Metadata carrier for the composed handler. Note OpCode.Code is a byte-valued
-        // NMOS-named enum; only the raw byte and addressing mode matter here.
-        var opCode = new OpCode
-        {
-            Code = (OpCodeId)newCode,
-            AddressingMode = AddrMode.ZP_IND,
-            Size = 2,
-            MinimumCycles = 5,
-        };
-        table[newCode] = new OpCodeDescriptor
-        {
-            Code = newCode,
-            Mnemonic = instruction.Name,
-            Addressing = AddrMode.ZP_IND,
-            Size = 2,
-            BaseCycles = 5,
-            Documented = true,
-            Execute = OpCodeDescriptorTableBuilder.ComposeExecuteHandler(opCode, instruction),
-        };
     }
 
     /// <summary>

@@ -64,6 +64,103 @@ internal static class MigratedInstructionBindings
         Implied(table, 0x8A, "TXA", 2, InstructionCores.Txa);
         Implied(table, 0x9A, "TXS", 2, InstructionCores.Txs);
         Implied(table, 0x98, "TYA", 2, InstructionCores.Tya);
+
+        // --- Logic ---
+        Read(table, 0x29, "AND", AddrMode.I, 2, 2, InstructionCores.And, false, indexedDummyReads);
+        Read(table, 0x25, "AND", AddrMode.ZP, 2, 3, InstructionCores.And, false, indexedDummyReads);
+        Read(table, 0x35, "AND", AddrMode.ZP_X, 2, 4, InstructionCores.And, false, indexedDummyReads);
+        Read(table, 0x2D, "AND", AddrMode.ABS, 3, 4, InstructionCores.And, false, indexedDummyReads);
+        Read(table, 0x3D, "AND", AddrMode.ABS_X, 3, 4, InstructionCores.And, true, indexedDummyReads);
+        Read(table, 0x39, "AND", AddrMode.ABS_Y, 3, 4, InstructionCores.And, true, indexedDummyReads);
+        Read(table, 0x21, "AND", AddrMode.IX_IND, 2, 6, InstructionCores.And, false, indexedDummyReads);
+        Read(table, 0x31, "AND", AddrMode.IND_IX, 2, 5, InstructionCores.And, true, indexedDummyReads);
+
+        Read(table, 0x09, "ORA", AddrMode.I, 2, 2, InstructionCores.Ora, false, indexedDummyReads);
+        Read(table, 0x05, "ORA", AddrMode.ZP, 2, 3, InstructionCores.Ora, false, indexedDummyReads);
+        Read(table, 0x15, "ORA", AddrMode.ZP_X, 2, 4, InstructionCores.Ora, false, indexedDummyReads);
+        Read(table, 0x0D, "ORA", AddrMode.ABS, 3, 4, InstructionCores.Ora, false, indexedDummyReads);
+        Read(table, 0x1D, "ORA", AddrMode.ABS_X, 3, 4, InstructionCores.Ora, true, indexedDummyReads);
+        Read(table, 0x19, "ORA", AddrMode.ABS_Y, 3, 4, InstructionCores.Ora, true, indexedDummyReads);
+        Read(table, 0x01, "ORA", AddrMode.IX_IND, 2, 6, InstructionCores.Ora, false, indexedDummyReads);
+        Read(table, 0x11, "ORA", AddrMode.IND_IX, 2, 5, InstructionCores.Ora, true, indexedDummyReads);
+
+        Read(table, 0x49, "EOR", AddrMode.I, 2, 2, InstructionCores.Eor, false, indexedDummyReads);
+        Read(table, 0x45, "EOR", AddrMode.ZP, 2, 3, InstructionCores.Eor, false, indexedDummyReads);
+        Read(table, 0x55, "EOR", AddrMode.ZP_X, 2, 4, InstructionCores.Eor, false, indexedDummyReads);
+        Read(table, 0x4D, "EOR", AddrMode.ABS, 3, 4, InstructionCores.Eor, false, indexedDummyReads);
+        Read(table, 0x5D, "EOR", AddrMode.ABS_X, 3, 4, InstructionCores.Eor, true, indexedDummyReads);
+        Read(table, 0x59, "EOR", AddrMode.ABS_Y, 3, 4, InstructionCores.Eor, true, indexedDummyReads);
+        Read(table, 0x41, "EOR", AddrMode.IX_IND, 2, 6, InstructionCores.Eor, false, indexedDummyReads);
+        Read(table, 0x51, "EOR", AddrMode.IND_IX, 2, 5, InstructionCores.Eor, true, indexedDummyReads);
+
+        // --- Compares ---
+        Read(table, 0xC9, "CMP", AddrMode.I, 2, 2, InstructionCores.Cmp, false, indexedDummyReads);
+        Read(table, 0xC5, "CMP", AddrMode.ZP, 2, 3, InstructionCores.Cmp, false, indexedDummyReads);
+        Read(table, 0xD5, "CMP", AddrMode.ZP_X, 2, 4, InstructionCores.Cmp, false, indexedDummyReads);
+        Read(table, 0xCD, "CMP", AddrMode.ABS, 3, 4, InstructionCores.Cmp, false, indexedDummyReads);
+        Read(table, 0xDD, "CMP", AddrMode.ABS_X, 3, 4, InstructionCores.Cmp, true, indexedDummyReads);
+        Read(table, 0xD9, "CMP", AddrMode.ABS_Y, 3, 4, InstructionCores.Cmp, true, indexedDummyReads);
+        Read(table, 0xC1, "CMP", AddrMode.IX_IND, 2, 6, InstructionCores.Cmp, false, indexedDummyReads);
+        Read(table, 0xD1, "CMP", AddrMode.IND_IX, 2, 5, InstructionCores.Cmp, true, indexedDummyReads);
+
+        Read(table, 0xE0, "CPX", AddrMode.I, 2, 2, InstructionCores.Cpx, false, indexedDummyReads);
+        Read(table, 0xE4, "CPX", AddrMode.ZP, 2, 3, InstructionCores.Cpx, false, indexedDummyReads);
+        Read(table, 0xEC, "CPX", AddrMode.ABS, 3, 4, InstructionCores.Cpx, false, indexedDummyReads);
+        Read(table, 0xC0, "CPY", AddrMode.I, 2, 2, InstructionCores.Cpy, false, indexedDummyReads);
+        Read(table, 0xC4, "CPY", AddrMode.ZP, 2, 3, InstructionCores.Cpy, false, indexedDummyReads);
+        Read(table, 0xCC, "CPY", AddrMode.ABS, 3, 4, InstructionCores.Cpy, false, indexedDummyReads);
+
+        // --- BIT (the modes shared by both models; 65C02-only modes stay bespoke) ---
+        Read(table, 0x24, "BIT", AddrMode.ZP, 2, 3, InstructionCores.Bit, false, indexedDummyReads);
+        Read(table, 0x2C, "BIT", AddrMode.ABS, 3, 4, InstructionCores.Bit, false, indexedDummyReads);
+
+        // --- Register increment/decrement ---
+        Implied(table, 0xE8, "INX", 2, InstructionCores.Inx);
+        Implied(table, 0xC8, "INY", 2, InstructionCores.Iny);
+        Implied(table, 0xCA, "DEX", 2, InstructionCores.Dex);
+        Implied(table, 0x88, "DEY", 2, InstructionCores.Dey);
+    }
+
+    /// <summary>
+    /// ADC/SBC bindings for a model, with the model's decimal-mode core (NMOS flags vs
+    /// 65C02 valid flags + extra cycle). The $EB undocumented SBC alias is NOT bound here
+    /// — it is profile-dependent and migrates with the illegal-opcode group.
+    /// </summary>
+    public static void ApplyAdcSbc(OpCodeDescriptor?[] table, ReadOperation adcCore, ReadOperation sbcCore, bool indexedDummyReads)
+    {
+        Read(table, 0x69, "ADC", AddrMode.I, 2, 2, adcCore, false, indexedDummyReads);
+        Read(table, 0x65, "ADC", AddrMode.ZP, 2, 3, adcCore, false, indexedDummyReads);
+        Read(table, 0x75, "ADC", AddrMode.ZP_X, 2, 4, adcCore, false, indexedDummyReads);
+        Read(table, 0x6D, "ADC", AddrMode.ABS, 3, 4, adcCore, false, indexedDummyReads);
+        Read(table, 0x7D, "ADC", AddrMode.ABS_X, 3, 4, adcCore, true, indexedDummyReads);
+        Read(table, 0x79, "ADC", AddrMode.ABS_Y, 3, 4, adcCore, true, indexedDummyReads);
+        Read(table, 0x61, "ADC", AddrMode.IX_IND, 2, 6, adcCore, false, indexedDummyReads);
+        Read(table, 0x71, "ADC", AddrMode.IND_IX, 2, 5, adcCore, true, indexedDummyReads);
+
+        Read(table, 0xE9, "SBC", AddrMode.I, 2, 2, sbcCore, false, indexedDummyReads);
+        Read(table, 0xE5, "SBC", AddrMode.ZP, 2, 3, sbcCore, false, indexedDummyReads);
+        Read(table, 0xF5, "SBC", AddrMode.ZP_X, 2, 4, sbcCore, false, indexedDummyReads);
+        Read(table, 0xED, "SBC", AddrMode.ABS, 3, 4, sbcCore, false, indexedDummyReads);
+        Read(table, 0xFD, "SBC", AddrMode.ABS_X, 3, 4, sbcCore, true, indexedDummyReads);
+        Read(table, 0xF9, "SBC", AddrMode.ABS_Y, 3, 4, sbcCore, true, indexedDummyReads);
+        Read(table, 0xE1, "SBC", AddrMode.IX_IND, 2, 6, sbcCore, false, indexedDummyReads);
+        Read(table, 0xF1, "SBC", AddrMode.IND_IX, 2, 5, sbcCore, true, indexedDummyReads);
+    }
+
+    /// <summary>
+    /// The 65C02's "(zp)" zero-page-indirect forms, bound from the same cores as the
+    /// instructions' other modes (CMOS cores for ADC/SBC). 2 bytes, 5 cycles each.
+    /// </summary>
+    public static void ApplyCmosZpIndirectForms(OpCodeDescriptor?[] table)
+    {
+        Read(table, 0x12, "ORA", AddrMode.ZP_IND, 2, 5, InstructionCores.Ora, false, indexedDummyReads: false);
+        Read(table, 0x32, "AND", AddrMode.ZP_IND, 2, 5, InstructionCores.And, false, indexedDummyReads: false);
+        Read(table, 0x52, "EOR", AddrMode.ZP_IND, 2, 5, InstructionCores.Eor, false, indexedDummyReads: false);
+        Read(table, 0x72, "ADC", AddrMode.ZP_IND, 2, 5, InstructionCores.AdcCmos, false, indexedDummyReads: false);
+        Store(table, 0x92, "STA", AddrMode.ZP_IND, 2, 5, InstructionCores.Sta, indexedDummyReads: false);
+        Read(table, 0xB2, "LDA", AddrMode.ZP_IND, 2, 5, InstructionCores.Lda, false, indexedDummyReads: false);
+        Read(table, 0xD2, "CMP", AddrMode.ZP_IND, 2, 5, InstructionCores.Cmp, false, indexedDummyReads: false);
+        Read(table, 0xF2, "SBC", AddrMode.ZP_IND, 2, 5, InstructionCores.SbcCmos, false, indexedDummyReads: false);
     }
 
     private static void Read(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
