@@ -117,6 +117,14 @@ public class CPU
     internal CpuModelDefinition ModelDefinition { get; private set; }
 
     /// <summary>
+    /// Per-CPU-instance state beyond the standard registers for models that have any
+    /// (e.g. the 6510's I/O port, <see cref="Cpu6510Port"/>); null for other models.
+    /// The machine wires it up (input levels, output-change subscription) at system
+    /// construction.
+    /// </summary>
+    public CpuModelState? ModelState { get; private set; }
+
+    /// <summary>
     /// The 256-entry dispatch table for this CPU's model: one pre-composed handler per
     /// opcode byte (null = undefined byte for the active profile). This is what the
     /// executor runs; <see cref="InstructionList"/> is the public metadata view
@@ -221,6 +229,7 @@ public class CPU
         CompatibilityProfile = compatibilityProfile;
         InstructionList = ModelDefinition.CreateInstructionList(compatibilityProfile);
         Descriptors = ModelDefinition.CreateDescriptors(compatibilityProfile);
+        ModelState = ModelDefinition.StateFactory?.Invoke();
 
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor(loggerFactory);
@@ -244,6 +253,9 @@ public class CPU
             // Shares handler instances with the original, mirroring InstructionList.Clone()
             // which shares the underlying OpCode/Instruction objects. Handlers are stateless.
             Descriptors = this.Descriptors,
+            // Copies state values but not event subscribers: the clone must not retain
+            // callbacks into the original machine.
+            ModelState = this.ModelState?.Clone(),
             _logger = this._logger
         };
     }
