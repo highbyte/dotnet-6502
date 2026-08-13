@@ -76,9 +76,8 @@ public sealed class C64CoreSnapshotModule : ISnapshotModule
         Array.Copy(ram, c64.RAM, ram.Length);
         Array.Copy(io, c64.IO, io.Length);
 
-        // Restore the CPU port and re-derive the active bank/memory configuration.
-        c64.SnapshotCpuPortDataDirectionRegister = cpuPortDdr;
-        c64.SnapshotCpuPortDataRegister = cpuPortData;
-        c64.ApplyCpuPortMemoryConfigurationFromSnapshot();
+        // Restore the CPU port (both registers together); the port's change notification
+        // re-derives the active bank/memory configuration.
+        c64.RestoreCpuPortState(cpuPortDdr, cpuPortData);
     }
 }

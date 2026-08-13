@@ -75,6 +75,6 @@ public sealed class C64CartridgeSnapshotModule : ISnapshotModule
         if (liveState.Length > 0 && c64.CartridgeSlot.AttachedCartridge is ISnapshotableCartridge snapshotable)
             snapshotable.RestoreSnapshotState(liveState);
 
-        c64.ApplyCpuPortMemoryConfigurationFromSnapshot();
+        c64.ReapplyMemoryConfigurationFromSnapshot();
     }
 }
