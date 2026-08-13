@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Embedding;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
@@ -155,11 +156,13 @@ public class OverlayDialogHelper
         MainView? mainView = null;
         if (_applicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            mainView = desktop.MainWindow?.Content as MainView;
+            mainView = desktop.MainWindow?.Content as MainView
+                ?? desktop.MainWindow?.FindDescendantOfType<MainView>();
         }
         else if (_applicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
-            mainView = singleViewPlatform.MainView as MainView;
+            mainView = singleViewPlatform.MainView as MainView
+                ?? singleViewPlatform.MainView?.FindDescendantOfType<MainView>();
         }
         return mainView;
     }
