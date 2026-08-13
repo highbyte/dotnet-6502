@@ -2,7 +2,7 @@ namespace Highbyte.DotNet6502.Tests;
 
 /// <summary>
 /// Tests for the internal CPU model definition seam introduced by the CPU model
-/// architecture work (feature cpu-models-65c02, M1 step 1).
+/// architecture work.
 /// </summary>
 public class CpuModelTests
 {

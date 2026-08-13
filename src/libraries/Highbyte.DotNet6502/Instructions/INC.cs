@@ -4,13 +4,18 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Increment Memory.
 /// Adds one to the value held at a specified memory location setting the zero and negative flags as appropriate.
 /// </summary>
-public class INC : Instruction, IInstructionUsesByte
+public class INC : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;
 
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
+        // Real NMOS RMW is read-write-write: the modify cycle writes the unmodified
+        // value back before the result (observable through mapped I/O). The 65C02
+        // model binds its own read-read-write handlers for these opcodes, so this
+        // memory path serves NMOS models only.
+        cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
         value++;
         cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
         BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref cpu.ProcessorStatus);

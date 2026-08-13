@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Utils;
 namespace Highbyte.DotNet6502.Tests;
 
 [Trait("TestType", "Integration")]
+[Collection(Helpers.KlausTestArtifactsCollection.Name)]
 public class Functional_BCD_test
 {
     private readonly ITestOutputHelper _output;

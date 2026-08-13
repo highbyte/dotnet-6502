@@ -5,13 +5,18 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Decrements the value at the effective address by 1, then compares the result
 /// with the accumulator setting N, Z, and C flags as CMP does.
 /// </summary>
-public class DCP : Instruction, IInstructionUsesByte
+public class DCP : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;
 
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
+        // Real NMOS RMW is read-write-write: the modify cycle writes the unmodified
+        // value back before the result (observable through mapped I/O). The 65C02
+        // model binds its own read-read-write handlers for these opcodes, so this
+        // memory path serves NMOS models only.
+        cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
         value--;
         cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
         BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.A, value, ref cpu.ProcessorStatus);

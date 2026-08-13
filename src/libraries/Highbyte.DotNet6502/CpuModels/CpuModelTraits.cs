@@ -14,6 +14,14 @@ namespace Highbyte.DotNet6502;
 /// must have 256 populated entries. NMOS: false — undefined bytes depend on the
 /// compatibility profile.
 /// </param>
+/// <param name="PerformsIndexedDummyReads">
+/// NMOS: true — indexed addressing performs a dummy read at the "un-carried" address
+/// (high byte not yet corrected) when a read crosses a page, and ALWAYS before indexed
+/// stores and indexed RMW instructions. 65C02: false — the CMOS part re-targeted those
+/// dummy cycles (different addresses); modelling them is deferred until something
+/// observable needs them. Consumed at table BUILD time, never per instruction.
+/// </param>
 internal readonly record struct CpuModelTraits(
     bool ClearsDecimalOnInterrupt,
-    bool AllBytesDefined);
+    bool AllBytesDefined,
+    bool PerformsIndexedDummyReads);

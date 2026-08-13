@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Tests;
 /// <summary>
 /// Tests for the 65C02's decimal-mode ADC/SBC (valid N/Z flags, own SBC correction
 /// sequence, +1 cycle) and the shift/rotate abs,X cycle change
-/// (feature cpu-models-65c02, M1 step 4). Counterparts of the NMOS decimal tests in
+/// during the CPU model architecture work. Counterparts of the NMOS decimal tests in
 /// ADC_test/SBC_test where the models deliberately differ.
 /// </summary>
 public class Ncr65c02ArithmeticAndCycleTests

@@ -13,6 +13,11 @@ public class ROR : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyReg
     public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
     {
         var tempValue = cpu.FetchByte(mem, address);
+        // Real NMOS RMW is read-write-write: the modify cycle writes the unmodified
+        // value back before the result (observable through mapped I/O). The 65C02
+        // model binds its own read-read-write handlers for these opcodes, so this
+        // memory path serves NMOS models only.
+        cpu.StoreByte(tempValue, mem, address);
         tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, ref cpu.ProcessorStatus);
         cpu.StoreByte(tempValue, mem, address);
 

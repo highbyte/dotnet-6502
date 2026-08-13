@@ -425,6 +425,12 @@ public class CPU
     /// <param name="mem"></param>
     private void ProcessHardwareIRQ(Memory mem)
     {
+        // Real hardware entry: the first two cycles of the 7-cycle sequence read the
+        // next opcode byte (twice, discarded) while the interrupt takes over the
+        // instruction flow. Observable through mapped I/O at the PC address.
+        FetchByte(mem, PC);
+        FetchByte(mem, PC);
+
         // The return address pushed to stack is the current PC (the address of the next instruction at this point)
         ushort pcPushedToStack = PC;
         PushWordToStack(pcPushedToStack, mem);
@@ -450,6 +456,12 @@ public class CPU
     /// <param name="mem"></param>
     private void ProcessHardwareNMI(Memory mem)
     {
+        // Real hardware entry: the first two cycles of the 7-cycle sequence read the
+        // next opcode byte (twice, discarded) while the interrupt takes over the
+        // instruction flow. Observable through mapped I/O at the PC address.
+        FetchByte(mem, PC);
+        FetchByte(mem, PC);
+
         // The return address pushed to stack is the current PC (the address of the next instruction at this point)
         ushort pcPushedToStack = PC;
         PushWordToStack(pcPushedToStack, mem);

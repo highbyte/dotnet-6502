@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Highbyte.DotNet6502.Tests;
 
 /// <summary>
-/// Tests for the ncr65c02 CPU model (feature cpu-models-65c02, M1 step 4).
+/// Tests for the ncr65c02 CPU model.
 /// Counterparts of the NMOS baseline tests in <see cref="CpuNmosCharacterizationTests"/>
 /// where the 65C02 deliberately behaves differently.
 /// </summary>

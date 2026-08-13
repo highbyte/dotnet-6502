@@ -5,13 +5,18 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Rotates the value at the effective address one bit left through carry,
 /// then ANDs the rotated result into A, setting N, Z, and C flags.
 /// </summary>
-public class RLA : Instruction, IInstructionUsesByte
+public class RLA : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;
 
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
+        // Real NMOS RMW is read-write-write: the modify cycle writes the unmodified
+        // value back before the result (observable through mapped I/O). The 65C02
+        // model binds its own read-read-write handlers for these opcodes, so this
+        // memory path serves NMOS models only.
+        cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
         value = BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
         cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
         cpu.A &= value;

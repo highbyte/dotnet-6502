@@ -7,13 +7,22 @@ namespace Highbyte.DotNet6502;
 /// byte defined — bytes without an instruction are NOPs with specific sizes/cycles.
 /// No Rockwell (RMB/SMB/BBR/BBS) or WDC (WAI/STP) extensions; those bytes are NOPs.
 ///
-/// Built up in stages (design log: cpu-models-65c02 M1.4): this stage carries the shared
+/// Built up in stages : this stage carries the shared
 /// official instruction set, the CMOS JMP (addr), and the defined-NOP map. The new
 /// 65C02 instructions, CMOS decimal arithmetic, and shift/rotate abs,X cycle changes
 /// follow in the next stages before the model is wired into any system.
 /// </summary>
 internal static class Ncr65c02Model
 {
+    // Single source of truth for the model's traits: referenced both by the definition
+    // and by the descriptor-table build below, so the two can never disagree.
+    private static readonly CpuModelTraits s_traits = new(
+        ClearsDecimalOnInterrupt: true,
+        AllBytesDefined: true,
+        // The 65C02 re-targeted the NMOS dummy-read cycles to different addresses;
+        // modelling its dummy reads is deferred until something observable needs them.
+        PerformsIndexedDummyReads: false);
+
     public static readonly CpuModelDefinition Definition = new()
     {
         ModelId = CpuModelIds.Ncr65c02,
@@ -24,9 +33,7 @@ internal static class Ncr65c02Model
         // Public façade view: the officially documented instruction set shared with the
         // NMOS 6502. Per-model tooling metadata comes from the descriptor table.
         CreateInstructionList = InstructionList.GetAllInstructions,
-        Traits = new CpuModelTraits(
-            ClearsDecimalOnInterrupt: true,
-            AllBytesDefined: true),
+        Traits = s_traits,
         CreateDescriptors = BuildDescriptors,
     };
 
@@ -34,7 +41,8 @@ internal static class Ncr65c02Model
     {
         // Start from the generic composition of the shared official instructions
         // (semantics identical on the 65C02 for these), then apply the CMOS delta.
-        var table = OpCodeDescriptorTableBuilder.Build(instructionList);
+        var table = OpCodeDescriptorTableBuilder.Build(instructionList,
+            indexedDummyReads: s_traits.PerformsIndexedDummyReads);
 
         // JMP (addr): pointer read is linear (NMOS wrap bug fixed), 6 cycles (was 5).
         table[(byte)OpCodeId.JMP_IND] = new OpCodeDescriptor
@@ -68,12 +76,28 @@ internal static class Ncr65c02Model
         AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.CMP_I), newCode: 0xD2);
         AddZpIndirectForm(table, cmosSbc, newCode: 0xF2);
 
-        // Shift/rotate abs,X: 6 cycles + 1 on page cross on the 65C02 (NMOS: always 7).
-        // INC/DEC abs,X deliberately stay at 7 cycles — the 65C02 only changed the shifts.
-        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.ASL_ABS_X);
-        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.ROL_ABS_X);
-        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.LSR_ABS_X);
-        ReplaceShiftRmwAbsX(table, instructionList, (byte)OpCodeId.ROR_ABS_X);
+        // Read-modify-write instructions: the 65C02 sequence is read-READ-write (the
+        // NMOS classes now perform the NMOS read-WRITE-write), so every RMW byte gets a
+        // CMOS-sequenced handler. Cycle differences also live here: shift/rotate abs,X
+        // is 6 + 1 on page cross (NMOS: always 7); INC/DEC abs,X deliberately stay at 7.
+        ReplaceCmosRmw(table, "ASL", BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters,
+            zp: (byte)OpCodeId.ASL_ZP, zpX: (byte)OpCodeId.ASL_ZP_X, abs: (byte)OpCodeId.ASL_ABS,
+            absX: (byte)OpCodeId.ASL_ABS_X, absXAddsPageCrossCycle: true);
+        ReplaceCmosRmw(table, "ROL", BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters,
+            zp: (byte)OpCodeId.ROL_ZP, zpX: (byte)OpCodeId.ROL_ZP_X, abs: (byte)OpCodeId.ROL_ABS,
+            absX: (byte)OpCodeId.ROL_ABS_X, absXAddsPageCrossCycle: true);
+        ReplaceCmosRmw(table, "LSR", BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters,
+            zp: (byte)OpCodeId.LSR_ZP, zpX: (byte)OpCodeId.LSR_ZP_X, abs: (byte)OpCodeId.LSR_ABS,
+            absX: (byte)OpCodeId.LSR_ABS_X, absXAddsPageCrossCycle: true);
+        ReplaceCmosRmw(table, "ROR", BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters,
+            zp: (byte)OpCodeId.ROR_ZP, zpX: (byte)OpCodeId.ROR_ZP_X, abs: (byte)OpCodeId.ROR_ABS,
+            absX: (byte)OpCodeId.ROR_ABS_X, absXAddsPageCrossCycle: true);
+        ReplaceCmosRmw(table, "INC", CmosHandlers.IncCore,
+            zp: (byte)OpCodeId.INC_ZP, zpX: (byte)OpCodeId.INC_ZP_X, abs: (byte)OpCodeId.INC_ABS,
+            absX: (byte)OpCodeId.INC_ABS_X, absXAddsPageCrossCycle: false);
+        ReplaceCmosRmw(table, "DEC", CmosHandlers.DecCore,
+            zp: (byte)OpCodeId.DEC_ZP, zpX: (byte)OpCodeId.DEC_ZP_X, abs: (byte)OpCodeId.DEC_ABS,
+            absX: (byte)OpCodeId.DEC_ABS_X, absXAddsPageCrossCycle: false);
 
         // New 65C02 instructions, bound as static handlers.
         Add(table, 0x04, "TSB", AddrMode.ZP, size: 2, cycles: 5, CmosHandlers.Tsb_Zp);
@@ -159,32 +183,54 @@ internal static class Ncr65c02Model
     }
 
     /// <summary>
-    /// Rebinds a shift/rotate abs,X byte with the 65C02's cycle behavior: base 6 cycles
-    /// plus 1 on page cross (the NMOS takes an unconditional 7). The shift semantics are
-    /// the shared instruction object's.
+    /// Rebinds all four memory addressing modes of a read-modify-write operation with
+    /// the 65C02 bus sequence: read, read again (replacing the NMOS write-back cycle),
+    /// then write the result. The compute step is the shared per-operation core.
+    /// abs,X cycles: shifts/rotates take 6 + 1 on page cross; INC/DEC always 7.
     /// </summary>
-    private static void ReplaceShiftRmwAbsX(OpCodeDescriptor?[] table, InstructionList instructionList, byte code)
+    private static void ReplaceCmosRmw(OpCodeDescriptor?[] table, string mnemonic, CmosHandlers.RmwCore core,
+        byte zp, byte zpX, byte abs, byte absX, bool absXAddsPageCrossCycle)
     {
-        var opCode = instructionList.GetOpCode(code);
-        var instruction = (IInstructionUsesAddress)instructionList.GetInstruction(opCode);
-        var mnemonic = instructionList.GetInstruction(opCode).Name;
-        table[code] = new OpCodeDescriptor
+        table[zp] = CmosRmwDescriptor(zp, mnemonic, AddrMode.ZP, size: 2, baseCycles: 5, core,
+            static (cpu, mem) => ((ushort)cpu.FetchOperand(mem), false));
+        table[zpX] = CmosRmwDescriptor(zpX, mnemonic, AddrMode.ZP_X, size: 2, baseCycles: 6, core,
+            static (cpu, mem) => (cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem), wrapZeroPage: true), false));
+        table[abs] = CmosRmwDescriptor(abs, mnemonic, AddrMode.ABS, size: 3, baseCycles: 6, core,
+            static (cpu, mem) => (cpu.FetchOperandWord(mem), false));
+        var absXBaseCycles = (byte)(absXAddsPageCrossCycle ? 6 : 7);
+        table[absX] = CmosRmwDescriptor(absX, mnemonic, AddrMode.ABS_X, size: 3, baseCycles: absXBaseCycles, core,
+            static (cpu, mem) =>
+            {
+                var address = cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out var crossedPageBoundary);
+                return (address, crossedPageBoundary);
+            },
+            addPageCrossCycle: absXAddsPageCrossCycle);
+    }
+
+    private delegate (ushort Address, bool CrossedPageBoundary) ResolveRmwAddress(CPU cpu, Memory mem);
+
+    private static OpCodeDescriptor CmosRmwDescriptor(byte code, string mnemonic, AddrMode addressing,
+        byte size, byte baseCycles, CmosHandlers.RmwCore core, ResolveRmwAddress resolveAddress,
+        bool addPageCrossCycle = false)
+        => new()
         {
             Code = code,
             Mnemonic = mnemonic,
-            Addressing = AddrMode.ABS_X,
-            Size = 3,
-            BaseCycles = 6,
+            Addressing = addressing,
+            Size = size,
+            BaseCycles = baseCycles,
             Documented = true,
             Execute = (cpu, mem) =>
             {
-                var address = cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out var crossedPageBoundary);
-                var calc = new AddrModeCalcResult { OpCode = opCode, InsAddress = address, AddressCalculationCrossedPageBoundary = crossedPageBoundary };
-                instruction.ExecuteWithWord(cpu, mem, address, calc);
-                return crossedPageBoundary ? 7ul : 6ul;
+                var (address, crossedPageBoundary) = resolveAddress(cpu, mem);
+                cpu.FetchByte(mem, address);
+                // 65C02 RMW is read-read-write; the value from the second (final) read
+                // feeds the modify step.
+                var value = cpu.FetchByte(mem, address);
+                cpu.StoreByte(core(value, ref cpu.ProcessorStatus), mem, address);
+                return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul);
             },
         };
-    }
 
     private static void Add(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing, byte size, byte cycles, ExecuteHandler handler)
     {

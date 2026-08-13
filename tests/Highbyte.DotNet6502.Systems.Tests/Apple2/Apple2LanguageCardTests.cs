@@ -32,6 +32,26 @@ public class Apple2LanguageCardTests
             romData);
     }
 
+    private static Apple2System BuildApple2With65c02AndRom()
+    {
+        var rom = new byte[Apple2System.SystemRomSize];
+        for (var offset = 0; offset < rom.Length; offset++)
+        {
+            var address = Apple2System.SystemRomStartAddress + offset;
+            rom[offset] = address < Apple2System.UpperMemoryStartAddress ? RomFillD000 : RomFillE000;
+        }
+
+        var romData = new Dictionary<string, byte[]> { { Apple2SystemConfig.SYSTEM_ROM_NAME, rom } };
+        return new Apple2System(
+            new Apple2Config
+            {
+                CpuModelId = CpuModelIds.Ncr65c02,
+                CpuCompatibilityProfile = CpuCompatibilityProfile.OfficialOnly,
+            },
+            NullLoggerFactory.Instance,
+            romData);
+    }
+
     /// <summary>Reads the switch, which is how software drives the card (a write works too).</summary>
     private static void Switch(Apple2System apple2, ushort address) => _ = apple2.Mem[address];
 
@@ -116,6 +136,66 @@ public class Apple2LanguageCardTests
 
         apple2.Mem[0xD000] = 0x42;
         Assert.Equal((byte)0x42, apple2.Mem[0xD000]);
+    }
+
+    /// <summary>
+    /// Per Sather (Understanding the Apple IIe, 5-23): WRITE enable is set only by an
+    /// odd READ while PRE-WRITE is set — a WRITE resets PRE-WRITE without completing
+    /// the sequence. (The emulator historically let the write complete it; fixed as part
+    /// of the CPU-model bus-accuracy work.)
+    /// </summary>
+    [Fact]
+    public void Read_Then_Write_Of_The_Switch_Does_Not_Complete_The_Sequence()
+    {
+        var apple2 = BuildApple2WithRom();
+
+        Switch(apple2, 0xC083);         // read: arms PRE-WRITE
+        apple2.Mem[0xC083] = 0x00;      // write: resets PRE-WRITE, no unlock
+
+        Assert.False(apple2.LanguageCard.WriteEnabled);
+        Assert.False(apple2.LanguageCard.PreWrite);
+    }
+
+    /// <summary>
+    /// The CPU-model-observable payoff of ordered bus accesses: INC $C083 is a single
+    /// instruction whose effect on the language card depends on which CPU executes it.
+    /// NMOS RMW is read-write-write — the write resets PRE-WRITE, no unlock.
+    /// </summary>
+    [Fact]
+    public void INC_Of_An_Odd_Switch_On_Nmos_Cpu_Does_Not_Unlock_The_Card()
+    {
+        var apple2 = BuildApple2WithRom();
+
+        // INC $C083 executed by the machine's (NMOS) CPU.
+        apple2.Mem[0x0300] = (byte)OpCodeId.INC_ABS;
+        apple2.Mem[0x0301] = 0x83;
+        apple2.Mem[0x0302] = 0xC0;
+        apple2.CPU.PC = 0x0300;
+        apple2.CPU.ExecuteOneInstructionMinimal(apple2.Mem);
+
+        Assert.False(apple2.LanguageCard.WriteEnabled);
+        Assert.False(apple2.LanguageCard.PreWrite);
+    }
+
+    /// <summary>
+    /// 65C02 RMW is read-read-write — the two reads complete the unlock sequence, and
+    /// the trailing write only resets PRE-WRITE (an already-enabled write survives).
+    /// This is how a real enhanced IIe behaves, and why some 65C02-era software can
+    /// unlock the card with a single instruction.
+    /// </summary>
+    [Fact]
+    public void INC_Of_An_Odd_Switch_On_65c02_Cpu_Unlocks_The_Card()
+    {
+        var apple2 = BuildApple2With65c02AndRom();
+
+        apple2.Mem[0x0300] = (byte)OpCodeId.INC_ABS;
+        apple2.Mem[0x0301] = 0x83;
+        apple2.Mem[0x0302] = 0xC0;
+        apple2.CPU.PC = 0x0300;
+        apple2.CPU.ExecuteOneInstructionMinimal(apple2.Mem);
+
+        Assert.True(apple2.LanguageCard.WriteEnabled);
+        Assert.False(apple2.LanguageCard.PreWrite);
     }
 
     [Fact]
