@@ -44,6 +44,11 @@ internal static class Ncr65c02Model
         var table = OpCodeDescriptorTableBuilder.Build(instructionList,
             indexedDummyReads: s_traits.PerformsIndexedDummyReads);
 
+        // Handler migration (transitional): migrated instruction groups are re-bound as
+        // core-based handlers composed for this model's dummy-read policy. Applied before
+        // the CMOS deltas below so any overlap keeps the model-specific behavior on top.
+        MigratedInstructionBindings.Apply(table, s_traits.PerformsIndexedDummyReads);
+
         // JMP (addr): pointer read is linear (NMOS wrap bug fixed), 6 cycles (was 5).
         table[(byte)OpCodeId.JMP_IND] = new OpCodeDescriptor
         {

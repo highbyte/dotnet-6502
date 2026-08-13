@@ -245,7 +245,7 @@ internal static class OpCodeDescriptorTableBuilder
     /// feeds extra-cycle calculation; UncarriedAddress is the dummy-read target for
     /// indexed modes (equals Address for non-indexed modes and non-crossing accesses).
     /// </summary>
-    private delegate (ushort Address, bool CrossedPageBoundary, ushort UncarriedAddress) ResolveAddress(CPU cpu, Memory mem);
+    internal delegate (ushort Address, bool CrossedPageBoundary, ushort UncarriedAddress) ResolveAddress(CPU cpu, Memory mem);
 
     private static ExecuteHandler ComposeWithAddress(OpCode oc, ulong baseCycles, Instruction instruction, ResolveAddress resolveAddress,
         DummyReadBehavior dummyReads = DummyReadBehavior.None)
@@ -317,4 +317,111 @@ internal static class OpCodeDescriptorTableBuilder
 
     private static DotNet6502Exception BuildError(OpCode opCode, Instruction instruction)
         => new($"CPU model table construction error: no way to execute instruction {instruction.Name} (opcode {opCode.CodeRaw:x2}, addressing mode {opCode.AddressingMode}).");
+
+    // ------------------------------------------------------------------------------------
+    // Core-binding composition (the handler-migration target style): binds an operation
+    // CORE (see InstructionCores) directly to an addressing mode — no instruction objects,
+    // no interface probes. The legacy instruction-object composition above remains until
+    // every instruction group has migrated.
+    // ------------------------------------------------------------------------------------
+
+    /// <summary>Effective-address resolution for an address-producing mode (see ResolveAddress).</summary>
+    internal static ResolveAddress GetAddressResolver(AddrMode addressingMode)
+        => addressingMode switch
+        {
+            AddrMode.ZP => static (cpu, mem) => { var address = (ushort)cpu.FetchOperand(mem); return (address, false, address); },
+            AddrMode.ZP_X => static (cpu, mem) => { var address = cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem), wrapZeroPage: true); return (address, false, address); },
+            AddrMode.ZP_Y => static (cpu, mem) => { var address = cpu.CalcZeroPageAddressY(cpu.FetchOperand(mem), wrapZeroPage: true); return (address, false, address); },
+            AddrMode.ABS => static (cpu, mem) => { var address = cpu.FetchOperandWord(mem); return (address, false, address); },
+            AddrMode.ABS_X => static (cpu, mem) =>
+            {
+                var baseAddress = cpu.FetchOperandWord(mem);
+                var address = cpu.CalcFullAddressX(baseAddress, out var didCrossPageBoundary);
+                return (address, didCrossPageBoundary, UncarriedAddress(baseAddress, cpu.X));
+            },
+            AddrMode.ABS_Y => static (cpu, mem) =>
+            {
+                var baseAddress = cpu.FetchOperandWord(mem);
+                var address = cpu.CalcFullAddressY(baseAddress, out var didCrossPageBoundary);
+                return (address, didCrossPageBoundary, UncarriedAddress(baseAddress, cpu.Y));
+            },
+            AddrMode.IX_IND => static (cpu, mem) => { var address = ReadZeroPagePointer(cpu, mem, cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem))); return (address, false, address); },
+            AddrMode.ZP_IND => static (cpu, mem) => { var address = ReadZeroPagePointer(cpu, mem, cpu.FetchOperand(mem)); return (address, false, address); },
+            AddrMode.IND_IX => static (cpu, mem) =>
+            {
+                var baseAddress = ReadZeroPagePointer(cpu, mem, cpu.FetchOperand(mem));
+                var address = cpu.CalcFullAddressY(baseAddress, out var didCrossPageBoundary);
+                return (address, didCrossPageBoundary, UncarriedAddress(baseAddress, cpu.Y));
+            },
+            AddrMode.Indirect => static (cpu, mem) => { var address = cpu.FetchWord(mem, cpu.FetchOperandWord(mem)); return (address, false, address); },
+            _ => throw new DotNet6502Exception($"CPU model table construction error: addressing mode {addressingMode} does not produce an address."),
+        };
+
+    private static bool IsIndexedMode(AddrMode addressingMode)
+        => addressingMode is AddrMode.ABS_X or AddrMode.ABS_Y or AddrMode.IND_IX;
+
+    /// <summary>
+    /// Composes a read-style instruction (value in → registers/flags): operand fetch per
+    /// mode, the NMOS page-cross dummy read when enabled, then the core. Total cycles =
+    /// base + optional page-cross cycle + whatever the core reports (e.g. CMOS decimal +1).
+    /// </summary>
+    internal static ExecuteHandler ComposeRead(AddrMode addressingMode, ulong baseCycles, ReadOperation core,
+        bool addPageCrossCycle, bool indexedDummyReads)
+    {
+        if (addressingMode == AddrMode.I)
+            return (cpu, mem) => baseCycles + core(cpu, cpu.FetchOperand(mem));
+
+        var resolveAddress = GetAddressResolver(addressingMode);
+        if (indexedDummyReads && IsIndexedMode(addressingMode))
+        {
+            return (cpu, mem) =>
+            {
+                var (address, crossedPageBoundary, uncarriedAddress) = resolveAddress(cpu, mem);
+                if (crossedPageBoundary)
+                    cpu.FetchByte(mem, uncarriedAddress);
+                var extra = core(cpu, cpu.FetchByte(mem, address));
+                return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul) + extra;
+            };
+        }
+        return (cpu, mem) =>
+        {
+            var (address, crossedPageBoundary, _) = resolveAddress(cpu, mem);
+            var extra = core(cpu, cpu.FetchByte(mem, address));
+            return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul) + extra;
+        };
+    }
+
+    /// <summary>
+    /// Composes a store-style instruction: address per mode, the NMOS always-dummy-read
+    /// when enabled (why indexed stores have no conditional cycle), then the write.
+    /// </summary>
+    internal static ExecuteHandler ComposeStore(AddrMode addressingMode, ulong baseCycles, StoreOperation core,
+        bool indexedDummyReads)
+    {
+        var resolveAddress = GetAddressResolver(addressingMode);
+        if (indexedDummyReads && IsIndexedMode(addressingMode))
+        {
+            return (cpu, mem) =>
+            {
+                var (address, _, uncarriedAddress) = resolveAddress(cpu, mem);
+                cpu.FetchByte(mem, uncarriedAddress);
+                cpu.StoreByte(core(cpu), mem, address);
+                return baseCycles;
+            };
+        }
+        return (cpu, mem) =>
+        {
+            var (address, _, _) = resolveAddress(cpu, mem);
+            cpu.StoreByte(core(cpu), mem, address);
+            return baseCycles;
+        };
+    }
+
+    /// <summary>Composes an implied/accumulator instruction: registers and flags only.</summary>
+    internal static ExecuteHandler ComposeImplied(ulong baseCycles, ImpliedOperation core)
+        => (cpu, mem) =>
+        {
+            core(cpu);
+            return baseCycles;
+        };
 }

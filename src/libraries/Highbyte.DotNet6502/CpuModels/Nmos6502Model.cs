@@ -27,13 +27,20 @@ internal static class Nmos6502Model
         },
         CreateInstructionList = InstructionList.GetAllInstructions,
         Traits = s_traits,
-        CreateDescriptors = static instructionList => OpCodeDescriptorTableBuilder.Build(
-            instructionList,
-            handlerOverrides: new Dictionary<byte, ExecuteHandler>
-            {
-                // NMOS indirect-JMP page-wrap bug (JMP ($xxFF) reads the high byte from $xx00).
-                [(byte)OpCodeId.JMP_IND] = NmosHandlers.Jmp_Indirect,
-            },
-            indexedDummyReads: s_traits.PerformsIndexedDummyReads),
+        CreateDescriptors = static instructionList =>
+        {
+            var table = OpCodeDescriptorTableBuilder.Build(
+                instructionList,
+                handlerOverrides: new Dictionary<byte, ExecuteHandler>
+                {
+                    // NMOS indirect-JMP page-wrap bug (JMP ($xxFF) reads the high byte from $xx00).
+                    [(byte)OpCodeId.JMP_IND] = NmosHandlers.Jmp_Indirect,
+                },
+                indexedDummyReads: s_traits.PerformsIndexedDummyReads);
+            // Handler migration (transitional): migrated instruction groups are re-bound
+            // as core-based handlers composed for this model's dummy-read policy.
+            MigratedInstructionBindings.Apply(table, s_traits.PerformsIndexedDummyReads);
+            return table;
+        },
     };
 }
