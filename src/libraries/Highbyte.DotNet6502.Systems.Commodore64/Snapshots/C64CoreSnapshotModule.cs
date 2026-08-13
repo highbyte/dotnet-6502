@@ -4,18 +4,21 @@ using Highbyte.DotNet6502.Systems.Snapshots;
 namespace Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
 
 /// <summary>
-/// Snapshot module for the C64 core memory and 6510 CPU port. Paired with the shared
-/// <c>cpu-6502</c> module. Step 4 of the snapshot feature: enough to restore a BASIC-ready state
-/// with no media and without per-chip (CIA/VIC-II/SID) state — those are separate modules.
+/// Snapshot module for the C64 core memory. Paired with the shared <c>cpu-6502</c> module.
 ///
 /// <para>
 /// Captures the full 64 KB <see cref="C64.RAM"/> backing array and the 4 KB <see cref="C64.IO"/>
-/// storage array directly (not through the banked <see cref="Memory"/> view), plus the raw 6510
-/// CPU port data-direction/data registers that drive bank switching. On restore the bytes are
-/// copied back into the existing arrays (preserving the memory-map delegates that reference them),
-/// and the CPU port registers are re-applied so <see cref="C64.CurrentBank"/> and the active memory
-/// configuration are recomputed. Model and timer mode are captured for validation only — the host
-/// rebuilds the system from the snapshot's machine variant before restoring.
+/// storage array directly (not through the banked <see cref="Memory"/> view). On restore the
+/// bytes are copied back into the existing arrays (preserving the memory-map delegates that
+/// reference them). Model and timer mode are captured for validation only — the host rebuilds
+/// the system from the snapshot's machine variant before restoring.
+/// </para>
+///
+/// <para>
+/// v1 additionally carried the raw 6510 CPU port registers; since v2 the port is CPU model
+/// state owned by the <c>cpu-6502</c> module (v3). Restoring a v1 payload still reads and
+/// applies the two legacy port bytes — in a v1-era file the cpu-6502 module (v2) carries no
+/// model state, so exactly one owner exists in either generation.
 /// </para>
 /// </summary>
 public sealed class C64CoreSnapshotModule : ISnapshotModule
@@ -23,7 +26,7 @@ public sealed class C64CoreSnapshotModule : ISnapshotModule
     public const string ModuleName = "c64-core";
 
     public string Name => ModuleName;
-    public int Version => 1;
+    public int Version => 2;
     public bool Required => true;
 
     public void Capture(SnapshotModuleWriter writer, SnapshotCaptureContext context)
@@ -34,11 +37,8 @@ public sealed class C64CoreSnapshotModule : ISnapshotModule
         writer.WriteString(c64.Model.Name);
         writer.WriteInt32((int)c64.TimerMode);
 
-        // 6510 CPU port raw registers (drive bank switching).
-        writer.WriteByte(c64.SnapshotCpuPortDataDirectionRegister);
-        writer.WriteByte(c64.SnapshotCpuPortDataRegister);
-
-        // Backing memory arrays.
+        // Backing memory arrays. (v1 wrote the two raw 6510 port bytes here; since v2
+        // the port travels as CPU model state in the cpu-6502 module.)
         writer.WriteBytes(c64.RAM);
         writer.WriteBytes(c64.IO);
     }
@@ -57,8 +57,18 @@ public sealed class C64CoreSnapshotModule : ISnapshotModule
             context.AddWarning(
                 $"c64-core: snapshot timer mode '{capturedTimerMode}' differs from target '{c64.TimerMode}'.");
 
-        var cpuPortDdr = reader.ReadByte();
-        var cpuPortData = reader.ReadByte();
+        // v1 carried the raw 6510 port registers in this position; since v2 the port is
+        // CPU model state restored by the cpu-6502 module. For a v1 payload the legacy
+        // bytes are still read and applied below (its cpu-6502 module carried no model
+        // state, so this is the only port owner in a v1-era file).
+        var storedVersion = context.Manifest.Modules.FirstOrDefault(m => m.Name == ModuleName)?.Version ?? 1;
+        byte legacyCpuPortDdr = 0;
+        byte legacyCpuPortData = 0;
+        if (storedVersion < 2)
+        {
+            legacyCpuPortDdr = reader.ReadByte();
+            legacyCpuPortData = reader.ReadByte();
+        }
 
         var ram = reader.ReadBytes() ?? throw new SnapshotException("c64-core: RAM bytes were missing.");
         var io = reader.ReadBytes() ?? throw new SnapshotException("c64-core: IO bytes were missing.");
@@ -76,8 +86,18 @@ public sealed class C64CoreSnapshotModule : ISnapshotModule
         Array.Copy(ram, c64.RAM, ram.Length);
         Array.Copy(io, c64.IO, io.Length);
 
-        // Restore the CPU port (both registers together); the port's change notification
-        // re-derives the active bank/memory configuration.
-        c64.RestoreCpuPortState(cpuPortDdr, cpuPortData);
+        if (storedVersion < 2)
+        {
+            // Legacy v1 port restore (both registers together); the port's change
+            // notification re-derives the active bank/memory configuration.
+            c64.RestoreCpuPortState(legacyCpuPortDdr, legacyCpuPortData);
+        }
+        else
+        {
+            // v2+: the port was already restored by the cpu-6502 module (which runs
+            // first), but the bank/memory configuration must be re-derived against the
+            // just-restored RAM/IO and cartridge lines.
+            c64.ReapplyMemoryConfigurationFromSnapshot();
+        }
     }
 }
