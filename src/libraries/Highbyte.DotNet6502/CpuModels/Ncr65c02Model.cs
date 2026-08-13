@@ -6,11 +6,6 @@ namespace Highbyte.DotNet6502;
 /// pointer read, valid decimal flags, Decimal cleared on interrupt/reset, and EVERY
 /// byte defined — bytes without an instruction are NOPs with specific sizes/cycles.
 /// No Rockwell (RMB/SMB/BBR/BBS) or WDC (WAI/STP) extensions; those bytes are NOPs.
-///
-/// Built up in stages : this stage carries the shared
-/// official instruction set, the CMOS JMP (addr), and the defined-NOP map. The new
-/// 65C02 instructions, CMOS decimal arithmetic, and shift/rotate abs,X cycle changes
-/// follow in the next stages before the model is wired into any system.
 /// </summary>
 internal static class Ncr65c02Model
 {
@@ -37,12 +32,15 @@ internal static class Ncr65c02Model
         CreateDescriptors = BuildDescriptors,
     };
 
-    private static OpCodeDescriptor?[] BuildDescriptors(InstructionList instructionList)
+    private static OpCodeDescriptor?[] BuildDescriptors(CpuCompatibilityProfile profile)
     {
-        // Start from the generic composition of the shared official instructions
-        // (semantics identical on the 65C02 for these), then apply the CMOS delta.
-        var table = OpCodeDescriptorTableBuilder.Build(instructionList,
-            indexedDummyReads: s_traits.PerformsIndexedDummyReads);
+        // The profile is ignored: on a 65C02 every byte is defined, and the model
+        // supports only OfficialOnly (validated at CPU construction).
+        // Start from the shared official instruction set (semantics identical on the
+        // 65C02 for these), composed for this model's dummy-read policy, then apply
+        // the CMOS deltas on top.
+        var table = new OpCodeDescriptor?[256];
+        InstructionBindings.Apply(table, s_traits.PerformsIndexedDummyReads);
 
         // JMP (addr): pointer read is linear (NMOS wrap bug fixed), 6 cycles (was 5).
         table[(byte)OpCodeId.JMP_IND] = new OpCodeDescriptor
@@ -57,68 +55,30 @@ internal static class Ncr65c02Model
         };
 
         // ADC/SBC: 65C02 decimal mode has valid N/Z flags, its own SBC correction
-        // sequence, and +1 cycle. Binary mode identical. All existing addressing modes
-        // are re-composed over the CMOS instruction variants.
-        var cmosAdc = new CmosAdc();
-        var cmosSbc = new CmosSbc();
-        ReplaceWithInstruction(table, cmosAdc);
-        ReplaceWithInstruction(table, cmosSbc);
+        // sequence, and +1 cycle. Binary mode identical. Bound from the CMOS cores.
+        InstructionBindings.ApplyAdcSbc(table,
+            InstructionCores.AdcCmos, InstructionCores.SbcCmos,
+            indexedDummyReads: s_traits.PerformsIndexedDummyReads);
 
         // The "(zp)" addressing mode: the eight ALU/load/store instructions gained a
-        // zero-page-indirect form. Semantics are the shared instruction objects'
-        // (CMOS variants for ADC/SBC), composed for the new mode. 2 bytes, 5 cycles.
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.ORA_I), newCode: 0x12);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.AND_I), newCode: 0x32);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.EOR_I), newCode: 0x52);
-        AddZpIndirectForm(table, cmosAdc, newCode: 0x72);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.STA_ZP), newCode: 0x92);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.LDA_I), newCode: 0xB2);
-        AddZpIndirectForm(table, GetInstruction(instructionList, (byte)OpCodeId.CMP_I), newCode: 0xD2);
-        AddZpIndirectForm(table, cmosSbc, newCode: 0xF2);
+        // zero-page-indirect form, bound from the same cores as their other modes.
+        InstructionBindings.ApplyCmosZpIndirectForms(table);
 
-        // Read-modify-write instructions: the 65C02 sequence is read-READ-write (the
-        // NMOS classes now perform the NMOS read-WRITE-write), so every RMW byte gets a
-        // CMOS-sequenced handler. Cycle differences also live here: shift/rotate abs,X
-        // is 6 + 1 on page cross (NMOS: always 7); INC/DEC abs,X deliberately stay at 7.
-        ReplaceCmosRmw(table, "ASL", BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters,
-            zp: (byte)OpCodeId.ASL_ZP, zpX: (byte)OpCodeId.ASL_ZP_X, abs: (byte)OpCodeId.ASL_ABS,
-            absX: (byte)OpCodeId.ASL_ABS_X, absXAddsPageCrossCycle: true);
-        ReplaceCmosRmw(table, "ROL", BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters,
-            zp: (byte)OpCodeId.ROL_ZP, zpX: (byte)OpCodeId.ROL_ZP_X, abs: (byte)OpCodeId.ROL_ABS,
-            absX: (byte)OpCodeId.ROL_ABS_X, absXAddsPageCrossCycle: true);
-        ReplaceCmosRmw(table, "LSR", BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters,
-            zp: (byte)OpCodeId.LSR_ZP, zpX: (byte)OpCodeId.LSR_ZP_X, abs: (byte)OpCodeId.LSR_ABS,
-            absX: (byte)OpCodeId.LSR_ABS_X, absXAddsPageCrossCycle: true);
-        ReplaceCmosRmw(table, "ROR", BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters,
-            zp: (byte)OpCodeId.ROR_ZP, zpX: (byte)OpCodeId.ROR_ZP_X, abs: (byte)OpCodeId.ROR_ABS,
-            absX: (byte)OpCodeId.ROR_ABS_X, absXAddsPageCrossCycle: true);
-        ReplaceCmosRmw(table, "INC", CmosHandlers.IncCore,
-            zp: (byte)OpCodeId.INC_ZP, zpX: (byte)OpCodeId.INC_ZP_X, abs: (byte)OpCodeId.INC_ABS,
-            absX: (byte)OpCodeId.INC_ABS_X, absXAddsPageCrossCycle: false);
-        ReplaceCmosRmw(table, "DEC", CmosHandlers.DecCore,
-            zp: (byte)OpCodeId.DEC_ZP, zpX: (byte)OpCodeId.DEC_ZP_X, abs: (byte)OpCodeId.DEC_ABS,
-            absX: (byte)OpCodeId.DEC_ABS_X, absXAddsPageCrossCycle: false);
+        // Read-modify-write instructions: the 65C02 sequence is read-READ-write, bound
+        // from the shared cores with the CMOS sequence. Cycle differences live in the
+        // bindings: shift/rotate abs,X is 6 + 1 on page cross (NMOS: always 7);
+        // INC/DEC abs,X deliberately stay at 7. TSB/TRB and INC A/DEC A are the
+        // 65C02-only members of the same family.
+        InstructionBindings.ApplyRmw(table, cmosSequence: true,
+            indexedDummyReads: s_traits.PerformsIndexedDummyReads);
+        InstructionBindings.ApplyCmosExtras(table);
 
         // New 65C02 instructions, bound as static handlers.
-        Add(table, 0x04, "TSB", AddrMode.ZP, size: 2, cycles: 5, CmosHandlers.Tsb_Zp);
-        Add(table, 0x0C, "TSB", AddrMode.ABS, size: 3, cycles: 6, CmosHandlers.Tsb_Abs);
-        Add(table, 0x14, "TRB", AddrMode.ZP, size: 2, cycles: 5, CmosHandlers.Trb_Zp);
-        Add(table, 0x1C, "TRB", AddrMode.ABS, size: 3, cycles: 6, CmosHandlers.Trb_Abs);
-        Add(table, 0x1A, "INC", AddrMode.Accumulator, size: 1, cycles: 2, CmosHandlers.Inc_Accumulator);
-        Add(table, 0x3A, "DEC", AddrMode.Accumulator, size: 1, cycles: 2, CmosHandlers.Dec_Accumulator);
-        Add(table, 0x34, "BIT", AddrMode.ZP_X, size: 2, cycles: 4, CmosHandlers.Bit_ZpX);
-        Add(table, 0x3C, "BIT", AddrMode.ABS_X, size: 3, cycles: 4, CmosHandlers.Bit_AbsX);
-        Add(table, 0x89, "BIT", AddrMode.I, size: 2, cycles: 2, CmosHandlers.Bit_Immediate);
         Add(table, 0x5A, "PHY", AddrMode.Implied, size: 1, cycles: 3, CmosHandlers.Phy);
         Add(table, 0x7A, "PLY", AddrMode.Implied, size: 1, cycles: 4, CmosHandlers.Ply);
         Add(table, 0xDA, "PHX", AddrMode.Implied, size: 1, cycles: 3, CmosHandlers.Phx);
         Add(table, 0xFA, "PLX", AddrMode.Implied, size: 1, cycles: 4, CmosHandlers.Plx);
-        Add(table, 0x64, "STZ", AddrMode.ZP, size: 2, cycles: 3, CmosHandlers.Stz_Zp);
-        Add(table, 0x74, "STZ", AddrMode.ZP_X, size: 2, cycles: 4, CmosHandlers.Stz_ZpX);
-        Add(table, 0x9C, "STZ", AddrMode.ABS, size: 3, cycles: 4, CmosHandlers.Stz_Abs);     // SHY abs,X on NMOS
-        Add(table, 0x9E, "STZ", AddrMode.ABS_X, size: 3, cycles: 5, CmosHandlers.Stz_AbsX);  // SHX abs,Y on NMOS
         Add(table, 0x7C, "JMP", AddrMode.ABS_IX_IND, size: 3, cycles: 6, CmosHandlers.Jmp_AbsIndexedIndirect);
-        Add(table, 0x80, "BRA", AddrMode.Relative, size: 2, cycles: 3, CmosHandlers.Bra);
 
         // Every remaining byte is a defined NOP with a specific size and cycle count
         // (base/NCR part: the Rockwell/WDC extension bytes are NOPs too).
@@ -126,111 +86,6 @@ internal static class Ncr65c02Model
 
         return table;
     }
-
-    private static Instruction GetInstruction(InstructionList instructionList, byte existingCode)
-        => instructionList.GetInstruction(instructionList.GetOpCode(existingCode));
-
-    /// <summary>
-    /// Replaces the descriptors of an instruction's opcode bytes with handlers composed
-    /// over a (CMOS-variant) instruction object. Only bytes already present in the table
-    /// (the shared OFFICIAL set) are replaced: the NMOS instruction's opcode list can
-    /// also carry undocumented aliases (e.g. SBC $EB) that do not exist on the 65C02 —
-    /// those bytes must stay free for the defined-NOP fill.
-    /// </summary>
-    private static void ReplaceWithInstruction(OpCodeDescriptor?[] table, Instruction instruction)
-    {
-        foreach (var opCode in instruction.OpCodes)
-        {
-            if (table[opCode.CodeRaw] is null)
-                continue;
-            table[opCode.CodeRaw] = new OpCodeDescriptor
-            {
-                Code = opCode.CodeRaw,
-                Mnemonic = instruction.Name,
-                Addressing = opCode.AddressingMode,
-                Size = (byte)opCode.Size,
-                BaseCycles = opCode.MinimumCycles,
-                Documented = true,
-                Execute = OpCodeDescriptorTableBuilder.ComposeExecuteHandler(opCode, instruction),
-            };
-        }
-    }
-
-    /// <summary>
-    /// Adds a "(zp)" form of an instruction, composed for the ZP_IND addressing mode.
-    /// </summary>
-    private static void AddZpIndirectForm(OpCodeDescriptor?[] table, Instruction instruction, byte newCode)
-    {
-        // Metadata carrier for the composed handler. Note OpCode.Code is a byte-valued
-        // NMOS-named enum; only the raw byte and addressing mode matter here.
-        var opCode = new OpCode
-        {
-            Code = (OpCodeId)newCode,
-            AddressingMode = AddrMode.ZP_IND,
-            Size = 2,
-            MinimumCycles = 5,
-        };
-        table[newCode] = new OpCodeDescriptor
-        {
-            Code = newCode,
-            Mnemonic = instruction.Name,
-            Addressing = AddrMode.ZP_IND,
-            Size = 2,
-            BaseCycles = 5,
-            Documented = true,
-            Execute = OpCodeDescriptorTableBuilder.ComposeExecuteHandler(opCode, instruction),
-        };
-    }
-
-    /// <summary>
-    /// Rebinds all four memory addressing modes of a read-modify-write operation with
-    /// the 65C02 bus sequence: read, read again (replacing the NMOS write-back cycle),
-    /// then write the result. The compute step is the shared per-operation core.
-    /// abs,X cycles: shifts/rotates take 6 + 1 on page cross; INC/DEC always 7.
-    /// </summary>
-    private static void ReplaceCmosRmw(OpCodeDescriptor?[] table, string mnemonic, CmosHandlers.RmwCore core,
-        byte zp, byte zpX, byte abs, byte absX, bool absXAddsPageCrossCycle)
-    {
-        table[zp] = CmosRmwDescriptor(zp, mnemonic, AddrMode.ZP, size: 2, baseCycles: 5, core,
-            static (cpu, mem) => ((ushort)cpu.FetchOperand(mem), false));
-        table[zpX] = CmosRmwDescriptor(zpX, mnemonic, AddrMode.ZP_X, size: 2, baseCycles: 6, core,
-            static (cpu, mem) => (cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem), wrapZeroPage: true), false));
-        table[abs] = CmosRmwDescriptor(abs, mnemonic, AddrMode.ABS, size: 3, baseCycles: 6, core,
-            static (cpu, mem) => (cpu.FetchOperandWord(mem), false));
-        var absXBaseCycles = (byte)(absXAddsPageCrossCycle ? 6 : 7);
-        table[absX] = CmosRmwDescriptor(absX, mnemonic, AddrMode.ABS_X, size: 3, baseCycles: absXBaseCycles, core,
-            static (cpu, mem) =>
-            {
-                var address = cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out var crossedPageBoundary);
-                return (address, crossedPageBoundary);
-            },
-            addPageCrossCycle: absXAddsPageCrossCycle);
-    }
-
-    private delegate (ushort Address, bool CrossedPageBoundary) ResolveRmwAddress(CPU cpu, Memory mem);
-
-    private static OpCodeDescriptor CmosRmwDescriptor(byte code, string mnemonic, AddrMode addressing,
-        byte size, byte baseCycles, CmosHandlers.RmwCore core, ResolveRmwAddress resolveAddress,
-        bool addPageCrossCycle = false)
-        => new()
-        {
-            Code = code,
-            Mnemonic = mnemonic,
-            Addressing = addressing,
-            Size = size,
-            BaseCycles = baseCycles,
-            Documented = true,
-            Execute = (cpu, mem) =>
-            {
-                var (address, crossedPageBoundary) = resolveAddress(cpu, mem);
-                cpu.FetchByte(mem, address);
-                // 65C02 RMW is read-read-write; the value from the second (final) read
-                // feeds the modify step.
-                var value = cpu.FetchByte(mem, address);
-                cpu.StoreByte(core(value, ref cpu.ProcessorStatus), mem, address);
-                return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul);
-            },
-        };
 
     private static void Add(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing, byte size, byte cycles, ExecuteHandler handler)
     {

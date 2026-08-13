@@ -52,7 +52,6 @@ public class CpuModelTests
             Assert.Equal(directOpCode.AddressingMode, modelOpCode.AddressingMode);
             Assert.Equal(directOpCode.Size, modelOpCode.Size);
             Assert.Equal(directOpCode.MinimumCycles, modelOpCode.MinimumCycles);
-            Assert.Equal(direct.GetInstruction(directOpCode).GetType(), fromModel.GetInstruction(modelOpCode).GetType());
         }
     }
 
@@ -91,7 +90,7 @@ public class CpuModelTests
             Assert.Equal(opCode.AddressingMode, descriptor.Addressing);
             Assert.Equal(opCode.Size, descriptor.Size);
             Assert.Equal(opCode.MinimumCycles, descriptor.BaseCycles);
-            Assert.Equal(cpu.InstructionList.GetInstruction(opCode).Name, descriptor.Mnemonic);
+            Assert.False(string.IsNullOrEmpty(descriptor.Mnemonic));
         }
     }
 
@@ -107,29 +106,18 @@ public class CpuModelTests
     }
 
     [Fact]
-    public void Handler_Override_Keeps_Descriptor_Metadata_And_Replaces_Only_Execute()
+    public void Nmos_Jmp_Indirect_Binds_Bespoke_Handler_With_Correct_Metadata()
     {
         var cpu = new CPU();
         var descriptor = cpu.Descriptors[(byte)OpCodeId.JMP_IND]!;
 
-        // The NMOS model overrides $6C (page-wrap bug); tooling metadata is untouched.
+        // The NMOS model binds its own $6C handler (page-wrap bug); tooling metadata
+        // matches the generic instruction shape.
         Assert.Equal(NmosHandlers.Jmp_Indirect, descriptor.Execute);
         Assert.Equal("JMP", descriptor.Mnemonic);
         Assert.Equal(AddrMode.Indirect, descriptor.Addressing);
         Assert.Equal(3, descriptor.Size);
         Assert.Equal(5ul, descriptor.BaseCycles);
-    }
-
-    [Fact]
-    public void Handler_Override_For_An_Undefined_OpCode_Is_A_Construction_Error()
-    {
-        var instructionList = InstructionList.GetAllInstructions(CpuCompatibilityProfile.OfficialOnly);
-        var overrides = new Dictionary<byte, ExecuteHandler>
-        {
-            [(byte)OpCodeId.LAX_ZP] = NmosHandlers.Jmp_Indirect, // LAX is undefined in OfficialOnly
-        };
-
-        Assert.Throws<DotNet6502Exception>(() => OpCodeDescriptorTableBuilder.Build(instructionList, overrides));
     }
 
     [Fact]

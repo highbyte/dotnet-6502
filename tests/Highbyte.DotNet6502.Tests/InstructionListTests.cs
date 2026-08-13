@@ -1,5 +1,3 @@
-using Highbyte.DotNet6502.Instructions;
-
 namespace Highbyte.DotNet6502.Tests;
 
 public class InstructionListTests
@@ -13,10 +11,8 @@ public class InstructionListTests
         // Assert
         Assert.NotNull(list);
         Assert.NotNull(list.OpCodeDictionary);
-        Assert.NotNull(list.InstructionDictionary);
         Assert.True(list.OpCodeDictionary.Count > 0, "OpCodeDictionary should contain at least one opcode");
-        Assert.True(list.InstructionDictionary.Count > 0, "InstructionDictionary should contain at least one instruction");
-        
+
         // This test ensures the default instruction list can be created successfully.
     }
 
@@ -71,54 +67,37 @@ public class InstructionListTests
         Assert.Contains((byte)OpCodeId.JAM_02, fullList.OpCodeDictionary.Keys);
     }
 
-#if DEBUG
-    [Fact]
-    public void VerifyInstructionListsMatch_Should_Not_Throw_When_Counts_Match()
+    [Theory]
+    [InlineData(CpuCompatibilityProfile.OfficialOnly)]
+    [InlineData(CpuCompatibilityProfile.StableUnofficial)]
+    [InlineData(CpuCompatibilityProfile.ExperimentalUnofficial)]
+    [InlineData(CpuCompatibilityProfile.FullUnofficial)]
+    public void GetAllInstructions_OpCode_Metadata_Is_Consistent(CpuCompatibilityProfile profile)
     {
-        // Arrange
-        var instructions = new List<Instruction> { new ADC(), new AND() };
-        var list1 = new InstructionList(instructions);
-        var list2 = new InstructionList(instructions);
+        var list = InstructionList.GetAllInstructions(profile);
 
-        // Act & Assert - should not throw
-        InstructionList.VerifyInstructionListsMatch(list1, list2);
+        foreach (var (code, opCode) in list.OpCodeDictionary)
+        {
+            // The enum representation and the raw byte must agree, and every opcode
+            // byte must map to a named OpCodeId member.
+            Assert.Equal(code, opCode.CodeRaw);
+            Assert.True(Enum.IsDefined(opCode.Code),
+                $"OpCode byte {code:x2} has no corresponding OpCodeId enum member.");
+
+            Assert.InRange(opCode.Size, 1, 3);
+            Assert.InRange(opCode.MinimumCycles, 2ul, 8ul);
+            Assert.Same(opCode, list.TryGetOpCode(code));
+        }
     }
 
     [Fact]
-    public void VerifyInstructionListsMatch_Should_Throw_When_An_OpCode_Is_Missing()
+    public void Every_OpCodeId_Member_Is_Present_In_The_FullUnofficial_List()
     {
-        // Arrange
-        var list1 = new InstructionList(new List<Instruction> { new ADC(), new AND() });
-        var list2 = new InstructionList(new List<Instruction> { new ADC() });
+        // The OpCodeId enum enumerates the NMOS opcode bytes; the most permissive
+        // profile must define every one of them (and nothing that isn't named).
+        var list = InstructionList.GetAllInstructions(CpuCompatibilityProfile.FullUnofficial);
 
-        // Act & Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() =>
-            InstructionList.VerifyInstructionListsMatch(list1, list2));
-
-        Assert.Contains("Instruction list mismatch at opcode", ex.Message);
+        foreach (var opCodeId in Enum.GetValues<OpCodeId>())
+            Assert.Contains((byte)opCodeId, list.OpCodeDictionary.Keys);
     }
-
-    [Fact]
-    public void VerifyInstructionListsMatch_Should_Throw_When_A_Byte_Maps_To_A_Different_Instruction()
-    {
-        // Arrange: same opcode byte count, but one byte remapped to another instruction
-        // type. A count-only comparison would miss this.
-        var adc = new ADC();
-        var and = new AND();
-        var opCodeByte = adc.OpCodes[0].CodeRaw;
-
-        var correct = new InstructionList(
-            new Dictionary<byte, OpCode> { [opCodeByte] = adc.OpCodes[0] },
-            new Dictionary<byte, Instruction> { [opCodeByte] = adc });
-        var remapped = new InstructionList(
-            new Dictionary<byte, OpCode> { [opCodeByte] = adc.OpCodes[0] },
-            new Dictionary<byte, Instruction> { [opCodeByte] = and });
-
-        // Act & Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() =>
-            InstructionList.VerifyInstructionListsMatch(correct, remapped));
-
-        Assert.Contains("Instruction list mismatch at opcode", ex.Message);
-    }
-#endif
 }

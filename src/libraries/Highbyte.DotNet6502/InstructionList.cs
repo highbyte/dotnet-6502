@@ -1,56 +1,31 @@
-using System.Reflection;
-using Highbyte.DotNet6502.Instructions;
-
 namespace Highbyte.DotNet6502;
 
 /// <summary>
-/// Byte-indexed instruction table keyed by <see cref="OpCodeId"/> — the public
-/// <b>NMOS 6502 façade</b>. The enum names, the manual list in
-/// <see cref="GetAllInstructions"/>, and the <see cref="CpuCompatibilityProfile"/>
-/// filtering are all NMOS concepts. On a CPU constructed with a non-NMOS model
+/// Byte-indexed opcode metadata table keyed by <see cref="OpCodeId"/> — the public
+/// <b>NMOS 6502 façade</b>. The enum names and the <see cref="CpuCompatibilityProfile"/>
+/// filtering are NMOS concepts. On a CPU constructed with a non-NMOS model
 /// (e.g. ncr65c02) this view contains only the officially documented instruction
 /// subset shared with the NMOS 6502 — the model's full per-byte truth (redefined
 /// bytes, new instructions, per-model cycles) lives in its internal descriptor
 /// table (<see cref="OpCodeDescriptor"/>), which is also what execution runs on.
-/// Revisit this public type before any 1.0 release.
+/// The metadata here is projected from the NMOS model's descriptor table, so the
+/// two views cannot drift apart. Revisit this public type before any 1.0 release.
 /// </summary>
 public class InstructionList
 {
     public Dictionary<byte, OpCode> OpCodeDictionary { get; private set; }
-    public Dictionary<byte, Instruction> InstructionDictionary { get; private set; }
 
-    // Byte-indexed dispatch arrays maintained in parallel with the dictionaries above.
-    // Used by InstructionExecutor.Execute on every CPU step -- avoids three
-    // Dictionary<byte, T> hashes per instruction in exchange for a fixed 4 KB of
-    // per-instance memory. Dictionaries are kept public for backward compat (tooling
-    // / monitor may enumerate them).
+    // Byte-indexed lookup maintained in parallel with the dictionary above. Used on
+    // metadata lookups (tooling, monitor, tests) -- avoids a Dictionary<byte, T> hash
+    // per lookup in exchange for a fixed 2 KB of per-instance memory. The dictionary
+    // is kept public for backward compat (tooling / monitor may enumerate it).
     private readonly OpCode?[] _opCodeArray = new OpCode?[256];
-    private readonly Instruction?[] _instructionArray = new Instruction?[256];
 
-    public InstructionList(Dictionary<byte, OpCode> opCodeDictionary, Dictionary<byte, Instruction> instructionDictionary)
+    public InstructionList(Dictionary<byte, OpCode> opCodeDictionary)
     {
         OpCodeDictionary = opCodeDictionary;
-        InstructionDictionary = instructionDictionary;
         foreach (var kvp in opCodeDictionary)
             _opCodeArray[kvp.Key] = kvp.Value;
-        foreach (var kvp in instructionDictionary)
-            _instructionArray[kvp.Key] = kvp.Value;
-    }
-
-    public InstructionList(List<Instruction> insList)
-    {
-        InstructionDictionary = new Dictionary<byte, Instruction>();
-        OpCodeDictionary = new Dictionary<byte, OpCode>();
-        foreach (var instruction in insList)
-        {
-            foreach (var opCode in instruction.OpCodes)
-            {
-                OpCodeDictionary.Add(opCode.Code.ToByte(), opCode);
-                InstructionDictionary.Add(opCode.CodeRaw, instruction);
-                _opCodeArray[opCode.CodeRaw] = opCode;
-                _instructionArray[opCode.CodeRaw] = instruction;
-            }
-        }
     }
 
     public OpCode? TryGetOpCode(byte opCode) => _opCodeArray[opCode];
@@ -60,306 +35,39 @@ public class InstructionList
         return _opCodeArray[opCode]!;
     }
 
-    public Instruction GetInstruction(OpCode opCodeObject)
-    {
-        return _instructionArray[opCodeObject.CodeRaw]!;
-    }
-
     public InstructionList Clone()
     {
-        return new InstructionList(this.OpCodeDictionary, this.InstructionDictionary);
+        return new InstructionList(this.OpCodeDictionary);
     }
 
     /// <summary>
-    /// Builds the <b>NMOS 6502</b> instruction table: the official instruction set plus
-    /// the undocumented NMOS opcodes admitted by <paramref name="compatibilityProfile"/>.
-    /// NMOS-specific by design — other CPU models compose their own descriptor tables
-    /// and use this only for the shared official subset (with
-    /// <see cref="CpuCompatibilityProfile.OfficialOnly"/>).
+    /// Builds the <b>NMOS 6502</b> instruction metadata table: the official instruction
+    /// set plus the undocumented NMOS opcodes admitted by
+    /// <paramref name="compatibilityProfile"/>. NMOS-specific by design — other CPU
+    /// models compose their own descriptor tables and use this only for the shared
+    /// official subset (with <see cref="CpuCompatibilityProfile.OfficialOnly"/>).
+    /// Projected from the NMOS model's descriptor table — the single source of truth
+    /// for which bytes each profile defines and their metadata.
     /// </summary>
     public static InstructionList GetAllInstructions(CpuCompatibilityProfile compatibilityProfile = CpuCompatibilityProfile.ExperimentalUnofficial)
     {
-        // Manual (AOT & trimming safe) list of all instruction implementations.
-        // Add new instruction types here when introduced.
-        var insList = new List<Instruction>
-        {
-            new ADC(),
-            new AND(),
-            new ASL(),
-            new BCC(),
-            new BCS(),
-            new BEQ(),
-            new BIT(),
-            new BMI(),
-            new BNE(),
-            new BPL(),
-            new BRK(),
-            new BVC(),
-            new BVS(),
-            new CLC(),
-            new CLD(),
-            new CLI(),
-            new CLV(),
-            new CMP(),
-            new CPX(),
-            new CPY(),
-            new DEC(),
-            new DEX(),
-            new DEY(),
-            new EOR(),
-            new INC(),
-            new INX(),
-            new INY(),
-            new JMP(),
-            new JSR(),
-            new LDA(),
-            new LDX(),
-            new LDY(),
-            new LSR(),
-            new NOP(),
-            new ORA(),
-            new PHA(),
-            new PHP(),
-            new PLA(),
-            new PLP(),
-            new ROL(),
-            new ROR(),
-            new RTI(),
-            new RTS(),
-            new SBC(),
-            new SEC(),
-            new SED(),
-            new SEI(),
-            new STA(),
-            new STX(),
-            new STY(),
-            new TAX(),
-            new TAY(),
-            new TSX(),
-            new TXA(),
-            new TXS(),
-            new TYA(),
-
-            // Illegal / undocumented opcodes
-            new JAM(),
-            new NOP_Illegal(),
-            new LAX(),
-            new SAX(),
-            new DCP(),
-            new ISC(),
-            new SLO(),
-            new SRE(),
-            new RLA(),
-            new RRA(),
-            new ANC(),
-            new ALR(),
-            new ARR(),
-            new AXS(),
-            new LAS(),
-        };
+        var descriptors = Nmos6502Model.Definition.CreateDescriptors(compatibilityProfile);
 
         var opCodeDictionary = new Dictionary<byte, OpCode>();
-        var instructionDictionary = new Dictionary<byte, Instruction>();
-        foreach (var instruction in insList)
-        {
-            foreach (var opCode in instruction.OpCodes)
-            {
-                if (!ShouldIncludeOpCode(opCode.Code, compatibilityProfile))
-                    continue;
-
-                opCodeDictionary.Add(opCode.Code.ToByte(), opCode);
-                instructionDictionary.Add(opCode.CodeRaw, instruction);
-            }
-        }
-
-        var instructionList = new InstructionList(opCodeDictionary, instructionDictionary);
-
-        // Run verification to ensure the manual list above matches dynamically discovered instructions (won't work when published in AOT release mode)
-#if DEBUG
-        if (compatibilityProfile == CpuCompatibilityProfile.FullUnofficial)
-        {
-            var insListVerification = GetAllInstructionDynamcic();
-            VerifyInstructionListsMatch(instructionList, insListVerification);
-        }
-#endif
-
-        return instructionList;
-    }
-
-    private static bool ShouldIncludeOpCode(OpCodeId opCodeId, CpuCompatibilityProfile compatibilityProfile)
-        => compatibilityProfile >= GetMinimumCompatibilityProfile(opCodeId);
-
-    internal static CpuCompatibilityProfile GetMinimumCompatibilityProfile(OpCodeId opCodeId)
-        => opCodeId switch
-        {
-            // Stable undocumented opcodes commonly used on NMOS 6502/6510 machines.
-            OpCodeId.NOP_ILL_1A or
-            OpCodeId.NOP_ILL_3A or
-            OpCodeId.NOP_ILL_5A or
-            OpCodeId.NOP_ILL_7A or
-            OpCodeId.NOP_ILL_DA or
-            OpCodeId.NOP_ILL_FA or
-            OpCodeId.NOP_ILL_IMM_80 or
-            OpCodeId.NOP_ILL_IMM_82 or
-            OpCodeId.NOP_ILL_IMM_89 or
-            OpCodeId.NOP_ILL_IMM_C2 or
-            OpCodeId.NOP_ILL_IMM_E2 or
-            OpCodeId.NOP_ILL_ZP_04 or
-            OpCodeId.NOP_ILL_ZP_44 or
-            OpCodeId.NOP_ILL_ZP_64 or
-            OpCodeId.NOP_ILL_ZP_X_14 or
-            OpCodeId.NOP_ILL_ZP_X_34 or
-            OpCodeId.NOP_ILL_ZP_X_54 or
-            OpCodeId.NOP_ILL_ZP_X_74 or
-            OpCodeId.NOP_ILL_ZP_X_D4 or
-            OpCodeId.NOP_ILL_ZP_X_F4 or
-            OpCodeId.NOP_ILL_ABS or
-            OpCodeId.NOP_ILL_ABS_X_1C or
-            OpCodeId.NOP_ILL_ABS_X_3C or
-            OpCodeId.NOP_ILL_ABS_X_5C or
-            OpCodeId.NOP_ILL_ABS_X_7C or
-            OpCodeId.NOP_ILL_ABS_X_DC or
-            OpCodeId.NOP_ILL_ABS_X_FC or
-            OpCodeId.LAX_IX_IND or
-            OpCodeId.LAX_ZP or
-            OpCodeId.LAX_ABS or
-            OpCodeId.LAX_IND_IX or
-            OpCodeId.LAX_ZP_Y or
-            OpCodeId.LAX_ABS_Y or
-            OpCodeId.SAX_IX_IND or
-            OpCodeId.SAX_ZP or
-            OpCodeId.SAX_ABS or
-            OpCodeId.SAX_ZP_Y or
-            OpCodeId.DCP_IX_IND or
-            OpCodeId.DCP_ZP or
-            OpCodeId.DCP_ABS or
-            OpCodeId.DCP_IND_IX or
-            OpCodeId.DCP_ZP_X or
-            OpCodeId.DCP_ABS_Y or
-            OpCodeId.DCP_ABS_X or
-            OpCodeId.ISC_IX_IND or
-            OpCodeId.ISC_ZP or
-            OpCodeId.ISC_ABS or
-            OpCodeId.ISC_IND_IX or
-            OpCodeId.ISC_ZP_X or
-            OpCodeId.ISC_ABS_Y or
-            OpCodeId.ISC_ABS_X or
-            OpCodeId.SLO_IX_IND or
-            OpCodeId.SLO_ZP or
-            OpCodeId.SLO_ABS or
-            OpCodeId.SLO_IND_IX or
-            OpCodeId.SLO_ZP_X or
-            OpCodeId.SLO_ABS_Y or
-            OpCodeId.SLO_ABS_X or
-            OpCodeId.SRE_IX_IND or
-            OpCodeId.SRE_ZP or
-            OpCodeId.SRE_ABS or
-            OpCodeId.SRE_IND_IX or
-            OpCodeId.SRE_ZP_X or
-            OpCodeId.SRE_ABS_Y or
-            OpCodeId.SRE_ABS_X or
-            OpCodeId.RLA_IX_IND or
-            OpCodeId.RLA_ZP or
-            OpCodeId.RLA_ABS or
-            OpCodeId.RLA_IND_IX or
-            OpCodeId.RLA_ZP_X or
-            OpCodeId.RLA_ABS_Y or
-            OpCodeId.RLA_ABS_X or
-            OpCodeId.RRA_IX_IND or
-            OpCodeId.RRA_ZP or
-            OpCodeId.RRA_ABS or
-            OpCodeId.RRA_IND_IX or
-            OpCodeId.RRA_ZP_X or
-            OpCodeId.RRA_ABS_Y or
-            OpCodeId.RRA_ABS_X or
-            OpCodeId.ANC_I_0B or
-            OpCodeId.ANC_I_2B or
-            OpCodeId.ALR_I or
-            OpCodeId.AXS_I or
-            OpCodeId.SBC_I_EB => CpuCompatibilityProfile.StableUnofficial,
-
-            // Known less reliable but still executable opcodes that are useful for targeted compatibility/testing.
-            OpCodeId.ARR_I or
-            OpCodeId.LAS_ABS_Y => CpuCompatibilityProfile.ExperimentalUnofficial,
-
-            // Halt-style unofficial opcodes that intentionally jam the CPU until reset.
-            OpCodeId.JAM_02 or
-            OpCodeId.JAM_12 or
-            OpCodeId.JAM_22 or
-            OpCodeId.JAM_32 or
-            OpCodeId.JAM_42 or
-            OpCodeId.JAM_52 or
-            OpCodeId.JAM_62 or
-            OpCodeId.JAM_72 or
-            OpCodeId.JAM_92 or
-            OpCodeId.JAM_B2 or
-            OpCodeId.JAM_D2 or
-            OpCodeId.JAM_F2 => CpuCompatibilityProfile.FullUnofficial,
-
-            _ => CpuCompatibilityProfile.OfficialOnly,
-        };
-
-#if DEBUG
-    /// <summary>
-    /// Verifies that the manual instruction list matches dynamic discovery exactly,
-    /// byte by byte: the same opcode bytes must be present, and each byte must map to
-    /// the same instruction type and the same opcode metadata (addressing mode, size,
-    /// minimum cycles). A count-only comparison would miss a byte remapped to the
-    /// wrong instruction, which is exactly the kind of error a per-model table refactor
-    /// could introduce.
-    /// </summary>
-    internal static void VerifyInstructionListsMatch(InstructionList manualList, InstructionList dynamicList)
-    {
         for (var code = 0; code <= 0xff; code++)
         {
-            var b = (byte)code;
-            var manualOpCode = manualList.TryGetOpCode(b);
-            var dynamicOpCode = dynamicList.TryGetOpCode(b);
-
-            if (manualOpCode is null && dynamicOpCode is null)
+            var descriptor = descriptors[code];
+            if (descriptor is null)
                 continue;
-            if (manualOpCode is null || dynamicOpCode is null)
-                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: defined in {(manualOpCode is null ? "dynamic discovery but not the manual list" : "the manual list but not dynamic discovery")}. The manual list in GetAllInstructions() must be updated.");
-
-            var manualInstruction = manualList.GetInstruction(manualOpCode);
-            var dynamicInstruction = dynamicList.GetInstruction(dynamicOpCode);
-            if (manualInstruction.GetType() != dynamicInstruction.GetType())
-                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: manual list maps it to {manualInstruction.GetType().Name}, dynamic discovery to {dynamicInstruction.GetType().Name}.");
-
-            if (manualOpCode.AddressingMode != dynamicOpCode.AddressingMode
-                || manualOpCode.Size != dynamicOpCode.Size
-                || manualOpCode.MinimumCycles != dynamicOpCode.MinimumCycles)
-                throw new DotNet6502Exception($"Instruction list mismatch at opcode {b:x2}: opcode metadata differs between the manual list ({manualOpCode.AddressingMode}, size {manualOpCode.Size}, cycles {manualOpCode.MinimumCycles}) and dynamic discovery ({dynamicOpCode.AddressingMode}, size {dynamicOpCode.Size}, cycles {dynamicOpCode.MinimumCycles}).");
-        }
-    }
-#endif
-
-    private static InstructionList GetAllInstructionDynamcic()
-    {
-        var typesToSearch = typeof(InstructionList).Assembly.GetTypes();
-
-        var instructionTypes = typesToSearch.Where(p =>
-            p.GetTypeInfo().IsSubclassOf(typeof(Instruction))
-            && !p.GetTypeInfo().IsAbstract
-            // Only the NMOS instruction set (namespace Highbyte.DotNet6502.Instructions).
-            // CPU-model-specific variants (e.g. CmosAdc in the CpuModels folder) reuse
-            // NMOS opcode bytes and must not enter this NMOS-vs-manual-list comparison.
-            && p.Namespace == typeof(Instructions.ADC).Namespace
-        );
-
-        var instructions = new List<Instruction>();
-        foreach (var instructionType in instructionTypes)
-        {
-            Instruction? instruction = (Instruction?)Activator.CreateInstance(instructionType);
-            if (instruction != null)
+            opCodeDictionary.Add((byte)code, new OpCode
             {
-                instructions.Add(instruction);
-            }
-            else
-            {
-                throw new DotNet6502Exception($"Failed to create instance of Instruction type '{instructionType.FullName}'.");
-            }
+                Code = (OpCodeId)code,
+                AddressingMode = descriptor.Addressing,
+                Size = descriptor.Size,
+                MinimumCycles = descriptor.BaseCycles,
+            });
         }
-        return new InstructionList(instructions);
+
+        return new InstructionList(opCodeDictionary);
     }
 }
