@@ -244,6 +244,52 @@ public class C64CoreSnapshotRoundTripTests
     }
 
     [Fact]
+    public void C64_snapshot_with_port_bytes_in_c64_core_v1_still_restores()
+    {
+        // Checked-in fixture written by the code BEFORE port ownership moved to the
+        // cpu-6502 module: cpu-6502 v2 (mos6510, no model-state payload) + c64-core v1
+        // (raw port bytes: DDR $2F, data $35 -> bank 29). The legacy c64-core path must
+        // remain the port's single owner for such files.
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Snapshots", "Fixtures", "c64-pre-cpu-state-payload.d6502snap");
+        Assert.True(File.Exists(fixturePath), $"Missing fixture: {fixturePath}");
+
+        using var fixtureStream = File.OpenRead(fixturePath);
+        var target = BuildC64();
+
+        var result = new SnapshotService().Restore(target, fixtureStream);
+
+        Assert.Equal(0xC000, target.CPU.PC);
+        Assert.Equal(0x47, target.CPU.A);
+        Assert.Equal(0xCD, target.RAM[0x2000]);
+        Assert.Equal(0x35, target.Mem.Read(0x0001)); // port restored from c64-core v1 bytes
+        Assert.Equal(29, target.CurrentBank);        // bank re-derived from restored port
+        Assert.Equal(1, result.Manifest.Modules.First(m => m.Name == C64CoreSnapshotModule.ModuleName).Version);
+        Assert.Equal(2, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
+    }
+
+    [Fact]
+    public void C64_new_snapshots_carry_the_port_in_the_cpu_module_only()
+    {
+        var source = BuildC64();
+        source.Mem.Write(0x0001, 0x35);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var restored = BuildC64();
+        var result = new SnapshotService().Restore(restored, snapshotStream);
+
+        // New-generation module versions: cpu-6502 v3 owns the port, c64-core v2 has no
+        // port bytes.
+        Assert.Equal(3, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
+        Assert.Equal(2, result.Manifest.Modules.First(m => m.Name == C64CoreSnapshotModule.ModuleName).Version);
+        Assert.Equal(0x35, restored.Mem.Read(0x0001));
+        Assert.Equal(source.CurrentBank, restored.CurrentBank);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
     public void C64_round_trip_preserves_changed_cpu_port_bank()
     {
         // Switch the 6510 CPU port to bank out BASIC/KERNAL ROM (all-RAM bank), then snapshot.

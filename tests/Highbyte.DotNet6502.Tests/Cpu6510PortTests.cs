@@ -92,6 +92,55 @@ public class Cpu6510PortTests
     }
 
     [Fact]
+    public void SerializeState_Returns_The_Two_Raw_Registers()
+    {
+        var port = new Cpu6510Port();
+        port.SetState(dataDirectionRegister: 0x2F, dataRegister: 0x35);
+
+        Assert.Equal(new byte[] { 0x2F, 0x35 }, port.SerializeState());
+    }
+
+    [Fact]
+    public void RestoreState_Applies_Atomically_With_One_Notification()
+    {
+        var port = new Cpu6510Port();
+        var notifications = 0;
+        (byte Ddr, byte Data) seen = default;
+        port.OutputsChanged += () =>
+        {
+            notifications++;
+            seen = (port.DataDirectionRegister, port.DataRegister);
+        };
+
+        port.RestoreState(new byte[] { 0x2F, 0x35 });
+
+        Assert.Equal(1, notifications);
+        Assert.Equal((0x2F, 0x35), seen);
+    }
+
+    [Fact]
+    public void Serialize_Then_Restore_Round_Trips_On_A_Fresh_Port()
+    {
+        var source = new Cpu6510Port();
+        source.SetState(0x2F, 0x37);
+
+        var target = new Cpu6510Port();
+        target.RestoreState(source.SerializeState());
+
+        Assert.Equal(0x2F, target.DataDirectionRegister);
+        Assert.Equal(0x37, target.DataRegister);
+    }
+
+    [Fact]
+    public void RestoreState_Rejects_A_Payload_That_Is_Not_Two_Bytes()
+    {
+        var port = new Cpu6510Port();
+
+        Assert.Throws<DotNet6502Exception>(() => port.RestoreState(new byte[] { 0x2F }));
+        Assert.Throws<DotNet6502Exception>(() => port.RestoreState(new byte[] { 0x2F, 0x35, 0x00 }));
+    }
+
+    [Fact]
     public void Clone_Copies_State_But_Not_Subscribers()
     {
         var port = new Cpu6510Port();

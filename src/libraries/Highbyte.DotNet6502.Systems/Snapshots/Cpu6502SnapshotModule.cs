@@ -7,15 +7,18 @@ namespace Highbyte.DotNet6502.Systems.Snapshots;
 /// machines pair with system-specific RAM/ROM/I-O wiring.
 ///
 /// <para>
-/// Capture (v2): CPU model id, then the v1 payload: PC, SP, A, X, Y, processor-status byte,
+/// Capture (v3): CPU model id, then the v1 payload: PC, SP, A, X, Y, processor-status byte,
 /// compatibility profile, halted flag, <see cref="ExecState"/> totals, and
-/// <see cref="CPUInterrupts"/> (pending-NMI flag plus active IRQ/NMI sources). Restore applies
+/// <see cref="CPUInterrupts"/> (pending-NMI flag plus active IRQ/NMI sources) — followed by
+/// the model-state payload (v3: e.g. the 6510's port registers, serialized by
+/// <see cref="CpuModelState.SerializeState"/>; null for stateless models). Restore applies
 /// registers, flags, interrupt sources and the <see cref="ExecState"/> totals through the
 /// CPU's public API. A CPU MODEL mismatch is a hard error (the saved execution state of one
 /// chip is not meaningful on another) and is checked first, before any state is applied;
 /// a compatibility-PROFILE mismatch stays a warning. The halted flag is captured for
 /// diagnostics only. v1 payloads (no model id) restore as nmos6502 — the only model that
-/// existed when v1 was written.
+/// existed when v1 was written; v2 payloads have no model state here (a 6510 port captured
+/// by v2-era code lives in the machine's own module).
 /// </para>
 ///
 /// <para>
@@ -33,7 +36,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
     public const string ModuleName = "cpu-6502";
 
     public string Name => ModuleName;
-    public int Version => 2;
+    public int Version => 3;
     public bool Required => true;
 
     /// <summary>
@@ -41,9 +44,9 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
     /// state) transfers exactly between the captured and target CPU models. Beyond
     /// identity, the NMOS-core family qualifies: the 6510 is an NMOS 6502 core with an
     /// added I/O port — snapshots captured before a machine (the C64) switched its
-    /// model id from nmos6502 to mos6510 restore onto the new model unchanged. Any
-    /// model-specific state outside this module (the 6510 port) is owned by the
-    /// machine's own snapshot module.
+    /// model id from nmos6502 to mos6510 restore onto the new model unchanged. Model
+    /// state (the 6510 port) transfers via the v3 payload when both sides have it;
+    /// one-sided cases restore with a warning (see RestoreModelState).
     /// </summary>
     private static bool AreModelsStateCompatible(string capturedModelId, string targetModelId)
         => capturedModelId == targetModelId
@@ -88,6 +91,11 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         writer.WriteInt32(interrupts.ActiveNMISources.Count);
         foreach (var nmi in interrupts.ActiveNMISources)
             writer.WriteString(nmi);
+
+        // v3: model-state payload, serialized by the model's own state object (e.g. the
+        // 6510's port registers). Null for models without state. CHIP state only — board
+        // wiring is re-established by the target machine.
+        writer.WriteBytes(cpu.ModelState?.SerializeState());
     }
 
     public void Restore(SnapshotModuleReader reader, SnapshotRestoreContext context)
@@ -134,6 +142,40 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
 
         if (capturedHalted && !cpu.IsHalted)
             context.AddWarning("cpu-6502: snapshot CPU was halted; halted state cannot be restored and was ignored.");
+
+        RestoreModelState(reader, cpu, storedVersion, capturedModelId, context);
+    }
+
+    /// <summary>
+    /// v3+: applies the model-state payload to the target CPU's model state. The
+    /// NMOS-core equivalence rule means a payload can be present without the target
+    /// having state (mos6510 → nmos6502) or vice versa (nmos6502 → mos6510) — both
+    /// restore with a warning instead of failing, since the core execution state
+    /// transferred fully. Pre-v3 payloads carry no model state here (a 6510 port
+    /// captured by older code lives in the machine's own module, e.g. c64-core v1).
+    /// </summary>
+    private static void RestoreModelState(SnapshotModuleReader reader, CPU cpu, int storedVersion, string capturedModelId, SnapshotRestoreContext context)
+    {
+        if (storedVersion < 3)
+            return;
+
+        var modelStateBytes = reader.ReadBytes();
+        if (modelStateBytes is null)
+        {
+            if (cpu.ModelState is not null)
+                context.AddWarning(
+                    $"cpu-6502: snapshot (model '{capturedModelId}') has no model-state payload but the target CPU '{cpu.CpuModelId}' has model state; target keeps its current values.");
+            return;
+        }
+
+        if (cpu.ModelState is null)
+        {
+            context.AddWarning(
+                $"cpu-6502: snapshot (model '{capturedModelId}') carries a model-state payload but the target CPU '{cpu.CpuModelId}' has none; payload ignored.");
+            return;
+        }
+
+        cpu.ModelState.RestoreState(modelStateBytes);
     }
 
     private static void RestoreInterrupts(SnapshotModuleReader reader, CPU cpu)

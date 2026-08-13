@@ -714,16 +714,11 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     }
 
     // --- Snapshot support ---
-    // Reading $00/$01 through memory returns derived values (effective port value with
-    // pull-ups), so the c64-core snapshot module captures the raw port registers through
-    // these accessors and restores them atomically. The binary layout (two raw bytes) is
-    // unchanged from when the registers lived on the C64 itself.
-    internal byte SnapshotCpuPortDataDirectionRegister => _cpuPort.DataDirectionRegister;
-    internal byte SnapshotCpuPortDataRegister => _cpuPort.DataRegister;
-
-    // Sets both restored registers together; the port's single change notification
-    // re-derives the active bank/memory configuration (recomputes CurrentBank and calls
-    // Mem.SetMemoryConfiguration) exactly once, with the final state.
+    // The 6510 port itself is CPU model state, captured/restored by the shared cpu-6502
+    // snapshot module (v3). This legacy path applies the two raw port bytes from a
+    // c64-core v1 payload: both registers set together, so the port's single change
+    // notification re-derives the active bank/memory configuration (recomputes
+    // CurrentBank and calls Mem.SetMemoryConfiguration) exactly once, with final state.
     internal void RestoreCpuPortState(byte dataDirectionRegister, byte dataRegister)
         => _cpuPort.SetState(dataDirectionRegister, dataRegister);
 

@@ -91,4 +91,15 @@ public sealed class Cpu6510Port : CpuModelState
             DataRegister = DataRegister,
             ExternalInputLevels = ExternalInputLevels,
         };
+
+    /// <summary>The two raw registers; input levels are board wiring and stay out.</summary>
+    public override byte[] SerializeState()
+        => new[] { DataDirectionRegister, DataRegister };
+
+    public override void RestoreState(byte[] data)
+    {
+        if (data.Length != 2)
+            throw new DotNet6502Exception($"6510 port state payload must be 2 bytes (DDR, data register), was {data.Length}.");
+        SetState(dataDirectionRegister: data[0], dataRegister: data[1]);
+    }
 }
