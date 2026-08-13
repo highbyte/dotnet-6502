@@ -113,9 +113,13 @@ public class Apple2LanguageCard
             // enable sequence with it.
             WriteEnabled = false;
         }
-        else if (PreWrite)
+        else if (PreWrite && isRead)
         {
-            // Second consecutive access to an odd address: the sequence completes.
+            // Second consecutive READ of an odd address: the sequence completes. Per Sather
+            // (Understanding the Apple IIe, 5-23) a WRITE never completes it — it only resets
+            // PRE-WRITE below. This is what makes the card CPU-model observable: a 65C02 RMW
+            // on an odd switch (read-read-write) unlocks the card, an NMOS RMW
+            // (read-write-write) does not.
             WriteEnabled = true;
         }
 

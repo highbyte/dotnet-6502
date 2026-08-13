@@ -35,7 +35,7 @@ public class CpuBusAccessCharacterizationTests
     }
 
     [Fact]
-    public void RMW_Zp_Currently_Does_One_Read_And_One_Write()
+    public void Nmos_RMW_Zp_Is_Read_WriteBack_Write()
     {
         var (cpu, mem, recorder) = NewCpuWithRecorder(0x0040, 1);
         recorder[0x0040] = 0x12;
@@ -44,16 +44,17 @@ public class CpuBusAccessCharacterizationTests
 
         cpu.ExecuteOneInstructionMinimal(mem);
 
-        // Real NMOS: R($40)=12, W($40)=12 (original written back), W($40)=13.
+        // NMOS RMW: the modify cycle writes the unmodified value back before the result.
         Assert.Equal(new[]
         {
             new BusAccessRecorder.BusAccess(IsRead: true, 0x0040, 0x12),
+            new BusAccessRecorder.BusAccess(IsRead: false, 0x0040, 0x12),
             new BusAccessRecorder.BusAccess(IsRead: false, 0x0040, 0x13),
         }, recorder.Accesses);
     }
 
     [Fact]
-    public void RMW_Abs_Currently_Does_One_Read_And_One_Write()
+    public void Nmos_RMW_Abs_Is_Read_WriteBack_Write()
     {
         var (cpu, mem, recorder) = NewCpuWithRecorder(0x3000, 1);
         recorder[0x3000] = 0b0100_0000;
@@ -65,12 +66,13 @@ public class CpuBusAccessCharacterizationTests
         Assert.Equal(new[]
         {
             new BusAccessRecorder.BusAccess(IsRead: true, 0x3000, 0b0100_0000),
+            new BusAccessRecorder.BusAccess(IsRead: false, 0x3000, 0b0100_0000),
             new BusAccessRecorder.BusAccess(IsRead: false, 0x3000, 0b1000_0000),
         }, recorder.Accesses);
     }
 
     [Fact]
-    public void RMW_AbsX_Currently_Does_One_Read_And_One_Write_At_The_Final_Address()
+    public void Nmos_RMW_AbsX_Is_Read_WriteBack_Write_At_The_Final_Address()
     {
         var (cpu, mem, recorder) = NewCpuWithRecorder(0x3000, 0x200);
         recorder[0x30FF] = 0x10;
@@ -83,7 +85,56 @@ public class CpuBusAccessCharacterizationTests
         Assert.Equal(new[]
         {
             new BusAccessRecorder.BusAccess(IsRead: true, 0x30FF, 0x10),
+            new BusAccessRecorder.BusAccess(IsRead: false, 0x30FF, 0x10),
             new BusAccessRecorder.BusAccess(IsRead: false, 0x30FF, 0x11),
+        }, recorder.Accesses);
+    }
+
+    [Fact]
+    public void Nmos_Illegal_RMW_Also_Does_The_Double_Write()
+    {
+        // The undocumented RMW combos share the same silicon behavior; software uses
+        // e.g. DCP's double write deliberately.
+        var (cpu, mem, recorder) = NewCpuWithRecorder(0x0040, 1);
+        recorder[0x0040] = 0x12;
+        var cpuFull = new CPU(CpuCompatibilityProfile.FullUnofficial);
+        cpuFull.PC = StartPc;
+        cpuFull.SP = 0xFF;
+        mem[StartPc] = (byte)OpCodeId.DCP_ZP;
+        mem[StartPc + 1] = 0x40;
+
+        cpuFull.ExecuteOneInstructionMinimal(mem);
+
+        Assert.Equal(new[]
+        {
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x0040, 0x12),
+            new BusAccessRecorder.BusAccess(IsRead: false, 0x0040, 0x12),
+            new BusAccessRecorder.BusAccess(IsRead: false, 0x0040, 0x11),
+        }, recorder.Accesses);
+    }
+
+    [Fact]
+    public void Cmos_RMW_Abs_Is_Read_Read_Write()
+    {
+        var cpu = new CPU(new ExecState(), new Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory(),
+            CpuModelIds.Ncr65c02, CpuCompatibilityProfile.OfficialOnly);
+        var mem = new Memory();
+        cpu.PC = StartPc;
+        cpu.SP = 0xFF;
+        var recorder = new BusAccessRecorder();
+        recorder.Watch(mem, 0x3000, 1);
+        recorder[0x3000] = 0x12;
+        mem[StartPc] = (byte)OpCodeId.INC_ABS;
+        mem.WriteWord((ushort)(StartPc + 1), 0x3000);
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+
+        // 65C02 RMW: a second read replaces the NMOS write-back cycle.
+        Assert.Equal(new[]
+        {
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x3000, 0x12),
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x3000, 0x12),
+            new BusAccessRecorder.BusAccess(IsRead: false, 0x3000, 0x13),
         }, recorder.Accesses);
     }
 

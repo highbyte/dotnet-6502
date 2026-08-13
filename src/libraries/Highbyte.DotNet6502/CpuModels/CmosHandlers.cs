@@ -128,6 +128,8 @@ internal static class CmosHandlers
 
     private static ulong TestAndSetBits(CPU cpu, Memory mem, ushort address, ulong cycles)
     {
+        cpu.FetchByte(mem, address);
+        // 65C02 RMW is read-read-write: a second read replaces the NMOS write-back cycle.
         var value = cpu.FetchByte(mem, address);
         cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
         cpu.StoreByte((byte)(value | cpu.A), mem, address);
@@ -136,10 +138,35 @@ internal static class CmosHandlers
 
     private static ulong TestAndResetBits(CPU cpu, Memory mem, ushort address, ulong cycles)
     {
+        cpu.FetchByte(mem, address);
+        // 65C02 RMW is read-read-write: a second read replaces the NMOS write-back cycle.
         var value = cpu.FetchByte(mem, address);
         cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
         cpu.StoreByte((byte)(value & ~cpu.A), mem, address);
         return cycles;
+    }
+
+    /// <summary>
+    /// One read-modify-write operation's compute step: takes the value read from memory,
+    /// returns the value to write back, updating processor flags. Matches the signature
+    /// of the shared BinaryArithmeticHelpers shift/rotate helpers.
+    /// </summary>
+    internal delegate byte RmwCore(byte value, ref ProcessorStatus status);
+
+    /// <summary>INC memory core (the shifts/rotates use their BinaryArithmeticHelpers directly).</summary>
+    public static byte IncCore(byte value, ref ProcessorStatus status)
+    {
+        value++;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref status);
+        return value;
+    }
+
+    /// <summary>DEC memory core.</summary>
+    public static byte DecCore(byte value, ref ProcessorStatus status)
+    {
+        value--;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref status);
+        return value;
     }
 
     /// <summary>
