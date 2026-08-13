@@ -13,4 +13,18 @@ public abstract class CpuModelState
     /// a clone must never retain callbacks into the original machine.
     /// </summary>
     public abstract CpuModelState Clone();
+
+    /// <summary>
+    /// The state's snapshot payload — CHIP state only, never board wiring (input levels,
+    /// subscriptions), which the target machine re-establishes itself. The layout is
+    /// owned by the concrete state type and versioned by the cpu-6502 snapshot module
+    /// version that embeds it.
+    /// </summary>
+    public abstract byte[] SerializeState();
+
+    /// <summary>
+    /// Applies a payload produced by <see cref="SerializeState"/>. Implementations must
+    /// apply atomically (a single change notification with the final state).
+    /// </summary>
+    public abstract void RestoreState(byte[] data);
 }

@@ -86,7 +86,7 @@ public class CpuModelSnapshotTests
         var result = new SnapshotService().Restore(restored, snapshotStream);
 
         Assert.Equal(source.CPU.PC, restored.CPU.PC);
-        Assert.Equal(2, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
+        Assert.Equal(3, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
     }
 
     [Fact]
@@ -143,6 +143,94 @@ public class CpuModelSnapshotTests
         var target65c02 = BuildComputer(CpuModelIds.Ncr65c02);
         Assert.Throws<SnapshotIncompatibleException>(
             () => new SnapshotService().Restore(target65c02, snapshotStream));
+    }
+
+    [Fact]
+    public void Mos6510_Port_State_Round_Trips_Through_The_Cpu_Module()
+    {
+        // v3 capability: model state persists with the CPU. Before this the Generic
+        // system silently lost the 6510's port registers on snapshot.
+        var source = BuildComputer(CpuModelIds.Mos6510);
+        ((Cpu6510Port)source.CPU.ModelState!).SetState(dataDirectionRegister: 0x2F, dataRegister: 0x35);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var restored = BuildComputer(CpuModelIds.Mos6510);
+        var restoredPort = (Cpu6510Port)restored.CPU.ModelState!;
+        Assert.NotEqual(0x35, restoredPort.DataRegister);
+
+        new SnapshotService().Restore(restored, snapshotStream);
+
+        Assert.Equal(0x2F, restoredPort.DataDirectionRegister);
+        Assert.Equal(0x35, restoredPort.DataRegister);
+    }
+
+    [Fact]
+    public void Mos6510_Port_Restore_Notifies_Once_With_Final_State()
+    {
+        var source = BuildComputer(CpuModelIds.Mos6510);
+        ((Cpu6510Port)source.CPU.ModelState!).SetState(0x2F, 0x35);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var restored = BuildComputer(CpuModelIds.Mos6510);
+        var restoredPort = (Cpu6510Port)restored.CPU.ModelState!;
+        var notifications = 0;
+        (byte Ddr, byte Data) seen = default;
+        restoredPort.OutputsChanged += () =>
+        {
+            notifications++;
+            seen = (restoredPort.DataDirectionRegister, restoredPort.DataRegister);
+        };
+
+        new SnapshotService().Restore(restored, snapshotStream);
+
+        Assert.Equal(1, notifications);
+        Assert.Equal((0x2F, 0x35), seen);
+    }
+
+    [Fact]
+    public void Mos6510_Payload_Onto_Nmos6502_Target_Warns_And_Ignores_The_Port()
+    {
+        var source = BuildComputer(CpuModelIds.Mos6510);
+        ((Cpu6510Port)source.CPU.ModelState!).SetState(0x2F, 0x35);
+        for (int i = 0; i < 5; i++)
+            source.ExecuteOneInstruction(out _);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var targetNmos = BuildComputer(CpuModelIds.Nmos6502);
+        var result = new SnapshotService().Restore(targetNmos, snapshotStream);
+
+        // Core state restored; the port payload is warned about and skipped.
+        Assert.Equal(source.CPU.PC, targetNmos.CPU.PC);
+        Assert.Contains(result.Warnings, w => w.Contains("model-state payload"));
+    }
+
+    [Fact]
+    public void Nmos6502_Snapshot_Onto_Mos6510_Target_Warns_That_The_Port_Keeps_Its_Values()
+    {
+        var source = BuildComputer(CpuModelIds.Nmos6502);
+        for (int i = 0; i < 5; i++)
+            source.ExecuteOneInstruction(out _);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var target6510 = BuildComputer(CpuModelIds.Mos6510);
+        ((Cpu6510Port)target6510.CPU.ModelState!).SetState(0x2F, 0x37);
+        var result = new SnapshotService().Restore(target6510, snapshotStream);
+
+        Assert.Equal(source.CPU.PC, target6510.CPU.PC);
+        Assert.Equal(0x37, ((Cpu6510Port)target6510.CPU.ModelState!).DataRegister); // untouched
+        Assert.Contains(result.Warnings, w => w.Contains("no model-state payload"));
     }
 
     [Fact]
