@@ -119,6 +119,37 @@ internal static class MigratedInstructionBindings
         Implied(table, 0xC8, "INY", 2, InstructionCores.Iny);
         Implied(table, 0xCA, "DEX", 2, InstructionCores.Dex);
         Implied(table, 0x88, "DEY", 2, InstructionCores.Dey);
+
+        // --- Branches (2 cycles, +1 taken, +1 page cross) ---
+        Branch(table, 0x10, "BPL", static cpu => !cpu.ProcessorStatus.Negative);
+        Branch(table, 0x30, "BMI", static cpu => cpu.ProcessorStatus.Negative);
+        Branch(table, 0x50, "BVC", static cpu => !cpu.ProcessorStatus.Overflow);
+        Branch(table, 0x70, "BVS", static cpu => cpu.ProcessorStatus.Overflow);
+        Branch(table, 0x90, "BCC", static cpu => !cpu.ProcessorStatus.Carry);
+        Branch(table, 0xB0, "BCS", static cpu => cpu.ProcessorStatus.Carry);
+        Branch(table, 0xD0, "BNE", static cpu => !cpu.ProcessorStatus.Zero);
+        Branch(table, 0xF0, "BEQ", static cpu => cpu.ProcessorStatus.Zero);
+
+        // --- Flag operations ---
+        Implied(table, 0x18, "CLC", 2, InstructionCores.Clc);
+        Implied(table, 0x38, "SEC", 2, InstructionCores.Sec);
+        Implied(table, 0x58, "CLI", 2, InstructionCores.Cli);
+        Implied(table, 0x78, "SEI", 2, InstructionCores.Sei);
+        Implied(table, 0xB8, "CLV", 2, InstructionCores.Clv);
+        Implied(table, 0xD8, "CLD", 2, InstructionCores.Cld);
+        Implied(table, 0xF8, "SED", 2, InstructionCores.Sed);
+
+        // --- Stack, flow, NOP (bespoke handlers; cycles returned by the handler) ---
+        Bespoke(table, 0x48, "PHA", AddrMode.Implied, 1, 3, SharedHandlers.Pha);
+        Bespoke(table, 0x68, "PLA", AddrMode.Implied, 1, 4, SharedHandlers.Pla);
+        Bespoke(table, 0x08, "PHP", AddrMode.Implied, 1, 3, SharedHandlers.Php);
+        Bespoke(table, 0x28, "PLP", AddrMode.Implied, 1, 4, SharedHandlers.Plp);
+        Bespoke(table, 0x4C, "JMP", AddrMode.ABS, 3, 3, SharedHandlers.Jmp_Absolute);
+        Bespoke(table, 0x20, "JSR", AddrMode.ABS, 3, 6, SharedHandlers.Jsr);
+        Bespoke(table, 0x60, "RTS", AddrMode.Implied, 1, 6, SharedHandlers.Rts);
+        Bespoke(table, 0x40, "RTI", AddrMode.Implied, 1, 6, SharedHandlers.Rti);
+        Bespoke(table, 0xEA, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop);
+        Bespoke(table, 0x00, "BRK", AddrMode.Implied, 1, 7, SharedHandlers.Brk);
     }
 
     /// <summary>
@@ -194,8 +225,12 @@ internal static class MigratedInstructionBindings
         Rmw(table, 0xDE, "DEC", AddrMode.ABS_X, 3, 7, InstructionCores.Dec, cmosSequence, indexedDummyReads);
     }
 
-    /// <summary>The 65C02-only RMW and accumulator instructions (TSB/TRB, INC A/DEC A).</summary>
-    public static void ApplyCmosRmwExtras(OpCodeDescriptor?[] table)
+    /// <summary>
+    /// The 65C02-only instructions bindable from cores/composition: TSB/TRB,
+    /// INC A/DEC A, STZ, the new BIT modes, and BRA. (PHX/PHY/PLX/PLY and the
+    /// model-specific JMP handlers stay as bespoke statics in CmosHandlers.)
+    /// </summary>
+    public static void ApplyCmosExtras(OpCodeDescriptor?[] table)
     {
         Implied(table, 0x1A, "INC", 2, InstructionCores.IncAccumulator, AddrMode.Accumulator);
         Implied(table, 0x3A, "DEC", 2, InstructionCores.DecAccumulator, AddrMode.Accumulator);
@@ -203,7 +238,43 @@ internal static class MigratedInstructionBindings
         Rmw(table, 0x0C, "TSB", AddrMode.ABS, 3, 6, InstructionCores.Tsb, cmosSequence: true, indexedDummyReads: false);
         Rmw(table, 0x14, "TRB", AddrMode.ZP, 2, 5, InstructionCores.Trb, cmosSequence: true, indexedDummyReads: false);
         Rmw(table, 0x1C, "TRB", AddrMode.ABS, 3, 6, InstructionCores.Trb, cmosSequence: true, indexedDummyReads: false);
+
+        Store(table, 0x64, "STZ", AddrMode.ZP, 2, 3, InstructionCores.Stz, indexedDummyReads: false);
+        Store(table, 0x74, "STZ", AddrMode.ZP_X, 2, 4, InstructionCores.Stz, indexedDummyReads: false);
+        Store(table, 0x9C, "STZ", AddrMode.ABS, 3, 4, InstructionCores.Stz, indexedDummyReads: false);     // SHY abs,X on NMOS
+        Store(table, 0x9E, "STZ", AddrMode.ABS_X, 3, 5, InstructionCores.Stz, indexedDummyReads: false);   // SHX abs,Y on NMOS
+
+        Read(table, 0x89, "BIT", AddrMode.I, 2, 2, InstructionCores.BitImmediateCmos, false, indexedDummyReads: false);
+        Read(table, 0x34, "BIT", AddrMode.ZP_X, 2, 4, InstructionCores.Bit, false, indexedDummyReads: false);
+        Read(table, 0x3C, "BIT", AddrMode.ABS_X, 3, 4, InstructionCores.Bit, true, indexedDummyReads: false);
+
+        Branch(table, 0x80, "BRA", static _ => true);
     }
+
+    private static void Branch(OpCodeDescriptor?[] table, byte code, string mnemonic, BranchCondition condition)
+        => table[code] = new OpCodeDescriptor
+        {
+            Code = code,
+            Mnemonic = mnemonic,
+            Addressing = AddrMode.Relative,
+            Size = 2,
+            BaseCycles = 2,
+            Documented = true,
+            Execute = ComposeBranch(condition),
+        };
+
+    private static void Bespoke(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
+        byte size, byte baseCycles, ExecuteHandler handler)
+        => table[code] = new OpCodeDescriptor
+        {
+            Code = code,
+            Mnemonic = mnemonic,
+            Addressing = addressing,
+            Size = size,
+            BaseCycles = baseCycles,
+            Documented = true,
+            Execute = handler,
+        };
 
     private static void Rmw(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
         byte size, byte baseCycles, RmwOperation core, bool cmosSequence, bool indexedDummyReads, bool addPageCrossCycle = false)

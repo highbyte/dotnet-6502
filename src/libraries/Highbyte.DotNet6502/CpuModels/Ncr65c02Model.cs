@@ -78,22 +78,14 @@ internal static class Ncr65c02Model
         // 65C02-only members of the same family.
         MigratedInstructionBindings.ApplyRmw(table, cmosSequence: true,
             indexedDummyReads: s_traits.PerformsIndexedDummyReads);
-        MigratedInstructionBindings.ApplyCmosRmwExtras(table);
+        MigratedInstructionBindings.ApplyCmosExtras(table);
 
         // New 65C02 instructions, bound as static handlers.
-        Add(table, 0x34, "BIT", AddrMode.ZP_X, size: 2, cycles: 4, CmosHandlers.Bit_ZpX);
-        Add(table, 0x3C, "BIT", AddrMode.ABS_X, size: 3, cycles: 4, CmosHandlers.Bit_AbsX);
-        Add(table, 0x89, "BIT", AddrMode.I, size: 2, cycles: 2, CmosHandlers.Bit_Immediate);
         Add(table, 0x5A, "PHY", AddrMode.Implied, size: 1, cycles: 3, CmosHandlers.Phy);
         Add(table, 0x7A, "PLY", AddrMode.Implied, size: 1, cycles: 4, CmosHandlers.Ply);
         Add(table, 0xDA, "PHX", AddrMode.Implied, size: 1, cycles: 3, CmosHandlers.Phx);
         Add(table, 0xFA, "PLX", AddrMode.Implied, size: 1, cycles: 4, CmosHandlers.Plx);
-        Add(table, 0x64, "STZ", AddrMode.ZP, size: 2, cycles: 3, CmosHandlers.Stz_Zp);
-        Add(table, 0x74, "STZ", AddrMode.ZP_X, size: 2, cycles: 4, CmosHandlers.Stz_ZpX);
-        Add(table, 0x9C, "STZ", AddrMode.ABS, size: 3, cycles: 4, CmosHandlers.Stz_Abs);     // SHY abs,X on NMOS
-        Add(table, 0x9E, "STZ", AddrMode.ABS_X, size: 3, cycles: 5, CmosHandlers.Stz_AbsX);  // SHX abs,Y on NMOS
         Add(table, 0x7C, "JMP", AddrMode.ABS_IX_IND, size: 3, cycles: 6, CmosHandlers.Jmp_AbsIndexedIndirect);
-        Add(table, 0x80, "BRA", AddrMode.Relative, size: 2, cycles: 3, CmosHandlers.Bra);
 
         // Every remaining byte is a defined NOP with a specific size and cycle count
         // (base/NCR part: the Rockwell/WDC extension bytes are NOPs too).

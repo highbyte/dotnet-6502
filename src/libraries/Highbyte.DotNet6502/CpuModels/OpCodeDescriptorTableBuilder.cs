@@ -426,6 +426,20 @@ internal static class OpCodeDescriptorTableBuilder
         };
 
     /// <summary>
+    /// Composes a branch instruction: 2 cycles not taken, 3 taken, 4 taken across a
+    /// page boundary.
+    /// </summary>
+    internal static ExecuteHandler ComposeBranch(BranchCondition condition)
+        => (cpu, mem) =>
+        {
+            var offset = cpu.FetchOperand(mem);
+            if (!condition(cpu))
+                return 2;
+            cpu.PC = BranchHelper.CalculateNewAbsoluteBranchAddress(cpu.PC, (sbyte)offset, out _, out var crossedPageBoundary);
+            return crossedPageBoundary ? 4ul : 3ul;
+        };
+
+    /// <summary>
     /// Composes a read-modify-write instruction with the model's bus sequence:
     /// 65C02 (<paramref name="cmosSequence"/>) reads twice then writes the result
     /// (the value from the final read feeds the modify); NMOS reads once, writes the

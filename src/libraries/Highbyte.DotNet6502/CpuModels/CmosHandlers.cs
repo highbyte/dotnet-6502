@@ -1,12 +1,10 @@
-using Highbyte.DotNet6502.Utils;
-
 namespace Highbyte.DotNet6502;
 
 /// <summary>
-/// Execute handlers for instructions whose CMOS 65C02 behavior diverges from the generic
-/// (instruction-object based) composition, plus the 65C02's defined-NOP family for
-/// otherwise-undefined bytes. Static methods — no captured state, no per-call
-/// allocation, AOT-safe. Bound into the ncr65c02 descriptor table at build time.
+/// Bespoke execute handlers specific to the 65C02: its JMP indirect variants, the
+/// index-register stack operations, and the defined-NOP family for otherwise-undefined
+/// bytes. Static methods — no captured state, no per-call allocation, AOT-safe.
+/// Bound into the ncr65c02 descriptor table at build time.
 /// </summary>
 internal static class CmosHandlers
 {
@@ -30,14 +28,6 @@ internal static class CmosHandlers
         var pointer = (ushort)(cpu.FetchOperandWord(mem) + cpu.X);
         cpu.PC = cpu.FetchWord(mem, pointer);
         return 6;
-    }
-
-    /// <summary>$80 BRA rel: branch always. 3 cycles, +1 on page cross.</summary>
-    public static ulong Bra(CPU cpu, Memory mem)
-    {
-        var value = cpu.FetchOperand(mem);
-        cpu.PC = BranchHelper.CalculateNewAbsoluteBranchAddress(cpu.PC, (sbyte)value, out _, out var crossedPageBoundary);
-        return crossedPageBoundary ? 4ul : 3ul;
     }
 
     /// <summary>$DA PHX: push X. 3 cycles.</summary>
@@ -68,61 +58,6 @@ internal static class CmosHandlers
         cpu.Y = cpu.PopByteFromStack(mem);
         BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, ref cpu.ProcessorStatus);
         return 4;
-    }
-
-    /// <summary>$64 STZ zp: store zero. 3 cycles.</summary>
-    public static ulong Stz_Zp(CPU cpu, Memory mem)
-    {
-        cpu.StoreByte(0, mem, cpu.FetchOperand(mem));
-        return 3;
-    }
-
-    /// <summary>$74 STZ zp,X. 4 cycles.</summary>
-    public static ulong Stz_ZpX(CPU cpu, Memory mem)
-    {
-        cpu.StoreByte(0, mem, cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem), wrapZeroPage: true));
-        return 4;
-    }
-
-    /// <summary>$9C STZ abs (the byte that is SHY abs,X on NMOS). 4 cycles.</summary>
-    public static ulong Stz_Abs(CPU cpu, Memory mem)
-    {
-        cpu.StoreByte(0, mem, cpu.FetchOperandWord(mem));
-        return 4;
-    }
-
-    /// <summary>$9E STZ abs,X (the byte that is SHX abs,Y on NMOS). Always 5 cycles (store).</summary>
-    public static ulong Stz_AbsX(CPU cpu, Memory mem)
-    {
-        cpu.StoreByte(0, mem, cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out _));
-        return 5;
-    }
-
-    /// <summary>
-    /// $89 BIT #: unlike the other BIT modes, ONLY Z is affected (N and V are left
-    /// unchanged) — the 65C02's documented quirk for the immediate form. 2 cycles.
-    /// </summary>
-    public static ulong Bit_Immediate(CPU cpu, Memory mem)
-    {
-        var value = cpu.FetchOperand(mem);
-        cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
-        return 2;
-    }
-
-    /// <summary>$34 BIT zp,X: normal BIT semantics (Z from A AND M; N/V from M). 4 cycles.</summary>
-    public static ulong Bit_ZpX(CPU cpu, Memory mem)
-    {
-        var value = cpu.FetchByte(mem, cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem), wrapZeroPage: true));
-        BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, value, ref cpu.ProcessorStatus);
-        return 4;
-    }
-
-    /// <summary>$3C BIT abs,X: normal BIT semantics. 4 cycles, +1 on page cross.</summary>
-    public static ulong Bit_AbsX(CPU cpu, Memory mem)
-    {
-        var value = cpu.FetchByte(mem, cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out var crossedPageBoundary));
-        BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, value, ref cpu.ProcessorStatus);
-        return crossedPageBoundary ? 5ul : 4ul;
     }
 
     // The 65C02 defines every byte: bytes without an assigned instruction execute as

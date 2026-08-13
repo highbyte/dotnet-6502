@@ -20,6 +20,9 @@ internal delegate void ImpliedOperation(CPU cpu);
 /// </summary>
 internal delegate byte RmwOperation(CPU cpu, byte value);
 
+/// <summary>A branch instruction's condition: branch taken when true.</summary>
+internal delegate bool BranchCondition(CPU cpu);
+
 /// <summary>
 /// Operation cores for instructions whose semantics are identical on every CPU model:
 /// tiny static methods composed with per-model addressing at table build time
@@ -264,5 +267,30 @@ internal static class InstructionCores
     {
         cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
         return (byte)(value & ~cpu.A);
+    }
+
+    // --- Flag operations ---
+
+    public static void Clc(CPU cpu) => cpu.ProcessorStatus.Carry = false;
+    public static void Sec(CPU cpu) => cpu.ProcessorStatus.Carry = true;
+    public static void Cli(CPU cpu) => cpu.ProcessorStatus.InterruptDisable = false;
+    public static void Sei(CPU cpu) => cpu.ProcessorStatus.InterruptDisable = true;
+    public static void Clv(CPU cpu) => cpu.ProcessorStatus.Overflow = false;
+    public static void Cld(CPU cpu) => cpu.ProcessorStatus.Decimal = false;
+    public static void Sed(CPU cpu) => cpu.ProcessorStatus.Decimal = true;
+
+    // --- More 65C02-only operations ---
+
+    /// <summary>STZ: stores zero.</summary>
+    public static byte Stz(CPU cpu) => 0;
+
+    /// <summary>
+    /// BIT # ($89): unlike the other BIT modes, ONLY Z is affected (N and V are left
+    /// unchanged) — the 65C02's documented quirk for the immediate form.
+    /// </summary>
+    public static ulong BitImmediateCmos(CPU cpu, byte value)
+    {
+        cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
+        return 0;
     }
 }
