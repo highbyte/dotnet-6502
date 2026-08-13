@@ -23,4 +23,14 @@ internal static class NmosHandlers
         cpu.PC = ByteHelpers.ToLittleEndianWord(targetLowByte, targetHighByte);
         return 5;
     }
+
+    /// <summary>
+    /// The JAM/KIL bytes: an NMOS decode dead-end that freezes the CPU until reset.
+    /// 2 cycles accounted (the freeze itself is modelled by the halt state).
+    /// </summary>
+    public static ulong Jam(CPU cpu, Memory mem)
+    {
+        cpu.Halt();
+        return 2;
+    }
 }

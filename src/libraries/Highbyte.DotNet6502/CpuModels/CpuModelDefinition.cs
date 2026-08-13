@@ -36,11 +36,13 @@ internal sealed class CpuModelDefinition
 
     /// <summary>
     /// Builds this model's 256-entry descriptor dispatch table from the instruction
-    /// table built by <see cref="CreateInstructionList"/>. This is THE mechanism for
-    /// model-specific instruction behavior — divergence lives in handler binding at
-    /// build time, never in definition flags or per-instruction model branches.
-    /// Models typically delegate to <see cref="OpCodeDescriptorTableBuilder.Build"/>
-    /// for the generic composition and pass overrides / apply model deltas on top.
+    /// table built by <see cref="CreateInstructionList"/> and the CPU's compatibility
+    /// profile (which gates undocumented-opcode bindings; ignored by models with a
+    /// single profile). This is THE mechanism for model-specific instruction behavior —
+    /// divergence lives in handler binding at build time, never in definition flags or
+    /// per-instruction model branches. Models typically delegate to
+    /// <see cref="OpCodeDescriptorTableBuilder.Build"/> for the generic composition and
+    /// pass overrides / apply model deltas on top.
     /// </summary>
-    public required Func<InstructionList, OpCodeDescriptor?[]> CreateDescriptors { get; init; }
+    public required Func<InstructionList, CpuCompatibilityProfile, OpCodeDescriptor?[]> CreateDescriptors { get; init; }
 }

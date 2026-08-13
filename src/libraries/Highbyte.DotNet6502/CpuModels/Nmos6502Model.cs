@@ -27,7 +27,7 @@ internal static class Nmos6502Model
         },
         CreateInstructionList = InstructionList.GetAllInstructions,
         Traits = s_traits,
-        CreateDescriptors = static instructionList =>
+        CreateDescriptors = static (instructionList, profile) =>
         {
             var table = OpCodeDescriptorTableBuilder.Build(
                 instructionList,
@@ -44,6 +44,8 @@ internal static class Nmos6502Model
                 InstructionCores.AdcNmos, InstructionCores.SbcNmos,
                 indexedDummyReads: s_traits.PerformsIndexedDummyReads);
             MigratedInstructionBindings.ApplyRmw(table, cmosSequence: false,
+                indexedDummyReads: s_traits.PerformsIndexedDummyReads);
+            MigratedInstructionBindings.ApplyNmosUndocumented(table, profile,
                 indexedDummyReads: s_traits.PerformsIndexedDummyReads);
             return table;
         },

@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Utils;
+
 namespace Highbyte.DotNet6502;
 
 /// <summary>
@@ -292,5 +294,122 @@ internal static class InstructionCores
     {
         cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
         return 0;
+    }
+
+    // --- NMOS undocumented opcodes (profile-gated at binding time) ---
+
+    /// <summary>Undocumented multi-byte NOPs: fetch the operand, change nothing.</summary>
+    public static ulong NopIllegal(CPU cpu, byte value) => 0;
+
+    /// <summary>LAX: load A and X together.</summary>
+    public static ulong Lax(CPU cpu, byte value)
+    {
+        cpu.A = value;
+        cpu.X = value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    /// <summary>SAX: store A AND X (no flags).</summary>
+    public static byte Sax(CPU cpu) => (byte)(cpu.A & cpu.X);
+
+    /// <summary>ANC: AND then copy the result's bit 7 into Carry.</summary>
+    public static ulong Anc(CPU cpu, byte value)
+    {
+        cpu.A &= value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        cpu.ProcessorStatus.Carry = cpu.A.IsBitSet(7);
+        return 0;
+    }
+
+    /// <summary>ALR: AND then LSR A.</summary>
+    public static ulong Alr(CPU cpu, byte value)
+    {
+        cpu.A &= value;
+        cpu.A = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    /// <summary>ARR: AND then ROR A with non-standard C (bit 6) and V (bit 6 XOR bit 5).</summary>
+    public static ulong Arr(CPU cpu, byte value)
+    {
+        cpu.A &= value;
+        bool oldCarry = cpu.ProcessorStatus.Carry;
+        cpu.A = (byte)((cpu.A >> 1) | (oldCarry ? 0x80 : 0x00));
+        cpu.ProcessorStatus.Carry = cpu.A.IsBitSet(6);
+        cpu.ProcessorStatus.Overflow = cpu.A.IsBitSet(6) ^ cpu.A.IsBitSet(5);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    /// <summary>AXS: X = (A AND X) - value, with compare-style flags.</summary>
+    public static ulong Axs(CPU cpu, byte value)
+    {
+        byte andVal = (byte)(cpu.A & cpu.X);
+        BinaryArithmeticHelpers.SetFlagsAfterCompare(andVal, value, ref cpu.ProcessorStatus);
+        cpu.X = (byte)(andVal - value);
+        return 0;
+    }
+
+    /// <summary>LAS: A = X = SP = value AND SP.</summary>
+    public static ulong Las(CPU cpu, byte value)
+    {
+        byte result = (byte)(value & cpu.SP);
+        cpu.A = result;
+        cpu.X = result;
+        cpu.SP = result;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(result, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    /// <summary>SLO: ASL memory, then ORA the result into A.</summary>
+    public static byte Slo(CPU cpu, byte value)
+    {
+        value = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+        cpu.A |= value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return value;
+    }
+
+    /// <summary>SRE: LSR memory, then EOR the result into A.</summary>
+    public static byte Sre(CPU cpu, byte value)
+    {
+        value = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+        cpu.A ^= value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return value;
+    }
+
+    /// <summary>RLA: ROL memory, then AND the result into A.</summary>
+    public static byte Rla(CPU cpu, byte value)
+    {
+        value = BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+        cpu.A &= value;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return value;
+    }
+
+    /// <summary>RRA: ROR memory, then ADC the result (binary, as the NMOS class did).</summary>
+    public static byte Rra(CPU cpu, byte value)
+    {
+        value = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+        cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        return value;
+    }
+
+    /// <summary>DCP: DEC memory, then CMP against A.</summary>
+    public static byte Dcp(CPU cpu, byte value)
+    {
+        value--;
+        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.A, value, ref cpu.ProcessorStatus);
+        return value;
+    }
+
+    /// <summary>ISC: INC memory, then SBC the result (binary, as the NMOS class did).</summary>
+    public static byte Isc(CPU cpu, byte value)
+    {
+        value++;
+        cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        return value;
     }
 }

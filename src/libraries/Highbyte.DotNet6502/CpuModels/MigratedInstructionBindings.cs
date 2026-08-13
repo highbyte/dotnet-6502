@@ -226,6 +226,110 @@ internal static class MigratedInstructionBindings
     }
 
     /// <summary>
+    /// The NMOS-undocumented opcodes, bound from cores through the same composition as
+    /// the documented instructions and gated by the CPU's compatibility profile (matching
+    /// <see cref="InstructionList.GetMinimumCompatibilityProfile"/> tier for tier).
+    /// Mnemonics match the legacy instruction-class names so disassembly is unchanged.
+    /// </summary>
+    public static void ApplyNmosUndocumented(OpCodeDescriptor?[] table, CpuCompatibilityProfile profile, bool indexedDummyReads)
+    {
+        if (profile >= CpuCompatibilityProfile.StableUnofficial)
+        {
+            // --- Extra implied NOPs (execute exactly like $EA NOP) ---
+            Bespoke(table, 0x1A, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop, documented: false);
+            Bespoke(table, 0x3A, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop, documented: false);
+            Bespoke(table, 0x5A, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop, documented: false);
+            Bespoke(table, 0x7A, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop, documented: false);
+            Bespoke(table, 0xDA, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop, documented: false);
+            Bespoke(table, 0xFA, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop, documented: false);
+
+            // --- NOPs that read (and discard) a byte ---
+            Read(table, 0x80, "NOP_Illegal", AddrMode.I, 2, 2, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x82, "NOP_Illegal", AddrMode.I, 2, 2, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x89, "NOP_Illegal", AddrMode.I, 2, 2, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0xC2, "NOP_Illegal", AddrMode.I, 2, 2, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0xE2, "NOP_Illegal", AddrMode.I, 2, 2, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x04, "NOP_Illegal", AddrMode.ZP, 2, 3, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x44, "NOP_Illegal", AddrMode.ZP, 2, 3, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x64, "NOP_Illegal", AddrMode.ZP, 2, 3, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x14, "NOP_Illegal", AddrMode.ZP_X, 2, 4, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x34, "NOP_Illegal", AddrMode.ZP_X, 2, 4, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x54, "NOP_Illegal", AddrMode.ZP_X, 2, 4, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x74, "NOP_Illegal", AddrMode.ZP_X, 2, 4, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0xD4, "NOP_Illegal", AddrMode.ZP_X, 2, 4, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0xF4, "NOP_Illegal", AddrMode.ZP_X, 2, 4, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x0C, "NOP_Illegal", AddrMode.ABS, 3, 4, InstructionCores.NopIllegal, false, indexedDummyReads, documented: false);
+            Read(table, 0x1C, "NOP_Illegal", AddrMode.ABS_X, 3, 4, InstructionCores.NopIllegal, true, indexedDummyReads, documented: false);
+            Read(table, 0x3C, "NOP_Illegal", AddrMode.ABS_X, 3, 4, InstructionCores.NopIllegal, true, indexedDummyReads, documented: false);
+            Read(table, 0x5C, "NOP_Illegal", AddrMode.ABS_X, 3, 4, InstructionCores.NopIllegal, true, indexedDummyReads, documented: false);
+            Read(table, 0x7C, "NOP_Illegal", AddrMode.ABS_X, 3, 4, InstructionCores.NopIllegal, true, indexedDummyReads, documented: false);
+            Read(table, 0xDC, "NOP_Illegal", AddrMode.ABS_X, 3, 4, InstructionCores.NopIllegal, true, indexedDummyReads, documented: false);
+            Read(table, 0xFC, "NOP_Illegal", AddrMode.ABS_X, 3, 4, InstructionCores.NopIllegal, true, indexedDummyReads, documented: false);
+
+            // --- LAX (load A and X) ---
+            Read(table, 0xA3, "LAX", AddrMode.IX_IND, 2, 6, InstructionCores.Lax, false, indexedDummyReads, documented: false);
+            Read(table, 0xA7, "LAX", AddrMode.ZP, 2, 3, InstructionCores.Lax, false, indexedDummyReads, documented: false);
+            Read(table, 0xAF, "LAX", AddrMode.ABS, 3, 4, InstructionCores.Lax, false, indexedDummyReads, documented: false);
+            Read(table, 0xB3, "LAX", AddrMode.IND_IX, 2, 5, InstructionCores.Lax, true, indexedDummyReads, documented: false);
+            Read(table, 0xB7, "LAX", AddrMode.ZP_Y, 2, 4, InstructionCores.Lax, false, indexedDummyReads, documented: false);
+            Read(table, 0xBF, "LAX", AddrMode.ABS_Y, 3, 4, InstructionCores.Lax, true, indexedDummyReads, documented: false);
+
+            // --- SAX (store A AND X) ---
+            Store(table, 0x83, "SAX", AddrMode.IX_IND, 2, 6, InstructionCores.Sax, indexedDummyReads, documented: false);
+            Store(table, 0x87, "SAX", AddrMode.ZP, 2, 3, InstructionCores.Sax, indexedDummyReads, documented: false);
+            Store(table, 0x8F, "SAX", AddrMode.ABS, 3, 4, InstructionCores.Sax, indexedDummyReads, documented: false);
+            Store(table, 0x97, "SAX", AddrMode.ZP_Y, 2, 4, InstructionCores.Sax, indexedDummyReads, documented: false);
+
+            // --- RMW-combo illegals (shift/inc-dec memory, then ALU into A) ---
+            ApplyUndocumentedRmwCombo(table, 0x00, "SLO", InstructionCores.Slo, indexedDummyReads);
+            ApplyUndocumentedRmwCombo(table, 0x20, "RLA", InstructionCores.Rla, indexedDummyReads);
+            ApplyUndocumentedRmwCombo(table, 0x40, "SRE", InstructionCores.Sre, indexedDummyReads);
+            ApplyUndocumentedRmwCombo(table, 0x60, "RRA", InstructionCores.Rra, indexedDummyReads);
+            ApplyUndocumentedRmwCombo(table, 0xC0, "DCP", InstructionCores.Dcp, indexedDummyReads);
+            ApplyUndocumentedRmwCombo(table, 0xE0, "ISC", InstructionCores.Isc, indexedDummyReads);
+
+            // --- Immediate-mode combos ---
+            Read(table, 0x0B, "ANC", AddrMode.I, 2, 2, InstructionCores.Anc, false, indexedDummyReads, documented: false);
+            Read(table, 0x2B, "ANC", AddrMode.I, 2, 2, InstructionCores.Anc, false, indexedDummyReads, documented: false);
+            Read(table, 0x4B, "ALR", AddrMode.I, 2, 2, InstructionCores.Alr, false, indexedDummyReads, documented: false);
+            Read(table, 0xCB, "AXS", AddrMode.I, 2, 2, InstructionCores.Axs, false, indexedDummyReads, documented: false);
+
+            // $EB: undocumented alias of SBC #imm — same core as the official byte.
+            Read(table, 0xEB, "SBC", AddrMode.I, 2, 2, InstructionCores.SbcNmos, false, indexedDummyReads, documented: false);
+        }
+
+        if (profile >= CpuCompatibilityProfile.ExperimentalUnofficial)
+        {
+            Read(table, 0x6B, "ARR", AddrMode.I, 2, 2, InstructionCores.Arr, false, indexedDummyReads, documented: false);
+            Read(table, 0xBB, "LAS", AddrMode.ABS_Y, 3, 4, InstructionCores.Las, true, indexedDummyReads, documented: false);
+        }
+
+        if (profile >= CpuCompatibilityProfile.FullUnofficial)
+        {
+            // JAM/KIL: freeze the CPU until reset.
+            foreach (var code in new byte[] { 0x02, 0x12, 0x22, 0x32, 0x42, 0x52, 0x62, 0x72, 0x92, 0xB2, 0xD2, 0xF2 })
+                Bespoke(table, code, "JAM", AddrMode.Implied, 1, 2, NmosHandlers.Jam, documented: false);
+        }
+    }
+
+    /// <summary>
+    /// One RMW-combo illegal family (SLO/RLA/SRE/RRA/DCP/ISC): all six share the same
+    /// seven addressing modes and cycle counts, at the same byte offsets from their
+    /// family base byte. NMOS-only, so always the read-write-write sequence.
+    /// </summary>
+    private static void ApplyUndocumentedRmwCombo(OpCodeDescriptor?[] table, byte baseCode, string mnemonic,
+        RmwOperation core, bool indexedDummyReads)
+    {
+        Rmw(table, (byte)(baseCode + 0x03), mnemonic, AddrMode.IX_IND, 2, 8, core, cmosSequence: false, indexedDummyReads, documented: false);
+        Rmw(table, (byte)(baseCode + 0x07), mnemonic, AddrMode.ZP, 2, 5, core, cmosSequence: false, indexedDummyReads, documented: false);
+        Rmw(table, (byte)(baseCode + 0x0F), mnemonic, AddrMode.ABS, 3, 6, core, cmosSequence: false, indexedDummyReads, documented: false);
+        Rmw(table, (byte)(baseCode + 0x13), mnemonic, AddrMode.IND_IX, 2, 8, core, cmosSequence: false, indexedDummyReads, documented: false);
+        Rmw(table, (byte)(baseCode + 0x17), mnemonic, AddrMode.ZP_X, 2, 6, core, cmosSequence: false, indexedDummyReads, documented: false);
+        Rmw(table, (byte)(baseCode + 0x1B), mnemonic, AddrMode.ABS_Y, 3, 7, core, cmosSequence: false, indexedDummyReads, documented: false);
+        Rmw(table, (byte)(baseCode + 0x1F), mnemonic, AddrMode.ABS_X, 3, 7, core, cmosSequence: false, indexedDummyReads, documented: false);
+    }
+
+    /// <summary>
     /// The 65C02-only instructions bindable from cores/composition: TSB/TRB,
     /// INC A/DEC A, STZ, the new BIT modes, and BRA. (PHX/PHY/PLX/PLY and the
     /// model-specific JMP handlers stay as bespoke statics in CmosHandlers.)
@@ -264,7 +368,7 @@ internal static class MigratedInstructionBindings
         };
 
     private static void Bespoke(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
-        byte size, byte baseCycles, ExecuteHandler handler)
+        byte size, byte baseCycles, ExecuteHandler handler, bool documented = true)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -272,12 +376,12 @@ internal static class MigratedInstructionBindings
             Addressing = addressing,
             Size = size,
             BaseCycles = baseCycles,
-            Documented = true,
+            Documented = documented,
             Execute = handler,
         };
 
     private static void Rmw(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
-        byte size, byte baseCycles, RmwOperation core, bool cmosSequence, bool indexedDummyReads, bool addPageCrossCycle = false)
+        byte size, byte baseCycles, RmwOperation core, bool cmosSequence, bool indexedDummyReads, bool addPageCrossCycle = false, bool documented = true)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -285,7 +389,7 @@ internal static class MigratedInstructionBindings
             Addressing = addressing,
             Size = size,
             BaseCycles = baseCycles,
-            Documented = true,
+            Documented = documented,
             Execute = ComposeRmw(addressing, baseCycles, core, cmosSequence, indexedDummyReads, addPageCrossCycle),
         };
 
@@ -306,7 +410,7 @@ internal static class MigratedInstructionBindings
     }
 
     private static void Read(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
-        byte size, byte baseCycles, ReadOperation core, bool addPageCrossCycle, bool indexedDummyReads)
+        byte size, byte baseCycles, ReadOperation core, bool addPageCrossCycle, bool indexedDummyReads, bool documented = true)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -314,12 +418,12 @@ internal static class MigratedInstructionBindings
             Addressing = addressing,
             Size = size,
             BaseCycles = baseCycles,
-            Documented = true,
+            Documented = documented,
             Execute = ComposeRead(addressing, baseCycles, core, addPageCrossCycle, indexedDummyReads),
         };
 
     private static void Store(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
-        byte size, byte baseCycles, StoreOperation core, bool indexedDummyReads)
+        byte size, byte baseCycles, StoreOperation core, bool indexedDummyReads, bool documented = true)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -327,12 +431,12 @@ internal static class MigratedInstructionBindings
             Addressing = addressing,
             Size = size,
             BaseCycles = baseCycles,
-            Documented = true,
+            Documented = documented,
             Execute = ComposeStore(addressing, baseCycles, core, indexedDummyReads),
         };
 
     private static void Implied(OpCodeDescriptor?[] table, byte code, string mnemonic,
-        byte baseCycles, ImpliedOperation core, AddrMode addressing = AddrMode.Implied)
+        byte baseCycles, ImpliedOperation core, AddrMode addressing = AddrMode.Implied, bool documented = true)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -340,7 +444,7 @@ internal static class MigratedInstructionBindings
             Addressing = addressing,
             Size = 1,
             BaseCycles = baseCycles,
-            Documented = true,
+            Documented = documented,
             Execute = ComposeImplied(baseCycles, core),
         };
 }

@@ -37,8 +37,10 @@ internal static class Ncr65c02Model
         CreateDescriptors = BuildDescriptors,
     };
 
-    private static OpCodeDescriptor?[] BuildDescriptors(InstructionList instructionList)
+    private static OpCodeDescriptor?[] BuildDescriptors(InstructionList instructionList, CpuCompatibilityProfile profile)
     {
+        // The profile is ignored: on a 65C02 every byte is defined, and the model
+        // supports only OfficialOnly (validated at CPU construction).
         // Start from the generic composition of the shared official instructions
         // (semantics identical on the 65C02 for these), then apply the CMOS delta.
         var table = OpCodeDescriptorTableBuilder.Build(instructionList,
