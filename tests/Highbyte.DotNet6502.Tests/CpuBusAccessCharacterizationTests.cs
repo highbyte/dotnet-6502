@@ -4,20 +4,15 @@ using Highbyte.DotNet6502.Utils;
 namespace Highbyte.DotNet6502.Tests;
 
 /// <summary>
-/// Characterization tests locking in the CURRENT bus-access sequences of the
-/// instruction categories the ordered-bus-accesses work will deliberately change.
-/// Recorded via <see cref="BusAccessRecorder"/> (production memory-mapped-I/O,
-/// no tracing hooks).
-///
-/// Today the emulator performs the MINIMAL access sequence per instruction: one read
-/// and/or one write at the effective address. Real hardware does more:
+/// Locks in the per-model bus-access sequences of the ordered-bus-accesses work,
+/// recorded via <see cref="BusAccessRecorder"/> (production memory-mapped-I/O,
+/// no tracing hooks):
 /// - NMOS RMW is read-write-write (original value written back, then the result);
 ///   65C02 RMW is read-read-write.
-/// - Indexed reads that cross a page perform a dummy read at the un-carried address.
-/// - Indexed stores always perform a dummy read before the write.
-/// When M2 lands those sequences per model, each test here flips to the hardware
-/// sequence as an explicit, reviewed change — exactly like the JMP ($xxFF)
-/// characterization test did in M1.
+/// - NMOS indexed reads that cross a page dummy-read the un-carried address first;
+///   NMOS indexed stores and RMW always do.
+/// Interrupt-entry sequences are still the minimal form (their dummy reads are a
+/// later stage of this work).
 /// </summary>
 public class CpuBusAccessCharacterizationTests
 {
@@ -72,7 +67,7 @@ public class CpuBusAccessCharacterizationTests
     }
 
     [Fact]
-    public void Nmos_RMW_AbsX_Is_Read_WriteBack_Write_At_The_Final_Address()
+    public void Nmos_RMW_AbsX_Is_DummyRead_Read_WriteBack_Write()
     {
         var (cpu, mem, recorder) = NewCpuWithRecorder(0x3000, 0x200);
         recorder[0x30FF] = 0x10;
@@ -82,8 +77,11 @@ public class CpuBusAccessCharacterizationTests
 
         cpu.ExecuteOneInstructionMinimal(mem);
 
+        // Indexed NMOS RMW always dummy-reads the un-carried address first (== the
+        // effective address here, since no page is crossed) — the 7-cycle pattern.
         Assert.Equal(new[]
         {
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x30FF, 0x10),
             new BusAccessRecorder.BusAccess(IsRead: true, 0x30FF, 0x10),
             new BusAccessRecorder.BusAccess(IsRead: false, 0x30FF, 0x10),
             new BusAccessRecorder.BusAccess(IsRead: false, 0x30FF, 0x11),
@@ -139,7 +137,7 @@ public class CpuBusAccessCharacterizationTests
     }
 
     [Fact]
-    public void Indexed_Read_With_Page_Cross_Currently_Reads_Only_The_Final_Address()
+    public void Nmos_Indexed_Read_With_Page_Cross_Dummy_Reads_The_Uncarried_Address()
     {
         var (cpu, mem, recorder) = NewCpuWithRecorder(0x3000, 0x200);
         recorder[0x3101] = 0x42; // $30FF + 2 crosses into $31xx
@@ -149,16 +147,35 @@ public class CpuBusAccessCharacterizationTests
 
         cpu.ExecuteOneInstructionMinimal(mem);
 
-        // Real NMOS: dummy read at $3001 (high byte not yet carried), then read $3101.
+        // Dummy read at $3001 (high byte not yet carried), then the real read at $3101.
         Assert.Equal(new[]
         {
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x3001, 0x00),
             new BusAccessRecorder.BusAccess(IsRead: true, 0x3101, 0x42),
         }, recorder.Accesses);
         Assert.Equal(0x42, cpu.A);
     }
 
     [Fact]
-    public void Indexed_Store_Currently_Writes_Only_The_Final_Address()
+    public void Nmos_Indexed_Read_Without_Page_Cross_Reads_Once()
+    {
+        var (cpu, mem, recorder) = NewCpuWithRecorder(0x3000, 0x200);
+        recorder[0x3041] = 0x42;
+        cpu.X = 0x02;
+        mem[StartPc] = (byte)OpCodeId.LDA_ABS_X;
+        mem.WriteWord((ushort)(StartPc + 1), 0x303F);
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+
+        // No page cross -> no dummy read (which is why the +1 cycle is conditional).
+        Assert.Equal(new[]
+        {
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x3041, 0x42),
+        }, recorder.Accesses);
+    }
+
+    [Fact]
+    public void Nmos_Indexed_Store_Always_Dummy_Reads_Before_Writing()
     {
         var (cpu, mem, recorder) = NewCpuWithRecorder(0x3000, 0x200);
         cpu.A = 0x77;
@@ -168,15 +185,17 @@ public class CpuBusAccessCharacterizationTests
 
         cpu.ExecuteOneInstructionMinimal(mem);
 
-        // Real NMOS: dummy read at $3001 first, then the write to $3101.
+        // Dummy read at the un-carried $3001, then the write to $3101 — the reason
+        // indexed stores have no "+1 on page cross": the extra cycle always happens.
         Assert.Equal(new[]
         {
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x3001, 0x00),
             new BusAccessRecorder.BusAccess(IsRead: false, 0x3101, 0x77),
         }, recorder.Accesses);
     }
 
     [Fact]
-    public void IndirectIndexed_Read_Currently_Reads_Pointer_Then_Final_Address_Only()
+    public void Nmos_IndirectIndexed_Read_With_Page_Cross_Dummy_Reads_The_Uncarried_Address()
     {
         var (cpu, mem, recorder) = NewCpuWithRecorder(0x0040, 2);
         var dataRecorder = new BusAccessRecorder();
@@ -196,12 +215,71 @@ public class CpuBusAccessCharacterizationTests
             new BusAccessRecorder.BusAccess(IsRead: true, 0x0040, 0xFF),
             new BusAccessRecorder.BusAccess(IsRead: true, 0x0041, 0x30),
         }, recorder.Accesses);
-        // ...then only the final data address (real NMOS: dummy read at $3001 first).
+        // ...then the dummy read at the un-carried $3001 and the real read at $3101.
         Assert.Equal(new[]
         {
+            new BusAccessRecorder.BusAccess(IsRead: true, 0x3001, 0x00),
             new BusAccessRecorder.BusAccess(IsRead: true, 0x3101, 0x55),
         }, dataRecorder.Accesses);
         Assert.Equal(0x55, cpu.A);
+    }
+
+    [Fact]
+    public void ZeroPage_Pointer_At_FF_Wraps_Within_Zero_Page_For_IndirectIndexed()
+    {
+        // A (zp),Y pointer at $FF takes its high byte from $00, not $0100 — true on
+        // NMOS and CMOS alike. (Same class of fix as the JMP ($xxFF) page wrap.)
+        var (cpu, mem, _) = NewCpuWithRecorder(0x3000, 0x100);
+        mem[0x00FF] = 0x40; // pointer low
+        mem[0x0000] = 0x30; // pointer high (wrapped) -> $3040
+        mem[0x0100] = 0x99; // the linear (wrong) high-byte location -> would give $9940
+        cpu.Y = 0x02;
+        mem[StartPc] = (byte)OpCodeId.LDA_IND_IX;
+        mem[StartPc + 1] = 0xFF;
+        mem[0x3042] = 0x5A;
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+
+        Assert.Equal(0x5A, cpu.A);
+    }
+
+    [Fact]
+    public void ZeroPage_Pointer_At_FF_Wraps_Within_Zero_Page_For_IndexedIndirect()
+    {
+        // (zp,X): the indexed pointer location wraps within zero page, and so does the
+        // pointer's own high byte: pointer at $FF reads its high byte from $00.
+        var (cpu, mem, _) = NewCpuWithRecorder(0x3000, 0x100);
+        mem[0x00FF] = 0x40;
+        mem[0x0000] = 0x30; // -> $3040
+        mem[0x0100] = 0x99;
+        cpu.X = 0x0B;
+        mem[StartPc] = (byte)OpCodeId.LDA_IX_IND;
+        mem[StartPc + 1] = 0xF4; // $F4 + $0B = $FF
+        mem[0x3040] = 0x5B;
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+
+        Assert.Equal(0x5B, cpu.A);
+    }
+
+    [Fact]
+    public void ZeroPage_Pointer_At_FF_Wraps_Within_Zero_Page_For_65c02_ZpIndirect()
+    {
+        var cpu = new CPU(new ExecState(), new Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory(),
+            CpuModelIds.Ncr65c02, CpuCompatibilityProfile.OfficialOnly);
+        var mem = new Memory();
+        cpu.PC = StartPc;
+        cpu.SP = 0xFF;
+        mem[0x00FF] = 0x40;
+        mem[0x0000] = 0x30; // -> $3040
+        mem[0x0100] = 0x99;
+        mem[StartPc] = 0xB2; // LDA (zp)
+        mem[StartPc + 1] = 0xFF;
+        mem[0x3040] = 0x5C;
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+
+        Assert.Equal(0x5C, cpu.A);
     }
 
     [Fact]

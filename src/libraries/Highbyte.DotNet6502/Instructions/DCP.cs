@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Decrements the value at the effective address by 1, then compares the result
 /// with the accumulator setting N, Z, and C flags as CMP does.
 /// </summary>
-public class DCP : Instruction, IInstructionUsesByte
+public class DCP : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;

@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Rotates the value at the effective address one bit left through carry,
 /// then ANDs the rotated result into A, setting N, Z, and C flags.
 /// </summary>
-public class RLA : Instruction, IInstructionUsesByte
+public class RLA : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;

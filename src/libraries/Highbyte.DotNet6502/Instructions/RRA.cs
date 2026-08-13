@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Rotates the value at the effective address one bit right through carry,
 /// then adds the rotated result to A with carry, setting N, V, Z, and C flags.
 /// </summary>
-public class RRA : Instruction, IInstructionUsesByte
+public class RRA : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;

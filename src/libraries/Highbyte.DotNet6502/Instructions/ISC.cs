@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Increments the value at the effective address by 1, then subtracts the
 /// result from A (with borrow), setting N, V, Z, and C flags as SBC does.
 /// </summary>
-public class ISC : Instruction, IInstructionUsesByte
+public class ISC : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;

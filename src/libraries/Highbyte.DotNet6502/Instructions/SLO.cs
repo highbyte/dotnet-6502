@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Shifts the value at the effective address one bit left (bit 0 = 0, old bit 7 → C),
 /// then ORs the shifted result into A, setting N, Z, and C flags.
 /// </summary>
-public class SLO : Instruction, IInstructionUsesByte
+public class SLO : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;

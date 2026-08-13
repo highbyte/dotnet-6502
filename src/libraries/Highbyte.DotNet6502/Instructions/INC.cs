@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Increment Memory.
 /// Adds one to the value held at a specified memory location setting the zero and negative flags as appropriate.
 /// </summary>
-public class INC : Instruction, IInstructionUsesByte
+public class INC : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;

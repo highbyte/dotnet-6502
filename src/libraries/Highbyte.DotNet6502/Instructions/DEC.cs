@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Instructions;
 /// Decrement Memory.
 /// Subtracts one from the value held at a specified memory location setting the zero and negative flags as appropriate.
 /// </summary>
-public class DEC : Instruction, IInstructionUsesByte
+public class DEC : Instruction, IInstructionUsesByte, IReadModifyWriteInstruction
 {
     private readonly List<OpCode> _opCodes;
     public override List<OpCode> OpCodes => _opCodes;

@@ -7,6 +7,13 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 internal static class Nmos6502Model
 {
+    // Single source of truth for the model's traits: referenced both by the definition
+    // and by the descriptor-table build below, so the two can never disagree.
+    private static readonly CpuModelTraits s_traits = new(
+        ClearsDecimalOnInterrupt: false,
+        AllBytesDefined: false,
+        PerformsIndexedDummyReads: true);
+
     public static readonly CpuModelDefinition Definition = new()
     {
         ModelId = CpuModelIds.Nmos6502,
@@ -19,15 +26,14 @@ internal static class Nmos6502Model
             CpuCompatibilityProfile.FullUnofficial,
         },
         CreateInstructionList = InstructionList.GetAllInstructions,
-        Traits = new CpuModelTraits(
-            ClearsDecimalOnInterrupt: false,
-            AllBytesDefined: false),
+        Traits = s_traits,
         CreateDescriptors = static instructionList => OpCodeDescriptorTableBuilder.Build(
             instructionList,
             handlerOverrides: new Dictionary<byte, ExecuteHandler>
             {
                 // NMOS indirect-JMP page-wrap bug (JMP ($xxFF) reads the high byte from $xx00).
                 [(byte)OpCodeId.JMP_IND] = NmosHandlers.Jmp_Indirect,
-            }),
+            },
+            indexedDummyReads: s_traits.PerformsIndexedDummyReads),
     };
 }

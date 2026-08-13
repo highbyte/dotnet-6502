@@ -14,6 +14,15 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 internal static class Ncr65c02Model
 {
+    // Single source of truth for the model's traits: referenced both by the definition
+    // and by the descriptor-table build below, so the two can never disagree.
+    private static readonly CpuModelTraits s_traits = new(
+        ClearsDecimalOnInterrupt: true,
+        AllBytesDefined: true,
+        // The 65C02 re-targeted the NMOS dummy-read cycles to different addresses;
+        // modelling its dummy reads is deferred until something observable needs them.
+        PerformsIndexedDummyReads: false);
+
     public static readonly CpuModelDefinition Definition = new()
     {
         ModelId = CpuModelIds.Ncr65c02,
@@ -24,9 +33,7 @@ internal static class Ncr65c02Model
         // Public façade view: the officially documented instruction set shared with the
         // NMOS 6502. Per-model tooling metadata comes from the descriptor table.
         CreateInstructionList = InstructionList.GetAllInstructions,
-        Traits = new CpuModelTraits(
-            ClearsDecimalOnInterrupt: true,
-            AllBytesDefined: true),
+        Traits = s_traits,
         CreateDescriptors = BuildDescriptors,
     };
 
@@ -34,7 +41,8 @@ internal static class Ncr65c02Model
     {
         // Start from the generic composition of the shared official instructions
         // (semantics identical on the 65C02 for these), then apply the CMOS delta.
-        var table = OpCodeDescriptorTableBuilder.Build(instructionList);
+        var table = OpCodeDescriptorTableBuilder.Build(instructionList,
+            indexedDummyReads: s_traits.PerformsIndexedDummyReads);
 
         // JMP (addr): pointer read is linear (NMOS wrap bug fixed), 6 cycles (was 5).
         table[(byte)OpCodeId.JMP_IND] = new OpCodeDescriptor

@@ -38,12 +38,19 @@ public class RmwBusSequenceMatrixTests
             var cpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
             var accesses = ExecuteAndRecordTargetAccesses(cpu, (byte)code, descriptor.Addressing);
 
-            Assert.True(accesses.Count == 3,
-                $"{descriptor.Mnemonic} ({code:x2}, {descriptor.Addressing}): expected 3 target accesses, got {accesses.Count}");
-            Assert.True(accesses[0].IsRead, $"{code:x2}: first access must be the read");
-            Assert.True(!accesses[1].IsRead && accesses[1].Value == InitialTargetValue,
-                $"{descriptor.Mnemonic} ({code:x2}): second access must write the ORIGINAL value back");
-            Assert.False(accesses[2].IsRead, $"{code:x2}: third access must write the result");
+            // Indexed modes always start with the NMOS dummy read at the un-carried
+            // address (== the target here, since the setups never cross a page).
+            var isIndexed = descriptor.Addressing is AddrMode.ABS_X or AddrMode.ABS_Y or AddrMode.IND_IX;
+            var expectedCount = isIndexed ? 4 : 3;
+            Assert.True(accesses.Count == expectedCount,
+                $"{descriptor.Mnemonic} ({code:x2}, {descriptor.Addressing}): expected {expectedCount} target accesses, got {accesses.Count}");
+            var i = 0;
+            if (isIndexed)
+                Assert.True(accesses[i++].IsRead, $"{code:x2}: dummy read must come first");
+            Assert.True(accesses[i++].IsRead, $"{code:x2}: read must precede the writes");
+            Assert.True(!accesses[i].IsRead && accesses[i].Value == InitialTargetValue,
+                $"{descriptor.Mnemonic} ({code:x2}): must write the ORIGINAL value back before the result");
+            Assert.False(accesses[i + 1].IsRead, $"{code:x2}: final access must write the result");
             checkedBytes++;
         }
 
