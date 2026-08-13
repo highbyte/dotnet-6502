@@ -63,6 +63,79 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.Equal(col38Layout.RightBorder.Start.X - 1, endX);
     }
 
+    [Fact]
+    public void DrawText_resumes_on_character_row_boundary_after_invalid_band_with_vertical_fine_scroll()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        // The generator's internal drawLine is relative to the Visible layout's screen start; the
+        // rendered pixel position is relative to the VisibleNormalized layout's screen start.
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        const int bandStartDrawLine = 100;
+        const int resumeDrawLine = 116;
+        // SCROLLY=5 (= +2 relative to the default 3) below the band; invalid mode = ECM+BMM.
+        var (_, foreground) = RenderFrame(c64, rasterLine =>
+        {
+            var drawLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine) - visibleLayout.Screen.Start.Y;
+            if (drawLine < bandStartDrawLine)
+                return 0x1B;
+            if (drawLine < resumeDrawLine)
+                return 0x7B;
+            return 0x1D;
+        });
+
+        // The character grid snap must include the resume line's vertical fine scroll (SCROLLY=5 =>
+        // snap offset 2, drawing the resumed area from pixel row resumeDrawLine - 2). Without it the
+        // snap is 4, which draws the tail glyph lines of the character row the band should hide over
+        // the band's bottom rows - the garbled seam seen in e.g. Commando.
+        var width = c64.Screen.VisibleWidth;
+        var bandTopY = normalizedLayout.Screen.Start.Y + bandStartDrawLine;
+        var firstResumedY = normalizedLayout.Screen.Start.Y + resumeDrawLine - 2;
+        for (var y = bandTopY; y < firstResumedY; y++)
+        {
+            for (var x = normalizedLayout.Screen.Start.X; x <= normalizedLayout.Screen.End.X; x++)
+            {
+                Assert.Equal(0u, foreground[y * width + x]);
+            }
+        }
+
+        // The first resumed row must start on a character-row boundary: glyph line 0 is solid.
+        for (var x = normalizedLayout.Screen.Start.X; x < normalizedLayout.Screen.Start.X + 8; x++)
+        {
+            Assert.NotEqual(0u, foreground[firstResumedY * width + x]);
+        }
+    }
+
+    [Fact]
+    public void DrawText_does_not_sample_below_last_character_row_when_fine_scrolled_up()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        var layout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        // Fill the memory directly after the 1000-byte video matrix with characters that render
+        // solid pixels on every glyph line, so sampling past character row 24 becomes visible.
+        for (var i = 0; i < 40; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + 1000 + i)] = 2;
+        }
+
+        // SCROLLY=0 (= -3 relative to the default 3) on all lines samples 3 lines ahead.
+        var (_, foreground) = RenderFrame(c64, _ => 0x18);
+
+        // The last 3 main screen lines have no character row to sample; they must stay blank
+        // instead of rendering data from beyond the video matrix.
+        var width = c64.Screen.VisibleWidth;
+        for (var drawLine = 197; drawLine < 200; drawLine++)
+        {
+            var y = layout.Screen.Start.Y + drawLine;
+            for (var x = layout.Screen.Start.X; x <= layout.Screen.End.X; x++)
+            {
+                Assert.Equal(0u, foreground[y * width + x]);
+            }
+        }
+    }
+
     [Theory]
     [InlineData("C64PAL", "PAL")]
     [InlineData("C64NTSC", "NTSC")]
@@ -136,6 +209,13 @@ public class Vic2RasterizerPixelGeneratorTests
 
     private static uint[] RenderSprites(C64 c64)
     {
+        var (generator, _, foreground) = CreateGenerator(c64);
+        generator.DrawSpritesToBitmapBackedByPixelArray();
+        return foreground;
+    }
+
+    private static (Vic2RasterizerUintPixelGenerator Generator, uint[] Background, uint[] Foreground) CreateGenerator(C64 c64)
+    {
         var pixelCount = c64.Screen.VisibleWidth * c64.Screen.VisibleHeight;
         var background = new uint[pixelCount];
         var foreground = new uint[pixelCount];
@@ -153,9 +233,57 @@ public class Vic2RasterizerPixelGeneratorTests
             (destIndex, width) => background.AsSpan(destIndex, width).Clear(),
             (source, sourceIndex, destIndex, width) => source.Slice(sourceIndex, width).CopyTo(foreground.AsSpan(destIndex, width)),
             (destIndex, width) => foreground.AsSpan(destIndex, width).Clear());
+        return (generator, background, foreground);
+    }
 
-        generator.DrawSpritesToBitmapBackedByPixelArray();
-        return foreground;
+    /// <summary>
+    /// Standard text mode screen where every character cell renders a solid foreground line on
+    /// glyph line 0 and a sparse-but-visible pattern on glyph lines 1-7, making both character-row
+    /// boundaries and partial (mid-row) glyph lines observable.
+    /// Character code 2 renders solid pixels on all glyph lines (for out-of-matrix detection).
+    /// </summary>
+    private static void SetupRowBoundaryMarkerTextScreen(C64 c64)
+    {
+        // 40-column mode, no horizontal fine scroll (ROMs are not loaded, so nothing else sets it).
+        c64.Mem.Write(0xD016, 0xC8);
+        // Video matrix at 0x0400, charset at 0x2000 (plain RAM, avoids the char ROM shadow).
+        c64.Mem.Write(0xD018, 0x18);
+        var charsetAddress = (ushort)0x2000;
+        c64.Vic2.Vic2Mem[(ushort)(charsetAddress + 1 * 8)] = 0xFF;
+        for (var i = 1; i < 8; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(charsetAddress + 1 * 8 + i)] = 0x81;
+        }
+        for (var i = 0; i < 8; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(charsetAddress + 2 * 8 + i)] = 0xFF;
+        }
+
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 1;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), 1); // White
+        }
+    }
+
+    /// <summary>
+    /// Drives the pixel generator through one full frame the same way the emulator main loop does:
+    /// advance the raster one line at a time and let the generator process the elapsed cycles.
+    /// The optional callback supplies the $D011 value in effect while each raster line renders.
+    /// </summary>
+    private static (uint[] Background, uint[] Foreground) RenderFrame(C64 c64, Func<int, byte>? d011ForRasterLine = null)
+    {
+        var (generator, background, foreground) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            if (d011ForRasterLine != null)
+                c64.Mem.Write(0xD011, d011ForRasterLine(rasterLine));
+            vic2.AdvanceRaster(cyclesPerLine);
+            generator.OnAfterInstruction();
+        }
+        return (background, foreground);
     }
 
     private static void SetAllScreenLinesToColumnMode(C64 c64, bool colMode40)
