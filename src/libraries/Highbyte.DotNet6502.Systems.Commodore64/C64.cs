@@ -229,7 +229,20 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         // General emulator timing fix: devices tick after the CPU instruction has already
         // completed, so newly raised hardware IRQ/NMI lines must be serviced here to land
         // on the next instruction boundary instead of one instruction late.
-        CPU.ProcessPendingInterrupts(Mem);
+        var interruptCycles = CPU.ProcessPendingInterrupts(Mem);
+        if (interruptCycles > 0)
+        {
+            // The interrupt-entry sequence consumed real time: tick the same devices
+            // with it and fold it into this iteration's cycle count so the raster
+            // advance below and the caller's frame budget include it.
+            if (TimerMode == TimerMode.UpdateEachInstruction)
+            {
+                Cia1.ProcessTimers(interruptCycles);
+                Cia2.ProcessTimers(interruptCycles);
+            }
+            CartridgeSlot.Tick(interruptCycles);
+            instructionExecResult = instructionExecResult.WithAdditionalCycles(interruptCycles);
+        }
 
         // Advance video raster
         var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
@@ -830,7 +843,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             freezeVector);
         if (!CartridgeSlot.NmiLineActive)
             CPU.CPUInterrupts.SetNMISourceActive(freezeNmiSource);
-        CPU.ProcessPendingInterrupts(Mem);
+        // Freeze-button NMI delivery outside the normal execution loop: the 7-cycle
+        // entry cost is intentionally not fed into frame pacing here (one-shot event).
+        _ = CPU.ProcessPendingInterrupts(Mem);
         CPU.CPUInterrupts.SetNMISourceInactive(freezeNmiSource);
         return true;
     }

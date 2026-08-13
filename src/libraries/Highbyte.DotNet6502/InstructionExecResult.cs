@@ -18,6 +18,19 @@ public struct InstructionExecResult
     public ulong CyclesConsumed { get; private set; }
     public ushort AtPC { get; private set; }
 
+    /// <summary>
+    /// Returns a copy with additional cycles added to <see cref="CyclesConsumed"/>.
+    /// Used to fold the hardware interrupt-entry cost (<see cref="CPU.InterruptEntryCycles"/>)
+    /// serviced at the instruction boundary into the preceding instruction's result, so
+    /// cycle-paced consumers (device ticking, frame budgets, statistics) see real elapsed time.
+    /// </summary>
+    public InstructionExecResult WithAdditionalCycles(ulong additionalCycles)
+    {
+        var copy = this;
+        copy.CyclesConsumed += additionalCycles;
+        return copy;
+    }
+
     public InstructionExecResult(byte opCodeByte)
     {
         OpCodeByte = opCodeByte;

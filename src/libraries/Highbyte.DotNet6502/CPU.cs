@@ -265,10 +265,17 @@ public class CPU
 
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
-        ExecState.UpdateTotal(instructionExecutionResult);
-
         if (!instructionExecutionResult.HaltedCpu)
-            ProcessInterrupts(mem);
+        {
+            // Fold the hardware interrupt-entry cost (when one was serviced at this
+            // boundary) into this instruction's result, so cycle totals and the
+            // system loops that pace devices/frame budgets by it see real elapsed time.
+            var interruptCycles = ProcessInterrupts(mem);
+            if (interruptCycles > 0)
+                instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
+        }
+
+        ExecState.UpdateTotal(instructionExecutionResult);
 
         return instructionExecutionResult;
     }
@@ -278,9 +285,14 @@ public class CPU
     /// Intended for system-level device ticking that occurs after instruction execution.
     /// </summary>
     /// <param name="mem"></param>
-    public void ProcessPendingInterrupts(Memory mem)
+    /// <returns>
+    /// Cycles the interrupt-entry sequence consumed (<see cref="InterruptEntryCycles"/> when an
+    /// interrupt was serviced, else 0). Callers that pace devices or frame budgets by cycles
+    /// should account for them — the entry sequence is real elapsed time.
+    /// </returns>
+    public ulong ProcessPendingInterrupts(Memory mem)
     {
-        ProcessInterrupts(mem);
+        return ProcessInterrupts(mem);
     }
 
     /// <summary>
@@ -338,6 +350,17 @@ public class CPU
 
             var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
+            // Service pending hardware interrupts at this boundary and fold the entry
+            // cost into the instruction's result, so both ExecStates, evaluators, the
+            // InstructionExecuted event, and callers pacing by cycles see real elapsed
+            // time. (NmiAcknowledging consequently fires before InstructionExecuted.)
+            if (!instructionExecutionResult.HaltedCpu)
+            {
+                var interruptCycles = ProcessInterrupts(mem);
+                if (interruptCycles > 0)
+                    instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
+            }
+
             // Aggregate stats directly from the InstructionExecResult into both ExecStates;
             // the previous code path went via ExecStateAfterInstruction() which allocated
             // an ExecState per step.
@@ -359,8 +382,6 @@ public class CPU
             {
                 RaiseInstructionExecutedIfSubscribed(mem, instructionExecutionResult);
             }
-
-            ProcessInterrupts(mem);
         }
 
         // Return the per-invocation stats accumulated above.
@@ -377,10 +398,17 @@ public class CPU
         return false;
     }
 
-    private void ProcessInterrupts(Memory mem)
+    /// <summary>
+    /// Cycles a hardware IRQ/NMI entry sequence consumes on 6502-family CPUs:
+    /// two dummy opcode reads, three stack pushes, two vector reads.
+    /// </summary>
+    public const ulong InterruptEntryCycles = 7;
+
+    /// <returns>Cycles consumed: <see cref="InterruptEntryCycles"/> if an interrupt was serviced, else 0.</returns>
+    private ulong ProcessInterrupts(Memory mem)
     {
         if (IsHalted)
-            return;
+            return 0;
 
         if (CPUInterrupts.NMIPending)
         {
@@ -402,8 +430,10 @@ public class CPU
                     nmiVector,
                     nmiSources);
             }
+            return InterruptEntryCycles;
         }
-        else if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
+
+        if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
         {
             for (int i = CPUInterrupts.ActiveIRQSources.Count - 1; i >= 0; i--)
             {
@@ -415,7 +445,10 @@ public class CPU
                 }
             }
             ProcessHardwareIRQ(mem);
+            return InterruptEntryCycles;
         }
+
+        return 0;
     }
 
     /// <summary>
