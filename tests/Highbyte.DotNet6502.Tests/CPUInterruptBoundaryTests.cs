@@ -15,6 +15,58 @@ namespace Highbyte.DotNet6502.Tests;
 /// </summary>
 public class CPUInterruptBoundaryTests
 {
+    [Fact]
+    public void Servicing_An_IRQ_Costs_Seven_Cycles_Folded_Into_The_Instruction_Result()
+    {
+        var (cpu, mem) = NewCpuAt(0x1000);
+        cpu.ProcessorStatus.InterruptDisable = false;
+        mem.WriteWord(CPU.BrkIRQHandlerVector, 0x4000);
+        cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: true);
+
+        var result = cpu.ExecuteOneInstructionMinimal(mem); // NOP (2) + IRQ entry (7)
+
+        Assert.Equal(2 + CPU.InterruptEntryCycles, result.CyclesConsumed);
+        Assert.Equal(2 + CPU.InterruptEntryCycles, cpu.ExecState.CyclesConsumed);
+        Assert.Equal((ushort)0x4000, cpu.PC);
+    }
+
+    [Fact]
+    public void Servicing_An_NMI_Costs_Seven_Cycles_On_The_Full_Execute_Path()
+    {
+        var (cpu, mem) = NewCpuAt(0x1000);
+        mem.WriteWord(CPU.NonMaskableIRQHandlerVector, 0x5000);
+        cpu.CPUInterrupts.SetNMISourceActive("device");
+
+        var execState = cpu.ExecuteOneInstruction(mem); // NOP (2) + NMI entry (7)
+
+        Assert.Equal(2 + CPU.InterruptEntryCycles, execState.CyclesConsumed);
+        Assert.Equal(2 + CPU.InterruptEntryCycles, execState.LastInstructionExecResult.CyclesConsumed);
+        Assert.Equal((ushort)0x5000, cpu.PC);
+    }
+
+    [Fact]
+    public void ProcessPendingInterrupts_Reports_Entry_Cycles_Only_When_Servicing()
+    {
+        var (cpu, mem) = NewCpuAt(0x1000);
+        cpu.ProcessorStatus.InterruptDisable = false;
+        mem.WriteWord(CPU.BrkIRQHandlerVector, 0x4000);
+
+        Assert.Equal(0ul, cpu.ProcessPendingInterrupts(mem)); // nothing pending
+
+        cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: true);
+        Assert.Equal(CPU.InterruptEntryCycles, cpu.ProcessPendingInterrupts(mem));
+    }
+
+    [Fact]
+    public void Instruction_Without_Pending_Interrupt_Keeps_Its_Own_Cycle_Count()
+    {
+        var (cpu, mem) = NewCpuAt(0x1000);
+
+        var result = cpu.ExecuteOneInstructionMinimal(mem); // plain NOP
+
+        Assert.Equal(2ul, result.CyclesConsumed);
+    }
+
     // Helper: place a NOP at the given address so the only PC change in a test comes from
     // interrupt servicing, not from a multi-byte/branching instruction.
     private static (CPU cpu, Memory mem) NewCpuAt(ushort pc)
