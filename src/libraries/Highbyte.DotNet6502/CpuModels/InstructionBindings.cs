@@ -3,16 +3,20 @@ using static Highbyte.DotNet6502.OpCodeDescriptorTableBuilder;
 namespace Highbyte.DotNet6502;
 
 /// <summary>
-/// TRANSITIONAL (handler migration): the officially documented instruction bytes whose
-/// implementations have moved from Instruction classes to operation cores
-/// (<see cref="InstructionCores"/>). Applied by BOTH model table builders on top of the
-/// legacy instruction-object composition, replacing those bytes with core-bound handlers
-/// composed for the model's dummy-read policy. When every group has migrated, this table
-/// becomes the models' primary table and the legacy composition path is deleted.
+/// The instruction-set bindings both CPU models compose their descriptor tables from:
+/// each opcode byte bound as an operation core (<see cref="InstructionCores"/>) composed
+/// for an addressing mode and the model's dummy-read policy, or as a bespoke static
+/// handler where composition doesn't fit. Apply* groups let each model pick the shared
+/// official set, its ADC/SBC and RMW behavior, and its model-specific extras.
 /// </summary>
-internal static class MigratedInstructionBindings
+internal static class InstructionBindings
 {
-    /// <param name="table">Model descriptor table to overwrite migrated bytes in.</param>
+    /// <summary>
+    /// The officially documented instruction bytes whose behavior is identical on both
+    /// models (given the dummy-read policy): loads/stores, transfers, logic, compares,
+    /// BIT zp/abs, register inc/dec, branches, flags, and the stack/flow instructions.
+    /// </summary>
+    /// <param name="table">Model descriptor table to bind into.</param>
     /// <param name="indexedDummyReads">The model's NMOS indexed dummy-read policy.</param>
     public static void Apply(OpCodeDescriptor?[] table, bool indexedDummyReads)
     {
@@ -227,9 +231,9 @@ internal static class MigratedInstructionBindings
 
     /// <summary>
     /// The NMOS-undocumented opcodes, bound from cores through the same composition as
-    /// the documented instructions and gated by the CPU's compatibility profile (matching
-    /// <see cref="InstructionList.GetMinimumCompatibilityProfile"/> tier for tier).
-    /// Mnemonics match the legacy instruction-class names so disassembly is unchanged.
+    /// the documented instructions and gated by the CPU's compatibility profile
+    /// (each tier includes everything from the lower tiers). This tiering is the single
+    /// source of truth for which undocumented bytes each profile exposes.
     /// </summary>
     public static void ApplyNmosUndocumented(OpCodeDescriptor?[] table, CpuCompatibilityProfile profile, bool indexedDummyReads)
     {

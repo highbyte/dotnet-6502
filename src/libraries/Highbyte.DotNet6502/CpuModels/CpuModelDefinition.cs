@@ -22,9 +22,9 @@ internal sealed class CpuModelDefinition
     public required IReadOnlyList<CpuCompatibilityProfile> SupportedProfiles { get; init; }
 
     /// <summary>
-    /// Builds the per-CPU instruction table for a supported profile. Still the mutable
-    /// per-instance <see cref="InstructionList"/> graph — it remains the public view and
-    /// the source the descriptor dispatch table is composed from.
+    /// Builds the public metadata view (<see cref="InstructionList"/>) for a supported
+    /// profile — the NMOS façade projected from descriptor metadata, for tooling and
+    /// backward compat. Execution never consults it.
     /// </summary>
     public required Func<CpuCompatibilityProfile, InstructionList> CreateInstructionList { get; init; }
 
@@ -35,14 +35,13 @@ internal sealed class CpuModelDefinition
     public required CpuModelTraits Traits { get; init; }
 
     /// <summary>
-    /// Builds this model's 256-entry descriptor dispatch table from the instruction
-    /// table built by <see cref="CreateInstructionList"/> and the CPU's compatibility
-    /// profile (which gates undocumented-opcode bindings; ignored by models with a
-    /// single profile). This is THE mechanism for model-specific instruction behavior —
-    /// divergence lives in handler binding at build time, never in definition flags or
-    /// per-instruction model branches. Models typically delegate to
-    /// <see cref="OpCodeDescriptorTableBuilder.Build"/> for the generic composition and
-    /// pass overrides / apply model deltas on top.
+    /// Builds this model's 256-entry descriptor dispatch table for the CPU's
+    /// compatibility profile (which gates undocumented-opcode bindings; ignored by
+    /// models with a single profile). This is THE mechanism for model-specific
+    /// instruction behavior — divergence lives in handler binding at build time, never
+    /// in definition flags or per-instruction model branches. Models compose the table
+    /// from shared bindings (<see cref="InstructionBindings"/>) plus their own
+    /// bespoke per-byte descriptors.
     /// </summary>
-    public required Func<InstructionList, CpuCompatibilityProfile, OpCodeDescriptor?[]> CreateDescriptors { get; init; }
+    public required Func<CpuCompatibilityProfile, OpCodeDescriptor?[]> CreateDescriptors { get; init; }
 }

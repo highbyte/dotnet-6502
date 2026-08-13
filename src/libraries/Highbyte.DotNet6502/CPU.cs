@@ -112,16 +112,15 @@ public class CPU
 
     /// <summary>
     /// The immutable CPU model definition this CPU was constructed with. Selected once
-    /// here and never consulted on the per-instruction path. Only the NMOS 6502 model
-    /// exists yet; public model selection is added when a second model arrives.
+    /// here and never consulted on the per-instruction path.
     /// </summary>
     internal CpuModelDefinition ModelDefinition { get; private set; }
 
     /// <summary>
     /// The 256-entry dispatch table for this CPU's model: one pre-composed handler per
     /// opcode byte (null = undefined byte for the active profile). This is what the
-    /// executor runs; <see cref="InstructionList"/> remains the public metadata view
-    /// the table is composed from.
+    /// executor runs; <see cref="InstructionList"/> is the public metadata view
+    /// projected from the NMOS model's table.
     /// </summary>
     internal OpCodeDescriptor?[] Descriptors { get; private set; }
 
@@ -221,7 +220,7 @@ public class CPU
             throw new DotNet6502Exception($"CPU model '{ModelDefinition.ModelId}' does not support compatibility profile '{compatibilityProfile}'.");
         CompatibilityProfile = compatibilityProfile;
         InstructionList = ModelDefinition.CreateInstructionList(compatibilityProfile);
-        Descriptors = ModelDefinition.CreateDescriptors(InstructionList, compatibilityProfile);
+        Descriptors = ModelDefinition.CreateDescriptors(compatibilityProfile);
 
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor(loggerFactory);

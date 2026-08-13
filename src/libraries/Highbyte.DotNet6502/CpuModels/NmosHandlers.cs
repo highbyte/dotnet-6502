@@ -3,10 +3,9 @@ using Highbyte.DotNet6502.Utils;
 namespace Highbyte.DotNet6502;
 
 /// <summary>
-/// Execute handlers for instructions whose NMOS 6502 behavior diverges from the generic
-/// (instruction-object based) composition. Static methods — no captured state, no
-/// per-call allocation, AOT-safe. Bound to their opcode bytes via
-/// <see cref="CpuModelDefinition.HandlerOverrides"/>.
+/// Bespoke execute handlers for instructions whose NMOS 6502 behavior doesn't fit the
+/// generic core composition. Static methods — no captured state, no per-call
+/// allocation, AOT-safe. Bound into the NMOS descriptor table at build time.
 /// </summary>
 internal static class NmosHandlers
 {

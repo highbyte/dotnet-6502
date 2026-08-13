@@ -27,25 +27,33 @@ internal static class Nmos6502Model
         },
         CreateInstructionList = InstructionList.GetAllInstructions,
         Traits = s_traits,
-        CreateDescriptors = static (instructionList, profile) =>
+        CreateDescriptors = static profile =>
         {
-            var table = OpCodeDescriptorTableBuilder.Build(
-                instructionList,
-                handlerOverrides: new Dictionary<byte, ExecuteHandler>
-                {
-                    // NMOS indirect-JMP page-wrap bug (JMP ($xxFF) reads the high byte from $xx00).
-                    [(byte)OpCodeId.JMP_IND] = NmosHandlers.Jmp_Indirect,
-                },
-                indexedDummyReads: s_traits.PerformsIndexedDummyReads);
-            // Handler migration (transitional): migrated instruction groups are re-bound
-            // as core-based handlers composed for this model's dummy-read policy.
-            MigratedInstructionBindings.Apply(table, s_traits.PerformsIndexedDummyReads);
-            MigratedInstructionBindings.ApplyAdcSbc(table,
+            // The table is composed entirely from core/handler bindings: the shared
+            // official set, NMOS ADC/SBC and RMW behavior, the NMOS JMP (addr) quirk,
+            // and the profile-gated undocumented opcodes.
+            var table = new OpCodeDescriptor?[256];
+            InstructionBindings.Apply(table, s_traits.PerformsIndexedDummyReads);
+            InstructionBindings.ApplyAdcSbc(table,
                 InstructionCores.AdcNmos, InstructionCores.SbcNmos,
                 indexedDummyReads: s_traits.PerformsIndexedDummyReads);
-            MigratedInstructionBindings.ApplyRmw(table, cmosSequence: false,
+            InstructionBindings.ApplyRmw(table, cmosSequence: false,
                 indexedDummyReads: s_traits.PerformsIndexedDummyReads);
-            MigratedInstructionBindings.ApplyNmosUndocumented(table, profile,
+
+            // JMP (addr) with the NMOS page-wrap bug: when the pointer sits at $xxFF,
+            // the high byte is read from $xx00. 5 cycles (the 65C02 takes 6).
+            table[(byte)OpCodeId.JMP_IND] = new OpCodeDescriptor
+            {
+                Code = (byte)OpCodeId.JMP_IND,
+                Mnemonic = "JMP",
+                Addressing = AddrMode.Indirect,
+                Size = 3,
+                BaseCycles = 5,
+                Documented = true,
+                Execute = NmosHandlers.Jmp_Indirect,
+            };
+
+            InstructionBindings.ApplyNmosUndocumented(table, profile,
                 indexedDummyReads: s_traits.PerformsIndexedDummyReads);
             return table;
         },
