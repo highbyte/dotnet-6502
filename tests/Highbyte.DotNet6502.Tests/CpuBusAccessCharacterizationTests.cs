@@ -283,7 +283,7 @@ public class CpuBusAccessCharacterizationTests
     }
 
     [Fact]
-    public void IRQ_Entry_Currently_Pushes_Three_Bytes_And_Reads_The_Vector()
+    public void IRQ_Entry_Is_Two_DummyReads_Three_Pushes_Then_Vector_Reads()
     {
         var cpu = new CPU();
         var mem = new Memory();
@@ -291,31 +291,88 @@ public class CpuBusAccessCharacterizationTests
         cpu.PC = 0x1000;
         cpu.SP = 0xFF;
         cpu.ProcessorStatus.InterruptDisable = false;
+        cpu.ExecuteOneInstructionMinimal(mem); // NOP -> PC = 0x1001
 
-        var stackRecorder = new BusAccessRecorder();
-        stackRecorder.Watch(mem, 0x0100, 0x100);
-        var vectorRecorder = new BusAccessRecorder();
-        vectorRecorder.Watch(mem, CPU.BrkIRQHandlerVector, 2);
-        vectorRecorder[CPU.BrkIRQHandlerVector] = 0x00;
-        vectorRecorder[(ushort)(CPU.BrkIRQHandlerVector + 1)] = 0x40;
+        // One recorder over the program byte, the stack page, and the vector, so the
+        // COMPLETE 7-access entry sequence is asserted in order.
+        var recorder = new BusAccessRecorder();
+        recorder.Watch(mem, 0x1001, 1);
+        recorder.Watch(mem, 0x0100, 0x100);
+        recorder.Watch(mem, CPU.BrkIRQHandlerVector, 2);
+        recorder[CPU.BrkIRQHandlerVector] = 0x00;
+        recorder[(ushort)(CPU.BrkIRQHandlerVector + 1)] = 0x40;
 
         cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: true);
         cpu.ProcessPendingInterrupts(mem);
 
-        // Stack: PC high, PC low, then status (with B clear). Real hardware also performs
-        // two dummy reads before the pushes (7-cycle sequence); those are absent today.
-        Assert.Equal(3, stackRecorder.Accesses.Count);
-        Assert.All(stackRecorder.Accesses, a => Assert.False(a.IsRead));
-        Assert.Equal(0x01FF, stackRecorder.Accesses[0].Address); // PC high
-        Assert.Equal(0x01FE, stackRecorder.Accesses[1].Address); // PC low
-        Assert.Equal(0x01FD, stackRecorder.Accesses[2].Address); // status
+        Assert.Equal(7, recorder.Accesses.Count);
+        // Two dummy reads of the next opcode byte while the interrupt takes over...
+        Assert.Equal(new BusAccessRecorder.BusAccess(IsRead: true, 0x1001, 0x00), recorder.Accesses[0]);
+        Assert.Equal(new BusAccessRecorder.BusAccess(IsRead: true, 0x1001, 0x00), recorder.Accesses[1]);
+        // ...then PC high, PC low, status (B clear)...
+        Assert.Equal((false, (ushort)0x01FF), (recorder.Accesses[2].IsRead, recorder.Accesses[2].Address));
+        Assert.Equal((false, (ushort)0x01FE), (recorder.Accesses[3].IsRead, recorder.Accesses[3].Address));
+        Assert.Equal((false, (ushort)0x01FD), (recorder.Accesses[4].IsRead, recorder.Accesses[4].Address));
+        // ...then the vector, low byte first.
+        Assert.Equal(new BusAccessRecorder.BusAccess(IsRead: true, CPU.BrkIRQHandlerVector, 0x00), recorder.Accesses[5]);
+        Assert.Equal(new BusAccessRecorder.BusAccess(IsRead: true, (ushort)(CPU.BrkIRQHandlerVector + 1), 0x40), recorder.Accesses[6]);
+        Assert.Equal((ushort)0x4000, cpu.PC);
+    }
 
-        // Vector: low byte then high byte, one read each.
-        Assert.Equal(new[]
-        {
-            new BusAccessRecorder.BusAccess(IsRead: true, CPU.BrkIRQHandlerVector, 0x00),
-            new BusAccessRecorder.BusAccess(IsRead: true, (ushort)(CPU.BrkIRQHandlerVector + 1), 0x40),
-        }, vectorRecorder.Accesses);
+    [Fact]
+    public void NMI_Entry_Is_Two_DummyReads_Three_Pushes_Then_Vector_Reads()
+    {
+        var cpu = new CPU();
+        var mem = new Memory();
+        mem[0x1000] = (byte)OpCodeId.NOP;
+        cpu.PC = 0x1000;
+        cpu.SP = 0xFF;
+        cpu.ExecuteOneInstructionMinimal(mem);
+
+        var recorder = new BusAccessRecorder();
+        recorder.Watch(mem, 0x1001, 1);
+        recorder.Watch(mem, 0x0100, 0x100);
+        recorder.Watch(mem, CPU.NonMaskableIRQHandlerVector, 2);
+        recorder[CPU.NonMaskableIRQHandlerVector] = 0x00;
+        recorder[(ushort)(CPU.NonMaskableIRQHandlerVector + 1)] = 0x50;
+
+        cpu.CPUInterrupts.SetNMISourceActive("device");
+        cpu.ProcessPendingInterrupts(mem);
+
+        Assert.Equal(7, recorder.Accesses.Count);
+        Assert.True(recorder.Accesses[0].IsRead && recorder.Accesses[0].Address == 0x1001);
+        Assert.True(recorder.Accesses[1].IsRead && recorder.Accesses[1].Address == 0x1001);
+        Assert.All(recorder.Accesses.Skip(2).Take(3), a => Assert.False(a.IsRead));
+        Assert.True(recorder.Accesses[5].IsRead && recorder.Accesses[5].Address == CPU.NonMaskableIRQHandlerVector);
+        Assert.True(recorder.Accesses[6].IsRead && recorder.Accesses[6].Address == CPU.NonMaskableIRQHandlerVector + 1);
+        Assert.Equal((ushort)0x5000, cpu.PC);
+    }
+
+    [Fact]
+    public void BRK_Reads_Its_Padding_Byte_As_A_Real_Bus_Access()
+    {
+        var cpu = new CPU();
+        var mem = new Memory();
+        cpu.PC = 0x1000;
+        cpu.SP = 0xFF;
+        mem[0x1000] = (byte)OpCodeId.BRK;
+        mem[0x1001] = 0xEA; // padding byte (fetched and discarded)
+        mem.WriteWord(CPU.BrkIRQHandlerVector, 0x4000);
+
+        var recorder = new BusAccessRecorder();
+        recorder.Watch(mem, 0x1000, 2);
+        recorder.Watch(mem, 0x0100, 0x100);
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+
+        // Opcode fetch, padding-byte fetch, then the three pushes (vector unwatched).
+        Assert.Equal(5, recorder.Accesses.Count);
+        Assert.Equal(new BusAccessRecorder.BusAccess(IsRead: true, 0x1000, (byte)OpCodeId.BRK), recorder.Accesses[0]);
+        Assert.Equal(new BusAccessRecorder.BusAccess(IsRead: true, 0x1001, 0xEA), recorder.Accesses[1]);
+        Assert.All(recorder.Accesses.Skip(2), a => Assert.False(a.IsRead));
+        // Pushed return address is still PC+2 from the opcode (the byte AFTER the padding).
+        Assert.Equal(0x10, recorder[0x01FF]); // PC high
+        Assert.Equal(0x02, recorder[0x01FE]); // PC low
         Assert.Equal((ushort)0x4000, cpu.PC);
     }
 }

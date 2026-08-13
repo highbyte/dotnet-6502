@@ -13,11 +13,12 @@ public class BRK : Instruction, IInstructionUsesStack
 
     public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
     {
-        // BRK is strange. The complete instruction is only one byte but the processor increases 
+        // BRK is strange. The complete instruction is only one byte but the processor increases
         // the return address pushed to stack is the *second* byte after the opcode!
         // It is advisable to use a NOP after it to avoid issues (when returning from BRK with RTI, the PC will point to the next-next instruction)
+        // The padding byte is fetched as a real bus access (cycle 2 of the sequence) and discarded.
+        cpu.FetchOperand(mem);
         ushort pcPushedToStack = cpu.PC;
-        pcPushedToStack++;
         cpu.PushWordToStack(pcPushedToStack, mem);
         // Set the Break flag on the copy of the ProcessorStatus that will be stored in stack.
         var processorStatusCopy = cpu.ProcessorStatus;
