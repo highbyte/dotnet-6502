@@ -372,15 +372,18 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 // downward shift needed to clear the band - pushing by the full band height would
                 // over-shift and drop the rows below off the bottom border. Only ever non-zero after
                 // an invalid band, so normal (non-split) screens are unaffected.
-                if (_prevInvalidMode && !_invalidMode)
-                {
-                    var resumeDrawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
-                    _charGridYOffset = ((resumeDrawLine % 8) + 8) % 8;
-                }
-                _prevInvalidMode = _invalidMode;
-
                 _scrollX = _c64.Vic2.GetScrollX();
                 _scrollY = _c64.Vic2.GetScrollY();
+
+                if (_prevInvalidMode && !_invalidMode)
+                {
+                    // The snap must account for the resume line's vertical fine scroll: gridLine
+                    // subtracts both _charGridYOffset and _scrollY, so the offset is chosen to make
+                    // gridLine land exactly on a character-row boundary at the resume line.
+                    var resumeDrawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
+                    _charGridYOffset = (((resumeDrawLine - _scrollY) % 8) + 8) % 8;
+                }
+                _prevInvalidMode = _invalidMode;
 
                 _borderColor = _c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
 
@@ -1026,9 +1029,8 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // display area outputs black at the physical raster line, regardless of screen/char/bitmap
         // memory. (Without this, the BMM bit alone makes us render garbage bitmap data - the cause of
         // the garbled band seen in e.g. Commando, which toggles this mode on for a few raster lines.)
-        // Fill the background layer black, and clear the foreground layer at the *unshifted* raster
-        // position: fine-scroll writes foreground from neighbouring lines shifted by ScrollY, which
-        // would otherwise bleed scrolled content (e.g. trees) into the black band. Clearing rather
+        // Fill the background layer black, and clear the foreground layer on the band's own raster
+        // lines so nothing drawn earlier this frame remains visible inside the band. Clearing rather
         // than painting black keeps the foreground transparent so sprites still composite normally.
         if (_invalidMode)
         {
@@ -1041,13 +1043,22 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // Vertical fine scroll changes which character row/line is sampled at the current raster
         // line. Do not delay the destination Y write itself, because raster splits must affect the
         // pixels being drawn on this line instead of appearing a few lines later.
+        var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
         var gridLine = drawLine - _charGridYOffset - _scrollY;
-        if (gridLine < 0)
+        if (gridLine < 0 || gridLine >= _drawableAreaHeight)
+        {
+            // The shifted sample position is above the first or below the last character row, where
+            // the real VIC-II pixel sequencer idles. Approximate idle output with the background
+            // color (never sample outside the video matrix), and clear the foreground so stale
+            // pixels cannot show through while keeping the line transparent for sprite compositing.
+            if (!backgroundIsPrefilled)
+                WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+            WriteToPixelArray(_oneLineTransparentPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
             return;
+        }
 
         var characterRow = gridLine / 8;
         var characterLine = (ushort)(gridLine % 8);
-        var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
 
         var characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + characterRow * _vic2ScreenTextCols + col);
         var colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + characterRow * _vic2ScreenTextCols + col);
