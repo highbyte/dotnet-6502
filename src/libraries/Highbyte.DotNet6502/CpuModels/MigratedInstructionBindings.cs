@@ -148,6 +148,77 @@ internal static class MigratedInstructionBindings
     }
 
     /// <summary>
+    /// Shift/rotate and memory INC/DEC bindings for a model. The bus sequence is per
+    /// model (<paramref name="cmosSequence"/>): NMOS read-write-write, 65C02
+    /// read-read-write. abs,X cycles differ too: NMOS always 7; 65C02 shifts/rotates
+    /// 6 + 1 on page cross, 65C02 INC/DEC always 7.
+    /// </summary>
+    public static void ApplyRmw(OpCodeDescriptor?[] table, bool cmosSequence, bool indexedDummyReads)
+    {
+        Implied(table, 0x0A, "ASL", 2, InstructionCores.AslAccumulator, AddrMode.Accumulator);
+        Implied(table, 0x4A, "LSR", 2, InstructionCores.LsrAccumulator, AddrMode.Accumulator);
+        Implied(table, 0x2A, "ROL", 2, InstructionCores.RolAccumulator, AddrMode.Accumulator);
+        Implied(table, 0x6A, "ROR", 2, InstructionCores.RorAccumulator, AddrMode.Accumulator);
+
+        var shiftAbsXBaseCycles = (byte)(cmosSequence ? 6 : 7);
+        var shiftAbsXAddsPageCross = cmosSequence;
+
+        Rmw(table, 0x06, "ASL", AddrMode.ZP, 2, 5, InstructionCores.Asl, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x16, "ASL", AddrMode.ZP_X, 2, 6, InstructionCores.Asl, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x0E, "ASL", AddrMode.ABS, 3, 6, InstructionCores.Asl, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x1E, "ASL", AddrMode.ABS_X, 3, shiftAbsXBaseCycles, InstructionCores.Asl, cmosSequence, indexedDummyReads, shiftAbsXAddsPageCross);
+
+        Rmw(table, 0x46, "LSR", AddrMode.ZP, 2, 5, InstructionCores.Lsr, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x56, "LSR", AddrMode.ZP_X, 2, 6, InstructionCores.Lsr, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x4E, "LSR", AddrMode.ABS, 3, 6, InstructionCores.Lsr, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x5E, "LSR", AddrMode.ABS_X, 3, shiftAbsXBaseCycles, InstructionCores.Lsr, cmosSequence, indexedDummyReads, shiftAbsXAddsPageCross);
+
+        Rmw(table, 0x26, "ROL", AddrMode.ZP, 2, 5, InstructionCores.Rol, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x36, "ROL", AddrMode.ZP_X, 2, 6, InstructionCores.Rol, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x2E, "ROL", AddrMode.ABS, 3, 6, InstructionCores.Rol, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x3E, "ROL", AddrMode.ABS_X, 3, shiftAbsXBaseCycles, InstructionCores.Rol, cmosSequence, indexedDummyReads, shiftAbsXAddsPageCross);
+
+        Rmw(table, 0x66, "ROR", AddrMode.ZP, 2, 5, InstructionCores.Ror, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x76, "ROR", AddrMode.ZP_X, 2, 6, InstructionCores.Ror, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x6E, "ROR", AddrMode.ABS, 3, 6, InstructionCores.Ror, cmosSequence, indexedDummyReads);
+        Rmw(table, 0x7E, "ROR", AddrMode.ABS_X, 3, shiftAbsXBaseCycles, InstructionCores.Ror, cmosSequence, indexedDummyReads, shiftAbsXAddsPageCross);
+
+        Rmw(table, 0xE6, "INC", AddrMode.ZP, 2, 5, InstructionCores.Inc, cmosSequence, indexedDummyReads);
+        Rmw(table, 0xF6, "INC", AddrMode.ZP_X, 2, 6, InstructionCores.Inc, cmosSequence, indexedDummyReads);
+        Rmw(table, 0xEE, "INC", AddrMode.ABS, 3, 6, InstructionCores.Inc, cmosSequence, indexedDummyReads);
+        Rmw(table, 0xFE, "INC", AddrMode.ABS_X, 3, 7, InstructionCores.Inc, cmosSequence, indexedDummyReads);
+
+        Rmw(table, 0xC6, "DEC", AddrMode.ZP, 2, 5, InstructionCores.Dec, cmosSequence, indexedDummyReads);
+        Rmw(table, 0xD6, "DEC", AddrMode.ZP_X, 2, 6, InstructionCores.Dec, cmosSequence, indexedDummyReads);
+        Rmw(table, 0xCE, "DEC", AddrMode.ABS, 3, 6, InstructionCores.Dec, cmosSequence, indexedDummyReads);
+        Rmw(table, 0xDE, "DEC", AddrMode.ABS_X, 3, 7, InstructionCores.Dec, cmosSequence, indexedDummyReads);
+    }
+
+    /// <summary>The 65C02-only RMW and accumulator instructions (TSB/TRB, INC A/DEC A).</summary>
+    public static void ApplyCmosRmwExtras(OpCodeDescriptor?[] table)
+    {
+        Implied(table, 0x1A, "INC", 2, InstructionCores.IncAccumulator, AddrMode.Accumulator);
+        Implied(table, 0x3A, "DEC", 2, InstructionCores.DecAccumulator, AddrMode.Accumulator);
+        Rmw(table, 0x04, "TSB", AddrMode.ZP, 2, 5, InstructionCores.Tsb, cmosSequence: true, indexedDummyReads: false);
+        Rmw(table, 0x0C, "TSB", AddrMode.ABS, 3, 6, InstructionCores.Tsb, cmosSequence: true, indexedDummyReads: false);
+        Rmw(table, 0x14, "TRB", AddrMode.ZP, 2, 5, InstructionCores.Trb, cmosSequence: true, indexedDummyReads: false);
+        Rmw(table, 0x1C, "TRB", AddrMode.ABS, 3, 6, InstructionCores.Trb, cmosSequence: true, indexedDummyReads: false);
+    }
+
+    private static void Rmw(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
+        byte size, byte baseCycles, RmwOperation core, bool cmosSequence, bool indexedDummyReads, bool addPageCrossCycle = false)
+        => table[code] = new OpCodeDescriptor
+        {
+            Code = code,
+            Mnemonic = mnemonic,
+            Addressing = addressing,
+            Size = size,
+            BaseCycles = baseCycles,
+            Documented = true,
+            Execute = ComposeRmw(addressing, baseCycles, core, cmosSequence, indexedDummyReads, addPageCrossCycle),
+        };
+
+    /// <summary>
     /// The 65C02's "(zp)" zero-page-indirect forms, bound from the same cores as the
     /// instructions' other modes (CMOS cores for ADC/SBC). 2 bytes, 5 cycles each.
     /// </summary>
@@ -190,12 +261,12 @@ internal static class MigratedInstructionBindings
         };
 
     private static void Implied(OpCodeDescriptor?[] table, byte code, string mnemonic,
-        byte baseCycles, ImpliedOperation core)
+        byte baseCycles, ImpliedOperation core, AddrMode addressing = AddrMode.Implied)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
             Mnemonic = mnemonic,
-            Addressing = AddrMode.Implied,
+            Addressing = addressing,
             Size = 1,
             BaseCycles = baseCycles,
             Documented = true,

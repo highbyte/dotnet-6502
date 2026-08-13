@@ -43,6 +43,8 @@ internal static class Nmos6502Model
             MigratedInstructionBindings.ApplyAdcSbc(table,
                 InstructionCores.AdcNmos, InstructionCores.SbcNmos,
                 indexedDummyReads: s_traits.PerformsIndexedDummyReads);
+            MigratedInstructionBindings.ApplyRmw(table, cmosSequence: false,
+                indexedDummyReads: s_traits.PerformsIndexedDummyReads);
             return table;
         },
     };

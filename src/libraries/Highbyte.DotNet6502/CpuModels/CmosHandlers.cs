@@ -40,22 +40,6 @@ internal static class CmosHandlers
         return crossedPageBoundary ? 4ul : 3ul;
     }
 
-    /// <summary>$1A INC A: increment the accumulator (no NMOS equivalent). 2 cycles.</summary>
-    public static ulong Inc_Accumulator(CPU cpu, Memory mem)
-    {
-        cpu.A++;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
-        return 2;
-    }
-
-    /// <summary>$3A DEC A: decrement the accumulator. 2 cycles.</summary>
-    public static ulong Dec_Accumulator(CPU cpu, Memory mem)
-    {
-        cpu.A--;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
-        return 2;
-    }
-
     /// <summary>$DA PHX: push X. 3 cycles.</summary>
     public static ulong Phx(CPU cpu, Memory mem)
     {
@@ -112,61 +96,6 @@ internal static class CmosHandlers
     {
         cpu.StoreByte(0, mem, cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out _));
         return 5;
-    }
-
-    /// <summary>$04 TSB zp: Z = (A AND M) == 0, then M |= A. 5 cycles.</summary>
-    public static ulong Tsb_Zp(CPU cpu, Memory mem) => TestAndSetBits(cpu, mem, cpu.FetchOperand(mem), 5);
-
-    /// <summary>$0C TSB abs. 6 cycles.</summary>
-    public static ulong Tsb_Abs(CPU cpu, Memory mem) => TestAndSetBits(cpu, mem, cpu.FetchOperandWord(mem), 6);
-
-    /// <summary>$14 TRB zp: Z = (A AND M) == 0, then M &amp;= ~A. 5 cycles.</summary>
-    public static ulong Trb_Zp(CPU cpu, Memory mem) => TestAndResetBits(cpu, mem, cpu.FetchOperand(mem), 5);
-
-    /// <summary>$1C TRB abs. 6 cycles.</summary>
-    public static ulong Trb_Abs(CPU cpu, Memory mem) => TestAndResetBits(cpu, mem, cpu.FetchOperandWord(mem), 6);
-
-    private static ulong TestAndSetBits(CPU cpu, Memory mem, ushort address, ulong cycles)
-    {
-        cpu.FetchByte(mem, address);
-        // 65C02 RMW is read-read-write: a second read replaces the NMOS write-back cycle.
-        var value = cpu.FetchByte(mem, address);
-        cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
-        cpu.StoreByte((byte)(value | cpu.A), mem, address);
-        return cycles;
-    }
-
-    private static ulong TestAndResetBits(CPU cpu, Memory mem, ushort address, ulong cycles)
-    {
-        cpu.FetchByte(mem, address);
-        // 65C02 RMW is read-read-write: a second read replaces the NMOS write-back cycle.
-        var value = cpu.FetchByte(mem, address);
-        cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
-        cpu.StoreByte((byte)(value & ~cpu.A), mem, address);
-        return cycles;
-    }
-
-    /// <summary>
-    /// One read-modify-write operation's compute step: takes the value read from memory,
-    /// returns the value to write back, updating processor flags. Matches the signature
-    /// of the shared BinaryArithmeticHelpers shift/rotate helpers.
-    /// </summary>
-    internal delegate byte RmwCore(byte value, ref ProcessorStatus status);
-
-    /// <summary>INC memory core (the shifts/rotates use their BinaryArithmeticHelpers directly).</summary>
-    public static byte IncCore(byte value, ref ProcessorStatus status)
-    {
-        value++;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref status);
-        return value;
-    }
-
-    /// <summary>DEC memory core.</summary>
-    public static byte DecCore(byte value, ref ProcessorStatus status)
-    {
-        value--;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref status);
-        return value;
     }
 
     /// <summary>

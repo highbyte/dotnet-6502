@@ -14,6 +14,13 @@ internal delegate byte StoreOperation(CPU cpu);
 internal delegate void ImpliedOperation(CPU cpu);
 
 /// <summary>
+/// One read-modify-write operation's compute step: consumes the value read from memory,
+/// returns the value to write back, updating registers/flags. The bus SEQUENCE around it
+/// (NMOS read-write-write vs 65C02 read-read-write) is composed per model.
+/// </summary>
+internal delegate byte RmwOperation(CPU cpu, byte value);
+
+/// <summary>
 /// Operation cores for instructions whose semantics are identical on every CPU model:
 /// tiny static methods composed with per-model addressing at table build time
 /// (see OpCodeDescriptorTableBuilder). Named after the instructions they implement —
@@ -201,5 +208,61 @@ internal static class InstructionCores
     {
         cpu.Y--;
         BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, ref cpu.ProcessorStatus);
+    }
+
+    // --- Shifts/rotates: memory forms (RmwOperation) and accumulator forms (ImpliedOperation) ---
+
+    public static byte Asl(CPU cpu, byte value) => BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+    public static byte Lsr(CPU cpu, byte value) => BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+    public static byte Rol(CPU cpu, byte value) => BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+    public static byte Ror(CPU cpu, byte value) => BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
+
+    public static void AslAccumulator(CPU cpu) => cpu.A = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
+    public static void LsrAccumulator(CPU cpu) => cpu.A = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
+    public static void RolAccumulator(CPU cpu) => cpu.A = BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
+    public static void RorAccumulator(CPU cpu) => cpu.A = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
+
+    // --- Memory increment/decrement (RmwOperation) ---
+
+    public static byte Inc(CPU cpu, byte value)
+    {
+        value++;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref cpu.ProcessorStatus);
+        return value;
+    }
+
+    public static byte Dec(CPU cpu, byte value)
+    {
+        value--;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref cpu.ProcessorStatus);
+        return value;
+    }
+
+    // --- 65C02-only operations ---
+
+    public static void IncAccumulator(CPU cpu)
+    {
+        cpu.A++;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+    }
+
+    public static void DecAccumulator(CPU cpu)
+    {
+        cpu.A--;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+    }
+
+    /// <summary>TSB: Z = (A AND M) == 0, then M |= A.</summary>
+    public static byte Tsb(CPU cpu, byte value)
+    {
+        cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
+        return (byte)(value | cpu.A);
+    }
+
+    /// <summary>TRB: Z = (A AND M) == 0, then M &amp;= ~A.</summary>
+    public static byte Trb(CPU cpu, byte value)
+    {
+        cpu.ProcessorStatus.Zero = (cpu.A & value) == 0;
+        return (byte)(value & ~cpu.A);
     }
 }

@@ -424,4 +424,48 @@ internal static class OpCodeDescriptorTableBuilder
             core(cpu);
             return baseCycles;
         };
+
+    /// <summary>
+    /// Composes a read-modify-write instruction with the model's bus sequence:
+    /// 65C02 (<paramref name="cmosSequence"/>) reads twice then writes the result
+    /// (the value from the final read feeds the modify); NMOS reads once, writes the
+    /// unmodified value back, then writes the result — with the always-dummy-read at
+    /// the un-carried address first on indexed modes when enabled.
+    /// </summary>
+    internal static ExecuteHandler ComposeRmw(AddrMode addressingMode, ulong baseCycles, RmwOperation core,
+        bool cmosSequence, bool indexedDummyReads, bool addPageCrossCycle = false)
+    {
+        var resolveAddress = GetAddressResolver(addressingMode);
+        if (cmosSequence)
+        {
+            return (cpu, mem) =>
+            {
+                var (address, crossedPageBoundary, _) = resolveAddress(cpu, mem);
+                cpu.FetchByte(mem, address);
+                var value = cpu.FetchByte(mem, address);
+                cpu.StoreByte(core(cpu, value), mem, address);
+                return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul);
+            };
+        }
+        if (indexedDummyReads && IsIndexedMode(addressingMode))
+        {
+            return (cpu, mem) =>
+            {
+                var (address, _, uncarriedAddress) = resolveAddress(cpu, mem);
+                cpu.FetchByte(mem, uncarriedAddress);
+                var value = cpu.FetchByte(mem, address);
+                cpu.StoreByte(value, mem, address);
+                cpu.StoreByte(core(cpu, value), mem, address);
+                return baseCycles;
+            };
+        }
+        return (cpu, mem) =>
+        {
+            var (address, _, _) = resolveAddress(cpu, mem);
+            var value = cpu.FetchByte(mem, address);
+            cpu.StoreByte(value, mem, address);
+            cpu.StoreByte(core(cpu, value), mem, address);
+            return baseCycles;
+        };
+    }
 }
