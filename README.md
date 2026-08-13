@@ -58,7 +58,6 @@ Published as NuGet packages under `Highbyte.DotNet6502.*` — a core CPU library
 > [!IMPORTANT]
 > - Correct emulation of all aspects of computers such as the Commodore 64 is not likely.
 > - Not the fastest emulator.
-> - A real Commodore 64 uses the *6510* CPU; for the purpose of this emulator the 6502 is treated as equivalent (same instruction set).
 > - Code coverage is currently limited to the core `Highbyte.DotNet6502` library.
 
 For the full list of missing features and constraints, see [Limitations](https://highbyte.github.io/dotnet-6502/docs/home/limitations/).

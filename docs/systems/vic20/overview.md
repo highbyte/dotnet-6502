@@ -4,6 +4,8 @@ A partial implementation of a Commodore VIC-20.
 
 Core library: [`Highbyte.DotNet6502.Systems.Vic20`](../../libraries/system-specific/vic20.md).
 
+CPU: the NMOS **6502** model (`nmos6502`), as in the real machine.
+
 ## Current capabilities
 
 - Run VIC-20 Basic from ROM (user-supplied Kernal, Basic, and Chargen ROM files).

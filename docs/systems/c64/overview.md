@@ -4,6 +4,10 @@ A partial implementation of a Commodore 64.
 
 Core library: [`Highbyte.DotNet6502.Systems.Commodore64`](../../libraries/system-specific/c64.md).
 
+CPU: the MOS **6510** model (`mos6510`), as in the real machine — an NMOS 6502 core plus the
+6510's on-chip I/O port at `$00`/`$01`, which drives the C64's memory banking. The
+undocumented-opcode compatibility profile is configurable.
+
 ## Current capabilities
 
 - Run Commodore Basic 2.0 from ROM (user-supplied Kernal, Basic, and Chargen ROM files).
