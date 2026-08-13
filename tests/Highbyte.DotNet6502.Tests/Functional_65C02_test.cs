@@ -16,6 +16,7 @@ namespace Highbyte.DotNet6502.Tests;
 /// (windows-latest).
 /// </summary>
 [Trait("TestType", "Integration")]
+[Collection(Helpers.KlausTestArtifactsCollection.Name)]
 public class Functional_65C02_test
 {
     private readonly ITestOutputHelper _output;

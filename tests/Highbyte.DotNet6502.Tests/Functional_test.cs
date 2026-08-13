@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Highbyte.DotNet6502.Tests;
 
 [Trait("TestType", "Integration")]
+[Collection(Helpers.KlausTestArtifactsCollection.Name)]
 public class Functional_test
 {
     private readonly ITestOutputHelper _output;
