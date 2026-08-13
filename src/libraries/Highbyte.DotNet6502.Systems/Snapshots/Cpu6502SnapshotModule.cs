@@ -36,6 +36,22 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
     public int Version => 2;
     public bool Required => true;
 
+    /// <summary>
+    /// Whether the execution state this module carries (registers, flags, interrupt
+    /// state) transfers exactly between the captured and target CPU models. Beyond
+    /// identity, the NMOS-core family qualifies: the 6510 is an NMOS 6502 core with an
+    /// added I/O port — snapshots captured before a machine (the C64) switched its
+    /// model id from nmos6502 to mos6510 restore onto the new model unchanged. Any
+    /// model-specific state outside this module (the 6510 port) is owned by the
+    /// machine's own snapshot module.
+    /// </summary>
+    private static bool AreModelsStateCompatible(string capturedModelId, string targetModelId)
+        => capturedModelId == targetModelId
+            || (IsNmosCore(capturedModelId) && IsNmosCore(targetModelId));
+
+    private static bool IsNmosCore(string modelId)
+        => modelId is CpuModelIds.Nmos6502 or CpuModelIds.Mos6510;
+
     public void Capture(SnapshotModuleWriter writer, SnapshotCaptureContext context)
     {
         var cpu = context.System.CPU;
@@ -87,7 +103,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         // CPU model mismatch is a HARD error: registers/flags/interrupt state saved on one
         // chip are not meaningful execution state on another. Checked before any state is
         // applied, so the target system is left untouched.
-        if (capturedModelId != cpu.CpuModelId)
+        if (!AreModelsStateCompatible(capturedModelId, cpu.CpuModelId))
             throw new SnapshotIncompatibleException(SnapshotCompatibility.Incompatible(
                 $"cpu-6502: snapshot was captured on CPU model '{capturedModelId}' but the target system's CPU is '{cpu.CpuModelId}'. Configure the system with the matching CPU model and try again."));
 

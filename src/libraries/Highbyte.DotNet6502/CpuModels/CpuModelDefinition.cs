@@ -44,4 +44,11 @@ internal sealed class CpuModelDefinition
     /// bespoke per-byte descriptors.
     /// </summary>
     public required Func<CpuCompatibilityProfile, OpCodeDescriptor?[]> CreateDescriptors { get; init; }
+
+    /// <summary>
+    /// Factory for per-CPU-instance model state (e.g. the 6510's I/O port), invoked
+    /// once per CPU construction. Null for models without extra state. Definitions
+    /// stay immutable and shareable precisely because mutable state lives on the CPU.
+    /// </summary>
+    public Func<CpuModelState>? StateFactory { get; init; }
 }

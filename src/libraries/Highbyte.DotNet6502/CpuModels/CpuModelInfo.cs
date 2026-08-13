@@ -11,6 +11,7 @@ public static class CpuModelInfo
     public static IReadOnlyList<string> AllModelIds { get; } = new[]
     {
         CpuModelIds.Nmos6502,
+        CpuModelIds.Mos6510,
         CpuModelIds.Ncr65c02,
     };
 

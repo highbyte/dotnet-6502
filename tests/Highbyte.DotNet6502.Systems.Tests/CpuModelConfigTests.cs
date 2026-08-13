@@ -107,12 +107,14 @@ public class CpuModelConfigTests
     // ---- CpuModelInfo (the facade config UIs bind to) ----
 
     [Fact]
-    public void CpuModelInfo_Lists_Both_Models_With_Display_Names()
+    public void CpuModelInfo_Lists_All_Models_With_Display_Names()
     {
-        Assert.Equal(new[] { CpuModelIds.Nmos6502, CpuModelIds.Ncr65c02 }, CpuModelInfo.AllModelIds);
+        Assert.Equal(new[] { CpuModelIds.Nmos6502, CpuModelIds.Mos6510, CpuModelIds.Ncr65c02 }, CpuModelInfo.AllModelIds);
         Assert.Equal("NMOS 6502", CpuModelInfo.GetDisplayName(CpuModelIds.Nmos6502));
+        Assert.Equal("MOS 6510", CpuModelInfo.GetDisplayName(CpuModelIds.Mos6510));
         Assert.Equal("NCR 65C02", CpuModelInfo.GetDisplayName(CpuModelIds.Ncr65c02));
         Assert.True(CpuModelInfo.IsProfileSupported(CpuModelIds.Nmos6502, CpuCompatibilityProfile.FullUnofficial));
+        Assert.True(CpuModelInfo.IsProfileSupported(CpuModelIds.Mos6510, CpuCompatibilityProfile.FullUnofficial));
         Assert.False(CpuModelInfo.IsProfileSupported(CpuModelIds.Ncr65c02, CpuCompatibilityProfile.FullUnofficial));
     }
 }

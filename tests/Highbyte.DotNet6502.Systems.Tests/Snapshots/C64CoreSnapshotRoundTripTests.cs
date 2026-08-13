@@ -221,6 +221,29 @@ public class C64CoreSnapshotRoundTripTests
     }
 
     [Fact]
+    public void C64_snapshot_captured_before_the_mos6510_model_switch_still_restores()
+    {
+        // Checked-in fixture written by the code as it was BEFORE the C64 switched its
+        // CPU to the mos6510 model: its cpu-6502 module says 'nmos6502', and its
+        // c64-core module carries the raw port bytes (DDR $2F, data $36 -> bank 30).
+        // NMOS-core state transfers exactly, so old user snapshots keep working.
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Snapshots", "Fixtures", "c64-pre-mos6510.d6502snap");
+        Assert.True(File.Exists(fixturePath), $"Missing fixture: {fixturePath}");
+
+        using var fixtureStream = File.OpenRead(fixturePath);
+        var target = BuildC64();
+        Assert.Equal(CpuModelIds.Mos6510, target.CPU.CpuModelId);
+
+        new SnapshotService().Restore(target, fixtureStream);
+
+        Assert.Equal(0xC000, target.CPU.PC);
+        Assert.Equal(0x42, target.CPU.A);
+        Assert.Equal(0xAB, target.RAM[0x2000]);
+        Assert.Equal(0x36, target.Mem.Read(0x0001)); // restored port data register
+        Assert.Equal(30, target.CurrentBank);         // bank re-derived from restored port
+    }
+
+    [Fact]
     public void C64_round_trip_preserves_changed_cpu_port_bank()
     {
         // Switch the 6510 CPU port to bank out BASIC/KERNAL ROM (all-RAM bank), then snapshot.

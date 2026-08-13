@@ -105,8 +105,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public C64InputInjector? InputInjector { get; private set; }
     IInputInjector? ISystem.InputInjector => InputInjector;
 
-    private byte _cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
-    private byte _cpuPortDataRegister = CpuPortDataResetValue;
+    // The 6510's on-chip port (CPU model state), wired to this board in WireCpuPort.
+    private Cpu6510Port _cpuPort = default!;
     //public static ROM[] ROMS = new ROM[]
     //{   
     //    // name, file, checksum 
@@ -372,6 +372,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         }
 
         c64.CPU = cpu;
+        c64.WireCpuPort();
         c64.CPU.NmiAcknowledging += (_, _) => c64.CartridgeSlot.AcknowledgeNmi();
         c64.Vic2 = vic2;
         c64.Cia1 = cia1;
@@ -482,19 +483,30 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     private static void SetStartupBank(C64 c64)
     {
-        var mem = c64.Mem;
-
-        c64._cpuPortDataDirectionRegister = CpuPortDataDirectionResetValue;
-        c64._cpuPortDataRegister = CpuPortDataResetValue;
-        c64.ApplyCpuPortMemoryConfiguration();
+        // Sets both port registers together, then the port's single change notification
+        // triggers ApplyCpuPortMemoryConfiguration with the final state.
+        c64._cpuPort.SetState(CpuPortDataDirectionResetValue, CpuPortDataResetValue);
     }
 
     private static CPU CreateC64CPU(ILoggerFactory loggerFactory, CpuCompatibilityProfile compatibilityProfile)
     {
-        var cpu = new CPU(loggerFactory, compatibilityProfile);
+        var cpu = new CPU(loggerFactory, CpuModelIds.Mos6510, compatibilityProfile);
         // The CPU execute method uses will not raise any events (like after instruction executed). Therefore advance VIC2 raster line etc needs to be manually called instead (see ExecuteOneFrame)
         //cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.InstructionExecState.CyclesConsumed);
         return cpu;
+    }
+
+    /// <summary>
+    /// Board-side wiring of the 6510's on-chip port: the C64 pulls the banking lines and
+    /// cassette sense high when configured as inputs (board wiring, not chip truth), and
+    /// re-derives the memory bank synchronously whenever the CPU writes the port — so
+    /// banking changes take effect before the write instruction completes.
+    /// </summary>
+    private void WireCpuPort()
+    {
+        _cpuPort = (Cpu6510Port)CPU.ModelState!;
+        _cpuPort.ExternalInputLevels = CpuPortInputPullupMask;
+        _cpuPort.OutputsChanged += ApplyCpuPortMemoryConfiguration;
     }
 
     private Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
@@ -679,32 +691,21 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         return true;
     }
 
-    private void IoPortDirectionStore(ushort _, byte value)
-    {
-        _cpuPortDataDirectionRegister = value;
-        ApplyCpuPortMemoryConfiguration();
-    }
+    // $00/$01 stay mapped through the normal Memory handler mechanism; the handlers
+    // delegate to the 6510's on-chip port (CPU model state). Bank re-derivation runs
+    // via the port's synchronous OutputsChanged notification (see WireCpuPort).
+    private void IoPortDirectionStore(ushort _, byte value) => _cpuPort.WriteDataDirectionRegister(value);
 
-    private byte IoPortDirectionLoad(ushort _)
-    {
-        return _cpuPortDataDirectionRegister;
-    }
+    private byte IoPortDirectionLoad(ushort _) => _cpuPort.ReadDataDirectionRegister();
 
-    private void IoPortStore(ushort _, byte value)
-    {
-        _cpuPortDataRegister = value;
-        ApplyCpuPortMemoryConfiguration();
-    }
+    private void IoPortStore(ushort _, byte value) => _cpuPort.WriteDataRegister(value);
 
-    private byte IoPortLoad(ushort _)
-    {
-        return GetCpuPortEffectiveValue();
-    }
+    private byte IoPortLoad(ushort _) => _cpuPort.ReadPort();
 
     private void ApplyCpuPortMemoryConfiguration()
     {
         var previousBank = CurrentBank;
-        var cpuPortBits = (byte)(GetCpuPortEffectiveValue() & CpuPortBankBitsMask);
+        var cpuPortBits = (byte)(_cpuPort.ReadPort() & CpuPortBankBitsMask);
         var cartridgeLineBits = CartridgeSlot.Lines.GetMemoryConfigurationBits();
         CurrentBank = (byte)(cartridgeLineBits | cpuPortBits);
         Mem.SetMemoryConfiguration(CurrentBank);
@@ -713,23 +714,23 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     }
 
     // --- Snapshot support ---
-    // The 6510 CPU port raw registers are private and reading $00/$01 returns derived values
-    // (effective port value with pull-ups), so the c64-core snapshot module captures/restores the
-    // raw registers through these internal accessors instead of through memory reads/writes.
-    internal byte SnapshotCpuPortDataDirectionRegister
-    {
-        get => _cpuPortDataDirectionRegister;
-        set => _cpuPortDataDirectionRegister = value;
-    }
-    internal byte SnapshotCpuPortDataRegister
-    {
-        get => _cpuPortDataRegister;
-        set => _cpuPortDataRegister = value;
-    }
+    // Reading $00/$01 through memory returns derived values (effective port value with
+    // pull-ups), so the c64-core snapshot module captures the raw port registers through
+    // these accessors and restores them atomically. The binary layout (two raw bytes) is
+    // unchanged from when the registers lived on the C64 itself.
+    internal byte SnapshotCpuPortDataDirectionRegister => _cpuPort.DataDirectionRegister;
+    internal byte SnapshotCpuPortDataRegister => _cpuPort.DataRegister;
 
-    // Re-applies the bank/memory configuration derived from the restored CPU port registers and
-    // cartridge lines (recomputes CurrentBank and calls Mem.SetMemoryConfiguration).
-    internal void ApplyCpuPortMemoryConfigurationFromSnapshot() => ApplyCpuPortMemoryConfiguration();
+    // Sets both restored registers together; the port's single change notification
+    // re-derives the active bank/memory configuration (recomputes CurrentBank and calls
+    // Mem.SetMemoryConfiguration) exactly once, with the final state.
+    internal void RestoreCpuPortState(byte dataDirectionRegister, byte dataRegister)
+        => _cpuPort.SetState(dataDirectionRegister, dataRegister);
+
+    // Re-derives the bank/memory configuration from the current CPU port registers and
+    // cartridge lines — used by snapshot restore steps that change cartridge lines after
+    // the port itself was restored.
+    internal void ReapplyMemoryConfigurationFromSnapshot() => ApplyCpuPortMemoryConfiguration();
 
     // The shared SnapshotService enforces format-version, machine-name, unknown-required-module and
     // module-version rules. The c64-core module additionally validates model/timer-mode on restore.
@@ -757,17 +758,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
 
     public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest) => SnapshotCompatibility.Compatible();
-
-    private byte GetCpuPortEffectiveValue()
-    {
-        // On the C64 the lower 3 banking lines and cassette sense line are pulled high
-        // when configured as inputs. Compunet relies on INC/DEC $01 read-modify-write
-        // preserving those pull-up semantics.
-        var inputBits = (byte)(CpuPortInputPullupMask & ~_cpuPortDataDirectionRegister);
-        var outputBits = (byte)(_cpuPortDataRegister & _cpuPortDataDirectionRegister);
-        var upperBits = (byte)(_cpuPortDataRegister & 0b1100_0000);
-        return (byte)(upperBits | outputBits | inputBits);
-    }
 
     /// <summary>
     /// Writes byte to IO Storage, with address specified as location C64 memory map, and translated to VIC2 IO Storage address (-0xd000).

@@ -21,6 +21,17 @@ public class C64CpuPortTests
     }
 
     [Fact]
+    public void C64_Cpu_Is_The_Mos6510_Model_With_Board_Wired_Port()
+    {
+        var c64 = BuildC64();
+
+        Assert.Equal(CpuModelIds.Mos6510, c64.CPU.CpuModelId);
+        var port = Assert.IsType<Cpu6510Port>(c64.CPU.ModelState);
+        // C64 board wiring: banking lines and cassette sense pulled high as inputs.
+        Assert.Equal(0x17, port.ExternalInputLevels);
+    }
+
+    [Fact]
     public void Hard_Reset_Clears_Stale_IO_Register_Storage()
     {
         var c64 = BuildC64();

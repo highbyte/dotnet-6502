@@ -10,6 +10,7 @@ internal static class CpuModels
         => cpuModelId switch
         {
             CpuModelIds.Nmos6502 => Nmos6502Model.Definition,
+            CpuModelIds.Mos6510 => Mos6510Model.Definition,
             CpuModelIds.Ncr65c02 => Ncr65c02Model.Definition,
             _ => throw new DotNet6502Exception($"Unknown CPU model id '{cpuModelId}'."),
         };

@@ -4,6 +4,9 @@ A partial implementation of an Apple II Plus.
 
 Core library: `Highbyte.DotNet6502.Systems.Apple2`.
 
+CPU: the NMOS **6502** model (`nmos6502`) by default, as in the Apple II/II+/unenhanced IIe.
+The NCR **65C02** model (`ncr65c02`) can be selected in the system configuration.
+
 The currently supported system variant is `APPLE2PLUS`.
 
 ## Current capabilities

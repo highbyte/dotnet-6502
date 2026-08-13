@@ -7,7 +7,6 @@
 
 - Correct emulation of all aspects of computers such as the Commodore 64 is not likely.
 - Not the fastest emulator.
-- A real Commodore 64 uses the *6510* CPU, not the 6502 CPU. For the purpose of this emulator the 6502 CPU works fine — they are generally the same (same instruction set).
 - Code coverage is currently limited to the core [`Highbyte.DotNet6502`](../libraries/core/dotnet6502.md) library.
 
 ## Missing 6502 features

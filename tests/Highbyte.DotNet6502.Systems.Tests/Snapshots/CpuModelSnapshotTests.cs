@@ -90,6 +90,62 @@ public class CpuModelSnapshotTests
     }
 
     [Fact]
+    public void Nmos6502_Snapshot_Restores_Onto_A_Mos6510_Target()
+    {
+        // The 6510 is an NMOS 6502 core with an added I/O port: cpu-6502 state transfers
+        // exactly. This is what lets C64 snapshots captured before the C64 switched to
+        // the mos6510 model id keep restoring.
+        var source = BuildComputer(CpuModelIds.Nmos6502);
+        for (int i = 0; i < 5; i++)
+            source.ExecuteOneInstruction(out _);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var target6510 = BuildComputer(CpuModelIds.Mos6510);
+        target6510.CPU.PC = 0x0000;
+        new SnapshotService().Restore(target6510, snapshotStream);
+
+        Assert.Equal(source.CPU.PC, target6510.CPU.PC);
+        Assert.Equal(source.CPU.A, target6510.CPU.A);
+    }
+
+    [Fact]
+    public void Mos6510_Snapshot_Restores_Onto_An_Nmos6502_Target()
+    {
+        var source = BuildComputer(CpuModelIds.Mos6510);
+        for (int i = 0; i < 5; i++)
+            source.ExecuteOneInstruction(out _);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var targetNmos = BuildComputer(CpuModelIds.Nmos6502);
+        targetNmos.CPU.PC = 0x0000;
+        new SnapshotService().Restore(targetNmos, snapshotStream);
+
+        Assert.Equal(source.CPU.PC, targetNmos.CPU.PC);
+    }
+
+    [Fact]
+    public void Mos6510_Snapshot_Onto_A_65c02_Is_Still_A_Hard_Error()
+    {
+        var source = BuildComputer(CpuModelIds.Mos6510);
+        for (int i = 0; i < 5; i++)
+            source.ExecuteOneInstruction(out _);
+
+        using var snapshotStream = new MemoryStream();
+        new SnapshotService().Save(source, snapshotStream);
+        snapshotStream.Position = 0;
+
+        var target65c02 = BuildComputer(CpuModelIds.Ncr65c02);
+        Assert.Throws<SnapshotIncompatibleException>(
+            () => new SnapshotService().Restore(target65c02, snapshotStream));
+    }
+
+    [Fact]
     public void V1_Fixture_Captured_Before_Cpu_Models_Restores_As_Nmos6502()
     {
         // The fixture was written by the actual v1 module code (before the model id
