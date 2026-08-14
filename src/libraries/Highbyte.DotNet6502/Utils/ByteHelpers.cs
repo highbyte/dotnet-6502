@@ -107,10 +107,22 @@ public static class ByteHelpers
         carryBit = rightMostCarryFlag;
     }
 
+    /// <summary>
+    /// True if the byte is a named member of the <b>NMOS-only</b> <see cref="OpCodeId"/>
+    /// enum. This is a vocabulary check, not model-aware: for whether a byte is a defined
+    /// instruction on a specific CPU (model + compatibility profile), use
+    /// <see cref="CPU.IsOpCodeDefined"/>.
+    /// </summary>
     public static bool IsDefinedAsOpCodeId(this byte opCodeId)
     {
         return Enum.IsDefined(typeof(OpCodeId), opCodeId);
     }
+
+    /// <summary>
+    /// Casts the byte to the <b>NMOS-only</b> <see cref="OpCodeId"/> enum. The resulting
+    /// name is only meaningful on the NMOS-core models (nmos6502/mos6510) — on a 65C02
+    /// the same byte can be a different instruction.
+    /// </summary>
     public static OpCodeId ToOpCodeId(this byte opCodeId)
     {
         return (OpCodeId)opCodeId;

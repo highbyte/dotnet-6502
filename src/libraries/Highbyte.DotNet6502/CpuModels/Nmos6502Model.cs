@@ -25,7 +25,6 @@ internal static class Nmos6502Model
             CpuCompatibilityProfile.ExperimentalUnofficial,
             CpuCompatibilityProfile.FullUnofficial,
         },
-        CreateInstructionList = InstructionList.GetAllInstructions,
         Traits = s_traits,
         CreateDescriptors = static profile =>
         {

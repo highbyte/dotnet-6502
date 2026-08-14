@@ -22,13 +22,6 @@ internal sealed class CpuModelDefinition
     public required IReadOnlyList<CpuCompatibilityProfile> SupportedProfiles { get; init; }
 
     /// <summary>
-    /// Builds the public metadata view (<see cref="InstructionList"/>) for a supported
-    /// profile — the NMOS façade projected from descriptor metadata, for tooling and
-    /// backward compat. Execution never consults it.
-    /// </summary>
-    public required Func<CpuCompatibilityProfile, InstructionList> CreateInstructionList { get; init; }
-
-    /// <summary>
     /// Non-instruction behavior differences (interrupt/BRK/reset entry effects),
     /// consulted per event — never per instruction.
     /// </summary>

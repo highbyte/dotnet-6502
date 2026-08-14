@@ -19,7 +19,7 @@ public class CPUHelperTest
         var nextInstructionAddress = cpu.GetNextInstructionAddress(mem);
 
         // Assert
-        var insSize = (byte)cpu.InstructionList.GetOpCode(opCodeByte).Size;
+        var insSize = cpu.GetOpCodeSize(opCodeByte);
         Assert.Equal(cpu.PC + insSize, nextInstructionAddress);
     }
 
@@ -38,7 +38,7 @@ public class CPUHelperTest
         var nextInstructionAddress = cpu.GetNextInstructionAddress(mem);
 
         // Assert
-        var insSize = (byte)cpu.InstructionList.GetOpCode(opCodeByte).Size;
+        var insSize = cpu.GetOpCodeSize(opCodeByte);
         Assert.Equal(cpu.PC + insSize, nextInstructionAddress);
     }
 

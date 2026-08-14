@@ -552,7 +552,7 @@ public class TestSpec
 
         // Before we execute intruction, verify internal consistency of number of bytes the OpCode takes by our test-setup code above
         // with the value specified in OpCode.Bytes class.
-        Assert.Equal(cpu.PC + cpu.InstructionList.GetOpCode(OpCode.ToByte()).Size, codeMemPos);
+        Assert.Equal(cpu.PC + cpu.GetOpCodeSize(OpCode.ToByte()), codeMemPos);
 
         // Init registers and flags
         if (A.HasValue)

@@ -15,7 +15,7 @@ public class CPUTest
         var cpu = new CPU();
 
         Assert.Equal(CpuCompatibilityProfile.ExperimentalUnofficial, cpu.CompatibilityProfile);
-        Assert.DoesNotContain((byte)OpCodeId.JAM_02, cpu.InstructionList.OpCodeDictionary.Keys);
+        Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.JAM_02));
     }
 
     [Fact]

@@ -34,64 +34,12 @@ public class CpuModelTests
     }
 
     [Fact]
-    public void Model_InstructionList_Matches_Direct_GetAllInstructions()
-    {
-        // The definition must be a pure indirection: the table it builds is identical
-        // (per opcode byte) to what InstructionList.GetAllInstructions produced before.
-        var fromModel = Nmos6502Model.Definition.CreateInstructionList(CpuCompatibilityProfile.ExperimentalUnofficial);
-        var direct = InstructionList.GetAllInstructions(CpuCompatibilityProfile.ExperimentalUnofficial);
-
-        for (var code = 0; code <= 0xff; code++)
-        {
-            var b = (byte)code;
-            var modelOpCode = fromModel.TryGetOpCode(b);
-            var directOpCode = direct.TryGetOpCode(b);
-            Assert.Equal(directOpCode is null, modelOpCode is null);
-            if (modelOpCode is null || directOpCode is null)
-                continue;
-            Assert.Equal(directOpCode.AddressingMode, modelOpCode.AddressingMode);
-            Assert.Equal(directOpCode.Size, modelOpCode.Size);
-            Assert.Equal(directOpCode.MinimumCycles, modelOpCode.MinimumCycles);
-        }
-    }
-
-    [Fact]
     public void Clone_Shares_The_Same_Immutable_Model_Definition()
     {
         var cpu = new CPU();
         var clone = cpu.Clone();
 
         Assert.Same(cpu.ModelDefinition, clone.ModelDefinition);
-    }
-
-    [Theory]
-    [InlineData(CpuCompatibilityProfile.OfficialOnly)]
-    [InlineData(CpuCompatibilityProfile.StableUnofficial)]
-    [InlineData(CpuCompatibilityProfile.ExperimentalUnofficial)]
-    [InlineData(CpuCompatibilityProfile.FullUnofficial)]
-    public void Descriptor_Table_Matches_InstructionList_Byte_For_Byte(CpuCompatibilityProfile profile)
-    {
-        var cpu = new CPU(profile);
-
-        for (var code = 0; code <= 0xff; code++)
-        {
-            var b = (byte)code;
-            var opCode = cpu.InstructionList.TryGetOpCode(b);
-            var descriptor = cpu.Descriptors[b];
-
-            if (opCode is null)
-            {
-                Assert.Null(descriptor);
-                continue;
-            }
-
-            Assert.NotNull(descriptor);
-            Assert.Equal(b, descriptor.Code);
-            Assert.Equal(opCode.AddressingMode, descriptor.Addressing);
-            Assert.Equal(opCode.Size, descriptor.Size);
-            Assert.Equal(opCode.MinimumCycles, descriptor.BaseCycles);
-            Assert.False(string.IsNullOrEmpty(descriptor.Mnemonic));
-        }
     }
 
     [Fact]

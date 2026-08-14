@@ -14,7 +14,6 @@ internal static class Mos6510Model
         ModelId = CpuModelIds.Mos6510,
         DisplayName = "MOS 6510",
         SupportedProfiles = Nmos6502Model.Definition.SupportedProfiles,
-        CreateInstructionList = Nmos6502Model.Definition.CreateInstructionList,
         Traits = Nmos6502Model.Definition.Traits,
         CreateDescriptors = Nmos6502Model.Definition.CreateDescriptors,
         StateFactory = static () => new Cpu6510Port(),
