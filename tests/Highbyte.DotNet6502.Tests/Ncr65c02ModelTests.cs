@@ -144,7 +144,8 @@ public class Ncr65c02ModelTests
     {
         // 151 official NMOS opcodes (shared) + 27 new 65C02 bytes = 178 documented;
         // the remaining 78 bytes are defined NOPs.
-        var officialNmosCount = InstructionList.GetAllInstructions(CpuCompatibilityProfile.OfficialOnly).OpCodeDictionary.Count;
+        var officialNmosCpu = new CPU(CpuCompatibilityProfile.OfficialOnly);
+        var officialNmosCount = Enumerable.Range(0, 256).Count(code => officialNmosCpu.IsOpCodeDefined((byte)code));
         Assert.Equal(151, officialNmosCount);
 
         var cpu = New65c02Cpu();

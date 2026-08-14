@@ -101,13 +101,6 @@ public class CPU
     public ExecState ExecState { get; private set; }
     public bool IsHalted { get; private set; }
 
-    /// <summary>
-    /// Public NMOS-façade view of the instruction set (see <see cref="InstructionList"/>).
-    /// On a non-NMOS model this contains only the officially documented subset shared
-    /// with the NMOS 6502; execution and per-model tooling metadata use the internal
-    /// <see cref="Descriptors"/> table instead.
-    /// </summary>
-    public InstructionList InstructionList { get; private set; }
     public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
     /// <summary>
@@ -127,8 +120,7 @@ public class CPU
     /// <summary>
     /// The 256-entry dispatch table for this CPU's model: one pre-composed handler per
     /// opcode byte (null = undefined byte for the active profile). This is what the
-    /// executor runs; <see cref="InstructionList"/> is the public metadata view
-    /// projected from the NMOS model's table.
+    /// executor runs; the public metadata view of it is <see cref="GetOpCodeInfo"/>.
     /// </summary>
     internal OpCodeDescriptor?[] Descriptors { get; private set; }
 
@@ -227,7 +219,6 @@ public class CPU
         if (!ModelDefinition.SupportedProfiles.Contains(compatibilityProfile))
             throw new DotNet6502Exception($"CPU model '{ModelDefinition.ModelId}' does not support compatibility profile '{compatibilityProfile}'.");
         CompatibilityProfile = compatibilityProfile;
-        InstructionList = ModelDefinition.CreateInstructionList(compatibilityProfile);
         Descriptors = ModelDefinition.CreateDescriptors(compatibilityProfile);
         ModelState = ModelDefinition.StateFactory?.Invoke();
 
@@ -249,9 +240,7 @@ public class CPU
             IsHalted = this.IsHalted,
             CompatibilityProfile = this.CompatibilityProfile,
             ModelDefinition = this.ModelDefinition, // immutable definition, safe to share
-            InstructionList = this.InstructionList.Clone(),
-            // Shares handler instances with the original, mirroring InstructionList.Clone()
-            // which shares the underlying OpCode/Instruction objects. Handlers are stateless.
+            // Shares handler instances with the original. Handlers are stateless.
             Descriptors = this.Descriptors,
             // Copies state values but not event subscribers: the clone must not retain
             // callbacks into the original machine.
@@ -553,8 +542,6 @@ public class CPU
     /// <summary>
     /// True if the opcode byte is a defined instruction for THIS CPU's model and
     /// compatibility profile. Model-aware — on a 65C02 every byte is defined.
-    /// Prefer this over probing <see cref="InstructionList"/>, which only reflects
-    /// the NMOS-façade view.
     /// </summary>
     public bool IsOpCodeDefined(byte opCode) => Descriptors[opCode] is not null;
 
@@ -564,6 +551,28 @@ public class CPU
     /// Undefined opcodes report size 1.
     /// </summary>
     public byte GetOpCodeSize(byte opCode) => Descriptors[opCode]?.Size ?? 1;
+
+    /// <summary>
+    /// Model-correct metadata for the opcode byte, per THIS CPU's model and
+    /// compatibility profile (e.g. $9C reports STZ abs on a 65C02 but the undocumented
+    /// SHY abs,X on NMOS models). Null when the byte is not a defined instruction for
+    /// this model/profile.
+    /// </summary>
+    public OpCodeInfo? GetOpCodeInfo(byte opCode)
+    {
+        var descriptor = Descriptors[opCode];
+        if (descriptor is null)
+            return null;
+        return new OpCodeInfo
+        {
+            Code = descriptor.Code,
+            Mnemonic = descriptor.Mnemonic,
+            AddressingMode = descriptor.Addressing,
+            Size = descriptor.Size,
+            MinimumCycles = descriptor.BaseCycles,
+            Documented = descriptor.Documented,
+        };
+    }
 
     /// <summary>
     /// Gets the Zero Page address at the current PC with Y offset.

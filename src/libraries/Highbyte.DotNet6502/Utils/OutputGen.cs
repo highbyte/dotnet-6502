@@ -81,10 +81,10 @@ public static class OutputGen
         return $"{descriptor.Mnemonic} {operandString}";
     }
 
-    public static string BuildInstructionName(CPU cpu, OpCode opCode)
+    public static string BuildInstructionName(CPU cpu, byte opCode)
     {
-        // Model-aware: the descriptor's mnemonic, not the NMOS-façade instruction name.
-        return cpu.Descriptors[opCode.CodeRaw]?.Mnemonic ?? "???";
+        // Model-aware: the mnemonic per the CPU's own model.
+        return cpu.Descriptors[opCode]?.Mnemonic ?? "???";
     }
 
     public static string BuildOperandString(AddrMode addrMode, byte[] operand)

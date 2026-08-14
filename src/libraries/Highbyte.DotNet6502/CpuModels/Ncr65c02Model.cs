@@ -25,9 +25,6 @@ internal static class Ncr65c02Model
         // Compatibility profiles control undocumented-NMOS-opcode exposure; on a 65C02
         // every byte is defined, so exactly one profile is meaningful.
         SupportedProfiles = new[] { CpuCompatibilityProfile.OfficialOnly },
-        // Public façade view: the officially documented instruction set shared with the
-        // NMOS 6502. Per-model tooling metadata comes from the descriptor table.
-        CreateInstructionList = InstructionList.GetAllInstructions,
         Traits = s_traits,
         CreateDescriptors = BuildDescriptors,
     };

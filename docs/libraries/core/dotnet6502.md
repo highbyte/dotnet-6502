@@ -51,7 +51,7 @@ Higher profiles include everything from lower profiles.
 
 Notes:
 
-- `new CPU()` and `InstructionList.GetAllInstructions()` currently use `ExperimentalUnofficial`.
+- `new CPU()` currently uses `ExperimentalUnofficial`.
 - `GenericComputer` defaults to `ExperimentalUnofficial`.
 - `C64` and `Vic20` default to `StableUnofficial`.
 - These profiles describe the currently implemented undocumented **NMOS** opcode set. They are not a claim of complete coverage for every unofficial opcode found on every 6502-family variant.
