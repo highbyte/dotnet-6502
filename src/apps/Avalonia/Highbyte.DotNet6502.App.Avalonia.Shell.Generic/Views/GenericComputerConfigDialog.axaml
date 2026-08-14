@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Generic.ViewModels"
+        xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Shell.Generic.Views"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Generic.Views.GenericComputerConfigDialog"
+        x:DataType="vm:GenericComputerConfigDialogViewModel"
+        AutomationProperties.AutomationId="GenericConfigDialog"
+        AutomationProperties.Name="Generic computer configuration"
+        Title="Generic Computer Configuration"
+        Width="460"
+        Height="360"
+        MinWidth="400"
+        MinHeight="300"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        WindowDecorations="Full"
+        ShowInTaskbar="False"
+        Background="{DynamicResource ViewDefaultBg}">
+
+    <views:GenericComputerConfigDialogView x:Name="ConfigView"
+                                           ConfigurationChanged="OnConfigurationChanged"/>
+</Window>

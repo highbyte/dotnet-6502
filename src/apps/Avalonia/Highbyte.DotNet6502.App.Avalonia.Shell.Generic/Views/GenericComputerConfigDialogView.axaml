@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Generic.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Generic.Views.GenericComputerConfigDialogView"
+             x:DataType="vm:GenericComputerConfigDialogViewModel"
+             AutomationProperties.AutomationId="GenericConfigDialogView"
+             AutomationProperties.Name="Generic computer configuration panel"
+             Focusable="False">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8" MaxWidth="420">
+        <Border Grid.Row="0" CornerRadius="4" Classes="panel-container">
+            <TextBlock Text="Generic Computer Configuration"
+                       Classes="h-center h2"/>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Classes="vertical-only">
+            <StackPanel Classes="wrap-item">
+                <Border Classes="content-section">
+                    <StackPanel Classes="spacing-tight">
+                        <TextBlock Text="CPU"/>
+
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                       Text="Model:"
+                                       Classes="secondary-text"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1"
+                                      AutomationProperties.AutomationId="GenericCpuModelComboBox"
+                                      AutomationProperties.Name="Generic computer CPU model"
+                                      ItemsSource="{Binding CpuModels}"
+                                      SelectedItem="{Binding SelectedCpuModel}"
+                                      DisplayMemberBinding="{Binding DisplayName}"
+                                      ToolTip.Tip="{Binding SelectedCpuModelHelpText}"
+                                      Classes="h-stretch"
+                                      MaxDropDownHeight="200"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0"
+                                       Text="Profile:"
+                                       Classes="secondary-text"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1"
+                                      AutomationProperties.AutomationId="GenericCpuCompatibilityProfileComboBox"
+                                      AutomationProperties.Name="Generic computer CPU opcode compatibility profile"
+                                      ItemsSource="{Binding CpuCompatibilityProfiles}"
+                                      SelectedItem="{Binding SelectedCpuCompatibilityProfile}"
+                                      DisplayMemberBinding="{Binding DisplayName}"
+                                      ToolTip.Tip="{Binding SelectedCpuCompatibilityProfileHelpText}"
+                                      Classes="h-stretch"
+                                      MaxDropDownHeight="200"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="2"
+                   Text="{Binding ValidationMessage}"
+                   TextWrapping="Wrap"
+                   Foreground="#F56565"
+                   Classes="small"
+                   IsVisible="{Binding HasValidationMessage}"/>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-normal">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding StatusMessage}"
+                       Classes="small secondary-text"
+                       IsVisible="{Binding HasStatusMessage}"/>
+            <Button Grid.Column="1"
+                    Content="Cancel"
+                    AutomationProperties.AutomationId="GenericConfigCancelButton"
+                    Command="{Binding CancelCommand}"
+                    Classes="cancel"
+                    IsEnabled="{Binding IsNotBusy}"/>
+            <Button Grid.Column="2"
+                    Content="{Binding OkButtonText}"
+                    AutomationProperties.AutomationId="GenericConfigOkButton"
+                    Command="{Binding SaveCommand}"
+                    Classes="primary"
+                    IsEnabled="{Binding CanSave}"/>
+        </Grid>
+    </Grid>
+</UserControl>
