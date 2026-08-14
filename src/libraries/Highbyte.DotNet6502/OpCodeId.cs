@@ -1,5 +1,22 @@
  namespace Highbyte.DotNet6502;
 
+/// <summary>
+/// Named constants for the opcode bytes of the <b>NMOS 6502</b> instruction set — the
+/// official instructions plus the undocumented NMOS opcodes. Valid only for the
+/// NMOS-core CPU models (<c>nmos6502</c> and <c>mos6510</c>, which share the same
+/// instruction set).
+/// <para>
+/// This is NOT a universal instruction id: instruction identity is (CPU model, opcode
+/// byte). 65C02-only instructions (STZ, PHX, BRA, TSB, ...) have no member here, and on
+/// a 65C02 the same byte value can mean a different instruction than this enum names
+/// (e.g. $9C is the undocumented SHY abs,X on NMOS but STZ abs on the 65C02).
+/// </para>
+/// <para>
+/// For model-correct per-byte information, use the model-aware members on
+/// <see cref="CPU"/> (<see cref="CPU.IsOpCodeDefined"/>, <see cref="CPU.GetOpCodeSize"/>)
+/// and disassembly via <see cref="Utils.OutputGen"/>.
+/// </para>
+/// </summary>
 public enum OpCodeId: byte
 {
     // LDA

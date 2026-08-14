@@ -6,11 +6,36 @@ Library: `Highbyte.DotNet6502`
 
 - A stand-alone library for executing 6502 machine code programs.
 - Has no UI, meant to be integrated into other applications.
-- Emulation of a 6502 processor.
+- Emulation of 6502-family processors, selectable per CPU model (see below).
 - Supports all official 6502 opcodes.
 - Supports a compatibility-profile based subset of undocumented NMOS 6502 opcodes.
 - Can load an assembled 6502 program binary and execute it.
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests).
+
+## CPU models
+
+The CPU is constructed for a specific CPU model. Instruction identity is per model and
+opcode byte — on a 65C02 the same byte can mean a different instruction than on an NMOS
+6502, and the 65C02 adds instructions that do not exist on NMOS models.
+
+| Model id | Display name | Notes |
+| -------- | ------------ | ----- |
+| `nmos6502` | NMOS 6502 | The default. Official instruction set plus profile-gated undocumented NMOS opcodes. |
+| `mos6510` | MOS 6510 | Same instruction set as `nmos6502`, adds the on-chip I/O port at addresses $00/$01 (used by the C64). |
+| `ncr65c02` | NCR 65C02 | CMOS 65C02 (base/NCR variant): new and redefined instructions, all 256 bytes defined, CMOS behavior differences. Supports only the `OfficialOnly` compatibility profile. |
+
+Select a model via the `CPU` constructor overloads that take a `cpuModelId` string, e.g.
+`new CPU(loggerFactory, CpuModelIds.Ncr65c02, CpuCompatibilityProfile.OfficialOnly)`.
+The `CpuModelInfo` class provides model ids, display names, and supported profiles for
+configuration UIs and validation.
+
+Note: the public `OpCodeId` enum names the opcode bytes of the **NMOS instruction set
+only** (models `nmos6502`/`mos6510`). It is a convenient vocabulary for writing NMOS
+programs in code and for checking well-known official bytes (which are identical on all
+models), but it is not model-aware: 65C02-only instructions have no enum member, and a
+byte redefined on the 65C02 keeps its NMOS name in the enum. For model-correct per-byte
+information use the model-aware members on `CPU` (`IsOpCodeDefined`, `GetOpCodeSize`) and
+disassembly via `OutputGen`.
 
 ## Opcode compatibility profiles
 
