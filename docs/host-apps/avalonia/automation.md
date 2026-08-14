@@ -131,10 +131,56 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
   all — verified against this dialog, where every button and combobox enumerates but no checkbox
   does. Their AutomationIds are set correctly and are right for other hosts, but on macOS a
   checkbox has to be verified from a screenshot rather than from `inspect-ui`.
-- **CPU**: `CpuCompatibilityProfileComboBox`
+- **CPU**: `CpuModelComboBox` (NMOS 6502 or NCR 65C02 — the models an Apple II can have),
+  `CpuCompatibilityProfileComboBox`. The profile list is dependent on the selected model:
+  it only offers the profiles that model supports, and auto-corrects the selection when
+  the model changes (picking the 65C02 collapses it to "Official only").
 - **Messages**: `ConfigStatusMessageText` (non-error status), `ConfigErrorStatusMessageText`
   (error status), `ConfigValidationMessageText` (bulleted validation-error list)
 - **Footer**: `ResetToDefaultsButton`, `CancelButton`, `OkButton`
+
+### Vic20MenuView (sidebar)
+
+- **Root**: `Vic20MenuView`
+- **Basic clipboard**: `CopyBasicButton`, `PasteTextButton` (same ids as the other menus —
+  only one system's menu is visible at a time)
+- **Collapsible section headers**: `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
+  `ConfigSectionHeader`, `ConfigSectionContent`. Unlike the C64 and Apple II menus these are
+  plain toggles, not an accordion — expanding one section does not collapse the other.
+- **Load/Save section**: `LoadBasicButton`, `SaveBasicButton`, `LoadBinaryButton`,
+  `AssemblyExampleComboBox`, `LoadAssemblyExampleButton`, `BasicExampleComboBox`,
+  `LoadBasicExampleButton`
+- **Configuration section**: `Vic20ConfigButton` (only enabled while the emulator is
+  stopped; no attention pulse — the VIC-20 menu does not use `ButtonFlashController`),
+  `ActiveJoystickComboBox`, `JoystickKeyboardCheckBox`, `KeyboardJoystickComboBox`
+
+### Vic20ConfigDialog / Vic20ConfigDialogView
+
+- **Window / root**: `Vic20ConfigDialog`, `Vic20ConfigDialogView`
+- **ROMs (dynamic per ROM)**: `Vic20RomFileTextBox.basic`, `Vic20RomFileTextBox.kernal`,
+  `Vic20RomFileTextBox.chargen`
+- **ROM actions**: `Vic20RomDirectoryTextBox`, `Vic20ClearRomsButton`, `Vic20LoadRomsButton`,
+  `Vic20DownloadRomsButton`, `Vic20DownloadRomFilesButton`
+- **CPU**: `Vic20CpuCompatibilityProfileComboBox` — profile only; the VIC-20's CPU model is
+  fixed (NMOS 6502, the machine's identity), so there is no model picker here.
+- **Video**: `Vic20RenderProviderComboBox`, `Vic20RenderTargetComboBox`
+- **Footer**: `Vic20ConfigResetToDefaultsButton`, `Vic20ConfigCancelButton`, `Vic20ConfigOkButton`
+
+### GenericComputerMenuView (sidebar)
+
+- **Root**: `GenericComputerMenuView`
+- **Collapsible section**: `GenericConfigSectionHeader`, `GenericConfigSectionContent`
+  (expanded by default; the Configuration section is the menu's only content)
+- **Configuration section**: `OpenGenericConfigButton` (only enabled while the emulator is
+  stopped)
+
+### GenericConfigDialog / GenericConfigDialogView
+
+- **Window / root**: `GenericConfigDialog`, `GenericConfigDialogView`
+- **CPU**: `GenericCpuModelComboBox` (all CPU models — the Generic machine has no fixed
+  identity), `GenericCpuCompatibilityProfileComboBox` (dependent on the selected model,
+  same auto-correcting behavior as the Apple II dialog)
+- **Footer**: `GenericConfigCancelButton`, `GenericConfigOkButton`
 
 ### EmulatorConfigUserControl (general settings)
 
@@ -246,6 +292,18 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 
 `Toggle Joystick KB` uses the same key as the C64's and VIC-20's, so the shortcut means the same
 thing whichever machine is loaded.
+
+### VIC-20 shortcuts (active when the VIC-20 system is selected — `VIC-20` menu)
+
+| Action                           | macOS               | Windows / Linux       |
+| -------------------------------- | ------------------- | --------------------- |
+| Toggle Load/Save section         | `⌘⌥⇧L`         | `Ctrl+Alt+Shift+L`    |
+| Toggle Configuration section     | `⌘⌥⇧C`         | `Ctrl+Alt+Shift+C`    |
+| Active joystick → Port 1         | `⌘⌥1`            | `Ctrl+Alt+1`          |
+| Active joystick → Port 2         | `⌘⌥2`            | `Ctrl+Alt+2`          |
+| Toggle Joystick KB               | `⌘⌥K`            | `Ctrl+Alt+K`          |
+| Keyboard joystick → Port 1       | `⌘⌥⇧1`         | `Ctrl+Alt+Shift+1`    |
+| Keyboard joystick → Port 2       | `⌘⌥⇧2`         | `Ctrl+Alt+Shift+2`    |
 
 **Testing the keyboard joystick from automation:** `apple2.type` will not do it. That command goes
 through the text-paste service, which writes ASCII straight to the keyboard latch and never becomes

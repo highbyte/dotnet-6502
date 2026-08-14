@@ -57,7 +57,7 @@
                    Classes="small"
                    IsVisible="{Binding HasValidationMessage}"/>
 
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-normal">
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-wide">
             <TextBlock Grid.Column="0"
                        Text="{Binding StatusMessage}"
                        Classes="small secondary-text"
