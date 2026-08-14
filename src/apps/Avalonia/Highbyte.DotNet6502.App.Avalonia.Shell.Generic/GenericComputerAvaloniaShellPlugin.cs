@@ -1,4 +1,5 @@
 using System;
+using Highbyte.DotNet6502.App.Avalonia.Shell.Generic.ViewModels;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,11 +12,11 @@ namespace Highbyte.DotNet6502.App.Avalonia.Shell.Generic;
 /// Shell-side plugin for the Generic computer on the Avalonia host.
 /// </summary>
 /// <remarks>
-/// The Generic computer has no system-specific UI surfaces, so this plugin contributes nothing —
-/// the menu, info and config dialog contributions are all null and the host renders only its
-/// system-agnostic chrome. The engine-side wiring (the <c>ISystemConfigurer</c>) lives in the
-/// engine plugin <c>GenericAvaloniaEnginePlugin</c> (Impl.Avalonia.Generic). The plugin is kept
-/// (rather than deleted) so the Generic system has a discoverable shell-side presence.
+/// The Generic computer has no media (no PRG/disk/tape), so its menu is minimal: a
+/// Configuration section opening the config dialog (CPU model and compatibility
+/// profile). The info contribution stays null. The engine-side wiring (the
+/// <c>ISystemConfigurer</c>) lives in the engine plugin
+/// <c>GenericAvaloniaEnginePlugin</c> (Impl.Avalonia.Generic).
 /// </remarks>
 public sealed class GenericComputerAvaloniaShellPlugin : ISystemShellPlugin
 {
@@ -25,12 +26,13 @@ public sealed class GenericComputerAvaloniaShellPlugin : ISystemShellPlugin
 
     public void RegisterShellServices(IServiceCollection services)
     {
-        // No UI services — the Generic computer has no Avalonia-specific shell UI.
+        services.AddTransient<GenericComputerMenuViewModel>();
+        services.AddTransient<GenericComputerConfigDialogViewModel>();
     }
 
-    public object? CreateMenuContribution(IServiceProvider sp) => null;
+    public object? CreateMenuContribution(IServiceProvider sp) => sp.GetService<GenericComputerMenuViewModel>();
 
     public object? CreateInfoContribution(IServiceProvider sp) => null;
 
-    public object? CreateConfigDialogContribution(IServiceProvider sp) => null;
+    public object? CreateConfigDialogContribution(IServiceProvider sp) => sp.GetService<GenericComputerConfigDialogViewModel>();
 }

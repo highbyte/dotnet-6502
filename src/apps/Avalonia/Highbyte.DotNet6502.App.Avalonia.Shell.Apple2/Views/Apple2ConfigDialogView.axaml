@@ -144,11 +144,23 @@
                 <TextBlock Text="CPU"
                             Classes=""/>
 
-                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-tight">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
                     <TextBlock Grid.Row="0" Grid.Column="0"
-                                Text="Profile:"
+                                Text="Model:"
                                 Classes="secondary-text"/>
                     <ComboBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="CpuModelComboBox"
+                            AutomationProperties.Name="CPU model"
+                            ItemsSource="{Binding CpuModels}"
+                            SelectedItem="{Binding SelectedCpuModel}"
+                            DisplayMemberBinding="{Binding DisplayName}"
+                            ToolTip.Tip="{Binding SelectedCpuModelHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                Text="Profile:"
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1"
                             AutomationProperties.AutomationId="CpuCompatibilityProfileComboBox"
                             AutomationProperties.Name="CPU opcode compatibility profile"
                             ItemsSource="{Binding CpuCompatibilityProfiles}"

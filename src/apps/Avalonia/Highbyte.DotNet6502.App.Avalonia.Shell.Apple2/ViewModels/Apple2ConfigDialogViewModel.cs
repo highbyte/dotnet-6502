@@ -48,6 +48,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     private RenderProviderOption? _selectedRenderProvider;
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
+    private CpuModelOption? _selectedCpuModel;
     private CpuCompatibilityProfileOption? _selectedCpuCompatibilityProfile;
     private MonitorColorOption? _selectedMonitorColor;
     private string _selectedKeyboardLayout = AutoKeyboardLayoutLabel;
@@ -120,6 +121,11 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<AudioProviderOption> AudioProviders { get; } = new();
     public ObservableCollection<AudioTargetOption> AudioTargets { get; } = new();
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
+    // Models an Apple II can have: NMOS 6502 (II/II+/unenhanced IIe) or 65C02 (enhanced
+    // IIe). The 6510 is deliberately absent — no Apple ever shipped one.
+    public ObservableCollection<CpuModelOption> CpuModels { get; } =
+        new(CpuModelOption.ForModelIds(CpuModelIds.Nmos6502, CpuModelIds.Ncr65c02));
+    // Repopulated per selected CPU model (e.g. the 65C02 supports only OfficialOnly).
     public ObservableCollection<CpuCompatibilityProfileOption> CpuCompatibilityProfiles { get; } =
         new(CpuCompatibilityProfileOption.All);
     public ObservableCollection<MonitorColorOption> MonitorColors { get; } = new(MonitorColorOption.All);
@@ -341,6 +347,28 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
     public string SelectedRenderTargetHelpText => SelectedRenderTarget?.HelpText ?? string.Empty;
 
+    public CpuModelOption? SelectedCpuModel
+    {
+        get => _selectedCpuModel;
+        set
+        {
+            if (ReferenceEquals(_selectedCpuModel, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedCpuModel, value);
+
+            if (value != null)
+            {
+                _workingConfig.SystemConfig.CpuModelId = value.ModelId;
+                UpdateCompatibilityProfilesForModel(value.ModelId);
+            }
+
+            this.RaisePropertyChanged(nameof(SelectedCpuModelHelpText));
+        }
+    }
+
+    public string SelectedCpuModelHelpText => SelectedCpuModel?.HelpText ?? string.Empty;
+
     public CpuCompatibilityProfileOption? SelectedCpuCompatibilityProfile
     {
         get => _selectedCpuCompatibilityProfile;
@@ -359,6 +387,25 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     }
 
     public string SelectedCpuCompatibilityProfileHelpText => SelectedCpuCompatibilityProfile?.HelpText ?? string.Empty;
+
+    /// <summary>
+    /// Constrains the profile dropdown to the profiles the selected model supports, and
+    /// auto-corrects the selection when the current profile is no longer among them
+    /// (e.g. picking the 65C02 forces "Official only") — the UI can never produce a
+    /// model/profile pairing that config validation would reject.
+    /// </summary>
+    private void UpdateCompatibilityProfilesForModel(string cpuModelId)
+    {
+        var supportedProfiles = CpuModelInfo.GetSupportedProfiles(cpuModelId);
+
+        CpuCompatibilityProfiles.Clear();
+        foreach (var option in CpuCompatibilityProfileOption.All.Where(o => supportedProfiles.Contains(o.Profile)))
+            CpuCompatibilityProfiles.Add(option);
+
+        var currentProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
+        SelectedCpuCompatibilityProfile = CpuCompatibilityProfiles.FirstOrDefault(o => o.Profile == currentProfile)
+            ?? CpuCompatibilityProfiles.First();
+    }
 
     public MonitorColorOption? SelectedMonitorColor
     {
@@ -580,6 +627,7 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
 
             _originalConfig.SystemConfig.ROMDirectory = _workingConfig.SystemConfig.ROMDirectory;
             _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
+            _originalConfig.SystemConfig.CpuModelId = _workingConfig.SystemConfig.CpuModelId;
             _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
             _originalConfig.SystemConfig.MonitorColor = _workingConfig.SystemConfig.MonitorColor;
             _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
@@ -619,6 +667,8 @@ public class Apple2ConfigDialogViewModel : ViewModelBase
     private void LoadFromWorkingConfig()
     {
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
+        // Model first: it constrains the profile list the profile selection lands in.
+        SelectedCpuModel = CpuModelOption.FromModelId(_workingConfig.SystemConfig.CpuModelId);
         SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
         SelectedMonitorColor = MonitorColorOption.FromMonitorColor(_workingConfig.SystemConfig.MonitorColor);
         SelectedKeyboardLayout = _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;

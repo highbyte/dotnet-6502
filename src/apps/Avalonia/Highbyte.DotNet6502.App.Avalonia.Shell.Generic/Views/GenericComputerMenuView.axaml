@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Generic.ViewModels"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Generic.Views.GenericComputerMenuView"
+             x:DataType="vm:GenericComputerMenuViewModel"
+             AutomationProperties.AutomationId="GenericComputerMenuView"
+             AutomationProperties.Name="Generic computer menu">
+
+    <StackPanel Classes="spacing-tight">
+        <!-- Configuration -->
+        <Button Name="GenericConfigSectionHeader"
+                AutomationProperties.AutomationId="GenericConfigSectionHeader"
+                AutomationProperties.Name="Toggle Configuration section"
+                Classes="section-toggle"
+                Command="{Binding ToggleConfigSectionCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Grid Width="10" Height="10" VerticalAlignment="Center">
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleRight"
+                                         IsVisible="{Binding !IsConfigSectionExpanded}"/>
+                    <controls:SymbolIcon Width="8" Height="8"
+                                         Kind="TriangleDown"
+                                         IsVisible="{Binding IsConfigSectionExpanded}"/>
+                </Grid>
+                <TextBlock Text="Configuration" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <Border Name="GenericConfigSectionContent"
+                AutomationProperties.AutomationId="GenericConfigSectionContent"
+                Classes="collapsible-content"
+                IsVisible="{Binding IsConfigSectionExpanded}">
+            <StackPanel Classes="spacing-tight">
+                <Button Content="Generic Computer config…"
+                        Name="OpenGenericConfigButton"
+                        AutomationProperties.AutomationId="OpenGenericConfigButton"
+                        AutomationProperties.Name="Open Generic computer configuration"
+                        Classes="small"
+                        IsEnabled="{Binding IsGenericConfigEnabled}"
+                        Click="OpenGenericConfig_Click"/>
+
+                <TextBlock Text="CPU model and opcode compatibility. Only editable while the emulator is stopped."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
