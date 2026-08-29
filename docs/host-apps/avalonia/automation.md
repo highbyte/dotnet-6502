@@ -139,6 +139,30 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
   (error status), `ConfigValidationMessageText` (bulleted validation-error list)
 - **Footer**: `ResetToDefaultsButton`, `CancelButton`, `OkButton`
 
+### OricConfigDialogView
+
+- **Root**: `OricConfigDialogView`
+- **ROM actions**: `OricRomStatusText`, `OricRomDirectoryTextBox`, `OricLoadRomButton`,
+  `OricDownloadRomButton`, `OricClearRomButton`
+- **Audio**: `OricAudioEnabledCheckBox`
+- **Messages**: `OricConfigStatusText`
+- **Footer**: `OricConfigCancelButton`, `OricConfigSaveButton`
+
+The download button opens an ownership/licence acknowledgement overlay before fetching the
+copyrighted firmware. Its buttons are `OricRomDownloadConfirmButton` and
+`OricRomDownloadCancelButton`.
+
+### OricMenuView
+
+- **Root**: `OricMenuView`
+- **Configuration**: `OpenOricConfigButton` (enabled only while the emulator is stopped)
+
+### OricInfoView
+
+- **Root**: `OricInfoView`
+- **Keyboard reference**: `OricKeyboardMappingTable` (read-only table with separate Atmos, PC,
+  and Mac key columns)
+
 ### Vic20MenuView (sidebar)
 
 - **Root**: `Vic20MenuView`

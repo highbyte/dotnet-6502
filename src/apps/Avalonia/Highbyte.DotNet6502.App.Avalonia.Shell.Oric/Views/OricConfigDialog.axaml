@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels"
+        xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Shell.Oric.Views"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Oric.Views.OricConfigDialog"
+        x:DataType="vm:OricConfigDialogViewModel"
+        AutomationProperties.AutomationId="OricConfigDialog"
+        AutomationProperties.Name="Oric Atmos configuration"
+        Title="Oric Atmos Configuration"
+        Width="800" Height="620" MinWidth="520" MinHeight="440"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource ViewDefaultBg}">
+  <views:OricConfigDialogView ConfigurationChanged="OnConfigurationChanged"/>
+</Window>

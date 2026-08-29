@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Oric.Views.OricConfigDialogView"
+             x:DataType="vm:OricConfigDialogViewModel"
+             AutomationProperties.AutomationId="OricConfigDialogView"
+             AutomationProperties.Name="Oric configuration">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8" MaxWidth="760">
+    <Border Grid.Row="0" Classes="panel-container">
+      <TextBlock Text="Oric Atmos Configuration" Classes="h-center h2"/>
+    </Border>
+    <ScrollViewer Grid.Row="1" Classes="vertical-only">
+      <StackPanel Spacing="10">
+        <Border Classes="content-section">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Atmos BASIC ROM"/>
+            <TextBlock Text="The stock Atmos 48K requires the 16 KB BASIC 1.1b firmware ROM." Classes="small secondary-text" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding RomStatus}" AutomationProperties.AutomationId="OricRomStatusText" Classes="accent bold"/>
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" IsVisible="{Binding !IsRunningInWebAssembly}">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="ROM directory:" Classes="secondary-text"/>
+              <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding RomDirectory}" AutomationProperties.AutomationId="OricRomDirectoryTextBox"/>
+              <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding EffectiveRomDirectory, StringFormat='Effective: {0}'}" Classes="small secondary-text" TextWrapping="Wrap"/>
+            </Grid>
+            <WrapPanel>
+              <Button Content="Load ROM file" Click="LoadRom_Click" IsVisible="{Binding !IsRunningInWebAssembly}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricLoadRomButton" Margin="0,0,8,0"/>
+              <Button Content="Download ROM" Command="{Binding DownloadCommand}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricDownloadRomButton" Classes="primary" Margin="0,0,8,0"/>
+              <Button Content="Clear" Command="{Binding ClearCommand}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricClearRomButton" Classes="danger"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding RomSourceUrl}" Classes="small secondary-text" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="content-section">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Sound"/>
+            <CheckBox Content="Enable AY-3-8912 audio" IsChecked="{Binding AudioEnabled}" AutomationProperties.AutomationId="OricAudioEnabledCheckBox"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" TextWrapping="Wrap" Classes="small" Margin="0,8" AutomationProperties.AutomationId="OricConfigStatusText"/>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Cancel" Command="{Binding CancelCommand}" AutomationProperties.AutomationId="OricConfigCancelButton" Classes="cancel"/>
+      <Button Content="Save" Command="{Binding SaveCommand}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricConfigSaveButton" Classes="primary"/>
+    </StackPanel>
+  </Grid>
+</UserControl>
