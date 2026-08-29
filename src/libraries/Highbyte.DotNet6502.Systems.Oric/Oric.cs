@@ -6,7 +6,9 @@ using Highbyte.DotNet6502.Systems.Oric.Config;
 using Highbyte.DotNet6502.Systems.Oric.Hardware;
 using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Systems.Oric.Render;
+using Highbyte.DotNet6502.Systems.Oric.Utils;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -20,6 +22,10 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public const ushort ViaEndAddress = 0x03ff;
     public const ushort SystemRomStartAddress = 0xc000;
     public const int SystemRomSize = 0x4000;
+    public const ushort BasicProgramDefaultStartAddress = 0x0501;
+    public const ushort BasicProgramStartPointerAddress = 0x009a;
+    public const ushort BasicProgramEndPointerAddress = 0x009c;
+    public const ushort KeyboardCharacterLatchAddress = 0x02df;
     private const string ViaIrqSource = "Oric VIA";
 
     private readonly byte[] _ram = new byte[Memory.MAX_MEMORY_SIZE];
@@ -34,6 +40,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public Oric(OricConfig config, ILoggerFactory loggerFactory, Dictionary<string, byte[]>? romData = null)
     {
         Keyboard = new OricKeyboard();
+        TextPaste = new OricTextPaste(this, loggerFactory);
+        BasicTokenParser = new OricBasicTokenParser(this, loggerFactory);
         Ay = new Ay38912();
         CPU = new CPU(loggerFactory, CpuModelIds.Nmos6502, config.CpuCompatibilityProfile);
 
@@ -94,6 +102,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public Via6522 Via { get; }
     public Ay38912 Ay { get; }
     public OricKeyboard Keyboard { get; }
+    public OricTextPaste TextPaste { get; }
+    public OricBasicTokenParser BasicTokenParser { get; }
     public bool HasSystemRom => _hasSystemRom;
 
     public int TextCols => OricConfig.Columns;
@@ -149,6 +159,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
                 break;
         }
 
+        TextPaste.InsertNextCharacterToLatch();
         _renderProvider?.OnEndFrame();
         _audioProvider?.OnEndFrame();
         return ExecEvaluatorTriggerResult.NotTriggered;
@@ -182,6 +193,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public void Reset(ushort? cpuStartPos = null)
     {
         Keyboard.Reset();
+        TextPaste.Reset();
+        Mem[KeyboardCharacterLatchAddress] = 0;
         Ay.Reset();
         Via.Reset();
         if (_renderProvider is OricRasterizer rasterizer)
@@ -216,6 +229,11 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         }
         return false;
     }
+
+    public ushort GetBasicProgramStartAddress() => Mem.FetchWord(BasicProgramStartPointerAddress);
+
+    /// <summary>Returns the exclusive end address of the tokenized BASIC program.</summary>
+    public ushort GetBasicProgramEndAddress() => Mem.FetchWord(BasicProgramEndPointerAddress);
 
     private byte ReadViaPortAInput()
         => _ayBusCa2 && !_ayBusCb2 ? Ay.ReadData() : (byte)0xff;

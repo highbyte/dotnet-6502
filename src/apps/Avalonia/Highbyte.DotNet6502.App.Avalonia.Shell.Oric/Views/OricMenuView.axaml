@@ -5,17 +5,40 @@
              x:DataType="vm:OricMenuViewModel"
              AutomationProperties.AutomationId="OricMenuView"
              AutomationProperties.Name="Oric menu">
-  <Border Classes="collapsible-content">
-    <StackPanel Classes="spacing-tight">
-      <TextBlock Text="Configuration"/>
-      <Button Content="Oric Atmos config…"
-              Click="OpenConfig_Click"
-              IsEnabled="{Binding IsConfigEnabled}"
-              AutomationProperties.AutomationId="OpenOricConfigButton"
-              AutomationProperties.Name="Open Oric Atmos configuration"
+  <StackPanel Classes="spacing-tight">
+    <Grid Classes="spacing-tight">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <Button Grid.Column="0"
+              Content="Copy"
+              Command="{Binding CopyBasicSourceCommand}"
+              IsEnabled="{Binding IsCopyPasteEnabled}"
+              AutomationProperties.AutomationId="CopyBasicButton"
+              AutomationProperties.Name="Copy Oric BASIC source to clipboard"
               Classes="small"/>
-      <TextBlock Text="ROM and AY audio settings. Editable while the emulator is stopped."
-                 Classes="small secondary-text" TextWrapping="Wrap"/>
-    </StackPanel>
-  </Border>
+      <Button Grid.Column="1"
+              Content="Paste"
+              Command="{Binding PasteTextCommand}"
+              IsEnabled="{Binding IsCopyPasteEnabled}"
+              AutomationProperties.AutomationId="PasteTextButton"
+              AutomationProperties.Name="Paste text into Oric"
+              Classes="small"/>
+    </Grid>
+
+    <Border Classes="collapsible-content">
+      <StackPanel Classes="spacing-tight">
+        <TextBlock Text="Configuration"/>
+        <Button Content="Oric Atmos config…"
+                Click="OpenConfig_Click"
+                IsEnabled="{Binding IsConfigEnabled}"
+                AutomationProperties.AutomationId="OpenOricConfigButton"
+                AutomationProperties.Name="Open Oric Atmos configuration"
+                Classes="small"/>
+        <TextBlock Text="ROM and AY audio settings. Editable while the emulator is stopped."
+                   Classes="small secondary-text" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
+  </StackPanel>
 </UserControl>

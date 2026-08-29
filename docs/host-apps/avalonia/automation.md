@@ -155,6 +155,7 @@ copyrighted firmware. Its buttons are `OricRomDownloadConfirmButton` and
 ### OricMenuView
 
 - **Root**: `OricMenuView`
+- **Basic clipboard**: `CopyBasicButton`, `PasteTextButton` (enabled while the emulator is running)
 - **Configuration**: `OpenOricConfigButton` (enabled only while the emulator is stopped)
 
 ### OricInfoView

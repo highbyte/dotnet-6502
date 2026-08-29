@@ -14,7 +14,10 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 - The Atmos eight-by-eight keyboard matrix. Host arrow, modifier, editing, alphanumeric and
   punctuation keys map to their physical Oric keys. PC Alt and Mac Option map to the Atmos
   **FUNCT** key; PC Backspace and Mac Delete map to **DEL**. **F12** remains the emulator
-  machine-code monitor shortcut.
+  machine-code monitor shortcut. Atmos BASIC control combinations such as **Ctrl+T** for
+  CAPS/lowercase and **Ctrl+C** to interrupt a program use the host Control key.
+- Copying the tokenized Atmos BASIC 1.1 program as source text and pasting clipboard text through
+  the ROM keyboard input path. BASIC keywords must be uppercase, as on the real machine.
 - The 240 &times; 224 active display in text and 240 &times; 200 hires modes, including serial
   ink, paper, character and screen attributes, alternate character sets, inverse and flashing
   characters, and the three text rows below hires graphics.

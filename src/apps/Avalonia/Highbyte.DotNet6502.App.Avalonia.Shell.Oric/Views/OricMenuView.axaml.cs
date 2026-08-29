@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels;
@@ -13,8 +14,59 @@ namespace Highbyte.DotNet6502.App.Avalonia.Shell.Oric.Views;
 public partial class OricMenuView : UserControl
 {
     private OricMenuViewModel? ViewModel => DataContext as OricMenuViewModel;
+    private OricMenuViewModel? _subscribedViewModel;
 
-    public OricMenuView() => AvaloniaXamlLoader.Load(this);
+    public OricMenuView()
+    {
+        AvaloniaXamlLoader.Load(this);
+        DataContextChanged += (_, _) => UpdateViewModelSubscriptions(ViewModel);
+        AttachedToVisualTree += (_, _) => UpdateViewModelSubscriptions(ViewModel);
+        DetachedFromVisualTree += (_, _) => UpdateViewModelSubscriptions(null);
+    }
+
+    private void UpdateViewModelSubscriptions(OricMenuViewModel? newViewModel)
+    {
+        if (ReferenceEquals(_subscribedViewModel, newViewModel))
+            return;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested -= OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested -= OnClipboardPasteRequested;
+        }
+
+        _subscribedViewModel = newViewModel;
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
+            _subscribedViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
+        }
+    }
+
+    private void OnClipboardCopyRequested(object? sender, string text)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+                return;
+
+            using var data = new DataTransfer();
+            data.Add(DataTransferItem.CreateText(text));
+            await clipboard.SetDataAsync(data);
+        });
+
+    private void OnClipboardPasteRequested(object? sender, TaskCompletionSource<string?> completion)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+            {
+                completion.TrySetResult(null);
+                return;
+            }
+
+            using var data = await clipboard.TryGetDataAsync();
+            completion.TrySetResult(data is not null ? await data.TryGetTextAsync() : null);
+        });
 
     private void OpenConfig_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         => SafeAsyncHelper.Execute(OpenConfigAsync);
