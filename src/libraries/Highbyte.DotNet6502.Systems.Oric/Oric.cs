@@ -35,7 +35,6 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     private const ushort AtmosBasic11bTapeReadByteAddress = 0xe6c9;
     private const ushort AtmosBasic11bTapeReadByteReturnAddress = 0xe6fb;
     private const ushort AtmosTapeReadByteValueAddress = 0x002f;
-    private const ushort AtmosTapeReadByteZeroPageMirrorAddress = 0x02b1;
 
     private readonly byte[] _ram = new byte[Memory.MAX_MEMORY_SIZE];
     private readonly bool _hasSystemRom;
@@ -362,7 +361,17 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         if (CPU.PC == AtmosBasic11bTapeGetSyncAddress)
         {
             if (Tape.SeekToNextSyncByte())
+            {
+                // Match the state produced by the ROM routine after it has read its three-byte
+                // leader. In particular X must be zero: the standard loader stores it as the
+                // initial tape-error count after finding the header marker.
+                CPU.A = OricTapParser.SyncByte;
+                CPU.X = 0;
+                CPU.ProcessorStatus.Zero = true;
+                CPU.ProcessorStatus.Negative = false;
+                CPU.ProcessorStatus.Carry = true;
                 CPU.PC = AtmosBasic11bTapeGetSyncReturnAddress;
+            }
             return;
         }
 
@@ -371,9 +380,11 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
 
         CPU.A = value;
         CPU.ProcessorStatus.Zero = value == 0;
-        CPU.ProcessorStatus.Carry = true;
+        CPU.ProcessorStatus.Negative = (value & 0x80) != 0;
+        // E6C9 returns carry clear after a successfully decoded byte. Fast loaders such as The
+        // Hobbit branch to their TAPE ERROR path when carry is set.
+        CPU.ProcessorStatus.Carry = false;
         Mem[AtmosTapeReadByteValueAddress] = value;
-        Mem[AtmosTapeReadByteZeroPageMirrorAddress] = 0;
         CPU.PC = AtmosBasic11bTapeReadByteReturnAddress;
     }
 

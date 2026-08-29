@@ -185,19 +185,58 @@ public sealed class OricTapParserTests
     {
         var oric = BuildOricWithTapeRoutineReturns();
         oric.InsertTape(BuildTap());
+        oric.CPU.X = 0x7f;
+        oric.CPU.Y = 0x6a;
+        oric.Mem[0x02b1] = 0x5a;
 
         ExecuteHookAsSubroutine(oric, 0xe735);
 
         Assert.Equal(0, oric.Tape.Position);
+        Assert.Equal(OricTapParser.SyncByte, oric.CPU.A);
+        Assert.Equal(0, oric.CPU.X);
+        Assert.Equal(0x6a, oric.CPU.Y);
+        Assert.True(oric.CPU.ProcessorStatus.Carry);
+        Assert.True(oric.CPU.ProcessorStatus.Zero);
+        Assert.False(oric.CPU.ProcessorStatus.Negative);
 
         ExecuteHookAsSubroutine(oric, 0xe6c9);
 
         Assert.Equal(1, oric.Tape.Position);
         Assert.Equal(OricTapParser.SyncByte, oric.CPU.A);
         Assert.Equal(OricTapParser.SyncByte, oric.Mem[0x002f]);
-        Assert.Equal(0, oric.Mem[0x02b1]);
-        Assert.True(oric.CPU.ProcessorStatus.Carry);
+        Assert.Equal(0x5a, oric.Mem[0x02b1]);
+        Assert.False(oric.CPU.ProcessorStatus.Carry);
         Assert.False(oric.CPU.ProcessorStatus.Zero);
+        Assert.False(oric.CPU.ProcessorStatus.Negative);
+    }
+
+    [Fact]
+    public void AtmosRomTapeBridgeReturnsSuccessfulLdaStatusForEveryByte()
+    {
+        var oric = BuildOricWithTapeRoutineReturns();
+        var tapData = BuildTap(
+            fileType: OricTapFile.MachineCodeFileType,
+            autoRunFlag: 0x80,
+            payload: [0x00, 0x7f, 0x80, 0xff]);
+        oric.InsertTape(tapData);
+        oric.CPU.X = 0x34;
+        oric.CPU.Y = 0x56;
+
+        foreach (var expected in tapData)
+        {
+            oric.CPU.ProcessorStatus.Carry = true;
+            oric.CPU.ProcessorStatus.Zero = expected != 0;
+            oric.CPU.ProcessorStatus.Negative = (expected & 0x80) == 0;
+
+            ExecuteHookAsSubroutine(oric, 0xe6c9);
+
+            Assert.Equal(expected, oric.CPU.A);
+            Assert.False(oric.CPU.ProcessorStatus.Carry);
+            Assert.Equal(expected == 0, oric.CPU.ProcessorStatus.Zero);
+            Assert.Equal((expected & 0x80) != 0, oric.CPU.ProcessorStatus.Negative);
+            Assert.Equal(0x34, oric.CPU.X);
+            Assert.Equal(0x56, oric.CPU.Y);
+        }
     }
 
     [Fact]
