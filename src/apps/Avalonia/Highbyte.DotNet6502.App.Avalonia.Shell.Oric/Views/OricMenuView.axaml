@@ -29,6 +29,39 @@
 
     <Border Classes="collapsible-content">
       <StackPanel Classes="spacing-tight">
+        <TextBlock Text="Download &amp; Run programs"/>
+        <TextBlock Text="Download a known Oric program as a TAP image and start it."
+                   TextWrapping="Wrap"
+                   Classes="small secondary-text"/>
+        <ComboBox ItemsSource="{Binding PreloadedPrograms}"
+                  SelectedValue="{Binding SelectedPreloadedProgram}"
+                  DisplayMemberBinding="{Binding Value}"
+                  SelectedValueBinding="{Binding Key}"
+                  AutomationProperties.AutomationId="OricDownloadProgramComboBox"
+                  AutomationProperties.Name="Downloadable Oric program"
+                  HorizontalAlignment="Stretch"/>
+        <Button Content="Download &amp; run"
+                Command="{Binding LoadPreloadedProgramCommand}"
+                IsVisible="{Binding HasSelectedPreloadedProgram}"
+                AutomationProperties.AutomationId="OricDownloadAndRunButton"
+                AutomationProperties.Name="Download and run the selected Oric program"
+                Classes="small"/>
+        <TextBlock Text="Downloading and starting program..."
+                   IsVisible="{Binding IsLoadingPreloadedProgram}"
+                   AutomationProperties.AutomationId="OricDownloadStatusText"
+                   Classes="small secondary-text"/>
+        <Border Classes="error-container-small"
+                IsVisible="{Binding HasLatestPreloadedProgramError}">
+          <TextBlock Text="{Binding LatestPreloadedProgramError}"
+                     TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="OricDownloadErrorText"
+                     Classes="small"/>
+        </Border>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="collapsible-content">
+      <StackPanel Classes="spacing-tight">
         <TextBlock Text="Load BASIC .tap files"/>
         <Button Content="Load BASIC .tap…"
                 Click="LoadBasicTapFile_Click"

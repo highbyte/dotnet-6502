@@ -30,6 +30,12 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public const ushort BasicFreeMemoryStartPointerAddress = 0x00a0;
     public const ushort KeyboardCharacterLatchAddress = 0x02df;
     private const string ViaIrqSource = "Oric VIA";
+    private const ushort AtmosBasic11bTapeGetSyncAddress = 0xe735;
+    private const ushort AtmosBasic11bTapeGetSyncReturnAddress = 0xe759;
+    private const ushort AtmosBasic11bTapeReadByteAddress = 0xe6c9;
+    private const ushort AtmosBasic11bTapeReadByteReturnAddress = 0xe6fb;
+    private const ushort AtmosTapeReadByteValueAddress = 0x002f;
+    private const ushort AtmosTapeReadByteZeroPageMirrorAddress = 0x02b1;
 
     private readonly byte[] _ram = new byte[Memory.MAX_MEMORY_SIZE];
     private readonly bool _hasSystemRom;
@@ -45,6 +51,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         Keyboard = new OricKeyboard();
         TextPaste = new OricTextPaste(this, loggerFactory);
         BasicTokenParser = new OricBasicTokenParser(this, loggerFactory);
+        Tape = new OricTape();
         Ay = new Ay38912();
         CPU = new CPU(loggerFactory, CpuModelIds.Nmos6502, config.CpuCompatibilityProfile);
 
@@ -95,6 +102,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     [
         new("VIA IFR", () => $"${Via.InterruptFlags:x2}"),
         new("AY register", () => Ay.SelectedRegister.ToString()),
+        new("Tape", () => Tape.IsInserted ? $"{Tape.Position}/{Tape.Length}" : "Ejected"),
     ];
 
     public CPU CPU { get; }
@@ -107,6 +115,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public OricKeyboard Keyboard { get; }
     public OricTextPaste TextPaste { get; }
     public OricBasicTokenParser BasicTokenParser { get; }
+    public OricTape Tape { get; }
     public bool HasSystemRom => _hasSystemRom;
 
     public int TextCols => OricConfig.Columns;
@@ -186,6 +195,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
             }
         }
 
+        ApplyTapeRomHook();
         instructionExecResult = CPU.ExecuteOneInstruction(Mem).LastInstructionExecResult;
         Via.ProcessCycles((int)instructionExecResult.CyclesConsumed);
         _renderProvider?.OnAfterInstruction();
@@ -239,6 +249,36 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public ushort GetBasicProgramEndAddress() => Mem.FetchWord(BasicProgramEndPointerAddress);
 
     /// <summary>
+    /// Inserts and rewinds a byte-level TAP image. Standard Atmos ROM tape routines consume the
+    /// bytes in order, allowing a program to issue additional <c>CLOAD</c> commands for later files.
+    /// </summary>
+    public IReadOnlyList<OricTapFile> InsertTape(byte[] tapData) => Tape.Insert(tapData);
+
+    public void EjectTape() => Tape.Eject();
+
+    public void RewindTape() => Tape.Rewind();
+
+    /// <summary>
+    /// Directly loads one file from a TAP image without running the cassette routines. This is a
+    /// host convenience for simple BASIC and machine-code images; multi-stage tapes should instead
+    /// be inserted and loaded through the Atmos ROM.
+    /// </summary>
+    public OricTapFile LoadTap(byte[] tapData, int fileIndex = 0, bool honorAutoRun = true)
+    {
+        var files = OricTapParser.ParseAll(tapData);
+        if ((uint)fileIndex >= (uint)files.Count)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(fileIndex),
+                $"The Oric TAP image contains {files.Count} file(s), so file index {fileIndex} cannot be loaded.");
+        }
+
+        var tapFile = files[fileIndex];
+        LoadTapFile(tapFile, honorAutoRun);
+        return tapFile;
+    }
+
+    /// <summary>
     /// Loads the first BASIC file from an Oric byte-level tape image directly into RAM and
     /// initialises the Extended BASIC memory pointers. Cassette signal emulation is not involved.
     /// </summary>
@@ -250,17 +290,42 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
             throw new InvalidDataException(
                 $"The Oric TAP file '{tapFile.Name}' is not a BASIC program (type ${tapFile.FileType:X2}).");
         }
-        if (tapFile.StartAddress != BasicProgramDefaultStartAddress)
+        LoadTapFile(tapFile, honorAutoRun: false);
+        return tapFile;
+    }
+
+    /// <summary>Directly loads a parsed BASIC or machine-code tape file into Oric memory.</summary>
+    public void LoadTapFile(OricTapFile tapFile, bool honorAutoRun = true)
+    {
+        ArgumentNullException.ThrowIfNull(tapFile);
+
+        var expectedLength = tapFile.EndAddress - tapFile.StartAddress + 1;
+        if (tapFile.Data.Length != expectedLength)
+            throw new InvalidDataException("The Oric TAP payload length does not match its address range.");
+        if (tapFile.EndAddress >= SystemRomStartAddress)
+            throw new InvalidDataException("The Oric TAP payload overlaps the system ROM.");
+        if (!tapFile.IsBasic && !tapFile.IsMachineCode)
+        {
+            throw new InvalidDataException(
+                $"The Oric TAP file '{tapFile.Name}' has unsupported type ${tapFile.FileType:X2}.");
+        }
+        if (tapFile.IsBasic && tapFile.StartAddress != BasicProgramDefaultStartAddress)
         {
             throw new InvalidDataException(
                 $"The Oric BASIC program must load at ${BasicProgramDefaultStartAddress:X4}, not ${tapFile.StartAddress:X4}.");
         }
-        if (tapFile.EndAddress >= SystemRomStartAddress)
-            throw new InvalidDataException("The Oric TAP payload overlaps the system ROM.");
 
         Mem.StoreData(tapFile.StartAddress, tapFile.Data);
-        InitBasicMemoryVariables(tapFile.StartAddress, tapFile.EndAddress);
-        return tapFile;
+        if (tapFile.IsBasic)
+            InitBasicMemoryVariables(tapFile.StartAddress, tapFile.EndAddress);
+
+        if (!honorAutoRun || !tapFile.IsAutoRun)
+            return;
+
+        if (tapFile.IsBasic)
+            TextPaste.Paste("RUN\n");
+        else
+            CPU.PC = tapFile.StartAddress;
     }
 
     /// <summary>
@@ -283,6 +348,33 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         Mem.WriteWord(BasicProgramEndPointerAddress, programEndAddress);
         Mem.WriteWord(BasicArrayStartPointerAddress, programEndAddress);
         Mem.WriteWord(BasicFreeMemoryStartPointerAddress, programEndAddress);
+    }
+
+    /// <summary>
+    /// Bridges the supported Atmos 1.1b ROM's byte-level tape routines to the virtual TAP stream.
+    /// Software with custom pulse loaders still requires cassette-signal emulation.
+    /// </summary>
+    private void ApplyTapeRomHook()
+    {
+        if (!_hasSystemRom || !Tape.IsInserted)
+            return;
+
+        if (CPU.PC == AtmosBasic11bTapeGetSyncAddress)
+        {
+            if (Tape.SeekToNextSyncByte())
+                CPU.PC = AtmosBasic11bTapeGetSyncReturnAddress;
+            return;
+        }
+
+        if (CPU.PC != AtmosBasic11bTapeReadByteAddress || !Tape.TryReadByte(out var value))
+            return;
+
+        CPU.A = value;
+        CPU.ProcessorStatus.Zero = value == 0;
+        CPU.ProcessorStatus.Carry = true;
+        Mem[AtmosTapeReadByteValueAddress] = value;
+        Mem[AtmosTapeReadByteZeroPageMirrorAddress] = 0;
+        CPU.PC = AtmosBasic11bTapeReadByteReturnAddress;
     }
 
     private byte ReadViaPortAInput()

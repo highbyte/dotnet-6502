@@ -1,6 +1,8 @@
 using System.Text;
+using Highbyte.DotNet6502.Systems.Oric.Config;
 using Highbyte.DotNet6502.Systems.Oric.Tape;
 using Highbyte.DotNet6502.Utils;
+using Microsoft.Extensions.Logging.Abstractions;
 using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
 
 namespace Highbyte.DotNet6502.Systems.Tests.Oric;
@@ -85,6 +87,143 @@ public sealed class OricTapParserTests
     }
 
     [Fact]
+    public void MultiFileImageParsesEveryRecordAcrossTapePadding()
+    {
+        var first = BuildTap(name: "FIRST", payload: [0x01, 0x02]);
+        var second = BuildTap(
+            fileType: OricTapFile.MachineCodeFileType,
+            startAddress: 0x0600,
+            name: "SECOND",
+            payload: [0xaa, 0xbb, 0xcc]);
+        byte[] tapData = [.. first, 0x55, 0x00, .. second];
+
+        var files = OricTapParser.ParseAll(tapData);
+
+        Assert.Collection(
+            files,
+            file =>
+            {
+                Assert.Equal("FIRST", file.Name);
+                Assert.True(file.IsBasic);
+                Assert.Equal(new byte[] { 0x01, 0x02 }, file.Data);
+            },
+            file =>
+            {
+                Assert.Equal("SECOND", file.Name);
+                Assert.True(file.IsMachineCode);
+                Assert.Equal(new byte[] { 0xaa, 0xbb, 0xcc }, file.Data);
+            });
+    }
+
+    [Fact]
+    public void DirectLoaderLoadsMachineCodeWithoutAutoRunningIt()
+    {
+        var oric = new OricMachine();
+        oric.CPU.PC = 0x1234;
+        var tapData = BuildTap(
+            fileType: OricTapFile.MachineCodeFileType,
+            startAddress: 0x0600,
+            payload: [0xea, 0x60]);
+
+        var tapFile = oric.LoadTap(tapData);
+
+        Assert.True(tapFile.IsMachineCode);
+        Assert.Equal(new byte[] { 0xea, 0x60 }, oric.Mem.ReadData(0x0600, 2));
+        Assert.Equal(0x1234, oric.CPU.PC);
+    }
+
+    [Fact]
+    public void DirectLoaderStartsAutoRunMachineCodeAtItsLoadAddress()
+    {
+        var oric = new OricMachine();
+        var tapData = BuildTap(
+            fileType: OricTapFile.MachineCodeFileType,
+            autoRunFlag: 0x80,
+            startAddress: 0x0600,
+            payload: [0x60]);
+
+        oric.LoadTap(tapData);
+
+        Assert.Equal(0x0600, oric.CPU.PC);
+    }
+
+    [Fact]
+    public void DirectLoaderQueuesRunForAnAutoRunBasicProgram()
+    {
+        var oric = new OricMachine();
+        var tapData = BuildTap(autoRunFlag: 0x80);
+
+        oric.LoadTap(tapData);
+        oric.ExecuteOneFrame();
+
+        Assert.Equal((byte)('R' | 0x80), oric.Mem[OricMachine.KeyboardCharacterLatchAddress]);
+    }
+
+    [Fact]
+    public void InsertedTapeIsValidatedAndCanBeRewoundOrEjected()
+    {
+        var oric = new OricMachine();
+        var tapData = BuildTap();
+
+        var files = oric.InsertTape(tapData);
+
+        Assert.Single(files);
+        Assert.True(oric.Tape.IsInserted);
+        Assert.Equal(tapData.Length, oric.Tape.Length);
+        Assert.Equal(0, oric.Tape.Position);
+
+        oric.RewindTape();
+        Assert.Equal(0, oric.Tape.Position);
+
+        oric.EjectTape();
+        Assert.False(oric.Tape.IsInserted);
+        Assert.Empty(oric.Tape.Files);
+    }
+
+    [Fact]
+    public void AtmosRomTapeBridgeReadsFromTheInsertedTapStream()
+    {
+        var oric = BuildOricWithTapeRoutineReturns();
+        oric.InsertTape(BuildTap());
+
+        ExecuteHookAsSubroutine(oric, 0xe735);
+
+        Assert.Equal(0, oric.Tape.Position);
+
+        ExecuteHookAsSubroutine(oric, 0xe6c9);
+
+        Assert.Equal(1, oric.Tape.Position);
+        Assert.Equal(OricTapParser.SyncByte, oric.CPU.A);
+        Assert.Equal(OricTapParser.SyncByte, oric.Mem[0x002f]);
+        Assert.Equal(0, oric.Mem[0x02b1]);
+        Assert.True(oric.CPU.ProcessorStatus.Carry);
+        Assert.False(oric.CPU.ProcessorStatus.Zero);
+    }
+
+    [Fact]
+    public void AtmosRomTapeBridgeKeepsItsCursorForTheNextFile()
+    {
+        var oric = BuildOricWithTapeRoutineReturns();
+        var first = BuildTap(name: "FIRST", payload: [0x01]);
+        var second = BuildTap(
+            fileType: OricTapFile.MachineCodeFileType,
+            startAddress: 0x0600,
+            name: "SECOND",
+            payload: [0x02]);
+        oric.InsertTape([.. first, .. second]);
+
+        for (var index = 0; index < first.Length; index++)
+            ExecuteHookAsSubroutine(oric, 0xe6c9);
+
+        ExecuteHookAsSubroutine(oric, 0xe735);
+        Assert.Equal(first.Length, oric.Tape.Position);
+
+        ExecuteHookAsSubroutine(oric, 0xe6c9);
+        Assert.Equal(OricTapParser.SyncByte, oric.CPU.A);
+        Assert.Equal(first.Length + 1, oric.Tape.Position);
+    }
+
+    [Fact]
     public void MachineCodeTapeIsRejectedByTheBasicLoader()
     {
         var oric = new OricMachine();
@@ -131,9 +270,11 @@ public sealed class OricTapParserTests
         byte autoRunFlag = 0,
         ushort startAddress = OricMachine.BasicProgramDefaultStartAddress,
         ushort? endAddressOverride = null,
-        bool includeFileNameTerminator = true)
+        bool includeFileNameTerminator = true,
+        string name = "TEST",
+        byte[]? payload = null)
     {
-        byte[] payload = [0, 0, 0];
+        payload ??= [0, 0, 0];
         var endAddress = endAddressOverride ?? (ushort)(startAddress + payload.Length - 1);
         var bytes = new List<byte>();
         bytes.AddRange(Enumerable.Repeat(OricTapParser.SyncByte, syncByteCount));
@@ -149,13 +290,38 @@ public sealed class OricTapParserTests
             (byte)startAddress,
             0x00,
         ]);
-        bytes.AddRange(Encoding.ASCII.GetBytes("TEST"));
+        bytes.AddRange(Encoding.ASCII.GetBytes(name));
         if (includeFileNameTerminator)
         {
             bytes.Add(0);
             bytes.AddRange(payload);
         }
         return bytes.ToArray();
+    }
+
+    private static OricMachine BuildOricWithTapeRoutineReturns()
+    {
+        var rom = new byte[OricMachine.SystemRomSize];
+        rom[0xe759 - OricMachine.SystemRomStartAddress] = 0x60;
+        rom[0xe6fb - OricMachine.SystemRomStartAddress] = 0x60;
+        return new OricMachine(
+            new Highbyte.DotNet6502.Systems.Oric.OricConfig(),
+            NullLoggerFactory.Instance,
+            new Dictionary<string, byte[]> { [OricSystemConfig.SystemRomName] = rom });
+    }
+
+    private static void ExecuteHookAsSubroutine(OricMachine oric, ushort hookAddress)
+    {
+        const ushort returnAddress = 0x2000;
+        var stackedAddress = (ushort)(returnAddress - 1);
+        oric.CPU.SP = 0xfd;
+        oric.Mem[0x01fe] = (byte)stackedAddress;
+        oric.Mem[0x01ff] = (byte)(stackedAddress >> 8);
+        oric.CPU.PC = hookAddress;
+
+        oric.ExecuteOneInstruction(out _);
+
+        Assert.Equal(returnAddress, oric.CPU.PC);
     }
 
     private static string GetSamplePath(string sampleName)

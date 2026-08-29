@@ -18,10 +18,15 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   CAPS/lowercase and **Ctrl+C** to interrupt a program use the host Control key.
 - Copying the tokenized Atmos BASIC 1.1 program as source text and pasting clipboard text through
   the ROM keyboard input path. BASIC keywords must be uppercase, as on the real machine.
-- Loading BASIC programs from byte-level Oric `.tap` files directly into RAM, including Atmos
-  BASIC pointer initialization and embedded examples for text, hires graphics, sound effects,
-  three-voice music, and AY tone/noise/envelope control. Multi-file tapes and cassette signal
-  timing are outside this direct-loading path.
+- Parsing multi-file byte-level Oric `.tap` images and directly loading BASIC or machine-code
+  records into RAM, including load-address and auto-run handling. A virtual tape cursor also feeds
+  standard Atmos ROM `CLOAD` calls in sequence, so programs can load later records from the same
+  tape. Embedded BASIC examples cover text, hires graphics, sound effects, three-voice music, and
+  AY tone/noise/envelope control.
+- Avalonia **Download & Run** support for a curated set of Oric programs hosted by Oric.org. TAP
+  images may be downloaded directly or extracted from a named entry in a ZIP archive, are cached
+  by the host application, and are started through the standard Atmos ROM cassette routine. The
+  Browser host routes these downloads through its configured CORS proxy.
 - The 240 &times; 224 active display in text and 240 &times; 200 hires modes, including serial
   ink, paper, character and screen attributes, alternate character sets, inverse and flashing
   characters, and the three text rows below hires graphics.
@@ -29,7 +34,8 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 
 ## Not yet implemented
 
-- Cassette signal input/output and tape transport emulation.
+- Cassette pulse input/output, tape recording/`CSAVE`, and software that bypasses the Atmos ROM
+  with a custom pulse loader.
 - Microdisc or Jasmin floppy controllers and disk images.
 - Printer output, joystick interfaces, snapshots and Oric-specific monitor commands.
 - Cycle-level ULA bus contention and analogue AY output filtering.

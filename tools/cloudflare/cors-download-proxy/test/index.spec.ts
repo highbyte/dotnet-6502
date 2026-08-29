@@ -85,6 +85,7 @@ describe("cors download proxy worker", () => {
 					"mirrors.apple2.org.za",
 					"archive.org",
 					"*.archive.org",
+					"cdn.oric.org",
 				],
 			},
 		});
@@ -153,6 +154,7 @@ describe("cors download proxy worker", () => {
 				"mirrors.apple2.org.za",
 				"archive.org",
 				"*.archive.org",
+				"cdn.oric.org",
 			],
 			rateLimits: {
 				burst: { limit: 8, periodSeconds: 10 },
