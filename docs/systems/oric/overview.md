@@ -18,6 +18,10 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   CAPS/lowercase and **Ctrl+C** to interrupt a program use the host Control key.
 - Copying the tokenized Atmos BASIC 1.1 program as source text and pasting clipboard text through
   the ROM keyboard input path. BASIC keywords must be uppercase, as on the real machine.
+- Loading BASIC programs from byte-level Oric `.tap` files directly into RAM, including Atmos
+  BASIC pointer initialization and embedded examples for text, hires graphics, sound effects,
+  three-voice music, and AY tone/noise/envelope control. Multi-file tapes and cassette signal
+  timing are outside this direct-loading path.
 - The 240 &times; 224 active display in text and 240 &times; 200 hires modes, including serial
   ink, paper, character and screen attributes, alternate character sets, inverse and flashing
   characters, and the three text rows below hires graphics.
@@ -25,7 +29,7 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 
 ## Not yet implemented
 
-- Cassette input/output and `.tap` image loading.
+- Cassette signal input/output and tape transport emulation.
 - Microdisc or Jasmin floppy controllers and disk images.
 - Printer output, joystick interfaces, snapshots and Oric-specific monitor commands.
 - Cycle-level ULA bus contention and analogue AY output filtering.

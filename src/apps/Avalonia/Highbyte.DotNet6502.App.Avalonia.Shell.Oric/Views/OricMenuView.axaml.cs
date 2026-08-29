@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Oric;
@@ -66,6 +67,27 @@ public partial class OricMenuView : UserControl
 
             using var data = await clipboard.TryGetDataAsync();
             completion.TrySetResult(data is not null ? await data.TryGetTextAsync() : null);
+        });
+
+    private void LoadBasicTapFile_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var services = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+            var filePicker = services?.GetService<IAppFilePicker>();
+            if (filePicker == null)
+                return;
+
+            var selectedFile = await filePicker.OpenFileAsync(
+                this,
+                new AppFilePickerOpenOptions(
+                    "Load Oric BASIC TAP file",
+                    AllowMultiple: false,
+                    [
+                        new AppFilePickerFileType("Oric tape files", ["*.tap"]),
+                        AppFilePickerFileType.AllFiles,
+                    ]));
+            if (selectedFile != null && ViewModel != null)
+                _ = ViewModel.LoadBasicTapFileCommand.Execute(selectedFile.Bytes);
         });
 
     private void OpenConfig_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)

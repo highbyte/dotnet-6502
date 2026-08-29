@@ -29,6 +29,43 @@
 
     <Border Classes="collapsible-content">
       <StackPanel Classes="spacing-tight">
+        <TextBlock Text="Load BASIC .tap files"/>
+        <Button Content="Load BASIC .tap…"
+                Click="LoadBasicTapFile_Click"
+                IsEnabled="{Binding IsFileOperationEnabled}"
+                AutomationProperties.AutomationId="LoadBasicButton"
+                AutomationProperties.Name="Load Oric BASIC TAP file"
+                Classes="small"/>
+
+        <TextBlock Text="BASIC example files"
+                   Classes="small secondary-text"/>
+        <Grid Classes="spacing-tight">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <ComboBox Grid.Column="0"
+                    ItemsSource="{Binding BasicExamples}"
+                    SelectedValue="{Binding SelectedBasicExample}"
+                    DisplayMemberBinding="{Binding Value}"
+                    SelectedValueBinding="{Binding Key}"
+                    IsEnabled="{Binding IsFileOperationEnabled}"
+                    AutomationProperties.AutomationId="BasicExampleComboBox"
+                    AutomationProperties.Name="Oric BASIC example file"
+                    Classes="small"
+                    MinWidth="60"/>
+          <Button Grid.Column="1"
+                  Content="Load"
+                  Command="{Binding LoadBasicExampleCommand}"
+                  AutomationProperties.AutomationId="LoadBasicExampleButton"
+                  AutomationProperties.Name="Load Oric BASIC example"
+                  Classes="primary small"/>
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="collapsible-content">
+      <StackPanel Classes="spacing-tight">
         <TextBlock Text="Configuration"/>
         <Button Content="Oric Atmos config…"
                 Click="OpenConfig_Click"

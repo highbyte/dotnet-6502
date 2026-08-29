@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Systems.Oric.Config;
 using Highbyte.DotNet6502.Systems.Oric.Hardware;
 using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Systems.Oric.Render;
+using Highbyte.DotNet6502.Systems.Oric.Tape;
 using Highbyte.DotNet6502.Systems.Oric.Utils;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Utils;
@@ -25,6 +26,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public const ushort BasicProgramDefaultStartAddress = 0x0501;
     public const ushort BasicProgramStartPointerAddress = 0x009a;
     public const ushort BasicProgramEndPointerAddress = 0x009c;
+    public const ushort BasicArrayStartPointerAddress = 0x009e;
+    public const ushort BasicFreeMemoryStartPointerAddress = 0x00a0;
     public const ushort KeyboardCharacterLatchAddress = 0x02df;
     private const string ViaIrqSource = "Oric VIA";
 
@@ -234,6 +237,53 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
 
     /// <summary>Returns the exclusive end address of the tokenized BASIC program.</summary>
     public ushort GetBasicProgramEndAddress() => Mem.FetchWord(BasicProgramEndPointerAddress);
+
+    /// <summary>
+    /// Loads the first BASIC file from an Oric byte-level tape image directly into RAM and
+    /// initialises the Extended BASIC memory pointers. Cassette signal emulation is not involved.
+    /// </summary>
+    public OricTapFile LoadBasicTap(byte[] tapData)
+    {
+        var tapFile = OricTapParser.Parse(tapData);
+        if (!tapFile.IsBasic)
+        {
+            throw new InvalidDataException(
+                $"The Oric TAP file '{tapFile.Name}' is not a BASIC program (type ${tapFile.FileType:X2}).");
+        }
+        if (tapFile.StartAddress != BasicProgramDefaultStartAddress)
+        {
+            throw new InvalidDataException(
+                $"The Oric BASIC program must load at ${BasicProgramDefaultStartAddress:X4}, not ${tapFile.StartAddress:X4}.");
+        }
+        if (tapFile.EndAddress >= SystemRomStartAddress)
+            throw new InvalidDataException("The Oric TAP payload overlaps the system ROM.");
+
+        Mem.StoreData(tapFile.StartAddress, tapFile.Data);
+        InitBasicMemoryVariables(tapFile.StartAddress, tapFile.EndAddress);
+        return tapFile;
+    }
+
+    /// <summary>
+    /// Initialises Extended BASIC after a tokenized program has been placed directly in RAM.
+    /// The end, array, and free-memory pointers use BASIC's exclusive program end address. An OSDK
+    /// tape payload includes a trailing byte at that address, matching the state established by
+    /// the Atmos ROM loader.
+    /// </summary>
+    public void InitBasicMemoryVariables(ushort loadedAtAddress, ushort programEndAddress)
+    {
+        if (loadedAtAddress == 0 ||
+            programEndAddress <= loadedAtAddress ||
+            programEndAddress >= SystemRomStartAddress)
+        {
+            throw new ArgumentOutOfRangeException(nameof(programEndAddress), "The BASIC program does not fit in Oric RAM.");
+        }
+
+        Mem[(ushort)(loadedAtAddress - 1)] = 0;
+        Mem.WriteWord(BasicProgramStartPointerAddress, loadedAtAddress);
+        Mem.WriteWord(BasicProgramEndPointerAddress, programEndAddress);
+        Mem.WriteWord(BasicArrayStartPointerAddress, programEndAddress);
+        Mem.WriteWord(BasicFreeMemoryStartPointerAddress, programEndAddress);
+    }
 
     private byte ReadViaPortAInput()
         => _ayBusCa2 && !_ayBusCb2 ? Ay.ReadData() : (byte)0xff;

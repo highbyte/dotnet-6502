@@ -144,18 +144,33 @@ public sealed class Ay38912
     {
         var mixer = _registers[7];
         var mixed = 0f;
+        var activeChannelCount = 0;
         for (var channel = 0; channel < 3; channel++)
         {
-            var tonePasses = (mixer & (1 << channel)) != 0 || _toneHigh[channel];
-            var noisePasses = (mixer & (1 << (channel + 3))) != 0 || _noiseHigh;
+            var volumeRegister = _registers[8 + channel];
+            var usesEnvelope = (volumeRegister & 0x10) != 0;
+            var fixedVolume = volumeRegister & 0x0f;
+            var toneEnabled = (mixer & (1 << channel)) == 0;
+            var noiseEnabled = (mixer & (1 << (channel + 3))) == 0;
+            if ((!usesEnvelope && fixedVolume == 0) || (!toneEnabled && !noiseEnabled))
+                continue;
+
+            activeChannelCount++;
+            var tonePasses = !toneEnabled || _toneHigh[channel];
+            var noisePasses = !noiseEnabled || _noiseHigh;
             if (!tonePasses || !noisePasses)
                 continue;
 
-            var volumeRegister = _registers[8 + channel];
-            var volume = (volumeRegister & 0x10) != 0 ? _envelopeStep : volumeRegister & 0x0f;
+            var volume = usesEnvelope ? _envelopeStep : fixedVolume;
             mixed += s_volumeTable[volume];
         }
-        return mixed / 3f;
+
+        // Average only channels configured to produce an audible tone or noise, then normalize
+        // against the measured table's peak. This lets a solo channel use the PCM range while
+        // preserving headroom when all three channels are active.
+        return activeChannelCount == 0
+            ? 0f
+            : mixed / (activeChannelCount * s_volumeTable[^1]);
     }
 
     private void RestartEnvelope(byte shape)

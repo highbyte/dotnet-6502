@@ -25,4 +25,10 @@
     <Compile Update="Views\OricInfoView.axaml.cs"><DependentUpon>OricInfoView.axaml</DependentUpon></Compile>
     <Compile Update="Views\OricMenuView.axaml.cs"><DependentUpon>OricMenuView.axaml</DependentUpon></Compile>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\..\samples\Basic\Oric\Text\Build\*.tap">
+      <Link>Resources\Sample6502Programs\Basic\Oric\%(Filename)%(Extension)</Link>
+      <LogicalName>$(AssemblyName).Resources.Sample6502Programs.Basic.Oric.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>
