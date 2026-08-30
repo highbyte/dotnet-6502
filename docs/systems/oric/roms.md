@@ -40,6 +40,7 @@ For example, the Avalonia Desktop default is:
 ```json
 "Highbyte.DotNet6502.Oric.Avalonia": {
   "SystemConfig": {
+    "VSyncHackEnabled": false,
     "ROMs": [
       { "Name": "basic", "File": "basic11b.rom" }
     ]

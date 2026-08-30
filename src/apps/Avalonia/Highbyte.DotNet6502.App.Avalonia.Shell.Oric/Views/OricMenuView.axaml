@@ -173,6 +173,29 @@
                   AutomationProperties.Name="Load Oric BASIC TAP file directly"
                   Classes="small"/>
 
+          <TextBlock Text="Assembly example files" Classes="small secondary-text"/>
+          <Grid Classes="spacing-tight">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox Grid.Column="0"
+                      ItemsSource="{Binding AssemblyExamples}"
+                      SelectedValue="{Binding SelectedAssemblyExample}"
+                      DisplayMemberBinding="{Binding Value}"
+                      SelectedValueBinding="{Binding Key}"
+                      IsEnabled="{Binding IsFileOperationEnabled}"
+                      AutomationProperties.AutomationId="AssemblyExampleComboBox"
+                      AutomationProperties.Name="Oric assembly example file"
+                      Classes="small" MinWidth="60"/>
+            <Button Grid.Column="1"
+                    Content="Load"
+                    Command="{Binding LoadAssemblyExampleCommand}"
+                    AutomationProperties.AutomationId="LoadAssemblyExampleButton"
+                    AutomationProperties.Name="Load Oric assembly example"
+                    Classes="primary small"/>
+          </Grid>
+
           <TextBlock Text="BASIC example files" Classes="small secondary-text"/>
           <Grid Classes="spacing-tight">
             <Grid.ColumnDefinitions>

@@ -26,6 +26,10 @@
     <Compile Update="Views\OricMenuView.axaml.cs"><DependentUpon>OricMenuView.axaml</DependentUpon></Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="..\..\..\..\samples\Assembler\Oric\Raster\Build\*.tap">
+      <Link>Resources\Sample6502Programs\Assembler\Oric\%(Filename)%(Extension)</Link>
+      <LogicalName>$(AssemblyName).Resources.Sample6502Programs.Assembler.Oric.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\..\..\samples\Basic\Oric\Text\Build\*.tap">
       <Link>Resources\Sample6502Programs\Basic\Oric\%(Filename)%(Extension)</Link>
       <LogicalName>$(AssemblyName).Resources.Sample6502Programs.Basic.Oric.%(Filename)%(Extension)</LogicalName>

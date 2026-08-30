@@ -29,7 +29,7 @@ Pop-Location
 # Apple2/apple2-b.cfg emits a DOS 3.3 "B" file (4-byte load address + length header).
 Push-Location
 
-Get-ChildItem -Path . -Include *.s -Recurse | ForEach-Object {
+Get-ChildItem -Path ./Apple2 -Include *.s -Recurse | ForEach-Object {
     $File = $_.FullName
     $Path = Split-Path -Path $File -Parent
     Set-Location -Path $Path

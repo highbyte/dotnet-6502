@@ -37,6 +37,8 @@ No SilkNetNative, SadConsole, or Blazor WASM Oric plugin exists.
 The system core provides two host-agnostic render paths:
 
 - `OricRasterizer` produces the full pixel display for Avalonia's generic bitmap render target.
+  It samples each visible line from the shared PAL raster clock, so display-memory changes made
+  and restored within one frame can still produce raster effects.
 - `OricVideoCommandStream` produces a 40 × 28 glyph stream for the generic Terminal render target.
   It preserves text cells, serial colors, inverse, and flashing attributes, but cannot represent
   hi-res pixels, double-height glyph shape, or RAM-defined custom glyph shapes.

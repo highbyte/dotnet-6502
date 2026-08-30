@@ -37,6 +37,18 @@
         </Border>
         <Border Classes="content-section">
           <StackPanel Spacing="8">
+            <TextBlock Text="Hardware compatibility"/>
+            <CheckBox Content="Enable CB1 VSync compatibility cable"
+                      IsChecked="{Binding VSyncHackEnabled}"
+                      AutomationProperties.AutomationId="OricVSyncHackEnabledCheckBox"
+                      AutomationProperties.Name="Enable Oric CB1 VSync compatibility cable"/>
+            <TextBlock Text="Emulates the optional cable that routes the RGB sync signal through the cassette input. Stock Oric computers did not include it."
+                       Classes="small secondary-text"
+                       TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="content-section">
+          <StackPanel Spacing="8">
             <TextBlock Text="Input &amp; Joystick"/>
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-wide">
               <TextBlock Grid.Row="0" Grid.Column="0"

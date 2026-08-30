@@ -48,5 +48,72 @@ ld65 -C ../apple2-b.cfg Build/hello_echo.o -o Build/hello_echo.bin
 rm Build/hello_echo.o
 ```
 
-`BuildAll.ps1` builds these too (it globs `*.s` with ca65/ld65 in addition to the
-ACME `*.asm` loop).
+`BuildAll.ps1` builds these too (it globs `Apple2/**/*.s` with ca65/ld65 in addition
+to the ACME `*.asm` loop).
+
+# Build Oric `.s` source files with the OSDK XA assembler
+
+Oric machine-code programs are commonly distributed as `.tap` files. OSDK's `xa`
+assembler creates the raw binary and its `header` utility wraps that binary in an
+Oric tape header containing the load address, end address, file type, name and
+auto-run flag.
+
+These instructions assume that the OSDK repository has been cloned to
+`~/source/public-repos/osdk`. Build the native tools first:
+
+``` sh
+make -C ~/source/public-repos/osdk/osdk/main/common
+make -C ~/source/public-repos/osdk/osdk/main/xa
+make -C ~/source/public-repos/osdk/osdk/main/header
+```
+
+Build the CB1 VSync raster-bars example at `$0600` and create an auto-running TAP:
+
+``` sh
+cd Oric/Raster
+mkdir -p Build
+
+~/source/public-repos/osdk/osdk/main/xa/xa \
+  -C -W -bt 0x0600 \
+  -o Build/vsync_raster_bars.bin \
+  -l Build/vsync_raster_bars.labels \
+  vsync_raster_bars.s
+
+~/source/public-repos/osdk/osdk/main/header/header \
+  -a1 -h1 -b1 -s1 -nRASTERBARS \
+  Build/vsync_raster_bars.bin \
+  Build/vsync_raster_bars.tap \
+  0x0600
+
+rm Build/vsync_raster_bars.bin
+```
+
+Build the cable-free Timer 1 raster diagnostic at `$0900`:
+
+``` sh
+~/source/public-repos/osdk/osdk/main/xa/xa \
+  -C -W -bt 0x0900 \
+  -o Build/timer1_raster_bars.bin \
+  -l Build/timer1_raster_bars.labels \
+  timer1_raster_bars.s
+
+~/source/public-repos/osdk/osdk/main/header/header \
+  -a1 -h1 -b1 -s1 -nTIMERBARS \
+  Build/timer1_raster_bars.bin \
+  Build/timer1_raster_bars.tap \
+  0x0900
+
+rm Build/timer1_raster_bars.bin
+```
+
+Before loading the sample, enable **CB1 VSync compatibility cable** in the Oric
+configuration. Attach `Build/vsync_raster_bars.tap` and enter `CLOAD""`; its tape
+header starts the machine-code program automatically. The bar follows a 256-frame
+sine-wave path, is painted only while the ULA scans its rows, and is erased again
+before the frame ends, so it also exercises the emulator's progressive rasterizer.
+
+`timer1_raster_bars.tap` must be run with **CB1 VSync compatibility cable**
+disabled. It uses a free-running VIA Timer 1 period one raster line shorter than
+the PAL frame and races cyan/blue paper writes through the text rows. The phase
+difference moves the cyan band automatically, making this a direct diagnostic
+for progressive scanline rendering without manual calibration.

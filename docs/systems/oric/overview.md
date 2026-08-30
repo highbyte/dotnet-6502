@@ -6,9 +6,20 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 
 ## Current capabilities
 
-- NMOS 6502 at 1 MHz with PAL timing: 64 CPU cycles per line, 312 lines and 19,968 cycles per frame.
+- NMOS 6502 at 1 MHz with a shared PAL raster clock: 64 CPU cycles per line, 312 lines and
+  19,968 cycles per frame. The pixel renderer samples visible scanlines as the raster reaches
+  them, preserving software-generated raster effects that temporarily alter display memory.
 - 48 KB RAM, the MOS 6522 at `$0300`-`$03FF`, and a 16 KB system ROM at `$C000`-`$FFFF`.
 - 6522 parallel ports, control pins, timers and IRQ handling.
+- The optional RGB-VSync-to-cassette-input modification can be enabled in the Oric configuration,
+  with the established 12-cycle high and 260-cycle low CB1 waveform. It is disabled by default to
+  represent an unmodified Atmos. Compatible Download & Run entries such as Oricium enable it for
+  that launch so they can synchronize directly to the display without manual raster calibration.
+  The assembly samples include a CB1- and Timer-1-synchronized raster-bar demo that follows a
+  sine-wave path and temporarily changes HIRES paper attributes only while the ULA scans the
+  affected rows. A separate cable-free diagnostic uses a deliberately offset free-running Timer 1
+  and paced text-row paper sweeps to exercise progressive rendering without CB1 or manual
+  calibration.
 - AY-3-8912 register access through the VIA control pins and mono PCM audio for its three tone,
   noise and envelope channels.
 - The Atmos eight-by-eight keyboard matrix. Host arrow, modifier, editing, alphanumeric and
@@ -29,7 +40,8 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   it, show the byte position and current/next file, and move safely to the previous or next parsed
   file boundary. Embedded BASIC examples cover text, hires graphics, sound effects, three-voice
   music, and AY tone/noise/envelope control.
-- Avalonia **Download & Run** support for a curated set of Oric programs hosted by Oric.org. TAP
+- Avalonia **Download & Run** support for a curated set of Oric programs from Oric.org and
+  official project sources. TAP
   images may be downloaded directly or extracted from a named entry in a ZIP archive, are cached
   by the host application, and are started through the standard Atmos ROM cassette routine. The
   Browser host routes these downloads through its configured CORS proxy.
@@ -56,7 +68,7 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   apply.
 - Microdisc or Jasmin floppy controllers and disk images.
 - Printer output, snapshots and Oric-specific monitor commands.
-- Cycle-level ULA bus contention and analogue AY output filtering.
+- Cycle-level ULA bus contention, sub-scanline pixel fetch timing, and analogue AY output filtering.
 - The Oric-1, Oric-1 16K, Pravetz and Telestrat variants.
 
 ## ROMs

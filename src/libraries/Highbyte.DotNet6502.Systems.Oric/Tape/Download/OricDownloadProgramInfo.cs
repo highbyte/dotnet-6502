@@ -14,7 +14,8 @@ public sealed class OricDownloadProgramInfo
         string? zipEntryName = null,
         OricJoystickInterface joystickInterface = OricJoystickInterface.None,
         bool keyboardJoystickEnabled = false,
-        int keyboardJoystickNumber = 1)
+        int keyboardJoystickNumber = 1,
+        bool vSyncHackEnabled = false)
     {
         if (keyboardJoystickNumber is not (1 or 2))
         {
@@ -30,6 +31,7 @@ public sealed class OricDownloadProgramInfo
         JoystickInterface = joystickInterface;
         KeyboardJoystickEnabled = keyboardJoystickEnabled;
         KeyboardJoystickNumber = keyboardJoystickNumber;
+        VSyncHackEnabled = vSyncHackEnabled;
     }
 
     public string DisplayName { get; }
@@ -46,4 +48,7 @@ public sealed class OricDownloadProgramInfo
 
     /// <summary>The adapter port driven by both the host gamepad and keyboard joystick.</summary>
     public int KeyboardJoystickNumber { get; }
+
+    /// <summary>Whether the optional RGB-to-cassette-input VSync cable is attached.</summary>
+    public bool VSyncHackEnabled { get; }
 }

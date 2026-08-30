@@ -25,6 +25,7 @@ public sealed class OricSystemConfig : ISystemConfig
     private List<ROM> _roms = [];
     private CpuCompatibilityProfile _cpuCompatibilityProfile = CpuCompatibilityProfile.StableUnofficial;
     private bool _audioEnabled = true;
+    private bool _vSyncHackEnabled;
     private OricJoystickInterface _joystickInterface = OricJoystickInterface.None;
     private bool _keyboardJoystickEnabled;
     private int _keyboardJoystick = 1;
@@ -76,6 +77,16 @@ public sealed class OricSystemConfig : ISystemConfig
     {
         get => _audioEnabled;
         set { _audioEnabled = value; _isDirty = true; }
+    }
+
+    /// <summary>
+    /// Emulates the common hardware modification that routes the RGB VSync signal to the
+    /// cassette-input CB1 pin. Timing-sensitive software can use it as a frame interrupt.
+    /// </summary>
+    public bool VSyncHackEnabled
+    {
+        get => _vSyncHackEnabled;
+        set { _vSyncHackEnabled = value; _isDirty = true; }
     }
 
     [JsonConverter(typeof(JsonStringEnumConverter<OricJoystickInterface>))]

@@ -86,6 +86,7 @@ describe("cors download proxy worker", () => {
 					"archive.org",
 					"*.archive.org",
 					"cdn.oric.org",
+					"raw.githubusercontent.com",
 				],
 			},
 		});
@@ -155,6 +156,7 @@ describe("cors download proxy worker", () => {
 				"archive.org",
 				"*.archive.org",
 				"cdn.oric.org",
+				"raw.githubusercontent.com",
 			],
 			rateLimits: {
 				burst: { limit: 8, periodSeconds: 10 },

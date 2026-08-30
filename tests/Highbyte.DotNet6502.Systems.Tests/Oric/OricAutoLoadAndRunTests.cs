@@ -65,6 +65,41 @@ public sealed class OricAutoLoadAndRunTests
     }
 
     [Fact]
+    public async Task LoadAndRunTapUsesEmbeddedBytesAndAppliesConfigurationBeforeStarting()
+    {
+        var tapBytes = BuildTap(
+            fileType: OricTapFile.MachineCodeFileType,
+            autoRunFlag: 0xc7,
+            startAddress: 0x0600);
+        var oric = BuildReadyOric();
+        var hostApp = new FakeHostApp(oric, EmulatorState.Running);
+        var loader = new OricAutoLoadAndRun(
+            NullLoggerFactory.Instance,
+            new HttpClient(new ByteResponseHandler([])),
+            hostApp);
+        var configured = false;
+
+        await loader.LoadAndRunTap(
+            "Raster bars",
+            tapBytes,
+            () =>
+            {
+                configured = true;
+                Assert.Equal(EmulatorState.Uninitialized, hostApp.EmulatorState);
+                Assert.Equal(0, hostApp.StartCount);
+                return Task.CompletedTask;
+            });
+
+        Assert.True(configured);
+        Assert.True(oric.Tape.IsInserted);
+        Assert.Equal("Raster bars", oric.Tape.SourceName);
+        Assert.Equal(1, hostApp.StopCount);
+        Assert.Equal(1, hostApp.PauseCount);
+        Assert.Equal(2, hostApp.StartCount);
+        AssertQueuedText(oric, "CLOAD\"\"\r");
+    }
+
+    [Fact]
     public async Task AppliesProgramConfigurationAfterStoppingAndBeforeStarting()
     {
         var oric = BuildReadyOric();
@@ -78,7 +113,8 @@ public sealed class OricAutoLoadAndRunTests
             "https://downloads.example/joystick.tap",
             joystickInterface: OricJoystickInterface.IJK,
             keyboardJoystickEnabled: true,
-            keyboardJoystickNumber: 1);
+            keyboardJoystickNumber: 1,
+            vSyncHackEnabled: true);
         var callbackCount = 0;
 
         await loader.DownloadAndRunProgram(
@@ -87,6 +123,7 @@ public sealed class OricAutoLoadAndRunTests
             {
                 callbackCount++;
                 Assert.Same(programInfo, configuredProgram);
+                Assert.True(configuredProgram.VSyncHackEnabled);
                 Assert.Equal(EmulatorState.Uninitialized, hostApp.EmulatorState);
                 Assert.Equal(0, hostApp.StartCount);
                 return Task.CompletedTask;
@@ -106,6 +143,7 @@ public sealed class OricAutoLoadAndRunTests
         Assert.Equal(OricJoystickInterface.None, programInfo.JoystickInterface);
         Assert.False(programInfo.KeyboardJoystickEnabled);
         Assert.Equal(1, programInfo.KeyboardJoystickNumber);
+        Assert.False(programInfo.VSyncHackEnabled);
         Assert.Throws<ArgumentOutOfRangeException>(() => new OricDownloadProgramInfo(
             "Invalid",
             "https://downloads.example/invalid.tap",

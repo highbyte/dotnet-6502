@@ -46,23 +46,53 @@ public sealed class OricAutoLoadAndRun
         ArgumentNullException.ThrowIfNull(programInfo);
         ArgumentNullException.ThrowIfNull(setConfigCallback);
 
-        if (_hostApp.EmulatorState is EmulatorState.Running or EmulatorState.Paused)
-        {
-            _logger.LogInformation("Stopping emulator before Oric program download.");
-            _hostApp.Stop();
-        }
-
-        await setConfigCallback(programInfo);
-        await _hostApp.Start();
-        var oric = _hostApp.CurrentRunningSystem as OricMachine
-            ?? throw new InvalidOperationException("The current system is not an Oric Atmos.");
-
-        await WaitForBasicAsync(oric, cancellationToken);
+        var oric = await RestartAndWaitForBasicAsync(
+            () => setConfigCallback(programInfo),
+            cancellationToken);
 
         var tapBytes = await _downloader.DownloadRomAsync(
             programInfo.DisplayName,
             new RomDownloadSource(programInfo.DownloadUrl, programInfo.ZipEntryName),
             cancellationToken);
+
+        await InsertAndRunTapAsync(oric, programInfo.DisplayName, tapBytes);
+    }
+
+    public async Task LoadAndRunTap(
+        string programName,
+        byte[] tapBytes,
+        Func<Task> setConfigCallback,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(programName);
+        ArgumentNullException.ThrowIfNull(tapBytes);
+        ArgumentNullException.ThrowIfNull(setConfigCallback);
+
+        var oric = await RestartAndWaitForBasicAsync(setConfigCallback, cancellationToken);
+        await InsertAndRunTapAsync(oric, programName, tapBytes);
+    }
+
+    private async Task<OricMachine> RestartAndWaitForBasicAsync(
+        Func<Task> setConfigCallback,
+        CancellationToken cancellationToken)
+    {
+        if (_hostApp.EmulatorState is EmulatorState.Running or EmulatorState.Paused)
+        {
+            _logger.LogInformation("Stopping emulator before loading an Oric program.");
+            _hostApp.Stop();
+        }
+
+        await setConfigCallback();
+        await _hostApp.Start();
+        var oric = _hostApp.CurrentRunningSystem as OricMachine
+            ?? throw new InvalidOperationException("The current system is not an Oric Atmos.");
+
+        await WaitForBasicAsync(oric, cancellationToken);
+        return oric;
+    }
+
+    private async Task InsertAndRunTapAsync(OricMachine oric, string programName, byte[] tapBytes)
+    {
         var firstFile = OricTapParser.Parse(tapBytes);
         var loadAndRunText = BuildLoadAndRunText(firstFile);
 
@@ -72,11 +102,11 @@ public sealed class OricAutoLoadAndRun
 
         try
         {
-            var files = oric.InsertTape(tapBytes, programInfo.DisplayName);
+            var files = oric.InsertTape(tapBytes, programName);
             oric.TextPaste.Paste(loadAndRunText);
             _logger.LogInformation(
                 "Inserted Oric TAP for {ProgramName}: {FileCount} file(s), {ByteCount} bytes; CLOAD queued.",
-                programInfo.DisplayName,
+                programName,
                 files.Count,
                 tapBytes.Length);
         }

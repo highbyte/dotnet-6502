@@ -29,6 +29,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public const ushort BasicArrayStartPointerAddress = 0x009e;
     public const ushort BasicFreeMemoryStartPointerAddress = 0x00a0;
     public const ushort KeyboardCharacterLatchAddress = 0x02df;
+    public const int VSyncHackDelayCycles = 12;
+    public const int VSyncHackLowCycles = 260;
     private const string ViaIrqSource = "Oric VIA";
     private const ushort AtmosBasic11bTapeGetSyncAddress = 0xe735;
     private const ushort AtmosBasic11bTapeGetSyncReturnAddress = 0xe759;
@@ -42,11 +44,13 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     private IAudioProvider? _audioProvider;
     private bool _ayBusCa2;
     private bool _ayBusCb2;
+    private readonly bool _vSyncHackEnabled;
 
     public Oric() : this(new OricConfig(), new NullLoggerFactory()) { }
 
     public Oric(OricConfig config, ILoggerFactory loggerFactory, Dictionary<string, byte[]>? romData = null)
     {
+        _vSyncHackEnabled = config.VSyncHackEnabled;
         Keyboard = new OricKeyboard();
         Joystick = new OricJoystick(config);
         InputInjector = new OricInputInjector(this);
@@ -55,6 +59,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         Tape = new OricTape();
         Ay = new Ay38912();
         CPU = new CPU(loggerFactory, CpuModelIds.Nmos6502, config.CpuCompatibilityProfile);
+        RasterClock = new OricRasterClock();
 
         Via = new Via6522(
             readPortAInput: ReadViaPortAInput,
@@ -64,6 +69,10 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
             writeCa2: value => { _ayBusCa2 = value; UpdateAyBus(); },
             writeCb2: value => { _ayBusCb2 = value; UpdateAyBus(); },
             irqChanged: UpdateViaIrq);
+        RasterClock.FrameCompleted += OnRasterFrameCompleted;
+        RasterClock.RasterLineStarted += OnRasterLineStarted;
+        if (_vSyncHackEnabled)
+            RasterClock.VSyncLevelChanged += Via.SetCb1;
 
         Mem = new Memory(mapToDefaultRAM: false);
         Mem.MapRAM(0x0000, _ram);
@@ -113,6 +122,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public ExecOptions DefaultExecOptions { get; set; }
 
     public Via6522 Via { get; }
+    public OricRasterClock RasterClock { get; }
     public Ay38912 Ay { get; }
     public OricKeyboard Keyboard { get; }
     public OricJoystick Joystick { get; }
@@ -153,6 +163,9 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
             ? null
             : RenderProviders.SingleOrDefault(provider => provider.GetType() == renderProviderType)
               ?? throw new ArgumentException($"Render provider type not found: {renderProviderType.FullName}");
+
+        if (_renderProvider is OricRasterizer rasterizer)
+            rasterizer.BeginRasterFrame(snapshotExistingDisplay: true);
     }
 
     public void SetCurrentAudioProviderType(Type? audioProviderType)
@@ -165,20 +178,18 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
     {
-        ulong totalCycles = 0;
-        while (totalCycles < CPUCyclesPerFrame)
+        var startingFrame = RasterClock.FrameNumber;
+        while (RasterClock.FrameNumber == startingFrame)
         {
             var result = ExecuteOneInstruction(out var instruction, execEvaluator);
-            totalCycles += instruction.CyclesConsumed;
             if (result.Triggered)
                 return result;
             if (CPU.IsHalted)
                 break;
         }
 
-        TextPaste.InsertNextCharacterToLatch();
-        _renderProvider?.OnEndFrame();
-        _audioProvider?.OnEndFrame();
+        if (RasterClock.FrameNumber != startingFrame)
+            TextPaste.InsertNextCharacterToLatch();
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
@@ -203,6 +214,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         ApplyTapeRomHook();
         instructionExecResult = CPU.ExecuteOneInstruction(Mem).LastInstructionExecResult;
         Via.ProcessCycles((int)instructionExecResult.CyclesConsumed);
+        RasterClock.Advance((int)instructionExecResult.CyclesConsumed);
         _renderProvider?.OnAfterInstruction();
         _audioProvider?.OnAfterInstruction();
         return ExecEvaluatorTriggerResult.NotTriggered;
@@ -217,14 +229,46 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         Mem[KeyboardCharacterLatchAddress] = 0;
         Ay.Reset();
         Via.Reset();
+        RasterClock.Reset();
         if (_renderProvider is OricRasterizer rasterizer)
+        {
             rasterizer.Reset();
+            rasterizer.BeginRasterFrame(snapshotExistingDisplay: true);
+        }
         else if (_renderProvider is OricVideoCommandStream commandStream)
+        {
             commandStream.Reset();
+        }
         if (cpuStartPos.HasValue)
             CPU.PC = cpuStartPos.Value;
         else if (_hasSystemRom)
             CPU.Reset(Mem);
+    }
+
+    private void OnRasterFrameCompleted()
+    {
+        if (_renderProvider is OricRasterizer rasterizer)
+        {
+            rasterizer.CompleteRasterFrame();
+            rasterizer.BeginRasterFrame();
+        }
+        else
+        {
+            _renderProvider?.OnEndFrame();
+        }
+        _audioProvider?.OnEndFrame();
+    }
+
+    private void OnRasterLineStarted(int rasterLine)
+    {
+        if (_renderProvider is not OricRasterizer rasterizer ||
+            rasterLine < OricConfig.VisibleRasterStartLine ||
+            rasterLine >= OricConfig.VisibleRasterEndLine)
+        {
+            return;
+        }
+
+        rasterizer.RasterizeScanline(rasterLine - OricConfig.VisibleRasterStartLine);
     }
 
     public bool IsSystemReady()

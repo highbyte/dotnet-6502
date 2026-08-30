@@ -18,11 +18,14 @@ public sealed class OricConfig
     public const int CharacterHeight = 8;
     public const int VisibleWidth = Columns * CharacterWidth;
     public const int VisibleHeight = 224;
+    public const int VisibleRasterStartLine = (LinesPerFrame - VisibleHeight) / 2;
+    public const int VisibleRasterEndLine = VisibleRasterStartLine + VisibleHeight;
     public const int HiResHeight = 200;
 
     public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
     public bool AudioEnabled { get; set; } = true;
     public Type? AudioProviderType { get; set; }
+    public bool VSyncHackEnabled { get; set; }
     public OricJoystickInterface JoystickInterface { get; set; } = OricJoystickInterface.None;
     public bool KeyboardJoystickEnabled { get; set; }
     public int KeyboardJoystick { get; set; } = 1;

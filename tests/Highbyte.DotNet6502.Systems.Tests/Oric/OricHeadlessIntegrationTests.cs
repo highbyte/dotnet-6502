@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Impl.Headless.Oric;
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Oric;
 using Highbyte.DotNet6502.Systems.Oric.Config;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +21,7 @@ public sealed class OricHeadlessIntegrationTests
                 [$"{OricHeadlessHostConfig.ConfigSectionName}:SystemConfig:ROMs:0:File"] =
                     OricSystemConfig.AtmosRomFileName,
                 [$"{OricHeadlessHostConfig.ConfigSectionName}:SystemConfig:AudioEnabled"] = "false",
+                [$"{OricHeadlessHostConfig.ConfigSectionName}:SystemConfig:VSyncHackEnabled"] = "true",
             })
             .Build();
         var configurer = new OricSystemConfigurerCore(
@@ -35,6 +35,7 @@ public sealed class OricHeadlessIntegrationTests
 
         Assert.False(hostConfig.AudioSupported);
         Assert.False(hostConfig.SystemConfig.AudioEnabled);
+        Assert.True(hostConfig.SystemConfig.VSyncHackEnabled);
         var rom = Assert.Single(hostConfig.SystemConfig.ROMs);
         Assert.Equal(OricSystemConfig.SystemRomName, rom.Name);
         Assert.Equal(OricSystemConfig.AtmosRomFileName, rom.File);

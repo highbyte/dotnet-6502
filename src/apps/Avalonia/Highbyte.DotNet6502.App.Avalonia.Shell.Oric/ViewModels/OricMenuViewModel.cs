@@ -27,6 +27,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
     private readonly HttpClient _httpClient = new();
     private OricAutoLoadAndRun? _oricAutoLoadAndRun;
     private readonly AccordionSections<OricMenuSection> _sections;
+    private readonly Dictionary<string, AssemblyExampleSettings> _assemblyExampleSettings = new();
 
     private readonly Dictionary<string, OricDownloadProgramInfo> _preloadedPrograms = new()
     {
@@ -42,6 +43,10 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         { "thehobbit", new OricDownloadProgramInfo(
             "The Hobbit",
             "https://cdn.oric.org/games/software/t/tansoft_editor/hobbit.tap") },
+        { "oricium", new OricDownloadProgramInfo(
+            "Oricium",
+            "https://raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software/master/users/chema/Oricium/RELEASE/Oricium12.tap",
+            vSyncHackEnabled: true) },
         { "stormlord", new OricDownloadProgramInfo(
             "Stormlord",
             "https://cdn.oric.org/games/software/s/stormlord/Storm.tap",
@@ -87,6 +92,11 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
 
         LoadBasicExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
             LoadBasicExampleAsync,
+            this.WhenAnyValue(viewModel => viewModel.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
+            LoadAssemblyExampleAsync,
             this.WhenAnyValue(viewModel => viewModel.IsFileOperationEnabled),
             RxSchedulers.MainThreadScheduler);
 
@@ -170,6 +180,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
     public ReactiveCommand<byte[], Unit> LoadBasicTapFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadPreloadedProgramCommand { get; }
     public ReactiveCommand<Unit, Unit> AttachOrReplaceTapeCommand { get; }
     public ReactiveCommand<Unit, Unit> EjectTapeCommand { get; }
@@ -184,6 +195,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<Unit, Unit> ToggleJoystickKeyboardCommand { get; }
     public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
 
+    public ObservableCollection<KeyValuePair<string, string>> AssemblyExamples { get; } = new();
     public ObservableCollection<KeyValuePair<string, string>> BasicExamples { get; } = new();
     public ObservableCollection<KeyValuePair<string, string>> PreloadedPrograms { get; } = new();
     public ObservableCollection<KeyValuePair<OricJoystickInterface, string>> JoystickInterfaces { get; } = new();
@@ -272,6 +284,13 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
     {
         get => _selectedBasicExample;
         set => this.RaiseAndSetIfChanged(ref _selectedBasicExample, value);
+    }
+
+    private string _selectedAssemblyExample = string.Empty;
+    public string SelectedAssemblyExample
+    {
+        get => _selectedAssemblyExample;
+        set => this.RaiseAndSetIfChanged(ref _selectedAssemblyExample, value);
     }
 
     private string _selectedPreloadedProgram = string.Empty;
@@ -502,13 +521,37 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
     private void InitializeExamples()
     {
         var assemblyName = _examplesAssembly.GetName().Name;
-        BasicExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select an example --"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select --"));
+        AddAssemblyExample(
+            assemblyName,
+            "vsync_raster_bars",
+            "Raster Bars",
+            vSyncHackEnabled: true);
+        AddAssemblyExample(
+            assemblyName,
+            "timer1_raster_bars",
+            "No-CB1 Bars");
+
+        BasicExamples.Add(new KeyValuePair<string, string>(string.Empty, "-- Select --"));
         AddBasicExample(assemblyName, "HelloWorld", "Hello World");
         AddBasicExample(assemblyName, "HiresShapes", "Hires Shapes");
         AddBasicExample(assemblyName, "Fireworks", "Fireworks");
         AddBasicExample(assemblyName, "SoundEffects", "Sound Effects");
         AddBasicExample(assemblyName, "ThreeVoiceMusic", "Three-Voice Music");
         AddBasicExample(assemblyName, "AySoundLab", "AY Sound Lab");
+    }
+
+    private void AddAssemblyExample(
+        string? assemblyName,
+        string fileName,
+        string displayName,
+        bool vSyncHackEnabled = false)
+    {
+        var resourceName = $"{assemblyName}.Resources.Sample6502Programs.Assembler.Oric.{fileName}.tap";
+        AssemblyExamples.Add(new KeyValuePair<string, string>(resourceName, displayName));
+        _assemblyExampleSettings.Add(
+            resourceName,
+            new AssemblyExampleSettings(displayName, vSyncHackEnabled));
     }
 
     private void AddBasicExample(string? assemblyName, string fileName, string displayName)
@@ -588,6 +631,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         oricHostConfig.SystemConfig.JoystickInterface = programInfo.JoystickInterface;
         oricHostConfig.SystemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
         oricHostConfig.SystemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+        oricHostConfig.SystemConfig.VSyncHackEnabled = programInfo.VSyncHackEnabled;
         oricHostConfig.InputConfig.CurrentJoystick = programInfo.KeyboardJoystickNumber;
         HostApp.UpdateHostSystemConfig(oricHostConfig);
         RefreshJoystickProperties();
@@ -612,6 +656,50 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         {
             _logger.LogError(exception, "Error loading Oric BASIC example");
         }
+    }
+
+    private async Task LoadAssemblyExampleAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedAssemblyExample) ||
+            !_assemblyExampleSettings.TryGetValue(SelectedAssemblyExample, out var exampleSettings))
+        {
+            return;
+        }
+
+        try
+        {
+            using var resourceStream = _examplesAssembly.GetManifestResourceStream(SelectedAssemblyExample)
+                ?? throw new InvalidOperationException(
+                    $"Cannot find embedded Oric assembly example resource: {SelectedAssemblyExample}");
+            var tapBytes = new byte[resourceStream.Length];
+            resourceStream.ReadExactly(tapBytes);
+
+            _oricAutoLoadAndRun ??= new OricAutoLoadAndRun(
+                _loggerFactory,
+                _httpClient,
+                HostApp,
+                corsProxyUrl: HostApp.GetCorsProxyUrl(),
+                downloadCache: HostApp.GetDownloadCache());
+
+            await _oricAutoLoadAndRun.LoadAndRunTap(
+                exampleSettings.DisplayName,
+                tapBytes,
+                () => ConfigureForAssemblyExampleAsync(exampleSettings.VSyncHackEnabled));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Error loading Oric assembly example");
+        }
+    }
+
+    private Task ConfigureForAssemblyExampleAsync(bool vSyncHackEnabled)
+    {
+        if (OricHostConfig is not { } oricHostConfig)
+            return Task.CompletedTask;
+
+        oricHostConfig.SystemConfig.VSyncHackEnabled = vSyncHackEnabled;
+        HostApp.UpdateHostSystemConfig(oricHostConfig);
+        return Task.CompletedTask;
     }
 
     private async Task LoadBasicTapAsync(byte[] tapBytes, string? commandAfterLoad = null)
@@ -725,6 +813,8 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
             binding.CommandParameter = parameter;
         return binding;
     }
+
+    private sealed record AssemblyExampleSettings(string DisplayName, bool VSyncHackEnabled);
 }
 
 public sealed record OricTapeImage(string Name, byte[] Bytes);

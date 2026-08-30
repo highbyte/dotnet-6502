@@ -145,6 +145,8 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **ROM actions**: `OricRomStatusText`, `OricRomDirectoryTextBox`, `OricLoadRomButton`,
   `OricDownloadRomButton`, `OricClearRomButton`
 - **Audio**: `OricAudioEnabledCheckBox`
+- **Hardware compatibility**: `OricVSyncHackEnabledCheckBox` — enables the optional
+  RGB-sync-to-cassette-input CB1 compatibility cable; disabled by default for a stock Atmos.
 - **Input &amp; Joystick**: `OricKeyboardLayoutComboBox` — host keyboard layout (`Auto`, `US`,
   or `Swedish`; `Auto` means auto-detect), `OricJoystickInterfaceComboBox`,
   `OricHostJoystickComboBox`, `OricKeyboardJoystickEnableCheckBox`,
@@ -168,8 +170,11 @@ copyrighted firmware. Its buttons are `OricRomDownloadConfirmButton` and
 - **Tape transport**: `TapeAttachButton`, `TapeRewindButton`, `TapePreviousRecordButton`,
   `TapeNextRecordButton`, `TapeEjectButton`, `TapeStatusText`. Attach/replace validates and inserts
   a TAP image without loading it; previous/next move between parsed file boundaries.
-- **BASIC tape files**: `LoadBasicButton`, `BasicExampleComboBox`, `LoadBasicExampleButton`
-  (enabled after the emulator has been initialized)
+- **Load/Save**: `LoadBasicButton`, `AssemblyExampleComboBox`, `LoadAssemblyExampleButton`,
+  `BasicExampleComboBox`, `LoadBasicExampleButton` (enabled after the emulator has been
+  initialized). The Raster Bars assembly example automatically enables the CB1 VSync
+  compatibility cable, while No-CB1 Bars disables it; both restart the machine before loading
+  their TAP image.
 - **Joystick**: `JoystickInterfaceComboBox`, `ActiveJoystickComboBox`,
   `JoystickKeyboardCheckBox`, `KeyboardJoystickComboBox`. The interface and port selectors work
   while the machine is running; keyboard joystick uses W/A/S/D and Space.

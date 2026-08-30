@@ -71,6 +71,7 @@ public class OricSystemConfigurerCore : ISystemConfigurer
             CpuCompatibilityProfile = oricSystemConfig.CpuCompatibilityProfile,
             AudioEnabled = oricSystemConfig.AudioEnabled,
             AudioProviderType = oricSystemConfig.AudioProviderType,
+            VSyncHackEnabled = oricSystemConfig.VSyncHackEnabled,
             JoystickInterface = oricSystemConfig.JoystickInterface,
             KeyboardJoystickEnabled = oricSystemConfig.KeyboardJoystickEnabled,
             KeyboardJoystick = oricSystemConfig.KeyboardJoystick,

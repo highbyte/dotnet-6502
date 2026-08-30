@@ -101,6 +101,18 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
         }
     }
 
+    public bool VSyncHackEnabled
+    {
+        get => _workingConfig.SystemConfig.VSyncHackEnabled;
+        set
+        {
+            if (_workingConfig.SystemConfig.VSyncHackEnabled == value)
+                return;
+            _workingConfig.SystemConfig.VSyncHackEnabled = value;
+            this.RaisePropertyChanged();
+        }
+    }
+
     public ObservableCollection<KeyValuePair<OricJoystickInterface, string>> JoystickInterfaces { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; } = new();
     public ObservableCollection<string> AvailableKeyboardLayouts { get; } =
@@ -264,6 +276,7 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
         _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+        _originalConfig.SystemConfig.VSyncHackEnabled = _workingConfig.SystemConfig.VSyncHackEnabled;
         _originalConfig.SystemConfig.JoystickInterface = _workingConfig.SystemConfig.JoystickInterface;
         _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
         _originalConfig.SystemConfig.KeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;

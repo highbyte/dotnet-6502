@@ -41,6 +41,7 @@ public sealed class OricRasterizer : IRenderProvider, IVideoFrameLayerProvider
     private readonly ReadOnlyMemory<uint>[] _cachedLayerBuffers;
     private byte _screenAttributes;
     private int _frameCounter;
+    private bool _progressiveFrameActive;
 
     public OricRasterizer(OricMachine oric)
     {
@@ -99,19 +100,59 @@ public sealed class OricRasterizer : IRenderProvider, IVideoFrameLayerProvider
         FrameCompleted?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Starts a frame that will be populated as the PAL raster reaches each scanline.</summary>
+    public void BeginRasterFrame(bool snapshotExistingDisplay = false)
+    {
+        _frameCounter++;
+        if (snapshotExistingDisplay)
+            RasterizeFrame();
+        else
+            ClearBackBuffers();
+        _progressiveFrameActive = true;
+    }
+
+    /// <summary>Samples and renders one visible scanline from the current Oric memory state.</summary>
+    public void RasterizeScanline(int y)
+    {
+        if (!_progressiveFrameActive)
+            throw new InvalidOperationException("A progressive raster frame has not been started.");
+        ArgumentOutOfRangeException.ThrowIfNegative(y);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(y, OricConfig.VisibleHeight);
+
+        RasterizeLine(y);
+    }
+
+    /// <summary>Publishes the progressively sampled frame.</summary>
+    public void CompleteRasterFrame()
+    {
+        if (!_progressiveFrameActive)
+            throw new InvalidOperationException("A progressive raster frame has not been started.");
+
+        _progressiveFrameActive = false;
+        FlipBuffers();
+        FrameCompleted?.Invoke(this, EventArgs.Empty);
+    }
+
     public void Reset()
     {
         _screenAttributes = 0;
         _frameCounter = 0;
+        _progressiveFrameActive = false;
+        ClearBackBuffers();
     }
 
     private void RasterizeFrame()
     {
-        Array.Fill(_backBackground, s_palette[0]);
-        Array.Clear(_backForeground);
+        ClearBackBuffers();
 
         for (var y = 0; y < OricConfig.VisibleHeight; y++)
             RasterizeLine(y);
+    }
+
+    private void ClearBackBuffers()
+    {
+        Array.Fill(_backBackground, s_palette[0]);
+        Array.Clear(_backForeground);
     }
 
     private void RasterizeLine(int y)
