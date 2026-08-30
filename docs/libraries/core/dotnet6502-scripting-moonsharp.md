@@ -13,7 +13,7 @@ The engine is implemented in three layers:
 | Layer | Project | Description |
 |-------|---------|-------------|
 | Abstraction | `Highbyte.DotNet6502.Systems` (`Scripting/` subfolder) | Defines `IScriptingEngine`, `NoScriptingEngine`, `ScriptingEngine`, `IScriptingEngineAdapter`, `ScriptStatus`, `ScriptingConfig`, `IScriptStore`, and the adapter DTOs (`AdapterScriptHandle`, `AdapterScriptState`, `AdapterResumeResult`). Also contains `HostApp`, the base host-app class that integrates scripting into the emulator lifecycle. No dependency on MoonSharp. |
-| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`, `LuaFileProxy`, `LuaHttpProxy`). Also contains `FileSystemScriptStore` and `DelegateScriptStore` (store backends). `MoonSharpScriptingConfigurator` is the factory entry point. |
+| MoonSharp adapter | `Highbyte.DotNet6502.Scripting.MoonSharp` | `MoonSharpScriptingEngineAdapter` implements `IScriptingEngineAdapter` using MoonSharp. Contains the Lua proxy classes (`LuaCpuProxy`, `LuaMemProxy`, `LuaLogProxy`, `LuaC64Proxy`, `LuaOricProxy`, `LuaFileProxy`, `LuaHttpProxy`). Also contains `FileSystemScriptStore` and `DelegateScriptStore` (store backends). `MoonSharpScriptingConfigurator` is the factory entry point. |
 | Host | `Highbyte.DotNet6502.App.Avalonia.Core` | `AvaloniaHostApp` overrides the platform-specific virtual hooks from `HostApp` to wire the `emu.yield()` tick timer and drain deferred script actions on the Avalonia UI thread. |
 
 ### ScriptingEngine + IScriptingEngineAdapter design

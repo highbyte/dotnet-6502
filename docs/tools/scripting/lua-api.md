@@ -252,6 +252,68 @@ Available when `AllowFileIO: true`. Loads a binary file from `FileBaseDirectory`
 
 The operation is deferred (like `emu.start()` etc.) and takes effect after the current frame. Path confinement rules are the same as for `file.*`.
 
+## C64-specific API (`c64`)
+
+The `c64` global is always registered. Query methods return safe defaults and `print_text()` is a no-op unless the running system is a C64.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `c64.basic_started()` | boolean | Whether C64 BASIC has initialized. |
+| `c64.get_basic_source()` | string | De-tokenizes the current BASIC program, or returns an empty string before BASIC is ready. |
+| `c64.print_text(text)` | — | Queues text into the C64 keyboard buffer. End each submitted BASIC line with `\n`. |
+| `c64.load_d64(path)` | — | Parses a `.d64` file and inserts it into the first attached 1541 drive. Supports `~`, `%HOME%`, and `%USERPROFILE%` expansion. Desktop only. |
+
+## Oric-specific API (`oric`)
+
+The `oric` global is always registered. Query methods return safe defaults unless an Oric is running. Tape-changing methods raise a Lua runtime error when the current system is not an Oric.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `oric.basic_started()` | boolean | Whether the Atmos BASIC prompt has initialized. |
+| `oric.get_basic_source()` | string | De-tokenizes the current BASIC program, or returns an empty string before BASIC is ready. |
+| `oric.print_text(text)` | — | Queues text through the Atmos keyboard input path. End each submitted BASIC line with `\n`. |
+| `oric.load_tap(bytes [, file_number [, honor_autorun]])` | table | Directly loads one file from a byte-level Oric `.tap` image. `file_number` is 1-based and defaults to `1`; `honor_autorun` defaults to `true`. Returns file metadata. |
+| `oric.insert_tape(bytes)` | table | Inserts and rewinds a TAP image for loading through Atmos cassette commands such as `CLOAD`. Returns the same structure as `oric.tape_status()`. |
+| `oric.rewind_tape()` | — | Rewinds the inserted tape to byte position zero. |
+| `oric.eject_tape()` | — | Ejects the current tape. |
+| `oric.tape_status()` | table | Returns tape transport state and metadata for every file in the inserted image. |
+| `oric.joystick_interface()` | string | Configured interface: `"none"`, `"pase"`, or `"ijk"`. |
+
+TAP bytes must be a dense, 1-based Lua table of integer values from 0 through 255. This is the representation returned by both `file.read_bytes()` and `http.get_bytes()`, so the same loading code works on desktop and in the browser:
+
+```lua
+-- Desktop file sandbox
+local bytes = file.read_bytes("program.tap")
+local file = oric.load_tap(bytes, 1, false)
+log.info(string.format("Loaded %s at $%04X", file.name, file.start))
+
+-- Browser or desktop HTTP
+local response = http.get_bytes("https://example.com/program.tap")
+if response.ok then
+    oric.insert_tape(response.body)
+    oric.print_text("CLOAD\n")
+end
+```
+
+The file metadata returned by `oric.load_tap()` contains `name`, `type` (`"basic"`, `"machinecode"`, or the raw type as `"$XX"`), `autorun`, `start`, and `end`. Because `end` is a Lua keyword, access that field as `file["end"]`.
+
+`oric.tape_status()` returns:
+
+```lua
+{
+    inserted = true,
+    position = 0,
+    length = 1234,
+    at_end = false,
+    files = {
+        { name = "DEMO", type = "basic", autorun = false,
+          start = 0x0501, ["end"] = 0x0642 }
+    }
+}
+```
+
+Direct `load_tap()` bypasses the cassette routines and is best for single-stage BASIC or machine-code files. Use `insert_tape()` plus the program's normal `CLOAD` sequence for multi-file or custom-loader tapes. Joystick injection through `input.joystick_set()` only reaches Oric software when a PASE or IJK interface is configured.
+
 ## Snapshots (`emu.save_snapshot` / `emu.load_snapshot`)
 
 Available when `AllowFileIO: true`. Save and restore the **full emulator state** (CPU, memory, machine-specific chips, and attached disk/cartridge media) to a `.d6502snap` file. Absolute paths are used as-is; relative paths are resolved from the shared snapshot directory. These mirror the remote-control `emu.savesnapshot` / `emu.loadsnapshot` commands.

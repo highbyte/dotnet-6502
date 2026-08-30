@@ -46,6 +46,8 @@ internal sealed partial class Program
         "example_emulator_control.lua",
         "example_c64_border_cycle.lua",
         "example_c64_download_and_run_prg.lua",
+        "example_oric_basic_readwrite.lua",
+        "example_oric_download_and_run_tap.lua",
     ];
 
     /// <summary>

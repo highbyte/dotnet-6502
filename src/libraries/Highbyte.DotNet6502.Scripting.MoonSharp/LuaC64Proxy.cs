@@ -26,7 +26,7 @@ public class LuaC64Proxy
     internal LuaC64Proxy() { }
 
     /// <summary>Called by the engine when a C64 system starts (or restarts after reset).</summary>
-    internal void SetC64(C64 c64) => _c64 = c64;
+    internal void SetC64(C64? c64) => _c64 = c64;
 
     /// <summary>
     /// Returns true if C64 BASIC has completed initialization.

@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
+using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
 
 namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 
@@ -24,6 +25,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     private LuaCpuProxy? _cpuProxy;
     private LuaMemProxy? _memProxy;
     private LuaC64Proxy? _c64Proxy;
+    private LuaOricProxy? _oricProxy;
     private LuaFileProxy? _fileProxy;
     private LuaHttpProxy? _httpProxy;
     private LuaTcpProxy? _tcpProxy;
@@ -93,6 +95,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaCpuProxy))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaMemProxy))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaC64Proxy))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaOricProxy))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LuaScreenshotProxy))]
     public void InitializeVm(
         IHostApp? hostApp,
@@ -124,6 +127,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         UserData.RegisterType<LuaMemProxy>();
         UserData.RegisterType<LuaLogProxy>();
         UserData.RegisterType<LuaC64Proxy>();
+        UserData.RegisterType<LuaOricProxy>();
 
         // cpu/mem proxies start with null references (safe defaults) until OnSystemStarted is called
         _cpuProxy = new LuaCpuProxy();
@@ -136,6 +140,10 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         // c64 proxy starts with null reference (safe defaults) until OnSystemStarted is called with a C64 system
         _c64Proxy = new LuaC64Proxy();
         _script.Globals["c64"] = _c64Proxy;
+
+        // Oric proxy starts with a null reference until an Oric system starts.
+        _oricProxy = new LuaOricProxy(_script);
+        _script.Globals["oric"] = _oricProxy;
 
         // file table: only registered when AllowFileIO is true.
         // Set AllowFileIO: false in environments without filesystem access (e.g. WASM/browser).
@@ -856,8 +864,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             return;
         _cpuProxy.SetCpu(system.CPU);
         _memProxy.SetMem(system.Mem);
-        if (system is C64 c64)
-            _c64Proxy?.SetC64(c64);
+        _c64Proxy?.SetC64(system as C64);
+        _oricProxy?.SetOric(system as OricMachine);
     }
 
     public AdapterScriptHandle? LoadFile(string filePath, string fileName)

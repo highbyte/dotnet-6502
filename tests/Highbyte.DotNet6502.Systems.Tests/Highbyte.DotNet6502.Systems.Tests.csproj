@@ -31,6 +31,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Remoting\Highbyte.DotNet6502.Remoting.csproj" />
+    <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Scripting.MoonSharp\Highbyte.DotNet6502.Scripting.MoonSharp.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Avalonia.Commodore64\Highbyte.DotNet6502.Impl.Avalonia.Commodore64.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Terminal\Highbyte.DotNet6502.Impl.Terminal.csproj" />

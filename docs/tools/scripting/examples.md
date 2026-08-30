@@ -15,5 +15,7 @@ Example scripts are included in the `scripts/` directory of the source repositor
 | `example_input_kb.lua` | Event hook | Demonstrates keyboard input injection: presses A, B, C in sequence using `emu.time()` for timing (0.5s hold per key, 0.3s pause between keys). |
 | `example_input_joystick.lua` | Event hook | Demonstrates joystick input injection: repeats a timed sequence (left → pause → right → pause → fire → pause) three times on port 1. |
 | `example_quit.lua` | Event hook | Demonstrates an automation pipeline: starts the emulator, polls a memory address each frame for a program result, saves to file, then calls `emu.quit()` to exit. Includes a timeout fallback. |
+| `example_oric_basic_readwrite.lua` | Linear loop | Selects the Oric Atmos, types a two-line BASIC program, and verifies the de-tokenized source. |
+| `example_oric_download_and_run_tap.lua` | Linear loop | Downloads the repository's Oric Hello World TAP sample with `http.get_bytes()`, loads it through `oric.load_tap()`, and runs it. Requires `AllowHttpRequests: true`. |
 
 For per-API examples (HTTP, store, TCP, input), see the corresponding sections in [Lua API](lua-api.md).

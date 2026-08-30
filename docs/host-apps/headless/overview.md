@@ -33,6 +33,8 @@ The same Lua scripting API available in the Avalonia apps is fully supported her
 | `example_c64_download_and_run_prg.lua` | Download and run a `.prg` file over HTTP. |
 | `example_c64_load_d64.lua` | Load a `.d64` disk image. |
 | `example_c64_screenshot.lua` | Save a screenshot to disk. |
+| `example_oric_basic_readwrite.lua` | Write an Oric BASIC program through the keyboard input path and read it back. |
+| `example_oric_download_and_run_tap.lua` | Download, load, and run the Oric Hello World TAP sample. |
 | `example_frameadvance.lua` | Advance frames and read frame count. |
 | `example_input_kb.lua` | Inject keyboard input. |
 | `example_input_joystick.lua` | Inject joystick input. |
