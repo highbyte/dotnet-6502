@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels;
@@ -18,18 +19,25 @@ public partial class OricMenuView : UserControl
     private OricMenuViewModel? ViewModel => DataContext as OricMenuViewModel;
     private OricMenuViewModel? _subscribedViewModel;
     private readonly ButtonFlashController _configButtonFlash = new();
+    private readonly DispatcherTimer _tapeStatusTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(250),
+    };
 
     public OricMenuView()
     {
         AvaloniaXamlLoader.Load(this);
+        _tapeStatusTimer.Tick += (_, _) => ViewModel?.RefreshTapeProperties();
         DataContextChanged += (_, _) => UpdateViewModelSubscriptions(ViewModel);
         AttachedToVisualTree += (_, _) =>
         {
             UpdateViewModelSubscriptions(ViewModel);
             UpdateSectionStatesIfNeeded();
+            _tapeStatusTimer.Start();
         };
         DetachedFromVisualTree += (_, _) =>
         {
+            _tapeStatusTimer.Stop();
             _configButtonFlash.Cancel();
             UpdateViewModelSubscriptions(null);
         };
@@ -61,6 +69,7 @@ public partial class OricMenuView : UserControl
         {
             _subscribedViewModel.ClipboardCopyRequested -= OnClipboardCopyRequested;
             _subscribedViewModel.ClipboardPasteRequested -= OnClipboardPasteRequested;
+            _subscribedViewModel.TapeImageSelectionRequested -= OnTapeImageSelectionRequested;
         }
 
         _subscribedViewModel = newViewModel;
@@ -69,6 +78,7 @@ public partial class OricMenuView : UserControl
         {
             _subscribedViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
             _subscribedViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
+            _subscribedViewModel.TapeImageSelectionRequested += OnTapeImageSelectionRequested;
         }
     }
 
@@ -94,6 +104,44 @@ public partial class OricMenuView : UserControl
 
             using var data = await clipboard.TryGetDataAsync();
             completion.TrySetResult(data is not null ? await data.TryGetTextAsync() : null);
+        });
+
+    private void OnTapeImageSelectionRequested(
+        object? sender,
+        TaskCompletionSource<OricTapeImage?> completion)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            try
+            {
+                var services = (Application.Current as AvaloniaApp)?.GetServiceProvider();
+                var filePicker = services?.GetService<IAppFilePicker>();
+                if (filePicker == null)
+                {
+                    completion.TrySetResult(null);
+                    return;
+                }
+
+                var selectedFile = await filePicker.OpenFileAsync(
+                    this,
+                    new AppFilePickerOpenOptions(
+                        "Attach Oric TAP image",
+                        AllowMultiple: false,
+                        [
+                            new AppFilePickerFileType("Oric tape files", ["*.tap"]),
+                            AppFilePickerFileType.AllFiles,
+                        ]));
+                completion.TrySetResult(selectedFile == null
+                    ? null
+                    : new OricTapeImage(selectedFile.Name, selectedFile.Bytes));
+            }
+            catch (OperationCanceledException)
+            {
+                completion.TrySetResult(null);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
         });
 
     private void LoadBasicTapFile_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)

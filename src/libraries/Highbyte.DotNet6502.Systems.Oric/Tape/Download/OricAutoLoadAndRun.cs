@@ -72,7 +72,7 @@ public sealed class OricAutoLoadAndRun
 
         try
         {
-            var files = oric.InsertTape(tapBytes);
+            var files = oric.InsertTape(tapBytes, programInfo.DisplayName);
             oric.TextPaste.Paste(loadAndRunText);
             _logger.LogInformation(
                 "Inserted Oric TAP for {ProgramName}: {FileCount} file(s), {ByteCount} bytes; CLOAD queued.",

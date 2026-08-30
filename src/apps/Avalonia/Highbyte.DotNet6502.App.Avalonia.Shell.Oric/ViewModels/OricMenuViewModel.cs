@@ -67,6 +67,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
                 this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
                 RefreshJoystickProperties();
+                RefreshTapeProperties();
             });
 
         CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -95,8 +96,38 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
                 .Select(isLoading => !isLoading),
             RxSchedulers.MainThreadScheduler);
 
+        AttachOrReplaceTapeCommand = ReactiveCommandHelper.CreateSafeCommand(
+            AttachOrReplaceTapeAsync,
+            this.WhenAnyValue(viewModel => viewModel.IsFileOperationEnabled),
+            RxSchedulers.MainThreadScheduler);
+
+        EjectTapeCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => RunTapeOperationAsync(oric => oric.EjectTape()),
+            this.WhenAnyValue(viewModel => viewModel.CanEjectTape),
+            RxSchedulers.MainThreadScheduler);
+
+        RewindTapeCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => RunTapeOperationAsync(oric => oric.RewindTape()),
+            this.WhenAnyValue(viewModel => viewModel.CanRewindTape),
+            RxSchedulers.MainThreadScheduler);
+
+        PreviousTapeRecordCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => RunTapeOperationAsync(oric => oric.SeekToPreviousTapeRecord()),
+            this.WhenAnyValue(viewModel => viewModel.CanSeekToPreviousTapeRecord),
+            RxSchedulers.MainThreadScheduler);
+
+        NextTapeRecordCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => RunTapeOperationAsync(oric => oric.SeekToNextTapeRecord()),
+            this.WhenAnyValue(viewModel => viewModel.CanSeekToNextTapeRecord),
+            RxSchedulers.MainThreadScheduler);
+
         ToggleDownloadSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
             () => _sections.Toggle(OricMenuSection.Download),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleTapeSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => _sections.Toggle(OricMenuSection.Tape),
             null,
             RxSchedulers.MainThreadScheduler);
 
@@ -140,7 +171,13 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
     public ReactiveCommand<byte[], Unit> LoadBasicTapFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadPreloadedProgramCommand { get; }
+    public ReactiveCommand<Unit, Unit> AttachOrReplaceTapeCommand { get; }
+    public ReactiveCommand<Unit, Unit> EjectTapeCommand { get; }
+    public ReactiveCommand<Unit, Unit> RewindTapeCommand { get; }
+    public ReactiveCommand<Unit, Unit> PreviousTapeRecordCommand { get; }
+    public ReactiveCommand<Unit, Unit> NextTapeRecordCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleDownloadSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleTapeSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
     public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
     public ReactiveCommand<int, Unit> SetActiveJoystickCommand { get; }
@@ -158,6 +195,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         => OricHostConfig != null && !OricHostConfig.IsValid(out _);
 
     public bool IsDownloadSectionExpanded => _sections.IsExpanded(OricMenuSection.Download);
+    public bool IsTapeSectionExpanded => _sections.IsExpanded(OricMenuSection.Tape);
     public bool IsLoadSaveSectionExpanded => _sections.IsExpanded(OricMenuSection.LoadSave);
     public bool IsConfigSectionExpanded => _sections.IsExpanded(OricMenuSection.Config);
 
@@ -270,7 +308,68 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
 
     public bool HasLatestPreloadedProgramError => !string.IsNullOrEmpty(LatestPreloadedProgramError);
 
-    private enum OricMenuSection { Download, LoadSave, Config }
+    private OricTape? CurrentTape => (HostApp.CurrentRunningSystem as OricMachine)?.Tape;
+
+    public bool HasAttachedTape => CurrentTape?.IsInserted == true;
+    public bool CanEjectTape => IsFileOperationEnabled && HasAttachedTape;
+    public bool CanRewindTape => CanEjectTape && CurrentTape!.Position > 0;
+    public bool CanSeekToPreviousTapeRecord
+        => CanEjectTape && CurrentTape!.CanSeekToPreviousRecord;
+    public bool CanSeekToNextTapeRecord
+        => CanEjectTape && CurrentTape!.CanSeekToNextRecord;
+
+    public string TapeToggleButtonText
+        => HasAttachedTape ? "Replace .tap image…" : "Attach .tap image…";
+
+    private string? _tapeErrorMessage;
+
+    public string TapeStatusText
+    {
+        get
+        {
+            if (_tapeErrorMessage != null)
+                return _tapeErrorMessage;
+
+            var tape = CurrentTape;
+            if (tape?.IsInserted != true)
+                return "No tape attached.";
+
+            var source = tape.SourceName ?? "Tape image";
+            var percentage = tape.Length == 0 ? 0 : tape.Position * 100.0 / tape.Length;
+            var position = $"{tape.Position:N0}/{tape.Length:N0} bytes ({percentage:0.#}%)";
+            if (tape.CurrentRecordIndex >= 0)
+            {
+                var recordNumber = tape.CurrentRecordIndex + 1;
+                var file = tape.Records[tape.CurrentRecordIndex].File;
+                return $"{source} — file {recordNumber}/{tape.Records.Count}: {file.Name} — {position}";
+            }
+
+            if (tape.IsAtEnd)
+                return $"{source} — end of tape — {position}";
+
+            if (tape.NextRecordIndex >= 0)
+            {
+                var file = tape.Records[tape.NextRecordIndex].File;
+                return $"{source} — next file {tape.NextRecordIndex + 1}/{tape.Records.Count}: {file.Name} — {position}";
+            }
+
+            return $"{source} — {position}";
+        }
+    }
+
+    /// <summary>Refreshes state that can advance on the emulator thread while CLOAD is running.</summary>
+    public void RefreshTapeProperties()
+    {
+        this.RaisePropertyChanged(nameof(HasAttachedTape));
+        this.RaisePropertyChanged(nameof(CanEjectTape));
+        this.RaisePropertyChanged(nameof(CanRewindTape));
+        this.RaisePropertyChanged(nameof(CanSeekToPreviousTapeRecord));
+        this.RaisePropertyChanged(nameof(CanSeekToNextTapeRecord));
+        this.RaisePropertyChanged(nameof(TapeToggleButtonText));
+        this.RaisePropertyChanged(nameof(TapeStatusText));
+    }
+
+    private enum OricMenuSection { Download, Tape, LoadSave, Config }
 
     private void OnSectionStateChanged(OricMenuSection section)
     {
@@ -278,6 +377,9 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         {
             case OricMenuSection.Download:
                 this.RaisePropertyChanged(nameof(IsDownloadSectionExpanded));
+                break;
+            case OricMenuSection.Tape:
+                this.RaisePropertyChanged(nameof(IsTapeSectionExpanded));
                 break;
             case OricMenuSection.LoadSave:
                 this.RaisePropertyChanged(nameof(IsLoadSaveSectionExpanded));
@@ -290,6 +392,69 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
 
     public event EventHandler<string>? ClipboardCopyRequested;
     public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
+    public event EventHandler<TaskCompletionSource<OricTapeImage?>>? TapeImageSelectionRequested;
+
+    private async Task AttachOrReplaceTapeAsync()
+    {
+        if (TapeImageSelectionRequested == null ||
+            HostApp.CurrentRunningSystem is not OricMachine)
+        {
+            return;
+        }
+
+        try
+        {
+            var completion = new TaskCompletionSource<OricTapeImage?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            TapeImageSelectionRequested.Invoke(this, completion);
+            var image = await completion.Task;
+            if (image == null)
+                return;
+
+            await RunTapeOperationAsync(oric => oric.InsertTape(image.Bytes, image.Name));
+            _tapeErrorMessage = null;
+            _logger.LogInformation(
+                "Attached Oric TAP image {FileName}, {ByteCount} bytes.",
+                image.Name,
+                image.Bytes.Length);
+        }
+        catch (Exception exception)
+        {
+            _tapeErrorMessage = string.IsNullOrWhiteSpace(exception.Message)
+                ? "Could not attach the tape image."
+                : exception.Message;
+            _logger.LogError(exception, "Error attaching Oric TAP image");
+        }
+        finally
+        {
+            RefreshTapeProperties();
+        }
+    }
+
+    private async Task RunTapeOperationAsync(Action<OricMachine> operation)
+    {
+        if (HostApp.EmulatorState == EmulatorState.Uninitialized ||
+            HostApp.CurrentRunningSystem is not OricMachine oric)
+        {
+            return;
+        }
+
+        var wasRunning = HostApp.EmulatorState == EmulatorState.Running;
+        if (wasRunning)
+            HostApp.Pause();
+
+        try
+        {
+            operation(oric);
+            _tapeErrorMessage = null;
+        }
+        finally
+        {
+            RefreshTapeProperties();
+            if (wasRunning)
+                await HostApp.Start();
+        }
+    }
 
     private async Task CopyBasicSourceCodeAsync()
     {
@@ -497,6 +662,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         return new NativeMenuItemBase[]
         {
             BuildMenuItem("Toggle Download & Run section", new KeyGesture(Key.D, macShift), ToggleDownloadSectionCommand),
+            BuildMenuItem("Toggle Tape section", new KeyGesture(Key.T, macShift), ToggleTapeSectionCommand),
             BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macShift), ToggleLoadSaveSectionCommand),
             BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macShift), ToggleConfigSectionCommand),
             new NativeMenuItemSeparator(),
@@ -517,6 +683,7 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         return new[]
         {
             BuildKeyBinding(new KeyGesture(Key.D, nonMacShift), ToggleDownloadSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.T, nonMacShift), ToggleTapeSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.L, nonMacShift), ToggleLoadSaveSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.C, nonMacShift), ToggleConfigSectionCommand),
             BuildKeyBinding(new KeyGesture(Key.D1, nonMacBase), SetActiveJoystickCommand, 1),
@@ -559,3 +726,5 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         return binding;
     }
 }
+
+public sealed record OricTapeImage(string Name, byte[] Bytes);

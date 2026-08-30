@@ -159,10 +159,13 @@ copyrighted firmware. Its buttons are `OricRomDownloadConfirmButton` and
 - **Root**: `OricMenuView`
 - **Basic clipboard**: `CopyBasicButton`, `PasteTextButton` (enabled while the emulator is running)
 - **Collapsible section headers**: `DownloadSectionHeader`, `DownloadSectionContent`,
-  `LoadSaveSectionHeader`, `LoadSaveSectionContent`, `ConfigSectionHeader`,
-  `ConfigSectionContent`
+  `TapeSectionHeader`, `TapeSectionContent`, `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
+  `ConfigSectionHeader`, `ConfigSectionContent`
 - **Download & Run**: `OricDownloadProgramComboBox`, `OricDownloadAndRunButton`,
   `OricDownloadStatusText`, `OricDownloadErrorText`
+- **Tape transport**: `TapeAttachButton`, `TapeRewindButton`, `TapePreviousRecordButton`,
+  `TapeNextRecordButton`, `TapeEjectButton`, `TapeStatusText`. Attach/replace validates and inserts
+  a TAP image without loading it; previous/next move between parsed file boundaries.
 - **BASIC tape files**: `LoadBasicButton`, `BasicExampleComboBox`, `LoadBasicExampleButton`
   (enabled after the emulator has been initialized)
 - **Joystick**: `JoystickInterfaceComboBox`, `ActiveJoystickComboBox`,
@@ -335,6 +338,7 @@ thing whichever machine is loaded.
 | Action                           | macOS               | Windows / Linux       |
 | -------------------------------- | ------------------- | --------------------- |
 | Toggle Download & Run section    | `⌘⌥⇧D`              | `Ctrl+Alt+Shift+D`    |
+| Toggle Tape section              | `⌘⌥⇧T`              | `Ctrl+Alt+Shift+T`    |
 | Toggle Load/Save section         | `⌘⌥⇧L`              | `Ctrl+Alt+Shift+L`    |
 | Toggle Configuration section     | `⌘⌥⇧C`              | `Ctrl+Alt+Shift+C`    |
 | Active joystick → Port 1         | `⌘⌥1`                | `Ctrl+Alt+1`          |

@@ -80,6 +80,71 @@
     </StackPanel>
 
     <StackPanel>
+      <Button Name="TapeSectionHeader"
+              AutomationProperties.AutomationId="TapeSectionHeader"
+              AutomationProperties.Name="Toggle Tape section"
+              Classes="section-toggle"
+              Command="{Binding ToggleTapeSectionCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Grid Width="10" Height="10" VerticalAlignment="Center">
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleRight"
+                                 IsVisible="{Binding !IsTapeSectionExpanded}"/>
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleDown"
+                                 IsVisible="{Binding IsTapeSectionExpanded}"/>
+          </Grid>
+          <TextBlock Text="Tape" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <Border Name="TapeSectionContent"
+              AutomationProperties.AutomationId="TapeSectionContent"
+              Classes="collapsible-content"
+              IsVisible="{Binding IsTapeSectionExpanded}">
+        <StackPanel Classes="spacing-tight">
+          <TextBlock Text="Attach a TAP image without loading it, then use an Atmos CLOAD command. Navigation moves only between parsed files."
+                     TextWrapping="Wrap" Classes="small secondary-text"/>
+          <Button Content="{Binding TapeToggleButtonText}"
+                  Command="{Binding AttachOrReplaceTapeCommand}"
+                  IsEnabled="{Binding IsFileOperationEnabled}"
+                  AutomationProperties.AutomationId="TapeAttachButton"
+                  AutomationProperties.Name="Attach or replace Oric TAP image"
+                  Classes="small"/>
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+            <Button Grid.Row="0" Grid.Column="0"
+                    Content="Rewind"
+                    Command="{Binding RewindTapeCommand}"
+                    AutomationProperties.AutomationId="TapeRewindButton"
+                    AutomationProperties.Name="Rewind Oric tape"
+                    Classes="small"/>
+            <Button Grid.Row="0" Grid.Column="1"
+                    Content="Previous"
+                    Command="{Binding PreviousTapeRecordCommand}"
+                    AutomationProperties.AutomationId="TapePreviousRecordButton"
+                    AutomationProperties.Name="Previous Oric tape file"
+                    Classes="small"/>
+            <Button Grid.Row="1" Grid.Column="0"
+                    Content="Next"
+                    Command="{Binding NextTapeRecordCommand}"
+                    AutomationProperties.AutomationId="TapeNextRecordButton"
+                    AutomationProperties.Name="Next Oric tape file"
+                    Classes="small"/>
+            <Button Grid.Row="1" Grid.Column="1"
+                    Content="Eject"
+                    Command="{Binding EjectTapeCommand}"
+                    AutomationProperties.AutomationId="TapeEjectButton"
+                    AutomationProperties.Name="Eject Oric tape"
+                    Classes="small"/>
+          </Grid>
+          <TextBlock Text="{Binding TapeStatusText}"
+                     TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="TapeStatusText"
+                     AutomationProperties.Name="Oric tape status"
+                     Classes="small secondary-text"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel>
       <Button Name="LoadSaveSectionHeader"
               AutomationProperties.AutomationId="LoadSaveSectionHeader"
               AutomationProperties.Name="Toggle Load/Save section"
@@ -101,11 +166,11 @@
               Classes="collapsible-content"
               IsVisible="{Binding IsLoadSaveSectionExpanded}">
         <StackPanel Classes="spacing-tight">
-          <Button Content="Load BASIC .tap…"
+          <Button Content="Load BASIC .tap directly…"
                   Click="LoadBasicTapFile_Click"
                   IsEnabled="{Binding IsFileOperationEnabled}"
                   AutomationProperties.AutomationId="LoadBasicButton"
-                  AutomationProperties.Name="Load Oric BASIC TAP file"
+                  AutomationProperties.Name="Load Oric BASIC TAP file directly"
                   Classes="small"/>
 
           <TextBlock Text="BASIC example files" Classes="small secondary-text"/>

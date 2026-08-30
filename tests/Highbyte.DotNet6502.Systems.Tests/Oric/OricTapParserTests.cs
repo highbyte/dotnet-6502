@@ -116,6 +116,31 @@ public sealed class OricTapParserTests
     }
 
     [Fact]
+    public void ParsedRecordsPreserveSafeTapeImageBoundaries()
+    {
+        var first = BuildTap(name: "FIRST", payload: [0x01, 0x02]);
+        var second = BuildTap(name: "SECOND", payload: [0x03]);
+        byte[] tapData = [.. first, 0x55, 0x00, .. second];
+
+        var records = OricTapParser.ParseRecords(tapData);
+
+        Assert.Collection(
+            records,
+            record =>
+            {
+                Assert.Equal("FIRST", record.File.Name);
+                Assert.Equal(0, record.StartOffset);
+                Assert.Equal(first.Length, record.EndOffset);
+            },
+            record =>
+            {
+                Assert.Equal("SECOND", record.File.Name);
+                Assert.Equal(first.Length + 2, record.StartOffset);
+                Assert.Equal(tapData.Length, record.EndOffset);
+            });
+    }
+
+    [Fact]
     public void DirectLoaderLoadsMachineCodeWithoutAutoRunningIt()
     {
         var oric = new OricMachine();
@@ -178,6 +203,42 @@ public sealed class OricTapParserTests
         oric.EjectTape();
         Assert.False(oric.Tape.IsInserted);
         Assert.Empty(oric.Tape.Files);
+    }
+
+    [Fact]
+    public void InsertedTapeNavigatesOnlyBetweenParsedRecordBoundaries()
+    {
+        var oric = BuildOricWithTapeRoutineReturns();
+        var first = BuildTap(name: "FIRST", payload: [0x01]);
+        var second = BuildTap(name: "SECOND", payload: [0x02]);
+        byte[] tapData = [.. first, 0x55, 0x00, .. second];
+        oric.InsertTape(tapData, "games.tap");
+
+        Assert.Equal("games.tap", oric.Tape.SourceName);
+        Assert.Equal(0, oric.Tape.CurrentRecordIndex);
+        Assert.Equal("FIRST", oric.Tape.CurrentFile?.Name);
+        Assert.False(oric.Tape.CanSeekToPreviousRecord);
+        Assert.True(oric.Tape.CanSeekToNextRecord);
+
+        Assert.True(oric.SeekToNextTapeRecord());
+        Assert.Equal(first.Length + 2, oric.Tape.Position);
+        Assert.Equal("SECOND", oric.Tape.CurrentFile?.Name);
+
+        Assert.True(oric.SeekToPreviousTapeRecord());
+        Assert.Equal(0, oric.Tape.Position);
+
+        for (var index = 0; index < first.Length; index++)
+            ExecuteHookAsSubroutine(oric, 0xe6c9);
+
+        Assert.Equal(-1, oric.Tape.CurrentRecordIndex);
+        Assert.True(oric.Tape.CanSeekToPreviousRecord);
+        Assert.True(oric.Tape.CanSeekToNextRecord);
+        Assert.True(oric.SeekToNextTapeRecord());
+        Assert.Equal(first.Length + 2, oric.Tape.Position);
+
+        oric.EjectTape();
+        Assert.Null(oric.Tape.SourceName);
+        Assert.Empty(oric.Tape.Records);
     }
 
     [Fact]

@@ -258,11 +258,16 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     /// Inserts and rewinds a byte-level TAP image. Standard Atmos ROM tape routines consume the
     /// bytes in order, allowing a program to issue additional <c>CLOAD</c> commands for later files.
     /// </summary>
-    public IReadOnlyList<OricTapFile> InsertTape(byte[] tapData) => Tape.Insert(tapData);
+    public IReadOnlyList<OricTapFile> InsertTape(byte[] tapData, string? sourceName = null)
+        => Tape.Insert(tapData, sourceName);
 
     public void EjectTape() => Tape.Eject();
 
     public void RewindTape() => Tape.Rewind();
+
+    public bool SeekToPreviousTapeRecord() => Tape.SeekToPreviousRecord();
+
+    public bool SeekToNextTapeRecord() => Tape.SeekToNextRecord();
 
     /// <summary>
     /// Directly loads one file from a TAP image without running the cassette routines. This is a

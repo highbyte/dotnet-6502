@@ -21,8 +21,10 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 - Parsing multi-file byte-level Oric `.tap` images and directly loading BASIC or machine-code
   records into RAM, including load-address and auto-run handling. A virtual tape cursor also feeds
   standard Atmos ROM `CLOAD` calls in sequence, so programs can load later records from the same
-  tape. Embedded BASIC examples cover text, hires graphics, sound effects, three-voice music, and
-  AY tone/noise/envelope control.
+  tape. The Avalonia tape section can attach or replace an image without loading it, eject or rewind
+  it, show the byte position and current/next file, and move safely to the previous or next parsed
+  file boundary. Embedded BASIC examples cover text, hires graphics, sound effects, three-voice
+  music, and AY tone/noise/envelope control.
 - Avalonia **Download & Run** support for a curated set of Oric programs hosted by Oric.org. TAP
   images may be downloaded directly or extracted from a named entry in a ZIP archive, are cached
   by the host application, and are started through the standard Atmos ROM cassette routine. The
@@ -41,7 +43,9 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 ## Not yet implemented
 
 - Cassette pulse input/output, tape recording/`CSAVE`, and software that bypasses the Atmos ROM
-  with a custom pulse loader.
+  with a custom pulse loader. Because the current transport is a logical byte stream rather than a
+  timed cassette signal, physical Play/Stop and continuous fast-forward/reverse controls do not
+  apply.
 - Microdisc or Jasmin floppy controllers and disk images.
 - Printer output, snapshots and Oric-specific monitor commands.
 - Cycle-level ULA bus contention and analogue AY output filtering.
