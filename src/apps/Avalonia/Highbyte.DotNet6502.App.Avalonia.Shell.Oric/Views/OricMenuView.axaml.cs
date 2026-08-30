@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.Services;
 using Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels;
@@ -16,13 +17,39 @@ public partial class OricMenuView : UserControl
 {
     private OricMenuViewModel? ViewModel => DataContext as OricMenuViewModel;
     private OricMenuViewModel? _subscribedViewModel;
+    private readonly ButtonFlashController _configButtonFlash = new();
 
     public OricMenuView()
     {
         AvaloniaXamlLoader.Load(this);
         DataContextChanged += (_, _) => UpdateViewModelSubscriptions(ViewModel);
-        AttachedToVisualTree += (_, _) => UpdateViewModelSubscriptions(ViewModel);
-        DetachedFromVisualTree += (_, _) => UpdateViewModelSubscriptions(null);
+        AttachedToVisualTree += (_, _) =>
+        {
+            UpdateViewModelSubscriptions(ViewModel);
+            UpdateSectionStatesIfNeeded();
+        };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _configButtonFlash.Cancel();
+            UpdateViewModelSubscriptions(null);
+        };
+    }
+
+    private void UpdateSectionStatesIfNeeded()
+    {
+        if (ViewModel == null)
+            return;
+
+        if (ViewModel.HasConfigValidationErrors)
+        {
+            ViewModel.ExpandConfigSectionOnValidationError();
+            if (this.FindControl<Button>("OpenOricConfigButton") is { } configButton)
+                _configButtonFlash.Start(configButton, Colors.DarkOrange, stopAfterClick: true);
+        }
+        else
+        {
+            _configButtonFlash.Cancel();
+        }
     }
 
     private void UpdateViewModelSubscriptions(OricMenuViewModel? newViewModel)
@@ -115,6 +142,7 @@ public partial class OricMenuView : UserControl
                 {
                     await ViewModel.HostApp.ValidateConfigAsync();
                     ViewModel.RefreshJoystickProperties();
+                    UpdateSectionStatesIfNeeded();
                 }
             }
             finally { host.Children.Remove(panel); }
@@ -132,6 +160,7 @@ public partial class OricMenuView : UserControl
         {
             await ViewModel.HostApp.ValidateConfigAsync();
             ViewModel.RefreshJoystickProperties();
+            UpdateSectionStatesIfNeeded();
         }
     }
 }

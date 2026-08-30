@@ -2,7 +2,10 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
+using Avalonia.Controls;
+using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia.Oric;
 using Highbyte.DotNet6502.Systems;
@@ -16,13 +19,14 @@ using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels;
 
-public sealed class OricMenuViewModel : ViewModelBase
+public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
 {
     private readonly ILogger _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly Assembly _examplesAssembly = typeof(OricMenuViewModel).Assembly;
     private readonly HttpClient _httpClient = new();
     private OricAutoLoadAndRun? _oricAutoLoadAndRun;
+    private readonly AccordionSections<OricMenuSection> _sections;
 
     private readonly Dictionary<string, OricDownloadProgramInfo> _preloadedPrograms = new()
     {
@@ -51,6 +55,8 @@ public sealed class OricMenuViewModel : ViewModelBase
         HostApp = hostApp;
         _logger = loggerFactory.CreateLogger(nameof(OricMenuViewModel));
         _loggerFactory = loggerFactory;
+        _sections = new AccordionSections<OricMenuSection>(
+            OnSectionStateChanged, initiallyExpanded: OricMenuSection.Download);
         InitializeExamples();
         InitializePreloadedPrograms();
         InitializeJoystickOptions();
@@ -88,6 +94,40 @@ public sealed class OricMenuViewModel : ViewModelBase
             this.WhenAnyValue(viewModel => viewModel.IsLoadingPreloadedProgram)
                 .Select(isLoading => !isLoading),
             RxSchedulers.MainThreadScheduler);
+
+        ToggleDownloadSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => _sections.Toggle(OricMenuSection.Download),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleLoadSaveSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => _sections.Toggle(OricMenuSection.LoadSave),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleConfigSectionCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => _sections.Toggle(OricMenuSection.Config),
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        SetActiveJoystickCommand = ReactiveCommandHelper.CreateSafeCommand<int>(
+            port => CurrentJoystick = port,
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        ToggleJoystickKeyboardCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () => JoystickKeyboardEnabled = !JoystickKeyboardEnabled,
+            null,
+            RxSchedulers.MainThreadScheduler);
+
+        SetKeyboardJoystickCommand = ReactiveCommandHelper.CreateSafeCommand<int>(
+            port =>
+            {
+                if (IsKeyboardJoystickSelectionEnabled)
+                    KeyboardJoystick = port;
+            },
+            null,
+            RxSchedulers.MainThreadScheduler);
     }
 
     public AvaloniaHostApp HostApp { get; }
@@ -100,6 +140,12 @@ public sealed class OricMenuViewModel : ViewModelBase
     public ReactiveCommand<byte[], Unit> LoadBasicTapFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadPreloadedProgramCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleDownloadSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleLoadSaveSectionCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleConfigSectionCommand { get; }
+    public ReactiveCommand<int, Unit> SetActiveJoystickCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleJoystickKeyboardCommand { get; }
+    public ReactiveCommand<int, Unit> SetKeyboardJoystickCommand { get; }
 
     public ObservableCollection<KeyValuePair<string, string>> BasicExamples { get; } = new();
     public ObservableCollection<KeyValuePair<string, string>> PreloadedPrograms { get; } = new();
@@ -107,6 +153,16 @@ public sealed class OricMenuViewModel : ViewModelBase
     public ObservableCollection<int> AvailableJoysticks { get; } = new();
 
     private OricHostConfig? OricHostConfig => HostApp.CurrentHostSystemConfig as OricHostConfig;
+
+    public bool HasConfigValidationErrors
+        => OricHostConfig != null && !OricHostConfig.IsValid(out _);
+
+    public bool IsDownloadSectionExpanded => _sections.IsExpanded(OricMenuSection.Download);
+    public bool IsLoadSaveSectionExpanded => _sections.IsExpanded(OricMenuSection.LoadSave);
+    public bool IsConfigSectionExpanded => _sections.IsExpanded(OricMenuSection.Config);
+
+    public void ExpandConfigSectionOnValidationError()
+        => _sections.SetExpanded(OricMenuSection.Config, true);
 
     public OricJoystickInterface JoystickInterface
     {
@@ -213,6 +269,24 @@ public sealed class OricMenuViewModel : ViewModelBase
     }
 
     public bool HasLatestPreloadedProgramError => !string.IsNullOrEmpty(LatestPreloadedProgramError);
+
+    private enum OricMenuSection { Download, LoadSave, Config }
+
+    private void OnSectionStateChanged(OricMenuSection section)
+    {
+        switch (section)
+        {
+            case OricMenuSection.Download:
+                this.RaisePropertyChanged(nameof(IsDownloadSectionExpanded));
+                break;
+            case OricMenuSection.LoadSave:
+                this.RaisePropertyChanged(nameof(IsLoadSaveSectionExpanded));
+                break;
+            case OricMenuSection.Config:
+                this.RaisePropertyChanged(nameof(IsConfigSectionExpanded));
+                break;
+        }
+    }
 
     public event EventHandler<string>? ClipboardCopyRequested;
     public event EventHandler<TaskCompletionSource<string?>>? ClipboardPasteRequested;
@@ -411,5 +485,77 @@ public sealed class OricMenuViewModel : ViewModelBase
             if (wasRunning)
                 await HostApp.Start();
         }
+    }
+
+    public string MenuLabel => "Oric";
+
+    public IReadOnlyList<NativeMenuItemBase> GetNativeMenuItems()
+    {
+        const KeyModifiers macBase = KeyModifiers.Meta | KeyModifiers.Alt;
+        const KeyModifiers macShift = KeyModifiers.Meta | KeyModifiers.Alt | KeyModifiers.Shift;
+
+        return new NativeMenuItemBase[]
+        {
+            BuildMenuItem("Toggle Download & Run section", new KeyGesture(Key.D, macShift), ToggleDownloadSectionCommand),
+            BuildMenuItem("Toggle Load/Save section", new KeyGesture(Key.L, macShift), ToggleLoadSaveSectionCommand),
+            BuildMenuItem("Toggle Configuration section", new KeyGesture(Key.C, macShift), ToggleConfigSectionCommand),
+            new NativeMenuItemSeparator(),
+            BuildMenuItem("Active joystick: Port 1", new KeyGesture(Key.D1, macBase), SetActiveJoystickCommand, 1),
+            BuildMenuItem("Active joystick: Port 2", new KeyGesture(Key.D2, macBase), SetActiveJoystickCommand, 2),
+            new NativeMenuItemSeparator(),
+            BuildMenuItem("Toggle Joystick KB", new KeyGesture(Key.K, macBase), ToggleJoystickKeyboardCommand),
+            BuildMenuItem("Keyboard joystick: Port 1", new KeyGesture(Key.D1, macShift), SetKeyboardJoystickCommand, 1),
+            BuildMenuItem("Keyboard joystick: Port 2", new KeyGesture(Key.D2, macShift), SetKeyboardJoystickCommand, 2),
+        };
+    }
+
+    public IReadOnlyList<KeyBinding> GetKeyBindings()
+    {
+        const KeyModifiers nonMacBase = KeyModifiers.Control | KeyModifiers.Alt;
+        const KeyModifiers nonMacShift = KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift;
+
+        return new[]
+        {
+            BuildKeyBinding(new KeyGesture(Key.D, nonMacShift), ToggleDownloadSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.L, nonMacShift), ToggleLoadSaveSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.C, nonMacShift), ToggleConfigSectionCommand),
+            BuildKeyBinding(new KeyGesture(Key.D1, nonMacBase), SetActiveJoystickCommand, 1),
+            BuildKeyBinding(new KeyGesture(Key.D2, nonMacBase), SetActiveJoystickCommand, 2),
+            BuildKeyBinding(new KeyGesture(Key.K, nonMacBase), ToggleJoystickKeyboardCommand),
+            BuildKeyBinding(new KeyGesture(Key.D1, nonMacShift), SetKeyboardJoystickCommand, 1),
+            BuildKeyBinding(new KeyGesture(Key.D2, nonMacShift), SetKeyboardJoystickCommand, 2),
+        };
+    }
+
+    private static NativeMenuItem BuildMenuItem(
+        string header,
+        KeyGesture gesture,
+        System.Windows.Input.ICommand command,
+        object? parameter = null)
+    {
+        var item = new NativeMenuItem
+        {
+            Header = header,
+            Gesture = gesture,
+            Command = command,
+        };
+        if (parameter != null)
+            item.CommandParameter = parameter;
+        return item;
+    }
+
+    private static KeyBinding BuildKeyBinding(
+        KeyGesture gesture,
+        System.Windows.Input.ICommand command,
+        object? parameter = null)
+    {
+        var binding = new KeyBinding
+        {
+            Gesture = gesture,
+            Command = command,
+        };
+        if (parameter != null)
+            binding.CommandParameter = parameter;
+        return binding;
     }
 }

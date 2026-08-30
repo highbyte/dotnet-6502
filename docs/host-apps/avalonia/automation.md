@@ -158,6 +158,9 @@ copyrighted firmware. Its buttons are `OricRomDownloadConfirmButton` and
 
 - **Root**: `OricMenuView`
 - **Basic clipboard**: `CopyBasicButton`, `PasteTextButton` (enabled while the emulator is running)
+- **Collapsible section headers**: `DownloadSectionHeader`, `DownloadSectionContent`,
+  `LoadSaveSectionHeader`, `LoadSaveSectionContent`, `ConfigSectionHeader`,
+  `ConfigSectionContent`
 - **Download & Run**: `OricDownloadProgramComboBox`, `OricDownloadAndRunButton`,
   `OricDownloadStatusText`, `OricDownloadErrorText`
 - **BASIC tape files**: `LoadBasicButton`, `BasicExampleComboBox`, `LoadBasicExampleButton`
@@ -327,6 +330,21 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 `Toggle Joystick KB` uses the same key as the C64's and VIC-20's, so the shortcut means the same
 thing whichever machine is loaded.
 
+### Oric shortcuts (active when the Oric system is selected)
+
+| Action                           | macOS               | Windows / Linux       |
+| -------------------------------- | ------------------- | --------------------- |
+| Toggle Download & Run section    | `⌘⌥⇧D`              | `Ctrl+Alt+Shift+D`    |
+| Toggle Load/Save section         | `⌘⌥⇧L`              | `Ctrl+Alt+Shift+L`    |
+| Toggle Configuration section     | `⌘⌥⇧C`              | `Ctrl+Alt+Shift+C`    |
+| Active joystick → Port 1         | `⌘⌥1`                | `Ctrl+Alt+1`          |
+| Active joystick → Port 2         | `⌘⌥2`                | `Ctrl+Alt+2`          |
+| Toggle Joystick KB               | `⌘⌥K`                | `Ctrl+Alt+K`          |
+| Keyboard joystick → Port 1       | `⌘⌥⇧1`               | `Ctrl+Alt+Shift+1`    |
+| Keyboard joystick → Port 2       | `⌘⌥⇧2`               | `Ctrl+Alt+Shift+2`    |
+
+On macOS these commands appear under the `Oric` system menu.
+
 ### VIC-20 shortcuts (active when the VIC-20 system is selected — `VIC-20` menu)
 
 | Action                           | macOS               | Windows / Linux       |
@@ -344,7 +362,7 @@ through the text-paste service, which writes ASCII straight to the keyboard latc
 a `HostKey`, so the joystick mapping cannot see it. Use `keyboard.press --key w` and read back
 `PDL(1)` — 0 means the key steered, 128 means it did not.
 
-Sidebar sections behave as an accordion in both the C64 and Apple II menus (shared
+Sidebar sections behave as an accordion in the C64, Apple II, and Oric menus (shared
 `AccordionSections` helper): expanding one section collapses the others. Automation
 scripts must therefore expand a section (header button or shortcut) before its inner
 controls exist in the accessibility tree.
@@ -352,7 +370,8 @@ controls exist in the accessibility tree.
 One exception worth knowing when a script asserts on section state: if the selected system's
 configuration is invalid — normally a fresh install whose ROM files are missing — the menu
 expands its Configuration section by itself and pulses the config button (`C64Config` /
-`OpenApple2ConfigButton`) orange until the configuration becomes valid or the button is clicked.
+`OpenApple2ConfigButton` / `OpenOricConfigButton`) orange until the configuration becomes valid or
+the button is clicked.
 So a Configuration section found already expanded is a signal about the config, not a leftover from
 an earlier step. The pulse is a `Background` change driven from the view (shared
 `ButtonFlashController`) and is not exposed through the accessibility tree; a screenshot is the only

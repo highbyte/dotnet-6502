@@ -22,9 +22,9 @@
               <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding EffectiveRomDirectory, StringFormat='Effective: {0}'}" Classes="small secondary-text" TextWrapping="Wrap"/>
             </Grid>
             <WrapPanel>
-              <Button Content="Load ROM file" Click="LoadRom_Click" IsVisible="{Binding !IsRunningInWebAssembly}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricLoadRomButton" Margin="0,0,8,0"/>
-              <Button Content="Download ROM" Command="{Binding DownloadCommand}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricDownloadRomButton" Classes="primary" Margin="0,0,8,0"/>
-              <Button Content="Clear" Command="{Binding ClearCommand}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricClearRomButton" Classes="danger"/>
+              <Button Content="Load ROM file" Click="LoadRom_Click" IsVisible="{Binding !IsRunningInWebAssembly}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricLoadRomButton" Margin="0,0,8,0" VerticalAlignment="Top"/>
+              <Button Content="Download ROM" Command="{Binding DownloadCommand}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricDownloadRomButton" Classes="primary" Margin="0,0,8,0" VerticalAlignment="Top"/>
+              <Button Content="Clear" Command="{Binding ClearCommand}" IsEnabled="{Binding IsNotBusy}" AutomationProperties.AutomationId="OricClearRomButton" Classes="danger" Margin="0" VerticalAlignment="Top"/>
             </WrapPanel>
             <TextBlock Text="{Binding RomSourceUrl}" Classes="small secondary-text" TextWrapping="Wrap"/>
           </StackPanel>
