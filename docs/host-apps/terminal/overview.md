@@ -52,9 +52,13 @@ It works over SSH and inside `tmux`/`screen` as long as the outer terminal meets
 - **Apple II Plus** (`Impl.Terminal.Apple2` + `App.Terminal.Shell.Apple2`) — 40×24 text page
   with normal, inverse, and flashing characters. Lo-res and hi-res graphics are not represented;
   while the machine is in a graphics mode, the Terminal host continues to show its text page.
+- **Oric Atmos 48K** (`Impl.Terminal.Oric` + `App.Terminal.Shell.Oric`) — 40×28 text screen
+  with serial ink/paper colors, inverse and flashing characters. Hi-res pixels, double-height
+  glyph shape, and RAM-defined alternate/custom glyph shapes are not represented; the Terminal
+  host continues to show the text screen in hi-res mode.
 
 The screen pane resizes automatically to fit the running system's frame (C64 ≈ 40 columns,
-VIC-20 ≈ 22 columns, Apple II = 40 columns), and the status/logs column reflows around it. The emulated screen is drawn
+VIC-20 ≈ 22 columns, Apple II = 40 columns, Oric = 40 columns), and the status/logs column reflows around it. The emulated screen is drawn
 without an extra framing box — each system renders its own coloured screen border, which is wide and
 wasteful in a terminal, so the view crops it down to a thin, consistent border on every side. This
 keeps the C64 (29 cells tall including its border) within a default ~30-row terminal without the user
@@ -142,9 +146,14 @@ emulator is stopped, with live validation:
 - **Apple II Plus** — required system/character ROMs, optional Disk II boot ROM (with
   auto-download), monitor colour, and language-card selection. Its system menu also provides
   Applesoft copy/paste, read-only `.dsk` insertion/booting, and a live WASD keyboard joystick.
+- **Oric Atmos** — Atmos BASIC 1.1b ROM selection/download with the ownership/licence
+  acknowledgement, US/Swedish keyboard layout, PASE/IJK joystick interface, and keyboard joystick
+  selection. Its system menu also provides Oric BASIC copy/paste and virtual `.tap` attachment,
+  eject, rewind, and previous/next record controls.
 
 See [Systems / C64 / ROMs](../../systems/c64/roms.md), [Systems / VIC-20 / ROMs](../../systems/vic20/roms.md),
 [Systems / Apple II / ROMs](../../systems/apple2/roms.md),
+[Systems / Oric / ROMs](../../systems/oric/roms.md),
 and [Systems / C64 / SwiftLink](../../systems/c64/swiftlink.md).
 
 The shipped `appsettings.json` contains packaged defaults. User changes are saved to the Terminal host's `appsettings.user.json` under the OS local application data directory, not beside the shipped executable. Empty ROM directory settings use the shared user content directories under `~/Documents/Highbyte/DotNet6502/roms` (or the Windows Documents equivalent).
@@ -219,6 +228,8 @@ runs the headless self-test (in the integrated terminal, since it needs no TTY).
 - No audio.
 - PETSCII graphics are approximated with the nearest common Unicode glyphs, so they will not match
   the C64 exactly.
+- Oric hi-res pixels, double-height character shape, and RAM-defined alternate/custom glyph shapes
+  cannot be represented; the text screen, serial colors, inverse, and flashing attributes remain visible.
 
 See [Terminal requirements](#terminal-requirements) for the terminal capabilities the app needs, and
 [Limitations](../../home/limitations.md) for general project limitations.

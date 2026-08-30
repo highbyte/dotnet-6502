@@ -3,10 +3,10 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Plugins;
+using Highbyte.DotNet6502.Updates;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Highbyte.DotNet6502.Updates;
 
 // ----------
 // DotNet 6502 emulator — interactive terminal (TUI) host.
@@ -22,10 +22,12 @@ using Highbyte.DotNet6502.Updates;
 // the screen. No automatic startup notice here: an ephemeral stdout line would just be wiped by the
 // full-screen TUI. Environment.Exit keeps the app's existing exit-code handling intact.
 if (ConsoleUpdateCli.WantsHandling(args))
+{
     Environment.Exit(await ConsoleUpdateCli.RunAsync(
         args,
         new AppUpdateDescriptor { HomebrewPackage = "dotnet-6502-terminal", ScoopPackage = "dotnet-6502-terminal" },
         Console.Out));
+}
 
 // Anchor file/relative resource access to the built app location.
 Environment.CurrentDirectory = AppContext.BaseDirectory;
@@ -138,11 +140,15 @@ try
         shellPlugins.FirstOrDefault(p => p.SystemName.Equals(systemName, StringComparison.OrdinalIgnoreCase))
             ?.CreateInfoContribution(serviceProvider) as ITerminalInfoContribution;
 
+    int ResolveSystemDisplayOrder(string systemName) =>
+        shellPlugins.FirstOrDefault(p => p.SystemName.Equals(systemName, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayOrder ?? 1000;
+
     // ----------
     // Run the TUI host app (or the headless self-test that needs no TTY).
     // ----------
     var hostApp = new TuiHostApp(systemList, loggerFactory, emulatorConfig, logStore,
-        ResolveMenuContribution, ResolveInfoContribution, updateService);
+        ResolveMenuContribution, ResolveInfoContribution, updateService, ResolveSystemDisplayOrder);
     hostAppHolder = hostApp;
 
     if (args.Contains("--selftest"))

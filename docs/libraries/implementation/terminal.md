@@ -11,10 +11,12 @@ Library: `Highbyte.DotNet6502.Impl.Terminal`
 !!! note "System-specific code lives in companion libraries"
     This library holds only **system-agnostic** terminal glue. Per-system code is in the
     engine-plugin libraries `Highbyte.DotNet6502.Impl.Terminal.Commodore64`,
-    `Highbyte.DotNet6502.Impl.Terminal.Vic20`, and `Highbyte.DotNet6502.Impl.Terminal.Apple2`
+    `Highbyte.DotNet6502.Impl.Terminal.Vic20`, `Highbyte.DotNet6502.Impl.Terminal.Apple2`, and
+    `Highbyte.DotNet6502.Impl.Terminal.Oric`
     (host config + `ISystemEnginePlugin` registration).
     See [Systems / C64 / Libraries](../../systems/c64/libraries.md) and
-    [Systems / VIC-20 / Libraries](../../systems/vic20/libraries.md).
+    [Systems / VIC-20 / Libraries](../../systems/vic20/libraries.md). Oric host support is described
+    in [Systems / Oric](../../systems/oric/overview.md).
 
 ## Render
 

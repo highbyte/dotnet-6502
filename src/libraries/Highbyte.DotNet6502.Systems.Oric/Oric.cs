@@ -86,6 +86,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
 
         var rasterizer = new OricRasterizer(this);
         RenderProviders.Add(rasterizer);
+        RenderProviders.Add(new OricVideoCommandStream(this));
         SetCurrentRenderProviderType(typeof(OricRasterizer));
 
         if (config.AudioEnabled)
@@ -218,6 +219,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         Via.Reset();
         if (_renderProvider is OricRasterizer rasterizer)
             rasterizer.Reset();
+        else if (_renderProvider is OricVideoCommandStream commandStream)
+            commandStream.Reset();
         if (cpuStartPos.HasValue)
             CPU.PC = cpuStartPos.Value;
         else if (_hasSystemRom)

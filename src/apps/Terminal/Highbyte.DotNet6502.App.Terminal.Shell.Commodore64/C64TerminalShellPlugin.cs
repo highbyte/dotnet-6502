@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.App.Terminal;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +17,8 @@ namespace Highbyte.DotNet6502.App.Terminal.Shell.Commodore64;
 public sealed class C64TerminalShellPlugin : ISystemShellPlugin
 {
     public string SystemName => C64.SystemName;
+
+    public int DisplayOrder => 10;
 
     public void RegisterShellServices(IServiceCollection services)
     {

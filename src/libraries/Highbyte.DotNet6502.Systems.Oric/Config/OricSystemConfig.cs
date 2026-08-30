@@ -177,7 +177,11 @@ public sealed class OricSystemConfig : ISystemConfig
         };
     }
 
-    public List<Type> GetSupportedRenderProviderTypes() => [typeof(OricRasterizer)];
+    public List<Type> GetSupportedRenderProviderTypes() =>
+    [
+        typeof(OricRasterizer),
+        typeof(OricVideoCommandStream),
+    ];
 
     public void SetRenderProviderType(Type? renderProviderType)
     {

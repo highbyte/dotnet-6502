@@ -35,6 +35,7 @@
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Avalonia.Commodore64\Highbyte.DotNet6502.Impl.Avalonia.Commodore64.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Headless.Oric\Highbyte.DotNet6502.Impl.Headless.Oric.csproj" />
+    <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Terminal.Oric\Highbyte.DotNet6502.Impl.Terminal.Oric.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Terminal\Highbyte.DotNet6502.Impl.Terminal.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Impl.Terminal.Apple2\Highbyte.DotNet6502.Impl.Terminal.Apple2.csproj" />
     <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Systems.Apple2\Highbyte.DotNet6502.Systems.Apple2.csproj" />

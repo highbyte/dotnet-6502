@@ -17,7 +17,7 @@ not require a separate character-generator ROM.
 
 ## Downloading or supplying the ROM
 
-The Avalonia configuration view can fetch `basic11b.rom` from the
+The Avalonia and Terminal configuration views can fetch `basic11b.rom` from the
 [RetroBIOS Oricutron collection](https://abdess.github.io/retrobios/emulators/oricutron/).
 It displays an explicit ownership/licence acknowledgement before downloading and validates the
 result against the SHA-1 above. The ROM is not bundled with the emulator.

@@ -13,7 +13,7 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   noise and envelope channels.
 - The Atmos eight-by-eight keyboard matrix. Host arrow, modifier, editing, alphanumeric and
   punctuation keys map to their physical Oric keys. US and Swedish host layouts are supported,
-  with automatic operating-system detection or an explicit selection in the Avalonia config.
+  with automatic operating-system detection or an explicit selection in the Avalonia and Terminal configs.
   Swedish Å/Ä/Ö provide convenient access to the Atmos `[`, `]` and `\` keys, while common
   Swedish Alt/Option/AltGr symbol chords are translated to the corresponding Atmos keys.
   PC Alt and Mac Option map to the Atmos
@@ -43,6 +43,9 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   ink, paper, character and screen attributes, alternate character sets, inverse and flashing
   characters, and the three text rows below hires graphics.
 - Avalonia Desktop and Avalonia Browser integration, with ROM and audio configuration.
+- Terminal integration with a 40 &times; 28 glyph-command text display, keyboard input, BASIC
+  copy/paste, virtual tape controls, joystick configuration, and ROM download/selection. The
+  Terminal host has no audio or hi-res pixel output.
 
 ## Not yet implemented
 

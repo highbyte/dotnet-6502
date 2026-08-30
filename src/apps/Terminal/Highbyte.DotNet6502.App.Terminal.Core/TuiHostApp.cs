@@ -3,9 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using Highbyte.DotNet6502.Impl.Terminal;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
-using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Terminal.Gui.App;
@@ -129,6 +127,7 @@ public class TuiHostApp : HostApp
     // Optional update service: drives the "Updates" dialog (leader-key U) and the "update available"
     // window-title/hint indicator. Null when the host is created without one (e.g. self-test).
     private readonly TerminalUpdateService? _updateService;
+    private readonly Func<string, int> _resolveSystemDisplayOrder;
 
     public TuiHostApp(
         SystemList systemList,
@@ -137,7 +136,8 @@ public class TuiHostApp : HostApp
         DotNet6502InMemLogStore logStore,
         Func<string, ITerminalMenuContribution?>? resolveMenuContribution = null,
         Func<string, ITerminalInfoContribution?>? resolveInfoContribution = null,
-        TerminalUpdateService? updateService = null)
+        TerminalUpdateService? updateService = null,
+        Func<string, int>? resolveSystemDisplayOrder = null)
         : base("Terminal", systemList, loggerFactory, useStatsNamePrefix: false)
     {
         _loggerFactory = loggerFactory;
@@ -147,6 +147,7 @@ public class TuiHostApp : HostApp
         _resolveMenuContribution = resolveMenuContribution ?? (_ => null);
         _resolveInfoContribution = resolveInfoContribution ?? (_ => null);
         _updateService = updateService;
+        _resolveSystemDisplayOrder = resolveSystemDisplayOrder ?? (_ => 1000);
     }
 
     public void Run()
@@ -179,16 +180,17 @@ public class TuiHostApp : HostApp
         _leaderKeyCode = ParseLeaderKey(_emulatorConfig.LeaderKey);
         Application.KeyDown += OnGlobalKeyDown;
         // Reflect update-check results (they arrive from a background thread) in the title/hint indicator.
-        if (_updateService is not null)
-            _updateService.Changed += OnUpdateStatusChanged;
+        _updateService?.Changed += OnUpdateStatusChanged;
         try
         {
             BuildUi();
 
             if (AvailableSystemNames.Count == 0)
+            {
                 throw new DotNet6502Exception(
                     "No emulator systems are available. Check appsettings.json and that the system " +
                     "core assemblies are deployed.");
+            }
 
             SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
             ApplySupportedRenderTargetToSystemConfigs().Wait();
@@ -222,8 +224,7 @@ public class TuiHostApp : HostApp
         finally
         {
             Application.KeyDown -= OnGlobalKeyDown;
-            if (_updateService is not null)
-                _updateService.Changed -= OnUpdateStatusChanged;
+            _updateService?.Changed -= OnUpdateStatusChanged;
             StopEmulatorLoop();
             RemoveTimer(ref _displayTimerToken);
             RemoveTimer(ref _statusTimerToken);
@@ -460,8 +461,12 @@ public class TuiHostApp : HostApp
         // This label is only the fallback for systems that contribute no info panel.
         _infoLabel = new Label
         {
-            X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill(),
-            Text = "No system-specific info.", Visible = false,
+            X = 0,
+            Y = 1,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            Text = "No system-specific info.",
+            Visible = false,
         };
         _tabsFrame.Add(_infoTabStrip, _logsListView, _configLabel, _infoLabel);
 
@@ -709,8 +714,10 @@ public class TuiHostApp : HostApp
         // host mode is *not* armed. The full command list appears only once the leader key arms it.
         // In UI mode also advertise the navigation keys (Tab within an area, F6 between areas).
         if (_hostModeActive)
+        {
             _hintLabel.Text =
                 $" HOST: S Start/Stop  M Monitor  P Paths  T Stats  U Updates  Q Quit  Y System  V Variant  Tab/F6 Emu⇄UI   (Esc cancels)";
+        }
         else if (InEmulatorMode)
             _hintLabel.Text = $" [EMULATOR]  {LeaderKeyName} Menu{UpdateHintSuffix}";
         else
@@ -812,7 +819,10 @@ public class TuiHostApp : HostApp
             return;
         }
 
-        var names = AvailableSystemNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+        var names = AvailableSystemNames
+            .OrderBy(_resolveSystemDisplayOrder)
+            .ThenBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         if (names.Count <= 1)
             return;
 
@@ -872,7 +882,6 @@ public class TuiHostApp : HostApp
         else
             DoStart();
     }
-
 
     /// <summary>
     /// Monitor (leader-key Monitor command / Monitor button): open the machine-code monitor against the running (or paused)
@@ -996,8 +1005,7 @@ public class TuiHostApp : HostApp
     /// <summary>Turns the running system's detailed instrumentation on/off to match the Stats toggle.</summary>
     private void ApplyInstrumentationEnabled()
     {
-        if (CurrentRunningSystem != null)
-            CurrentRunningSystem.InstrumentationEnabled = _statsEnabled;
+        CurrentRunningSystem?.InstrumentationEnabled = _statsEnabled;
     }
 
     // ----------------------------------------------------------------------
@@ -1207,8 +1215,7 @@ public class TuiHostApp : HostApp
             if (_renderLoop != null && _renderLoop.ConsumeRedrawRequested())
             {
                 var coordinator = GetRenderCoordinator();
-                if (coordinator != null)
-                    coordinator.FlushIfDirtyAsync().GetAwaiter().GetResult();
+                coordinator?.FlushIfDirtyAsync().GetAwaiter().GetResult();
                 _screenView.RefreshFromRenderTarget();
                 ResizeScreenFrameToFit(_screenView.FrameWidth, _screenView.FrameHeight);
             }
@@ -1434,8 +1441,7 @@ public class TuiHostApp : HostApp
 
         // Info tab: show the active system's info panel if it has one, otherwise the fallback label.
         var infoActive = tab == InfoTab.Info;
-        if (_activeInfoContribution != null)
-            _activeInfoContribution.View.Visible = infoActive;
+        _activeInfoContribution?.View.Visible = infoActive;
         _infoLabel.Visible = infoActive && _activeInfoContribution == null;
 
         // Keep the strip's highlighted tab in sync (no-op when already active, e.g. when the strip
@@ -1652,9 +1658,13 @@ public class TuiHostApp : HostApp
                 }
 
                 if (current.Length == 0)
+                {
                     current.Append(w);
+                }
                 else if (current.Length + 1 + w.Length <= width)
+                {
                     current.Append(' ').Append(w);
+                }
                 else { lines.Add(current.ToString()); current.Clear(); current.Append(w); }
             }
 

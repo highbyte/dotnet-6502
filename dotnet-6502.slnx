@@ -88,6 +88,7 @@
     <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Core/Highbyte.DotNet6502.App.Terminal.Core.csproj" />
     <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Shell.Apple2/Highbyte.DotNet6502.App.Terminal.Shell.Apple2.csproj" />
     <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Shell.Commodore64/Highbyte.DotNet6502.App.Terminal.Shell.Commodore64.csproj" />
+    <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Shell.Oric/Highbyte.DotNet6502.App.Terminal.Shell.Oric.csproj" />
     <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal.Shell.Vic20/Highbyte.DotNet6502.App.Terminal.Shell.Vic20.csproj" />
     <Project Path="src/apps/Terminal/Highbyte.DotNet6502.App.Terminal/Highbyte.DotNet6502.App.Terminal.csproj" />
   </Folder>
@@ -96,6 +97,7 @@
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SadConsole.Generic/Highbyte.DotNet6502.Impl.SadConsole.Generic.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal.Apple2/Highbyte.DotNet6502.Impl.Terminal.Apple2.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal.Commodore64/Highbyte.DotNet6502.Impl.Terminal.Commodore64.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal.Oric/Highbyte.DotNet6502.Impl.Terminal.Oric.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal.Vic20/Highbyte.DotNet6502.Impl.Terminal.Vic20.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Terminal/Highbyte.DotNet6502.Impl.Terminal.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Systems.Commodore64.Transport/Highbyte.DotNet6502.Systems.Commodore64.Transport.csproj" />
