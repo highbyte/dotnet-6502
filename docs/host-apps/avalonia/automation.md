@@ -145,8 +145,10 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **ROM actions**: `OricRomStatusText`, `OricRomDirectoryTextBox`, `OricLoadRomButton`,
   `OricDownloadRomButton`, `OricClearRomButton`
 - **Audio**: `OricAudioEnabledCheckBox`
-- **Input &amp; Joystick**: `OricJoystickInterfaceComboBox`, `OricHostJoystickComboBox`,
-  `OricKeyboardJoystickEnableCheckBox`, `OricKeyboardJoystickPortComboBox`
+- **Input &amp; Joystick**: `OricKeyboardLayoutComboBox` — host keyboard layout (`Auto`, `US`,
+  or `Swedish`; `Auto` means auto-detect), `OricJoystickInterfaceComboBox`,
+  `OricHostJoystickComboBox`, `OricKeyboardJoystickEnableCheckBox`,
+  `OricKeyboardJoystickPortComboBox`
 - **Messages**: `OricConfigStatusText`
 - **Footer**: `OricConfigCancelButton`, `OricConfigSaveButton`
 

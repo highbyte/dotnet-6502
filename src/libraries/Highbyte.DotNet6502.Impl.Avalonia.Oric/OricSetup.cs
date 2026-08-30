@@ -35,7 +35,7 @@ public sealed class OricSetup : OricSystemConfigurerCore
     {
         var oric = (OricMachine)system;
         var oricHostConfig = (OricHostConfig)hostSystemConfig;
-        oric.InputConsumer = new OricInputHandler(oric, oricHostConfig.InputConfig);
+        oric.InputConsumer = new OricInputHandler(oric, LoggerFactory, oricHostConfig.InputConfig);
         return base.BuildSystemRunner(system, hostSystemConfig);
     }
 }

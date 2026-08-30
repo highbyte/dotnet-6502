@@ -12,7 +12,11 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 - AY-3-8912 register access through the VIA control pins and mono PCM audio for its three tone,
   noise and envelope channels.
 - The Atmos eight-by-eight keyboard matrix. Host arrow, modifier, editing, alphanumeric and
-  punctuation keys map to their physical Oric keys. PC Alt and Mac Option map to the Atmos
+  punctuation keys map to their physical Oric keys. US and Swedish host layouts are supported,
+  with automatic operating-system detection or an explicit selection in the Avalonia config.
+  Swedish Å/Ä/Ö provide convenient access to the Atmos `[`, `]` and `\` keys, while common
+  Swedish Alt/Option/AltGr symbol chords are translated to the corresponding Atmos keys.
+  PC Alt and Mac Option map to the Atmos
   **FUNCT** key; PC Backspace and Mac Delete map to **DEL**. **F12** remains the emulator
   machine-code monitor shortcut. Atmos BASIC control combinations such as **Ctrl+T** for
   CAPS/lowercase and **Ctrl+C** to interrupt a program use the host Control key.

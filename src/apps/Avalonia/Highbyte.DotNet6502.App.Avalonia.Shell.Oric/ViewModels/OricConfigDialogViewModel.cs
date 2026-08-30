@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Oric;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Oric.Config;
 using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Utils;
@@ -14,11 +15,14 @@ namespace Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels;
 
 public sealed class OricConfigDialogViewModel : ViewModelBase
 {
+    private const string AutoKeyboardLayoutLabel = "Auto";
+
     private readonly AvaloniaHostApp _hostApp;
     private readonly OricHostConfig _originalConfig;
     private readonly OricHostConfig _workingConfig;
     private readonly HttpClient _httpClient = new();
     private bool _isBusy;
+    private string _selectedKeyboardLayout = AutoKeyboardLayoutLabel;
     private string _statusMessage = string.Empty;
 
     public OricConfigDialogViewModel(AvaloniaHostApp hostApp)
@@ -27,6 +31,8 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
         _originalConfig = hostApp.CurrentHostSystemConfig as OricHostConfig
             ?? throw new InvalidOperationException("Current host config must be OricHostConfig.");
         _workingConfig = (OricHostConfig)_originalConfig.Clone();
+        SelectedKeyboardLayout =
+            _workingConfig.InputConfig.KeyboardLayout?.ToString() ?? AutoKeyboardLayoutLabel;
         SelectAvailableTargets();
         InitializeJoystickOptions();
 
@@ -97,6 +103,23 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
 
     public ObservableCollection<KeyValuePair<OricJoystickInterface, string>> JoystickInterfaces { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; } = new();
+    public ObservableCollection<string> AvailableKeyboardLayouts { get; } =
+        new(new[] { AutoKeyboardLayoutLabel }.Concat(Enum.GetNames<HostKeyboardLayout>()));
+
+    public string SelectedKeyboardLayout
+    {
+        get => _selectedKeyboardLayout;
+        set
+        {
+            if (_selectedKeyboardLayout == value)
+                return;
+            this.RaiseAndSetIfChanged(ref _selectedKeyboardLayout, value);
+            _workingConfig.InputConfig.KeyboardLayout =
+                string.IsNullOrEmpty(value) || value == AutoKeyboardLayoutLabel
+                    ? null
+                    : Enum.Parse<HostKeyboardLayout>(value);
+        }
+    }
 
     public OricJoystickInterface JoystickInterface
     {

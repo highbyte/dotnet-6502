@@ -38,6 +38,22 @@
         <Border Classes="content-section">
           <StackPanel Spacing="8">
             <TextBlock Text="Input &amp; Joystick"/>
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto" Classes="spacing-wide">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="Keyboard layout:"
+                         Classes="secondary-text"/>
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        ItemsSource="{Binding AvailableKeyboardLayouts}"
+                        SelectedItem="{Binding SelectedKeyboardLayout}"
+                        AutomationProperties.AutomationId="OricKeyboardLayoutComboBox"
+                        AutomationProperties.Name="Oric host keyboard layout"
+                        Classes="small"
+                        MinWidth="100"
+                        MaxDropDownHeight="100"/>
+            </Grid>
+            <TextBlock Text="Which punctuation the host keys produce. Auto detects the layout from the operating system, and falls back to US English when it cannot tell."
+                       Classes="small secondary-text"
+                       TextWrapping="Wrap"/>
             <TextBlock Text="The Atmos requires a printer-port joystick interface. PASE has wider original-game support; IJK avoids hardware sound interference."
                        Classes="small secondary-text"
                        TextWrapping="Wrap"/>

@@ -184,7 +184,7 @@
         </Grid>
       </Border>
 
-      <TextBlock Text="All other keys, including Control, Shift and the cursor keys, map by physical keyboard position."
+      <TextBlock Text="Letters, numbers, Control, Shift and cursor keys map directly. Punctuation follows the Auto, US or Swedish host keyboard layout selected in Oric configuration."
                  Classes="small secondary-text"
                  TextWrapping="Wrap"/>
   </StackPanel>

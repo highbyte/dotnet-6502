@@ -3,7 +3,7 @@ using Highbyte.DotNet6502.Systems.Input;
 
 namespace Highbyte.DotNet6502.Systems.Oric.Input;
 
-/// <summary>Host-agnostic gamepad and keyboard-joystick mappings for the Oric.</summary>
+/// <summary>Host keyboard layout, gamepad, and keyboard-joystick settings for the Oric.</summary>
 public sealed class OricInputConfig : ICloneable
 {
     private static readonly IReadOnlyList<int> s_availableJoysticks = [1, 2];
@@ -27,6 +27,14 @@ public sealed class OricInputConfig : ICloneable
             [GamepadButton.DPadLeft] = JoystickAction.Left,
             [GamepadButton.DPadRight] = JoystickAction.Right,
         };
+
+    /// <summary>
+    /// The host physical keyboard layout the Oric keyboard mapping assumes.
+    /// <c>null</c> means auto-detect from the host keyboard layout, then the OS culture, with US
+    /// as the final fallback. A non-null value forces that layout.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<HostKeyboardLayout>))]
+    public HostKeyboardLayout? KeyboardLayout { get; set; }
 
     /// <summary>The Oric adapter socket (1 or 2) driven by the host gamepad.</summary>
     public int CurrentJoystick { get; set; } = 1;
