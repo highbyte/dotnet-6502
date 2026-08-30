@@ -15,8 +15,9 @@ Library: `Highbyte.DotNet6502.Impl.Terminal`
     `Highbyte.DotNet6502.Impl.Terminal.Oric`
     (host config + `ISystemEnginePlugin` registration).
     See [Systems / C64 / Libraries](../../systems/c64/libraries.md) and
-    [Systems / VIC-20 / Libraries](../../systems/vic20/libraries.md). Oric host support is described
-    in [Systems / Oric](../../systems/oric/overview.md).
+    [Systems / VIC-20 / Libraries](../../systems/vic20/libraries.md), the
+    [Apple II system overview](../../systems/apple2/overview.md), and
+    [Systems / Oric / Libraries](../../systems/oric/libraries.md).
 
 ## Render
 

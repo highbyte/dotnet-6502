@@ -43,6 +43,7 @@ called out inline:
 - [C64 in the Avalonia apps](c64.md)
 - [VIC-20 in the Avalonia apps](vic20.md)
 - [Apple II Plus in the Avalonia apps](apple2.md)
+- [Oric Atmos in the Avalonia apps](oric.md)
 - [Generic computer in the Avalonia apps](generic.md)
 
 ### Lua scripting

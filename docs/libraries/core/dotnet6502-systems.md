@@ -10,7 +10,7 @@ referenced by the Tier-2 system cores, the Tier-3 implementation libraries, and 
 
 | Type | Role |
 |---|---|
-| `ISystem` | An emulated computer — exposes `CPU`, `Mem`, screen, `ExecuteOneFrame` / `ExecuteOneInstruction`, and the render/input/audio members below. Implemented by `C64`, `GenericComputer`. |
+| `ISystem` | An emulated computer — exposes `CPU`, `Mem`, screen, `ExecuteOneFrame` / `ExecuteOneInstruction`, and the render/input/audio members below. Implemented by `C64`, `Vic20`, `Apple2`, `Oric`, and `GenericComputer`. |
 | `ISystemConfig` | A system's configuration. Carries `IsDirty` / `ClearDirty()`, validation, and render-provider selection. |
 | `ISystemConfigurer` | Builds a system and its `SystemRunner` from config — `BuildSystem`, `BuildSystemRunner`, `GetConfigurationVariants`, host-config create/persist. |
 | `IHostSystemConfig` / `HostSystemConfigBase<TSystemConfig>` | Per-host wrapper around an `ISystemConfig`. The generic base supplies the shared boilerplate (`SystemConfig`, `AudioSupported`, `IsDirty`, `Clone`, validation). |
@@ -58,4 +58,4 @@ system.
 ## See also
 
 - [`Highbyte.DotNet6502.Systems.Plugins`](dotnet6502-systems-plugins.md) — plugin contracts + discovery.
-- [Systems overview](../../systems/overview.md) — the C64 and Generic implementations.
+- [Systems overview](../../systems/overview.md) — all current system implementations.

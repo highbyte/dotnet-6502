@@ -149,7 +149,9 @@ emulator is stopped, with live validation:
 - **Oric Atmos** — Atmos BASIC 1.1b ROM selection/download with the ownership/licence
   acknowledgement, US/Swedish keyboard layout, PASE/IJK joystick interface, and keyboard joystick
   selection. Its system menu also provides Oric BASIC copy/paste and virtual `.tap` attachment,
-  eject, rewind, and previous/next record controls.
+  eject, rewind, and previous/next record controls. When keyboard joystick is enabled,
+  <kbd>W</kbd>/<kbd>A</kbd>/<kbd>S</kbd>/<kbd>D</kbd> and <kbd>Space</kbd> are consumed as joystick
+  input instead of being sent to the Oric keyboard.
 
 See [Systems / C64 / ROMs](../../systems/c64/roms.md), [Systems / VIC-20 / ROMs](../../systems/vic20/roms.md),
 [Systems / Apple II / ROMs](../../systems/apple2/roms.md),
@@ -217,10 +219,11 @@ dotnet run --project src/apps/Terminal/Highbyte.DotNet6502.App.Terminal -- --sel
 
 ### VS Code
 
-Use the **Terminal (TUI) - Launch** configuration. It runs in an external terminal window — a real
-TTY, and better suited to a full-screen TUI than the integrated terminal (and unlike the VS Code
-Debug Console, which redirects I/O and has no TTY at all). **Terminal (TUI) - Launch (Self-test)**
-runs the headless self-test (in the integrated terminal, since it needs no TTY).
+Use the **Terminal (TUI) - Launch** configuration. It runs in VS Code's integrated terminal, which
+provides the real PTY that the full-screen TUI needs and works both locally and through VS Code
+Remote SSH. The VS Code Debug Console redirects I/O and is not a TTY. **Terminal (TUI) - Launch
+(Self-test)** also runs in the integrated terminal, although the headless self-test itself does not
+need a TTY.
 
 ## Limitations
 

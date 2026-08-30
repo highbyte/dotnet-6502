@@ -28,7 +28,14 @@ look in the following default directory:
 - macOS/Linux: `~/Documents/Highbyte/DotNet6502/roms/Oric`
 - Windows: `%USERPROFILE%\Documents\Highbyte\DotNet6502\roms\Oric`
 
-The desktop default file name is configured as:
+Avalonia Desktop, Terminal, and Headless store the same `SystemConfig` payload under a
+host-specific section key:
+
+- `Highbyte.DotNet6502.Oric.Avalonia`
+- `Highbyte.DotNet6502.Oric.Terminal`
+- `Highbyte.DotNet6502.Oric.Headless`
+
+For example, the Avalonia Desktop default is:
 
 ```json
 "Highbyte.DotNet6502.Oric.Avalonia": {

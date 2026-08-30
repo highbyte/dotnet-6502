@@ -35,8 +35,9 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   Browser host routes these downloads through its configured CORS proxy.
 - PASE/Altai/Mageco and IJK/Stingy/Egoist printer-port joystick interfaces, each with two
   Atari-style joystick sockets. A host gamepad can drive either socket, and optional keyboard
-  joystick controls use W/A/S/D plus Space. The interface and socket selections are available
-  both in the Avalonia sidebar and the Oric configuration dialog.
+  joystick controls use W/A/S/D plus Space. While keyboard joystick is enabled, those keys are
+  consumed as joystick input and are not also delivered to the Oric keyboard. The interface and
+  socket selections are available both in the Avalonia sidebar and the Oric configuration dialog.
 - Remote control supports keyboard and joystick injection, paced text entry, BASIC readiness and
   source queries, direct TAP loading, and insert/rewind/eject/status control for the virtual tape.
 - The 240 &times; 224 active display in text and 240 &times; 200 hires modes, including serial

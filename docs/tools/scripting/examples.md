@@ -1,6 +1,8 @@
 # Examples
 
-Example scripts are included in the `scripts/` directory of the source repository.
+Example scripts live in `resources/scripts/shared/` and `resources/scripts/desktop/` in the source
+repository. The build copies the applicable examples into the host app's `example-scripts`
+directory.
 
 | Script | Style | Description |
 |--------|-------|-------------|

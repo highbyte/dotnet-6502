@@ -11,7 +11,7 @@ one app with two runtimes.
 | [Blazor WebAssembly](blazor-wasm/overview.md) | Browser | [Blazor WebAssembly](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) + `Highbyte.DotNet6502.Impl.Skia` (SkiaSharp on canvas) | `Highbyte.DotNet6502.Impl.AspNet` (WebAudio JS interop). C64 command-stream provider only. | SkiaSharp-rendered browser alternative. |
 | [SadConsole](sadconsole/overview.md) | Desktop | [SadConsole](https://github.com/Thraka/SadConsole) (terminal/ASCII engine) | NAudio + OpenAL. | Console-style retro UI. |
 | [SilkNetNative](silknet-native/overview.md) | Desktop | [Silk.NET](https://github.com/dotnet/Silk.NET) + ImGui + OpenGL/SkiaSharp | NAudio + OpenAL. | OpenGL/shader rendering paths, incl. a custom GPU-packet C64 renderer. |
-| [Terminal (TUI)](terminal/overview.md) | Desktop / CLI | [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) v2 — renders the emulated text-mode screen as colored Unicode cells in a real terminal (works over SSH, in tmux). | none | Interactive emulator inside a real terminal. C64, VIC-20, and Apple II Plus (text mode); no audio. |
+| [Terminal (TUI)](terminal/overview.md) | Desktop / CLI | [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui) v2 — renders the emulated text-mode screen as colored Unicode cells in a real terminal (works over SSH, in tmux). | none | Interactive emulator inside a real terminal. C64, VIC-20, Apple II Plus, and Oric Atmos (text mode); no audio. |
 | [Console Monitor](console-monitor/overview.md) | Desktop | Plain .NET console | none | Stand-alone 6502 machine code monitor; no system emulation UI. |
 | [Headless](headless/overview.md) | Desktop / CLI | none | none | Automation, scripting, CI workflows. Driven entirely by CLI args and Lua. |
 
@@ -19,9 +19,10 @@ one app with two runtimes.
 
 The Avalonia Browser and Desktop apps share the same emulator core *and* almost all UI code, so the
 same UI is validated on both targets. Their feature documentation is shared on the per-system pages
-([C64](avalonia/c64.md), [Generic](avalonia/generic.md)), with the few Browser-vs-Desktop
-differences called out inline. The Blazor app predates the Avalonia browser target and remains as
-the SkiaSharp-rendered alternative.
+for [C64](avalonia/c64.md), [VIC-20](avalonia/vic20.md),
+[Apple II Plus](avalonia/apple2.md), [Oric Atmos](avalonia/oric.md), and
+[Generic](avalonia/generic.md), with the few Browser-vs-Desktop differences called out inline. The
+Blazor app predates the Avalonia browser target and remains as the SkiaSharp-rendered alternative.
 
 ## Installation
 

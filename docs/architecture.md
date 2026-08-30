@@ -24,8 +24,8 @@ This page is the single overview of that model. Per-library reference lives unde
 └────────────────────┬─────────────────────────────────┘
                      │
 ┌────────────────────▼─────────────────────────────────┐
-│  Tier 2 — System-specific core libraries             │  Highbyte.DotNet6502.Systems.Commodore64
-│  Computer logic — CPU wiring, video chip, I/O        │  Highbyte.DotNet6502.Systems.Generic
+│  Tier 2 — System-specific core libraries             │  Highbyte.DotNet6502.Systems.<System>
+│  Computer logic — CPU wiring, video chip, I/O        │  e.g. .Commodore64 · .Apple2 · .Oric
 └────────────────────┬─────────────────────────────────┘
                      │
 ┌────────────────────▼─────────────────────────────────┐
