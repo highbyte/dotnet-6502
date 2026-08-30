@@ -54,7 +54,7 @@ public class RemoteCommand
     [JsonPropertyName("key")]
     public string? Key { get; set; }
 
-    // c64.type / ui.message
+    // System text-entry commands / ui.message
     [JsonPropertyName("text")]
     public string? Text { get; set; }
 

@@ -49,6 +49,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     {
         Keyboard = new OricKeyboard();
         Joystick = new OricJoystick(config);
+        InputInjector = new OricInputInjector(this);
         TextPaste = new OricTextPaste(this, loggerFactory);
         BasicTokenParser = new OricBasicTokenParser(this, loggerFactory);
         Tape = new OricTape();
@@ -114,6 +115,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public Ay38912 Ay { get; }
     public OricKeyboard Keyboard { get; }
     public OricJoystick Joystick { get; }
+    public OricInputInjector InputInjector { get; }
+    IInputInjector? ISystem.InputInjector => InputInjector;
     public OricTextPaste TextPaste { get; }
     public OricBasicTokenParser BasicTokenParser { get; }
     public OricTape Tape { get; }
@@ -208,6 +211,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     {
         Keyboard.Reset();
         Joystick.ClearJoystickActions();
+        InputInjector.Clear();
         TextPaste.Reset();
         Mem[KeyboardCharacterLatchAddress] = 0;
         Ay.Reset();

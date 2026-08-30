@@ -45,6 +45,11 @@ internal static class RemoteClientRequestBuilder
             case "apple2.diskstatus":
             case "apple2.isbasicstarted":
             case "apple2.getbasicsource":
+            case "oric.isbasicstarted":
+            case "oric.getbasicsource":
+            case "oric.rewindtape":
+            case "oric.ejecttape":
+            case "oric.tapestatus":
                 break;
 
             case "emu.selectsystem":
@@ -140,12 +145,15 @@ internal static class RemoteClientRequestBuilder
 
             case "c64.type":
             case "apple2.type":
+            case "oric.type":
                 if (parameters.TryGetValue("text", out var text)) request["text"] = text;
                 break;
 
             case "c64.loadprg":
             case "apple2.loadbasic":
             case "apple2.insertdisk":
+            case "oric.loadtap":
+            case "oric.inserttape":
                 if (parameters.TryGetValue("file", out var prgFile))
                 {
                     if (!File.Exists(prgFile))

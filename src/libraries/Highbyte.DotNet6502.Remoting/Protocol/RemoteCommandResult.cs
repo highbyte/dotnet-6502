@@ -57,7 +57,7 @@ public class RemoteCommandResult
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IsDown { get; set; }
 
-    // c64.isbasicstarted
+    // *.isbasicstarted
     [JsonPropertyName("isbasicstarted")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IsBasicStarted { get; set; }

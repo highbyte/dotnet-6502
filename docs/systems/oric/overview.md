@@ -31,6 +31,8 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   Atari-style joystick sockets. A host gamepad can drive either socket, and optional keyboard
   joystick controls use W/A/S/D plus Space. The interface and socket selections are available
   both in the Avalonia sidebar and the Oric configuration dialog.
+- Remote control supports keyboard and joystick injection, paced text entry, BASIC readiness and
+  source queries, direct TAP loading, and insert/rewind/eject/status control for the virtual tape.
 - The 240 &times; 224 active display in text and 240 &times; 200 hires modes, including serial
   ink, paper, character and screen attributes, alternate character sets, inverse and flashing
   characters, and the three text rows below hires graphics.

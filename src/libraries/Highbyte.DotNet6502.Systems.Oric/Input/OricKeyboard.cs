@@ -95,6 +95,10 @@ public sealed class OricKeyboard
 
     public byte ReadRow(int row) => _rows[row & 0x07];
 
+    public bool IsKeyPressed(HostKey key)
+        => s_keyMap.TryGetValue(key, out var matrixKey)
+           && (_rows[matrixKey.Row] & matrixKey.Mask) == 0;
+
     /// <summary>
     /// PB3 is high when a pressed key in the selected row is among the columns selected by
     /// the AY port-A mask, matching the Atmos diode/transistor keyboard circuit.

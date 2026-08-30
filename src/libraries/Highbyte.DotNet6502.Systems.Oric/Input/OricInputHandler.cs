@@ -31,12 +31,14 @@ public sealed class OricInputHandler : IInputConsumer
         _oric.Joystick.ClearJoystickActions();
         CaptureGamepad();
         CaptureKeyboard();
+        _oric.InputInjector.ApplyInjectedJoystickActionsTo(_oric.Joystick);
     }
 
     public void Cleanup()
     {
         _oric.Keyboard.Reset();
         _oric.Joystick.ClearJoystickActions();
+        _oric.InputInjector.Clear();
     }
 
     public List<string> GetDebugInfo() => [];
@@ -54,15 +56,26 @@ public sealed class OricInputHandler : IInputConsumer
 
     private void CaptureKeyboard()
     {
+        if (_oric.InputInjector.HasInjectedKeys)
+        {
+            _keyboardKeysBuffer.Clear();
+            _keyboardKeysBuffer.UnionWith(_inputState.KeysDown);
+            _oric.InputInjector.ApplyInjectedKeysTo(_keyboardKeysBuffer);
+        }
+
         if (!_oric.Joystick.KeyboardJoystickEnabled ||
             _oric.Joystick.Interface == OricJoystickInterface.None)
         {
-            _oric.Keyboard.SetKeysPressed(_inputState.KeysDown);
+            _oric.Keyboard.SetKeysPressed(
+                _oric.InputInjector.HasInjectedKeys ? _keyboardKeysBuffer : _inputState.KeysDown);
             return;
         }
 
-        _keyboardKeysBuffer.Clear();
-        _keyboardKeysBuffer.UnionWith(_inputState.KeysDown);
+        if (!_oric.InputInjector.HasInjectedKeys)
+        {
+            _keyboardKeysBuffer.Clear();
+            _keyboardKeysBuffer.UnionWith(_inputState.KeysDown);
+        }
         _keyboardJoystickActionsBuffer.Clear();
         foreach (var (hostKey, action) in _inputConfig.KeyboardJoystickMap)
         {

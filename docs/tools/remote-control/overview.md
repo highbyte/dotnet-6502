@@ -75,7 +75,7 @@ By default the server binds to `127.0.0.1`, so it is only reachable from the sam
 
 ## Limitations
 
-- **Frame-boundary commands require the emulator to be running.** `mem.write`, `cpu.set`, `keyboard.press/release/releaseall`, `joystick.set/press/release/releaseall`, `c64.type`, `c64.loadprg`, `apple2.type`, `apple2.loadbasic`, `apple2.insertdisk`, `apple2.bootdisk`, and `apple2.ejectdisk` return an immediate error if the emulator state is `Paused` or `Uninitialized`. Use `emu.state` to confirm `Running` before sending these commands, or send `emu.start` first.
+- **Frame-boundary commands require the emulator to be running.** `mem.write`, `cpu.set`, `keyboard.press/release/releaseall`, `joystick.set/press/release/releaseall`, the C64 and Apple II type/load/media commands, and `oric.type`, `oric.loadtap`, `oric.inserttape`, `oric.rewindtape`, and `oric.ejecttape` return an immediate error if the emulator state is `Paused` or `Uninitialized`. Use `emu.state` to confirm `Running` before sending these commands, or send `emu.start` first.
 - **There is no `emu.resume` command.** `emu.start` serves dual purpose: it starts the emulator from `Uninitialized` *and* resumes from `Paused`. The existing system state is preserved on resume; use `emu.reset` for a hard restart.
 - **`emu.selectsystem` and `emu.selectvariant` require the emulator to be stopped** (`Uninitialized`). Call `emu.stop` first, then select, then `emu.start`.
 - **`emu.loadsnapshot` leaves the emulator paused**, and **`emu.runframes` requires the emulator to be stopped/paused** (it is rejected while `Running`, since the real-time run loop would make the frame step non-deterministic). The typical automation flow is `emu.loadsnapshot` → `emu.runframes` → `screenshot`. `emu.savesnapshot` / `emu.loadsnapshot` paths are resolved on the **server** (the machine the emulator runs on), not the client; relative paths use the server's shared snapshot directory.
@@ -86,7 +86,10 @@ By default the server binds to `127.0.0.1`, so it is only reachable from the sam
 - **`joystick.press` holds joystick actions until `joystick.release` or `joystick.releaseall`.** Use this for ergonomic hold/release remote control.
 - **The Apple II has one game port**, so `--port` is accepted and ignored there rather than rejected, and scripts written for the C64's two ports keep working. Its stick is analog: a held direction drives that axis to the end of its travel, so `PDL(0)`/`PDL(1)` read 0 or 255 and return to 127 on release, and fire is button 0 at `$C061`. It also accepts `fire2` for the second game-port button at
 `$C062`, which the C64 has no equivalent of.
-- **`c64.type` and `c64.loadprg` are C64-specific; `apple2.type` is Apple II-specific.** Other systems do not implement these and will return an error. The text/PRG is applied at the next frame boundary.
+- **The Oric has two joystick sockets**, but injected actions affect software only when its configuration selects the PASE or IJK interface. Oric sticks support `up`, `down`, `left`, `right`, and `fire`; `fire2` is ignored.
+- **System-prefixed commands are system-specific.** A C64, Apple II, or Oric command returns an error if another system is running. Text and load/media mutations are applied at the next frame boundary.
 - **`c64.type` feeds text across frames** — if the C64 keyboard buffer is full the remaining characters wait until space is available.
 - **`apple2.type` feeds text across frames** — the Apple II has a single-key latch instead of a buffer, so each character waits until the program has consumed the previous one (at most one per frame).
+- **`oric.type` feeds text across frames** — each character waits until the Atmos ROM consumes the keyboard latch, and BASIC keywords should be uppercase.
+- **Oric TAP support is byte-level, not cassette-signal emulation.** `oric.inserttape` works with the standard Atmos ROM cassette routines; custom pulse loaders and tape recording are not supported.
 - **Injected joystick actions from `joystick.set` are not persistent** — they must be resent every frame to hold a direction. Use `joystick.press` if you want stateful joystick hold/release behavior.
