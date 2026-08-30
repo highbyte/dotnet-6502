@@ -195,9 +195,8 @@ var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, logge
 // ----------
 logger.LogInformation("Creating headless host app.");
 
-// Engine plug-ins (C64HeadlessEnginePlugin / GenericHeadlessEnginePlugin, in the
-// App.Headless.Shell.* projects) register the per-system ISystemConfigurer. The SystemList is
-// built from those.
+// The per-system Headless engine plug-ins (C64, Generic, and Oric) register each
+// ISystemConfigurer. The SystemList is built from those registrations.
 var enabledSystems = configuration.GetSection("EnabledSystems").Get<string[]>();
 var pluginLogger = loggerFactory.CreateLogger("PluginDiscovery");
 var enginePlugins = SystemPluginDiscovery

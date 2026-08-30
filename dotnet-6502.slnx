@@ -49,6 +49,7 @@
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Browser/Highbyte.DotNet6502.Impl.Browser.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Headless.Commodore64/Highbyte.DotNet6502.Impl.Headless.Commodore64.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Headless.Generic/Highbyte.DotNet6502.Impl.Headless.Generic.csproj" />
+    <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Headless.Oric/Highbyte.DotNet6502.Impl.Headless.Oric.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.Headless/Highbyte.DotNet6502.Impl.Headless.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.NAudio/Highbyte.DotNet6502.Impl.NAudio.csproj" />
     <Project Path="src/libraries/Highbyte.DotNet6502.Impl.SadConsole/Highbyte.DotNet6502.Impl.SadConsole.csproj" />

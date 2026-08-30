@@ -19,6 +19,7 @@ See [Desktop apps installation](../installation.md#install-via-package-manager) 
 ### Systems
 
 - **C64** — requires ROM files (Kernal, Basic, Chargen). See [Systems / C64 / ROMs](../../systems/c64/roms.md).
+- **Oric Atmos 48K** — requires the Atmos BASIC 1.1b ROM. See [Systems / Oric / ROMs](../../systems/oric/roms.md).
 - **Generic computer** — built-in example 6502 programs (Snake, Scroll, HelloWorld).
 
 ### Lua scripting
@@ -114,6 +115,12 @@ Start with remote control server on port 6510 (loopback only):
 dotnet-6502-headless --system C64 --start --remote-port 6510
 ```
 
+Start an Oric Atmos with remote control enabled:
+
+```sh
+dotnet-6502-headless --system Oric --systemVariant ATMOS48K --start --remote-port 6510
+```
+
 Start with remote control server accessible from the network (trusted networks only):
 
 ```sh
@@ -183,6 +190,11 @@ Example overlay:
     "ScriptDirectory": ""
   },
   "Highbyte.DotNet6502.C64.Headless": {
+    "SystemConfig": {
+      "ROMDirectory": ""
+    }
+  },
+  "Highbyte.DotNet6502.Oric.Headless": {
     "SystemConfig": {
       "ROMDirectory": ""
     }
