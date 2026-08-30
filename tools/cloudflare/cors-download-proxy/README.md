@@ -6,11 +6,22 @@ Cloudflare Worker for browser-hosted `dotnet-6502` downloads.
 
 - Accepts `GET`, `HEAD`, and `OPTIONS` on one configured path.
 - Allows requests only from configured browser origins.
-- Allows downloads only from configured target hosts.
+- Allows downloads only from configured target hosts or host-and-path prefixes.
 - Follows redirects manually and re-validates each hop.
 - Supports an optional shared token via `?token=...` or `Authorization: Bearer ...`.
 - Applies first-version rate limiting inside the Worker.
 - Exposes a simple health document at `/healthz`.
+
+## Target allowlist
+
+`ALLOWED_TARGET_HOSTS` contains hosts that may be accessed at any path. Entries are exact
+hosts unless they use an explicit subdomain wildcard such as `*.archive.org`.
+
+`ALLOWED_TARGET_PATH_PREFIXES` contains more restricted `host/path` entries without a URL
+scheme. A rule such as
+`raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software` allows that repository
+root and its descendants, but not another GitHub user, repository, or a similarly named path.
+The same rules are applied to every redirect target.
 
 ## Local development
 
