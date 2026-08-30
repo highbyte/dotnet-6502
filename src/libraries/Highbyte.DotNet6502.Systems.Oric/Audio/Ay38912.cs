@@ -212,4 +212,69 @@ public sealed class Ay38912
             _envelopeStep = _envelopeDirection > 0 ? 0 : 15;
         }
     }
+
+    internal Ay38912SnapshotState GetSnapshotState()
+        => new(
+            _registers.ToArray(),
+            SelectedRegister,
+            _toneCounter.ToArray(),
+            _toneHigh.ToArray(),
+            _sampleCycleAccumulator,
+            _noiseCounter,
+            _noiseHigh,
+            _noiseLfsr,
+            _envelopeCounter,
+            _envelopeStep,
+            _envelopeDirection,
+            _envelopeHolding);
+
+    internal void RestoreSnapshotState(Ay38912SnapshotState state)
+    {
+        if (state.Registers.Length != RegisterCount)
+            throw new ArgumentException($"AY snapshot must contain {RegisterCount} registers.", nameof(state));
+        if (state.ToneCounters.Length != 3 || state.ToneHigh.Length != 3)
+            throw new ArgumentException("AY snapshot must contain state for three tone channels.", nameof(state));
+        ArgumentOutOfRangeException.ThrowIfNegative(state.SelectedRegister);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(state.SelectedRegister, RegisterCount);
+        if (state.ToneCounters.Any(counter => counter <= 0) ||
+            !double.IsFinite(state.SampleCycleAccumulator) ||
+            state.SampleCycleAccumulator < 0 ||
+            state.SampleCycleAccumulator >= (double)_clockHz / _sampleRateHz ||
+            state.NoiseCounter <= 0 ||
+            state.NoiseLfsr is 0 or > 0x1ffff ||
+            state.EnvelopeCounter <= 0 ||
+            state.EnvelopeStep is < 0 or > 15 ||
+            state.EnvelopeDirection is not (-1 or 1))
+        {
+            throw new ArgumentException("AY snapshot contains an invalid generator phase.", nameof(state));
+        }
+
+        Array.Copy(state.Registers, _registers, RegisterCount);
+        SelectedRegister = state.SelectedRegister;
+        Array.Copy(state.ToneCounters, _toneCounter, _toneCounter.Length);
+        Array.Copy(state.ToneHigh, _toneHigh, _toneHigh.Length);
+        _sampleCycleAccumulator = state.SampleCycleAccumulator;
+        _noiseCounter = state.NoiseCounter;
+        _noiseHigh = state.NoiseHigh;
+        _noiseLfsr = state.NoiseLfsr;
+        _envelopeCounter = state.EnvelopeCounter;
+        _envelopeStep = state.EnvelopeStep;
+        _envelopeDirection = state.EnvelopeDirection;
+        _envelopeHolding = state.EnvelopeHolding;
+        PortAOutputChanged?.Invoke(PortAOutput);
+    }
 }
+
+internal readonly record struct Ay38912SnapshotState(
+    byte[] Registers,
+    int SelectedRegister,
+    int[] ToneCounters,
+    bool[] ToneHigh,
+    double SampleCycleAccumulator,
+    int NoiseCounter,
+    bool NoiseHigh,
+    uint NoiseLfsr,
+    int EnvelopeCounter,
+    int EnvelopeStep,
+    int EnvelopeDirection,
+    bool EnvelopeHolding);

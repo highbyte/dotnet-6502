@@ -66,4 +66,16 @@ public sealed class OricRasterClock
         CycleInLine = 0;
         FrameNumber = 0;
     }
+
+    internal void RestoreSnapshotState(int rasterLine, int cycleInLine, ulong frameNumber)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(rasterLine);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(rasterLine, OricConfig.LinesPerFrame);
+        ArgumentOutOfRangeException.ThrowIfNegative(cycleInLine);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(cycleInLine, OricConfig.CyclesPerLine);
+
+        RasterLine = rasterLine;
+        CycleInLine = cycleInLine;
+        FrameNumber = frameNumber;
+    }
 }

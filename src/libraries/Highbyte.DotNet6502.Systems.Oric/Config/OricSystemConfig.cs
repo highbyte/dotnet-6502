@@ -3,13 +3,14 @@ using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Oric.Audio;
 using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Systems.Oric.Render;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Highbyte.DotNet6502.Utils;
 using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
 
 namespace Highbyte.DotNet6502.Systems.Oric.Config;
 
 /// <summary>User-facing configuration for the Oric family.</summary>
-public sealed class OricSystemConfig : ISystemConfig
+public sealed partial class OricSystemConfig : ISystemConfig, ISnapshotableConfig
 {
     public const string SystemRomName = "basic";
     public const string RomSourceInfoUrl = "https://abdess.github.io/retrobios/emulators/oricutron/";

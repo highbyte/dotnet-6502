@@ -6,9 +6,11 @@ using Highbyte.DotNet6502.Systems.Oric.Config;
 using Highbyte.DotNet6502.Systems.Oric.Hardware;
 using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Systems.Oric.Render;
+using Highbyte.DotNet6502.Systems.Oric.Snapshots;
 using Highbyte.DotNet6502.Systems.Oric.Tape;
 using Highbyte.DotNet6502.Systems.Oric.Utils;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Snapshots;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,13 +18,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Highbyte.DotNet6502.Systems.Oric;
 
 /// <summary>Oric Atmos 48K with a PAL ULA, MOS 6522 and AY-3-8912.</summary>
-public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
+public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState, ISystemSnapshotProvider
 {
     public const string SystemName = "Oric";
     public const ushort ViaStartAddress = 0x0300;
     public const ushort ViaEndAddress = 0x03ff;
     public const ushort SystemRomStartAddress = 0xc000;
     public const int SystemRomSize = 0x4000;
+    public const int RamSize = SystemRomStartAddress;
     public const ushort BasicProgramDefaultStartAddress = 0x0501;
     public const ushort BasicProgramStartPointerAddress = 0x009a;
     public const ushort BasicProgramEndPointerAddress = 0x009c;
@@ -132,6 +135,8 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public OricBasicTokenParser BasicTokenParser { get; }
     public OricTape Tape { get; }
     public bool HasSystemRom => _hasSystemRom;
+    internal bool VSyncHackEnabled => _vSyncHackEnabled;
+    internal byte[] SnapshotRam => _ram;
 
     public int TextCols => OricConfig.Columns;
     public int TextRows => OricConfig.VisibleHeight / OricConfig.CharacterHeight;
@@ -486,4 +491,27 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
         else
             CPU.CPUInterrupts.SetIRQSourceInactive(ViaIrqSource);
     }
+
+    // --- Snapshot support ---
+
+    public const int SnapshotVersion = 1;
+
+    private readonly IReadOnlyList<ISnapshotModule> _snapshotModules = new ISnapshotModule[]
+    {
+        new Cpu6502SnapshotModule(),
+        new OricCoreSnapshotModule(),
+        // The VIA callbacks restore the Oric-side AY bus control lines. The AY module follows it
+        // so any callback-triggered register access is overwritten by the exact captured AY state.
+        new OricViaSnapshotModule(),
+        new OricAySnapshotModule(),
+        new OricRasterSnapshotModule(),
+        new OricTapeSnapshotModule(),
+    };
+
+    public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
+
+    public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
+
+    public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest)
+        => SnapshotCompatibility.Compatible();
 }

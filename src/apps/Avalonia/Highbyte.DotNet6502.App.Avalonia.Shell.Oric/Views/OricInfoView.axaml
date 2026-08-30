@@ -62,7 +62,7 @@
             <TextBlock Text="Alt" Classes="small"/>
           </Border>
           <Border Grid.Row="1" Grid.Column="3" Classes="table-cell-last-column">
-            <TextBlock Text="Option (⌥)" Classes="small"/>
+            <TextBlock Text="Option" Classes="small"/>
           </Border>
 
           <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
@@ -75,7 +75,7 @@
             <TextBlock Text="Backspace" Classes="small"/>
           </Border>
           <Border Grid.Row="2" Grid.Column="3" Classes="table-cell-last-column">
-            <TextBlock Text="Delete (⌫)" Classes="small"/>
+            <TextBlock Text="Delete" Classes="small"/>
           </Border>
 
           <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
@@ -88,7 +88,7 @@
             <TextBlock Text="Enter" Classes="small"/>
           </Border>
           <Border Grid.Row="3" Grid.Column="3" Classes="table-cell-last-column">
-            <TextBlock Text="Return (↩)" Classes="small"/>
+            <TextBlock Text="Return" Classes="small"/>
           </Border>
 
           <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">

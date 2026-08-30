@@ -116,6 +116,22 @@ public sealed class OricTape
         return true;
     }
 
+    internal byte[]? SnapshotData => _data?.ToArray();
+
+    internal void RestoreSnapshotState(byte[]? data, string? sourceName, int position)
+    {
+        if (data is null)
+        {
+            Eject();
+            return;
+        }
+
+        if (position < 0 || position > data.Length)
+            throw new ArgumentOutOfRangeException(nameof(position), position, "Tape position must be within the image.");
+        Insert(data, sourceName);
+        Position = position;
+    }
+
     private int GetPreviousRecordIndex()
     {
         var currentIndex = CurrentRecordIndex;
