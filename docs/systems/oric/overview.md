@@ -52,6 +52,8 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   socket selections are available both in the Avalonia sidebar and the Oric configuration dialog.
 - Remote control supports keyboard and joystick injection, paced text entry, BASIC readiness and
   source queries, direct TAP loading, and insert/rewind/eject/status control for the virtual tape.
+- Emulator-state snapshots preserve the CPU, 48 KB RAM, VIA timers and interrupts, AY register and
+  generator phase, PAL raster and renderer phase, and any inserted TAP image and tape position.
 - The 240 &times; 224 active display in text and 240 &times; 200 hires modes, including serial
   ink, paper, character and screen attributes, alternate character sets, inverse and flashing
   characters, and the three text rows below hires graphics.
@@ -67,9 +69,21 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   timed cassette signal, physical Play/Stop and continuous fast-forward/reverse controls do not
   apply.
 - Microdisc or Jasmin floppy controllers and disk images.
-- Printer output, snapshots and Oric-specific monitor commands.
+- Printer output and Oric-specific monitor commands.
 - Cycle-level ULA bus contention, sub-scanline pixel fetch timing, and analogue AY output filtering.
 - The Oric-1, Oric-1 16K, Pravetz and Telestrat variants.
+
+## Snapshots
+
+Oric `.d6502snap` snapshots restore the full Atmos execution state and embed an inserted TAP image,
+so a cassette operation can continue from the captured byte position. The raster resumes at the
+captured scanline and cycle, while the pixel and terminal renderers rebuild their presentation from
+the restored machine state.
+
+ROM bytes are not stored in a snapshot; the destination uses the Atmos ROM from its current
+configuration. When snapshot configuration is included, the portable block also carries audio,
+VSync modification, joystick interface, keyboard-joystick, and CPU compatibility settings. A
+snapshot restored through a host application remains paused until explicitly started.
 
 ## ROMs
 

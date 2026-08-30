@@ -141,6 +141,24 @@ public sealed class OricRasterizer : IRenderProvider, IVideoFrameLayerProvider
         ClearBackBuffers();
     }
 
+    internal (byte ScreenAttributes, int FrameCounter, bool ProgressiveFrameActive) GetSnapshotState()
+        => (_screenAttributes, _frameCounter, _progressiveFrameActive);
+
+    internal void RestoreSnapshotState(byte screenAttributes, int frameCounter, bool progressiveFrameActive)
+    {
+        // Present a complete image immediately while retaining the captured serial attribute and
+        // frame phase for the next scanline. Earlier lines of a mid-frame raster-effect image are
+        // reconstructed from current RAM, matching the other renderers' restore-time rebuild model.
+        _frameCounter = frameCounter;
+        _screenAttributes = screenAttributes;
+        RasterizeFrame();
+        FlipBuffers();
+        _screenAttributes = screenAttributes;
+        RasterizeFrame();
+        _screenAttributes = screenAttributes;
+        _progressiveFrameActive = progressiveFrameActive;
+    }
+
     private void RasterizeFrame()
     {
         ClearBackBuffers();

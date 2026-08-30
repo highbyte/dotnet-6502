@@ -69,6 +69,18 @@ public sealed class OricVideoCommandStream : IRenderProvider, IVideoCommandStrea
         }
     }
 
+    internal int SnapshotFrameCounter => _frameCounter;
+
+    internal void RestoreSnapshotState(int frameCounter)
+    {
+        lock (_commandsLock)
+        {
+            _frameCounter = frameCounter;
+            _commands.Clear();
+            GenerateCommands();
+        }
+    }
+
     public static string ScreenCodeToUnicode(byte screenCode)
     {
         var character = (byte)(screenCode & 0x7f);

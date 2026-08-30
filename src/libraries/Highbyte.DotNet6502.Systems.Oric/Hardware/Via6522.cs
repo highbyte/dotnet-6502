@@ -294,4 +294,78 @@ public sealed class Via6522
     }
 
     private void UpdateIrq() => _irqChanged(IrqActive);
+
+    internal Via6522SnapshotState GetSnapshotState()
+        => new(
+            _portA,
+            _portB,
+            _ddrA,
+            _ddrB,
+            _shiftRegister,
+            _acr,
+            _pcr,
+            _ifr,
+            _ier,
+            _timer1Counter,
+            _timer1Latch,
+            _timer2Counter,
+            _timer2LatchLow,
+            _timer1Running,
+            _timer2Running,
+            _ca1,
+            _cb1,
+            _ca2,
+            _cb2);
+
+    internal void RestoreSnapshotState(Via6522SnapshotState state)
+    {
+        _portA = state.PortA;
+        _portB = state.PortB;
+        _ddrA = state.DataDirectionA;
+        _ddrB = state.DataDirectionB;
+        _shiftRegister = state.ShiftRegister;
+        _acr = state.AuxiliaryControl;
+        _pcr = state.PeripheralControl;
+        _ifr = (byte)(state.InterruptFlags & 0x7f);
+        _ier = (byte)(state.InterruptEnable & 0x7f);
+        _timer1Counter = state.Timer1Counter;
+        _timer1Latch = state.Timer1Latch;
+        _timer2Counter = state.Timer2Counter;
+        _timer2LatchLow = state.Timer2LatchLow;
+        _timer1Running = state.Timer1Running;
+        _timer2Running = state.Timer2Running;
+        _ca1 = state.Ca1;
+        _cb1 = state.Cb1;
+        _ca2 = state.Ca2;
+        _cb2 = state.Cb2;
+
+        // Re-establish the board wiring derived from the chip pins and latches. The Oric callbacks
+        // update its AY bus control lines and CPU IRQ source without mutating the restored VIA state.
+        _writeCa2(_ca2);
+        _writeCb2(_cb2);
+        _writePortAOutput(_portA);
+        _writePortBOutput(_portB);
+        _irqChanged(IrqActive);
+    }
 }
+
+internal readonly record struct Via6522SnapshotState(
+    byte PortA,
+    byte PortB,
+    byte DataDirectionA,
+    byte DataDirectionB,
+    byte ShiftRegister,
+    byte AuxiliaryControl,
+    byte PeripheralControl,
+    byte InterruptFlags,
+    byte InterruptEnable,
+    ushort Timer1Counter,
+    ushort Timer1Latch,
+    ushort Timer2Counter,
+    byte Timer2LatchLow,
+    bool Timer1Running,
+    bool Timer2Running,
+    bool Ca1,
+    bool Cb1,
+    bool Ca2,
+    bool Cb2);
