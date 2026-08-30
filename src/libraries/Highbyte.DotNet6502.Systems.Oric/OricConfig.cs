@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Oric.Input;
+
 namespace Highbyte.DotNet6502.Systems.Oric;
 
 /// <summary>Fixed timing and display geometry for a PAL Oric Atmos.</summary>
@@ -21,4 +23,7 @@ public sealed class OricConfig
     public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;
     public bool AudioEnabled { get; set; } = true;
     public Type? AudioProviderType { get; set; }
+    public OricJoystickInterface JoystickInterface { get; set; } = OricJoystickInterface.None;
+    public bool KeyboardJoystickEnabled { get; set; }
+    public int KeyboardJoystick { get; set; } = 1;
 }

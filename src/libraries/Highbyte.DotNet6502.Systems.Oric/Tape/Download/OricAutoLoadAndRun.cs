@@ -30,11 +30,21 @@ public sealed class OricAutoLoadAndRun
         _hostApp = hostApp;
     }
 
+    public Task DownloadAndRunProgram(
+        OricDownloadProgramInfo programInfo,
+        CancellationToken cancellationToken = default)
+        => DownloadAndRunProgram(
+            programInfo,
+            static _ => Task.CompletedTask,
+            cancellationToken);
+
     public async Task DownloadAndRunProgram(
         OricDownloadProgramInfo programInfo,
+        Func<OricDownloadProgramInfo, Task> setConfigCallback,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(programInfo);
+        ArgumentNullException.ThrowIfNull(setConfigCallback);
 
         if (_hostApp.EmulatorState is EmulatorState.Running or EmulatorState.Paused)
         {
@@ -42,6 +52,7 @@ public sealed class OricAutoLoadAndRun
             _hostApp.Stop();
         }
 
+        await setConfigCallback(programInfo);
         await _hostApp.Start();
         var oric = _hostApp.CurrentRunningSystem as OricMachine
             ?? throw new InvalidOperationException("The current system is not an Oric Atmos.");

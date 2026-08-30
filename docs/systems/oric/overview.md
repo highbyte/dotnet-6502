@@ -27,6 +27,10 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
   images may be downloaded directly or extracted from a named entry in a ZIP archive, are cached
   by the host application, and are started through the standard Atmos ROM cassette routine. The
   Browser host routes these downloads through its configured CORS proxy.
+- PASE/Altai/Mageco and IJK/Stingy/Egoist printer-port joystick interfaces, each with two
+  Atari-style joystick sockets. A host gamepad can drive either socket, and optional keyboard
+  joystick controls use W/A/S/D plus Space. The interface and socket selections are available
+  both in the Avalonia sidebar and the Oric configuration dialog.
 - The 240 &times; 224 active display in text and 240 &times; 200 hires modes, including serial
   ink, paper, character and screen attributes, alternate character sets, inverse and flashing
   characters, and the three text rows below hires graphics.
@@ -37,7 +41,7 @@ Core library: `Highbyte.DotNet6502.Systems.Oric`.
 - Cassette pulse input/output, tape recording/`CSAVE`, and software that bypasses the Atmos ROM
   with a custom pulse loader.
 - Microdisc or Jasmin floppy controllers and disk images.
-- Printer output, joystick interfaces, snapshots and Oric-specific monitor commands.
+- Printer output, snapshots and Oric-specific monitor commands.
 - Cycle-level ULA bus contention and analogue AY output filtering.
 - The Oric-1, Oric-1 16K, Pravetz and Telestrat variants.
 

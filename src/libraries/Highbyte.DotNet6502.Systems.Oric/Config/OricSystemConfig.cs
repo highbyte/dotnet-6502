@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Oric.Audio;
+using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Systems.Oric.Render;
 using Highbyte.DotNet6502.Utils;
 using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
@@ -24,6 +25,9 @@ public sealed class OricSystemConfig : ISystemConfig
     private List<ROM> _roms = [];
     private CpuCompatibilityProfile _cpuCompatibilityProfile = CpuCompatibilityProfile.StableUnofficial;
     private bool _audioEnabled = true;
+    private OricJoystickInterface _joystickInterface = OricJoystickInterface.None;
+    private bool _keyboardJoystickEnabled;
+    private int _keyboardJoystick = 1;
 
     [JsonIgnore]
     public bool IsDirty => _isDirty;
@@ -72,6 +76,25 @@ public sealed class OricSystemConfig : ISystemConfig
     {
         get => _audioEnabled;
         set { _audioEnabled = value; _isDirty = true; }
+    }
+
+    [JsonConverter(typeof(JsonStringEnumConverter<OricJoystickInterface>))]
+    public OricJoystickInterface JoystickInterface
+    {
+        get => _joystickInterface;
+        set { _joystickInterface = value; _isDirty = true; }
+    }
+
+    public bool KeyboardJoystickEnabled
+    {
+        get => _keyboardJoystickEnabled;
+        set { _keyboardJoystickEnabled = value; _isDirty = true; }
+    }
+
+    public int KeyboardJoystick
+    {
+        get => _keyboardJoystick;
+        set { _keyboardJoystick = value; _isDirty = true; }
     }
 
     public CpuCompatibilityProfile CpuCompatibilityProfile
@@ -207,6 +230,12 @@ public sealed class OricSystemConfig : ISystemConfig
 
         if (!CpuModelInfo.IsProfileSupported(CpuModelIds.Nmos6502, CpuCompatibilityProfile))
             validationErrors.Add($"NMOS 6502 does not support compatibility profile '{CpuCompatibilityProfile}'.");
+
+        if (!Enum.IsDefined(JoystickInterface))
+            validationErrors.Add($"Unsupported Oric joystick interface '{JoystickInterface}'.");
+
+        if (KeyboardJoystick is not (1 or 2))
+            validationErrors.Add($"{nameof(KeyboardJoystick)} must be 1 or 2.");
 
         var loadedNames = _roms.Select(rom => rom.Name).ToHashSet();
         var missing = RequiredRoms.Where(required => !loadedNames.Contains(required)).ToList();

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Reactive;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -5,6 +6,7 @@ using Highbyte.DotNet6502.Impl.Avalonia;
 using Highbyte.DotNet6502.Impl.Avalonia.Oric;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Oric.Config;
+using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Utils;
 using ReactiveUI;
 
@@ -26,6 +28,7 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
             ?? throw new InvalidOperationException("Current host config must be OricHostConfig.");
         _workingConfig = (OricHostConfig)_originalConfig.Clone();
         SelectAvailableTargets();
+        InitializeJoystickOptions();
 
         DownloadCommand = ReactiveCommandHelper.CreateSafeCommand(DownloadAsync,
             outputScheduler: RxSchedulers.MainThreadScheduler);
@@ -91,6 +94,60 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
             this.RaisePropertyChanged();
         }
     }
+
+    public ObservableCollection<KeyValuePair<OricJoystickInterface, string>> JoystickInterfaces { get; } = new();
+    public ObservableCollection<int> AvailableJoysticks { get; } = new();
+
+    public OricJoystickInterface JoystickInterface
+    {
+        get => _workingConfig.SystemConfig.JoystickInterface;
+        set
+        {
+            if (_workingConfig.SystemConfig.JoystickInterface == value)
+                return;
+            _workingConfig.SystemConfig.JoystickInterface = value;
+            this.RaisePropertyChanged();
+        }
+    }
+
+    public int HostJoystick
+    {
+        get => _workingConfig.InputConfig.CurrentJoystick;
+        set
+        {
+            if (_workingConfig.InputConfig.CurrentJoystick == value)
+                return;
+            _workingConfig.InputConfig.CurrentJoystick = value;
+            this.RaisePropertyChanged();
+        }
+    }
+
+    public bool KeyboardJoystickEnabled
+    {
+        get => _workingConfig.SystemConfig.KeyboardJoystickEnabled;
+        set
+        {
+            if (_workingConfig.SystemConfig.KeyboardJoystickEnabled == value)
+                return;
+            _workingConfig.SystemConfig.KeyboardJoystickEnabled = value;
+            this.RaisePropertyChanged();
+            this.RaisePropertyChanged(nameof(IsKeyboardJoystickPortEnabled));
+        }
+    }
+
+    public int KeyboardJoystick
+    {
+        get => _workingConfig.SystemConfig.KeyboardJoystick;
+        set
+        {
+            if (_workingConfig.SystemConfig.KeyboardJoystick == value)
+                return;
+            _workingConfig.SystemConfig.KeyboardJoystick = value;
+            this.RaisePropertyChanged();
+        }
+    }
+
+    public bool IsKeyboardJoystickPortEnabled => KeyboardJoystickEnabled;
 
     public string StatusMessage
     {
@@ -184,6 +241,10 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
         _originalConfig.SystemConfig.AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+        _originalConfig.SystemConfig.JoystickInterface = _workingConfig.SystemConfig.JoystickInterface;
+        _originalConfig.SystemConfig.KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
+        _originalConfig.SystemConfig.KeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
+        _originalConfig.InputConfig = (OricInputConfig)_workingConfig.InputConfig.Clone();
         _originalConfig.SystemConfig.SetRenderProviderType(_workingConfig.SystemConfig.RenderProviderType);
         _originalConfig.SystemConfig.SetRenderTargetType(_workingConfig.SystemConfig.RenderTargetType);
         _originalConfig.SystemConfig.SetAudioProviderType(_workingConfig.SystemConfig.AudioProviderType);
@@ -207,6 +268,15 @@ public sealed class OricConfigDialogViewModel : ViewModelBase
             _workingConfig.SystemConfig.SetAudioProviderType(audio.Value.audioProviderType);
             _workingConfig.SystemConfig.SetAudioTargetType(audio.Value.audioTargetType);
         }
+    }
+
+    private void InitializeJoystickOptions()
+    {
+        JoystickInterfaces.Add(new(OricJoystickInterface.None, "None"));
+        JoystickInterfaces.Add(new(OricJoystickInterface.PASE, "PASE / Altai / Mageco"));
+        JoystickInterfaces.Add(new(OricJoystickInterface.IJK, "IJK / Stingy / Egoist"));
+        foreach (var joystick in _workingConfig.InputConfig.AvailableJoysticks)
+            AvailableJoysticks.Add(joystick);
     }
 
     private void SetBusy(bool value)

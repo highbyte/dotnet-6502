@@ -145,6 +145,8 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **ROM actions**: `OricRomStatusText`, `OricRomDirectoryTextBox`, `OricLoadRomButton`,
   `OricDownloadRomButton`, `OricClearRomButton`
 - **Audio**: `OricAudioEnabledCheckBox`
+- **Input &amp; Joystick**: `OricJoystickInterfaceComboBox`, `OricHostJoystickComboBox`,
+  `OricKeyboardJoystickEnableCheckBox`, `OricKeyboardJoystickPortComboBox`
 - **Messages**: `OricConfigStatusText`
 - **Footer**: `OricConfigCancelButton`, `OricConfigSaveButton`
 
@@ -160,6 +162,9 @@ copyrighted firmware. Its buttons are `OricRomDownloadConfirmButton` and
   `OricDownloadStatusText`, `OricDownloadErrorText`
 - **BASIC tape files**: `LoadBasicButton`, `BasicExampleComboBox`, `LoadBasicExampleButton`
   (enabled after the emulator has been initialized)
+- **Joystick**: `JoystickInterfaceComboBox`, `ActiveJoystickComboBox`,
+  `JoystickKeyboardCheckBox`, `KeyboardJoystickComboBox`. The interface and port selectors work
+  while the machine is running; keyboard joystick uses W/A/S/D and Space.
 - **Configuration**: `OpenOricConfigButton` (enabled only while the emulator is stopped)
 
 ### OricInfoView

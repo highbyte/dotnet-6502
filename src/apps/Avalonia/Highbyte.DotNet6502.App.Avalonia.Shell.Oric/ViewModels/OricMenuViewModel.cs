@@ -4,7 +4,9 @@ using System.Reactive.Linq;
 using System.Reflection;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Impl.Avalonia.Oric;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Systems.Oric.Tape;
 using Highbyte.DotNet6502.Systems.Oric.Tape.Download;
 using Highbyte.DotNet6502.Utils;
@@ -38,7 +40,10 @@ public sealed class OricMenuViewModel : ViewModelBase
             "https://cdn.oric.org/games/software/t/tansoft_editor/hobbit.tap") },
         { "stormlord", new OricDownloadProgramInfo(
             "Stormlord",
-            "https://cdn.oric.org/games/software/s/stormlord/Storm.tap") },
+            "https://cdn.oric.org/games/software/s/stormlord/Storm.tap",
+            joystickInterface: OricJoystickInterface.IJK,
+            keyboardJoystickEnabled: false,
+            keyboardJoystickNumber: 1) }, // Stormlord supports PASE and IJK and reads both ports; prefer IJK to preserve sound.
     };
 
     public OricMenuViewModel(AvaloniaHostApp hostApp, ILoggerFactory loggerFactory)
@@ -48,12 +53,14 @@ public sealed class OricMenuViewModel : ViewModelBase
         _loggerFactory = loggerFactory;
         InitializeExamples();
         InitializePreloadedPrograms();
+        InitializeJoystickOptions();
         hostApp.WhenAnyValue(app => app.EmulatorState)
             .Subscribe(_ =>
             {
                 this.RaisePropertyChanged(nameof(IsConfigEnabled));
                 this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
+                RefreshJoystickProperties();
             });
 
         CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -96,6 +103,75 @@ public sealed class OricMenuViewModel : ViewModelBase
 
     public ObservableCollection<KeyValuePair<string, string>> BasicExamples { get; } = new();
     public ObservableCollection<KeyValuePair<string, string>> PreloadedPrograms { get; } = new();
+    public ObservableCollection<KeyValuePair<OricJoystickInterface, string>> JoystickInterfaces { get; } = new();
+    public ObservableCollection<int> AvailableJoysticks { get; } = new();
+
+    private OricHostConfig? OricHostConfig => HostApp.CurrentHostSystemConfig as OricHostConfig;
+
+    public OricJoystickInterface JoystickInterface
+    {
+        get => OricHostConfig?.SystemConfig.JoystickInterface ?? OricJoystickInterface.None;
+        set
+        {
+            if (OricHostConfig == null || OricHostConfig.SystemConfig.JoystickInterface == value)
+                return;
+            OricHostConfig.SystemConfig.JoystickInterface = value;
+            if (HostApp.CurrentRunningSystem is OricMachine oric)
+                oric.Joystick.Interface = value;
+            else
+                HostApp.UpdateHostSystemConfig(OricHostConfig);
+            this.RaisePropertyChanged();
+        }
+    }
+
+    public int CurrentJoystick
+    {
+        get => OricHostConfig?.InputConfig.CurrentJoystick ?? 1;
+        set
+        {
+            if (OricHostConfig == null || OricHostConfig.InputConfig.CurrentJoystick == value)
+                return;
+            OricHostConfig.InputConfig.CurrentJoystick = value;
+            if (HostApp.EmulatorState == EmulatorState.Uninitialized)
+                HostApp.UpdateHostSystemConfig(OricHostConfig);
+            this.RaisePropertyChanged();
+        }
+    }
+
+    public bool JoystickKeyboardEnabled
+    {
+        get => OricHostConfig?.SystemConfig.KeyboardJoystickEnabled ?? false;
+        set
+        {
+            if (OricHostConfig == null || OricHostConfig.SystemConfig.KeyboardJoystickEnabled == value)
+                return;
+            OricHostConfig.SystemConfig.KeyboardJoystickEnabled = value;
+            if (HostApp.CurrentRunningSystem is OricMachine oric)
+                oric.Joystick.KeyboardJoystickEnabled = value;
+            else
+                HostApp.UpdateHostSystemConfig(OricHostConfig);
+            this.RaisePropertyChanged();
+            this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
+        }
+    }
+
+    public int KeyboardJoystick
+    {
+        get => OricHostConfig?.SystemConfig.KeyboardJoystick ?? 1;
+        set
+        {
+            if (OricHostConfig == null || OricHostConfig.SystemConfig.KeyboardJoystick == value)
+                return;
+            OricHostConfig.SystemConfig.KeyboardJoystick = value;
+            if (HostApp.CurrentRunningSystem is OricMachine oric)
+                oric.Joystick.KeyboardJoystick = value;
+            else
+                HostApp.UpdateHostSystemConfig(OricHostConfig);
+            this.RaisePropertyChanged();
+        }
+    }
+
+    public bool IsKeyboardJoystickSelectionEnabled => JoystickKeyboardEnabled;
 
     private string _selectedBasicExample = string.Empty;
     public string SelectedBasicExample
@@ -208,6 +284,24 @@ public sealed class OricMenuViewModel : ViewModelBase
             PreloadedPrograms.Add(new KeyValuePair<string, string>(key, programInfo.DisplayName));
     }
 
+    private void InitializeJoystickOptions()
+    {
+        JoystickInterfaces.Add(new(OricJoystickInterface.None, "None"));
+        JoystickInterfaces.Add(new(OricJoystickInterface.PASE, "PASE"));
+        JoystickInterfaces.Add(new(OricJoystickInterface.IJK, "IJK"));
+        foreach (var joystick in OricHostConfig?.InputConfig.AvailableJoysticks ?? [1, 2])
+            AvailableJoysticks.Add(joystick);
+    }
+
+    public void RefreshJoystickProperties()
+    {
+        this.RaisePropertyChanged(nameof(JoystickInterface));
+        this.RaisePropertyChanged(nameof(CurrentJoystick));
+        this.RaisePropertyChanged(nameof(JoystickKeyboardEnabled));
+        this.RaisePropertyChanged(nameof(KeyboardJoystick));
+        this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
+    }
+
     private async Task LoadPreloadedProgramAsync()
     {
         if (string.IsNullOrEmpty(SelectedPreloadedProgram) ||
@@ -227,7 +321,9 @@ public sealed class OricMenuViewModel : ViewModelBase
                 corsProxyUrl: HostApp.GetCorsProxyUrl(),
                 downloadCache: HostApp.GetDownloadCache());
 
-            await _oricAutoLoadAndRun.DownloadAndRunProgram(programInfo);
+            await _oricAutoLoadAndRun.DownloadAndRunProgram(
+                programInfo,
+                setConfigCallback: ConfigureForPreloadedProgramAsync);
         }
         catch (Exception exception)
         {
@@ -243,6 +339,20 @@ public sealed class OricMenuViewModel : ViewModelBase
         {
             IsLoadingPreloadedProgram = false;
         }
+    }
+
+    private Task ConfigureForPreloadedProgramAsync(OricDownloadProgramInfo programInfo)
+    {
+        if (OricHostConfig is not { } oricHostConfig)
+            return Task.CompletedTask;
+
+        oricHostConfig.SystemConfig.JoystickInterface = programInfo.JoystickInterface;
+        oricHostConfig.SystemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
+        oricHostConfig.SystemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+        oricHostConfig.InputConfig.CurrentJoystick = programInfo.KeyboardJoystickNumber;
+        HostApp.UpdateHostSystemConfig(oricHostConfig);
+        RefreshJoystickProperties();
+        return Task.CompletedTask;
     }
 
     private async Task LoadBasicExampleAsync()

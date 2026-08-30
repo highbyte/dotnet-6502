@@ -112,7 +112,10 @@ public partial class OricMenuView : UserControl
             try
             {
                 if (await completion.Task)
+                {
                     await ViewModel.HostApp.ValidateConfigAsync();
+                    ViewModel.RefreshJoystickProperties();
+                }
             }
             finally { host.Children.Remove(panel); }
             return;
@@ -126,6 +129,9 @@ public partial class OricMenuView : UserControl
             ? await dialog.ShowDialog<bool?>(owner)
             : null;
         if (saved == true)
+        {
             await ViewModel.HostApp.ValidateConfigAsync();
+            ViewModel.RefreshJoystickProperties();
+        }
     }
 }

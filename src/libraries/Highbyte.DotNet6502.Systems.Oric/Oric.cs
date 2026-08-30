@@ -48,6 +48,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public Oric(OricConfig config, ILoggerFactory loggerFactory, Dictionary<string, byte[]>? romData = null)
     {
         Keyboard = new OricKeyboard();
+        Joystick = new OricJoystick(config);
         TextPaste = new OricTextPaste(this, loggerFactory);
         BasicTokenParser = new OricBasicTokenParser(this, loggerFactory);
         Tape = new OricTape();
@@ -112,6 +113,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public Via6522 Via { get; }
     public Ay38912 Ay { get; }
     public OricKeyboard Keyboard { get; }
+    public OricJoystick Joystick { get; }
     public OricTextPaste TextPaste { get; }
     public OricBasicTokenParser BasicTokenParser { get; }
     public OricTape Tape { get; }
@@ -205,6 +207,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     public void Reset(ushort? cpuStartPos = null)
     {
         Keyboard.Reset();
+        Joystick.ClearJoystickActions();
         TextPaste.Reset();
         Mem[KeyboardCharacterLatchAddress] = 0;
         Ay.Reset();
@@ -389,7 +392,14 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState
     }
 
     private byte ReadViaPortAInput()
-        => _ayBusCa2 && !_ayBusCb2 ? Ay.ReadData() : (byte)0xff;
+    {
+        var input = _ayBusCa2 && !_ayBusCb2 ? Ay.ReadData() : (byte)0xff;
+        return (byte)(input & Joystick.ReadPortAInput(
+            Via.PortAOutput,
+            Via.DataDirectionA,
+            Via.PortBOutput,
+            Via.DataDirectionB));
+    }
 
     private byte ReadViaPortBInput()
     {

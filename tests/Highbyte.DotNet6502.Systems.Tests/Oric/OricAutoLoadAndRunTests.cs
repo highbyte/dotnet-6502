@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Text;
 using Highbyte.DotNet6502.Systems.Configuration;
+using Highbyte.DotNet6502.Systems.Oric.Input;
 using Highbyte.DotNet6502.Systems.Oric.Render;
 using Highbyte.DotNet6502.Systems.Oric.Tape;
 using Highbyte.DotNet6502.Systems.Oric.Tape.Download;
@@ -61,6 +62,54 @@ public sealed class OricAutoLoadAndRunTests
             startAddress: 0x0600));
 
         AssertQueuedText(oric, "CLOAD\"\"\rCALL#0600\r");
+    }
+
+    [Fact]
+    public async Task AppliesProgramConfigurationAfterStoppingAndBeforeStarting()
+    {
+        var oric = BuildReadyOric();
+        var hostApp = new FakeHostApp(oric, EmulatorState.Running);
+        var loader = new OricAutoLoadAndRun(
+            NullLoggerFactory.Instance,
+            new HttpClient(new ByteResponseHandler(BuildTap(autoRunFlag: 0xc7))),
+            hostApp);
+        var programInfo = new OricDownloadProgramInfo(
+            "Joystick game",
+            "https://downloads.example/joystick.tap",
+            joystickInterface: OricJoystickInterface.IJK,
+            keyboardJoystickEnabled: true,
+            keyboardJoystickNumber: 1);
+        var callbackCount = 0;
+
+        await loader.DownloadAndRunProgram(
+            programInfo,
+            configuredProgram =>
+            {
+                callbackCount++;
+                Assert.Same(programInfo, configuredProgram);
+                Assert.Equal(EmulatorState.Uninitialized, hostApp.EmulatorState);
+                Assert.Equal(0, hostApp.StartCount);
+                return Task.CompletedTask;
+            });
+
+        Assert.Equal(1, callbackCount);
+        Assert.Equal(2, hostApp.StartCount);
+    }
+
+    [Fact]
+    public void DownloadProgramInfoDefaultsToKeyboardOnlyAndValidatesJoystickPort()
+    {
+        var programInfo = new OricDownloadProgramInfo(
+            "Keyboard game",
+            "https://downloads.example/keyboard.tap");
+
+        Assert.Equal(OricJoystickInterface.None, programInfo.JoystickInterface);
+        Assert.False(programInfo.KeyboardJoystickEnabled);
+        Assert.Equal(1, programInfo.KeyboardJoystickNumber);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new OricDownloadProgramInfo(
+            "Invalid",
+            "https://downloads.example/invalid.tap",
+            keyboardJoystickNumber: 3));
     }
 
     private static async Task<OricMachine> DownloadTapAsync(byte[] tapBytes)

@@ -100,13 +100,53 @@
     <Border Classes="collapsible-content">
       <StackPanel Classes="spacing-tight">
         <TextBlock Text="Configuration"/>
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
+          <TextBlock Grid.Row="0" Grid.Column="0"
+                     Text="Joystick interface:"
+                     Classes="small secondary-text"/>
+          <ComboBox Grid.Row="0" Grid.Column="1"
+                    ItemsSource="{Binding JoystickInterfaces}"
+                    SelectedValue="{Binding JoystickInterface}"
+                    DisplayMemberBinding="{Binding Value}"
+                    SelectedValueBinding="{Binding Key}"
+                    AutomationProperties.AutomationId="JoystickInterfaceComboBox"
+                    AutomationProperties.Name="Oric joystick interface"
+                    Classes="small"
+                    MinWidth="80"/>
+
+          <TextBlock Grid.Row="1" Grid.Column="0"
+                     Text="Active joystick:"
+                     Classes="small secondary-text"/>
+          <ComboBox Grid.Row="1" Grid.Column="1"
+                    ItemsSource="{Binding AvailableJoysticks}"
+                    SelectedItem="{Binding CurrentJoystick}"
+                    AutomationProperties.AutomationId="ActiveJoystickComboBox"
+                    AutomationProperties.Name="Active Oric joystick port"
+                    Classes="small"
+                    MinWidth="40"/>
+
+          <CheckBox Grid.Row="2" Grid.Column="0"
+                    Content="Joystick KB:"
+                    IsChecked="{Binding JoystickKeyboardEnabled}"
+                    AutomationProperties.AutomationId="JoystickKeyboardCheckBox"
+                    AutomationProperties.Name="Enable Oric keyboard joystick"
+                    Classes="small"/>
+          <ComboBox Grid.Row="2" Grid.Column="1"
+                    ItemsSource="{Binding AvailableJoysticks}"
+                    SelectedItem="{Binding KeyboardJoystick}"
+                    IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
+                    AutomationProperties.AutomationId="KeyboardJoystickComboBox"
+                    AutomationProperties.Name="Oric keyboard joystick port"
+                    Classes="small"
+                    MinWidth="40"/>
+        </Grid>
         <Button Content="Oric Atmos config…"
                 Click="OpenConfig_Click"
                 IsEnabled="{Binding IsConfigEnabled}"
                 AutomationProperties.AutomationId="OpenOricConfigButton"
                 AutomationProperties.Name="Open Oric Atmos configuration"
                 Classes="small"/>
-        <TextBlock Text="ROM and AY audio settings. Editable while the emulator is stopped."
+        <TextBlock Text="Keyboard joystick uses W/A/S/D and Space. Full settings are editable while the emulator is stopped."
                    Classes="small secondary-text" TextWrapping="Wrap"/>
       </StackPanel>
     </Border>

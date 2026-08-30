@@ -35,6 +35,57 @@
             <CheckBox Content="Enable AY-3-8912 audio" IsChecked="{Binding AudioEnabled}" AutomationProperties.AutomationId="OricAudioEnabledCheckBox"/>
           </StackPanel>
         </Border>
+        <Border Classes="content-section">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Input &amp; Joystick"/>
+            <TextBlock Text="The Atmos requires a printer-port joystick interface. PASE has wider original-game support; IJK avoids hardware sound interference."
+                       Classes="small secondary-text"
+                       TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Classes="spacing-wide">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="Interface:"
+                         Classes="secondary-text"/>
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        ItemsSource="{Binding JoystickInterfaces}"
+                        SelectedValue="{Binding JoystickInterface}"
+                        DisplayMemberBinding="{Binding Value}"
+                        SelectedValueBinding="{Binding Key}"
+                        AutomationProperties.AutomationId="OricJoystickInterfaceComboBox"
+                        AutomationProperties.Name="Oric joystick interface"
+                        Classes="small"
+                        MinWidth="160"/>
+
+              <TextBlock Grid.Row="1" Grid.Column="0"
+                         Text="Gamepad port:"
+                         Classes="secondary-text"/>
+              <ComboBox Grid.Row="1" Grid.Column="1"
+                        ItemsSource="{Binding AvailableJoysticks}"
+                        SelectedItem="{Binding HostJoystick}"
+                        AutomationProperties.AutomationId="OricHostJoystickComboBox"
+                        AutomationProperties.Name="Oric gamepad joystick port"
+                        Classes="small"
+                        MinWidth="80"/>
+
+              <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                        Content="Enable keyboard joystick controls (W/A/S/D + Space)"
+                        IsChecked="{Binding KeyboardJoystickEnabled}"
+                        AutomationProperties.AutomationId="OricKeyboardJoystickEnableCheckBox"
+                        AutomationProperties.Name="Enable Oric keyboard joystick controls"/>
+
+              <TextBlock Grid.Row="3" Grid.Column="0"
+                         Text="Keyboard port:"
+                         Classes="secondary-text"/>
+              <ComboBox Grid.Row="3" Grid.Column="1"
+                        ItemsSource="{Binding AvailableJoysticks}"
+                        SelectedItem="{Binding KeyboardJoystick}"
+                        IsEnabled="{Binding IsKeyboardJoystickPortEnabled}"
+                        AutomationProperties.AutomationId="OricKeyboardJoystickPortComboBox"
+                        AutomationProperties.Name="Oric keyboard joystick port"
+                        Classes="small"
+                        MinWidth="80"/>
+            </Grid>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
     <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" TextWrapping="Wrap" Classes="small" Margin="0,8" AutomationProperties.AutomationId="OricConfigStatusText"/>

@@ -71,6 +71,9 @@ public class OricSystemConfigurerCore : ISystemConfigurer
             CpuCompatibilityProfile = oricSystemConfig.CpuCompatibilityProfile,
             AudioEnabled = oricSystemConfig.AudioEnabled,
             AudioProviderType = oricSystemConfig.AudioProviderType,
+            JoystickInterface = oricSystemConfig.JoystickInterface,
+            KeyboardJoystickEnabled = oricSystemConfig.KeyboardJoystickEnabled,
+            KeyboardJoystick = oricSystemConfig.KeyboardJoystick,
         };
 
         Dictionary<string, byte[]>? romData = null;
