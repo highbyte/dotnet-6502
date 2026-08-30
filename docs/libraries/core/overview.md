@@ -55,7 +55,8 @@ The core libraries form a small dependency chain. The diagram below shows the in
 
 These belong elsewhere even though they sound related:
 
-- **System emulation** (C64, Generic computer) — see [System-specific core libraries](../system-specific/c64.md).
+- **System emulation** (C64, VIC-20, Apple II Plus, Oric Atmos, and Generic computer) — see the
+  [systems overview](../../systems/overview.md) and its per-system library pages.
 - **UI / rendering / input / audio code** — see [Implementation libraries](../implementation/overview.md).
 - **CLI argument parsing** for the host apps — that lives in each app project, not in a library.
 

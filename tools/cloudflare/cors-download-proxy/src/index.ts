@@ -7,9 +7,15 @@ type ProxyConfig = {
 	allowedOrigins: string[];
 	allowLocalhostOrigins: boolean;
 	allowedTargetHosts: string[];
+	allowedTargetPathPrefixes: TargetPathPrefix[];
 	maxRedirects: number;
 	maxResponseBytes: number;
 	sharedToken: string | null;
+};
+
+type TargetPathPrefix = {
+	hostname: string;
+	pathname: string;
 };
 
 type ConfigValidationResult =
@@ -63,6 +69,44 @@ export function csv(value: string | undefined): string[] {
 		.filter(Boolean);
 }
 
+function csvPreservingCase(value: string | undefined): string[] {
+	if (!value) {
+		return [];
+	}
+
+	return value
+		.split(",")
+		.map((entry) => entry.trim())
+		.filter(Boolean);
+}
+
+function hasAmbiguousPathEncoding(pathname: string): boolean {
+	return /%(?:2e|2f|5c)/i.test(pathname);
+}
+
+function parseTargetPathPrefix(value: string): TargetPathPrefix | null {
+	if (value.includes("://") || value.includes("\\") || value.includes("?") || value.includes("#")) {
+		return null;
+	}
+
+	const separatorIndex = value.indexOf("/");
+	if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
+		return null;
+	}
+
+	try {
+		const url = new URL(`https://${value}`);
+		if (url.username || url.password || url.port || url.pathname === "/" || hasAmbiguousPathEncoding(url.pathname)) {
+			return null;
+		}
+
+		const pathname = url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname;
+		return { hostname: url.hostname.toLowerCase(), pathname };
+	} catch {
+		return null;
+	}
+}
+
 function parsePositiveInteger(value: string | undefined, fallback: number): number {
 	if (!value) {
 		return fallback;
@@ -99,6 +143,12 @@ export function validateConfig(env: Env): ConfigValidationResult {
 	const allowedTargetHosts = csv(
 		typeof envRecord.ALLOWED_TARGET_HOSTS === "string" ? envRecord.ALLOWED_TARGET_HOSTS : "",
 	);
+	const allowedTargetPathPrefixValues = csvPreservingCase(
+		typeof envRecord.ALLOWED_TARGET_PATH_PREFIXES === "string" ? envRecord.ALLOWED_TARGET_PATH_PREFIXES : "",
+	);
+	const allowedTargetPathPrefixes = allowedTargetPathPrefixValues
+		.map((entry) => parseTargetPathPrefix(entry))
+		.filter((entry): entry is TargetPathPrefix => entry !== null);
 	const sharedToken = typeof envRecord.SHARED_TOKEN === "string" ? envRecord.SHARED_TOKEN.trim() : "";
 	const maxRedirects = parsePositiveInteger(
 		typeof envRecord.MAX_REDIRECTS === "string" ? envRecord.MAX_REDIRECTS : undefined,
@@ -113,8 +163,23 @@ export function validateConfig(env: Env): ConfigValidationResult {
 		return { ok: false, error: "ALLOWED_ORIGINS must contain at least one origin.", proxyPath };
 	}
 
-	if (allowedTargetHosts.length === 0) {
-		return { ok: false, error: "ALLOWED_TARGET_HOSTS must contain at least one hostname.", proxyPath };
+	if (allowedTargetPathPrefixes.length !== allowedTargetPathPrefixValues.length) {
+		const invalidEntry = allowedTargetPathPrefixValues.find((entry) => parseTargetPathPrefix(entry) === null);
+		return {
+			ok: false,
+			error:
+				`ALLOWED_TARGET_PATH_PREFIXES entry '${invalidEntry}' is invalid. ` +
+				"Use 'example.com/directory' without a scheme, query, or fragment.",
+			proxyPath,
+		};
+	}
+
+	if (allowedTargetHosts.length === 0 && allowedTargetPathPrefixes.length === 0) {
+		return {
+			ok: false,
+			error: "At least one target must be configured in ALLOWED_TARGET_HOSTS or ALLOWED_TARGET_PATH_PREFIXES.",
+			proxyPath,
+		};
 	}
 
 	// A bare "*" would allow every host on the internet, which is an open proxy. Reject it at
@@ -142,6 +207,7 @@ export function validateConfig(env: Env): ConfigValidationResult {
 				typeof envRecord.ALLOW_LOCALHOST_ORIGINS === "string" ? envRecord.ALLOW_LOCALHOST_ORIGINS : undefined,
 			),
 			allowedTargetHosts,
+			allowedTargetPathPrefixes,
 			maxRedirects,
 			maxResponseBytes,
 			sharedToken: sharedToken || null,
@@ -187,6 +253,29 @@ export function isAllowedTargetHost(hostname: string, config: ProxyConfig): bool
 		const suffix = entry.slice(1); // "*.archive.org" -> ".archive.org"
 		return host.length > suffix.length && host.endsWith(suffix);
 	});
+}
+
+/**
+ * Allows either a host-wide target or a URL below one explicitly configured path prefix.
+ * Path-prefix entries use segment boundaries, so `example.com/owner/repo` does not admit
+ * `example.com/owner/repository`. Encoded separators and dot segments are rejected to avoid
+ * differences between URL parsing here and decoding performed by an upstream server.
+ */
+export function isAllowedTargetUrl(target: URL, config: ProxyConfig): boolean {
+	if (isAllowedTargetHost(target.hostname, config)) {
+		return true;
+	}
+
+	if (hasAmbiguousPathEncoding(target.pathname)) {
+		return false;
+	}
+
+	const hostname = target.hostname.toLowerCase();
+	return config.allowedTargetPathPrefixes.some(
+		(prefix) =>
+			prefix.hostname === hostname &&
+			(target.pathname === prefix.pathname || target.pathname.startsWith(`${prefix.pathname}/`)),
+	);
 }
 
 export function isAuthorized(request: Request, sharedToken: string | null): boolean {
@@ -409,8 +498,8 @@ async function fetchUpstream(
 		}
 
 		const nextTarget = new URL(location, currentTarget);
-		if (!isAllowedTargetHost(nextTarget.hostname, config)) {
-			return new Response("Redirect target host not allowed", { status: 403 });
+		if (!isAllowedTargetUrl(nextTarget, config)) {
+			return new Response("Redirect target not allowed", { status: 403 });
 		}
 
 		currentTarget = nextTarget;
@@ -491,6 +580,9 @@ function createHealthResponse(configResult: ConfigValidationResult): Response {
 		allowedOrigins: configResult.config.allowedOrigins,
 		allowLocalhostOrigins: configResult.config.allowLocalhostOrigins,
 		allowedTargetHosts: configResult.config.allowedTargetHosts,
+		allowedTargetPathPrefixes: configResult.config.allowedTargetPathPrefixes.map(
+			(prefix) => `${prefix.hostname}${prefix.pathname}`,
+		),
 		maxRedirects: configResult.config.maxRedirects,
 		maxResponseBytes: configResult.config.maxResponseBytes,
 		authRequired: Boolean(configResult.config.sharedToken),
@@ -565,8 +657,8 @@ export default {
 			});
 		}
 
-		if (!isAllowedTargetHost(target.hostname, config)) {
-			return new Response("Target host not allowed", {
+		if (!isAllowedTargetUrl(target, config)) {
+			return new Response("Target not allowed", {
 				status: 403,
 				headers: corsHeaders(origin),
 			});
@@ -583,7 +675,7 @@ export default {
 		}
 
 		const upstream = await fetchUpstream(request, target, config);
-		if (upstream.status === 403 && (await upstream.clone().text()) === "Redirect target host not allowed") {
+		if (upstream.status === 403 && (await upstream.clone().text()) === "Redirect target not allowed") {
 			return applyCorsToResponse(upstream, origin);
 		}
 

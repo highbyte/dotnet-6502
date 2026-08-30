@@ -139,6 +139,53 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
   (error status), `ConfigValidationMessageText` (bulleted validation-error list)
 - **Footer**: `ResetToDefaultsButton`, `CancelButton`, `OkButton`
 
+### OricConfigDialogView
+
+- **Root**: `OricConfigDialogView`
+- **ROM actions**: `OricRomStatusText`, `OricRomDirectoryTextBox`, `OricLoadRomButton`,
+  `OricDownloadRomButton`, `OricClearRomButton`
+- **Audio**: `OricAudioEnabledCheckBox`
+- **Hardware compatibility**: `OricVSyncHackEnabledCheckBox` — enables the optional
+  RGB-sync-to-cassette-input CB1 compatibility cable; disabled by default for a stock Atmos.
+- **Input &amp; Joystick**: `OricKeyboardLayoutComboBox` — host keyboard layout (`Auto`, `US`,
+  or `Swedish`; `Auto` means auto-detect), `OricJoystickInterfaceComboBox`,
+  `OricHostJoystickComboBox`, `OricKeyboardJoystickEnableCheckBox`,
+  `OricKeyboardJoystickPortComboBox`
+- **Messages**: `OricConfigStatusText`
+- **Footer**: `OricConfigCancelButton`, `OricConfigSaveButton`
+
+The download button opens an ownership/licence acknowledgement overlay before fetching the
+copyrighted firmware. Its buttons are `OricRomDownloadConfirmButton` and
+`OricRomDownloadCancelButton`.
+
+### OricMenuView
+
+- **Root**: `OricMenuView`
+- **Basic clipboard**: `CopyBasicButton`, `PasteTextButton` (enabled while the emulator is running)
+- **Collapsible section headers**: `DownloadSectionHeader`, `DownloadSectionContent`,
+  `TapeSectionHeader`, `TapeSectionContent`, `LoadSaveSectionHeader`, `LoadSaveSectionContent`,
+  `ConfigSectionHeader`, `ConfigSectionContent`
+- **Download & Run**: `OricDownloadProgramComboBox`, `OricDownloadAndRunButton`,
+  `OricDownloadStatusText`, `OricDownloadErrorText`
+- **Tape transport**: `TapeAttachButton`, `TapeRewindButton`, `TapePreviousRecordButton`,
+  `TapeNextRecordButton`, `TapeEjectButton`, `TapeStatusText`. Attach/replace validates and inserts
+  a TAP image without loading it; previous/next move between parsed file boundaries.
+- **Load/Save**: `LoadBasicButton`, `AssemblyExampleComboBox`, `LoadAssemblyExampleButton`,
+  `BasicExampleComboBox`, `LoadBasicExampleButton` (enabled after the emulator has been
+  initialized). The Raster Bars assembly example automatically enables the CB1 VSync
+  compatibility cable, while No-CB1 Bars disables it; both restart the machine before loading
+  their TAP image.
+- **Joystick**: `JoystickInterfaceComboBox`, `ActiveJoystickComboBox`,
+  `JoystickKeyboardCheckBox`, `KeyboardJoystickComboBox`. The interface and port selectors work
+  while the machine is running; keyboard joystick uses W/A/S/D and Space.
+- **Configuration**: `OpenOricConfigButton` (enabled only while the emulator is stopped)
+
+### OricInfoView
+
+- **Root**: `OricInfoView`
+- **Keyboard reference**: `OricKeyboardMappingTable` (read-only table with separate Atmos, PC,
+  and Mac key columns)
+
 ### Vic20MenuView (sidebar)
 
 - **Root**: `Vic20MenuView`
@@ -293,6 +340,22 @@ peekaboo menu click --app "DotNet 6502 Emulator" --path "DotNet 6502 Emulator > 
 `Toggle Joystick KB` uses the same key as the C64's and VIC-20's, so the shortcut means the same
 thing whichever machine is loaded.
 
+### Oric shortcuts (active when the Oric system is selected)
+
+| Action                           | macOS               | Windows / Linux       |
+| -------------------------------- | ------------------- | --------------------- |
+| Toggle Download & Run section    | `⌘⌥⇧D`              | `Ctrl+Alt+Shift+D`    |
+| Toggle Tape section              | `⌘⌥⇧T`              | `Ctrl+Alt+Shift+T`    |
+| Toggle Load/Save section         | `⌘⌥⇧L`              | `Ctrl+Alt+Shift+L`    |
+| Toggle Configuration section     | `⌘⌥⇧C`              | `Ctrl+Alt+Shift+C`    |
+| Active joystick → Port 1         | `⌘⌥1`                | `Ctrl+Alt+1`          |
+| Active joystick → Port 2         | `⌘⌥2`                | `Ctrl+Alt+2`          |
+| Toggle Joystick KB               | `⌘⌥K`                | `Ctrl+Alt+K`          |
+| Keyboard joystick → Port 1       | `⌘⌥⇧1`               | `Ctrl+Alt+Shift+1`    |
+| Keyboard joystick → Port 2       | `⌘⌥⇧2`               | `Ctrl+Alt+Shift+2`    |
+
+On macOS these commands appear under the `Oric` system menu.
+
 ### VIC-20 shortcuts (active when the VIC-20 system is selected — `VIC-20` menu)
 
 | Action                           | macOS               | Windows / Linux       |
@@ -310,7 +373,7 @@ through the text-paste service, which writes ASCII straight to the keyboard latc
 a `HostKey`, so the joystick mapping cannot see it. Use `keyboard.press --key w` and read back
 `PDL(1)` — 0 means the key steered, 128 means it did not.
 
-Sidebar sections behave as an accordion in both the C64 and Apple II menus (shared
+Sidebar sections behave as an accordion in the C64, Apple II, and Oric menus (shared
 `AccordionSections` helper): expanding one section collapses the others. Automation
 scripts must therefore expand a section (header button or shortcut) before its inner
 controls exist in the accessibility tree.
@@ -318,7 +381,8 @@ controls exist in the accessibility tree.
 One exception worth knowing when a script asserts on section state: if the selected system's
 configuration is invalid — normally a fresh install whose ROM files are missing — the menu
 expands its Configuration section by itself and pulses the config button (`C64Config` /
-`OpenApple2ConfigButton`) orange until the configuration becomes valid or the button is clicked.
+`OpenApple2ConfigButton` / `OpenOricConfigButton`) orange until the configuration becomes valid or
+the button is clicked.
 So a Configuration section found already expanded is a signal about the config, not a leftover from
 an earlier step. The pulse is a `Background` change driven from the view (shared
 `ButtonFlashController`) and is not exposed through the accessibility tree; a screenshot is the only

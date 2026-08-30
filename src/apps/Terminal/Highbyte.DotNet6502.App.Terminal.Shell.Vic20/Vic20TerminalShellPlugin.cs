@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.App.Terminal;
 using Highbyte.DotNet6502.Systems.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,6 +17,8 @@ namespace Highbyte.DotNet6502.App.Terminal.Shell.Vic20;
 public sealed class Vic20TerminalShellPlugin : ISystemShellPlugin
 {
     public string SystemName => Vic20System.SystemName;
+
+    public int DisplayOrder => 20;
 
     public void RegisterShellServices(IServiceCollection services)
     {

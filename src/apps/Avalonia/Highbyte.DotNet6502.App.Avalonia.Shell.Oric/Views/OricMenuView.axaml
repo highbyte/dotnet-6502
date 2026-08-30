@@ -1,0 +1,301 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Oric.Views.OricMenuView"
+             x:DataType="vm:OricMenuViewModel"
+             AutomationProperties.AutomationId="OricMenuView"
+             AutomationProperties.Name="Oric menu">
+  <StackPanel Classes="spacing-tight">
+    <Grid Classes="spacing-tight">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <Button Grid.Column="0"
+              Content="Copy"
+              Command="{Binding CopyBasicSourceCommand}"
+              IsEnabled="{Binding IsCopyPasteEnabled}"
+              AutomationProperties.AutomationId="CopyBasicButton"
+              AutomationProperties.Name="Copy Oric BASIC source to clipboard"
+              Classes="small"/>
+      <Button Grid.Column="1"
+              Content="Paste"
+              Command="{Binding PasteTextCommand}"
+              IsEnabled="{Binding IsCopyPasteEnabled}"
+              AutomationProperties.AutomationId="PasteTextButton"
+              AutomationProperties.Name="Paste text into Oric"
+              Classes="small"/>
+    </Grid>
+
+    <StackPanel>
+      <Button Name="DownloadSectionHeader"
+              AutomationProperties.AutomationId="DownloadSectionHeader"
+              AutomationProperties.Name="Toggle Download and Run section"
+              Classes="section-toggle"
+              Command="{Binding ToggleDownloadSectionCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Grid Width="10" Height="10" VerticalAlignment="Center">
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleRight"
+                                 IsVisible="{Binding !IsDownloadSectionExpanded}"/>
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleDown"
+                                 IsVisible="{Binding IsDownloadSectionExpanded}"/>
+          </Grid>
+          <TextBlock Text="Download &amp; Run programs" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <Border Name="DownloadSectionContent"
+              AutomationProperties.AutomationId="DownloadSectionContent"
+              Classes="collapsible-content"
+              IsVisible="{Binding IsDownloadSectionExpanded}">
+        <StackPanel Classes="spacing-tight">
+          <TextBlock Text="Download a known Oric program as a TAP image and start it."
+                     TextWrapping="Wrap" Classes="small secondary-text"/>
+          <ComboBox ItemsSource="{Binding PreloadedPrograms}"
+                    SelectedValue="{Binding SelectedPreloadedProgram}"
+                    DisplayMemberBinding="{Binding Value}"
+                    SelectedValueBinding="{Binding Key}"
+                    AutomationProperties.AutomationId="OricDownloadProgramComboBox"
+                    AutomationProperties.Name="Downloadable Oric program"
+                    HorizontalAlignment="Stretch"/>
+          <Button Content="Download &amp; run"
+                  Command="{Binding LoadPreloadedProgramCommand}"
+                  IsVisible="{Binding HasSelectedPreloadedProgram}"
+                  AutomationProperties.AutomationId="OricDownloadAndRunButton"
+                  AutomationProperties.Name="Download and run the selected Oric program"
+                  Classes="small"/>
+          <TextBlock Text="Downloading and starting program..."
+                     IsVisible="{Binding IsLoadingPreloadedProgram}"
+                     AutomationProperties.AutomationId="OricDownloadStatusText"
+                     Classes="small secondary-text"/>
+          <Border Classes="error-container-small" IsVisible="{Binding HasLatestPreloadedProgramError}">
+            <TextBlock Text="{Binding LatestPreloadedProgramError}"
+                       TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="OricDownloadErrorText"
+                       Classes="small"/>
+          </Border>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel>
+      <Button Name="TapeSectionHeader"
+              AutomationProperties.AutomationId="TapeSectionHeader"
+              AutomationProperties.Name="Toggle Tape section"
+              Classes="section-toggle"
+              Command="{Binding ToggleTapeSectionCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Grid Width="10" Height="10" VerticalAlignment="Center">
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleRight"
+                                 IsVisible="{Binding !IsTapeSectionExpanded}"/>
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleDown"
+                                 IsVisible="{Binding IsTapeSectionExpanded}"/>
+          </Grid>
+          <TextBlock Text="Tape" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <Border Name="TapeSectionContent"
+              AutomationProperties.AutomationId="TapeSectionContent"
+              Classes="collapsible-content"
+              IsVisible="{Binding IsTapeSectionExpanded}">
+        <StackPanel Classes="spacing-tight">
+          <TextBlock Text="Attach a TAP image without loading it, then use an Atmos CLOAD command. Navigation moves only between parsed files."
+                     TextWrapping="Wrap" Classes="small secondary-text"/>
+          <Button Content="{Binding TapeToggleButtonText}"
+                  Command="{Binding AttachOrReplaceTapeCommand}"
+                  IsEnabled="{Binding IsFileOperationEnabled}"
+                  AutomationProperties.AutomationId="TapeAttachButton"
+                  AutomationProperties.Name="Attach or replace Oric TAP image"
+                  Classes="small"/>
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+            <Button Grid.Row="0" Grid.Column="0"
+                    Content="Rewind"
+                    Command="{Binding RewindTapeCommand}"
+                    AutomationProperties.AutomationId="TapeRewindButton"
+                    AutomationProperties.Name="Rewind Oric tape"
+                    Classes="small"/>
+            <Button Grid.Row="0" Grid.Column="1"
+                    Content="Previous"
+                    Command="{Binding PreviousTapeRecordCommand}"
+                    AutomationProperties.AutomationId="TapePreviousRecordButton"
+                    AutomationProperties.Name="Previous Oric tape file"
+                    Classes="small"/>
+            <Button Grid.Row="1" Grid.Column="0"
+                    Content="Next"
+                    Command="{Binding NextTapeRecordCommand}"
+                    AutomationProperties.AutomationId="TapeNextRecordButton"
+                    AutomationProperties.Name="Next Oric tape file"
+                    Classes="small"/>
+            <Button Grid.Row="1" Grid.Column="1"
+                    Content="Eject"
+                    Command="{Binding EjectTapeCommand}"
+                    AutomationProperties.AutomationId="TapeEjectButton"
+                    AutomationProperties.Name="Eject Oric tape"
+                    Classes="small"/>
+          </Grid>
+          <TextBlock Text="{Binding TapeStatusText}"
+                     TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="TapeStatusText"
+                     AutomationProperties.Name="Oric tape status"
+                     Classes="small secondary-text"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel>
+      <Button Name="LoadSaveSectionHeader"
+              AutomationProperties.AutomationId="LoadSaveSectionHeader"
+              AutomationProperties.Name="Toggle Load/Save section"
+              Classes="section-toggle"
+              Command="{Binding ToggleLoadSaveSectionCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Grid Width="10" Height="10" VerticalAlignment="Center">
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleRight"
+                                 IsVisible="{Binding !IsLoadSaveSectionExpanded}"/>
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleDown"
+                                 IsVisible="{Binding IsLoadSaveSectionExpanded}"/>
+          </Grid>
+          <TextBlock Text="Load/Save" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <Border Name="LoadSaveSectionContent"
+              AutomationProperties.AutomationId="LoadSaveSectionContent"
+              Classes="collapsible-content"
+              IsVisible="{Binding IsLoadSaveSectionExpanded}">
+        <StackPanel Classes="spacing-tight">
+          <Button Content="Load BASIC .tap directly…"
+                  Click="LoadBasicTapFile_Click"
+                  IsEnabled="{Binding IsFileOperationEnabled}"
+                  AutomationProperties.AutomationId="LoadBasicButton"
+                  AutomationProperties.Name="Load Oric BASIC TAP file directly"
+                  Classes="small"/>
+
+          <TextBlock Text="Assembly example files" Classes="small secondary-text"/>
+          <Grid Classes="spacing-tight">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox Grid.Column="0"
+                      ItemsSource="{Binding AssemblyExamples}"
+                      SelectedValue="{Binding SelectedAssemblyExample}"
+                      DisplayMemberBinding="{Binding Value}"
+                      SelectedValueBinding="{Binding Key}"
+                      IsEnabled="{Binding IsFileOperationEnabled}"
+                      AutomationProperties.AutomationId="AssemblyExampleComboBox"
+                      AutomationProperties.Name="Oric assembly example file"
+                      Classes="small" MinWidth="60"/>
+            <Button Grid.Column="1"
+                    Content="Load"
+                    Command="{Binding LoadAssemblyExampleCommand}"
+                    AutomationProperties.AutomationId="LoadAssemblyExampleButton"
+                    AutomationProperties.Name="Load Oric assembly example"
+                    Classes="primary small"/>
+          </Grid>
+
+          <TextBlock Text="BASIC example files" Classes="small secondary-text"/>
+          <Grid Classes="spacing-tight">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox Grid.Column="0"
+                      ItemsSource="{Binding BasicExamples}"
+                      SelectedValue="{Binding SelectedBasicExample}"
+                      DisplayMemberBinding="{Binding Value}"
+                      SelectedValueBinding="{Binding Key}"
+                      IsEnabled="{Binding IsFileOperationEnabled}"
+                      AutomationProperties.AutomationId="BasicExampleComboBox"
+                      AutomationProperties.Name="Oric BASIC example file"
+                      Classes="small" MinWidth="60"/>
+            <Button Grid.Column="1"
+                    Content="Load"
+                    Command="{Binding LoadBasicExampleCommand}"
+                    AutomationProperties.AutomationId="LoadBasicExampleButton"
+                    AutomationProperties.Name="Load Oric BASIC example"
+                    Classes="primary small"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel>
+      <Button Name="ConfigSectionHeader"
+              AutomationProperties.AutomationId="ConfigSectionHeader"
+              AutomationProperties.Name="Toggle Configuration section"
+              Classes="section-toggle"
+              Command="{Binding ToggleConfigSectionCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Grid Width="10" Height="10" VerticalAlignment="Center">
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleRight"
+                                 IsVisible="{Binding !IsConfigSectionExpanded}"/>
+            <controls:SymbolIcon Width="8" Height="8" Kind="TriangleDown"
+                                 IsVisible="{Binding IsConfigSectionExpanded}"/>
+          </Grid>
+          <TextBlock Text="Configuration" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <Border Name="ConfigSectionContent"
+              AutomationProperties.AutomationId="ConfigSectionContent"
+              Classes="collapsible-content"
+              IsVisible="{Binding IsConfigSectionExpanded}">
+        <StackPanel Classes="spacing-tight">
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Joystick interface:"
+                       Classes="small secondary-text"/>
+            <ComboBox Grid.Row="0" Grid.Column="1"
+                      ItemsSource="{Binding JoystickInterfaces}"
+                      SelectedValue="{Binding JoystickInterface}"
+                      DisplayMemberBinding="{Binding Value}"
+                      SelectedValueBinding="{Binding Key}"
+                      AutomationProperties.AutomationId="JoystickInterfaceComboBox"
+                      AutomationProperties.Name="Oric joystick interface"
+                      Classes="small" MinWidth="80"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Active joystick:"
+                       Classes="small secondary-text"/>
+            <ComboBox Grid.Row="1" Grid.Column="1"
+                      ItemsSource="{Binding AvailableJoysticks}"
+                      SelectedItem="{Binding CurrentJoystick}"
+                      AutomationProperties.AutomationId="ActiveJoystickComboBox"
+                      AutomationProperties.Name="Active Oric joystick port"
+                      Classes="small" MinWidth="40"/>
+
+            <CheckBox Grid.Row="2" Grid.Column="0"
+                      Content="Joystick KB:"
+                      IsChecked="{Binding JoystickKeyboardEnabled}"
+                      AutomationProperties.AutomationId="JoystickKeyboardCheckBox"
+                      AutomationProperties.Name="Enable Oric keyboard joystick"
+                      Classes="small"/>
+            <ComboBox Grid.Row="2" Grid.Column="1"
+                      ItemsSource="{Binding AvailableJoysticks}"
+                      SelectedItem="{Binding KeyboardJoystick}"
+                      IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
+                      AutomationProperties.AutomationId="KeyboardJoystickComboBox"
+                      AutomationProperties.Name="Oric keyboard joystick port"
+                      Classes="small" MinWidth="40"/>
+          </Grid>
+          <Button Name="OpenOricConfigButton"
+                  Content="Oric Atmos config…"
+                  Click="OpenConfig_Click"
+                  IsEnabled="{Binding IsConfigEnabled}"
+                  AutomationProperties.AutomationId="OpenOricConfigButton"
+                  AutomationProperties.Name="Open Oric Atmos configuration"
+                  Classes="small">
+            <Button.Transitions>
+              <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.7"/>
+              </Transitions>
+            </Button.Transitions>
+          </Button>
+          <TextBlock Text="Keyboard joystick uses W/A/S/D and Space. Full settings are editable while the emulator is stopped."
+                     Classes="small secondary-text" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

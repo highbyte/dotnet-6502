@@ -92,6 +92,9 @@
     <TrimmerRootAssembly Include="Highbyte.DotNet6502.App.Avalonia.Shell.Apple2" />
     <TrimmerRootAssembly Include="Highbyte.DotNet6502.Impl.Avalonia.Apple2" />
     <TrimmerRootAssembly Include="Highbyte.DotNet6502.Systems.Apple2" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.App.Avalonia.Shell.Oric" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Impl.Avalonia.Oric" />
+    <TrimmerRootAssembly Include="Highbyte.DotNet6502.Systems.Oric" />
   </ItemGroup>
 
   <!--

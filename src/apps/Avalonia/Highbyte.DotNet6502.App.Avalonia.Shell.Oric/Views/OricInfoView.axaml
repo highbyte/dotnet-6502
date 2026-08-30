@@ -1,0 +1,191 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Shell.Oric.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Shell.Oric.Views.OricInfoView"
+             x:DataType="vm:OricInfoViewModel"
+             AutomationProperties.AutomationId="OricInfoView"
+             AutomationProperties.Name="Oric keyboard mapping"
+             Width="400"
+             HorizontalAlignment="Left"
+             Focusable="False">
+  <UserControl.Styles>
+    <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+  </UserControl.Styles>
+
+  <StackPanel Classes="spacing-tight">
+      <TextBlock Text="Oric Atmos keyboard mapping"/>
+
+      <Border Classes="section-container"
+              AutomationProperties.AutomationId="OricKeyboardMappingTable"
+              AutomationProperties.Name="Oric Atmos keyboard mapping table">
+        <Grid Classes="spacing-none">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="115"/>
+            <ColumnDefinition Width="*" MinWidth="70"/>
+            <ColumnDefinition Width="*" MinWidth="80"/>
+            <ColumnDefinition Width="*" MinWidth="95"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Row="0" Grid.Column="0" Classes="table-header-cell">
+            <TextBlock Text="Purpose" Classes="small bold"/>
+          </Border>
+          <Border Grid.Row="0" Grid.Column="1" Classes="table-header-cell">
+            <TextBlock Text="Atmos key" Classes="small bold"/>
+          </Border>
+          <Border Grid.Row="0" Grid.Column="2" Classes="table-header-cell">
+            <TextBlock Text="PC key" Classes="small bold"/>
+          </Border>
+          <Border Grid.Row="0" Grid.Column="3" Classes="table-header-cell-last">
+            <TextBlock Text="Mac key" Classes="small bold"/>
+          </Border>
+
+          <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Function modifier" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="1" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="FUNCT" Classes="small"/>
+          </Border>
+          <Border Grid.Row="1" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Alt" Classes="small"/>
+          </Border>
+          <Border Grid.Row="1" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Option (⌥)" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Delete character" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="2" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="DEL" Classes="small"/>
+          </Border>
+          <Border Grid.Row="2" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Backspace" Classes="small"/>
+          </Border>
+          <Border Grid.Row="2" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Delete (⌫)" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Submit line" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="3" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="RETURN" Classes="small"/>
+          </Border>
+          <Border Grid.Row="3" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Enter" Classes="small"/>
+          </Border>
+          <Border Grid.Row="3" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Return (↩)" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Stop BASIC program or LIST" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="4" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="CTRL+C" Classes="small"/>
+          </Border>
+          <Border Grid.Row="4" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Ctrl+C" Classes="small"/>
+          </Border>
+          <Border Grid.Row="4" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Control+C" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="5" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Toggle CAPS/lowercase" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="5" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="CTRL+T" Classes="small"/>
+          </Border>
+          <Border Grid.Row="5" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Ctrl+T" Classes="small"/>
+          </Border>
+          <Border Grid.Row="5" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Control+T" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="6" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Clear screen" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="6" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="CTRL+L" Classes="small"/>
+          </Border>
+          <Border Grid.Row="6" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Ctrl+L" Classes="small"/>
+          </Border>
+          <Border Grid.Row="6" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Control+L" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="7" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Abort current input line" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="7" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="CTRL+X" Classes="small"/>
+          </Border>
+          <Border Grid.Row="7" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Ctrl+X" Classes="small"/>
+          </Border>
+          <Border Grid.Row="7" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Control+X" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="8" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Copy character at cursor" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="8" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="CTRL+A" Classes="small"/>
+          </Border>
+          <Border Grid.Row="8" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Ctrl+A" Classes="small"/>
+          </Border>
+          <Border Grid.Row="8" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Control+A" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="9" Grid.Column="0" Classes="table-cell">
+            <TextBlock Text="Pause LIST (any key resumes)" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="9" Grid.Column="1" Classes="table-cell">
+            <TextBlock Text="SPACE" Classes="small"/>
+          </Border>
+          <Border Grid.Row="9" Grid.Column="2" Classes="table-cell">
+            <TextBlock Text="Space" Classes="small"/>
+          </Border>
+          <Border Grid.Row="9" Grid.Column="3" Classes="table-cell-last-column">
+            <TextBlock Text="Space" Classes="small"/>
+          </Border>
+
+          <Border Grid.Row="10" Grid.Column="0" Classes="table-cell-last-row">
+            <TextBlock Text="Emulator monitor" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+          <Border Grid.Row="10" Grid.Column="1" Classes="table-cell-last-row">
+            <TextBlock Text="—" Classes="small"/>
+          </Border>
+          <Border Grid.Row="10" Grid.Column="2" Classes="table-cell-last-row">
+            <TextBlock Text="F12" Classes="small"/>
+          </Border>
+          <Border Grid.Row="10" Grid.Column="3" Classes="table-cell-last">
+            <TextBlock Text="F12 or fn+F12" Classes="small" TextWrapping="Wrap"/>
+          </Border>
+        </Grid>
+      </Border>
+
+      <TextBlock Text="Letters, numbers, Control, Shift and cursor keys map directly. Punctuation follows the Auto, US or Swedish host keyboard layout selected in Oric configuration."
+                 Classes="small secondary-text"
+                 TextWrapping="Wrap"/>
+  </StackPanel>
+</UserControl>

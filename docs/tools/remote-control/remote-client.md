@@ -123,6 +123,20 @@ dotnet-6502-remote apple2.diskstatus
 # Eject the disk (Apple II only)
 dotnet-6502-remote apple2.ejectdisk
 
+# Type text and read the current BASIC program (Oric only; use uppercase BASIC keywords)
+dotnet-6502-remote oric.type --text $'10 PRINT "HELLO"\n'
+dotnet-6502-remote oric.getbasicsource
+
+# Fast direct-load of the first file in an Oric TAP image, honoring its autorun flag
+dotnet-6502-remote oric.loadtap --file /path/to/program.tap
+
+# Or insert a multi-file tape and load it through the Atmos ROM
+dotnet-6502-remote oric.inserttape --file /path/to/game.tap
+dotnet-6502-remote oric.tapestatus
+dotnet-6502-remote oric.type --text $'CLOAD""\n'
+dotnet-6502-remote oric.rewindtape
+dotnet-6502-remote oric.ejecttape
+
 # Save / restore a full emulator-state snapshot (relative paths use the emulator host's snapshot directory)
 dotnet-6502-remote emu.savesnapshot --path state.d6502snap
 dotnet-6502-remote emu.loadsnapshot --path state.d6502snap

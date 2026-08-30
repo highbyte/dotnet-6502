@@ -12,12 +12,15 @@ debug adapter, remoting, AI). Run anywhere .NET runs.
 
 → [Per-library reference and dependency layering](core/overview.md)
 
-## [Tier 2 — System-specific core libraries](system-specific/c64.md)
+## Tier 2 — System-specific core libraries
 
 The "computer" layer — implements `ISystem` for a specific machine using the core
 libraries. Still UI-agnostic.
 
 - [Commodore 64](../systems/c64/overview.md) — `Highbyte.DotNet6502.Systems.Commodore64`
+- [VIC-20](../systems/vic20/overview.md) — `Highbyte.DotNet6502.Systems.Vic20`
+- [Apple II Plus](../systems/apple2/overview.md) — `Highbyte.DotNet6502.Systems.Apple2`
+- [Oric Atmos](../systems/oric/overview.md) — `Highbyte.DotNet6502.Systems.Oric`
 - [Generic](../systems/generic/overview.md) — `Highbyte.DotNet6502.Systems.Generic`
 
 ## [Tier 3 — Implementation libraries](implementation/overview.md)

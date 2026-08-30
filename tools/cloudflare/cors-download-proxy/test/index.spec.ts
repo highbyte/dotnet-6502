@@ -4,6 +4,7 @@ import worker, {
 	csv,
 	isAllowedOrigin,
 	isAllowedTargetHost,
+	isAllowedTargetUrl,
 	isAuthorized,
 	normalizeProxyPath,
 	parseTargetUrl,
@@ -57,6 +58,53 @@ describe("cors download proxy worker", () => {
 		expect(isAllowedTargetHost("archive.org.evil.com", config)).toBe(false);
 	});
 
+	it("restricts path-prefixed targets to the configured repository", () => {
+		const config = {
+			allowedTargetHosts: [],
+			allowedTargetPathPrefixes: [
+				{
+					hostname: "raw.githubusercontent.com",
+					pathname: "/Oric-Software-Development-Kit/Oric-Software",
+				},
+			],
+		} as never;
+
+		expect(
+			isAllowedTargetUrl(
+				new URL(
+					"https://raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software/master/users/chema/Oricium/RELEASE/Oricium12.tap",
+				),
+				config,
+			),
+		).toBe(true);
+		expect(
+			isAllowedTargetUrl(
+				new URL("https://raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software"),
+				config,
+			),
+		).toBe(true);
+		expect(
+			isAllowedTargetUrl(
+				new URL("https://raw.githubusercontent.com/Oric-Software-Development-Kit/Other-Repo/file.tap"),
+				config,
+			),
+		).toBe(false);
+		expect(
+			isAllowedTargetUrl(
+				new URL("https://raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software-Evil/file.tap"),
+				config,
+			),
+		).toBe(false);
+		expect(
+			isAllowedTargetUrl(
+				new URL(
+					"https://raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software%2f..%2fOther-Repo/file.tap",
+				),
+				config,
+			),
+		).toBe(false);
+	});
+
 	it("rejects wildcards too broad to be an allowlist", () => {
 		const base = {
 			ALLOWED_ORIGINS: "https://highbyte.se",
@@ -85,6 +133,13 @@ describe("cors download proxy worker", () => {
 					"mirrors.apple2.org.za",
 					"archive.org",
 					"*.archive.org",
+					"cdn.oric.org",
+				],
+				allowedTargetPathPrefixes: [
+					{
+						hostname: "raw.githubusercontent.com",
+						pathname: "/Oric-Software-Development-Kit/Oric-Software",
+					},
 				],
 			},
 		});
@@ -93,10 +148,21 @@ describe("cors download proxy worker", () => {
 			validateConfig({
 				...env,
 				ALLOWED_TARGET_HOSTS: "",
+				ALLOWED_TARGET_PATH_PREFIXES: "",
 			}),
 		).toMatchObject({
 			ok: false,
-			error: "ALLOWED_TARGET_HOSTS must contain at least one hostname.",
+			error: "At least one target must be configured in ALLOWED_TARGET_HOSTS or ALLOWED_TARGET_PATH_PREFIXES.",
+		});
+
+		expect(
+			validateConfig({
+				...env,
+				ALLOWED_TARGET_PATH_PREFIXES: "https://raw.githubusercontent.com/owner/repo",
+			}),
+		).toMatchObject({
+			ok: false,
+			error: expect.stringContaining("ALLOWED_TARGET_PATH_PREFIXES entry"),
 		});
 	});
 
@@ -153,6 +219,10 @@ describe("cors download proxy worker", () => {
 				"mirrors.apple2.org.za",
 				"archive.org",
 				"*.archive.org",
+				"cdn.oric.org",
+			],
+			allowedTargetPathPrefixes: [
+				"raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software",
 			],
 			rateLimits: {
 				burst: { limit: 8, periodSeconds: 10 },
@@ -180,7 +250,34 @@ describe("cors download proxy worker", () => {
 		const response = await worker.fetch(request, env, ctx);
 		await waitOnExecutionContext(ctx);
 		expect(response.status).toBe(403);
-		expect(await response.text()).toBe("Target host not allowed");
+		expect(await response.text()).toBe("Target not allowed");
+	});
+
+	it("allows requests within an allowed target path prefix", async () => {
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("tap-bytes", { status: 200 }));
+		const request = new Request(
+			"https://proxy.test/fetch?url=https%3A%2F%2Fraw.githubusercontent.com%2FOric-Software-Development-Kit%2FOric-Software%2Fmaster%2Fusers%2Fchema%2FOricium%2FRELEASE%2FOricium12.tap",
+			{ headers: { Origin: "https://highbyte.se" } },
+		);
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("tap-bytes");
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it("rejects requests outside an allowed target path prefix", async () => {
+		const request = new Request(
+			"https://proxy.test/fetch?url=https%3A%2F%2Fraw.githubusercontent.com%2Fother-owner%2Fother-repo%2Fmain%2Ffile.tap",
+			{ headers: { Origin: "https://highbyte.se" } },
+		);
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+		expect(response.status).toBe(403);
+		expect(await response.text()).toBe("Target not allowed");
 	});
 
 	it("enforces optional shared-token auth", async () => {
@@ -275,7 +372,27 @@ describe("cors download proxy worker", () => {
 
 		expect(response.status).toBe(403);
 		expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://highbyte.se");
-		expect(await response.text()).toBe("Redirect target host not allowed");
+		expect(await response.text()).toBe("Redirect target not allowed");
+	});
+
+	it("blocks redirects outside an allowed target path prefix", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(null, {
+				status: 302,
+				headers: { Location: "https://raw.githubusercontent.com/other-owner/other-repo/main/file.tap" },
+			}),
+		);
+		const request = new Request(
+			"https://proxy.test/fetch?url=https%3A%2F%2Fraw.githubusercontent.com%2FOric-Software-Development-Kit%2FOric-Software%2Fmaster%2Fusers%2Fchema%2FOricium%2FRELEASE%2FOricium12.tap",
+			{ headers: { Origin: "https://highbyte.se" } },
+		);
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(403);
+		expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://highbyte.se");
+		expect(await response.text()).toBe("Redirect target not allowed");
 	});
 
 	it("follows a redirect to a wildcard-allowed subdomain", async () => {

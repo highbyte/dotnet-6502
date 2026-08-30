@@ -19,6 +19,7 @@ See [Desktop apps installation](../installation.md#install-via-package-manager) 
 ### Systems
 
 - **C64** — requires ROM files (Kernal, Basic, Chargen). See [Systems / C64 / ROMs](../../systems/c64/roms.md).
+- **Oric Atmos 48K** — requires the Atmos BASIC 1.1b ROM. See [Systems / Oric / ROMs](../../systems/oric/roms.md).
 - **Generic computer** — built-in example 6502 programs (Snake, Scroll, HelloWorld).
 
 ### Lua scripting
@@ -33,6 +34,8 @@ The same Lua scripting API available in the Avalonia apps is fully supported her
 | `example_c64_download_and_run_prg.lua` | Download and run a `.prg` file over HTTP. |
 | `example_c64_load_d64.lua` | Load a `.d64` disk image. |
 | `example_c64_screenshot.lua` | Save a screenshot to disk. |
+| `example_oric_basic_readwrite.lua` | Write an Oric BASIC program through the keyboard input path and read it back. |
+| `example_oric_download_and_run_tap.lua` | Download, load, and run the Oric Hello World TAP sample. |
 | `example_frameadvance.lua` | Advance frames and read frame count. |
 | `example_input_kb.lua` | Inject keyboard input. |
 | `example_input_joystick.lua` | Inject joystick input. |
@@ -112,6 +115,12 @@ Start with remote control server on port 6510 (loopback only):
 dotnet-6502-headless --system C64 --start --remote-port 6510
 ```
 
+Start an Oric Atmos with remote control enabled:
+
+```sh
+dotnet-6502-headless --system Oric --systemVariant ATMOS48K --start --remote-port 6510
+```
+
 Start with remote control server accessible from the network (trusted networks only):
 
 ```sh
@@ -181,6 +190,11 @@ Example overlay:
     "ScriptDirectory": ""
   },
   "Highbyte.DotNet6502.C64.Headless": {
+    "SystemConfig": {
+      "ROMDirectory": ""
+    }
+  },
+  "Highbyte.DotNet6502.Oric.Headless": {
     "SystemConfig": {
       "ROMDirectory": ""
     }

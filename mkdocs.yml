@@ -109,6 +109,7 @@ nav:
         - C64 features: host-apps/avalonia/c64.md
         - VIC-20 features: host-apps/avalonia/vic20.md
         - Apple II Plus features: host-apps/avalonia/apple2.md
+        - Oric Atmos features: host-apps/avalonia/oric.md
         - Generic features: host-apps/avalonia/generic.md
         - Desktop automation: host-apps/avalonia/automation.md
         - Desktop troubleshooting: host-apps/avalonia/troubleshooting.md
@@ -150,6 +151,10 @@ nav:
           - Overview: systems/apple2/overview.md
           - ROMs: systems/apple2/roms.md
           - Disk II: systems/apple2/disk2.md
+      - Oric:
+          - Overview: systems/oric/overview.md
+          - Libraries: systems/oric/libraries.md
+          - ROMs: systems/oric/roms.md
   - Tools:
       - Overview: tools/overview.md
       - VSCode debugger extension:
@@ -182,6 +187,7 @@ nav:
           - C64: libraries/system-specific/c64.md
           - Generic: libraries/system-specific/generic.md
           - VIC-20: libraries/system-specific/vic20.md
+          - Oric: libraries/system-specific/oric.md
       - Implementation libraries:
           - Overview: libraries/implementation/overview.md
           - AspNet: libraries/implementation/aspnet.md

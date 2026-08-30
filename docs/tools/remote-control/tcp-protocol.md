@@ -633,6 +633,23 @@ Call `keyboard.getall` at runtime for the authoritative list. Common C64 key nam
 
 > Cursor Up = `crsrdown` + `lshift` held. Cursor Left = `crsrright` + `lshift` held. F2/F4/F6/F8 = corresponding F-key + `lshift` held.
 
+#### Oric key name reference
+
+Call `keyboard.getall` at runtime for the authoritative list. Oric Atmos key names are:
+
+| Key name | Atmos key |
+|----------|-----------|
+| `a`–`z`, `0`–`9` | Letter and digit keys |
+| `space`, `return`, `esc`, `backspace` | Space, RETURN, ESC and DEL |
+| `left`, `right`, `up`, `down` | Cursor keys |
+| `shift`, `lshift`, `rshift` | Shift (`shift` selects left Shift) |
+| `ctrl`, `lctrl`, `rctrl` | Control (`ctrl` selects left Control) |
+| `funct`, `alt` | FUNCT |
+| `-` `=` `[` `]` `\` `;` `'` `,` `.` `/` | Punctuation keys |
+
+The Atmos has no function keys. In particular, `f12` is not an Oric key name because F12 remains
+the emulator's machine-code monitor shortcut.
+
 ### `screenshot`
 
 Captures the current display as a Base64-encoded PNG. Works in both Avalonia and headless hosts (composited from the current system's render frame); returns an error if no system is running.
@@ -952,6 +969,126 @@ counter keeps climbing while software is reading the disk.
 {"id": 25, "ok": true, "data": "inserted=True, bootRom=True, motor=False, spinning=False, track=3, reads=81091"}
 ```
 
+### `oric.type`
+
+Types text through the Atmos ROM keyboard latch. The next character is submitted only after the
+ROM consumes the previous one, at most one character per frame. Newline (`\n`) maps to RETURN.
+BASIC keywords should be uppercase, as on a real Atmos.
+
+**Oric only.** Executed at the next frame boundary.
+
+| Parameter | Type   | Description                              |
+|-----------|--------|------------------------------------------|
+| `text`    | string | Text to type, for example `LIST\n`       |
+
+```json
+{"id": 26, "cmd": "oric.type", "text": "10 PRINT \"HELLO\"\nRUN\n"}
+```
+
+### `oric.isbasicstarted`
+
+Returns whether the Atmos has reached a `READY` prompt. Use this after start or reset before
+sending BASIC input with `oric.type`.
+
+```json
+{"id": 27, "cmd": "oric.isbasicstarted"}
+```
+
+```json
+{"id": 27, "ok": true, "isbasicstarted": true}
+```
+
+### `oric.getbasicsource`
+
+Detokenizes the current Extended BASIC program using the program pointers in zero page. This
+query does not require `READY` to remain visible, so it also works after a program changes the
+screen.
+
+```json
+{"id": 28, "cmd": "oric.getbasicsource"}
+```
+
+```json
+{"id": 28, "ok": true, "data": "10 PRINT \"HELLO\"\n"}
+```
+
+### `oric.loadtap`
+
+Direct-loads the first record in a byte-level Oric `.tap` image. BASIC pointers are initialized
+for a BASIC record; a machine-code record is copied to its header address. The TAP autorun flag is
+honored (`RUN` is queued for BASIC, or the PC is set to a machine-code record's start address).
+This fast host convenience bypasses the cassette ROM routines and is therefore best for a
+single-file image. Executed at the next frame boundary.
+
+| Parameter | Type   | Description                       |
+|-----------|--------|-----------------------------------|
+| `data`    | string | Base64-encoded Oric `.tap` bytes  |
+
+```json
+{"id": 29, "cmd": "oric.loadtap", "data": "<base64 .tap>"}
+```
+
+With the command-line client:
+
+```sh
+dotnet-6502-remote oric.loadtap --file /path/to/program.tap
+```
+
+### `oric.inserttape`
+
+Validates, inserts and rewinds a byte-level `.tap` image without loading it. This is the authentic
+ROM path and preserves multi-file tape sequencing. After insertion, type `CLOAD""` (or a named
+`CLOAD`) with `oric.type`; standard Atmos ROM tape routines consume bytes from the virtual tape.
+
+```json
+{"id": 30, "cmd": "oric.inserttape", "data": "<base64 .tap>"}
+```
+
+```sh
+dotnet-6502-remote oric.inserttape --file /path/to/game.tap
+dotnet-6502-remote oric.type --text $'CLOAD""\n'
+```
+
+### `oric.rewindtape`
+
+Moves the inserted virtual tape to byte position zero without changing the running machine.
+
+```json
+{"id": 31, "cmd": "oric.rewindtape"}
+```
+
+### `oric.ejecttape`
+
+Ejects the virtual tape and clears its file list and position.
+
+```json
+{"id": 32, "cmd": "oric.ejecttape"}
+```
+
+### `oric.tapestatus`
+
+Returns virtual tape transport state plus metadata for every parsed record.
+
+```json
+{"id": 33, "cmd": "oric.tapestatus"}
+```
+
+```json
+{
+  "id": 33,
+  "ok": true,
+  "data": {
+    "inserted": true,
+    "position": 0,
+    "length": 12345,
+    "atend": false,
+    "files": [
+      {"name": "GAME", "type": "machinecode", "autorun": true, "start": "0500", "end": "2FFF"}
+    ]
+  }
+}
+```
+
 ---
 
 ## Architecture
@@ -988,7 +1125,7 @@ counter keeps climbing while software is reading the disk.
 
 | Command type              | Execution thread         |
 |---------------------------|--------------------------|
-| Read-only queries (`emu.state`, `emu.systems`, `emu.variants`, `cpu.get`, `mem.read`, `screenshot`, `ui.message`, `c64.isbasicstarted`, `c64.getbasicsource`) | Session thread (direct) |
+| Read-only queries (`emu.state`, `emu.systems`, `emu.variants`, `cpu.get`, `mem.read`, `screenshot`, `ui.message`, BASIC-source/readiness queries, `apple2.diskstatus`, `oric.tapestatus`) | Session thread (direct) |
 | `emu.start/stop/pause/reset/quit`, `emu.selectsystem`, `emu.selectvariant`, `emu.savesnapshot`, `emu.loadsnapshot`, `emu.runframes` | UI thread via dispatcher |
-| `mem.write`, `mem.loadbin`, `cpu.set`, `c64.loadprg`, `joystick.set/press/release/releaseall`, `keyboard.press/release/releaseall`, `c64.type` | Frame boundary via action queue |
+| `mem.write`, `mem.loadbin`, `cpu.set`, system load/media/type commands, `joystick.set/press/release/releaseall`, `keyboard.press/release/releaseall` | Frame boundary via action queue |
 | `keyboard.iskeydown`, `keyboard.getall` | Session thread (direct read) |

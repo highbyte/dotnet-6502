@@ -12,6 +12,8 @@ public sealed class Apple2TerminalShellPlugin : ISystemShellPlugin
 {
     public string SystemName => Apple2System.SystemName;
 
+    public int DisplayOrder => 30;
+
     public void RegisterShellServices(IServiceCollection services)
     {
         services.AddSingleton<Apple2TerminalMenuView>(sp => new Apple2TerminalMenuView(

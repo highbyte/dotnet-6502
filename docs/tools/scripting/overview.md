@@ -25,5 +25,5 @@ The tab header shows a count of active scripts and, if any scripts were disabled
 ## Where to go next
 
 - [Configuration](configuration.md) — `appsettings.json` settings.
-- [Lua API](lua-api.md) — full reference for `emu`, `cpu`, `mem`, `input`, `log`, `file`, `http`, `store`, `tcp`.
+- [Lua API](lua-api.md) — full reference for `emu`, `cpu`, `mem`, `input`, `log`, `file`, `http`, `store`, `tcp`, and the system-specific `c64` and `oric` APIs.
 - [Examples](examples.md) — runnable scripts that combine multiple APIs.

@@ -77,7 +77,7 @@
             "preLaunchTask": "build terminal app",
             "program": "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal/bin/Debug/net10.0/Highbyte.DotNet6502.App.Terminal.dll",
             "cwd": "${workspaceFolder}/src/apps/Terminal/Highbyte.DotNet6502.App.Terminal",
-            "console": "externalTerminal",
+            "console": "integratedTerminal",
             "stopAtEntry": false
         },
         {

@@ -1,6 +1,6 @@
 # Examples
 
-End-to-end automation patterns for typical C64 tasks. The first section uses the [`dotnet-6502-remote`](remote-client.md) CLI; the following sections show equivalent recipes using raw TCP from Bash and PowerShell.
+End-to-end automation patterns for typical 6502 system tasks. The first section uses the [`dotnet-6502-remote`](remote-client.md) CLI; the following sections show equivalent recipes using raw TCP from Bash and PowerShell.
 
 For the protocol and full command reference, see [TCP protocol](tcp-protocol.md).
 
@@ -48,6 +48,30 @@ dotnet-6502-remote c64.type --text "list"
 dotnet-6502-remote keyboard.press --key return
 dotnet-6502-remote keyboard.release --key return
 ```
+
+### Loading an Oric TAP image
+
+For a single-file TAP image, direct loading is the shortest route. It loads the first record at
+the address in its header and honors its autorun flag:
+
+```sh
+dotnet-6502-remote emu.start
+dotnet-6502-remote oric.loadtap --file /path/to/program.tap
+```
+
+For multi-file software, use the Atmos ROM loader so later `CLOAD` operations continue from the
+same virtual tape. Poll readiness first because the ROM needs several frames to boot:
+
+```sh
+until dotnet-6502-remote oric.isbasicstarted | grep -q '"isbasicstarted":true'; do
+  sleep 0.5
+done
+dotnet-6502-remote oric.inserttape --file /path/to/game.tap
+dotnet-6502-remote oric.type --text $'CLOAD""\n'
+dotnet-6502-remote oric.tapestatus
+```
+
+`oric.rewindtape` returns the image to its first record; `oric.ejecttape` removes it.
 
 ### Writing and running machine code
 

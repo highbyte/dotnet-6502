@@ -9,12 +9,13 @@ Library: `Highbyte.DotNet6502.Impl.Avalonia`
 
 !!! note "System-specific code lives in companion libraries"
     This library holds only **system-agnostic** Avalonia glue. Per-system code is in the
-    engine-plugin libraries `Highbyte.DotNet6502.Impl.Avalonia.Commodore64` and
-    `Highbyte.DotNet6502.Impl.Avalonia.Generic`. The C64 and Generic systems both render via the
-    generic Avalonia bitmap render target — there is no bespoke per-system renderer; the Generic
-    input handler lives in `Impl.Avalonia.Generic`. See
-    [Systems / C64 / Libraries](../../systems/c64/libraries.md) and
-    [Systems / Generic / Libraries](../../systems/generic/libraries.md).
+    engine-plugin libraries `Highbyte.DotNet6502.Impl.Avalonia.Commodore64`, `.Vic20`, `.Apple2`,
+    `.Oric`, and `.Generic`. Their host-agnostic system providers feed the generic Avalonia bitmap
+    or command-stream targets, while each plugin wires its system configuration and input handler.
+    See [Systems / C64 / Libraries](../../systems/c64/libraries.md),
+    [Systems / VIC-20 / Libraries](../../systems/vic20/libraries.md),
+    [Systems / Oric / Libraries](../../systems/oric/libraries.md), and the
+    [Apple II system overview](../../systems/apple2/overview.md).
 
 ## Render
 

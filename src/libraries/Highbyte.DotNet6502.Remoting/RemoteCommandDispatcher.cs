@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Microsoft.Extensions.Logging;
+using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
 
 namespace Highbyte.DotNet6502.Remoting;
 
@@ -83,6 +84,14 @@ public class RemoteCommandDispatcher
                 "apple2.bootdisk"       => await HandleApple2BootDiskAsync(cmd.Id),
                 "apple2.ejectdisk"      => await HandleFrameAsync(cmd.Id, _ => Apple2EjectDisk(cmd.Id)),
                 "apple2.diskstatus"     => HandleApple2DiskStatus(cmd.Id),
+                "oric.type"             => await HandleOricTypeAsync(cmd.Id, cmd),
+                "oric.isbasicstarted"   => HandleOricIsBasicStarted(cmd.Id),
+                "oric.getbasicsource"   => HandleOricGetBasicSource(cmd.Id),
+                "oric.loadtap"           => await HandleFrameAsync(cmd.Id, hostApp => OricLoadTapDirect(hostApp, cmd)),
+                "oric.inserttape"        => await HandleFrameAsync(cmd.Id, hostApp => OricInsertTapeDirect(hostApp, cmd)),
+                "oric.rewindtape"        => await HandleFrameAsync(cmd.Id, hostApp => GetOricSystemDirect(hostApp).RewindTape()),
+                "oric.ejecttape"         => await HandleFrameAsync(cmd.Id, hostApp => GetOricSystemDirect(hostApp).EjectTape()),
+                "oric.tapestatus"        => HandleOricTapeStatus(cmd.Id),
                 "screenshot"   => HandleScreenshot(cmd.Id),
                 "ui.message"   => HandleUiMessage(cmd.Id, cmd),
                 _              => Err(cmd.Id, $"Unknown command: {cmd.Cmd}"),
@@ -632,6 +641,94 @@ public class RemoteCommandDispatcher
         if (sys == null) { error = Err(id, "Emulator not started"); return null; }
         if (sys is not Systems.Apple2.Apple2 apple2) { error = Err(id, "Current system is not an Apple II"); return null; }
         return apple2;
+    }
+
+    private async Task<RemoteCommandResult> HandleOricTypeAsync(int? id, RemoteCommand cmd)
+    {
+        if (string.IsNullOrEmpty(cmd.Text)) return Err(id, "Missing 'text' parameter");
+        var oric = GetOricSystem(id, out var err);
+        if (oric == null) return err!;
+        return await HandleFrameAsync(id, _ => oric.TextPaste.Paste(cmd.Text));
+    }
+
+    private RemoteCommandResult HandleOricIsBasicStarted(int? id)
+    {
+        var oric = GetOricSystem(id, out var err);
+        if (oric == null) return err!;
+        return new RemoteCommandResult { Id = id, Ok = true, IsBasicStarted = oric.IsSystemReady() };
+    }
+
+    private RemoteCommandResult HandleOricGetBasicSource(int? id)
+    {
+        var oric = GetOricSystem(id, out var err);
+        if (oric == null) return err!;
+        return new RemoteCommandResult { Id = id, Ok = true, Data = oric.BasicTokenParser.GetBasicText() };
+    }
+
+    private static void OricLoadTapDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
+        => GetOricSystemDirect(hostApp).LoadTap(GetBase64Data(cmd, "an Oric TAP image"));
+
+    private static void OricInsertTapeDirect(IRemotableHostApp hostApp, RemoteCommand cmd)
+        => GetOricSystemDirect(hostApp).InsertTape(GetBase64Data(cmd, "an Oric TAP image"));
+
+    private RemoteCommandResult HandleOricTapeStatus(int? id)
+    {
+        var oric = GetOricSystem(id, out var err);
+        if (oric == null) return err!;
+
+        var tape = oric.Tape;
+        return new RemoteCommandResult
+        {
+            Id = id,
+            Ok = true,
+            Data = new Dictionary<string, object?>
+            {
+                ["inserted"] = tape.IsInserted,
+                ["position"] = tape.Position,
+                ["length"] = tape.Length,
+                ["atend"] = tape.IsAtEnd,
+                ["files"] = tape.Files.Select(file => new Dictionary<string, object?>
+                {
+                    ["name"] = file.Name,
+                    ["type"] = file.IsBasic ? "basic" : file.IsMachineCode ? "machinecode" : $"${file.FileType:X2}",
+                    ["autorun"] = file.IsAutoRun,
+                    ["start"] = $"{file.StartAddress:X4}",
+                    ["end"] = $"{file.EndAddress:X4}",
+                }).ToArray(),
+            },
+        };
+    }
+
+    private OricMachine? GetOricSystem(int? id, out RemoteCommandResult? error)
+    {
+        error = null;
+        var hostApp = _environment.GetHostApp();
+        if (hostApp == null) { error = Err(id, "Emulator not initialized"); return null; }
+        var sys = hostApp.CurrentRunningSystem;
+        if (sys == null) { error = Err(id, "Emulator not started"); return null; }
+        if (sys is not OricMachine oric) { error = Err(id, "Current system is not an Oric"); return null; }
+        return oric;
+    }
+
+    private static OricMachine GetOricSystemDirect(IRemotableHostApp hostApp)
+    {
+        var system = hostApp.CurrentRunningSystem ?? throw new InvalidOperationException("Emulator not running");
+        return system as OricMachine ?? throw new InvalidOperationException("Current system is not an Oric");
+    }
+
+    private static byte[] GetBase64Data(RemoteCommand cmd, string description)
+    {
+        if (cmd.Data == null || cmd.Data.Value.ValueKind != JsonValueKind.String)
+            throw new ArgumentException($"'data' must be a base64-encoded string containing {description}");
+
+        try
+        {
+            return Convert.FromBase64String(cmd.Data.Value.GetString()!);
+        }
+        catch (FormatException)
+        {
+            throw new ArgumentException("'data' is not valid base64");
+        }
     }
 
     // --- Helpers ---
