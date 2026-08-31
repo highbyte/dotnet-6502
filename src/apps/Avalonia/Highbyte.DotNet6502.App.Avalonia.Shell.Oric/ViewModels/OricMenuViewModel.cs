@@ -43,6 +43,10 @@ public sealed class OricMenuViewModel : ViewModelBase, ISystemMenuContributor
         { "thehobbit", new OricDownloadProgramInfo(
             "The Hobbit",
             "https://cdn.oric.org/games/software/t/tansoft_editor/hobbit.tap") },
+        { "planeten", new OricDownloadProgramInfo(
+            "Planeten",
+            "https://www.skarstad.net/oric/tap/planeten.zip",
+            zipEntryName: "PLANETEN.TAP") },
         { "oricium", new OricDownloadProgramInfo(
             "Oricium",
             "https://raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software/master/users/chema/Oricium/RELEASE/Oricium12.tap",
