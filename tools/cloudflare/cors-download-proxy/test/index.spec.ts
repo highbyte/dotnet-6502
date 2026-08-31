@@ -70,6 +70,10 @@ describe("cors download proxy worker", () => {
 					hostname: "raw.githubusercontent.com",
 					pathname: "/Abdess/retrobios",
 				},
+				{
+					hostname: "www.skarstad.net",
+					pathname: "/oric/tap",
+				},
 			],
 		} as never;
 
@@ -99,6 +103,8 @@ describe("cors download proxy worker", () => {
 				config,
 			),
 		).toBe(false);
+		expect(isAllowedTargetUrl(new URL("https://www.skarstad.net/oric/tap/planeten.zip"), config)).toBe(true);
+		expect(isAllowedTargetUrl(new URL("https://www.skarstad.net/oric/books/manual.pdf"), config)).toBe(false);
 		expect(
 			isAllowedTargetUrl(
 				new URL("https://raw.githubusercontent.com/Oric-Software-Development-Kit/Other-Repo/file.tap"),
@@ -159,6 +165,10 @@ describe("cors download proxy worker", () => {
 					{
 						hostname: "raw.githubusercontent.com",
 						pathname: "/Abdess/retrobios",
+					},
+					{
+						hostname: "www.skarstad.net",
+						pathname: "/oric/tap",
 					},
 				],
 			},
@@ -244,6 +254,7 @@ describe("cors download proxy worker", () => {
 			allowedTargetPathPrefixes: [
 				"raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software",
 				"raw.githubusercontent.com/Abdess/retrobios",
+				"www.skarstad.net/oric/tap",
 			],
 			rateLimits: {
 				burst: { limit: 8, periodSeconds: 10 },
@@ -301,6 +312,21 @@ describe("cors download proxy worker", () => {
 
 		expect(response.status).toBe(200);
 		expect(await response.text()).toBe("rom-bytes");
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it("allows Planeten from the configured Swedish Oric tape archive", async () => {
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("zip-bytes", { status: 200 }));
+		const request = new Request(
+			"https://proxy.test/fetch?url=https%3A%2F%2Fwww.skarstad.net%2Foric%2Ftap%2Fplaneten.zip",
+			{ headers: { Origin: "https://highbyte.se" } },
+		);
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("zip-bytes");
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 	});
 

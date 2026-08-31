@@ -8,7 +8,7 @@ interface __BaseEnv_Env {
 	ALLOWED_ORIGINS: "https://highbyte.se";
 	ALLOW_LOCALHOST_ORIGINS: "true";
 	ALLOWED_TARGET_HOSTS: "www.zimmers.net,csdb.dk,compunet.live,highbyte.se,mirrors.apple2.org.za,archive.org,*.archive.org,cdn.oric.org";
-	ALLOWED_TARGET_PATH_PREFIXES: "raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software,raw.githubusercontent.com/Abdess/retrobios";
+	ALLOWED_TARGET_PATH_PREFIXES: "raw.githubusercontent.com/Oric-Software-Development-Kit/Oric-Software,raw.githubusercontent.com/Abdess/retrobios,www.skarstad.net/oric/tap";
 	MAX_REDIRECTS: "5";
 	MAX_RESPONSE_BYTES: "33554432";
 }
