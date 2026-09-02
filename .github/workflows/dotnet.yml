@@ -4,7 +4,10 @@ on:
   workflow_dispatch:
 
   push:
-    branches: [ master ]
+    # feature/cpu-cycle-engine is a long-lived integration branch: increments are merged into it
+    # through PRs and it reaches master as one PR when the work is complete, so it needs the same
+    # checks master gets.
+    branches: [ master, feature/cpu-cycle-engine ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'
@@ -13,7 +16,7 @@ on:
       - README.md
           
   pull_request:
-    branches: [ master ]
+    branches: [ master, feature/cpu-cycle-engine ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'

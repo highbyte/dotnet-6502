@@ -13,7 +13,8 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ master ]
+    # feature/cpu-cycle-engine is a long-lived integration branch that gets master's checks.
+    branches: [ master, feature/cpu-cycle-engine ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'
@@ -23,7 +24,7 @@ on:
 
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ master ]
+    branches: [ master, feature/cpu-cycle-engine ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'
