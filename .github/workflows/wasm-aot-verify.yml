@@ -123,6 +123,34 @@ jobs:
           WASM_SITE_ROOT: ${{ github.workspace }}/build/${{ matrix.app.name }}/wwwroot
         run: ./node_modules/.bin/playwright test "${{ matrix.app.spec }}"
 
+      # Informational only: records the host frame rate and emulator time per frame the
+      # published Blazor build reaches on this runner (tests/wasm-smoke/blazor-speed.spec.ts).
+      # Never gates the PR; shared-runner numbers are for trends, not thresholds.
+      - name: Emulated speed readout
+        if: steps.changes.outputs.relevant == 'true' && matrix.app.name == 'blazor'
+        continue-on-error: true
+        working-directory: tests/wasm-smoke
+        env:
+          WASM_SITE_ROOT: ${{ github.workspace }}/build/${{ matrix.app.name }}/wwwroot
+        run: |
+          ./node_modules/.bin/playwright test blazor-speed.spec.ts
+          {
+            echo "### Blazor WASM emulated speed (Generic system, ${{ runner.os }} runner)"
+            echo
+            cat speed-readout.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload speed readout
+        if: steps.changes.outputs.relevant == 'true' && matrix.app.name == 'blazor'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-speed-readout-${{ github.run_number }}
+          path: |
+            tests/wasm-smoke/speed-readout.json
+            tests/wasm-smoke/speed-readout.md
+          if-no-files-found: ignore
+          retention-days: 90
+
       - name: Upload Playwright report on failure
         if: failure() && steps.changes.outputs.relevant == 'true'
         uses: actions/upload-artifact@v4

@@ -1,0 +1,121 @@
+name: Benchmarks
+
+# Manually dispatched BenchmarkDotNet run. GitHub-hosted runners are shared hardware, so the
+# absolute numbers are noisy and must not be compared across runs; the run exists to (a) produce
+# the DisassemblyDiagnoser output that cannot be generated on macOS, (b) give a Linux/x64 data
+# point next to the Apple Silicon numbers recorded in benchmarks/.../RESULTS.md, and (c) run the
+# in-process baseline-vs-HEAD comparison (tools/perf-compare.sh) where the two sides share the
+# same machine and the same minute, which is the only cross-commit comparison worth reading here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: "BenchmarkDotNet --filter globs (space separated)"
+        required: false
+        default: "*HotPathBenchmarks* *C64ExecuteFrameBenchmark* *C64ExecuteInstructionBenchmark*"
+      compare_with_base:
+        description: "Also run tools/perf-compare.sh against base_ref (doubles the run time)"
+        type: boolean
+        required: false
+        default: false
+      base_ref:
+        description: "Baseline ref for the comparison"
+        required: false
+        default: "origin/master"
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: CI / Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Record environment
+        shell: bash
+        env:
+          FILTER: ${{ inputs.filter }}
+        run: |
+          {
+            echo "## Benchmark environment"
+            echo
+            echo "- commit: \`$(git rev-parse HEAD)\`"
+            echo "- runner: ${{ runner.os }} / $(uname -m)"
+            echo "- cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | xargs)"
+            echo "- dotnet: $(dotnet --version)"
+            echo "- filter: \`$FILTER\`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run benchmarks
+        shell: bash
+        env:
+          # Inputs go through env, never straight into the script, so a crafted input cannot
+          # inject shell.
+          FILTER: ${{ inputs.filter }}
+        run: |
+          # shellcheck disable=SC2086 -- the filter is a space-separated list of globs.
+          dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks -- \
+            --filter $FILTER \
+            --exporters github fulljson \
+            --artifacts BenchmarkDotNet.Artifacts
+
+      - name: Publish results to the job summary
+        shell: bash
+        run: |
+          for f in BenchmarkDotNet.Artifacts/results/*-report-github.md; do
+            [ -f "$f" ] || continue
+            {
+              echo "### $(basename "$f" -report-github.md)"
+              echo
+              cat "$f"
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Compare against base ref
+        if: ${{ inputs.compare_with_base }}
+        shell: bash
+        env:
+          PERF_COMPARE_FILTER: ${{ inputs.filter }}
+          BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          git fetch origin master
+          # The comparison re-runs both sides in this job so they share one machine. It exits
+          # non-zero on a >= 5% regression or a new allocation; that is reported, not failed,
+          # because shared-runner noise alone can trip the threshold.
+          tools/perf-compare.sh "$BASE_REF" | tee perf-compare.txt || true
+          {
+            echo "### perf-compare vs $BASE_REF"
+            echo
+            echo '```'
+            cat perf-compare.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: benchmark-results-${{ github.run_number }}
+          path: |
+            BenchmarkDotNet.Artifacts/results/
+            perf-compare.txt
+          if-no-files-found: warn
+          retention-days: 90

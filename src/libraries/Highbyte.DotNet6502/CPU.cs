@@ -435,15 +435,9 @@ public class CPU
 
         if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
         {
-            for (int i = CPUInterrupts.ActiveIRQSources.Count - 1; i >= 0; i--)
-            {
-                var source = CPUInterrupts.ActiveIRQSources.ElementAt(i).Key;
-                // Automatically remove IRQ sources that should not manually be acknowledged.
-                if (CPUInterrupts.ActiveIRQSources[source])
-                {
-                    CPUInterrupts.SetIRQSourceInactive(source);
-                }
-            }
+            // Sources raised with autoAcknowledge are dropped now; manually acknowledged
+            // sources keep the line asserted until their device clears them.
+            CPUInterrupts.AcknowledgeAutoAcknowledgingIRQSources();
             ProcessHardwareIRQ(mem);
             return InterruptEntryCycles;
         }

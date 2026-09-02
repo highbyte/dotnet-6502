@@ -81,15 +81,19 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         var interrupts = cpu.CPUInterrupts;
         writer.WriteBool(interrupts.NMIPending);
 
-        writer.WriteInt32(interrupts.ActiveIRQSources.Count);
-        foreach (var irq in interrupts.ActiveIRQSources)
+        // Wire format is unchanged: names plus acknowledge mode, so the line bit layout
+        // (which depends on registration order) never leaks into the snapshot.
+        var activeIrqSources = interrupts.ActiveIRQSources.ToList();
+        writer.WriteInt32(activeIrqSources.Count);
+        foreach (var irq in activeIrqSources)
         {
             writer.WriteString(irq.Key);
             writer.WriteBool(irq.Value); // autoAcknowledge
         }
 
-        writer.WriteInt32(interrupts.ActiveNMISources.Count);
-        foreach (var nmi in interrupts.ActiveNMISources)
+        var activeNmiSources = interrupts.ActiveNMISources.ToList();
+        writer.WriteInt32(activeNmiSources.Count);
+        foreach (var nmi in activeNmiSources)
             writer.WriteString(nmi);
 
         // v3: model-state payload, serialized by the model's own state object (e.g. the
@@ -184,9 +188,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         var capturedNmiPending = reader.ReadBool();
 
         // Reset any interrupt state on the freshly built CPU before re-applying the snapshot's.
-        interrupts.ActiveIRQSources.Clear();
-        interrupts.ActiveNMISources.Clear();
-        interrupts.ClearPendingNMI();
+        interrupts.ClearAll();
 
         int irqCount = reader.ReadInt32();
         for (int i = 0; i < irqCount; i++)

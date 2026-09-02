@@ -1,20 +1,21 @@
 #!/usr/bin/env pwsh
-# PowerShell sibling of tools/perf-compare.sh. Same behavior — see that file
-# for the full description.
+# PowerShell sibling of tools/perf-compare.sh. Same behavior — see that file for the full
+# description. Filter via -Filter or the PERF_COMPARE_FILTER environment variable.
 #
 # Usage:
-#   tools/perf-compare.ps1 [-BaselineRef <ref>]
+#   tools/perf-compare.ps1 [-BaselineRef <ref>] [-Filter '<globs>']
 
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [string]$BaselineRef = 'master'
+    [string]$BaselineRef = 'master',
+    [string]$Filter = $(if ($env:PERF_COMPARE_FILTER) { $env:PERF_COMPARE_FILTER } else { '*HotPathBenchmarks* *C64ExecuteFrameBenchmark* *C64ExecuteInstructionBenchmark*' })
 )
 
 $ErrorActionPreference = 'Stop'
 
 $Project = 'benchmarks/Highbyte.DotNet6502.Benchmarks/Highbyte.DotNet6502.Benchmarks.csproj'
-$ArtifactsDir = 'BenchmarkDotNet.Artifacts/results'
+$ArtifactsDir = 'BenchmarkDotNet.Artifacts'
 
 $RepoRoot = (& git rev-parse --show-toplevel).Trim()
 Set-Location $RepoRoot
@@ -32,15 +33,18 @@ New-Item -ItemType Directory -Path $OutDir | Out-Null
 
 try {
     function Invoke-Benchmark([string]$Label) {
+        $labelDir = Join-Path $OutDir $Label
+        New-Item -ItemType Directory -Path $labelDir | Out-Null
         Write-Output "perf-compare: running benchmarks on $Label..."
         if (Test-Path $ArtifactsDir) { Remove-Item -Recurse -Force $ArtifactsDir }
-        & dotnet run -c Release --project $Project -- --filter '*HotPathBenchmarks*' --exporters github | Out-Null
-        $csv = Get-ChildItem -Path $ArtifactsDir -Filter '*HotPathBenchmarks-report.csv' -ErrorAction SilentlyContinue | Select-Object -First 1
-        if (-not $csv) { throw "perf-compare: no benchmark CSV produced for $Label" }
-        Copy-Item $csv.FullName (Join-Path $OutDir "$Label.csv")
+        $filterArgs = $Filter -split '\s+' | Where-Object { $_ }
+        & dotnet run -c Release --project $Project -- --filter @filterArgs --exporters fulljson --artifacts $ArtifactsDir | Out-Null
+        $reports = Get-ChildItem -Path (Join-Path $ArtifactsDir 'results') -Filter '*-report-full.json' -ErrorAction SilentlyContinue
+        if (-not $reports) { throw "perf-compare: no benchmark JSON produced for $Label" }
+        foreach ($r in $reports) { Copy-Item $r.FullName $labelDir }
     }
 
-    Write-Output "perf-compare: baseline = $BaselineRef, head = $HeadRef"
+    Write-Output "perf-compare: baseline = $BaselineRef, head = $HeadRef, filter = $Filter"
 
     & git switch --detach $BaselineRef | Out-Null
     Invoke-Benchmark 'baseline'
@@ -50,65 +54,77 @@ try {
 
     & git switch $HeadRef 2>$null | Out-Null
 
-    function Parse-Time([string]$s) {
-        if (-not $s) { return $null }
-        $parts = $s -split '\s+'
-        if ($parts.Count -ne 2) { return $null }
-        $units = @{ 'ns' = 1.0; 'us' = 1000.0; 'ms' = 1000000.0; 's' = 1000000000.0 }
-        if (-not $units.ContainsKey($parts[1])) { return $null }
-        return ([double]($parts[0] -replace ',', '')) * $units[$parts[1]]
+    function Read-Results([string]$Dir) {
+        $rows = @{}
+        foreach ($file in Get-ChildItem -Path $Dir -Filter '*-report-full.json') {
+            $report = Get-Content $file.FullName -Raw | ConvertFrom-Json
+            foreach ($b in $report.Benchmarks) {
+                $mean = $null
+                if ($b.Statistics) { $mean = [double]$b.Statistics.Mean }
+                $alloc = 0.0
+                if ($b.Memory -and $null -ne $b.Memory.BytesAllocatedPerOperation) { $alloc = [double]$b.Memory.BytesAllocatedPerOperation }
+                $rows[$b.FullName] = @{ Mean = $mean; Alloc = $alloc }
+            }
+        }
+        return $rows
     }
 
-    function Parse-Alloc([string]$s) {
-        if (-not $s -or $s -eq '-') { return 0.0 }
-        $parts = $s -split '\s+'
-        if ($parts.Count -ne 2) { return $null }
-        $units = @{ 'B' = 1.0; 'KB' = 1024.0; 'MB' = 1048576.0 }
-        if (-not $units.ContainsKey($parts[1])) { return $null }
-        return ([double]($parts[0] -replace ',', '')) * $units[$parts[1]]
+    function Short-Name([string]$FullName) {
+        $idx = $FullName.IndexOf('(')
+        $head = if ($idx -ge 0) { $FullName.Substring(0, $idx) } else { $FullName }
+        $params = if ($idx -ge 0) { $FullName.Substring($idx) } else { '' }
+        $parts = $head -split '\.'
+        $tail = $parts[[Math]::Max(0, $parts.Count - 2)..($parts.Count - 1)] -join '.'
+        return $tail + $params
     }
 
-    $baseline = @{}
-    Import-Csv (Join-Path $OutDir 'baseline.csv') | ForEach-Object { $baseline[$_.Method] = $_ }
-    $head = @{}
-    Import-Csv (Join-Path $OutDir 'head.csv') | ForEach-Object { $head[$_.Method] = $_ }
+    function Format-Time($ns) {
+        if ($null -eq $ns) { return '?' }
+        if ($ns -ge 1e9) { return ('{0:N2} s' -f ($ns / 1e9)) }
+        if ($ns -ge 1e6) { return ('{0:N2} ms' -f ($ns / 1e6)) }
+        if ($ns -ge 1e3) { return ('{0:N2} us' -f ($ns / 1e3)) }
+        return ('{0:N2} ns' -f $ns)
+    }
+
+    $baseline = Read-Results (Join-Path $OutDir 'baseline')
+    $head = Read-Results (Join-Path $OutDir 'head')
 
     $RegressionRatio = 1.05
     $fail = $false
 
-    "{0,-45} {1,14} {2,14} {3,8} {4,10}" -f 'Method', 'baseline', 'head', 'ratio', 'alloc Δ' | Write-Output
-    '-' * 95 | Write-Output
+    "{0,-70} {1,12} {2,12} {3,7} {4,9}" -f 'Benchmark', 'baseline', 'head', 'ratio', 'alloc Δ' | Write-Output
+    '-' * 115 | Write-Output
 
-    foreach ($method in $head.Keys) {
-        $h = $head[$method]
-        $b = $baseline[$method]
+    foreach ($fullName in $head.Keys) {
+        $name = Short-Name $fullName
+        $h = $head[$fullName]
+        $b = $baseline[$fullName]
         if (-not $b) {
-            "{0,-45} {1,14} {2,14}" -f $method, '(new)', $h.Mean | Write-Output
+            "{0,-70} {1,12} {2,12}" -f $name, '(new)', (Format-Time $h.Mean) | Write-Output
             continue
         }
-        $bMean = Parse-Time $b.Mean
-        $hMean = Parse-Time $h.Mean
-        $bAlloc = Parse-Alloc $b.Allocated
-        $hAlloc = Parse-Alloc $h.Allocated
         $ratio = $null
         $ratioStr = '?'
-        if ($bMean -and $hMean) {
-            $ratio = $hMean / $bMean
+        if ($b.Mean -and $h.Mean) {
+            $ratio = $h.Mean / $b.Mean
             $ratioStr = '{0:N3}' -f $ratio
         }
-        $allocDelta = ''
-        if ($null -ne $bAlloc -and $null -ne $hAlloc) {
-            $delta = $hAlloc - $bAlloc
-            if ($delta -ne 0) { $allocDelta = ('{0:+0;-0;0}B' -f $delta) } else { $allocDelta = '0' }
-        }
-        "{0,-45} {1,14} {2,14} {3,8} {4,10}" -f $method, $b.Mean, $h.Mean, $ratioStr, $allocDelta | Write-Output
+        $delta = $h.Alloc - $b.Alloc
+        $allocStr = if ($delta -ne 0) { ('{0:+0;-0;0}B' -f $delta) } else { '0' }
+        "{0,-70} {1,12} {2,12} {3,7} {4,9}" -f $name, (Format-Time $b.Mean), (Format-Time $h.Mean), $ratioStr, $allocStr | Write-Output
         if ($ratio -and $ratio -ge $RegressionRatio) {
-            "  REGRESSION: $method is $([math]::Round(($ratio - 1) * 100, 1))% slower" | Write-Output
+            "  REGRESSION: $name is $([math]::Round(($ratio - 1) * 100, 1))% slower" | Write-Output
             $fail = $true
         }
-        if ($bAlloc -eq 0 -and $hAlloc -gt 0) {
-            "  REGRESSION: $method introduces $hAlloc B of allocations" | Write-Output
+        if ($b.Alloc -eq 0 -and $h.Alloc -gt 0) {
+            "  REGRESSION: $name introduces $($h.Alloc) B of allocations" | Write-Output
             $fail = $true
+        }
+    }
+
+    foreach ($fullName in $baseline.Keys) {
+        if (-not $head.ContainsKey($fullName)) {
+            "{0,-70} {1,12}" -f (Short-Name $fullName), '(removed)' | Write-Output
         }
     }
 
