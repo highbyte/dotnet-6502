@@ -6,8 +6,12 @@ future PR that touches the per-instruction hot path should:
 
 1. Re-run the suite (`dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks`)
    with `HotPathBenchmarks` selected in `Program.cs` (the default).
-2. Or run `tools/perf-compare.sh` to diff against `master` automatically and flag
-   any regression ≥ 5% or any new allocation.
+2. Or run `tools/perf-compare.sh` (`tools/perf-compare.ps1` on Windows) to diff against
+   `master` automatically and flag any regression ≥ 5% or any new allocation. By default it
+   covers `HotPathBenchmarks` plus the C64 instruction and frame suites; set
+   `PERF_COMPARE_FILTER` to narrow it. The same comparison can be run on a Linux runner via
+   the manually dispatched `Benchmarks` workflow (`.github/workflows/benchmarks.yml`), which
+   also produces the DisassemblyDiagnoser output that cannot be generated on macOS.
 3. Update the relevant table below if the change is intentional (and explain
    why in the PR description).
 
@@ -298,6 +302,70 @@ The `LegacyExecEvaluator.Check` refactor split the original method into three
 the result tables. To verify the JIT folds those helpers back into the caller,
 open that file after a run and confirm none of the three helper names appear as
 separate call sites in the disassembly of `Check`.
+
+## Cycle-timing baseline — 2026-09-02 (master `29132270`, Apple M1)
+
+Recorded before any cycle-steppable/cycle-exact execution work started. Every number below is the
+reference that work compares against. Re-record on the same machine (or record a second column
+for another machine) rather than editing these.
+
+Environment:
+
+- Commit `29132270` (master, "Fix docs dependency audit (#303)"), unchanged working tree
+- BenchmarkDotNet v0.15.6, macOS 26.6.2 (25G83) / Darwin 25.6.0
+- Apple M1, 1 CPU, 8 logical and 8 physical cores, on AC power, no other load
+- .NET SDK 10.0.203, runtime .NET 10.0.7, Arm64 RyuJIT armv8.0-a, Concurrent Workstation GC
+- Command: `dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks -- --filter '*HotPathBenchmarks*' '*C64ExecuteFrameBenchmark*' '*C64ExecuteInstructionBenchmark*' --exporters github`
+
+`HotPathBenchmarks` (DefaultJob):
+
+| Method                                         |           Mean |     StdDev | Allocated |
+|------------------------------------------------|---------------:|-----------:|----------:|
+| `ExecEvaluator_Check_NotTriggered`             |      0.5124 ns |  0.0010 ns |         - |
+| `ExecEvaluator_Check_OneConditionConfigured`   |      5.6714 ns |  0.0090 ns |         - |
+| `ExecEvaluator_Check_AllConditionsConfigured`  |      9.8638 ns |  0.0241 ns |         - |
+| `InstructionExecutor_OneStep`                  |     17.4381 ns |  0.0650 ns |         - |
+| `CPU_Run_1000Instructions`                     | 13,024.98 ns   | 21.05 ns   |         - |
+| `CPU_Execute_NoSubscribers_1000Instructions`   | 14,279.37 ns   | 35.14 ns   |     136 B |
+| `CPU_Execute_WithSubscribers_1000Instructions` | 35,163.43 ns   | 128.27 ns  | 136,136 B |
+| `Memory_Read_TightLoop`                        |  1,687.32 ns   |  6.23 ns   |         - |
+| `Memory_Write_TightLoop`                       |  1,582.50 ns   |  2.09 ns   |         - |
+
+`C64ExecuteFrameBenchmark` (ShortRun, NTSC, one frame = 17,095 CPU cycles):
+
+| Scenario         | SpriteScenario        |     Mean |  StdDev | Allocated |
+|------------------|-----------------------|---------:|--------:|----------:|
+| `CoreOnly`       | `None`                | 226.8 µs | 1.79 µs |         - |
+| `CoreOnly`       | `MixedVisibleSprites` | 219.7 µs | 0.31 µs |         - |
+| `RenderOnly`     | `None`                | 389.4 µs | 0.37 µs |         - |
+| `RenderOnly`     | `MixedVisibleSprites` | 397.0 µs | 0.70 µs |         - |
+| `AudioOnly`      | `None`                | 357.8 µs | 0.14 µs |         - |
+| `AudioOnly`      | `MixedVisibleSprites` | 353.8 µs | 0.43 µs |         - |
+| `RenderAndAudio` | `None`                | 577.3 µs | 3.48 µs |         - |
+| `RenderAndAudio` | `MixedVisibleSprites` | 591.7 µs | 1.97 µs |         - |
+
+`C64ExecuteInstructionBenchmark` (ShortRun, 1,000 instructions):
+
+| Scenario         |         Mean |      StdDev | Allocated |
+|------------------|-------------:|------------:|----------:|
+| `CoreOnly`       | 24,661.86 ns |    56.75 ns |         - |
+| `RenderOnly`     | 47,147.60 ns |   368.92 ns |         - |
+| `AudioOnly`      | 41,484.42 ns |    64.99 ns |         - |
+| `RenderAndAudio` | 82,970.42 ns | 3,039.03 ns |         - |
+
+Observations that matter for the cycle work:
+
+- The CPU is a minor cost centre: ~13 ns per instruction in isolation, ~25 ns per instruction
+  inside the C64 `CoreOnly` loop (CIA, VIC-II raster, cartridge tick, interrupt flush). A C64
+  frame is ~227 µs `CoreOnly` and ~580 µs with rasterizer and sample SID, against a 16.7 ms
+  (NTSC) / 20 ms (PAL) real-time budget. A 3× slower CPU core would still be under 2% of that
+  budget on this machine; a per-cycle system scheduler and VIC-II tick are where headroom will
+  actually be spent.
+- `CPU_Execute_*` allocate 136 B per call (one `ExecState` per `Execute`), unchanged since the
+  2026-06 analysis; the minimal path and every C64 path are allocation-free. That is the
+  property the cycle engine must keep.
+- Apple M1 numbers are ~30–35% slower than the Apple M5 numbers in the sections above; compare
+  ratios, not absolutes, across machines.
 
 ## History
 

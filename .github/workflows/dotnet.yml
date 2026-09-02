@@ -48,5 +48,18 @@ jobs:
       run: dotnet restore dotnet-6502.slnx
     - name: Build
       run: dotnet build dotnet-6502.slnx --no-restore
+    # The C64 program-level integration tests boot the genuine KERNAL/BASIC/character ROMs.
+    # They are not in the repository; the test helper (tests/.../Commodore64/C64TestRoms.cs)
+    # downloads them from the same public archive the app uses when the variable below is set,
+    # verifies their SHA-1 against the checksums in C64SystemConfig, and skips visibly otherwise.
+    - name: Cache C64 test ROMs
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ github.workspace }}/.test-roms
+        key: c64-test-roms-901227-03-901226-01-901225-01
+
     - name: Test
+      env:
+        DOTNET6502_C64_ROM_DIR: ${{ github.workspace }}/.test-roms/c64
+        DOTNET6502_DOWNLOAD_TEST_ROMS: "true"
       run: dotnet test dotnet-6502.slnx --no-build --verbosity normal

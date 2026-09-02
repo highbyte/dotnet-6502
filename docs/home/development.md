@@ -70,6 +70,19 @@ cd tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType=Integration
 ```
 
+### C64 program-level tests with the real ROMs
+
+`tests/Highbyte.DotNet6502.Systems.Tests/Commodore64/C64RealRomBootTests.cs` boots the genuine KERNAL, BASIC and character ROMs to the `READY.` prompt. The ROMs are copyrighted and are not in the repository, so these tests are marked `[RequiresC64RomsFact]` and report as *skipped* (with the reason) when the ROMs are missing rather than passing without running. They are tagged `TestType=Integration`.
+
+The helper `C64TestRoms` looks for the ROM files (under the names the app's own ROM download writes) in the C64 ROM directory, or in `DOTNET6502_C64_ROM_DIR` when set, and verifies each file's SHA-1 against the checksums in `C64SystemConfig`. Set `DOTNET6502_DOWNLOAD_TEST_ROMS=1` to let the helper fetch missing files from the same public archive the app uses:
+
+```sh
+DOTNET6502_C64_ROM_DIR=/tmp/c64-roms DOTNET6502_DOWNLOAD_TEST_ROMS=1 \
+  dotnet test tests/Highbyte.DotNet6502.Systems.Tests --filter TestType=Integration
+```
+
+The `Build & run tests` workflow sets both variables (with the ROM directory cached between runs), so these tests run in CI. Use the same helper for any future C64 test that needs a booted machine, for example the VICE test programs planned for the cycle-exact work.
+
 ### WASM AOT publish smoke tests
 
 A [Playwright](https://playwright.dev/) suite under `tests/wasm-smoke/` publishes the Blazor WASM and Avalonia Browser apps with the same Release/AOT flags as the GitHub Pages release workflow, then verifies the published `wwwroot` boots in headless Chromium and that the system plug-ins are discovered. Catches trim/AOT-only regressions (missing trim roots, plug-in assemblies dropped from the bundle, ...) that `dotnet build` / `dotnet test` do not exercise.
@@ -89,6 +102,28 @@ cd tests/wasm-smoke
 ```
 
 The same flow runs automatically on pull requests (paths-filtered to WASM-relevant source) via the `.github/workflows/wasm-aot-verify.yml` workflow.
+
+The same workflow also runs `blazor-speed.spec.ts` against the published Blazor build: it starts the ROM-free Generic system, enables the in-app stats panel and records the host frame rate and emulator time per frame into the job summary and a `wasm-speed-readout` artifact. It is informational only (shared runners are noisy) and never fails the PR. The Avalonia Browser app has no headless stats channel yet, so it has no readout.
+
+## Benchmarks
+
+`benchmarks/Highbyte.DotNet6502.Benchmarks/` is a [BenchmarkDotNet](https://benchmarkdotnet.org/) project covering the CPU hot path (`HotPathBenchmarks`), the integrated C64 instruction and frame loops with and without render/audio providers, and focused CIA, sprite, rasterizer and SID benchmarks. Recorded baselines and their history live in `benchmarks/Highbyte.DotNet6502.Benchmarks/RESULTS.md`.
+
+Run a suite locally (Release build, no debugger attached, machine otherwise idle):
+
+```sh
+dotnet run -c Release --project benchmarks/Highbyte.DotNet6502.Benchmarks -- --filter '*HotPathBenchmarks*'
+```
+
+Compare the current branch against `master` on the same machine:
+
+```sh
+tools/perf-compare.sh            # or: tools/perf-compare.ps1
+```
+
+It runs the CPU hot-path, C64 instruction and C64 frame suites on both refs (set `PERF_COMPARE_FILTER` to a space-separated list of `--filter` globs to narrow it) and flags any benchmark that is 5% or more slower or that starts allocating. The working tree must be clean because it switches refs.
+
+The manually dispatched `Benchmarks` workflow (`.github/workflows/benchmarks.yml`) runs the same suites on a Linux runner, publishes the tables to the job summary, uploads the results including the DisassemblyDiagnoser HTML (which cannot be produced on macOS), and can optionally run the baseline comparison in the same job. Runner numbers are noisy; use them for the disassembly and for same-job ratios, not for cross-run comparisons.
 
 ## Code coverage report locally (`Highbyte.DotNet6502` library)
 

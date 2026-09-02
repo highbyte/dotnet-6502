@@ -1,23 +1,29 @@
 #!/usr/bin/env bash
-# Run the HotPathBenchmarks suite on a baseline ref (default: master) and on the
-# current HEAD, then print a side-by-side comparison of the mean times and
-# allocations. Flags any benchmark where HEAD is >= 5% slower than baseline or
-# where HEAD allocates and baseline did not.
+# Run a BenchmarkDotNet suite on a baseline ref (default: master) and on the current HEAD, then
+# print a side-by-side comparison of mean times and allocations. Flags any benchmark where HEAD is
+# >= 5% slower than baseline or where HEAD allocates and baseline did not.
+#
+# Covers the CPU hot-path suite and the integrated C64 instruction/frame suites by default; set
+# PERF_COMPARE_FILTER to a space-separated list of BenchmarkDotNet --filter globs to change that.
+# Benchmarks are keyed on their full name (class, method and parameters), so parameterised
+# suites compare row by row.
 #
 # Requirements:
-#   - dotnet SDK matching global.json.
+#   - dotnet SDK.
 #   - Clean working tree (script switches branches with `git switch --detach`).
-#   - python3 (for the table-diff step).
+#   - python3 (for the comparison step).
 #
 # Usage:
 #   tools/perf-compare.sh [BASELINE_REF]
 #     BASELINE_REF = git ref to compare against (default: master)
+#   PERF_COMPARE_FILTER='*HotPathBenchmarks*' tools/perf-compare.sh   # only the CPU suite
 
 set -euo pipefail
 
 BASELINE_REF="${1:-master}"
+FILTER="${PERF_COMPARE_FILTER:-*HotPathBenchmarks* *C64ExecuteFrameBenchmark* *C64ExecuteInstructionBenchmark*}"
 PROJECT="benchmarks/Highbyte.DotNet6502.Benchmarks/Highbyte.DotNet6502.Benchmarks.csproj"
-ARTIFACTS_DIR="BenchmarkDotNet.Artifacts/results"
+ARTIFACTS_DIR="BenchmarkDotNet.Artifacts"
 OUT_DIR="$(mktemp -d -t perf-compare.XXXXXX)"
 trap 'rm -rf "$OUT_DIR"' EXIT
 
@@ -36,25 +42,29 @@ fi
 
 run_benchmark() {
   local label="$1"
-  local outfile="$OUT_DIR/$label.csv"
-  echo "perf-compare: running benchmarks on $label..."
+  local outdir="$OUT_DIR/$label"
+  mkdir -p "$outdir"
+  echo "perf-compare: running benchmarks on $label ($(git rev-parse --short HEAD))..."
   rm -rf "$ARTIFACTS_DIR"
+  # shellcheck disable=SC2086 -- FILTER is a deliberate list of globs.
   dotnet run -c Release --project "$PROJECT" -- \
-    --filter '*HotPathBenchmarks*' \
-    --exporters github \
+    --filter $FILTER \
+    --exporters fulljson \
+    --artifacts "$ARTIFACTS_DIR" \
     >/dev/null
-  # BenchmarkDotNet writes results as <namespace>.HotPathBenchmarks-report-github.md
-  # plus a CSV. Grab the CSV for diffing.
-  local csv
-  csv=$(ls "$ARTIFACTS_DIR"/*HotPathBenchmarks-report.csv 2>/dev/null | head -1 || true)
-  if [[ -z "$csv" ]]; then
-    echo "perf-compare: no benchmark CSV produced for $label" >&2
+  local found=0
+  for f in "$ARTIFACTS_DIR"/results/*-report-full.json; do
+    [[ -f "$f" ]] || continue
+    cp "$f" "$outdir/"
+    found=1
+  done
+  if [[ "$found" -eq 0 ]]; then
+    echo "perf-compare: no benchmark JSON produced for $label" >&2
     exit 3
   fi
-  cp "$csv" "$outfile"
 }
 
-echo "perf-compare: baseline = $BASELINE_REF, head = $head_ref"
+echo "perf-compare: baseline = $BASELINE_REF, head = $head_ref, filter = $FILTER"
 
 git switch --detach "$BASELINE_REF"
 run_benchmark baseline
@@ -65,74 +75,78 @@ run_benchmark head
 # Restore the original branch (best effort -- detached state means we re-checkout).
 git switch "$head_ref" 2>/dev/null || true
 
-python3 - "$OUT_DIR/baseline.csv" "$OUT_DIR/head.csv" <<'PY'
-import csv
+python3 - "$OUT_DIR/baseline" "$OUT_DIR/head" <<'PY'
+import glob
+import json
+import os
 import sys
 
-baseline_path, head_path = sys.argv[1], sys.argv[2]
+baseline_dir, head_dir = sys.argv[1], sys.argv[2]
 
-def load(path):
-    with open(path, newline='') as f:
-        return {row['Method']: row for row in csv.DictReader(f)}
+def short_name(full_name):
+    # "Ns.Sub.Class.Method(Param: X)" -> "Class.Method(Param: X)"
+    head, sep, params = full_name.partition('(')
+    parts = head.split('.')
+    return '.'.join(parts[-2:]) + sep + params
 
-baseline = load(baseline_path)
-head = load(head_path)
+def load(directory):
+    rows = {}
+    for path in sorted(glob.glob(os.path.join(directory, '*-report-full.json'))):
+        with open(path, encoding='utf-8-sig') as f:
+            report = json.load(f)
+        for b in report.get('Benchmarks', []):
+            stats = b.get('Statistics') or {}
+            memory = b.get('Memory') or {}
+            rows[b['FullName']] = {
+                'mean_ns': stats.get('Mean'),
+                'alloc_b': memory.get('BytesAllocatedPerOperation'),
+            }
+    return rows
 
-def parse_time(s):
-    # BenchmarkDotNet writes durations like "12.34 ns" or "1.23 us".
-    units = {'ns': 1.0, 'us': 1_000.0, 'ms': 1_000_000.0, 's': 1_000_000_000.0}
-    if not s:
-        return None
-    parts = s.split()
-    if len(parts) != 2 or parts[1] not in units:
-        return None
-    return float(parts[0].replace(',', '')) * units[parts[1]]
+def fmt_time(ns):
+    if ns is None:
+        return '?'
+    for unit, div in (('s', 1e9), ('ms', 1e6), ('us', 1e3)):
+        if ns >= div:
+            return f"{ns / div:,.2f} {unit}"
+    return f"{ns:,.2f} ns"
 
-def parse_alloc(s):
-    if not s or s == '-':
-        return 0.0
-    units = {'B': 1.0, 'KB': 1024.0, 'MB': 1024.0 ** 2}
-    parts = s.split()
-    if len(parts) != 2 or parts[1] not in units:
-        return None
-    return float(parts[0].replace(',', '')) * units[parts[1]]
+baseline = load(baseline_dir)
+head = load(head_dir)
 
 REGRESSION_RATIO = 1.05
 fail = False
 
-header = f"{'Method':<45} {'baseline':>14} {'head':>14} {'ratio':>8} {'alloc Δ':>10}"
+header = f"{'Benchmark':<70} {'baseline':>12} {'head':>12} {'ratio':>7} {'alloc Δ':>9}"
 print(header)
 print('-' * len(header))
 
-for method, head_row in head.items():
-    baseline_row = baseline.get(method)
-    if baseline_row is None:
-        print(f"{method:<45} {'(new)':>14} {head_row.get('Mean', ''):>14}")
+for full_name, h in head.items():
+    name = short_name(full_name)
+    b = baseline.get(full_name)
+    if b is None:
+        print(f"{name:<70} {'(new)':>12} {fmt_time(h['mean_ns']):>12}")
         continue
-    b_mean = parse_time(baseline_row.get('Mean', ''))
-    h_mean = parse_time(head_row.get('Mean', ''))
-    b_alloc = parse_alloc(baseline_row.get('Allocated', ''))
-    h_alloc = parse_alloc(head_row.get('Allocated', ''))
-    if b_mean is None or h_mean is None:
-        ratio_s = '?'
-        ratio = None
-    else:
-        ratio = h_mean / b_mean
+    ratio = None
+    ratio_s = '?'
+    if b['mean_ns'] and h['mean_ns']:
+        ratio = h['mean_ns'] / b['mean_ns']
         ratio_s = f"{ratio:.3f}"
-    alloc_delta = ''
-    if b_alloc is not None and h_alloc is not None:
-        delta = h_alloc - b_alloc
-        if delta != 0:
-            alloc_delta = f"{delta:+.0f}B"
-        else:
-            alloc_delta = '0'
-    print(f"{method:<45} {baseline_row.get('Mean',''):>14} {head_row.get('Mean',''):>14} {ratio_s:>8} {alloc_delta:>10}")
+    b_alloc = b['alloc_b'] or 0
+    h_alloc = h['alloc_b'] or 0
+    delta = h_alloc - b_alloc
+    alloc_s = f"{delta:+.0f}B" if delta else '0'
+    print(f"{name:<70} {fmt_time(b['mean_ns']):>12} {fmt_time(h['mean_ns']):>12} {ratio_s:>7} {alloc_s:>9}")
     if ratio is not None and ratio >= REGRESSION_RATIO:
-        print(f"  REGRESSION: {method} is {((ratio - 1) * 100):.1f}% slower")
+        print(f"  REGRESSION: {name} is {((ratio - 1) * 100):.1f}% slower")
         fail = True
-    if b_alloc == 0 and h_alloc and h_alloc > 0:
-        print(f"  REGRESSION: {method} introduces {h_alloc:.0f}B of allocations")
+    if b_alloc == 0 and h_alloc > 0:
+        print(f"  REGRESSION: {name} introduces {h_alloc:.0f}B of allocations")
         fail = True
+
+for full_name in baseline:
+    if full_name not in head:
+        print(f"{short_name(full_name):<70} {'(removed)':>12}")
 
 sys.exit(1 if fail else 0)
 PY

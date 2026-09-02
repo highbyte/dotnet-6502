@@ -300,3 +300,4 @@ src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/appsettings.Developme
 .venv-docs/
 
 .playwright-cli/
+.test-roms/
