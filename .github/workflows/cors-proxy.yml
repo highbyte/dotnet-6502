@@ -15,7 +15,7 @@ on:
   # workflow never reports a status, so it can never safely be made a required check. Filtering
   # happens in the job instead, which keeps that option open.
   pull_request:
-    branches: [ master ]
+    branches: [ master, feature/cpu-cycle-engine ]
 
 jobs:
   test:

@@ -6,8 +6,9 @@ name: Sonarscan DotNet
 on:
   # Analyze master after merge. Feature branches are analyzed by the pull_request
   # trigger below so an update to an open PR does not start duplicate scans.
+  # feature/cpu-cycle-engine is a long-lived integration branch that gets master's checks.
   push:
-    branches: [ master ]
+    branches: [ master, feature/cpu-cycle-engine ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'
@@ -16,7 +17,7 @@ on:
       - README.md
 
   pull_request:
-    branches: [ master ]
+    branches: [ master, feature/cpu-cycle-engine ]
     paths-ignore:
       - 'docs/**'
       - 'includes/**'
