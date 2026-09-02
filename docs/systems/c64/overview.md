@@ -30,11 +30,10 @@ undocumented-opcode compatibility profile is configurable.
       emulation: all four waveforms (individual and combined), full ADSR with the real rate
       counters, hard sync, ring modulation, TEST-bit hold, OSC3/ENV3 readback, a generic
       resonant low-pass / band-pass / high-pass filter, and the `$D418` volume DAC's DC term
-      (so digi / sample-playback tunes are audible). Missing: chip-variant filter models
-      (6581 R1/R2/R3/R4 vs 8580), chip-measured combined-waveform tables, anti-aliased
-      downsampling, and per-instruction `$D418` cycle-offset (digi works, but writes land at
-      instruction boundaries so high-rate sample tunes are slightly noisier than on real
-      hardware).
+      (so digi / sample-playback tunes are audible). Register writes reach the chip on the
+      exact CPU cycle they happen, OSC3/ENV3 reads see the chip's state at the cycle of the
+      read, and the volume DAC is averaged over each output sample. Missing: chip-variant filter models (6581 R1/R2/R3/R4 vs 8580), chip-measured
+      combined-waveform tables, and anti-aliased downsampling.
     - **Command stream** (legacy, low CPU but inaccurate) — decodes SID register changes into
       generic synthesizer commands driven by an oscillator graph. Many tunes sound wrong; no
       digi / sample-playback support.
