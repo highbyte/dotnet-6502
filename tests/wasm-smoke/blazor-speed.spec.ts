@@ -19,9 +19,10 @@ test('Blazor WASM emulated speed readout (Generic system)', async ({ page }) => 
   await page.goto('/?systemName=Generic&audioEnabled=false');
   await expect(page.locator('#system-selector')).toBeVisible({ timeout: 4 * 60 * 1000 });
 
-  await page.getByRole('button', { name: 'Start' }).click();
+  // exact: the page also has a "Load & start binary PRG file" button.
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
   // The Stats button is only enabled once a system is running.
-  const statsButton = page.getByRole('button', { name: 'Stats' });
+  const statsButton = page.getByRole('button', { name: 'Stats', exact: true });
   await expect(statsButton).toBeEnabled({ timeout: 60 * 1000 });
   await statsButton.click();
 
