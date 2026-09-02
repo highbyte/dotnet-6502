@@ -11,6 +11,36 @@ Library: `Highbyte.DotNet6502`
 - Supports a compatibility-profile based subset of undocumented NMOS 6502 opcodes.
 - Can load an assembled 6502 program binary and execute it.
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests).
+- Every instruction performs exactly the bus accesses the silicon performs, one per clock cycle, verified against the [SingleStepTests 65x02](https://github.com/SingleStepTests/65x02) corpus (see below).
+
+## Cycle and bus accuracy
+
+An instruction executes atomically (one call runs it to completion), but every clock cycle of
+it is a real memory access in hardware order, dummy reads and write-backs included: the
+next-byte read of implied instructions, the un-indexed read of zero-page indexed modes, the
+un-carried-address read of NMOS indexed modes on a page crossing, the branch fix-up reads, the
+stack reads of pulls and returns, the NMOS read/write-back/write and 65C02 read/read/write of
+read-modify-write instructions, and the 65C02's operand re-reads on its extra cycles. Memory-
+mapped I/O therefore sees exactly the accesses a real device would, at the same points in the
+sequence.
+
+`CPU.BusCycles` counts those accesses. Because the count advanced by an instruction equals its
+cycle count, systems can derive elapsed cycles from bus activity, and the tests hold the two
+together for every opcode byte of every model and profile.
+
+Verification, beyond the functional test programs:
+
+- A pinned subset of the SingleStepTests corpus, which records the exact bus cycles of the
+  NMOS 6502 and the WDC 65C02, is run per opcode: final state, cycle-by-cycle bus trace and
+  cycle count must all match. Bytes where the emulated part is documented to differ (the
+  Rockwell bit instructions and WDC-only `WAI`/`STP` that the NCR 65C02 executes as NOPs, and
+  the unstable NMOS opcodes no profile implements) are listed with their reason and skipped.
+- A structural test executes every defined opcode byte of every model and profile from random
+  state and requires one bus access per reported cycle.
+
+What this does not claim: the CPU cannot be stopped inside an instruction, so a device that
+needs to stall the CPU (the C64's VIC-II via BA/RDY) or sample a line on a specific cycle must
+do so at the bus access for that cycle; and interrupts are recognized at instruction boundaries.
 
 ## CPU models
 

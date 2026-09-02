@@ -47,8 +47,22 @@ internal static class OpCodeDescriptorTableBuilder
         => addressingMode switch
         {
             AddrMode.ZP => static (cpu, mem) => { var address = (ushort)cpu.FetchOperand(mem); return (address, false, address); },
-            AddrMode.ZP_X => static (cpu, mem) => { var address = cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem), wrapZeroPage: true); return (address, false, address); },
-            AddrMode.ZP_Y => static (cpu, mem) => { var address = cpu.CalcZeroPageAddressY(cpu.FetchOperand(mem), wrapZeroPage: true); return (address, false, address); },
+            // Zero-page indexed: the cycle that adds the index reads the un-indexed zero-page
+            // address (a dummy read), then the indexed address is accessed.
+            AddrMode.ZP_X => static (cpu, mem) =>
+            {
+                var zeroPage = cpu.FetchOperand(mem);
+                cpu.FetchByte(mem, zeroPage);
+                var address = cpu.CalcZeroPageAddressX(zeroPage, wrapZeroPage: true);
+                return (address, false, address);
+            },
+            AddrMode.ZP_Y => static (cpu, mem) =>
+            {
+                var zeroPage = cpu.FetchOperand(mem);
+                cpu.FetchByte(mem, zeroPage);
+                var address = cpu.CalcZeroPageAddressY(zeroPage, wrapZeroPage: true);
+                return (address, false, address);
+            },
             AddrMode.ABS => static (cpu, mem) => { var address = cpu.FetchOperandWord(mem); return (address, false, address); },
             AddrMode.ABS_X => static (cpu, mem) =>
             {
@@ -62,7 +76,14 @@ internal static class OpCodeDescriptorTableBuilder
                 var address = cpu.CalcFullAddressY(baseAddress, out var didCrossPageBoundary);
                 return (address, didCrossPageBoundary, UncarriedAddress(baseAddress, cpu.Y));
             },
-            AddrMode.IX_IND => static (cpu, mem) => { var address = ReadZeroPagePointer(cpu, mem, cpu.CalcZeroPageAddressX(cpu.FetchOperand(mem))); return (address, false, address); },
+            // (zp,X): the index-add cycle dummy-reads the un-indexed zero-page operand address.
+            AddrMode.IX_IND => static (cpu, mem) =>
+            {
+                var zeroPage = cpu.FetchOperand(mem);
+                cpu.FetchByte(mem, zeroPage);
+                var address = ReadZeroPagePointer(cpu, mem, cpu.CalcZeroPageAddressX(zeroPage));
+                return (address, false, address);
+            },
             AddrMode.ZP_IND => static (cpu, mem) => { var address = ReadZeroPagePointer(cpu, mem, cpu.FetchOperand(mem)); return (address, false, address); },
             AddrMode.IND_IX => static (cpu, mem) =>
             {
@@ -85,8 +106,18 @@ internal static class OpCodeDescriptorTableBuilder
     internal static ExecuteHandler ComposeRead(AddrMode addressingMode, ulong baseCycles, ReadOperation core,
         bool addPageCrossCycle, bool indexedDummyReads)
     {
+        // A core reporting an extra cycle (65C02 decimal-mode ADC/SBC) makes that cycle a real
+        // access: the operand address is read again.
         if (addressingMode == AddrMode.I)
-            return (cpu, mem) => baseCycles + core(cpu, cpu.FetchOperand(mem));
+        {
+            return (cpu, mem) =>
+            {
+                var extra = core(cpu, cpu.FetchOperand(mem));
+                if (extra != 0)
+                    cpu.FetchByte(mem, (ushort)(cpu.PC - 1));
+                return baseCycles + extra;
+            };
+        }
 
         var resolveAddress = GetAddressResolver(addressingMode);
         if (indexedDummyReads && IsIndexedMode(addressingMode))
@@ -97,13 +128,20 @@ internal static class OpCodeDescriptorTableBuilder
                 if (crossedPageBoundary)
                     cpu.FetchByte(mem, uncarriedAddress);
                 var extra = core(cpu, cpu.FetchByte(mem, address));
+                if (extra != 0)
+                    cpu.FetchByte(mem, address);
                 return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul) + extra;
             };
         }
+        // CMOS: the page-cross cycle re-reads the last operand byte instead of the un-carried address.
         return (cpu, mem) =>
         {
             var (address, crossedPageBoundary, _) = resolveAddress(cpu, mem);
+            if (addPageCrossCycle && crossedPageBoundary)
+                cpu.FetchByte(mem, (ushort)(cpu.PC - 1));
             var extra = core(cpu, cpu.FetchByte(mem, address));
+            if (extra != 0)
+                cpu.FetchByte(mem, address);
             return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul) + extra;
         };
     }
@@ -126,6 +164,17 @@ internal static class OpCodeDescriptorTableBuilder
                 return baseCycles;
             };
         }
+        // CMOS indexed stores spend their fixed extra cycle re-reading the last operand byte.
+        if (IsIndexedMode(addressingMode))
+        {
+            return (cpu, mem) =>
+            {
+                var (address, _, _) = resolveAddress(cpu, mem);
+                cpu.FetchByte(mem, (ushort)(cpu.PC - 1));
+                cpu.StoreByte(core(cpu), mem, address);
+                return baseCycles;
+            };
+        }
         return (cpu, mem) =>
         {
             var (address, _, _) = resolveAddress(cpu, mem);
@@ -138,6 +187,9 @@ internal static class OpCodeDescriptorTableBuilder
     internal static ExecuteHandler ComposeImplied(ulong baseCycles, ImpliedOperation core)
         => (cpu, mem) =>
         {
+            // The second cycle of every implied/accumulator instruction reads the next opcode
+            // byte and discards it.
+            cpu.FetchByte(mem, cpu.PC);
             core(cpu);
             return baseCycles;
         };
@@ -152,7 +204,13 @@ internal static class OpCodeDescriptorTableBuilder
             var offset = cpu.FetchOperand(mem);
             if (!condition(cpu))
                 return 2;
-            cpu.PC = BranchHelper.CalculateNewAbsoluteBranchAddress(cpu.PC, (sbyte)offset, out _, out var crossedPageBoundary);
+            // Taken: the cycle that adds the offset to PCL reads the next opcode byte; a page
+            // crossing adds a cycle that reads the not-yet-fixed address (old PCH, new PCL).
+            cpu.FetchByte(mem, cpu.PC);
+            var target = BranchHelper.CalculateNewAbsoluteBranchAddress(cpu.PC, (sbyte)offset, out _, out var crossedPageBoundary);
+            if (crossedPageBoundary)
+                cpu.FetchByte(mem, (ushort)((cpu.PC & 0xFF00) | (target & 0x00FF)));
+            cpu.PC = target;
             return crossedPageBoundary ? 4ul : 3ul;
         };
 
@@ -169,9 +227,14 @@ internal static class OpCodeDescriptorTableBuilder
         var resolveAddress = GetAddressResolver(addressingMode);
         if (cmosSequence)
         {
+            // 65C02 indexed RMW: INC/DEC abs,X always spend an extra cycle; the shifts/rotates
+            // only on a page crossing. Either way the extra cycle re-reads the last operand byte.
+            var alwaysExtraIndexedCycle = IsIndexedMode(addressingMode) && !addPageCrossCycle;
             return (cpu, mem) =>
             {
                 var (address, crossedPageBoundary, _) = resolveAddress(cpu, mem);
+                if (alwaysExtraIndexedCycle || (addPageCrossCycle && crossedPageBoundary))
+                    cpu.FetchByte(mem, (ushort)(cpu.PC - 1));
                 cpu.FetchByte(mem, address);
                 var value = cpu.FetchByte(mem, address);
                 cpu.StoreByte(core(cpu, value), mem, address);

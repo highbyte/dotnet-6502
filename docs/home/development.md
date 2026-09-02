@@ -70,6 +70,19 @@ cd tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType=Integration
 ```
 
+### Bus-cycle vector tests (SingleStepTests corpus)
+
+`tests/Highbyte.DotNet6502.Tests/SingleStepTests/` runs a pinned subset of the [SingleStepTests 65x02](https://github.com/SingleStepTests/65x02) corpus (MIT). Every vector is one instruction with the full CPU and memory state before and after, plus every bus cycle the silicon performs: address, value and direction, one per clock cycle. The tests require the final state, the cycle-by-cycle bus trace, the reported cycle count and the advance of `CPU.BusCycles` to all agree. The `6502` set runs against the NMOS 6502 model with the full undocumented profile; the `wdc65c02` set against the NCR 65C02 model. Bytes where the emulated part is documented to differ from the corpus's part (the Rockwell bit instructions, WDC's `WAI`/`STP`, the unstable NMOS opcodes) are listed with their reason in the test class and skipped, not asserted.
+
+The fixtures live in `tests/Highbyte.DotNet6502.Tests/Fixtures/SingleStepTests/` (20 vectors per opcode, gzip'd JSON lines, with the upstream LICENSE and a manifest recording the corpus commit and file hashes). They are regenerated deterministically with:
+
+```sh
+python3 tools/singlesteptests/extract.py            # all sets, 20 vectors per opcode
+python3 tools/singlesteptests/extract.py --sets wdc65c02 --per-opcode 50
+```
+
+The script downloads the per-opcode files (about 5 MB each) at the pinned commit and keeps the first N vectors of each, so the fixtures stay small enough to commit.
+
 ### C64 program-level tests with the real ROMs
 
 `tests/Highbyte.DotNet6502.Systems.Tests/Commodore64/C64RealRomBootTests.cs` boots the genuine KERNAL, BASIC and character ROMs to the `READY.` prompt. The ROMs are copyrighted and are not in the repository, so these tests are marked `[RequiresC64RomsFact]` and report as *skipped* (with the reason) when the ROMs are missing rather than passing without running. They are tagged `TestType=Integration`.

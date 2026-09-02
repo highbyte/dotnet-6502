@@ -27,6 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Pinned subset of the SingleStepTests 65x02 corpus (MIT); regenerate with tools/singlesteptests/extract.py. -->
+    <Content Include="Fixtures\SingleStepTests\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.DotNet.Watcher.Tools" Version="2.0.2" />
   </ItemGroup>
 
