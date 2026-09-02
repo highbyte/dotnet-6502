@@ -303,11 +303,11 @@ the result tables. To verify the JIT folds those helpers back into the caller,
 open that file after a run and confirm none of the three helper names appear as
 separate call sites in the disassembly of `Check`.
 
-## Cycle-timing baseline (C0) — 2026-09-02 (master `29132270`, Apple M1)
+## Cycle-timing baseline — 2026-09-02 (master `29132270`, Apple M1)
 
-Recorded before any cycle-steppable/cycle-exact execution work, as required by the plan's C0
-milestone. Every number below is the reference the C1–C3 gates compare against. Re-record on the
-same machine (or record a second column for another machine) rather than editing these.
+Recorded before any cycle-steppable/cycle-exact execution work started. Every number below is the
+reference that work compares against. Re-record on the same machine (or record a second column
+for another machine) rather than editing these.
 
 Environment:
 
@@ -359,8 +359,8 @@ Observations that matter for the cycle work:
   inside the C64 `CoreOnly` loop (CIA, VIC-II raster, cartridge tick, interrupt flush). A C64
   frame is ~227 µs `CoreOnly` and ~580 µs with rasterizer and sample SID, against a 16.7 ms
   (NTSC) / 20 ms (PAL) real-time budget. A 3× slower CPU core would still be under 2% of that
-  budget on this machine; the per-cycle scheduler and VIC-II tick (C4/C5) are where headroom
-  will actually be spent.
+  budget on this machine; a per-cycle system scheduler and VIC-II tick are where headroom will
+  actually be spent.
 - `CPU_Execute_*` allocate 136 B per call (one `ExecState` per `Execute`), unchanged since the
   2026-06 analysis; the minimal path and every C64 path are allocation-free. That is the
   property the cycle engine must keep.
