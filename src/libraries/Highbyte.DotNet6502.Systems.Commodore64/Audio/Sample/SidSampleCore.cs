@@ -79,6 +79,13 @@ public sealed class SidSampleCore
     // Bresenham resampling: every SID cycle add _sampleRateHz; emit a sample whenever the
     // accumulator crosses _sidClockHz, then subtract. Exact integer math, no float drift.
     private int _sampleRateCounter;
+    // Master volume integrated over the SID cycles since the previous output sample. The $D418
+    // DAC is applied as the average over that window rather than the value at the sampled cycle,
+    // so a volume change that lasts a few cycles (a read-modify-write on $D418, an 8 kHz digi
+    // write) contributes in proportion to its duration instead of being either missed or taken
+    // at full amplitude depending on where the sample point falls.
+    private int _volumeAccumulator;
+    private int _cyclesSinceSample;
 
     // Aggregate "any voice uses feature X" flags, refreshed on each VCREG decode.
     // Let TickAllVoices fuse into a single-pass loop when no voice currently needs hard sync.
@@ -293,6 +300,8 @@ public sealed class SidSampleCore
         for (int i = 0; i < VoiceCount; i++)
             _voices[i] = new Voice();
         _sampleRateCounter = 0;
+        _volumeAccumulator = 0;
+        _cyclesSinceSample = 0;
         _anyVoiceUsesSync = false;
         _anyVoiceUsesTest = false;
         _filterLow = 0f;
@@ -319,6 +328,8 @@ public sealed class SidSampleCore
         for (int c = 0; c < cycles; c++)
         {
             TickAllVoices();
+            _volumeAccumulator += _registers[VolumeRegisterOffset] & 0x0F;
+            _cyclesSinceSample++;
 
             _sampleRateCounter += _sampleRateHz;
             if (_sampleRateCounter >= _sidClockHz)
@@ -608,15 +619,19 @@ public sealed class SidSampleCore
 
     private float MixOutput()
     {
-        int sigvol = _registers[VolumeRegisterOffset];
-        int masterVol = sigvol & 0x0F;
-        if (masterVol == 0)
+        // Master volume averaged over the cycles since the previous sample (see the field doc).
+        float masterVol = _cyclesSinceSample > 0
+            ? _volumeAccumulator / (float)_cyclesSinceSample
+            : _registers[VolumeRegisterOffset] & 0x0F;
+        _volumeAccumulator = 0;
+        _cyclesSinceSample = 0;
+        if (masterVol == 0f)
             return 0f;
 
         // $D418 DAC DC term (see VolumeDacScale doc). Active in every mode and every code path
         // below — digi / sample playback is a fundamental SID capability that users expect to
         // work regardless of which SidEmulationMode is selected.
-        int volumeDc = masterVol * VolumeDacScale;
+        float volumeDc = masterVol * VolumeDacScale;
 
         // In Fast mode the routing / type / V3-off features are disabled wholesale, so the inner
         // loop becomes the original tight per-voice sum.

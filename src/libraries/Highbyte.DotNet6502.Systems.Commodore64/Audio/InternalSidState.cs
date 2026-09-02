@@ -47,6 +47,15 @@ public class InternalSidState
     public Func<byte>? Env3ReadbackProvider { get; set; }
 
     /// <summary>
+    /// Receives every SID register write together with the CPU bus cycle it happened on. A sink
+    /// that returns true has applied the write at that exact cycle, so it is not also recorded in
+    /// the changed-register set drained at instruction end; false keeps the batched path. The
+    /// sample-accurate audio provider installs itself here; the command-stream provider does not
+    /// need it. Null when no consumer wants exact timing.
+    /// </summary>
+    public ISidRegisterWriteSink? RegisterWriteSink { get; set; }
+
+    /// <summary>
     /// Get volume 0-15.
     /// Common for all voices.
     /// </summary>
@@ -230,20 +239,28 @@ public class InternalSidState
 
     public void SetSidRegValue(ushort address, byte value)
     {
-        if (_sidRegistersThatAlwaysAreConsideredChangeWhenWrittenTo.Contains(address))
-        {
-            _changedSidRegisters.Add(address);
-        }
-        else
-        {
-            // Log sid register has changed since _changedSidRegisters last has been cleared.
-            if (_c64.ReadIOStorage(address) != value)
-                _changedSidRegisters.Add(address);
-            //if (_sidRegValues.ContainsKey(address) && _sidRegValues[address] != value)
-            //    _changedSidRegisters.Add(address);
-        }
+        var changed = _sidRegistersThatAlwaysAreConsideredChangeWhenWrittenTo.Contains(address)
+            || _c64.ReadIOStorage(address) != value;
 
         _c64.WriteIOStorage(address, value);
-        //_sidRegValues[address] = value;
+
+        // The write happens on the CPU's current bus cycle (the counter already includes it).
+        if (RegisterWriteSink is not null && RegisterWriteSink.OnRegisterWrite(address, value, _c64.CPU.BusCycles))
+            return;
+
+        // Batched path: remembered until a provider drains the changed set at instruction end.
+        if (changed)
+            _changedSidRegisters.Add(address);
     }
+}
+
+/// <summary>Consumer of SID register writes at their exact bus cycle; see <see cref="InternalSidState.RegisterWriteSink"/>.</summary>
+public interface ISidRegisterWriteSink
+{
+    /// <summary>
+    /// Called for a write of <paramref name="value"/> to <paramref name="address"/> on CPU bus
+    /// cycle <paramref name="busCycle"/>. Return true when the write has been applied at that
+    /// cycle; return false to let it fall back to the batched changed-register path.
+    /// </summary>
+    bool OnRegisterWrite(ushort address, byte value, ulong busCycle);
 }
