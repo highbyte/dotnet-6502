@@ -369,6 +369,37 @@ Observations that matter for the cycle work:
 
 ## History
 
+### 2026-09-02 — every cycle is a bus access
+
+Every instruction now performs exactly the bus accesses the silicon performs, one per clock
+cycle: the next-byte dummy read of implied instructions, the un-indexed read of zero-page
+indexed modes, the branch fix-up reads, the stack reads of pulls and returns, JSR's stack read
+and reordered fetches, and the 65C02's operand re-reads on its extra cycles. Verified per
+opcode against the SingleStepTests corpus. Each added access is one more delegate call through
+`Memory`, so the CPU-only benchmarks pay for it in proportion to how many dummy cycles their
+instruction mix has (the step benchmark runs NOPs, which doubled their accesses). The
+integrated C64 benchmarks move within ShortRun noise. Same machine as the cycle-timing baseline
+above (Apple M1, .NET 10.0.7).
+
+| Benchmark | Baseline | After | Δ |
+|-----------|---------:|------:|--:|
+| `InstructionExecutor_OneStep` | 17.44 ns | 19.25 ns | +10% |
+| `CPU_Run_1000Instructions` | 13.02 µs | 14.22 µs | +9% |
+| `CPU_Execute_NoSubscribers_1000Instructions` | 14.28 µs | 16.30 µs | +14% |
+| `CPU_Execute_WithSubscribers_1000Instructions` | 35.16 µs | 36.94 µs | +5% |
+| `Memory_Read_TightLoop` / `Memory_Write_TightLoop` | 1.69 / 1.58 µs | 1.67 / 1.57 µs | 0% |
+| C64 frame `CoreOnly` / `None` | 226.8 µs | 219.5 µs | −3% |
+| C64 frame `RenderAndAudio` / `None` | 577.3 µs | 584.9 µs | +1% |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 591.7 µs | 594.8 µs | +1% |
+| C64 1,000 instructions `CoreOnly` | 24.66 µs | 24.43 µs | −1% |
+
+Accepted: the cycle-timing work's budget is 1.3× on the CPU loop and 5% per C64 frame, and
+the added work is semantic (accesses that memory-mapped I/O must see), not overhead. The
+`ExecEvaluator_Check_*` benchmarks touch no changed code; `OneConditionConfigured` read 8.05 ns on
+this branch against the 5.67 ns recorded in the baseline section, but re-measured on the base
+commit in the same session it read 9.26 ns, so that row moves with JIT layout between sessions,
+not with this change. Compare same-session pairs for sub-10 ns benchmarks.
+
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 

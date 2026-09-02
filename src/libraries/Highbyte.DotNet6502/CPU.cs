@@ -101,6 +101,15 @@ public class CPU
     public ExecState ExecState { get; private set; }
     public bool IsHalted { get; private set; }
 
+    /// <summary>
+    /// Bus cycles performed by this CPU: one per byte read or written through the CPU's own
+    /// access helpers (<see cref="FetchByte"/>, <see cref="StoreByte"/>). On a 6502 every clock
+    /// cycle is a bus access, so once every instruction performs all of its accesses (dummy reads
+    /// included) the count advanced by an instruction equals its cycle count; the tests hold the
+    /// two together. Monotonic; not reset by <see cref="Reset"/>.
+    /// </summary>
+    public ulong BusCycles { get; private set; }
+
     public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
     /// <summary>
@@ -652,8 +661,8 @@ public class CPU
     /// <returns></returns>
     public byte FetchByte(Memory mem, ushort address)
     {
-        byte data = mem.FetchByte(address);
-        return data;
+        BusCycles++;
+        return mem.FetchByte(address);
     }
 
     /// <summary>
@@ -665,8 +674,10 @@ public class CPU
     /// <returns></returns>
     public ushort FetchWord(Memory mem, ushort address)
     {
-        ushort data = mem.FetchWord(address);
-        return data;
+        // Two bus cycles, low byte first; the high byte address wraps at $FFFF like the helper did.
+        var lowByte = FetchByte(mem, address);
+        var highByte = FetchByte(mem, (ushort)(address + 1));
+        return ByteHelpers.ToLittleEndianWord(lowByte, highByte);
     }
 
     /// <summary>
@@ -776,6 +787,7 @@ public class CPU
     /// <param name="address"></param>
     public void StoreByte(byte byteData, Memory mem, ushort address)
     {
+        BusCycles++;
         mem.WriteByte(address, byteData);
     }
 
@@ -788,6 +800,7 @@ public class CPU
     /// <param name="address"></param>
     public void StoreWord(ushort word, Memory mem, ushort address)
     {
-        mem.WriteWord(address, word);
+        StoreByte(word.Lowbyte(), mem, address);
+        StoreByte(word.Highbyte(), mem, (ushort)(address + 1));
     }
 }
