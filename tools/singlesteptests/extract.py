@@ -39,45 +39,40 @@ def fetch(commit, path, attempts=3):
     raise last
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--commit", default=DEFAULT_COMMIT)
-    ap.add_argument("--per-opcode", type=int, default=20)
-    ap.add_argument("--sets", default=",".join(DEFAULT_SETS))
-    args = ap.parse_args()
-    sets = [s for s in args.sets.split(",") if s]
-    out_dir = os.path.abspath(OUT_DIR)
-    os.makedirs(out_dir, exist_ok=True)
+def extract_set(commit, set_name, per_opcode, out_dir):
+    """Writes one gzip'd JSON-lines file with the first N vectors of every opcode in a set."""
+    out_path = os.path.join(out_dir, f"{set_name}.jsonl.gz")
+    with gzip.open(out_path, "wt", encoding="utf-8", compresslevel=9) as out:
+        for opcode in range(256):
+            vectors = fetch_opcode(commit, set_name, opcode)
+            if vectors is None:
+                continue
+            for v in vectors[:per_opcode]:
+                out.write(json.dumps(v, separators=(",", ":")) + "\n")
+            print(f"{set_name} {opcode:02x}: {min(len(vectors), per_opcode)} of {len(vectors)}", file=sys.stderr)
 
-    with open(os.path.join(out_dir, "LICENSE"), "wb") as f:
-        f.write(fetch(args.commit, "LICENSE"))
 
-    manifest = {"commit": args.commit, "perOpcode": args.per_opcode, "sets": {}}
-    for s in sets:
-        out_path = os.path.join(out_dir, f"{s}.jsonl.gz")
-        count = 0
-        with gzip.open(out_path, "wt", encoding="utf-8", compresslevel=9) as out:
-            for opcode in range(256):
-                path = f"{s}/v1/{opcode:02x}.json"
-                try:
-                    data = fetch(args.commit, path)
-                except urllib.error.HTTPError as e:
-                    if e.code == 404:
-                        print(f"{s}: no file for {opcode:02x}, skipping", file=sys.stderr)
-                        continue
-                    raise
-                if not data.strip():
-                    # Upstream ships empty files for instructions that cannot be single-stepped
-                    # (the WDC set's WAI/STP).
-                    print(f"{s} {opcode:02x}: empty upstream file, skipping", file=sys.stderr)
-                    continue
-                vectors = json.loads(data)
-                for v in vectors[: args.per_opcode]:
-                    out.write(json.dumps(v, separators=(",", ":")) + "\n")
-                    count += 1
-                print(f"{s} {opcode:02x}: {min(len(vectors), args.per_opcode)} of {len(vectors)}", file=sys.stderr)
+def fetch_opcode(commit, set_name, opcode):
+    """Returns the vectors of one opcode file, or None when upstream has no usable file for it."""
+    path = f"{set_name}/v1/{opcode:02x}.json"
+    try:
+        data = fetch(commit, path)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print(f"{set_name}: no file for {opcode:02x}, skipping", file=sys.stderr)
+            return None
+        raise
+    if not data.strip():
+        # Upstream ships empty files for instructions that cannot be single-stepped
+        # (the WDC set's WAI/STP).
+        print(f"{set_name} {opcode:02x}: empty upstream file, skipping", file=sys.stderr)
+        return None
+    return json.loads(data)
 
-    # The manifest describes every set file present, so sets can be regenerated one at a time.
+
+def write_manifest(commit, per_opcode, out_dir):
+    """Describes every set file present, so sets can be regenerated one at a time."""
+    manifest = {"commit": commit, "perOpcode": per_opcode, "sets": {}}
     for name in sorted(os.listdir(out_dir)):
         if not name.endswith(".jsonl.gz"):
             continue
@@ -86,11 +81,28 @@ def main():
             count = sum(1 for line in f if line.strip())
         digest = hashlib.sha256(open(out_path, "rb").read()).hexdigest()
         manifest["sets"][name[: -len(".jsonl.gz")]] = {"file": name, "vectors": count, "sha256": digest}
-
     with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    print(json.dumps(manifest, indent=2))
+    return manifest
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--commit", default=DEFAULT_COMMIT)
+    ap.add_argument("--per-opcode", type=int, default=20)
+    ap.add_argument("--sets", default=",".join(DEFAULT_SETS))
+    args = ap.parse_args()
+    out_dir = os.path.abspath(OUT_DIR)
+    os.makedirs(out_dir, exist_ok=True)
+
+    with open(os.path.join(out_dir, "LICENSE"), "wb") as f:
+        f.write(fetch(args.commit, "LICENSE"))
+
+    for set_name in [s for s in args.sets.split(",") if s]:
+        extract_set(args.commit, set_name, args.per_opcode, out_dir)
+
+    print(json.dumps(write_manifest(args.commit, args.per_opcode, out_dir), indent=2))
 
 
 if __name__ == "__main__":

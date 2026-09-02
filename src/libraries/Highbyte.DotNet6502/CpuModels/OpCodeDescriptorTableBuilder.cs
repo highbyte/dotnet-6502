@@ -100,41 +100,48 @@ internal static class OpCodeDescriptorTableBuilder
 
     /// <summary>
     /// Composes a read-style instruction (value in → registers/flags): operand fetch per
-    /// mode, the NMOS page-cross dummy read when enabled, then the core. Total cycles =
+    /// mode, the model's page-cross cycle when enabled, then the core. Total cycles =
     /// base + optional page-cross cycle + whatever the core reports (e.g. CMOS decimal +1).
+    /// Every cycle is a bus access: a core reporting an extra cycle makes it a re-read of
+    /// the operand address.
     /// </summary>
     internal static ExecuteHandler ComposeRead(AddrMode addressingMode, ulong baseCycles, ReadOperation core,
         bool addPageCrossCycle, bool indexedDummyReads)
     {
-        // A core reporting an extra cycle (65C02 decimal-mode ADC/SBC) makes that cycle a real
-        // access: the operand address is read again.
         if (addressingMode == AddrMode.I)
-        {
-            return (cpu, mem) =>
-            {
-                var extra = core(cpu, cpu.FetchOperand(mem));
-                if (extra != 0)
-                    cpu.FetchByte(mem, (ushort)(cpu.PC - 1));
-                return baseCycles + extra;
-            };
-        }
+            return ComposeImmediateRead(baseCycles, core);
 
         var resolveAddress = GetAddressResolver(addressingMode);
         if (indexedDummyReads && IsIndexedMode(addressingMode))
+            return ComposeNmosIndexedRead(resolveAddress, baseCycles, core, addPageCrossCycle);
+        return ComposeGenericRead(resolveAddress, baseCycles, core, addPageCrossCycle);
+    }
+
+    private static ExecuteHandler ComposeImmediateRead(ulong baseCycles, ReadOperation core)
+        => (cpu, mem) =>
         {
-            return (cpu, mem) =>
-            {
-                var (address, crossedPageBoundary, uncarriedAddress) = resolveAddress(cpu, mem);
-                if (crossedPageBoundary)
-                    cpu.FetchByte(mem, uncarriedAddress);
-                var extra = core(cpu, cpu.FetchByte(mem, address));
-                if (extra != 0)
-                    cpu.FetchByte(mem, address);
-                return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul) + extra;
-            };
-        }
-        // CMOS: the page-cross cycle re-reads the last operand byte instead of the un-carried address.
-        return (cpu, mem) =>
+            var extra = core(cpu, cpu.FetchOperand(mem));
+            if (extra != 0)
+                cpu.FetchByte(mem, (ushort)(cpu.PC - 1));
+            return baseCycles + extra;
+        };
+
+    /// <summary>NMOS indexed read: on a page crossing the extra cycle reads the un-carried address.</summary>
+    private static ExecuteHandler ComposeNmosIndexedRead(ResolveAddress resolveAddress, ulong baseCycles, ReadOperation core, bool addPageCrossCycle)
+        => (cpu, mem) =>
+        {
+            var (address, crossedPageBoundary, uncarriedAddress) = resolveAddress(cpu, mem);
+            if (crossedPageBoundary)
+                cpu.FetchByte(mem, uncarriedAddress);
+            var extra = core(cpu, cpu.FetchByte(mem, address));
+            if (extra != 0)
+                cpu.FetchByte(mem, address);
+            return baseCycles + PageCrossCycle(addPageCrossCycle, crossedPageBoundary) + extra;
+        };
+
+    /// <summary>Non-indexed, or CMOS: the page-cross cycle re-reads the last operand byte.</summary>
+    private static ExecuteHandler ComposeGenericRead(ResolveAddress resolveAddress, ulong baseCycles, ReadOperation core, bool addPageCrossCycle)
+        => (cpu, mem) =>
         {
             var (address, crossedPageBoundary, _) = resolveAddress(cpu, mem);
             if (addPageCrossCycle && crossedPageBoundary)
@@ -142,9 +149,11 @@ internal static class OpCodeDescriptorTableBuilder
             var extra = core(cpu, cpu.FetchByte(mem, address));
             if (extra != 0)
                 cpu.FetchByte(mem, address);
-            return baseCycles + (addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul) + extra;
+            return baseCycles + PageCrossCycle(addPageCrossCycle, crossedPageBoundary) + extra;
         };
-    }
+
+    private static ulong PageCrossCycle(bool addPageCrossCycle, bool crossedPageBoundary)
+        => addPageCrossCycle && crossedPageBoundary ? 1ul : 0ul;
 
     /// <summary>
     /// Composes a store-style instruction: address per mode, the NMOS always-dummy-read
