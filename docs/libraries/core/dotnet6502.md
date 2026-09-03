@@ -26,7 +26,10 @@ sequence.
 
 `CPU.BusCycles` counts those accesses. Because the count advanced by an instruction equals its
 cycle count, systems can derive elapsed cycles from bus activity, and the tests hold the two
-together for every opcode byte of every model and profile.
+together for every opcode byte of every model and profile. A system can therefore keep its
+devices exact to the cycle without stepping them every cycle: a memory-mapped register handler
+reads the counter, advances the device to the cycle of the access, and then applies the access.
+The C64 does this for the VIC-II, the CIAs and the SID.
 
 Verification, beyond the functional test programs:
 

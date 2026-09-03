@@ -9,6 +9,18 @@ The C64 system logic — VIC2, CIA, SID, 1541 — lives in:
 
 This library has no UI, rendering, or I/O dependencies. It exposes abstractions that the implementation libraries below plug into.
 
+### Device timing
+
+The CPU executes one instruction at a time, but every cycle of it is a bus access counted by
+`CPU.BusCycles`. The VIC-II and the two CIAs are brought up to date lazily from that counter: at
+every instruction boundary, and at every access to one of their registers, to the cycle of the
+access. A read of `$D012` therefore returns the raster line at the cycle the read happens, a CIA
+timer read returns the count at that cycle, a raster-compare or timer-control write takes effect
+on its own cycle, and an interrupt that becomes due during an instruction is serviced right after
+it. The SID does the same through its audio provider (see below). Rendering still samples the
+VIC-II registers once per raster line, so a mid-line register change becomes visible on the next
+line.
+
 ## Implementation libraries
 
 C64-specific host code lives in its own **engine-plugin** libraries, one per host technology,

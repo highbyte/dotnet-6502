@@ -181,6 +181,18 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     }
 
     /// <summary>
+    /// Align the VIC-II and CIA bus-cycle bookkeeping with the CPU without advancing them. The
+    /// CPU reset sequence performs bus accesses of its own (the reset vector fetch) that are not
+    /// machine time the devices should see.
+    /// </summary>
+    private void SyncDevicesToBusCycle()
+    {
+        Vic2.ResyncToBusCycle();
+        Cia1.ResyncToBusCycle();
+        Cia2.ResyncToBusCycle();
+    }
+
+    /// <summary>
     /// Executes on instruction, and all the processing needed after each instruction.
     /// </summary>
     /// <param name="systemRunner"></param>
@@ -212,14 +224,17 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             }
         }
 
-        // Execute one CPU instruction
+        // Execute one CPU instruction. Accesses to VIC-II, CIA and SID registers during the
+        // instruction catch the device up to the cycle of the access (see the register mappings),
+        // so a device interrupt raised that way is serviced by the CPU right after this instruction.
         instructionExecResult = CPU.ExecuteOneInstructionMinimal(Mem);
 
-        // Update CIA timers
+        // Bring the CIA timers up to the end of the instruction. CPU.BusCycles counts one bus
+        // access per cycle, so its delta equals the instruction's cycle count.
         if (TimerMode == TimerMode.UpdateEachInstruction)
         {
-            Cia1.ProcessTimers(instructionExecResult.CyclesConsumed);
-            Cia2.ProcessTimers(instructionExecResult.CyclesConsumed);
+            Cia1.CatchUpTo(CPU.BusCycles);
+            Cia2.CatchUpTo(CPU.BusCycles);
         }
 
         // Update IEC bus devices
@@ -237,16 +252,15 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             // advance below and the caller's frame budget include it.
             if (TimerMode == TimerMode.UpdateEachInstruction)
             {
-                Cia1.ProcessTimers(interruptCycles);
-                Cia2.ProcessTimers(interruptCycles);
+                Cia1.CatchUpTo(CPU.BusCycles);
+                Cia2.CatchUpTo(CPU.BusCycles);
             }
             CartridgeSlot.Tick(interruptCycles);
             instructionExecResult = instructionExecResult.WithAdditionalCycles(interruptCycles);
         }
 
-        // Advance video raster
-        var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
-        Vic2.AdvanceRaster(instructionExecResult.CyclesConsumed);
+        // Bring the video raster up to the end of the instruction (including any interrupt entry).
+        Vic2.CatchUpTo(CPU.BusCycles);
 
         // Audio generation after each instruction (SID register writes happen between instructions).
         // _audioProvider is only set when audio is enabled (see ConfigureAudio).
@@ -403,6 +417,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
         // Set program counter on startup to the address specified at the 6502 reset vector.
         c64.CPU.Reset(c64.Mem);
+        c64.SyncDevicesToBusCycle();
 
         logger.LogInformation("C64 created.");
         return c64;
@@ -894,6 +909,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         Array.Clear(IO);
         SetStartupBank(this);
         CPU.Reset(Mem);
+        SyncDevicesToBusCycle();
         _logger.LogDebug(
             "C64 hard reset complete. Cartridge={Cartridge}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, ResetPC={PC:X4}",
             CartridgeSlot.AttachedCartridge?.Name ?? "none",
