@@ -32,6 +32,15 @@ public class Vic2
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
+    /// <summary>
+    /// The CPU bus cycle (<see cref="CPU.BusCycles"/>) this VIC-II has been advanced to. The C64
+    /// catches the VIC-II up to the current bus cycle at every instruction boundary and, through
+    /// the register mappings, to the cycle of every VIC-II register access, so a raster read or a
+    /// raster-compare write sees the position at its own cycle instead of the previous
+    /// instruction boundary.
+    /// </summary>
+    private ulong _advancedToBusCycle;
+
     public byte CurrentVIC2Bank { get; private set; }
 
     public ushort VideoMatrixBaseAddress { get; private set; }
@@ -273,28 +282,35 @@ public class Vic2
         }
     }
 
+    /// <summary>
+    /// Map one VIC-II register and its mirrors across $D000-$D3FF. Every access first advances the
+    /// VIC-II to the cycle of the access, so reads and writes see and affect the raster state at
+    /// their own bus cycle.
+    /// </summary>
     private void MapRegisterMirrors(
         Memory c64Mem,
         ushort registerAddress,
         Memory.LoadByte reader,
         Memory.StoreByte writer)
     {
-        c64Mem.MapReader(registerAddress, reader);
-        c64Mem.MapWriter(registerAddress, writer);
+        Memory.LoadByte timedReader = _ =>
+        {
+            CatchUpToCurrentAccess();
+            return reader(registerAddress);
+        };
+        Memory.StoreByte timedWriter = (_, value) =>
+        {
+            CatchUpToCurrentAccess();
+            writer(registerAddress, value);
+        };
 
         var registerOffset = registerAddress & 0x003F;
 
         for (var offset = registerOffset; offset <= 0x03FF; offset += 0x40)
         {
             var mirrorAddress = (ushort)(0xD000 + offset);
-            if (mirrorAddress == registerAddress)
-                continue;
-
-            c64Mem.MapReader(mirrorAddress, _ => reader(registerAddress));
-            c64Mem.MapWriter(mirrorAddress, (_, value) =>
-            {
-                writer(registerAddress, value);
-            });
+            c64Mem.MapReader(mirrorAddress, timedReader);
+            c64Mem.MapWriter(mirrorAddress, timedWriter);
         }
     }
 
@@ -865,6 +881,43 @@ public class Vic2
         return value;
     }
 
+    /// <summary>
+    /// Advance the VIC-II to the given CPU bus cycle. No-op if it is already there. The C64 calls
+    /// this with <see cref="CPU.BusCycles"/> at each instruction boundary; register accesses call
+    /// <see cref="CatchUpToCurrentAccess"/>.
+    /// </summary>
+    public void CatchUpTo(ulong busCycle)
+    {
+        if (busCycle <= _advancedToBusCycle)
+            return;
+        var cycles = busCycle - _advancedToBusCycle;
+        _advancedToBusCycle = busCycle;
+        AdvanceRaster(cycles);
+    }
+
+    /// <summary>
+    /// Advance the VIC-II to the cycle of the bus access the CPU is performing right now: every
+    /// cycle before the current access has completed, the current one is in progress.
+    /// </summary>
+    private void CatchUpToCurrentAccess()
+    {
+        var busCycles = C64.CPU.BusCycles;
+        if (busCycles > 0)
+            CatchUpTo(busCycles - 1);
+    }
+
+    /// <summary>
+    /// Realign the bus-cycle bookkeeping with the CPU without advancing the raster. Used after a
+    /// snapshot restore, where the raster position comes from the snapshot but the bus-cycle
+    /// counter belongs to the machine being restored into.
+    /// </summary>
+    internal void ResyncToBusCycle() => _advancedToBusCycle = C64.CPU.BusCycles;
+
+    /// <summary>
+    /// Advance the raster by a number of cycles, independent of the CPU bus-cycle counter. The C64
+    /// drives the VIC-II through <see cref="CatchUpTo"/>; this remains for tests and tooling that
+    /// position the raster directly.
+    /// </summary>
     public void AdvanceRaster(ulong cyclesConsumed)
     {
         var cpu = C64.CPU;
@@ -888,11 +941,12 @@ public class Vic2
 
             _currentRasterLineInternal = newLine;
 
-            // Process timers
+            // Process timers. In this mode the CIAs are only advanced at raster line changes (and
+            // at their own register accesses), to the bus cycle the VIC-II has reached.
             if (C64.TimerMode == TimerMode.UpdateEachRasterLine)
             {
-                C64.Cia1.ProcessTimers(Vic2Model.CyclesPerLine);
-                C64.Cia2.ProcessTimers(Vic2Model.CyclesPerLine);
+                C64.Cia1.CatchUpTo(_advancedToBusCycle);
+                C64.Cia2.CatchUpTo(_advancedToBusCycle);
             }
 
             // Check if a IRQ should be issued for current raster line, and issue it.
@@ -941,6 +995,7 @@ public class Vic2
 
         var line = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
         _currentRasterLineInternal = (ushort)Math.Clamp(line, 0, Vic2Model.TotalHeight - 1);
+        ResyncToBusCycle();
     }
 
     private void RaiseRasterIRQ(CPU cpu)

@@ -53,6 +53,8 @@ public sealed class C64CiaSnapshotModule : ISnapshotModule
         var c64 = (C64)context.System;
         RestoreCia(reader, c64.Cia1);
         RestoreCia(reader, c64.Cia2);
+        c64.Cia1.ResyncToBusCycle();
+        c64.Cia2.ResyncToBusCycle();
 
         var portA = reader.ReadByte();
         var portB = reader.ReadByte();

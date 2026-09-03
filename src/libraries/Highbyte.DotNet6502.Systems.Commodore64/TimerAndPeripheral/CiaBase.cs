@@ -14,6 +14,12 @@ public abstract class CiaBase
     private readonly CiaIRQ _ciaIRQ;
     private readonly Dictionary<CiaTimerType, CiaTimer> _ciaTimers;
 
+    /// <summary>
+    /// The CPU bus cycle (<see cref="CPU.BusCycles"/>) the timers have been advanced to. See
+    /// <see cref="CatchUpTo"/>.
+    /// </summary>
+    private ulong _advancedToBusCycle;
+
     protected CiaBase(C64 c64, CiaIRQ ciaIRQ)
     {
         _c64 = c64;
@@ -41,9 +47,9 @@ public abstract class CiaBase
     internal CiaIRQ SnapshotIrq => _ciaIRQ;
 
     /// <summary>
-    /// Process timers for this CIA chip
+    /// Advance the timers by a number of cycles, independent of the CPU bus-cycle counter. The C64
+    /// drives the CIAs through <see cref="CatchUpTo"/>; this remains for tests and tooling.
     /// </summary>
-    /// <param name="cyclesExecuted"></param>
     public virtual void ProcessTimers(ulong cyclesExecuted)
     {
         foreach (var ciaTimer in _ciaTimers.Values)
@@ -51,6 +57,36 @@ public abstract class CiaBase
             ciaTimer.ProcessTimer(cyclesExecuted);
         }
     }
+
+    /// <summary>
+    /// Advance the timers to the given CPU bus cycle. No-op if they are already there. Depending
+    /// on <see cref="C64.TimerMode"/> the C64 calls this at every instruction boundary or at every
+    /// raster line change; every CIA register access calls it for the cycle of the access, so a
+    /// timer or interrupt-status read sees the count at its own cycle and a control write takes
+    /// effect on its own cycle.
+    /// </summary>
+    public void CatchUpTo(ulong busCycle)
+    {
+        if (busCycle <= _advancedToBusCycle)
+            return;
+        var cycles = busCycle - _advancedToBusCycle;
+        _advancedToBusCycle = busCycle;
+        ProcessTimers(cycles);
+    }
+
+    /// <summary>State as of the cycle of the bus access the CPU is performing right now.</summary>
+    private void CatchUpToCurrentAccess()
+    {
+        var busCycles = _c64.CPU.BusCycles;
+        if (busCycles > 0)
+            CatchUpTo(busCycles - 1);
+    }
+
+    /// <summary>
+    /// Realign the bus-cycle bookkeeping with the CPU without advancing the timers. Used after a
+    /// snapshot restore.
+    /// </summary>
+    internal void ResyncToBusCycle() => _advancedToBusCycle = _c64.CPU.BusCycles;
 
     /// <summary>
     /// Map IO locations for this CIA chip
@@ -61,16 +97,25 @@ public abstract class CiaBase
     /// <summary>
     /// Map one CIA register and all of its mirrors across the chip's 256-byte I/O page.
     /// The MOS 6526 only decodes the low 4 address bits, so $DC0D is also visible at
-    /// $DC1D, $DC2D, ..., $DCFD (and likewise for CIA #2 at $DDxx).
+    /// $DC1D, $DC2D, ..., $DCFD (and likewise for CIA #2 at $DDxx). Every access first advances
+    /// the timers to the cycle of the access.
     /// </summary>
-    protected static void MapRegisterMirrors(
+    protected void MapRegisterMirrors(
         Memory c64mem,
         ushort registerAddress,
         Memory.LoadByte reader,
         Memory.StoreByte writer)
     {
-        c64mem.MapReader(registerAddress, reader);
-        c64mem.MapWriter(registerAddress, writer);
+        Memory.LoadByte timedReader = _ =>
+        {
+            CatchUpToCurrentAccess();
+            return reader(registerAddress);
+        };
+        Memory.StoreByte timedWriter = (_, value) =>
+        {
+            CatchUpToCurrentAccess();
+            writer(registerAddress, value);
+        };
 
         var pageStart = registerAddress & 0xFF00;
         var registerOffset = registerAddress & 0x000F;
@@ -78,11 +123,8 @@ public abstract class CiaBase
         for (var offset = registerOffset; offset <= 0x00FF; offset += 0x10)
         {
             var mirrorAddress = (ushort)(pageStart + offset);
-            if (mirrorAddress == registerAddress)
-                continue;
-
-            c64mem.MapReader(mirrorAddress, _ => reader(registerAddress));
-            c64mem.MapWriter(mirrorAddress, (_, value) => writer(registerAddress, value));
+            c64mem.MapReader(mirrorAddress, timedReader);
+            c64mem.MapWriter(mirrorAddress, timedWriter);
         }
     }
 
