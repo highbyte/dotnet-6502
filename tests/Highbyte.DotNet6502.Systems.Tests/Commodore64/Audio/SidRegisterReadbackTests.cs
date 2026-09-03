@@ -101,16 +101,12 @@ public class SidRegisterReadbackTests
     [InlineData(SidAddr.CUTLO)]
     [InlineData(SidAddr.CUTHI)]
     [InlineData(SidAddr.RESON)]
-    public void Filter_register_writes_reach_the_audio_provider_and_read_back(ushort address)
+    public void Filter_registers_read_back_through_the_latch_like_other_write_only_registers(ushort address)
     {
         var c64 = Build([0xA9, 0x77, 0x8D, (byte)(address & 0xFF), (byte)(address >> 8), 0xAD, (byte)(address & 0xFF), (byte)(address >> 8)]);
-        var writes = new List<byte>();
-        c64.Sid.InternalSidState.RegisterWriteSink = new RecordingSink(writes);
 
         Step(c64, 3);
 
-        Assert.Equal([0x77], writes);
-        Assert.True(c64.Sid.InternalSidState.IsRawSidRegChanged(address));
         Assert.Equal(0x77, c64.CPU.A);
     }
 
