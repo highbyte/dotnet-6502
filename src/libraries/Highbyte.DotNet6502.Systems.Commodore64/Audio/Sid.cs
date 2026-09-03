@@ -95,6 +95,15 @@ public class Sid
 
 
         // Common audio registers
+        c64Mem.MapReader(SidAddr.CUTLO, (_) => 0);
+        c64Mem.MapWriter(SidAddr.CUTLO, InternalSidState.SetSidRegValue);
+
+        c64Mem.MapReader(SidAddr.CUTHI, (_) => 0);
+        c64Mem.MapWriter(SidAddr.CUTHI, InternalSidState.SetSidRegValue);
+
+        c64Mem.MapReader(SidAddr.RESON, (_) => 0);
+        c64Mem.MapWriter(SidAddr.RESON, InternalSidState.SetSidRegValue);
+
         c64Mem.MapReader(SidAddr.SIGVOL, (_) => 0);
         c64Mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
 
