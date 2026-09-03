@@ -97,17 +97,17 @@ public class Sid
 
 
         // Common audio registers
-        c64Mem.MapReader(SidAddr.SIGVOL, _ => _internalSidState.ReadWriteOnlyRegister());
-        c64Mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
-
-        // Filter cutoff and resonance/routing. These had no mapping before, so a program's
-        // filter writes landed in the IO storage without the audio providers ever seeing them.
         c64Mem.MapReader(SidAddr.CUTLO, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.CUTLO, InternalSidState.SetSidRegValue);
+
         c64Mem.MapReader(SidAddr.CUTHI, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.CUTHI, InternalSidState.SetSidRegValue);
+
         c64Mem.MapReader(SidAddr.RESON, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.RESON, InternalSidState.SetSidRegValue);
+
+        c64Mem.MapReader(SidAddr.SIGVOL, _ => _internalSidState.ReadWriteOnlyRegister());
+        c64Mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
 
         // Paddle/mouse analog inputs. With no paddle/mouse emulation connected, return the
         // idle/open value instead of the zero-filled backing IO RAM. Some software probes
