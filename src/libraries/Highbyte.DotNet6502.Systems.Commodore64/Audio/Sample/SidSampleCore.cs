@@ -88,8 +88,9 @@ public sealed class SidSampleCore
     // Chamberlin SVF state and cached coefficients (Auto mode only).
     private float _filterLow;        // y_lp accumulator
     private float _filterBand;       // y_bp accumulator
-    private float _filterCoefF;      // 2*sin(pi*fc/fs) — recomputed on cutoff write
-    private float _filterDamping;    // 1/Q — recomputed on resonance write
+    private float _filterCoefF;      // 2*sin(pi*fc/fs), limited for stability — recomputed on cutoff or resonance write
+    private float _filterCoefFRequested; // 2*sin(pi*fc/fs) as requested by the cutoff registers
+    private float _filterDamping = DampingForResonance(0); // 1/Q — recomputed on resonance write
     private byte _filterRoutingBits; // $D417 low 3 bits — V1/V2/V3 routing through filter
     private byte _filterTypeBits;    // $D418 bits 4-6 — LP/BP/HP enable
     private bool _voice3Off;         // $D418 bit 7 — silence V3 when not filtered
@@ -184,21 +185,36 @@ public sealed class SidSampleCore
         // Linear map 0..2047 → ~30 Hz..12 kHz. Real SID is non-linear and chip-variant; a fitted
         // 6581/8580 lookup table can be swapped in later for chip-accurate filter response.
         float fcHz = 30f + (fcReg / 2047f) * 12000f;
+        if (fcHz > _sampleRateHz * 0.5f) fcHz = _sampleRateHz * 0.5f;
 
-        // Cap at ~0.45 × output rate so the Chamberlin SVF stays well inside its stable region.
-        float maxFcHz = _sampleRateHz * 0.45f;
-        if (fcHz > maxFcHz) fcHz = maxFcHz;
-
-        _filterCoefF = 2f * MathF.Sin(MathF.PI * fcHz / _sampleRateHz);
+        _filterCoefFRequested = 2f * MathF.Sin(MathF.PI * fcHz / _sampleRateHz);
+        LimitFilterCoefficient();
     }
 
     private void RecalculateFilterDamping(byte resflt)
     {
-        int res = (resflt >> 4) & 0x0F;
-        // Damping = 1/Q. res=0 → Q≈0.67 (no audible peak), res=15 → Q≈10 (sharp resonance).
-        // Linear interpolation 1.5 → 0.1 across res=0..15 — coarse but stable for the full cutoff
-        // range we allow above.
-        _filterDamping = 1.5f - res * (1.5f - 0.1f) / 15f;
+        _filterDamping = DampingForResonance((resflt >> 4) & 0x0F);
+        LimitFilterCoefficient();
+    }
+
+    // Damping = 1/Q. res=0 → Q≈0.67 (no audible peak), res=15 → Q≈10 (sharp resonance).
+    // Linear interpolation 1.5 → 0.1 across res=0..15.
+    private static float DampingForResonance(int res) => 1.5f - res * (1.5f - 0.1f) / 15f;
+
+    /// <summary>
+    /// The Chamberlin SVF, ticked once per output sample, is only stable while
+    /// <c>F² + 2·F·D &lt; 4</c> (F = frequency coefficient, D = damping); past that its state
+    /// grows without bound and ends up NaN, which silences every filtered voice for good. Clamp F
+    /// to just inside that bound for the current damping, so a tune that opens the cutoff fully
+    /// gets the highest cutoff this filter can represent at the output rate instead of a dead
+    /// filter. At 44.1 kHz that is ~7 kHz with no resonance, rising toward 12 kHz as resonance
+    /// increases.
+    /// </summary>
+    private void LimitFilterCoefficient()
+    {
+        float d = _filterDamping;
+        float maxF = 0.95f * (MathF.Sqrt(d * d + 4f) - d);
+        _filterCoefF = _filterCoefFRequested < maxF ? _filterCoefFRequested : maxF;
     }
 
     /// <summary>
@@ -298,7 +314,8 @@ public sealed class SidSampleCore
         _filterLow = 0f;
         _filterBand = 0f;
         _filterCoefF = 0f;
-        _filterDamping = 0f;
+        _filterCoefFRequested = 0f;
+        _filterDamping = DampingForResonance(0);
         _filterRoutingBits = 0;
         _filterTypeBits = 0;
         _voice3Off = false;
