@@ -32,7 +32,8 @@ undocumented-opcode compatibility profile is configurable.
       resonant low-pass / band-pass / high-pass filter, and the `$D418` volume DAC's DC term
       (so digi / sample-playback tunes are audible). Register writes reach the chip on the
       exact CPU cycle they happen, OSC3/ENV3 reads see the chip's state at the cycle of the
-      read, and the volume DAC is averaged over each output sample. Missing: chip-variant filter models (6581 R1/R2/R3/R4 vs 8580), chip-measured
+      read, the volume DAC is averaged over each output sample, and reads of write-only
+      registers return the chip's decaying data-bus latch as on a 6581. Missing: chip-variant filter models (6581 R1/R2/R3/R4 vs 8580), chip-measured
       combined-waveform tables, and anti-aliased downsampling.
     - **Command stream** (legacy, low CPU but inaccurate) — decodes SID register changes into
       generic synthesizer commands driven by an oscillator graph. Many tunes sound wrong; no
