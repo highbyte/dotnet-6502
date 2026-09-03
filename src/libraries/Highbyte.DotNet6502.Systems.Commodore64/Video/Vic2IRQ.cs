@@ -35,11 +35,15 @@ public class Vic2IRQ
     {
         return _sourceEnableStatus[source];
     }
+    /// <summary>
+    /// Enable a source. If it is already latched the IRQ line goes active now, on the cycle of the
+    /// register write that enabled it.
+    /// </summary>
     public void Enable(IRQSource source, CPU cpu)
     {
         _sourceEnableStatus[source] = true;
         if (_sourceTriggerStatus[source])
-            cpu.CPUInterrupts.SetIRQSourceActive(GetInterruptSourceName(source), autoAcknowledge: false);
+            cpu.CPUInterrupts.SetIRQSourceActive(GetInterruptSourceName(source), autoAcknowledge: false, cpu.BusCycles);
     }
     public void Disable(IRQSource source, CPU cpu)
     {
@@ -62,11 +66,26 @@ public class Vic2IRQ
         _sourceTriggerStatus[source] = triggered;
     }
 
+    /// <summary>
+    /// Latch a source; asserts the IRQ line if the source is enabled. Without a cycle the CPU takes
+    /// the interrupt at its next instruction boundary.
+    /// </summary>
     public void Trigger(IRQSource source, CPU cpu)
     {
         _sourceTriggerStatus[source] = true;
         if (_sourceEnableStatus[source])
             cpu.CPUInterrupts.SetIRQSourceActive(GetInterruptSourceName(source), autoAcknowledge: false);
+    }
+
+    /// <summary>
+    /// Latch a source that arose during the given bus cycle; the CPU applies its end-of-instruction
+    /// sampling rule to that cycle (see <see cref="CPUInterrupts.SetIRQSourceActive(string, bool, ulong)"/>).
+    /// </summary>
+    public void Trigger(IRQSource source, CPU cpu, ulong atBusCycle)
+    {
+        _sourceTriggerStatus[source] = true;
+        if (_sourceEnableStatus[source])
+            cpu.CPUInterrupts.SetIRQSourceActive(GetInterruptSourceName(source), autoAcknowledge: false, atBusCycle);
     }
     public void ClearTrigger(IRQSource source, CPU cpu)
     {

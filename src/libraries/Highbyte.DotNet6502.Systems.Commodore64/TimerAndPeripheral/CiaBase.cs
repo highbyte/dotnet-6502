@@ -50,11 +50,13 @@ public abstract class CiaBase
     /// Advance the timers by a number of cycles, independent of the CPU bus-cycle counter. The C64
     /// drives the CIAs through <see cref="CatchUpTo"/>; this remains for tests and tooling.
     /// </summary>
-    public virtual void ProcessTimers(ulong cyclesExecuted)
+    public virtual void ProcessTimers(ulong cyclesExecuted) => ProcessTimers(cyclesExecuted, _c64.CPU.BusCycles);
+
+    private void ProcessTimers(ulong cyclesExecuted, ulong endBusCycle)
     {
         foreach (var ciaTimer in _ciaTimers.Values)
         {
-            ciaTimer.ProcessTimer(cyclesExecuted);
+            ciaTimer.ProcessTimer(cyclesExecuted, endBusCycle);
         }
     }
 
@@ -71,7 +73,7 @@ public abstract class CiaBase
             return;
         var cycles = busCycle - _advancedToBusCycle;
         _advancedToBusCycle = busCycle;
-        ProcessTimers(cycles);
+        ProcessTimers(cycles, busCycle);
     }
 
     /// <summary>State as of the cycle of the bus access the CPU is performing right now.</summary>

@@ -137,8 +137,8 @@ internal static class InstructionBindings
         // --- Flag operations ---
         Implied(table, 0x18, "CLC", 2, InstructionCores.Clc);
         Implied(table, 0x38, "SEC", 2, InstructionCores.Sec);
-        Implied(table, 0x58, "CLI", 2, InstructionCores.Cli);
-        Implied(table, 0x78, "SEI", 2, InstructionCores.Sei);
+        Implied(table, 0x58, "CLI", 2, InstructionCores.Cli, changesInterruptDisableAfterPoll: true);
+        Implied(table, 0x78, "SEI", 2, InstructionCores.Sei, changesInterruptDisableAfterPoll: true);
         Implied(table, 0xB8, "CLV", 2, InstructionCores.Clv);
         Implied(table, 0xD8, "CLD", 2, InstructionCores.Cld);
         Implied(table, 0xF8, "SED", 2, InstructionCores.Sed);
@@ -147,7 +147,7 @@ internal static class InstructionBindings
         Bespoke(table, 0x48, "PHA", AddrMode.Implied, 1, 3, SharedHandlers.Pha);
         Bespoke(table, 0x68, "PLA", AddrMode.Implied, 1, 4, SharedHandlers.Pla);
         Bespoke(table, 0x08, "PHP", AddrMode.Implied, 1, 3, SharedHandlers.Php);
-        Bespoke(table, 0x28, "PLP", AddrMode.Implied, 1, 4, SharedHandlers.Plp);
+        Bespoke(table, 0x28, "PLP", AddrMode.Implied, 1, 4, SharedHandlers.Plp, changesInterruptDisableAfterPoll: true);
         Bespoke(table, 0x4C, "JMP", AddrMode.ABS, 3, 3, SharedHandlers.Jmp_Absolute);
         Bespoke(table, 0x20, "JSR", AddrMode.ABS, 3, 6, SharedHandlers.Jsr);
         Bespoke(table, 0x60, "RTS", AddrMode.Implied, 1, 6, SharedHandlers.Rts);
@@ -372,7 +372,7 @@ internal static class InstructionBindings
         };
 
     private static void Bespoke(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
-        byte size, byte baseCycles, ExecuteHandler handler, bool documented = true)
+        byte size, byte baseCycles, ExecuteHandler handler, bool documented = true, bool changesInterruptDisableAfterPoll = false)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -382,6 +382,7 @@ internal static class InstructionBindings
             BaseCycles = baseCycles,
             Documented = documented,
             Execute = handler,
+            ChangesInterruptDisableAfterPoll = changesInterruptDisableAfterPoll,
         };
 
     private static void Rmw(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
@@ -440,7 +441,8 @@ internal static class InstructionBindings
         };
 
     private static void Implied(OpCodeDescriptor?[] table, byte code, string mnemonic,
-        byte baseCycles, ImpliedOperation core, AddrMode addressing = AddrMode.Implied, bool documented = true)
+        byte baseCycles, ImpliedOperation core, AddrMode addressing = AddrMode.Implied, bool documented = true,
+        bool changesInterruptDisableAfterPoll = false)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -450,5 +452,6 @@ internal static class InstructionBindings
             BaseCycles = baseCycles,
             Documented = documented,
             Execute = ComposeImplied(baseCycles, core),
+            ChangesInterruptDisableAfterPoll = changesInterruptDisableAfterPoll,
         };
 }

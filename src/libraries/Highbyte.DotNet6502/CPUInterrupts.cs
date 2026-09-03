@@ -46,6 +46,18 @@ public sealed class CPUInterrupts
     /// <summary>Latched NMI edge waiting to be serviced by the CPU.</summary>
     public bool NMIPending { get; private set; }
 
+    /// <summary>
+    /// The CPU bus cycle (<see cref="CPU.BusCycles"/>, the 1-based number of the access in
+    /// progress) during which the IRQ line went active, as reported by the device that asserted
+    /// it. 0 when the device gave no cycle, which the CPU treats as "before its last poll", so the
+    /// interrupt is taken at the next instruction boundary as before. See
+    /// <see cref="CPU.ProcessPendingInterrupts"/> for the sampling rule.
+    /// </summary>
+    public ulong IRQAssertedAtBusCycle { get; private set; }
+
+    /// <summary>The bus cycle during which the pending NMI edge was detected; 0 if not given.</summary>
+    public ulong NMIPendingAtBusCycle { get; private set; }
+
     /// <summary>Number of sources registered on this instance.</summary>
     public int RegisteredSourceCount => _sourceNames.Count;
 
@@ -81,15 +93,34 @@ public sealed class CPUInterrupts
     /// <param name="source">Unique name of source</param>
     /// <param name="autoAcknowledge">Set to true if the IRQ source should automatically be removed when processed by CPU.</param>
     public void SetIRQSourceActive(string source, bool autoAcknowledge)
-        => SetIRQActive(GetSource(source), autoAcknowledge);
+        => SetIRQActive(GetSource(source), autoAcknowledge, assertedAtBusCycle: 0);
+
+    /// <summary>
+    /// Sets an IRQ source active and records the bus cycle during which the line went active,
+    /// so the CPU can apply its end-of-instruction sampling rule (an interrupt asserted during an
+    /// instruction's last cycle is taken after the following instruction).
+    /// </summary>
+    /// <param name="assertedAtBusCycle">The <see cref="CPU.BusCycles"/> value during the access
+    /// on which the device asserted the line; a device catching up at an instruction boundary
+    /// passes the cycle at which the condition arose.</param>
+    public void SetIRQSourceActive(string source, bool autoAcknowledge, ulong assertedAtBusCycle)
+        => SetIRQActive(GetSource(source), autoAcknowledge, assertedAtBusCycle);
 
     /// <inheritdoc cref="SetIRQSourceActive(string, bool)"/>
     public void SetIRQActive(InterruptSource source, bool autoAcknowledge)
+        => SetIRQActive(source, autoAcknowledge, assertedAtBusCycle: 0);
+
+    /// <inheritdoc cref="SetIRQSourceActive(string, bool, ulong)"/>
+    public void SetIRQActive(InterruptSource source, bool autoAcknowledge, ulong assertedAtBusCycle)
     {
         var mask = source.Mask;
         if ((_irqLines & mask) != 0)
             return;
 
+        // The line is level-sensitive: its assertion cycle is that of the first source to pull
+        // it low. A source added while the line is already low does not move it.
+        if (_irqLines == 0)
+            IRQAssertedAtBusCycle = assertedAtBusCycle;
         _irqLines |= mask;
         if (autoAcknowledge)
             _irqAutoAcknowledgeMask |= mask;
@@ -144,16 +175,29 @@ public sealed class CPUInterrupts
     /// </summary>
     /// <param name="source">Unique name of source</param>
     public void SetNMISourceActive(string source)
-        => SetNMIActive(GetSource(source));
+        => SetNMIActive(GetSource(source), pendingAtBusCycle: 0);
+
+    /// <summary>
+    /// Sets an NMI source active and records the bus cycle during which the edge occurred (see
+    /// <see cref="SetIRQSourceActive(string, bool, ulong)"/> for the sampling rule).
+    /// </summary>
+    public void SetNMISourceActive(string source, ulong pendingAtBusCycle)
+        => SetNMIActive(GetSource(source), pendingAtBusCycle);
 
     /// <inheritdoc cref="SetNMISourceActive(string)"/>
     public void SetNMIActive(InterruptSource source)
+        => SetNMIActive(source, pendingAtBusCycle: 0);
+
+    /// <inheritdoc cref="SetNMISourceActive(string, ulong)"/>
+    public void SetNMIActive(InterruptSource source, ulong pendingAtBusCycle)
     {
         var mask = source.Mask;
         if ((_nmiLines & mask) != 0)
             return;
 
         _nmiLines |= mask;
+        if (!NMIPending)
+            NMIPendingAtBusCycle = pendingAtBusCycle;
         NMIPending = true;
     }
 

@@ -75,6 +75,23 @@ public class CPU
     public CPUInterrupts CPUInterrupts { get; private set; } = new CPUInterrupts();
 
     /// <summary>
+    /// The bus cycle at which the last instruction polled its interrupt lines. The 6502 samples
+    /// IRQ and NMI at the end of an instruction's second-to-last cycle (for a taken branch that
+    /// does not cross a page, at the end of its first cycle), so a line that goes active during
+    /// the last cycle is only seen after the following instruction. A device reports the cycle it
+    /// asserted the line on (see <see cref="CPUInterrupts.SetIRQSourceActive(string, bool, ulong)"/>);
+    /// an interrupt is taken at a boundary only if that cycle is at or before this one.
+    /// </summary>
+    private ulong _interruptPollBusCycle;
+
+    /// <summary>
+    /// The I flag as seen by the last poll, when it differs from the live flag: CLI, SEI and PLP
+    /// change the flag after the poll, so the interrupt decision at their boundary uses the value
+    /// from before the instruction. Null means "use the live flag" (RTI changes it in time).
+    /// </summary>
+    private bool? _interruptDisableAtPoll;
+
+    /// <summary>
     /// Is True when a IRQ (Interrupt Request) has been raised.
     /// Raising a NMI is done by setting a NMI source active, which is done by calling CPUInterrupts.SetNMISourceActive(source).
     /// 
@@ -272,10 +289,13 @@ public class CPU
         if (IsHalted)
             return InstructionExecResult.CpuAlreadyHaltedResult(PC);
 
+        var interruptDisableBefore = ProcessorStatus.InterruptDisable;
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
         if (!instructionExecutionResult.HaltedCpu)
         {
+            RecordInterruptPollPoint(instructionExecutionResult, interruptDisableBefore);
+
             // Fold the hardware interrupt-entry cost (when one was serviced at this
             // boundary) into this instruction's result, so cycle totals and the
             // system loops that pace devices/frame budgets by it see real elapsed time.
@@ -292,6 +312,8 @@ public class CPU
     /// <summary>
     /// Services any pending hardware interrupts at the current instruction boundary.
     /// Intended for system-level device ticking that occurs after instruction execution.
+    /// An interrupt whose device reported an assertion cycle later than the instruction's poll
+    /// point (its last cycle) is left pending for the next boundary, as on hardware.
     /// </summary>
     /// <param name="mem"></param>
     /// <returns>
@@ -357,6 +379,7 @@ public class CPU
 
             RaiseInstructionToBeExecutedIfSubscribed(mem);
 
+            var interruptDisableBefore = ProcessorStatus.InterruptDisable;
             var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
             // Service pending hardware interrupts at this boundary and fold the entry
@@ -365,6 +388,7 @@ public class CPU
             // time. (NmiAcknowledging consequently fires before InstructionExecuted.)
             if (!instructionExecutionResult.HaltedCpu)
             {
+                RecordInterruptPollPoint(instructionExecutionResult, interruptDisableBefore);
                 var interruptCycles = ProcessInterrupts(mem);
                 if (interruptCycles > 0)
                     instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
@@ -413,13 +437,35 @@ public class CPU
     /// </summary>
     public const ulong InterruptEntryCycles = 7;
 
+    private void RecordInterruptPollPoint(InstructionExecResult result, bool interruptDisableBefore)
+    {
+        var descriptor = Descriptors[result.OpCodeByte];
+        var poll = BusCycles > 0 ? BusCycles - 1 : 0;
+        // A relative branch taken without a page crossing (3 cycles: not taken is 2, taken across
+        // a page is 4) polls interrupts only at the end of its first cycle. The descriptor table
+        // decides what is a branch for this model ($80 is BRA on the 65C02, a NOP on the NMOS 6502).
+        if (result.CyclesConsumed == 3 && poll > 0 && descriptor?.Addressing == AddrMode.Relative)
+            poll--;
+        _interruptPollBusCycle = poll;
+        // CLI, SEI and PLP (per the model's table) change the I flag after the poll.
+        _interruptDisableAtPoll = descriptor?.ChangesInterruptDisableAfterPoll == true ? interruptDisableBefore : null;
+    }
+
+    private void RecordInterruptPollPointAfterInterruptEntry()
+    {
+        // The entry sequence behaves like an instruction: lines are polled again at its end, and
+        // the I flag it set is what the next decision sees.
+        _interruptPollBusCycle = BusCycles > 0 ? BusCycles - 1 : 0;
+        _interruptDisableAtPoll = null;
+    }
+
     /// <returns>Cycles consumed: <see cref="InterruptEntryCycles"/> if an interrupt was serviced, else 0.</returns>
     private ulong ProcessInterrupts(Memory mem)
     {
         if (IsHalted)
             return 0;
 
-        if (CPUInterrupts.NMIPending)
+        if (CPUInterrupts.NMIPending && CPUInterrupts.NMIPendingAtBusCycle <= _interruptPollBusCycle)
         {
             OnNmiAcknowledging();
             // The vector is read exactly once, inside ProcessHardwareNMI (as on real hardware,
@@ -439,15 +485,19 @@ public class CPU
                     nmiVector,
                     nmiSources);
             }
+            RecordInterruptPollPointAfterInterruptEntry();
             return InterruptEntryCycles;
         }
 
-        if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
+        if (CPUInterrupts.IRQLineEnabled
+            && CPUInterrupts.IRQAssertedAtBusCycle <= _interruptPollBusCycle
+            && !(_interruptDisableAtPoll ?? ProcessorStatus.InterruptDisable))
         {
             // Sources raised with autoAcknowledge are dropped now; manually acknowledged
             // sources keep the line asserted until their device clears them.
             CPUInterrupts.AcknowledgeAutoAcknowledgingIRQSources();
             ProcessHardwareIRQ(mem);
+            RecordInterruptPollPointAfterInterruptEntry();
             return InterruptEntryCycles;
         }
 
@@ -528,6 +578,8 @@ public class CPU
             ProcessorStatus.Decimal = false;
         // Change PC to address found at BRK/IRQ handler vector
         PC = FetchWord(mem, CPU.ResetVector);
+        _interruptPollBusCycle = BusCycles;
+        _interruptDisableAtPoll = null;
         IsHalted = false;
     }
 
