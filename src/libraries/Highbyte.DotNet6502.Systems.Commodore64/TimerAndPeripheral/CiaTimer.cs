@@ -95,9 +95,12 @@ public class CiaTimer
     /// <param name="cyclesExecuted">Cycles to advance.</param>
     /// <param name="endBusCycle">The CPU bus cycle the advance ends at; an underflow is dated to
     /// the cycle it happened on so the interrupt carries its real cycle.</param>
+    /// <summary>True while the timer is started and running, i.e. while elapsed cycles change it.</summary>
+    public bool IsCounting => _timerIsRunning && (_timerControl >> _timerControlStartBit & 1) != 0;
+
     public void ProcessTimer(ulong cyclesExecuted, ulong endBusCycle)
     {
-        if (!TimerControl.IsBitSet(_timerControlStartBit) || !_timerIsRunning || cyclesExecuted == 0)
+        if (!IsCounting || cyclesExecuted == 0)
             return;
 
         var cyclesRemaining = cyclesExecuted;

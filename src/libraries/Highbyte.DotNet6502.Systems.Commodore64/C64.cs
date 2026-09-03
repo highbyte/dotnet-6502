@@ -180,16 +180,29 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
+    /// <summary>
+    /// Bring the VIC-II and the CIAs up to the current CPU bus cycle. The CIAs are stepped from
+    /// here only: on every instruction in <see cref="Config.TimerMode.UpdateEachInstruction"/>, and in
+    /// <see cref="Config.TimerMode.UpdateEachRasterLine"/> only when the raster line has changed since
+    /// they were last stepped (their own register accesses catch them up in both modes).
+    /// </summary>
     private void AdvanceDevicesToCurrentBusCycle()
     {
         var busCycles = CPU.BusCycles;
-        if (TimerMode == TimerMode.UpdateEachInstruction)
-        {
-            Cia1.CatchUpTo(busCycles);
-            Cia2.CatchUpTo(busCycles);
-        }
         Vic2.CatchUpTo(busCycles);
+
+        if (TimerMode == TimerMode.UpdateEachRasterLine)
+        {
+            var line = Vic2.CurrentRasterLine;
+            if (line == _rasterLineAtLastCiaStep)
+                return;
+            _rasterLineAtLastCiaStep = line;
+        }
+        Cia1.CatchUpTo(busCycles);
+        Cia2.CatchUpTo(busCycles);
     }
+
+    private ushort _rasterLineAtLastCiaStep = ushort.MaxValue;
 
     /// <summary>
     /// Align the VIC-II and CIA bus-cycle bookkeeping with the CPU without advancing them. The

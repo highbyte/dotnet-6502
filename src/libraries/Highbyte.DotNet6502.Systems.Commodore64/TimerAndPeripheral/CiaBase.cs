@@ -12,7 +12,8 @@ public abstract class CiaBase
     protected readonly C64 _c64;
 
     private readonly CiaIRQ _ciaIRQ;
-    private readonly Dictionary<CiaTimerType, CiaTimer> _ciaTimers;
+    private readonly CiaTimer _timerA;
+    private readonly CiaTimer _timerB;
 
     /// <summary>
     /// The CPU bus cycle (<see cref="CPU.BusCycles"/>) the timers have been advanced to. See
@@ -24,26 +25,17 @@ public abstract class CiaBase
     {
         _c64 = c64;
         _ciaIRQ = ciaIRQ;
-        _ciaTimers = new Dictionary<CiaTimerType, CiaTimer>();
-
-        // Initialize timers - this is common for both CIA1 and CIA2
-        InitializeTimers();
+        _timerA = new CiaTimer(CiaTimerType.CiaA, IRQSource.TimerA, _c64, _ciaIRQ);
+        _timerB = new CiaTimer(CiaTimerType.CiaB, IRQSource.TimerB, _c64, _ciaIRQ);
     }
 
-    /// <summary>
-    /// Initialize the timers for this CIA chip
-    /// </summary>
-    private void InitializeTimers()
-    {
-        _ciaTimers.Add(CiaTimerType.CiaA, new CiaTimer(CiaTimerType.CiaA, IRQSource.TimerA, _c64, _ciaIRQ));
-        _ciaTimers.Add(CiaTimerType.CiaB, new CiaTimer(CiaTimerType.CiaB, IRQSource.TimerB, _c64, _ciaIRQ));
-    }
+    private CiaTimer Timer(CiaTimerType timerType) => timerType == CiaTimerType.CiaA ? _timerA : _timerB;
 
     // --- Snapshot support ---
     // Exposes the live timer and IRQ state (not held in IO register storage) to the c64-cia
     // snapshot module, which lives in the same assembly.
-    internal CiaTimer SnapshotTimerA => _ciaTimers[CiaTimerType.CiaA];
-    internal CiaTimer SnapshotTimerB => _ciaTimers[CiaTimerType.CiaB];
+    internal CiaTimer SnapshotTimerA => _timerA;
+    internal CiaTimer SnapshotTimerB => _timerB;
     internal CiaIRQ SnapshotIrq => _ciaIRQ;
 
     /// <summary>
@@ -54,10 +46,8 @@ public abstract class CiaBase
 
     private void ProcessTimers(ulong cyclesExecuted, ulong endBusCycle)
     {
-        foreach (var ciaTimer in _ciaTimers.Values)
-        {
-            ciaTimer.ProcessTimer(cyclesExecuted, endBusCycle);
-        }
+        _timerA.ProcessTimer(cyclesExecuted, endBusCycle);
+        _timerB.ProcessTimer(cyclesExecuted, endBusCycle);
     }
 
     /// <summary>
@@ -73,6 +63,9 @@ public abstract class CiaBase
             return;
         var cycles = busCycle - _advancedToBusCycle;
         _advancedToBusCycle = busCycle;
+        // Idle timers do not change with time; skip the per-timer calls on the common path.
+        if (!_timerA.IsCounting && !_timerB.IsCounting)
+            return;
         ProcessTimers(cycles, busCycle);
     }
 
@@ -133,32 +126,32 @@ public abstract class CiaBase
     /// <summary>
     /// Common timer high byte load functionality
     /// </summary>
-    protected byte TimerHILoad(CiaTimerType timerType) => _ciaTimers[timerType].InternalTimer.Highbyte();
+    protected byte TimerHILoad(CiaTimerType timerType) => Timer(timerType).InternalTimer.Highbyte();
 
     /// <summary>
     /// Common timer high byte store functionality
     /// </summary>
-    protected void TimerHIStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].SetInternalTimer_Latch_HI(value);
+    protected void TimerHIStore(CiaTimerType timerType, byte value) => Timer(timerType).SetInternalTimer_Latch_HI(value);
 
     /// <summary>
     /// Common timer low byte load functionality
     /// </summary>
-    protected byte TimerLOLoad(CiaTimerType timerType) => _ciaTimers[timerType].InternalTimer.Lowbyte();
+    protected byte TimerLOLoad(CiaTimerType timerType) => Timer(timerType).InternalTimer.Lowbyte();
 
     /// <summary>
     /// Common timer low byte store functionality
     /// </summary>
-    protected void TimerLOStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].SetInternalTimer_Latch_LO(value);
+    protected void TimerLOStore(CiaTimerType timerType, byte value) => Timer(timerType).SetInternalTimer_Latch_LO(value);
 
     /// <summary>
     /// Common timer control load functionality
     /// </summary>
-    protected byte TimerControlLoad(CiaTimerType timerType) => _ciaTimers[timerType].TimerControl;
+    protected byte TimerControlLoad(CiaTimerType timerType) => Timer(timerType).TimerControl;
 
     /// <summary>
     /// Common timer control store functionality
     /// </summary>
-    protected void TimerControlStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].TimerControl = value;
+    protected void TimerControlStore(CiaTimerType timerType, byte value) => Timer(timerType).TimerControl = value;
 
     /// <summary>
     /// Common timer A methods
