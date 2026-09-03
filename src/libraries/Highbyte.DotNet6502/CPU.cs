@@ -322,23 +322,7 @@ public class CPU
         if (IsHalted)
             return InstructionExecResult.CpuAlreadyHaltedResult(PC);
 
-        var interruptDisableBefore = ProcessorStatus.InterruptDisable;
-        _stallCycles = 0;
-        var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
-        if (_stallCycles > 0)
-            instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(_stallCycles);
-
-        if (!instructionExecutionResult.HaltedCpu)
-        {
-            RecordInterruptPollPoint(instructionExecutionResult, interruptDisableBefore);
-
-            // Fold the hardware interrupt-entry cost (when one was serviced at this
-            // boundary) into this instruction's result, so cycle totals and the
-            // system loops that pace devices/frame budgets by it see real elapsed time.
-            var interruptCycles = ProcessInterrupts(mem);
-            if (interruptCycles > 0)
-                instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
-        }
+        var instructionExecutionResult = ExecuteInstructionAndServiceInterrupts(mem);
 
         ExecState.UpdateTotal(instructionExecutionResult);
 
@@ -415,23 +399,8 @@ public class CPU
 
             RaiseInstructionToBeExecutedIfSubscribed(mem);
 
-            var interruptDisableBefore = ProcessorStatus.InterruptDisable;
-            _stallCycles = 0;
-            var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
-            if (_stallCycles > 0)
-                instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(_stallCycles);
-
-            // Service pending hardware interrupts at this boundary and fold the entry
-            // cost into the instruction's result, so both ExecStates, evaluators, the
-            // InstructionExecuted event, and callers pacing by cycles see real elapsed
-            // time. (NmiAcknowledging consequently fires before InstructionExecuted.)
-            if (!instructionExecutionResult.HaltedCpu)
-            {
-                RecordInterruptPollPoint(instructionExecutionResult, interruptDisableBefore);
-                var interruptCycles = ProcessInterrupts(mem);
-                if (interruptCycles > 0)
-                    instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
-            }
+            // (NmiAcknowledging consequently fires before InstructionExecuted.)
+            var instructionExecutionResult = ExecuteInstructionAndServiceInterrupts(mem);
 
             // Aggregate stats directly from the InstructionExecResult into both ExecStates;
             // the previous code path went via ExecStateAfterInstruction() which allocated
@@ -526,7 +495,7 @@ public class CPU
                     nmiSources);
             }
             RecordInterruptPollPointAfterInterruptEntry();
-            return InterruptEntryCycles + _stallCycles;
+            return InterruptEntryCycles + TakeStallCycles();
         }
 
         if (CPUInterrupts.IRQLineEnabled
@@ -538,7 +507,7 @@ public class CPU
             CPUInterrupts.AcknowledgeAutoAcknowledgingIRQSources();
             ProcessHardwareIRQ(mem);
             RecordInterruptPollPointAfterInterruptEntry();
-            return InterruptEntryCycles + _stallCycles;
+            return InterruptEntryCycles + TakeStallCycles();
         }
 
         return 0;
@@ -757,6 +726,42 @@ public class CPU
         if (BusCycles >= _readStallCheckFromBusCycle)
             StallRead();
         return mem.FetchByte(address);
+    }
+
+    /// <summary>
+    /// Runs one instruction, records its interrupt poll point and services a pending hardware
+    /// interrupt at the boundary. The entry sequence's cost is folded into the instruction's
+    /// result, so cycle totals and the system loops that pace devices and frame budgets by it see
+    /// real elapsed time.
+    /// </summary>
+    private InstructionExecResult ExecuteInstructionAndServiceInterrupts(Memory mem)
+    {
+        var interruptDisableBefore = ProcessorStatus.InterruptDisable;
+        var result = ExecuteInstructionWithStalls(mem);
+        if (result.HaltedCpu)
+            return result;
+
+        RecordInterruptPollPoint(result, interruptDisableBefore);
+        var interruptCycles = ProcessInterrupts(mem);
+        return interruptCycles > 0 ? result.WithAdditionalCycles(interruptCycles) : result;
+    }
+
+    // Runs one instruction and folds the cycles its reads were stalled by (accumulated by
+    // StallRead through the memory access helpers) into the reported cycle count.
+    private InstructionExecResult ExecuteInstructionWithStalls(Memory mem)
+    {
+        _stallCycles = 0;
+        var result = _instructionExecutor.Execute(this, mem);
+        var stalled = TakeStallCycles();
+        return stalled > 0 ? result.WithAdditionalCycles(stalled) : result;
+    }
+
+    // Returns the stall cycles accumulated since the last reset and clears them.
+    private ulong TakeStallCycles()
+    {
+        var stalled = _stallCycles;
+        _stallCycles = 0;
+        return stalled;
     }
 
     // A bus master holds the CPU: the read happens once the bus is released, and the cycles in
