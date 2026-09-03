@@ -369,6 +369,35 @@ Observations that matter for the cycle work:
 
 ## History
 
+### 2026-09-03 — VIC-II bus stalls (bad lines and sprite DMA)
+
+The CPU can now be stalled by a bus master through `CPU.BusStallSource`: before a read it asks
+how long the bus is busy, the read happens at the release cycle and the waiting cycles count as
+instruction cycles without accesses. The C64 wires the VIC-II in: 40 cycles on every bad line
+(BA low from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA
+on, BA low three cycles ahead, derived from the read's raster position and the live registers.
+The mechanism costs one comparison per read plus one window evaluation per raster line. The
+benchmark machine has the display off, so its frames contain no stalls and the comparison below
+measures overhead only; the last column shows the same branch with `$D011 = $1B` (display on,
+as the KERNAL leaves it): the CPU then loses its cycles to the VIC-II as on hardware and the
+frame has less CPU work in it. Apple M1, .NET 10.0.7, same session.
+
+| Benchmark | Baseline | After | Δ | After, display on |
+|-----------|---------:|------:|--:|------------------:|
+| `InstructionExecutor_OneStep` | 20.1 ns | 20.8 ns | +3% | — |
+| `CPU_Run_1000Instructions` | 15.13 µs | 16.20 µs | +7% | — |
+| `CPU_Execute_NoSubscribers_1000Instructions` | 16.66 µs | 17.00 µs | +2% | — |
+| `Memory_Read_TightLoop` / `Memory_Write_TightLoop` | 1.71 / 1.57 µs | 1.67 / 1.57 µs | 0% | — |
+| C64 frame `CoreOnly` / `None` | 231.0 µs | 231.2 µs | 0% | 218.3 µs |
+| C64 frame `RenderOnly` / `None` | 399.9 µs | 401.2 µs | 0% | 388.1 µs |
+| C64 frame `AudioOnly` / `None` | 374.4 µs | 373.7 µs | 0% | 362.2 µs |
+| C64 frame `RenderAndAudio` / `None` | 590.0 µs | 604.4 µs | +2% | 585.3 µs |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 598.9 µs | 609.3 µs | +2% | 594.5 µs |
+
+Accepted: the per-read comparison is the whole overhead (a NOP is two reads, hence the CPU loop
+rows), frames move within noise, and with the display on the stalls take about 6% of the
+CPU's frame time, which is the hardware's share for 25 bad lines.
+
 ### 2026-09-03 — CIAs exact at every instruction, timer mode retired
 
 The CIAs used to be advanced either after every instruction or, in the default mode, once per

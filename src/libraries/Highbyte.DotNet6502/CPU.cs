@@ -127,6 +127,39 @@ public class CPU
     /// </summary>
     public ulong BusCycles { get; private set; }
 
+    /// <summary>
+    /// Optional bus master that can stall reads (see <see cref="IBusStallSource"/>). While a read is
+    /// stalled <see cref="BusCycles"/> advances without an access, so the count is then the cycle
+    /// count, of which the accesses are a subset. Stall cycles are added to the instruction's
+    /// reported cycles.
+    /// </summary>
+    public IBusStallSource? BusStallSource
+    {
+        get => _busStallSource;
+        set
+        {
+            _busStallSource = value;
+            _readStallCheckFromBusCycle = value is null ? ulong.MaxValue : 0;
+        }
+    }
+    private IBusStallSource? _busStallSource;
+
+    // The earliest bus cycle at which a read must consult the stall source (ulong.MaxValue: none).
+    private ulong _readStallCheckFromBusCycle = ulong.MaxValue;
+
+    // Stall cycles accumulated since the current instruction (or interrupt entry) began.
+    private ulong _stallCycles;
+
+    /// <summary>
+    /// Ask the stall source again on the next read. Systems call this when the state that decides
+    /// stalls changes (a VIC-II register write, a frame wrap, a snapshot restore).
+    /// </summary>
+    public void RequestBusStallCheck()
+    {
+        if (_busStallSource is not null)
+            _readStallCheckFromBusCycle = 0;
+    }
+
     public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
     /// <summary>
@@ -289,20 +322,7 @@ public class CPU
         if (IsHalted)
             return InstructionExecResult.CpuAlreadyHaltedResult(PC);
 
-        var interruptDisableBefore = ProcessorStatus.InterruptDisable;
-        var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
-
-        if (!instructionExecutionResult.HaltedCpu)
-        {
-            RecordInterruptPollPoint(instructionExecutionResult, interruptDisableBefore);
-
-            // Fold the hardware interrupt-entry cost (when one was serviced at this
-            // boundary) into this instruction's result, so cycle totals and the
-            // system loops that pace devices/frame budgets by it see real elapsed time.
-            var interruptCycles = ProcessInterrupts(mem);
-            if (interruptCycles > 0)
-                instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
-        }
+        var instructionExecutionResult = ExecuteInstructionAndServiceInterrupts(mem);
 
         ExecState.UpdateTotal(instructionExecutionResult);
 
@@ -379,20 +399,8 @@ public class CPU
 
             RaiseInstructionToBeExecutedIfSubscribed(mem);
 
-            var interruptDisableBefore = ProcessorStatus.InterruptDisable;
-            var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
-
-            // Service pending hardware interrupts at this boundary and fold the entry
-            // cost into the instruction's result, so both ExecStates, evaluators, the
-            // InstructionExecuted event, and callers pacing by cycles see real elapsed
-            // time. (NmiAcknowledging consequently fires before InstructionExecuted.)
-            if (!instructionExecutionResult.HaltedCpu)
-            {
-                RecordInterruptPollPoint(instructionExecutionResult, interruptDisableBefore);
-                var interruptCycles = ProcessInterrupts(mem);
-                if (interruptCycles > 0)
-                    instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
-            }
+            // (NmiAcknowledging consequently fires before InstructionExecuted.)
+            var instructionExecutionResult = ExecuteInstructionAndServiceInterrupts(mem);
 
             // Aggregate stats directly from the InstructionExecResult into both ExecStates;
             // the previous code path went via ExecStateAfterInstruction() which allocated
@@ -465,6 +473,7 @@ public class CPU
         if (IsHalted)
             return 0;
 
+        _stallCycles = 0;   // the entry sequence's reads can be stalled too; report those cycles with it
         if (CPUInterrupts.NMIPending && CPUInterrupts.NMIPendingAtBusCycle <= _interruptPollBusCycle)
         {
             OnNmiAcknowledging();
@@ -486,7 +495,7 @@ public class CPU
                     nmiSources);
             }
             RecordInterruptPollPointAfterInterruptEntry();
-            return InterruptEntryCycles;
+            return InterruptEntryCycles + TakeStallCycles();
         }
 
         if (CPUInterrupts.IRQLineEnabled
@@ -498,7 +507,7 @@ public class CPU
             CPUInterrupts.AcknowledgeAutoAcknowledgingIRQSources();
             ProcessHardwareIRQ(mem);
             RecordInterruptPollPointAfterInterruptEntry();
-            return InterruptEntryCycles;
+            return InterruptEntryCycles + TakeStallCycles();
         }
 
         return 0;
@@ -714,7 +723,56 @@ public class CPU
     public byte FetchByte(Memory mem, ushort address)
     {
         BusCycles++;
+        if (BusCycles >= _readStallCheckFromBusCycle)
+            StallRead();
         return mem.FetchByte(address);
+    }
+
+    /// <summary>
+    /// Runs one instruction, records its interrupt poll point and services a pending hardware
+    /// interrupt at the boundary. The entry sequence's cost is folded into the instruction's
+    /// result, so cycle totals and the system loops that pace devices and frame budgets by it see
+    /// real elapsed time.
+    /// </summary>
+    private InstructionExecResult ExecuteInstructionAndServiceInterrupts(Memory mem)
+    {
+        var interruptDisableBefore = ProcessorStatus.InterruptDisable;
+        var result = ExecuteInstructionWithStalls(mem);
+        if (result.HaltedCpu)
+            return result;
+
+        RecordInterruptPollPoint(result, interruptDisableBefore);
+        var interruptCycles = ProcessInterrupts(mem);
+        return interruptCycles > 0 ? result.WithAdditionalCycles(interruptCycles) : result;
+    }
+
+    // Runs one instruction and folds the cycles its reads were stalled by (accumulated by
+    // StallRead through the memory access helpers) into the reported cycle count.
+    private InstructionExecResult ExecuteInstructionWithStalls(Memory mem)
+    {
+        _stallCycles = 0;
+        var result = _instructionExecutor.Execute(this, mem);
+        var stalled = TakeStallCycles();
+        return stalled > 0 ? result.WithAdditionalCycles(stalled) : result;
+    }
+
+    // Returns the stall cycles accumulated since the last reset and clears them.
+    private ulong TakeStallCycles()
+    {
+        var stalled = _stallCycles;
+        _stallCycles = 0;
+        return stalled;
+    }
+
+    // A bus master holds the CPU: the read happens once the bus is released, and the cycles in
+    // between are time without accesses.
+    private void StallRead()
+    {
+        var stall = _busStallSource!.StallCyclesForRead(BusCycles, out _readStallCheckFromBusCycle);
+        if (stall == 0)
+            return;
+        BusCycles += stall;
+        _stallCycles += stall;
     }
 
     /// <summary>

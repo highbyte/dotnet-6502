@@ -166,6 +166,20 @@ public class C64DeviceAccessTimingTests
     }
 
     [Fact]
+    public void An_instruction_running_past_the_frame_end_carries_its_remainder_into_the_next_frame()
+    {
+        // NOP (2 cycles) starting on the frame's last cycle: one cycle belongs to the new frame.
+        var c64 = Build([0xEA]);
+        var cyclesPerFrame = c64.Vic2.Vic2Model.CyclesPerFrame;
+        c64.Vic2.AdvanceRaster(cyclesPerFrame - 1);
+
+        Step(c64);
+
+        Assert.Equal(1UL, c64.Vic2.CyclesConsumedCurrentVblank);
+        Assert.Equal(0, c64.Vic2.CurrentRasterLine);
+    }
+
+    [Fact]
     public void Devices_advance_by_exactly_the_instruction_cycles_after_a_snapshot_restore()
     {
         var source = Build([0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA]);

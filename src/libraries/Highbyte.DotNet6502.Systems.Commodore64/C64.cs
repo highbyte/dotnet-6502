@@ -417,6 +417,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         // Set program counter on startup to the address specified at the 6502 reset vector.
         c64.CPU.Reset(c64.Mem);
         c64.SyncDevicesToBusCycle();
+        // The VIC-II stalls CPU reads during bad lines and sprite DMA.
+        c64.CPU.BusStallSource = new Vic2BusStalls(c64.Vic2);
 
         logger.LogInformation("C64 created.");
         return c64;

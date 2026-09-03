@@ -40,6 +40,20 @@ public class Vic2
     /// instruction boundary.
     /// </summary>
     private ulong _advancedToBusCycle;
+    internal ulong AdvancedToBusCycle => _advancedToBusCycle;
+
+    /// <summary>
+    /// Sprites whose DMA is on during the current raster line (bit n = sprite n), and during the
+    /// previous one. Sprite DMA switches on when the sprite is enabled and its Y register equals the
+    /// low byte of the raster line as the VIC-II compares them, and then runs for the sprite's 21
+    /// rows (42 when Y-expanded) no matter how the registers change in the meantime; a Y written
+    /// to a line the raster has already passed does nothing until the raster comes round again.
+    /// Maintained by the per-line work in <see cref="AdvanceRaster(ulong)"/>; consumed by the bus
+    /// stall model.
+    /// </summary>
+    public byte SpriteDmaMask { get; private set; }
+    public byte SpriteDmaMaskPreviousLine { get; private set; }
+    private readonly byte[] _spriteDmaLinesLeft = new byte[8];
 
     public byte CurrentVIC2Bank { get; private set; }
 
@@ -302,6 +316,8 @@ public class Vic2
         {
             CatchUpToCurrentAccess();
             writer(registerAddress, value);
+            // Register state decides bad lines and sprite DMA: re-evaluate CPU stalls.
+            C64.CPU.RequestBusStallCheck();
         };
 
         var registerOffset = registerAddress & 0x003F;
@@ -911,7 +927,11 @@ public class Vic2
     /// snapshot restore, where the raster position comes from the snapshot but the bus-cycle
     /// counter belongs to the machine being restored into.
     /// </summary>
-    internal void ResyncToBusCycle() => _advancedToBusCycle = C64.CPU.BusCycles;
+    internal void ResyncToBusCycle()
+    {
+        _advancedToBusCycle = C64.CPU.BusCycles;
+        C64.CPU.RequestBusStallCheck();
+    }
 
     /// <summary>
     /// Advance the raster by a number of cycles, independent of the CPU bus-cycle counter. The C64
@@ -930,32 +950,47 @@ public class Vic2
 
         CyclesConsumedCurrentVblank += cyclesConsumed;
 
-        // Raster line housekeeping.
-        // Calculate the raster line based on how man CPU cycles has been executed this frame
-        var newLine = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
-        //if (newLine >= Vic2Model.TotalHeight)
-        //    Debugger.Break(); // Rasterline overflow
-        newLine = (ushort)Math.Clamp(newLine, 0, Vic2Model.TotalHeight - 1);
-
-        if (newLine != _currentRasterLineInternal)
+        // Frame end. Keep the cycles that ran past it: they belong to the new frame, and dropping
+        // them would put the CPU ahead of the raster by up to an instruction's length (which, with
+        // bus stalls, can be most of a raster line). Wrapping before the line is derived below makes
+        // line 0 current, and its raster interrupt due, in this same advance.
+        if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
         {
-#if DEBUG
-            if (newLine > Vic2Model.TotalHeight)
-                throw new DotNet6502Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
-#endif
+            CyclesConsumedCurrentVblank -= Vic2Model.CyclesPerFrame;
+            // The bus-cycle to frame-position mapping moved: re-evaluate CPU stalls.
+            cpu.RequestBusStallCheck();
+        }
 
-            _currentRasterLineInternal = newLine;
+        // Raster line housekeeping. The line is derived from the cycle count; every line crossed
+        // since the last advance gets its per-line work, not just the line we land on: a CPU read
+        // stalled by a bad line with sprite DMA can span a whole line, and a raster interrupt or a
+        // per-line sprite snapshot for a line jumped over must not be lost.
+        var newLine = (ushort)Math.Min(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine, (ulong)Vic2Model.TotalHeight - 1);
+        if (newLine == _currentRasterLineInternal)
+            return;
 
-            // Check if a IRQ should be issued for current raster line, and issue it, dated to the
-            // cycle on which the line began: the line has been current for `cyclesIntoLine`
-            // completed cycles, so it began during the cycle before those.
-            var cyclesIntoLine = CyclesConsumedCurrentVblank - (ulong)newLine * Vic2Model.CyclesPerLine;
+        var totalLines = (ushort)Vic2Model.TotalHeight;
+        var line = _currentRasterLineInternal;
+        var remaining = totalLines;   // never loop more than one frame's worth of lines
+        do
+        {
+            line = line >= totalLines - 1 ? (ushort)0 : (ushort)(line + 1);   // MaxValue (unset) wraps to 0 too
+            _currentRasterLineInternal = line;
+
+            // Date the line's start: it began `cyclesIntoLine` completed cycles ago, counted from the
+            // current position (adding a frame for lines before the wrap).
+            var lineStart = (ulong)line * Vic2Model.CyclesPerLine;
+            var cyclesIntoLine = CyclesConsumedCurrentVblank >= lineStart
+                ? CyclesConsumedCurrentVblank - lineStart
+                : CyclesConsumedCurrentVblank + Vic2Model.CyclesPerFrame - lineStart;
             var lineStartBusCycle = endBusCycle + 1 > cyclesIntoLine ? endBusCycle + 1 - cyclesIntoLine : 0;
             RaiseRasterIRQ(cpu, lineStartBusCycle);
 
+            UpdateSpriteDma(line);
+
             // Remember colors and other IO registers for each raster line
             if (C64.RememberVic2RegistersPerRasterLine)
-                StoreRasterLineIORegisters(_currentRasterLineInternal);
+                StoreRasterLineIORegisters(line);
 
             // Per-line sprite processing (rendering + collision are gated by the same config flag).
             // Capture the shared start-of-line sprite snapshot once here; both the per-line collision
@@ -964,15 +999,10 @@ public class Vic2
             if (SpriteManager.PerLineCollisionEnabled)
             {
                 SpriteManager.CaptureLineSpriteSnapshot();
-                SpriteManager.AccumulatePerLineCollisions(_currentRasterLineInternal);
+                SpriteManager.AccumulatePerLineCollisions(line);
             }
         }
-
-        // Check if we have reached the end of the frame.
-        if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
-        {
-            CyclesConsumedCurrentVblank = 0;
-        }
+        while (line != newLine && --remaining > 0);
     }
 
     // --- Snapshot support (consumed by the c64-vic2 snapshot module in the same assembly) ---
@@ -997,6 +1027,28 @@ public class Vic2
         var line = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
         _currentRasterLineInternal = (ushort)Math.Clamp(line, 0, Vic2Model.TotalHeight - 1);
         ResyncToBusCycle();
+    }
+
+    // Advance the sprite DMA state into the given line: sprites whose run ended switch off, and a
+    // sprite whose Y matches this line switches on (or restarts) for its rows.
+    private void UpdateSpriteDma(ushort line)
+    {
+        SpriteDmaMaskPreviousLine = SpriteDmaMask;
+        var enabled = C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+        var expanded = C64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND);
+        var lineLow = (byte)line;
+        byte mask = 0;
+        for (var n = 0; n < 8; n++)
+        {
+            var bit = 1 << n;
+            if (_spriteDmaLinesLeft[n] > 0)
+                _spriteDmaLinesLeft[n]--;
+            if ((enabled & bit) != 0 && C64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + n * 2)) == lineLow)
+                _spriteDmaLinesLeft[n] = (expanded & bit) != 0 ? (byte)42 : (byte)21;
+            if (_spriteDmaLinesLeft[n] > 0)
+                mask |= (byte)bit;
+        }
+        SpriteDmaMask = mask;
     }
 
     private void RaiseRasterIRQ(CPU cpu, ulong atBusCycle)
