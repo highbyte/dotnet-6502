@@ -8,33 +8,44 @@ public class CiaTimer
     private readonly IRQSource _iRQSource;
     private readonly C64 _c64;
     private readonly CiaIRQ _ciaIRQ;
+    private readonly CiaBase _cia;
     private readonly int _timerControlStartBit;
     private readonly int _timerControlForceLoadBit;
     private readonly int _timerControlRunModeBit;
 
     // Latch contains the value was written to timer registers, and is used as start value when timer is started.
     private ushort _internalTimer_Latch = 0;
+
+    // The contents of the control register for the timer. It's contents is depending on which timer type (A/B) it represents.
+    private byte _timerControl = 0;
+
+    private bool _timerIsRunning = false;
+
+    // While the timer is counting, its state is the bus cycle at which it underflows; the counter
+    // value is derived from that and the CIA's current bus cycle on demand (InternalTimer). This
+    // keeps the per-instruction catch-up to a comparison. While not counting, the counter is held
+    // in _counter.
+    private bool _armed;
+    private ulong _underflowAtBusCycle;
+    private ushort _counter;
+
+    private ulong Now => _cia.AdvancedToBusCycle;
+
     public void SetInternalTimer_Latch_HI(byte highbyte)
     {
         _internalTimer_Latch.SetHighbyte(highbyte);
         // If timer is not running, set the internal timer to the latch value.
         if (!_timerIsRunning)
-        {
-            InternalTimer = _internalTimer_Latch;
-        }
+            _counter = _internalTimer_Latch;
     }
     public void SetInternalTimer_Latch_LO(byte lowbyte)
     {
         _internalTimer_Latch.SetLowbyte(lowbyte);
         // If timer is not running, set the internal timer to the latch value.
         if (!_timerIsRunning)
-        {
-            InternalTimer = _internalTimer_Latch;
-        }
+            _counter = _internalTimer_Latch;
     }
 
-    // The contents of the control register for the timer. It's contents is depending on which timer type (A/B) it represents.
-    private byte _timerControl = 0;
     public byte TimerControl
     {
         get
@@ -43,6 +54,8 @@ public class CiaTimer
         }
         set
         {
+            Freeze();
+
             // Handle force load bit
             // Don't store bit 4 (force latch load), as it's a command (see below)
             var storeValue = value;
@@ -54,19 +67,26 @@ public class CiaTimer
             // Handle start bit
             if (value.IsBitSet(_timerControlStartBit))
                 StartTimer();
+
+            Arm();
         }
     }
 
-    // Current 16-bit value of the timer, decremented each cycle when timer is running.
-    public ushort InternalTimer { get; private set; } = 0;
+    /// <summary>Current 16-bit value of the timer, decremented each cycle when timer is running.</summary>
+    public ushort InternalTimer => _armed ? (ushort)(_underflowAtBusCycle - Now - 1) : _counter;
 
-    private bool _timerIsRunning = false;
+    /// <summary>True while the timer is started and running, i.e. while elapsed cycles change it.</summary>
+    public bool IsCounting => _timerIsRunning && (_timerControl >> _timerControlStartBit & 1) != 0;
 
-    public CiaTimer(CiaTimerType ciaTimerType, IRQSource iRQSource, C64 c64, CiaIRQ ciaIRQ)
+    /// <summary>The bus cycle of the next underflow while counting, otherwise <see cref="ulong.MaxValue"/>.</summary>
+    internal ulong UnderflowBusCycleOrMax => _armed ? _underflowAtBusCycle : ulong.MaxValue;
+
+    public CiaTimer(CiaTimerType ciaTimerType, IRQSource iRQSource, C64 c64, CiaIRQ ciaIRQ, CiaBase cia)
     {
         _iRQSource = iRQSource;
         _c64 = c64;
         _ciaIRQ = ciaIRQ;
+        _cia = cia;
 
         _ciaTimerType = ciaTimerType;
         _timerControlRunModeBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.TimerARunMode : (int)CiaTimerBControl.TimerBRunMode;
@@ -86,69 +106,78 @@ public class CiaTimer
     {
         _internalTimer_Latch = latch;
         _timerControl = control;
-        InternalTimer = current;
+        _counter = current;
         _timerIsRunning = running;
+        _armed = false;
+        Arm();
     }
 
-    public void ProcessTimer(ulong cyclesExecuted) => ProcessTimer(cyclesExecuted, _c64.CPU.BusCycles);
+    /// <summary>
+    /// Advance the timer by a number of cycles from where the CIA is. Tests and tooling; the C64
+    /// drives the CIA through <see cref="CiaBase.CatchUpTo"/>.
+    /// </summary>
+    public void ProcessTimer(ulong cyclesExecuted) => _cia.CatchUpTo(Now + cyclesExecuted);
 
-    /// <param name="cyclesExecuted">Cycles to advance.</param>
-    /// <param name="endBusCycle">The CPU bus cycle the advance ends at; an underflow is dated to
-    /// the cycle it happened on so the interrupt carries its real cycle.</param>
-    public void ProcessTimer(ulong cyclesExecuted, ulong endBusCycle)
+    /// <summary>
+    /// Handle every underflow up to and including the given bus cycle (the CIA has already moved
+    /// its position there). Each underflow is dated to its own cycle so the interrupt carries its
+    /// real cycle.
+    /// </summary>
+    internal void ProcessUnderflows(ulong busCycle)
     {
-        if (!TimerControl.IsBitSet(_timerControlStartBit) || !_timerIsRunning || cyclesExecuted == 0)
-            return;
-
-        var cyclesRemaining = cyclesExecuted;
-        while (cyclesRemaining > 0 && TimerControl.IsBitSet(_timerControlStartBit) && _timerIsRunning)
+        while (_armed && busCycle >= _underflowAtBusCycle)
         {
-            var cyclesUntilUnderflow = GetCyclesUntilUnderflow();
-            if (cyclesRemaining < cyclesUntilUnderflow)
-            {
-                InternalTimer = (ushort)(cyclesUntilUnderflow - cyclesRemaining - 1);
-                return;
-            }
-
-            cyclesRemaining -= cyclesUntilUnderflow;
-            var underflowBusCycle = endBusCycle > cyclesRemaining ? endBusCycle - cyclesRemaining : 0;
-            InternalTimer = 0xffff;
+            var underflowBusCycle = _underflowAtBusCycle;
             _ciaIRQ.ConditionSet(_iRQSource);
 
-            if (_ciaIRQ.IsConditionSet(_iRQSource))
-            {
-                // Timer has reached zero. Trigger interrupt if enabled.
-                if (_ciaIRQ.IsEnabled(_iRQSource))
-                    _ciaIRQ.Trigger(_iRQSource, _c64.CPU, underflowBusCycle);
+            // Timer has reached zero. Trigger interrupt if enabled.
+            if (_ciaIRQ.IsEnabled(_iRQSource))
+                _ciaIRQ.Trigger(_iRQSource, _c64.CPU, underflowBusCycle);
 
-                // Check if timer should be reloaded from latch. If Timer A RunMode bit is clear, timer should be continously reloaded from latch.
-                if (!TimerControl.IsBitSet(_timerControlRunModeBit))
-                {
-                    ReloadTimerValue();
-                }
-                else
-                {
-                    StopTimer();
-                }
+            // Check if timer should be reloaded from latch. If the RunMode bit is clear, timer should be continuously reloaded from latch.
+            if (!_timerControl.IsBitSet(_timerControlRunModeBit))
+            {
+                _timerIsRunning = true;
+                _underflowAtBusCycle = underflowBusCycle + CyclesUntilUnderflow(_internalTimer_Latch);
+            }
+            else
+            {
+                StopTimer();
             }
         }
     }
 
-    private ulong GetCyclesUntilUnderflow()
-        => InternalTimer == 0
+    // A counter of 0 wraps through 0x10000 cycles before it underflows.
+    private static ulong CyclesUntilUnderflow(ushort counter)
+        => counter == 0
             ? 0x10000UL
-            : (ulong)InternalTimer + 1;
+            : (ulong)counter + 1;
+
+    /// <summary>Switch a counting timer to the deadline representation from its stored counter.</summary>
+    internal void Arm()
+    {
+        if (!_armed && IsCounting)
+        {
+            _underflowAtBusCycle = Now + CyclesUntilUnderflow(_counter);
+            _armed = true;
+        }
+        _cia.RecomputeNextUnderflow();
+    }
+
+    /// <summary>Store the derived counter and leave the deadline representation.</summary>
+    internal void Freeze()
+    {
+        if (!_armed)
+            return;
+        _counter = InternalTimer;
+        _armed = false;
+        _cia.RecomputeNextUnderflow();
+    }
 
     private void ResetTimerValue()
     {
-        InternalTimer = _internalTimer_Latch;
+        _counter = _internalTimer_Latch;
         StartTimer();
-    }
-
-    private void ReloadTimerValue()
-    {
-        InternalTimer = _internalTimer_Latch;
-        _timerIsRunning = true;
     }
 
     public void StartTimer()
@@ -159,10 +188,10 @@ public class CiaTimer
 
     private void StopTimer()
     {
-        var timerControl = TimerControl;
-        timerControl.ClearBit(_timerControlStartBit);
-        TimerControl = timerControl;
-
+        // Called at a one-shot underflow: the timer stops with the wrapped counter.
+        _armed = false;
+        _counter = 0xffff;
+        _timerControl.ClearBit(_timerControlStartBit);
         _timerIsRunning = false;
     }
 }

@@ -369,6 +369,36 @@ Observations that matter for the cycle work:
 
 ## History
 
+### 2026-09-03 — CIAs exact at every instruction, timer mode retired
+
+The CIAs used to be advanced either after every instruction or, in the default mode, once per
+raster line (a timer interrupt could arrive up to 63 cycles late). They are now advanced from
+one place, the C64 instruction loop, to the current bus cycle after every instruction, and by
+every CIA register access to the cycle of the access; `TimerMode` is gone. To make that cheap a
+counting timer is held as the bus cycle at which it underflows (the counter is derived on read),
+and the CIA keeps the earliest such cycle, so the per-instruction catch-up is two comparisons
+and a store in an inlined method. The benchmark machine now seeds CIA1 timer A the way the
+KERNAL does (counting, interrupt masked), so the frame numbers below include a counting CIA and
+the "before" column is this branch's own raster-line mode measured with the same seed. Apple M1,
+.NET 10.0.7, same session.
+
+| Benchmark | Raster-line mode | Per-instruction (old) | Exact (now) | Δ vs raster-line |
+|-----------|-----------------:|----------------------:|------------:|-----------------:|
+| C64 frame `CoreOnly` / `None` | 224.8 µs | 285.0 µs | 226.9 µs | +1% |
+| C64 frame `CoreOnly` / `MixedVisibleSprites` | 233.1 µs | 267.2 µs | 235.0 µs | +1% |
+| C64 frame `RenderOnly` / `None` | 394.9 µs | 444.0 µs | 408.5 µs | +3% |
+| C64 frame `AudioOnly` / `None` | 370.6 µs | 408.9 µs | 376.8 µs | +2% |
+| C64 frame `RenderAndAudio` / `None` | 588.2 µs | 622.8 µs | 593.3 µs | +1% |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 603.3 µs | 634.2 µs | 607.2 µs | +1% |
+| `ProcessAllCiaTimers_Stopped` (both CIAs, per call) | — | 7.8 ns | 2.2 ns | −72% |
+| `ProcessAllCiaTimers_Running_NoUnderflow` | — | 8.2 ns | 2.1 ns | −74% |
+| `ProcessAllCiaTimers_Running_FrequentUnderflow` | — | 27.3 ns | 20.2 ns | −26% |
+
+Accepted: exact CIA timing in the shipped configuration for about 1% of a frame. A first
+version of the deadline timer that kept per-timer positions and called into each timer every
+instruction measured no better than the old per-instruction mode (+9-22%): the cost was six
+small method calls per instruction, not arithmetic.
+
 ### 2026-09-02 — every cycle is a bus access
 
 Every instruction now performs exactly the bus accesses the silicon performs, one per clock

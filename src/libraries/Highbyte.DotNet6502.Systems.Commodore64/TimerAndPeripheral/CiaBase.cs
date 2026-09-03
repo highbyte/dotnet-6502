@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -12,68 +13,71 @@ public abstract class CiaBase
     protected readonly C64 _c64;
 
     private readonly CiaIRQ _ciaIRQ;
-    private readonly Dictionary<CiaTimerType, CiaTimer> _ciaTimers;
+    private readonly CiaTimer _timerA;
+    private readonly CiaTimer _timerB;
 
     /// <summary>
     /// The CPU bus cycle (<see cref="CPU.BusCycles"/>) the timers have been advanced to. See
-    /// <see cref="CatchUpTo"/>.
+    /// <see cref="CatchUpTo"/>. The timers derive their counter value from it.
     /// </summary>
     private ulong _advancedToBusCycle;
+    internal ulong AdvancedToBusCycle => _advancedToBusCycle;
+
+    /// <summary>
+    /// The earliest bus cycle at which a counting timer underflows; <see cref="ulong.MaxValue"/>
+    /// while no timer is counting. Lets the per-instruction catch-up be two comparisons.
+    /// </summary>
+    private ulong _nextUnderflowBusCycle = ulong.MaxValue;
+
+    internal void RecomputeNextUnderflow()
+        => _nextUnderflowBusCycle = Math.Min(_timerA.UnderflowBusCycleOrMax, _timerB.UnderflowBusCycleOrMax);
 
     protected CiaBase(C64 c64, CiaIRQ ciaIRQ)
     {
         _c64 = c64;
         _ciaIRQ = ciaIRQ;
-        _ciaTimers = new Dictionary<CiaTimerType, CiaTimer>();
-
-        // Initialize timers - this is common for both CIA1 and CIA2
-        InitializeTimers();
+        _timerA = new CiaTimer(CiaTimerType.CiaA, IRQSource.TimerA, _c64, _ciaIRQ, this);
+        _timerB = new CiaTimer(CiaTimerType.CiaB, IRQSource.TimerB, _c64, _ciaIRQ, this);
     }
 
-    /// <summary>
-    /// Initialize the timers for this CIA chip
-    /// </summary>
-    private void InitializeTimers()
-    {
-        _ciaTimers.Add(CiaTimerType.CiaA, new CiaTimer(CiaTimerType.CiaA, IRQSource.TimerA, _c64, _ciaIRQ));
-        _ciaTimers.Add(CiaTimerType.CiaB, new CiaTimer(CiaTimerType.CiaB, IRQSource.TimerB, _c64, _ciaIRQ));
-    }
+    private CiaTimer Timer(CiaTimerType timerType) => timerType == CiaTimerType.CiaA ? _timerA : _timerB;
 
     // --- Snapshot support ---
     // Exposes the live timer and IRQ state (not held in IO register storage) to the c64-cia
     // snapshot module, which lives in the same assembly.
-    internal CiaTimer SnapshotTimerA => _ciaTimers[CiaTimerType.CiaA];
-    internal CiaTimer SnapshotTimerB => _ciaTimers[CiaTimerType.CiaB];
+    internal CiaTimer SnapshotTimerA => _timerA;
+    internal CiaTimer SnapshotTimerB => _timerB;
     internal CiaIRQ SnapshotIrq => _ciaIRQ;
 
     /// <summary>
-    /// Advance the timers by a number of cycles, independent of the CPU bus-cycle counter. The C64
-    /// drives the CIAs through <see cref="CatchUpTo"/>; this remains for tests and tooling.
+    /// Advance the timers by a number of cycles from where they are, independent of the CPU
+    /// bus-cycle counter. The C64 drives the CIAs through <see cref="CatchUpTo"/>; this remains
+    /// for tests and tooling.
     /// </summary>
-    public virtual void ProcessTimers(ulong cyclesExecuted) => ProcessTimers(cyclesExecuted, _c64.CPU.BusCycles);
-
-    private void ProcessTimers(ulong cyclesExecuted, ulong endBusCycle)
-    {
-        foreach (var ciaTimer in _ciaTimers.Values)
-        {
-            ciaTimer.ProcessTimer(cyclesExecuted, endBusCycle);
-        }
-    }
+    public virtual void ProcessTimers(ulong cyclesExecuted) => CatchUpTo(_advancedToBusCycle + cyclesExecuted);
 
     /// <summary>
-    /// Advance the timers to the given CPU bus cycle. No-op if they are already there. Depending
-    /// on <see cref="C64.TimerMode"/> the C64 calls this at every instruction boundary or at every
-    /// raster line change; every CIA register access calls it for the cycle of the access, so a
-    /// timer or interrupt-status read sees the count at its own cycle and a control write takes
-    /// effect on its own cycle.
+    /// Advance the timers to the given CPU bus cycle. No-op if they are already there. The C64
+    /// calls this at every instruction boundary, and every CIA register access calls it for the
+    /// cycle of the access, so a timer or interrupt-status read sees the count at its own cycle and
+    /// a control write takes effect on its own cycle. A counting timer costs one comparison per
+    /// call until it underflows (see <see cref="CiaTimer.CatchUpTo"/>).
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void CatchUpTo(ulong busCycle)
     {
         if (busCycle <= _advancedToBusCycle)
             return;
-        var cycles = busCycle - _advancedToBusCycle;
         _advancedToBusCycle = busCycle;
-        ProcessTimers(cycles, busCycle);
+        if (busCycle >= _nextUnderflowBusCycle)
+            ProcessUnderflows(busCycle);
+    }
+
+    private void ProcessUnderflows(ulong busCycle)
+    {
+        _timerA.ProcessUnderflows(busCycle);
+        _timerB.ProcessUnderflows(busCycle);
+        RecomputeNextUnderflow();
     }
 
     /// <summary>State as of the cycle of the bus access the CPU is performing right now.</summary>
@@ -88,7 +92,15 @@ public abstract class CiaBase
     /// Realign the bus-cycle bookkeeping with the CPU without advancing the timers. Used after a
     /// snapshot restore.
     /// </summary>
-    internal void ResyncToBusCycle() => _advancedToBusCycle = _c64.CPU.BusCycles;
+    internal void ResyncToBusCycle()
+    {
+        // Freeze the counters at the old position, move, and re-arm at the new one.
+        _timerA.Freeze();
+        _timerB.Freeze();
+        _advancedToBusCycle = _c64.CPU.BusCycles;
+        _timerA.Arm();
+        _timerB.Arm();
+    }
 
     /// <summary>
     /// Map IO locations for this CIA chip
@@ -133,32 +145,32 @@ public abstract class CiaBase
     /// <summary>
     /// Common timer high byte load functionality
     /// </summary>
-    protected byte TimerHILoad(CiaTimerType timerType) => _ciaTimers[timerType].InternalTimer.Highbyte();
+    protected byte TimerHILoad(CiaTimerType timerType) => Timer(timerType).InternalTimer.Highbyte();
 
     /// <summary>
     /// Common timer high byte store functionality
     /// </summary>
-    protected void TimerHIStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].SetInternalTimer_Latch_HI(value);
+    protected void TimerHIStore(CiaTimerType timerType, byte value) => Timer(timerType).SetInternalTimer_Latch_HI(value);
 
     /// <summary>
     /// Common timer low byte load functionality
     /// </summary>
-    protected byte TimerLOLoad(CiaTimerType timerType) => _ciaTimers[timerType].InternalTimer.Lowbyte();
+    protected byte TimerLOLoad(CiaTimerType timerType) => Timer(timerType).InternalTimer.Lowbyte();
 
     /// <summary>
     /// Common timer low byte store functionality
     /// </summary>
-    protected void TimerLOStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].SetInternalTimer_Latch_LO(value);
+    protected void TimerLOStore(CiaTimerType timerType, byte value) => Timer(timerType).SetInternalTimer_Latch_LO(value);
 
     /// <summary>
     /// Common timer control load functionality
     /// </summary>
-    protected byte TimerControlLoad(CiaTimerType timerType) => _ciaTimers[timerType].TimerControl;
+    protected byte TimerControlLoad(CiaTimerType timerType) => Timer(timerType).TimerControl;
 
     /// <summary>
     /// Common timer control store functionality
     /// </summary>
-    protected void TimerControlStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].TimerControl = value;
+    protected void TimerControlStore(CiaTimerType timerType, byte value) => Timer(timerType).TimerControl = value;
 
     /// <summary>
     /// Common timer A methods

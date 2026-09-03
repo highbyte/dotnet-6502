@@ -62,7 +62,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public C64CartridgeImageAttachResult? AttachedCartridgeImage { get; private set; }
 
     public bool AudioEnabled { get; private set; }
-    public TimerMode TimerMode { get; private set; }
 
     public string ColorMapName { get; private set; } = default!;
 
@@ -180,15 +179,16 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
+    /// <summary>
+    /// Bring the VIC-II and the CIAs up to the current CPU bus cycle. The CIAs are stepped from
+    /// here only (and by their own register accesses).
+    /// </summary>
     private void AdvanceDevicesToCurrentBusCycle()
     {
         var busCycles = CPU.BusCycles;
-        if (TimerMode == TimerMode.UpdateEachInstruction)
-        {
-            Cia1.CatchUpTo(busCycles);
-            Cia2.CatchUpTo(busCycles);
-        }
         Vic2.CatchUpTo(busCycles);
+        Cia1.CatchUpTo(busCycles);
+        Cia2.CatchUpTo(busCycles);
     }
 
     /// <summary>
@@ -354,7 +354,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             IO = io,
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
-            TimerMode = c64Config.TimerMode,
             ColorMapName = c64Config.ColorMapName,
             InstrumentationEnabled = c64Config.InstrumentationEnabled
         };

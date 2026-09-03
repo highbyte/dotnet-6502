@@ -8,10 +8,8 @@ namespace Highbyte.DotNet6502.Benchmarks.Commodore64;
 /// <summary>
 /// Micro-benchmarks for the C64 CIA timer hot path.
 ///
-/// The normal C64 frame benchmarks currently use <see cref="TimerMode.UpdateEachRasterLine"/>,
-/// while timing-sensitive cartridges such as Expert need timers updated on each
-/// executed instruction. These benchmarks isolate that cost without renderer/audio
-/// noise.
+/// The CIAs are advanced at every instruction boundary and at every CIA register access.
+/// These benchmarks isolate that cost without renderer/audio noise.
 /// </summary>
 [Config(typeof(C64HotPathConfig))]
 public class C64CiaTimerBenchmark
@@ -61,7 +59,6 @@ public class C64CiaTimerBenchmark
             C64Model = "C64NTSC",
             Vic2Model = "NTSC",
             LoadROMs = false,
-            TimerMode = TimerMode.UpdateEachInstruction,
             AudioEnabled = false,
             RenderProviderType = null,
             InstrumentationEnabled = false,

@@ -946,14 +946,6 @@ public class Vic2
 
             _currentRasterLineInternal = newLine;
 
-            // Process timers. In this mode the CIAs are only advanced at raster line changes (and
-            // at their own register accesses), to the bus cycle the VIC-II has reached.
-            if (C64.TimerMode == TimerMode.UpdateEachRasterLine)
-            {
-                C64.Cia1.CatchUpTo(_advancedToBusCycle);
-                C64.Cia2.CatchUpTo(_advancedToBusCycle);
-            }
-
             // Check if a IRQ should be issued for current raster line, and issue it, dated to the
             // cycle on which the line began: the line has been current for `cyclesIntoLine`
             // completed cycles, so it began during the cycle before those.
