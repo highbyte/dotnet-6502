@@ -31,6 +31,13 @@ devices exact to the cycle without stepping them every cycle: a memory-mapped re
 reads the counter, advances the device to the cycle of the access, and then applies the access.
 The C64 does this for the VIC-II, the CIAs and the SID.
 
+A system can also stall the CPU the way a bus master holding RDY does, through
+`CPU.BusStallSource`: before a read the CPU asks how many cycles the bus is busy, the read then
+happens at the cycle the bus is released, and the waiting cycles count as instruction cycles
+without accesses (so `BusCycles` is then the cycle count, of which the accesses are a subset).
+Writes are never stalled, as on the 6510. The source names the next cycle at which it wants to be
+asked again, so the check costs one comparison per read in between.
+
 Interrupts follow the hardware sampling rule. The 6502 polls its IRQ and NMI inputs at the end
 of an instruction's second-to-last cycle (a taken branch that does not cross a page polls at the
 end of its first cycle), so a line that goes active during the last cycle is only seen after the

@@ -127,6 +127,39 @@ public class CPU
     /// </summary>
     public ulong BusCycles { get; private set; }
 
+    /// <summary>
+    /// Optional bus master that can stall reads (see <see cref="IBusStallSource"/>). While a read is
+    /// stalled <see cref="BusCycles"/> advances without an access, so the count is then the cycle
+    /// count, of which the accesses are a subset. Stall cycles are added to the instruction's
+    /// reported cycles.
+    /// </summary>
+    public IBusStallSource? BusStallSource
+    {
+        get => _busStallSource;
+        set
+        {
+            _busStallSource = value;
+            _readStallCheckFromBusCycle = value is null ? ulong.MaxValue : 0;
+        }
+    }
+    private IBusStallSource? _busStallSource;
+
+    // The earliest bus cycle at which a read must consult the stall source (ulong.MaxValue: none).
+    private ulong _readStallCheckFromBusCycle = ulong.MaxValue;
+
+    // Stall cycles accumulated since the current instruction (or interrupt entry) began.
+    private ulong _stallCycles;
+
+    /// <summary>
+    /// Ask the stall source again on the next read. Systems call this when the state that decides
+    /// stalls changes (a VIC-II register write, a frame wrap, a snapshot restore).
+    /// </summary>
+    public void RequestBusStallCheck()
+    {
+        if (_busStallSource is not null)
+            _readStallCheckFromBusCycle = 0;
+    }
+
     public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
     /// <summary>
@@ -290,7 +323,10 @@ public class CPU
             return InstructionExecResult.CpuAlreadyHaltedResult(PC);
 
         var interruptDisableBefore = ProcessorStatus.InterruptDisable;
+        _stallCycles = 0;
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
+        if (_stallCycles > 0)
+            instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(_stallCycles);
 
         if (!instructionExecutionResult.HaltedCpu)
         {
@@ -380,7 +416,10 @@ public class CPU
             RaiseInstructionToBeExecutedIfSubscribed(mem);
 
             var interruptDisableBefore = ProcessorStatus.InterruptDisable;
+            _stallCycles = 0;
             var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
+            if (_stallCycles > 0)
+                instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(_stallCycles);
 
             // Service pending hardware interrupts at this boundary and fold the entry
             // cost into the instruction's result, so both ExecStates, evaluators, the
@@ -465,6 +504,7 @@ public class CPU
         if (IsHalted)
             return 0;
 
+        _stallCycles = 0;   // the entry sequence's reads can be stalled too; report those cycles with it
         if (CPUInterrupts.NMIPending && CPUInterrupts.NMIPendingAtBusCycle <= _interruptPollBusCycle)
         {
             OnNmiAcknowledging();
@@ -486,7 +526,7 @@ public class CPU
                     nmiSources);
             }
             RecordInterruptPollPointAfterInterruptEntry();
-            return InterruptEntryCycles;
+            return InterruptEntryCycles + _stallCycles;
         }
 
         if (CPUInterrupts.IRQLineEnabled
@@ -498,7 +538,7 @@ public class CPU
             CPUInterrupts.AcknowledgeAutoAcknowledgingIRQSources();
             ProcessHardwareIRQ(mem);
             RecordInterruptPollPointAfterInterruptEntry();
-            return InterruptEntryCycles;
+            return InterruptEntryCycles + _stallCycles;
         }
 
         return 0;
@@ -714,7 +754,20 @@ public class CPU
     public byte FetchByte(Memory mem, ushort address)
     {
         BusCycles++;
+        if (BusCycles >= _readStallCheckFromBusCycle)
+            StallRead();
         return mem.FetchByte(address);
+    }
+
+    // A bus master holds the CPU: the read happens once the bus is released, and the cycles in
+    // between are time without accesses.
+    private void StallRead()
+    {
+        var stall = _busStallSource!.StallCyclesForRead(BusCycles, out _readStallCheckFromBusCycle);
+        if (stall == 0)
+            return;
+        BusCycles += stall;
+        _stallCycles += stall;
     }
 
     /// <summary>

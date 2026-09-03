@@ -23,6 +23,15 @@ next one. The SID does the same through its audio provider (see below). Renderin
 the VIC-II registers once per raster line, so a mid-line register change becomes visible on the
 next line.
 
+The VIC-II also takes the bus from the CPU as on hardware: 40 cycles on every bad line (BA low
+from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA on, BA
+low three cycles ahead. A CPU read that falls inside such a window waits until the window ends;
+writes do not wait. Bad lines follow the DEN bit and YSCROLL. Sprite DMA switches on when an
+enabled sprite's Y register equals the raster line as the VIC-II compares them and then runs for
+the sprite's 21 rows (42 when Y-expanded) whatever the registers do meanwhile, so a Y written to
+a line the raster has already passed costs nothing until the raster comes round again. Not
+modelled: the DEN latch at line $30 and the display-off idle state.
+
 ## Implementation libraries
 
 C64-specific host code lives in its own **engine-plugin** libraries, one per host technology,
