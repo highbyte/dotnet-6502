@@ -16,10 +16,12 @@ The CPU executes one instruction at a time, but every cycle of it is a bus acces
 every instruction boundary, and at every access to one of their registers, to the cycle of the
 access. A read of `$D012` therefore returns the raster line at the cycle the read happens, a CIA
 timer read returns the count at that cycle, a raster-compare or timer-control write takes effect
-on its own cycle, and an interrupt that becomes due during an instruction is serviced right after
-it. The SID does the same through its audio provider (see below). Rendering still samples the
-VIC-II registers once per raster line, so a mid-line register change becomes visible on the next
-line.
+on its own cycle. A raster or CIA timer interrupt is dated to the cycle on which the raster line
+began or the timer underflowed, and the CPU applies its sampling rule to that cycle: taken after
+the current instruction if it fell at or before the second-to-last cycle, otherwise after the
+next one. The SID does the same through its audio provider (see below). Rendering still samples
+the VIC-II registers once per raster line, so a mid-line register change becomes visible on the
+next line.
 
 ## Implementation libraries
 

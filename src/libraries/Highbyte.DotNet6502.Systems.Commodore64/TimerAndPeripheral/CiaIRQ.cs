@@ -30,7 +30,17 @@ public class CiaIRQ
         }
     }
 
-    public void Trigger(IRQSource source, CPU cpu)
+    /// <summary>
+    /// Assert the chip's interrupt output for a source. Without a cycle the CPU takes the interrupt
+    /// at its next instruction boundary.
+    /// </summary>
+    public void Trigger(IRQSource source, CPU cpu) => Trigger(source, cpu, atBusCycle: 0);
+
+    /// <summary>
+    /// Assert the chip's interrupt output for a source that arose during the given bus cycle; the
+    /// CPU applies its end-of-instruction sampling rule to that cycle.
+    /// </summary>
+    public void Trigger(IRQSource source, CPU cpu, ulong atBusCycle)
     {
         _sourceConditionStatus[IRQSource.Any] = true;
         var interruptSourceName = GetInterruptSourceName(source);
@@ -38,12 +48,12 @@ public class CiaIRQ
         if (_useNMI)
         {
             // Raise NMI (Non-Maskable Interrupt)
-            cpu.CPUInterrupts.SetNMISourceActive(interruptSourceName);
+            cpu.CPUInterrupts.SetNMISourceActive(interruptSourceName, atBusCycle);
         }
         else
         {
             // Raise IRQ (Interrupt Request)
-            cpu.CPUInterrupts.SetIRQSourceActive(interruptSourceName, autoAcknowledge: true);
+            cpu.CPUInterrupts.SetIRQSourceActive(interruptSourceName, autoAcknowledge: true, atBusCycle);
         }
     }
 

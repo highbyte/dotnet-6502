@@ -90,7 +90,12 @@ public class CiaTimer
         _timerIsRunning = running;
     }
 
-    public void ProcessTimer(ulong cyclesExecuted)
+    public void ProcessTimer(ulong cyclesExecuted) => ProcessTimer(cyclesExecuted, _c64.CPU.BusCycles);
+
+    /// <param name="cyclesExecuted">Cycles to advance.</param>
+    /// <param name="endBusCycle">The CPU bus cycle the advance ends at; an underflow is dated to
+    /// the cycle it happened on so the interrupt carries its real cycle.</param>
+    public void ProcessTimer(ulong cyclesExecuted, ulong endBusCycle)
     {
         if (!TimerControl.IsBitSet(_timerControlStartBit) || !_timerIsRunning || cyclesExecuted == 0)
             return;
@@ -106,6 +111,7 @@ public class CiaTimer
             }
 
             cyclesRemaining -= cyclesUntilUnderflow;
+            var underflowBusCycle = endBusCycle > cyclesRemaining ? endBusCycle - cyclesRemaining : 0;
             InternalTimer = 0xffff;
             _ciaIRQ.ConditionSet(_iRQSource);
 
@@ -113,7 +119,7 @@ public class CiaTimer
             {
                 // Timer has reached zero. Trigger interrupt if enabled.
                 if (_ciaIRQ.IsEnabled(_iRQSource))
-                    _ciaIRQ.Trigger(_iRQSource, _c64.CPU);
+                    _ciaIRQ.Trigger(_iRQSource, _c64.CPU, underflowBusCycle);
 
                 // Check if timer should be reloaded from latch. If Timer A RunMode bit is clear, timer should be continously reloaded from latch.
                 if (!TimerControl.IsBitSet(_timerControlRunModeBit))

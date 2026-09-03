@@ -892,7 +892,7 @@ public class Vic2
             return;
         var cycles = busCycle - _advancedToBusCycle;
         _advancedToBusCycle = busCycle;
-        AdvanceRaster(cycles);
+        AdvanceRaster(cycles, busCycle);
     }
 
     /// <summary>
@@ -918,7 +918,12 @@ public class Vic2
     /// drives the VIC-II through <see cref="CatchUpTo"/>; this remains for tests and tooling that
     /// position the raster directly.
     /// </summary>
-    public void AdvanceRaster(ulong cyclesConsumed)
+    public void AdvanceRaster(ulong cyclesConsumed) => AdvanceRaster(cyclesConsumed, C64.CPU.BusCycles);
+
+    /// <param name="cyclesConsumed">Cycles to advance.</param>
+    /// <param name="endBusCycle">The CPU bus cycle the advance ends at; used to date the cycle on
+    /// which a raster line began, so a raster interrupt is stamped with its real cycle.</param>
+    private void AdvanceRaster(ulong cyclesConsumed, ulong endBusCycle)
     {
         var cpu = C64.CPU;
         var mem = C64.Mem;
@@ -949,8 +954,12 @@ public class Vic2
                 C64.Cia2.CatchUpTo(_advancedToBusCycle);
             }
 
-            // Check if a IRQ should be issued for current raster line, and issue it.
-            RaiseRasterIRQ(cpu);
+            // Check if a IRQ should be issued for current raster line, and issue it, dated to the
+            // cycle on which the line began: the line has been current for `cyclesIntoLine`
+            // completed cycles, so it began during the cycle before those.
+            var cyclesIntoLine = CyclesConsumedCurrentVblank - (ulong)newLine * Vic2Model.CyclesPerLine;
+            var lineStartBusCycle = endBusCycle + 1 > cyclesIntoLine ? endBusCycle + 1 - cyclesIntoLine : 0;
+            RaiseRasterIRQ(cpu, lineStartBusCycle);
 
             // Remember colors and other IO registers for each raster line
             if (C64.RememberVic2RegistersPerRasterLine)
@@ -998,7 +1007,7 @@ public class Vic2
         ResyncToBusCycle();
     }
 
-    private void RaiseRasterIRQ(CPU cpu)
+    private void RaiseRasterIRQ(CPU cpu, ulong atBusCycle)
     {
         // Check if a IRQ should be issued
         var source = IRQSource.RasterCompare;
@@ -1006,7 +1015,7 @@ public class Vic2
             || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.TotalHeight))
             && !Vic2IRQ.IsTriggered(source))
         {
-            Vic2IRQ.Trigger(source, cpu);
+            Vic2IRQ.Trigger(source, cpu, atBusCycle);
         }
     }
 

@@ -105,10 +105,15 @@ public class C64DeviceAccessTimingTests
         Assert.Equal(0x1000 - 4 & 0xFF, c64.CPU.A);
     }
 
-    [Fact]
-    public void Raster_interrupt_that_becomes_due_during_an_instruction_is_serviced_right_after_it()
+    [Theory]
+    [InlineData(new byte[] { 0xAD, 0x12, 0xD0 }, 2, true)]    // LDA $D012: line 1 begins on cycle 3 (second-to-last) -> taken after this instruction
+    [InlineData(new byte[] { 0xAD, 0x12, 0xD0 }, 3, false)]   // LDA $D012: line 1 begins on cycle 4 (last) -> taken after the next instruction
+    [InlineData(new byte[] { 0xAD, 0x00, 0x10 }, 2, true)]    // LDA $1000 (no I/O): the boundary catch-up dates the line change to cycle 3 -> taken now
+    [InlineData(new byte[] { 0xAD, 0x00, 0x10 }, 3, false)]   // LDA $1000: line change on the last cycle -> next boundary
+    public void Raster_interrupt_is_taken_after_the_instruction_only_if_due_by_its_second_to_last_cycle(byte[] instruction, int cyclesToLineChangeAtStart, bool takenAfterThisInstruction)
     {
-        var c64 = Build([0xAD, 0x12, 0xD0, 0xEA]);   // LDA $D012 ; NOP
+        var program = instruction.Concat(new byte[] { 0xEA }).ToArray();   // ... ; NOP
+        var c64 = Build(program);
         c64.Mem.Write(0x0001, 0x35);                  // RAM under the KERNAL, I/O visible
         c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
         c64.Mem.Write(Vic2Addr.CURRENT_RASTER_LINE, 1);
@@ -116,14 +121,53 @@ public class C64DeviceAccessTimingTests
         c64.Mem.Write(Vic2Addr.IRQ_MASK, 0x01);
         c64.CPU.ProcessorStatus.InterruptDisable = false;
         var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
-        c64.Vic2.AdvanceRaster(cyclesPerLine - 3);    // line 1 begins on the read cycle
+        c64.Vic2.AdvanceRaster(cyclesPerLine - (ulong)cyclesToLineChangeAtStart);
 
-        var result = Step(c64);
+        var first = Step(c64);
 
-        Assert.Equal(1, c64.CPU.A);
+        Assert.True(c64.CPU.IRQ);   // the line is asserted either way
+        if (takenAfterThisInstruction)
+        {
+            Assert.Equal(0x2000, c64.CPU.PC);
+            Assert.Equal(4 + CPU.InterruptEntryCycles, first.CyclesConsumed);
+        }
+        else
+        {
+            Assert.Equal(Start + 3, c64.CPU.PC);
+            Assert.Equal(4UL, first.CyclesConsumed);
+
+            var second = Step(c64);   // the NOP runs, then the interrupt is taken
+            Assert.Equal(0x2000, c64.CPU.PC);
+            Assert.Equal(2 + CPU.InterruptEntryCycles, second.CyclesConsumed);
+        }
+    }
+
+    [Fact]
+    public void Cia_timer_interrupt_is_dated_to_the_underflow_cycle()
+    {
+        // Timer A latch 5, started by a direct write: it underflows after 6 counted cycles, i.e.
+        // during cycle 6 of the program below. NOP NOP NOP = cycles 1-2, 3-4, 5-6: the underflow
+        // falls on the last cycle of the third NOP, so the IRQ is taken after the fourth.
+        // (In UpdateEachRasterLine mode the CIAs are only advanced at raster line changes and CIA
+        // accesses, so an underflow between those is discovered at the next line change.)
+        var c64 = Build([0xEA, 0xEA, 0xEA, 0xEA, 0xEA], TimerMode.UpdateEachInstruction);
+        c64.Mem.Write(0x0001, 0x35);
+        c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
+        c64.CPU.ProcessorStatus.InterruptDisable = false;
+        c64.Mem.Write(CiaAddr.CIA1_TIMALO, 0x05);
+        c64.Mem.Write(CiaAddr.CIA1_TIMAHI, 0x00);
+        c64.Mem.Write(CiaAddr.CIA1_CIAICR, 0x81);      // enable timer A interrupt
+        c64.Mem.Write(CiaAddr.CIA1_CIACRA, 0x09);   // one-shot, start
+
+        Step(c64); Step(c64);
+        var third = Step(c64);
+        Assert.Equal(2UL, third.CyclesConsumed);
+        Assert.Equal(Start + 3, c64.CPU.PC);          // underflow on the last cycle: not yet
+        Assert.True(c64.CPU.IRQ);
+
+        var fourth = Step(c64);
+        Assert.Equal(2 + CPU.InterruptEntryCycles, fourth.CyclesConsumed);
         Assert.Equal(0x2000, c64.CPU.PC);
-        Assert.Equal(4 + CPU.InterruptEntryCycles, result.CyclesConsumed);
-        Assert.Equal(cyclesPerLine - 3 + 4 + CPU.InterruptEntryCycles, c64.Vic2.CyclesConsumedCurrentVblank);
     }
 
     [Fact]

@@ -180,6 +180,17 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
+    private void AdvanceDevicesToCurrentBusCycle()
+    {
+        var busCycles = CPU.BusCycles;
+        if (TimerMode == TimerMode.UpdateEachInstruction)
+        {
+            Cia1.CatchUpTo(busCycles);
+            Cia2.CatchUpTo(busCycles);
+        }
+        Vic2.CatchUpTo(busCycles);
+    }
+
     /// <summary>
     /// Align the VIC-II and CIA bus-cycle bookkeeping with the CPU without advancing them. The
     /// CPU reset sequence performs bus accesses of its own (the reset vector fetch) that are not
@@ -229,38 +240,27 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         // so a device interrupt raised that way is serviced by the CPU right after this instruction.
         instructionExecResult = CPU.ExecuteOneInstructionMinimal(Mem);
 
-        // Bring the CIA timers up to the end of the instruction. CPU.BusCycles counts one bus
-        // access per cycle, so its delta equals the instruction's cycle count.
-        if (TimerMode == TimerMode.UpdateEachInstruction)
-        {
-            Cia1.CatchUpTo(CPU.BusCycles);
-            Cia2.CatchUpTo(CPU.BusCycles);
-        }
+        // Bring the VIC-II and the CIA timers up to the end of the instruction. CPU.BusCycles
+        // counts one bus access per cycle, so its delta equals the instruction's cycle count.
+        AdvanceDevicesToCurrentBusCycle();
 
         // Update IEC bus devices
         IECBus.TickDevices();
         CartridgeSlot.Tick(instructionExecResult.CyclesConsumed);
 
-        // General emulator timing fix: devices tick after the CPU instruction has already
-        // completed, so newly raised hardware IRQ/NMI lines must be serviced here to land
-        // on the next instruction boundary instead of one instruction late.
+        // Devices caught up above may have asserted an interrupt line, dated to the cycle within
+        // the instruction on which the condition arose. The CPU services it now if that cycle is
+        // at or before the instruction's interrupt poll point (its second-to-last cycle), and
+        // otherwise at the next boundary, as on hardware.
         var interruptCycles = CPU.ProcessPendingInterrupts(Mem);
         if (interruptCycles > 0)
         {
-            // The interrupt-entry sequence consumed real time: tick the same devices
-            // with it and fold it into this iteration's cycle count so the raster
-            // advance below and the caller's frame budget include it.
-            if (TimerMode == TimerMode.UpdateEachInstruction)
-            {
-                Cia1.CatchUpTo(CPU.BusCycles);
-                Cia2.CatchUpTo(CPU.BusCycles);
-            }
+            // The interrupt-entry sequence consumed real time: bring the devices up to its end
+            // and fold it into this iteration's cycle count so the caller's frame budget includes it.
+            AdvanceDevicesToCurrentBusCycle();
             CartridgeSlot.Tick(interruptCycles);
             instructionExecResult = instructionExecResult.WithAdditionalCycles(interruptCycles);
         }
-
-        // Bring the video raster up to the end of the instruction (including any interrupt entry).
-        Vic2.CatchUpTo(CPU.BusCycles);
 
         // Audio generation after each instruction (SID register writes happen between instructions).
         // _audioProvider is only set when audio is enabled (see ConfigureAudio).

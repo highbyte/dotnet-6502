@@ -31,6 +31,16 @@ devices exact to the cycle without stepping them every cycle: a memory-mapped re
 reads the counter, advances the device to the cycle of the access, and then applies the access.
 The C64 does this for the VIC-II, the CIAs and the SID.
 
+Interrupts follow the hardware sampling rule. The 6502 polls its IRQ and NMI inputs at the end
+of an instruction's second-to-last cycle (a taken branch that does not cross a page polls at the
+end of its first cycle), so a line that goes active during the last cycle is only seen after the
+following instruction. A device reports the bus cycle on which it asserted the line, through the
+`CPUInterrupts` overloads that take a cycle, and the CPU takes the interrupt at a boundary only if
+that cycle is at or before the poll point. A source set active without a cycle is taken at the
+next boundary. `CLI`, `SEI` and `PLP` change the I flag after the poll, so their effect on
+interrupt recognition is one instruction late; `RTI` changes it in time. Not modelled: an NMI
+hijacking an interrupt sequence already in progress.
+
 Verification, beyond the functional test programs:
 
 - A pinned subset of the SingleStepTests corpus, which records the exact bus cycles of the
