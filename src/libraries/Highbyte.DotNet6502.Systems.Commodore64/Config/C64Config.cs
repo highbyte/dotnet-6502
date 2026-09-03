@@ -15,7 +15,6 @@ public class C64Config
 
     public string Vic2Model { get; set; }
 
-    public TimerMode TimerMode { get; set; }
 
     public bool InstrumentationEnabled { get; set; }
 
@@ -57,8 +56,6 @@ public class C64Config
         SwiftLink = new C64SwiftLinkConfig();
 
         // Settings not currently changeable by user
-        TimerMode = TimerMode.UpdateEachRasterLine;
-        //TimerMode = TimerMode.UpdateEachInstruction;
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
 
         InstrumentationEnabled = false;
@@ -73,8 +70,3 @@ public class C64Config
     }
 }
 
-public enum TimerMode
-{
-    UpdateEachInstruction,
-    UpdateEachRasterLine
-}

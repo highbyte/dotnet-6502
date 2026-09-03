@@ -41,7 +41,6 @@ public class C64SpriteManagerBenchmark
             C64Model = "C64NTSC",   // C64NTSC, C64PAL
             Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
             LoadROMs = false,
-            TimerMode = TimerMode.UpdateEachRasterLine,
             AudioEnabled = true,
             InstrumentationEnabled = false
         };

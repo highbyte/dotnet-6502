@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Attributes;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64;
 
 namespace Highbyte.DotNet6502.Benchmarks.Commodore64;
@@ -24,13 +23,10 @@ public class C64ExecuteFrameBenchmark
     [Params(1)]
     public int NumberOfFramesToExecute;
 
-    [Params(TimerMode.UpdateEachRasterLine, TimerMode.UpdateEachInstruction)]
-    public TimerMode TimerMode;
-
     [GlobalSetup]
     public void Setup()
     {
-        _c64 = C64HotPathBenchmarkSupport.CreateScenario(Scenario, SpriteScenario, TimerMode);
+        _c64 = C64HotPathBenchmarkSupport.CreateScenario(Scenario, SpriteScenario);
     }
 
     [Benchmark]

@@ -47,15 +47,13 @@ internal static class C64HotPathBenchmarkSupport
 {
     public const ushort StartAddress = 0xC000;
 
-    public static C64 CreateScenario(C64HotPathScenario scenario, C64SpriteScenario spriteScenario = C64SpriteScenario.None,
-        TimerMode timerMode = TimerMode.UpdateEachRasterLine)
+    public static C64 CreateScenario(C64HotPathScenario scenario, C64SpriteScenario spriteScenario = C64SpriteScenario.None)
     {
         var c64Config = new C64Config
         {
             C64Model = "C64NTSC",
             Vic2Model = "NTSC",
             LoadROMs = false,
-            TimerMode = timerMode,
             AudioEnabled = UsesSampleAudioProvider(scenario),
             AudioProviderType = UsesSampleAudioProvider(scenario) ? typeof(C64SidSampleProvider) : null,
             RenderProviderType = UsesRasterizer(scenario) ? typeof(Vic2Rasterizer) : null,

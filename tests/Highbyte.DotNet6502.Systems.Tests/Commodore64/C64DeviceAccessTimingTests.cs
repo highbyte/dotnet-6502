@@ -18,14 +18,13 @@ public class C64DeviceAccessTimingTests
 {
     private const ushort Start = 0x1000;
 
-    private static C64 Build(byte[] program, TimerMode timerMode = TimerMode.UpdateEachRasterLine)
+    private static C64 Build(byte[] program)
     {
         var c64 = C64.BuildC64(new C64Config
         {
             LoadROMs = false,
             C64Model = "C64PAL",
             Vic2Model = "PAL",
-            TimerMode = timerMode,
         }, NullLoggerFactory.Instance);
         c64.Mem.StoreData(Start, program);
         c64.CPU.PC = Start;
@@ -70,13 +69,11 @@ public class C64DeviceAccessTimingTests
         Assert.Equal(5UL, result.CyclesConsumed);
     }
 
-    [Theory]
-    [InlineData(TimerMode.UpdateEachRasterLine)]
-    [InlineData(TimerMode.UpdateEachInstruction)]
-    public void Cia_timer_read_sees_the_count_at_the_cycle_of_the_read(TimerMode timerMode)
+    [Fact]
+    public void Cia_timer_read_sees_the_count_at_the_cycle_of_the_read()
     {
         // LDA $DC04 ; LDA $DC04 — each reads on its 4th cycle.
-        var c64 = Build([0xAD, 0x04, 0xDC, 0xAD, 0x04, 0xDC], timerMode);
+        var c64 = Build([0xAD, 0x04, 0xDC, 0xAD, 0x04, 0xDC]);
         c64.Mem.Write(CiaAddr.CIA1_TIMALO, 0x00);
         c64.Mem.Write(CiaAddr.CIA1_TIMAHI, 0x10);
         c64.Mem.Write(CiaAddr.CIA1_CIACRA, 0x01);   // start, continuous
@@ -148,9 +145,7 @@ public class C64DeviceAccessTimingTests
         // Timer A latch 5, started by a direct write: it underflows after 6 counted cycles, i.e.
         // during cycle 6 of the program below. NOP NOP NOP = cycles 1-2, 3-4, 5-6: the underflow
         // falls on the last cycle of the third NOP, so the IRQ is taken after the fourth.
-        // (In UpdateEachRasterLine mode the CIAs are only advanced at raster line changes and CIA
-        // accesses, so an underflow between those is discovered at the next line change.)
-        var c64 = Build([0xEA, 0xEA, 0xEA, 0xEA, 0xEA], TimerMode.UpdateEachInstruction);
+        var c64 = Build([0xEA, 0xEA, 0xEA, 0xEA, 0xEA]);
         c64.Mem.Write(0x0001, 0x35);
         c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
         c64.CPU.ProcessorStatus.InterruptDisable = false;

@@ -62,7 +62,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public C64CartridgeImageAttachResult? AttachedCartridgeImage { get; private set; }
 
     public bool AudioEnabled { get; private set; }
-    public TimerMode TimerMode { get; private set; }
 
     public string ColorMapName { get; private set; } = default!;
 
@@ -182,27 +181,15 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     /// <summary>
     /// Bring the VIC-II and the CIAs up to the current CPU bus cycle. The CIAs are stepped from
-    /// here only: on every instruction in <see cref="Config.TimerMode.UpdateEachInstruction"/>, and in
-    /// <see cref="Config.TimerMode.UpdateEachRasterLine"/> only when the raster line has changed since
-    /// they were last stepped (their own register accesses catch them up in both modes).
+    /// here only (and by their own register accesses).
     /// </summary>
     private void AdvanceDevicesToCurrentBusCycle()
     {
         var busCycles = CPU.BusCycles;
         Vic2.CatchUpTo(busCycles);
-
-        if (TimerMode == TimerMode.UpdateEachRasterLine)
-        {
-            var line = Vic2.CurrentRasterLine;
-            if (line == _rasterLineAtLastCiaStep)
-                return;
-            _rasterLineAtLastCiaStep = line;
-        }
         Cia1.CatchUpTo(busCycles);
         Cia2.CatchUpTo(busCycles);
     }
-
-    private ushort _rasterLineAtLastCiaStep = ushort.MaxValue;
 
     /// <summary>
     /// Align the VIC-II and CIA bus-cycle bookkeeping with the CPU without advancing them. The
@@ -367,7 +354,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             IO = io,
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
-            TimerMode = c64Config.TimerMode,
             ColorMapName = c64Config.ColorMapName,
             InstrumentationEnabled = c64Config.InstrumentationEnabled
         };
