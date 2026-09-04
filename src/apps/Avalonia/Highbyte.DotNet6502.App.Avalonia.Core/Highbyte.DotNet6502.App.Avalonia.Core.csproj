@@ -21,6 +21,8 @@
     <None Remove="Resources\Sample6502Programs\Assembler\Apple2\hello_echo.bin" />
     <None Remove="Resources\Sample6502Programs\Assembler\C64\scroller_and_raster.prg" />
     <None Remove="Resources\Sample6502Programs\Assembler\C64\row_latch.prg" />
+    <None Remove="Resources\Sample6502Programs\Assembler\C64\raster_columns.prg" />
+    <None Remove="Resources\Sample6502Programs\Assembler\C64\screen_columns.prg" />
     <None Remove="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
     <None Remove="Resources\Sample6502Programs\Assembler\VIC20\color_cycle.prg" />
     <None Remove="Resources\Sample6502Programs\Basic\Apple2\HelloWorld.bas" />
@@ -41,6 +43,8 @@
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Apple2\hello_echo.bin" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\scroller_and_raster.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\row_latch.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\raster_columns.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\screen_columns.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\VIC20\color_cycle.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Basic\Apple2\HelloWorld.bas" />

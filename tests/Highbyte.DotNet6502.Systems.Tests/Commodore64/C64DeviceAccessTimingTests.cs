@@ -69,6 +69,42 @@ public class C64DeviceAccessTimingTests
         Assert.Equal(5UL, result.CyclesConsumed);
     }
 
+    [Theory]
+    [InlineData(0xD020, 0xD020)]   // the register itself
+    [InlineData(0xD060, 0xD020)]   // a mirror: reported under the canonical address
+    public void Vic2_register_write_is_reported_at_the_cycle_of_the_write(int storeAddress, int expectedRegister)
+    {
+        // STA abs writes on its 4th cycle: three cycles have completed, the 4th is in progress.
+        var c64 = Build([0x8D, (byte)(storeAddress & 0xFF), (byte)(storeAddress >> 8)]);
+        c64.CPU.A = 0x05;
+        c64.Vic2.AdvanceRaster(10);
+        var reported = new List<(ulong FrameCycle, ushort Register, byte Value)>();
+        c64.Vic2.RegisterWriteObserver = (frameCycle, register, value) => reported.Add((frameCycle, register, value));
+
+        Step(c64);
+
+        var write = Assert.Single(reported);
+        Assert.Equal(13UL, write.FrameCycle);
+        Assert.Equal((ushort)expectedRegister, write.Register);
+        Assert.Equal(0x05, write.Value);
+    }
+
+    [Fact]
+    public void Cia_timer_force_load_restarts_the_count_at_the_cycle_of_the_write()
+    {
+        // STA $DC0E (force load + start) writes on its 4th cycle; two NOPs; LDA $DC04 reads on its
+        // 4th cycle, 8 cycles after the write. The counter was loaded with the latch at the write
+        // and has counted 8 cycles since.
+        var c64 = Build([0x8D, 0x0E, 0xDC, 0xEA, 0xEA, 0xAD, 0x04, 0xDC]);
+        c64.Mem.Write(CiaAddr.CIA1_TIMALO, 62);
+        c64.Mem.Write(CiaAddr.CIA1_TIMAHI, 0);
+        c64.CPU.A = 0b0001_0001;
+
+        Step(c64); Step(c64); Step(c64); Step(c64);
+
+        Assert.Equal(62 - 8, c64.CPU.A);
+    }
+
     [Fact]
     public void Cia_timer_read_sees_the_count_at_the_cycle_of_the_read()
     {

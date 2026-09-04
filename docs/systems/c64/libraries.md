@@ -19,9 +19,13 @@ timer read returns the count at that cycle, a raster-compare or timer-control wr
 on its own cycle. A raster or CIA timer interrupt is dated to the cycle on which the raster line
 began or the timer underflowed, and the CPU applies its sampling rule to that cycle: taken after
 the current instruction if it fell at or before the second-to-last cycle, otherwise after the
-next one. The SID does the same through its audio provider (see below). Rendering still samples
-the VIC-II registers once per raster line, so a mid-line register change becomes visible on the
-next line. The rasterizer does hold a character row's 40 screen codes and colour nibbles the way
+next one. The SID does the same through its audio provider (see below). The rasterizer applies a
+write to the border or background colour registers (`$D020`-`$D024`) from the cycle after the
+write lands, so a colour change in the middle of a line splits that line at the write's pixel
+position, as on hardware; the VIC-II reports each register write with its frame cycle for this.
+The other display registers (mode, scroll, 38/24-column, memory setup) are still sampled once per
+raster line, so a mid-line change to one of those becomes visible on the next line. The
+rasterizer does hold a character row's 40 screen codes and colour nibbles the way
 the VIC-II does: fetched on the row's first line and shown for its remaining seven, so a screen
 write made after that fetch appears from the next row on. When a CPU read is stalled, the VIC-II
 and the renderer are brought through the stalled cycles before the CPU continues, so what the

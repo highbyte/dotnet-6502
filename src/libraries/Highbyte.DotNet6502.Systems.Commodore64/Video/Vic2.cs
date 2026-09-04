@@ -297,6 +297,16 @@ public class Vic2
     }
 
     /// <summary>
+    /// Told about every VIC-II register write made through the memory map, after the register has
+    /// been stored: the cycle into the current frame during which the write lands, the register's
+    /// canonical address ($D000-$D03F, mirrors folded) and the value as written (not as stored:
+    /// registers with unused bits keep only part of it). A render provider uses
+    /// this to apply the write at that cycle's pixel position instead of wherever it happens to
+    /// sample the registers. Not raised for direct <see cref="C64.WriteIOStorage"/> access.
+    /// </summary>
+    public Action<ulong, ushort, byte>? RegisterWriteObserver { get; set; }
+
+    /// <summary>
     /// Map one VIC-II register and its mirrors across $D000-$D3FF. Every access first advances the
     /// VIC-II to the cycle of the access, so reads and writes see and affect the raster state at
     /// their own bus cycle.
@@ -316,6 +326,7 @@ public class Vic2
         {
             CatchUpToCurrentAccess();
             writer(registerAddress, value);
+            RegisterWriteObserver?.Invoke(CyclesConsumedCurrentVblank, registerAddress, value);
             // Register state decides bad lines and sprite DMA: re-evaluate CPU stalls.
             C64.CPU.RequestBusStallCheck();
         };

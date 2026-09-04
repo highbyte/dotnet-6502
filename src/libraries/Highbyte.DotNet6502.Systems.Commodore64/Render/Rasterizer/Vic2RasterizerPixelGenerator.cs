@@ -102,11 +102,40 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int _scrollX;
     private int _scrollY;
 
+    // VIC-II colour registers as the rasterizer holds them. They change only through the register
+    // write journal below, at the cycle after the write lands, so a write in the middle of a line
+    // takes effect at that pixel position instead of at the point where the line's registers happen
+    // to be sampled. Resynchronised from the register storage at the end of every frame.
     private byte _borderColor;
     private byte _backgroundColor0;
     private byte _backgroundColor1;
     private byte _backgroundColor2;
     private byte _backgroundColor3;
+
+    // Journal of VIC-II register writes, filled by the VIC-II as the CPU writes (see
+    // Vic2.RegisterWriteObserver) and consumed cycle by cycle in OnAfterInstruction, which then
+    // keeps only the entries it could not apply yet (a write on the very cycle it stopped at takes
+    // effect on the next one). One instruction makes at most a few writes, so the capacity is only
+    // reached when this generator is not the render provider being driven; then the journal is
+    // abandoned and the colours resynchronised from the register storage.
+    private struct RegisterWrite
+    {
+        public ulong FrameCycle;
+        public ushort Register;
+        public byte Value;
+    }
+    private const int REGISTER_WRITE_CAPACITY = 64;
+    private readonly RegisterWrite[] _registerWrites = new RegisterWrite[REGISTER_WRITE_CAPACITY];
+    private int _registerWriteCount;
+    private int _registerWriteNext;
+    private bool _registerWritesOverflowed;
+
+    // The background layer's border and (standard text mode) background are drawn as runs along
+    // the line: a run is closed where a colour write lands and the rest of the line is drawn when
+    // the line ends, so a line without colour writes still costs one copy per border part.
+    private int _runLine = -1;          // screen line (Visible layout) whose runs are open
+    private int _borderRunStartX;       // normalized x where the open border run starts
+    private int _backgroundRunStartX;   // normalized x where the open background run starts
 
     private bool _is38ColModeEnabled;
     private bool _is24RowModeEnabled;
@@ -301,6 +330,96 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // Init bitmaps to render to
         InitBitmaps(_c64);
         InitBitPatternToPixelMaps(_c64);
+
+        _c64.Vic2.RegisterWriteObserver = OnVic2RegisterWrite;
+        ResyncColorRegisters();
+    }
+
+    private void OnVic2RegisterWrite(ulong frameCycle, ushort register, byte value)
+    {
+        if (_registerWriteCount == REGISTER_WRITE_CAPACITY)
+        {
+            _registerWritesOverflowed = true;
+            return;
+        }
+        _registerWrites[_registerWriteCount++] = new RegisterWrite { FrameCycle = frameCycle, Register = register, Value = value };
+    }
+
+    // Take the colour registers as they are now and forget any pending writes.
+    private void ResyncColorRegisters()
+    {
+        _borderColor = _c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
+        _backgroundColor0 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+        _backgroundColor1 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
+        _backgroundColor2 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
+        _backgroundColor3 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+        _registerWriteCount = 0;
+        _registerWriteNext = 0;
+        _registerWritesOverflowed = false;
+    }
+
+    // Apply a journaled register write at the pixel position (normalized x on the open line)
+    // from which it is visible. The journal carries the value as written; the colour registers
+    // keep only their low four bits.
+    private void ApplyRegisterWrite(in RegisterWrite write, int changeX)
+    {
+        var color = (byte)(write.Value & 0x0F);
+        switch (write.Register)
+        {
+            case Vic2Addr.BORDER_COLOR:
+                if (_borderColor != color)
+                {
+                    CloseBorderRun(changeX);
+                    _borderColor = color;
+                }
+                break;
+            case Vic2Addr.BACKGROUND_COLOR_0:
+                if (_backgroundColor0 != color)
+                {
+                    CloseBackgroundRun(changeX);
+                    _backgroundColor0 = color;
+                }
+                break;
+            case Vic2Addr.BACKGROUND_COLOR_1:
+                _backgroundColor1 = color;
+                break;
+            case Vic2Addr.BACKGROUND_COLOR_2:
+                _backgroundColor2 = color;
+                break;
+            case Vic2Addr.BACKGROUND_COLOR_3:
+                _backgroundColor3 = color;
+                break;
+            default:
+                break;
+        }
+    }
+
+    private bool IsRunLineVisible => _runLine >= _screenLayoutInclNonVisibleTopBorderStartY && _runLine <= _screenLayoutInclNonVisibleBottomBorderEndY;
+
+    private void CloseBorderRun(int changeX)
+    {
+        if (IsRunLineVisible)
+            DrawBorderRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _borderRunStartX, changeX);
+        _borderRunStartX = Math.Max(_borderRunStartX, changeX);
+    }
+
+    private void CloseBackgroundRun(int changeX)
+    {
+        if (IsRunLineVisible)
+            DrawBackgroundRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _backgroundRunStartX, changeX);
+        _backgroundRunStartX = Math.Max(_backgroundRunStartX, changeX);
+    }
+
+    // Draw the rest of the open line's border and background runs and close the line.
+    private void FinishLineRuns()
+    {
+        if (IsRunLineVisible)
+        {
+            var normalizedLine = _runLine - _screenLayoutInclNonVisibleTopBorderStartY;
+            DrawBorderRun(normalizedLine, _borderRunStartX, _width);
+            DrawBackgroundRun(normalizedLine, _backgroundRunStartX, _width);
+        }
+        _runLine = -1;
     }
 
     /// <summary>
@@ -309,21 +428,35 @@ public sealed class Vic2RasterizerUintPixelGenerator
     /// </summary>
     public void OnAfterInstruction()
     {
+        if (_registerWritesOverflowed)
+            ResyncColorRegisters();
+
         // Loop cycles since last time we processed (each instruction)
         for (var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank; cycleCurrentVblank < _c64.Vic2.CyclesConsumedCurrentVblank; cycleCurrentVblank++)
         {
             // For the cycle processed in current loop iteration, get line and x position.
-            // Skip if not within visible C64 border/text/bitmap area
-
-            // Line
             var rasterLine = (int)(cycleCurrentVblank / _cyclesPerLine);
             var screenLine = _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-            if (screenLine < _screenLayoutInclNonVisibleTopBorderStartY || screenLine > _screenLayoutInclNonVisibleBottomBorderEndY)
-                continue;
-
-            // X position
             var cycleOnScreenLine = cycleCurrentVblank % _cyclesPerLine;
             var posX = (int)(cycleOnScreenLine * 8); // 1 cycle = 8 pixels;
+
+            // Line change: draw the rest of the previous line's border/background runs with the
+            // colours in effect at its end, and open runs for this line.
+            if (screenLine != _runLine)
+            {
+                FinishLineRuns();
+                _runLine = screenLine;
+                _borderRunStartX = 0;
+                _backgroundRunStartX = 0;
+            }
+
+            // Register writes take effect from the cycle after the one they land in.
+            while (_registerWriteNext < _registerWriteCount && _registerWrites[_registerWriteNext].FrameCycle < cycleCurrentVblank)
+                ApplyRegisterWrite(in _registerWrites[_registerWriteNext++], posX - _screenLayoutInclNonVisibleLeftBorderStartX);
+
+            // Skip if not within visible C64 border/text/bitmap area
+            if (screenLine < _screenLayoutInclNonVisibleTopBorderStartY || screenLine > _screenLayoutInclNonVisibleBottomBorderEndY)
+                continue;
             if (posX < _screenLayoutInclNonVisibleLeftBorderStartX || posX > _screenLayoutInclNonVisibleRightBorderEndX)
                 continue;
 
@@ -332,16 +465,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
             // On a new line, refresh from the current VIC-II state.
             if (isNewLine)
             {
-                // Draw border once per line, after normal screen (to cover up any scrolling?). We take data from previous line.
-                if (_lastScreenLineDataUpdate >= 0)
-                {
-                    DrawBorderPixels(normalizedScreenLine: _lastScreenLineDataUpdate - _screenLayoutInclNonVisibleTopBorderStartY);
-
-                    // Now that the just-finished previous line's text/bitmap/border is laid down,
-                    // composite that line's sprites on top of it (per-line / multiplexing path).
-                    if (_perLineSprites)
-                        DrawSpritesForLine(_lastScreenLineDataUpdate);
-                }
+                // The just-finished previous line's text/bitmap is laid down (its border and
+                // background runs were completed when the line changed): composite that line's
+                // sprites on top of it (per-line / multiplexing path).
+                if (_lastScreenLineDataUpdate >= 0 && _perLineSprites)
+                    DrawSpritesForLine(_lastScreenLineDataUpdate);
 
                 if (screenLine - _screenLayoutInclNonVisibleTopBorderStartY == 0)
                 {
@@ -395,12 +523,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 }
                 _prevInvalidMode = _invalidMode;
 
-                _borderColor = _c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
-
-                _backgroundColor0 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
-                _backgroundColor1 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
-                _backgroundColor2 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
-                _backgroundColor3 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+                // Colour registers are not sampled here: they follow the register write journal.
 
                 _is38ColModeEnabled = _c64.Vic2.Is38ColumnDisplayEnabled;
                 _is24RowModeEnabled = _c64.Vic2.Is24RowDisplayEnabled;
@@ -414,9 +537,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _bottomBorderStartYAdjusted = _bottomBorderStartY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
 
                 _screenStartXAdjusted = _leftBorderEndXAdjusted + 1;
-
-                if (_isTextMode && _characterMode == CharMode.Standard)
-                    PrefillStandardTextBackgroundLine(screenLine);
 
                 // Copy the sprite trigger inputs (enable + Y) for this line from the shared system-layer
                 // snapshot (captured in Vic2.AdvanceRaster earlier this same instruction - identical
@@ -449,11 +569,27 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         } // End for each cycle
 
+        // Keep the writes that are not due yet, so the journal does not fill up and lose writes
+        // over a frame's worth of colour changes.
+        if (_registerWriteNext > 0)
+        {
+            var pending = _registerWriteCount - _registerWriteNext;
+            for (var i = 0; i < pending; i++)
+                _registerWrites[i] = _registerWrites[_registerWriteNext + i];
+            _registerWriteCount = pending;
+            _registerWriteNext = 0;
+        }
+
         _lastCyclesConsumedCurrentVblank = _c64.Vic2.CyclesConsumedCurrentVblank;
     }
 
     public void OnEndFrame()
     {
+        // Complete the last line drawn, then take the colour registers as they stand for the next
+        // frame (also covers values set without going through the memory map, e.g. a snapshot).
+        FinishLineRuns();
+        ResyncColorRegisters();
+
         // Per-line mode draws sprites during OnAfterInstruction; skip the end-of-frame pass.
         if (!_perLineSprites)
         {
@@ -1010,27 +1146,37 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int GetSpriteClipEndY(bool is24RowLine)
         => _bottomBorderStartY + (is24RowLine ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
 
-    private void DrawBorderPixels(int normalizedScreenLine)
+    /// <summary>
+    /// Draw the border colour on one line between two normalized x positions (end exclusive),
+    /// clipped to the line's border parts: the whole line in the top and bottom border, the left
+    /// and right border parts elsewhere.
+    /// </summary>
+    private void DrawBorderRun(int normalizedScreenLine, int fromX, int toX)
     {
+        fromX = Math.Max(fromX, 0);
+        toX = Math.Min(toX, _width);
+        if (fromX >= toX)
+            return;
+
+        var lineStartIndex = normalizedScreenLine * _width;
+        var borderLine = _oneLineSameColorPixels[_borderColor];
+
         // Top or bottom border
         if (normalizedScreenLine <= _topBorderEndYAdjusted || normalizedScreenLine >= _bottomBorderStartYAdjusted)
         {
-            var topBottomBorderLineStartIndex = normalizedScreenLine * _width;
-
-            //Array.Copy(_oneLineSameColorPixels[_borderColor], 0, PixelArray_BackgroundAndBorder, topBottomBorderLineStartIndex, _width);
-            _setBackgroundPixels(_oneLineSameColorPixels[_borderColor], 0, topBottomBorderLineStartIndex, _width);
+            _setBackgroundPixels(borderLine, 0, lineStartIndex + fromX, toX - fromX);
             return;
         }
 
         // Left border
-        var lineStartIndex = normalizedScreenLine * _width;
-        //Array.Copy(_oneLineSameColorPixels[_borderColor], 0, PixelArray_BackgroundAndBorder, lineStartIndex, _leftBorderLengthAdjusted);
-        _setBackgroundPixels(_oneLineSameColorPixels[_borderColor], 0, lineStartIndex, _leftBorderLengthAdjusted);
+        var leftEnd = Math.Min(toX, _leftBorderEndXAdjusted + 1);
+        if (fromX < leftEnd)
+            _setBackgroundPixels(borderLine, 0, lineStartIndex + fromX, leftEnd - fromX);
 
         // Right border
-        lineStartIndex += _rightBorderStartXAdjusted;
-        //Array.Copy(_oneLineSameColorPixels[_borderColor], _rightBorderStartXAdjusted, PixelArray_BackgroundAndBorder, lineStartIndex, _rightBorderLengthAdjusted);
-        _setBackgroundPixels(_oneLineSameColorPixels[_borderColor], 0, lineStartIndex, _rightBorderLengthAdjusted);
+        var rightStart = Math.Max(fromX, _rightBorderStartXAdjusted);
+        if (rightStart < toX)
+            _setBackgroundPixels(borderLine, 0, lineStartIndex + rightStart, toX - rightStart);
     }
 
     private void DrawTextAndBitmapPixels(C64 c64, int drawLine, int col)
@@ -1278,22 +1424,29 @@ public sealed class Vic2RasterizerUintPixelGenerator
         }
     }
 
-    private void PrefillStandardTextBackgroundLine(int screenLine)
+    /// <summary>
+    /// Standard text mode draws its cells on the foreground layer only, so the background colour is
+    /// laid down on the background layer separately: this draws it on one main-screen line between
+    /// two normalized x positions (end exclusive), clipped to the screen area.
+    /// </summary>
+    private void DrawBackgroundRun(int normalizedScreenLine, int fromX, int toX)
     {
-        var drawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
-        var ypos = _screenStartY + drawLine;
+        if (!_isTextMode || _characterMode != CharMode.Standard)
+            return;
+
+        var ypos = normalizedScreenLine;
         if (ypos <= _topBorderEndYAdjusted || ypos >= _bottomBorderStartYAdjusted)
             return;
 
         if (FlipY)
             ypos = _height - ypos - 1;
 
-        var fillWidth = _rightBorderStartXAdjusted - _screenStartXAdjusted;
-        if (fillWidth <= 0)
+        fromX = Math.Max(fromX, _screenStartXAdjusted);
+        toX = Math.Min(toX, _rightBorderStartXAdjusted);
+        if (fromX >= toX)
             return;
 
-        var lineStartIndex = ypos * _width + _screenStartXAdjusted;
-        _setBackgroundPixels(_oneLineSameColorPixels[_backgroundColor0], 0, lineStartIndex, fillWidth);
+        _setBackgroundPixels(_oneLineSameColorPixels[_backgroundColor0], 0, ypos * _width + fromX, toX - fromX);
     }
 
 }

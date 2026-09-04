@@ -1,0 +1,323 @@
+
+; ******** Source: screen_columns.asm
+     1                          ;ACME assembler
+     2                          ;!to "./screen_columns.prg"
+     3                          
+     4                          ; VIC-II colour columns across the main screen area, with bad lines handled.
+     5                          ;
+     6                          ; The background colour register is written back to back, giving a colour change every 4 cycles =
+     7                          ; 32 pixels, the same resolution as in the border (see raster_columns.asm). The screen is blank, so
+     8                          ; the display area shows nothing but that colour.
+     9                          ;
+    10                          ; The display is on, so every 8th raster line is a bad line: the VIC-II pulls BA low on cycle 12 to
+    11                          ; fetch the video matrix and gives the bus back on cycle 55. The CPU stops at its next read, which
+    12                          ; means it can place no colour change anywhere in the visible part of that line, and the line comes
+    13                          ; out in a single flat colour. That much cannot be avoided; it is how the chip works. What must be
+    14                          ; avoided is the damage afterwards: those ~40 stolen cycles push every following line out of phase,
+    15                          ; and the columns stop being vertical.
+    16                          ;
+    17                          ; The fix does not count the stolen cycles. Each group of 8 raster lines begins by walking into the
+    18                          ; bad line, where the VIC-II holds the CPU and releases it on cycle 55 however late or early the
+    19                          ; group arrived. That is most of the alignment for free. Two details matter. The wait must be sure
+    20                          ; to enter the hold rather than pass it: it waits for the line before the bad line, then for the bad
+    21                          ; line itself, so the match is certainly within the first few cycles of it, and only then walks in.
+    22                          ; Waiting for the bad line alone would sometimes match before cycle 12 and sometimes after cycle 55,
+    23                          ; two arrivals 40 cycles apart, which is what made an earlier version of this sample flicker. And
+    24                          ; the walk in is made of instructions, so it is the walk that gets held, not a chosen instruction,
+    25                          ; leaving a few cycles of slack depending on where the hold caught it. CIA 1 timer A, free running
+    26                          ; with one raster line as its period, measures that slack against a reference taken the same way at
+    27                          ; startup, and a 1-cycle-resolution delay slide removes it. The lines of columns that follow are then
+    28                          ; drawn from the same cycle within the line every time. Aligning takes most of a raster line, and
+    29                          ; the group has to be back in time to catch the next bad line, so five of every eight lines carry
+    30                          ; columns; the other three, the bad line among them, stay flat. No interrupt timing has to be exact.
+    31                          ;
+    32                          ; Line lengths differ per model (63 cycles on PAL, 65 on NTSC), so the model is detected at start
+    33                          ; and the matching line code is used.
+    34                          
+    35                          
+    36                          ;code start address
+    37                          * = $c000
+    38                          
+    39                          ;------------------------------------------------------------
+    40                          ;Program settings
+    41                          ;------------------------------------------------------------
+    42                          
+    43                          SCREEN_CONTROL_REGISTER_1 = $d011
+    44                          SCREEN_RASTER_LINE = $d012
+    45                          SCREEN_BORDER_COLOR_ADDRESS = $d020
+    46                          SCREEN_BACKGROUND_COLOR_ADDRESS = $d021
+    47                          
+    48                          SCREEN_RAM = $0400
+    49                          COLOR_RAM = $d800
+    50                          
+    51                          CIA1_TIMER_A_LO = $dc04
+    52                          CIA1_TIMER_A_HI = $dc05
+    53                          CIA1_CONTROL_A = $dc0e
+    54                          
+    55                          IS_PAL = $fb            ; zero page: $80 on PAL, 0 on NTSC (bit 7, so BIT can test it)
+    56                          CALIB = $fd             ; zero page: line clock reading of the reference arrival
+    57                          CALIB_SET = $f8         ; zero page: bit 7 set once the reference has been taken
+    58                          LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
+    59                          GROUP_COUNT = $f9       ; zero page: groups left to draw this frame
+    60                          BEFORE_BAD_LINE_BITS = 2    ; low three bits of the line before a bad line
+    61                          BAD_LINE_BITS = 3           ; low three bits of a bad line, with the default YSCROLL of 3
+    62                          INTO_HOLD_CYCLES = 11       ; cycles to walk into the bad line, past the cycle the hold starts on
+    63                          SLIDE_CENTER = 12           ; slide entry for an arrival exactly as early as the reference
+    64                          FILLER = $02            ; zero page: scratch, also the byte the timing filler reads
+    65                          
+    66                          ; With the default YSCROLL of 3, a bad line is any raster line whose low three bits are 3. Each
+    67                          ; group waits on a bad line and then draws the lines after it.
+    68                          FIRST_BAD_LINE = 51     ; the first bad line of the screen (51 & 7 = 3)
+    69                          GROUPS = 16             ; 16 groups of 8 raster lines: 51-178
+    70                          LINES_PER_GROUP = 5     ; lines of columns drawn per group; the alignment takes most of a line
+    71                          
+    72                          CYCLES_PER_LINE_PAL = 63
+    73                          CYCLES_PER_LINE_NTSC = 65
+    74                          
+    75                          COLUMNS = 15            ; 15 * 4 = 60 cycles of columns per line
+    76                          
+    77                          COLOR_BLACK = 0
+    78                          COLOR_WHITE = 1
+    79                          
+    80                          ;------------------------------------------------------------
+    81                          ;Macros
+    82                          ;------------------------------------------------------------
+    83                          
+    84                          ; Burn .cycles cycles (>= 2). NOPs in pairs, with a 3-cycle BIT for an odd count.
+    85                          !macro delay_cycles .cycles {
+    86                          	!if .cycles & 1 {
+    87                          		bit FILLER
+    88                          		!fill (.cycles - 3) / 2, $ea
+    89                          	} else {
+    90                          		!fill .cycles / 2, $ea
+    91                          	}
+    92                          }
+    93                          
+    94                          ; Wait for the raster line in TARGET_LINE, then read the line clock. Written once and used both by
+    95                          ; the calibration in Init and by SyncToLine, so the clock is always read at the same offset after
+    96                          ; Walk into the VIC-II's hold on the next bad line and read the line clock there. Waiting first for
+    97                          ; the line before the bad line makes the second wait's match certainly early in the bad line, so the
+    98                          ; walk in ends up inside the hold rather than past it. The clock reading is left in A: it says how
+    99                          ; much later than the reference this arrival was. Low three bits identify the lines, so no line
+   100                          ; counter has to be kept between groups.
+   101                          !macro run_into_hold {
+   102                          -	lda SCREEN_RASTER_LINE          ; 4
+   103                          	and #7                          ; 2
+   104                          	cmp #BEFORE_BAD_LINE_BITS       ; 2
+   105                          	bne -                           ; 3 taken / 2 falling through
+   106                          -	lda SCREEN_RASTER_LINE          ; 4
+   107                          	and #7                          ; 2
+   108                          	cmp #BAD_LINE_BITS              ; 2
+   109                          	bne -                           ; 3 taken / 2 falling through
+   110                          	+delay_cycles INTO_HOLD_CYCLES  ; from here the fetches are inside the hold
+   111                          	lda CIA1_TIMER_A_LO             ; 4   read once the bus is back
+   112                          }
+   113                          
+   114                          ; Remove the slack the hold left, by delaying the difference between this arrival and the reference.
+   115                          ; The reference is the first arrival of the run rather than a reading taken during startup, so that
+   116                          ; it is measured by exactly this code in exactly this context. A reading taken anywhere else sits at
+   117                          ; some offset from the arrivals it is compared against, and that offset moves the subtraction below
+   118                          ; towards the point where it wraps; a couple of cycles of slack then flips the correction by half
+   119                          ; the slide, which is a flicker whose presence depends only on which cycle the program was started
+   120                          ; on. Only the very first arrival takes the branch, so every later one is timed identically.
+   121                          !macro align_to_reference {
+   122                          	sta FILLER                      ; 3   this arrival's clock reading
+   123                          	bit CALIB_SET                   ; 3
+   124                          	bmi +                           ; 3 taken / 2 falling through
+   125                          	sta CALIB                       ; 3   the first arrival becomes the reference
+   126                          	lda #$80                        ; 2
+   127                          	sta CALIB_SET                   ; 3
+   128                          +	lda CALIB                       ; 3
+   129                          	sec                             ; 2
+   130                          	sbc FILLER                      ; 3   reference minus this arrival: negative if this one is late
+   131                          	clc                             ; 2
+   132                          	adc #SLIDE_CENTER               ; 2   later arrival => larger entry => shorter delay
+   133                          	and #31                         ; 2   a jump into the slide even if an arrival is ever wilder
+   134                          	sta .SlideJmp + 1               ; 4
+   135                          .SlideJmp:
+   136                          	jmp .Slide                      ; 3
+   137                          	!align 255, 0
+   138                          .Slide:
+   139                          	; Entered at offset k (0-33) this takes 35 - k cycles: pairs of $C9 are CMP #$C9 (2 cycles);
+   140                          	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
+   141                          	!fill 32, $c9
+   142                          	!byte $c5, $ea
+   143                          }
+   144                          
+   145                          ; Copy a $ff-terminated screen-code string to screen memory.
+   146                          !macro print .screenaddr, .text {
+   147                          	ldx #0
+   148                          -	lda .text,x
+   149                          	cmp #$ff
+   150                          	beq +
+   151                          	sta .screenaddr,x
+   152                          	inx
+   153                          	bne -
+   154                          +
+   155                          }
+   156                          
+   157                          ; Seven lines of columns, written out rather than looped: a loop's counter and branch would cost 8
+   158                          ; cycles per line, a 64-pixel column of nothing. Each line is exactly one raster line long, so the
+   159                          ; columns land on the same cycles on every line. 15 is a multiple of 3, so every line starts on the
+   160                          ; same colour.
+   161                          !macro column_lines .fill, ~.entry {
+   162                          .Start:
+   163                          	+align_to_reference
+   164                          	lda #COLOR_WHITE                ; 2   the third colour; X and Y already hold theirs
+   165                          	!for .line, 1, LINES_PER_GROUP {
+   166                          		!for .group, 1, COLUMNS / 3 {
+   167                          			sta SCREEN_BACKGROUND_COLOR_ADDRESS     ; 4
+   168                          			stx SCREEN_BACKGROUND_COLOR_ADDRESS     ; 4
+   169                          			sty SCREEN_BACKGROUND_COLOR_ADDRESS     ; 4
+   170                          		}
+   171                          		+delay_cycles .fill
+   172                          	}
+   173                          	.entry = .Start
+   174                          }
+   175                          
+   176                          ;------------------------------------------------------------
+   177                          ;Code start
+   178                          ;------------------------------------------------------------
+   179                          
+   180                          Init:
+   181  c000 78                 	sei                  ; set interrupt bit, make the CPU ignore interrupt requests
+   182  c001 a97f               	lda #%01111111       ; switch off interrupt signals from CIA-1
+   183  c003 8d0ddc             	sta $dc0d
+   184                          
+   185  c006 2d11d0             	and SCREEN_CONTROL_REGISTER_1 ; clear most significant bit of VIC's raster register
+   186  c009 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   187                          
+   188  c00c ad0ddc             	lda $dc0d            ; acknowledge pending interrupts from CIA-1
+   189  c00f ad0ddd             	lda $dd0d            ; acknowledge pending interrupts from CIA-2
+   190                          
+   191  c012 2059c0             	jsr DetectModel
+   192                          
+   193  c015 a900               	lda #COLOR_BLACK
+   194  c017 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   195  c01a 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   196  c01d 207fc0             	jsr ClearScreen
+   197  c020 20a4c0             	jsr DrawScreen
+   198                          
+   199                          	; Line clock: timer A counts one raster line per period (latch + 1 cycles), continuously.
+   200  c023 a900               	lda #0
+   201  c025 8d05dc             	sta CIA1_TIMER_A_HI
+   202  c028 a940               	lda #CYCLES_PER_LINE_NTSC - 1
+   203  c02a a6fb               	ldx IS_PAL
+   204  c02c f002               	beq +
+   205  c02e a93e               	lda #CYCLES_PER_LINE_PAL - 1
+   206  c030 8d04dc             +	sta CIA1_TIMER_A_LO
+   207  c033 a911               	lda #%00010001       ; force load + start, continuous
+   208  c035 8d0edc             	sta CIA1_CONTROL_A
+   209  c038 a900               	lda #0
+   210  c03a 85f8               	sta CALIB_SET        ; the first group arrival takes the reference
+   211                          
+   212                          	; Raster IRQ two lines above the first bad line. Its timing does not have to be exact: the
+   213                          	; first group aligns itself on the bad line like every other group.
+   214  c03c a931               	lda #FIRST_BAD_LINE - 2
+   215  c03e 8d12d0             	sta SCREEN_RASTER_LINE
+   216  c041 a9ff               	lda #<Irq
+   217  c043 8d1403             	sta $0314
+   218  c046 a9c0               	lda #>Irq
+   219  c048 8d1503             	sta $0315
+   220                          
+   221  c04b a90f               	lda #%00001111       ; clear any pending VIC interrupt flag
+   222  c04d 8d19d0             	sta $d019
+   223  c050 a901               	lda #%00000001       ; enable raster interrupt signals from VIC
+   224  c052 8d1ad0             	sta $d01a
+   225                          
+   226  c055 58                 	cli                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+   227  c056 4c56c0             	jmp *
+   228                          
+   229                          ; PAL or NTSC: after the raster passes line 255, remember the last low byte seen before it wraps
+   230                          ; to 0. NTSC wraps after line 262 (low byte 6), PAL after line 311 (low byte 55).
+   231                          DetectModel:
+   232  c059 a900               	lda #0
+   233  c05b 85fc               	sta LAST_LINE_LO
+   234  c05d 2c11d0             -	bit SCREEN_CONTROL_REGISTER_1
+   235  c060 10fb               	bpl -
+   236                          	; Keep the highest line low byte seen while bit 8 is set, rather than the last one: the raster
+   237                          	; can wrap to 0 between reading the line and testing bit 8, and the last value would then be 0
+   238                          	; on either model. That misread makes the effect use the wrong line length on PAL.
+   239  c062 ad12d0             -	lda SCREEN_RASTER_LINE
+   240  c065 c5fc               	cmp LAST_LINE_LO
+   241  c067 9002               	bcc +
+   242  c069 85fc               	sta LAST_LINE_LO
+   243  c06b 2c11d0             +	bit SCREEN_CONTROL_REGISTER_1
+   244  c06e 30f2               	bmi -
+   245  c070 a900               	lda #0
+   246  c072 85fb               	sta IS_PAL
+   247  c074 a5fc               	lda LAST_LINE_LO
+   248  c076 c920               	cmp #$20
+   249  c078 9004               	bcc +
+   250  c07a a980               	lda #$80
+   251  c07c 85fb               	sta IS_PAL
+   252  c07e 60                 +	rts
+   253                          
+   254                          ; Blank screen: the display area then shows the background colour and nothing else.
+   255                          ClearScreen:
+   256  c07f a200               	ldx #0
+   257  c081 a920               	lda #$20
+   258  c083 9d0004             -	sta SCREEN_RAM,x
+   259  c086 9d0005             	sta SCREEN_RAM + $100,x
+   260  c089 9d0006             	sta SCREEN_RAM + $200,x
+   261  c08c 9d0007             	sta SCREEN_RAM + $300,x
+   262  c08f e8                 	inx
+   263  c090 d0f1               	bne -
+   264  c092 a901               	lda #COLOR_WHITE
+   265  c094 9d00d8             -	sta COLOR_RAM,x
+   266  c097 9d00d9             	sta COLOR_RAM + $100,x
+   267  c09a 9d00da             	sta COLOR_RAM + $200,x
+   268  c09d 9d00db             	sta COLOR_RAM + $300,x
+   269  c0a0 e8                 	inx
+   270  c0a1 d0f1               	bne -
+   271  c0a3 60                 	rts
+   272                          
+   273                          ; Text below the effect, on the rows the groups do not cover.
+   274                          DrawScreen:
+   275  c0a4 a200bd17c5c9fff0...	+print SCREEN_RAM + 18 * 40, Text0
+   276  c0b3 a200bd3ec5c9fff0...	+print SCREEN_RAM + 19 * 40, Text1
+   277  c0c2 a200bd61c5c9fff0...	+print SCREEN_RAM + 21 * 40, Text2
+   278  c0d1 a200bd8ac5c9fff0...	+print SCREEN_RAM + 22 * 40, Text3
+   279  c0e0 a200bdb2c5c9fff0...	+print SCREEN_RAM + 23 * 40, Text4
+   280  c0ef a200bddcc5c9fff0...	+print SCREEN_RAM + 24 * 40, Text5
+   281  c0fe 60                 	rts
+   282                          
+   283                          ; Raster interrupt: one group of 8 raster lines per pass, each aligning itself on the bad line.
+   284                          Irq:
+   285  c0ff a910               	lda #GROUPS
+   286  c101 85f9               	sta GROUP_COUNT
+   287  c103 a006               	ldy #6                          ; blue
+   288                          
+   289                          GroupLoop:
+   290  c105 ad12d02907c902d0...	+run_into_hold
+   291  c120 a207               	ldx #7                          ; yellow (A carries the clock reading, so load X here)
+   292  c122 24fb               	bit IS_PAL                      ; bit 7 set on PAL; leaves A alone
+   293  c124 3003               	bmi +
+   294  c126 4c12c3             	jmp NtscGroup
+   295  c129 4c3ec1             +	jmp PalGroup
+   296                          GroupDone:
+   297  c12c c6f9               	dec GROUP_COUNT
+   298  c12e f003               	beq GroupsDone
+   299  c130 4c05c1             	jmp GroupLoop
+   300                          
+   301                          GroupsDone:
+   302  c133 a900               	lda #COLOR_BLACK
+   303  c135 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   304  c138 0e19d0             	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   305  c13b 4c81ea             	jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   306                          
+   307  c13e 850224f8300685fd...	+column_lines CYCLES_PER_LINE_PAL - COLUMNS * 4, ~PalGroup
+   308  c30f 4c2cc1             	jmp GroupDone
+   309  c312 850224f8300685fd...	+column_lines CYCLES_PER_LINE_NTSC - COLUMNS * 4, ~NtscGroup
+   310  c514 4c2cc1             	jmp GroupDone
+   311                          
+   312                          ;------------------------------------------------------------
+   313                          ;Text (screen codes, $ff terminated; lowercase source shows as uppercase)
+   314                          ;------------------------------------------------------------
+   315                          
+   316  c517 0201030b07120f15...Text0:	!scr "background colour written back to back", $ff
+   317  c53e 0f16051220140805...Text1:	!scr "over the screen: 32 pixel columns.", $ff
+   318  c561 0516051219203814...Text2:	!scr "every 8th line is a bad line: the vic-ii", $ff
+   319  c58a 080f0c0413201408...Text3:	!scr "holds the bus and that line stays flat.", $ff
+   320  c5b2 050103082007120f...Text4:	!scr "each group re-aligns itself in that hold,", $ff
+   321  c5dc 130f201408052003...Text5:	!scr "so the columns stay vertical below it.", $ff
