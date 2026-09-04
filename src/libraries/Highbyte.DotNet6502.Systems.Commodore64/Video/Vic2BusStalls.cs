@@ -69,6 +69,13 @@ internal sealed class Vic2BusStalls : IBusStallSource
                 // The read completes at `end`; the next window (if any) begins after it.
                 var nextStart = i + 1 < _windowCount ? _windows[i + 1].Start : _cyclesPerLine;
                 nextCheckBusCycle = busCycle + stall + (ulong)(nextStart - end);
+
+                // The VIC-II's own fetches happen while the CPU waits, before the CPU's next write.
+                // Bring the VIC-II and the renderer through the stalled cycles now, so what the VIC-II
+                // fetched (a bad line's video matrix row) reflects memory as it was, not as the
+                // stalled instruction is about to leave it.
+                _vic2.CatchUpTo(busCycle - 1 + stall);
+                _c64.RenderProvider?.OnAfterInstruction();
                 return stall;
             }
         }

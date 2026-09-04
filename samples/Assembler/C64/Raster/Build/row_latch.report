@@ -1,0 +1,251 @@
+
+; ******** Source: row_latch.asm
+     1                          ;ACME assembler
+     2                          ;!to "./row_latch.prg"
+     3                          
+     4                          ; VIC-II character row latch test.
+     5                          ;
+     6                          ; The VIC-II reads a character row's 40 screen codes and colour RAM nibbles once,
+     7                          ; during the row's first raster line (the "bad line"), and reuses them for the
+     8                          ; remaining seven lines. A program that writes screen RAM or colour RAM while the
+     9                          ; raster is inside the row does not change what is displayed until the next frame.
+    10                          ;
+    11                          ; This program writes to rows the raster is currently drawing and restores them in
+    12                          ; the bottom border. On real hardware, and in an emulator that latches the row,
+    13                          ; demo rows 1-3 look solid. A renderer that re-reads memory on every line shows
+    14                          ; row 1 cut in two, row 2 in two colours and row 3 as stripes of different glyphs.
+    15                          ; Demo row 4 changes the background colour register instead; that is not latched,
+    16                          ; so it splits mid-row everywhere.
+    17                          ;
+    18                          ; Works on PAL and NTSC (all raster lines used are inside the 51-250 screen area
+    19                          ; or the bottom border at 251).
+    20                          
+    21                          ;code start address
+    22                          * = $c000
+    23                          
+    24                          ;------------------------------------------------------------
+    25                          ;Program settings
+    26                          ;------------------------------------------------------------
+    27                          
+    28                          SCREEN_RAM      = $0400
+    29                          COLOR_RAM       = $d800
+    30                          
+    31                          ;Bit 8 (highest bit) of the current video scan line is stored in bit #7 in this register
+    32                          SCREEN_CONTROL_REGISTER_1 = $d011
+    33                          ;Bits 0-7 the current video scan line bit
+    34                          SCREEN_RASTER_LINE = $d012
+    35                          ;Border color address
+    36                          SCREEN_BORDER_COLOR_ADDRESS = $d020
+    37                          ;Bg color address for entire screen
+    38                          SCREEN_BACKGROUND_COLOR_ADDRESS = $d021
+    39                          
+    40                          ; Screen rows used by the demo. With the default vertical scroll (3), character
+    41                          ; row R starts on raster line 51 + 8*R.
+    42                          DEMO1_ROW = 6           ; screen codes cleared on line 3 of the row
+    43                          DEMO2_ROW = 9           ; colour RAM set to red on line 3 of the row
+    44                          DEMO3_ROW = 12          ; screen codes a-g written on lines 1-7 of the row
+    45                          DEMO4_ROW = 15          ; background colour changed on line 3 of the row
+    46                          
+    47                          DEMO1_SCREEN = SCREEN_RAM + DEMO1_ROW * 40
+    48                          DEMO1_COLOR  = COLOR_RAM  + DEMO1_ROW * 40
+    49                          DEMO2_SCREEN = SCREEN_RAM + DEMO2_ROW * 40
+    50                          DEMO2_COLOR  = COLOR_RAM  + DEMO2_ROW * 40
+    51                          DEMO3_SCREEN = SCREEN_RAM + DEMO3_ROW * 40
+    52                          DEMO3_COLOR  = COLOR_RAM  + DEMO3_ROW * 40
+    53                          
+    54                          DEMO1_LINE = 51 + DEMO1_ROW * 8         ; first raster line of each demo row
+    55                          DEMO2_LINE = 51 + DEMO2_ROW * 8
+    56                          DEMO3_LINE = 51 + DEMO3_ROW * 8
+    57                          DEMO4_LINE = 51 + DEMO4_ROW * 8
+    58                          
+    59                          IRQ_LINE     = DEMO1_LINE + 1           ; handler starts inside demo row 1
+    60                          RESTORE_LINE = 251                      ; first line of the bottom border
+    61                          
+    62                          DEMO3_COLUMNS = 12      ; 12 unrolled STA (48 cycles) fit inside one raster line
+    63                          
+    64                          BLOCK_CHAR      = $a0   ; reverse space = solid block
+    65                          SPACE_CHAR      = $20
+    66                          
+    67                          COLOR_BLACK      = 0
+    68                          COLOR_WHITE      = 1
+    69                          COLOR_RED        = 2
+    70                          COLOR_BLUE       = 6
+    71                          COLOR_YELLOW     = 7
+    72                          COLOR_DARK_GREY  = 11
+    73                          COLOR_LIGHT_GREEN = 13
+    74                          
+    75                          ;------------------------------------------------------------
+    76                          ;Macros
+    77                          ;------------------------------------------------------------
+    78                          
+    79                          ; Busy-wait until the raster reaches .line (0-255).
+    80                          !macro wait_line .line {
+    81                          	lda #.line
+    82                          -	cmp SCREEN_RASTER_LINE
+    83                          	bne -
+    84                          }
+    85                          
+    86                          ; Store .value to .count consecutive bytes from .addr, unrolled (4 cycles per byte).
+    87                          !macro store_unrolled .addr, .value, .count {
+    88                          	lda #.value
+    89                          	!for .i, 0, .count - 1 {
+    90                          		sta .addr + .i
+    91                          	}
+    92                          }
+    93                          
+    94                          ; Copy a $ff-terminated screen-code string to screen memory.
+    95                          !macro print .screenaddr, .text {
+    96                          	ldx #0
+    97                          -	lda .text,x
+    98                          	cmp #$ff
+    99                          	beq +
+   100                          	sta .screenaddr,x
+   101                          	inx
+   102                          	bne -
+   103                          +
+   104                          }
+   105                          
+   106                          ;------------------------------------------------------------
+   107                          ;Code start
+   108                          ;------------------------------------------------------------
+   109                          
+   110                          Init:
+   111  c000 78                 	sei                  ; set interrupt bit, make the CPU ignore interrupt requests
+   112  c001 a97f               	lda #%01111111       ; switch off interrupt signals from CIA-1
+   113  c003 8d0ddc             	sta $dc0d
+   114                          
+   115  c006 2d11d0             	and SCREEN_CONTROL_REGISTER_1 ; clear most significant bit of VIC's raster register
+   116  c009 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   117                          
+   118  c00c ad0ddc             	lda $dc0d            ; acknowledge pending interrupts from CIA-1
+   119  c00f ad0ddd             	lda $dd0d            ; acknowledge pending interrupts from CIA-2
+   120                          
+   121  c012 a90b               	lda #COLOR_DARK_GREY
+   122  c014 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   123  c017 a900               	lda #COLOR_BLACK
+   124  c019 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   125                          
+   126  c01c 203ac0             	jsr ClearScreen
+   127  c01f 205fc0             	jsr DrawScreen
+   128                          
+   129                          	; Raster IRQ at the first demo row
+   130  c022 a964               	lda #IRQ_LINE
+   131  c024 8d12d0             	sta SCREEN_RASTER_LINE
+   132  c027 a948               	lda #<Irq
+   133  c029 8d1403             	sta $0314
+   134  c02c a9c3               	lda #>Irq
+   135  c02e 8d1503             	sta $0315
+   136                          
+   137  c031 a901               	lda #%00000001       ; enable raster interrupt signals from VIC
+   138  c033 8d1ad0             	sta $d01a
+   139                          
+   140  c036 58                 	cli                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+   141  c037 4c37c0             	jmp *
+   142                          
+   143                          ; Fill screen RAM with spaces and colour RAM with white.
+   144                          ClearScreen:
+   145  c03a a200               	ldx #0
+   146  c03c a920               	lda #SPACE_CHAR
+   147  c03e 9d0004             -	sta SCREEN_RAM,x
+   148  c041 9d0005             	sta SCREEN_RAM + $100,x
+   149  c044 9d0006             	sta SCREEN_RAM + $200,x
+   150  c047 9d0007             	sta SCREEN_RAM + $300,x
+   151  c04a e8                 	inx
+   152  c04b d0f1               	bne -
+   153  c04d a901               	lda #COLOR_WHITE
+   154  c04f 9d00d8             -	sta COLOR_RAM,x
+   155  c052 9d00d9             	sta COLOR_RAM + $100,x
+   156  c055 9d00da             	sta COLOR_RAM + $200,x
+   157  c058 9d00db             	sta COLOR_RAM + $300,x
+   158  c05b e8                 	inx
+   159  c05c d0f1               	bne -
+   160  c05e 60                 	rts
+   161                          
+   162                          ; Explanation text and the resting state of the demo rows.
+   163                          DrawScreen:
+   164  c05f a200bdc4c6c9fff0...	+print SCREEN_RAM + 0 * 40, Text0
+   165  c06e a200bde4c6c9fff0...	+print SCREEN_RAM + 1 * 40, Text1
+   166  c07d a200bd0ac7c9fff0...	+print SCREEN_RAM + 2 * 40, Text2
+   167  c08c a200bd2fc7c9fff0...	+print SCREEN_RAM + 3 * 40, Text3
+   168  c09b a200bd54c7c9fff0...	+print SCREEN_RAM + (DEMO1_ROW - 1) * 40, Text_Demo1
+   169  c0aa a200bd7bc7c9fff0...	+print SCREEN_RAM + (DEMO2_ROW - 1) * 40, Text_Demo2
+   170  c0b9 a200bd9cc7c9fff0...	+print SCREEN_RAM + (DEMO3_ROW - 1) * 40, Text_Demo3
+   171  c0c8 a200bdbfc7c9fff0...	+print SCREEN_RAM + (DEMO4_ROW - 1) * 40, Text_Demo4
+   172  c0d7 a200bde4c7c9fff0...	+print SCREEN_RAM + 17 * 40, Text_Result0
+   173  c0e6 a200bd05c8c9fff0...	+print SCREEN_RAM + 18 * 40, Text_Result1
+   174  c0f5 a200bd2cc8c9fff0...	+print SCREEN_RAM + 19 * 40, Text_Result2
+   175  c104 a200bd51c8c9fff0...	+print SCREEN_RAM + 20 * 40, Text_Result3
+   176                          
+   177  c113 a9a08df0048df104...	+store_unrolled DEMO1_SCREEN, BLOCK_CHAR, 40
+   178  c18d a90d8df0d88df1d8...	+store_unrolled DEMO1_COLOR, COLOR_LIGHT_GREEN, 40
+   179  c207 a9a08d68058d6905...	+store_unrolled DEMO2_SCREEN, BLOCK_CHAR, 40
+   180  c281 a9018d68d98d69d9...	+store_unrolled DEMO2_COLOR, COLOR_WHITE, 40
+   181  c2fb a9a08de0058de105...	+store_unrolled DEMO3_SCREEN, BLOCK_CHAR, DEMO3_COLUMNS
+   182  c321 a9078de0d98de1d9...	+store_unrolled DEMO3_COLOR, COLOR_YELLOW, DEMO3_COLUMNS
+   183  c347 60                 	rts
+   184                          
+   185                          ; Raster interrupt: runs from demo row 1 down to the bottom border, doing all
+   186                          ; timed writes with busy-waits on the raster line register, then restores the
+   187                          ; demo rows so every frame starts from the same screen contents.
+   188                          Irq:
+   189                          	; Demo 1: clear the row's screen codes on its 3rd line (the VIC-II has already
+   190                          	; latched the codes on line 0, so the row should stay solid).
+   191  c348 a966cd12d0d0fb     	+wait_line DEMO1_LINE + 3
+   192  c34f a9208df0048df104...	+store_unrolled DEMO1_SCREEN, SPACE_CHAR, 40
+   193                          
+   194                          	; Demo 2: change the row's colour RAM on its 3rd line.
+   195  c3c9 a97ecd12d0d0fb     	+wait_line DEMO2_LINE + 3
+   196  c3d0 a9028d68d98d69d9...	+store_unrolled DEMO2_COLOR, COLOR_RED, 40
+   197                          
+   198                          	; Demo 3: write a different screen code on each of the row's lines 1-7.
+   199  c44a a994cd12d0d0fb     	+wait_line DEMO3_LINE + 1
+   200  c451 a9018de0058de105...	+store_unrolled DEMO3_SCREEN, 1, DEMO3_COLUMNS    ; a
+   201  c477 a995cd12d0d0fb     	+wait_line DEMO3_LINE + 2
+   202  c47e a9028de0058de105...	+store_unrolled DEMO3_SCREEN, 2, DEMO3_COLUMNS    ; b
+   203  c4a4 a996cd12d0d0fb     	+wait_line DEMO3_LINE + 3
+   204  c4ab a9038de0058de105...	+store_unrolled DEMO3_SCREEN, 3, DEMO3_COLUMNS    ; c
+   205  c4d1 a997cd12d0d0fb     	+wait_line DEMO3_LINE + 4
+   206  c4d8 a9048de0058de105...	+store_unrolled DEMO3_SCREEN, 4, DEMO3_COLUMNS    ; d
+   207  c4fe a998cd12d0d0fb     	+wait_line DEMO3_LINE + 5
+   208  c505 a9058de0058de105...	+store_unrolled DEMO3_SCREEN, 5, DEMO3_COLUMNS    ; e
+   209  c52b a999cd12d0d0fb     	+wait_line DEMO3_LINE + 6
+   210  c532 a9068de0058de105...	+store_unrolled DEMO3_SCREEN, 6, DEMO3_COLUMNS    ; f
+   211  c558 a99acd12d0d0fb     	+wait_line DEMO3_LINE + 7
+   212  c55f a9078de0058de105...	+store_unrolled DEMO3_SCREEN, 7, DEMO3_COLUMNS    ; g
+   213                          
+   214                          	; Demo 4: the background colour register is not latched per row, so this
+   215                          	; change is visible from the line it is written on.
+   216  c585 a9aecd12d0d0fb     	+wait_line DEMO4_LINE + 3
+   217  c58c a906               	lda #COLOR_BLUE
+   218  c58e 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   219  c591 a9b3cd12d0d0fb     	+wait_line DEMO4_LINE + 8
+   220  c598 a900               	lda #COLOR_BLACK
+   221  c59a 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   222                          
+   223                          	; Restore the demo rows in the bottom border, before the next frame fetches them.
+   224  c59d a9fbcd12d0d0fb     	+wait_line RESTORE_LINE
+   225  c5a4 a9a08df0048df104...	+store_unrolled DEMO1_SCREEN, BLOCK_CHAR, 40
+   226  c61e a9018d68d98d69d9...	+store_unrolled DEMO2_COLOR, COLOR_WHITE, 40
+   227  c698 a9a08de0058de105...	+store_unrolled DEMO3_SCREEN, BLOCK_CHAR, DEMO3_COLUMNS
+   228                          
+   229  c6be 0e19d0             	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   230  c6c1 4c81ea             	jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   231                          
+   232                          ;------------------------------------------------------------
+   233                          ;Text (screen codes, $ff terminated; lowercase source shows as uppercase)
+   234                          ;------------------------------------------------------------
+   235                          
+   236  c6c4 1609032d09092003...Text0:		!scr "vic-ii character row latch test", $ff
+   237  c6e4 140805201609032d...Text1:		!scr "the vic-ii reads a row's screen codes", $ff
+   238  c70a 010e0420030f0c0f...Text2:		!scr "and colours on the row's first line.", $ff
+   239  c72f 0c01140512201712...Text3:		!scr "later writes show on the next frame.", $ff
+   240                          
+   241  c754 312e20030f040513...Text_Demo1:	!scr "1. codes cleared on line 3 of the row:", $ff
+   242  c77b 322e20030f0c0f15...Text_Demo2:	!scr "2. colour ram set red on line 3:", $ff
+   243  c79c 332e20030f040513...Text_Demo3:	!scr "3. codes a-g written on lines 1-7:", $ff
+   244  c7bf 342e200201030b07...Text_Demo4:	!scr "4. background colour blue on line 3:", $ff
+   245                          
+   246  c7e4 1205010c20080112...Text_Result0:	!scr "real hardware and a row-latching", $ff
+   247  c805 12050e0405120512...Text_Result1:	!scr "renderer: rows 1-3 solid, row 4 split.", $ff
+   248  c82c 012012050e040512...Text_Result2:	!scr "a renderer reading memory every line", $ff
+   249  c851 13100c0914132012...Text_Result3:	!scr "splits rows 1-3 too.", $ff
