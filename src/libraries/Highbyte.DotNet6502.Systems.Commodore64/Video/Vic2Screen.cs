@@ -31,6 +31,17 @@ public class Vic2Screen : ITextMode, IScreen
     public int VisibleLeftRightBorderWidth => (int)Math.Floor((double)((VisibleWidth - DrawableAreaWidth) / 2.0d));
     public int VisibleTopBottomBorderHeight => (int)Math.Floor((double)((VisibleHeight - DrawableAreaHeight) / 2.0d));
 
+    // Where the display window sits in a raster line, in pixels from the start of the line's first
+    // cycle. Taken from the chip variant rather than by centring the display window in the line,
+    // because everything derived from a cycle is placed relative to it.
+    public int DisplayWindowStartX => _vic2Model.DisplayWindowStartX;
+
+    // The first visible pixel of the line. Placed so the display window keeps the same position
+    // within the visible area as it would if that area were centred on it, which is how a TV set is
+    // adjusted: on the picture, not on the line's timing. How much border a set showed varied, so
+    // this is a presentation choice; where the display window falls within the line is not.
+    public int VisibleAreaStartX => DisplayWindowStartX - VisibleLeftRightBorderWidth;
+
 
     // 38 col mode border and screen differencies
     public const int COL_38_LEFT_BORDER_END_X_DELTA = 7;    // In first column, only the first 7 pixels are covered by the border
@@ -147,17 +158,14 @@ public class Vic2Screen : ITextMode, IScreen
 
         if (visible)
         {
-            if (normalizeToVisible)
-                leftBorderStartX = 0;
-            else
-                leftBorderStartX = (int)Math.Floor((double)((TotalWidth - VisibleWidth) / 2.0d));
+            leftBorderStartX = normalizeToVisible ? 0 : VisibleAreaStartX;
             borderWidth = VisibleLeftRightBorderWidth;
-            rightBorderEndX = TotalWidth - leftBorderStartX - 1;
+            rightBorderEndX = leftBorderStartX + VisibleWidth - 1;
         }
         else
         {
             leftBorderStartX = 0;
-            borderWidth = TotalLeftRightBorderWidth;
+            borderWidth = DisplayWindowStartX;
             rightBorderEndX = TotalWidth;
         }
 
