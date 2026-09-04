@@ -1,0 +1,363 @@
+
+; ******** Source: raster_columns.asm
+     1                          ;ACME assembler
+     2                          ;!to "./raster_columns.prg"
+     3                          
+     4                          ; VIC-II colour columns: how finely the border colour can be changed along a raster line.
+     5                          ;
+     6                          ; The VIC-II applies a write to $D020 from the cycle the write lands on, so the picture has
+     7                          ; 8-pixel (one cycle) granularity. What limits a program is the CPU: the fastest 6502 store to
+     8                          ; an absolute address takes 4 cycles, so the highest column resolution is
+     9                          ;
+    10                          ;   4 cycles = 32 pixels = 4 character cells, using STA/STX/STY back to back.
+    11                          ;
+    12                          ; That rate needs the colours already in A, X and Y, so at most three colours repeat. Loading a
+    13                          ; new colour costs 2 cycles more, giving
+    14                          ;
+    15                          ;   6 cycles = 48 pixels = 6 character cells, with any colour per column.
+    16                          ;
+    17                          ; Two bands in the top border show both. Every line of a band runs the same store sequence and
+    18                          ; takes exactly one raster line (63 cycles on PAL, 65 on NTSC; the model is detected at start), so
+    19                          ; the colour changes land at the same position on every line and the columns are vertical. The
+    20                          ; store sequence is written out for every line of a band rather than looped, because a loop's own
+    21                          ; counter and branch would cost 8 cycles per line, a 64-pixel column of nothing. A raster line is
+    22                          ; still not a whole number of columns, so one column per line is wider by the remainder: 3 cycles
+    23                          ; on PAL, 5 on NTSC.
+    24                          ;
+    25                          ; The effect runs in the border because of bad lines: with the display on, the VIC-II takes the bus
+    26                          ; for about 40 cycles in the middle of every 8th line to fetch the video matrix, and the CPU stops
+    27                          ; at its next opcode fetch. That window covers exactly the part of the line the columns need, so
+    28                          ; columns cannot be drawn across the display area at all while the display is on. Above raster line
+    29                          ; 48 no bad line can occur, whatever YSCROLL is, so the top border is free of them.
+    30                          ;
+    31                          ; A raster interrupt alone is not accurate enough to place columns: it arrives a few cycles late
+    32                          ; depending on the instruction it interrupts, and the raster line poll that follows is only
+    33                          ; accurate to its 7-cycle loop, so the columns would jump sideways from frame to frame. CIA 1
+    34                          ; timer A is therefore run as a free line clock (period = one raster line), force-loaded once at a
+    35                          ; fixed offset from a raster poll. Every later poll reads the timer at the matching offset, and the
+    36                          ; value tells how early or late this frame is; a 1-cycle-resolution delay slide absorbs it.
+    37                          
+    38                          ;code start address
+    39                          * = $c000
+    40                          
+    41                          ;------------------------------------------------------------
+    42                          ;Program settings
+    43                          ;------------------------------------------------------------
+    44                          
+    45                          SCREEN_CONTROL_REGISTER_1 = $d011
+    46                          SCREEN_RASTER_LINE = $d012
+    47                          SCREEN_BORDER_COLOR_ADDRESS = $d020
+    48                          SCREEN_BACKGROUND_COLOR_ADDRESS = $d021
+    49                          
+    50                          CIA1_TIMER_A_LO = $dc04
+    51                          CIA1_TIMER_A_HI = $dc05
+    52                          CIA1_CONTROL_A = $dc0e
+    53                          
+    54                          SCREEN_RAM = $0400
+    55                          COLOR_RAM = $d800
+    56                          
+    57                          IS_PAL = $fb            ; zero page: 1 on PAL, 0 on NTSC
+    58                          LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
+    59                          CALIB = $fd             ; zero page: line clock value of the reference poll (see SyncToLine)
+    60                          TARGET_LINE = $fe       ; zero page: raster line SyncToLine waits for
+    61                          FILLER = $02            ; zero page: scratch, also the byte the timing filler reads
+    62                          
+    63                          ; Both bands sit below raster line 50, where no bad line can occur with the default YSCROLL of 3,
+    64                          ; and inside the part of the top border that both models actually show: PAL's visible top border
+    65                          ; starts at raster line 9 but NTSC's only at 34.
+    66                          ; A band starts partway into its first line and so ends partway into the line after its last, which
+    67                          ; is why the second band's first line is two lines after the first band's last: its wait would
+    68                          ; otherwise be for a line that has just gone by, and would sit out a whole frame.
+    69                          BAND_A_LINE = 34        ; first raster line of the 4-cycle band
+    70                          BAND_A_LINES = 7
+    71                          BAND_B_LINE = 43        ; first raster line of the 6-cycle band
+    72                          BAND_B_LINES = 7
+    73                          
+    74                          CYCLES_PER_LINE_PAL = 63
+    75                          CYCLES_PER_LINE_NTSC = 65
+    76                          
+    77                          BAND_A_COLUMNS = 15     ; 15 * 4 = 60 cycles of columns
+    78                          BAND_B_COLUMNS = 10     ; 10 * 6 = 60 cycles of columns
+    79                          
+    80                          ; Slide entry for a frame exactly as early as the reference frame. The poll loop is 7 cycles, so a
+    81                          ; frame differs from the reference by at most 6 cycles either way and the entry stays within 3-15.
+    82                          SLIDE_CENTER = 9
+    83                          
+    84                          COLOR_BLACK = 0
+    85                          COLOR_WHITE = 1
+    86                          
+    87                          ;------------------------------------------------------------
+    88                          ;Macros
+    89                          ;------------------------------------------------------------
+    90                          
+    91                          ; Burn .cycles cycles (>= 2). NOPs in pairs, with a 3-cycle BIT for an odd count.
+    92                          !macro delay_cycles .cycles {
+    93                          	!if .cycles & 1 {
+    94                          		bit FILLER
+    95                          		!fill (.cycles - 3) / 2, $ea
+    96                          	} else {
+    97                          		!fill .cycles / 2, $ea
+    98                          	}
+    99                          }
+   100                          
+   101                          ; Wait for the raster line in TARGET_LINE, then read the line clock. Written once and used both by
+   102                          ; the calibration in Init and by SyncToLine, so the clock is always read at the same offset after
+   103                          ; the poll and the two values can be compared directly.
+   104                          !macro poll_and_read_clock {
+   105                          	lda TARGET_LINE                 ; 3
+   106                          -	cmp SCREEN_RASTER_LINE          ; 4
+   107                          	bne -                           ; 3 taken / 2 falling through
+   108                          	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
+   109                          }
+   110                          
+   111                          ; Copy a $ff-terminated screen-code string to screen memory.
+   112                          !macro print .screenaddr, .text {
+   113                          	ldx #0
+   114                          -	lda .text,x
+   115                          	cmp #$ff
+   116                          	beq +
+   117                          	sta .screenaddr,x
+   118                          	inx
+   119                          	bne -
+   120                          +
+   121                          }
+   122                          
+   123                          ; The 4-cycle band, written out line by line: 15 stores from the three preloaded colour registers,
+   124                          ; then the remainder of the raster line. 15 is a multiple of 3, so every line starts on the same
+   125                          ; colour and the columns line up vertically.
+   126                          !macro band_a .fill, .lines, ~.entry {
+   127                          .Start:
+   128                          	!for .line, 1, .lines {
+   129                          		!for .group, 1, BAND_A_COLUMNS / 3 {
+   130                          			sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   131                          			stx SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   132                          			sty SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   133                          		}
+   134                          		+delay_cycles .fill
+   135                          	}
+   136                          	.entry = .Start
+   137                          }
+   138                          
+   139                          ; One line of the 6-cycle band: 10 columns, each loading its own colour first.
+   140                          !macro band_b_line {
+   141                          	lda #2                              ; 2   red
+   142                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   143                          	lda #8                              ; 2   orange
+   144                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   145                          	lda #7                              ; 2   yellow
+   146                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   147                          	lda #5                              ; 2   green
+   148                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   149                          	lda #13                             ; 2   light green
+   150                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   151                          	lda #3                              ; 2   cyan
+   152                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   153                          	lda #14                             ; 2   light blue
+   154                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   155                          	lda #6                              ; 2   blue
+   156                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   157                          	lda #4                              ; 2   purple
+   158                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   159                          	lda #1                              ; 2   white
+   160                          	sta SCREEN_BORDER_COLOR_ADDRESS     ; 4
+   161                          }
+   162                          
+   163                          ; The 6-cycle band, written out line by line.
+   164                          !macro band_b .fill, .lines, ~.entry {
+   165                          .Start:
+   166                          	!for .line, 1, .lines {
+   167                          		+band_b_line
+   168                          		+delay_cycles .fill
+   169                          	}
+   170                          	.entry = .Start
+   171                          }
+   172                          
+   173                          ;------------------------------------------------------------
+   174                          ;Code start
+   175                          ;------------------------------------------------------------
+   176                          
+   177                          Init:
+   178  c000 78                 	sei                  ; set interrupt bit, make the CPU ignore interrupt requests
+   179  c001 a97f               	lda #%01111111       ; switch off interrupt signals from CIA-1
+   180  c003 8d0ddc             	sta $dc0d
+   181                          
+   182  c006 2d11d0             	and SCREEN_CONTROL_REGISTER_1 ; clear most significant bit of VIC's raster register
+   183  c009 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   184                          
+   185  c00c ad0ddc             	lda $dc0d            ; acknowledge pending interrupts from CIA-1
+   186  c00f ad0ddd             	lda $dd0d            ; acknowledge pending interrupts from CIA-2
+   187                          
+   188  c012 2065c0             	jsr DetectModel
+   189                          
+   190  c015 a900               	lda #COLOR_BLACK
+   191  c017 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   192  c01a 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   193  c01d 2081c0             	jsr ClearScreen
+   194  c020 20a6c0             	jsr DrawScreen
+   195                          
+   196                          	; Line clock: timer A counts one raster line per period (latch + 1 cycles), continuously.
+   197  c023 a900               	lda #0
+   198  c025 8d05dc             	sta CIA1_TIMER_A_HI
+   199  c028 a940               	lda #CYCLES_PER_LINE_NTSC - 1
+   200  c02a a6fb               	ldx IS_PAL
+   201  c02c f002               	beq +
+   202  c02e a93e               	lda #CYCLES_PER_LINE_PAL - 1
+   203  c030 8d04dc             +	sta CIA1_TIMER_A_LO
+   204                          
+   205  c033 a911               	lda #%00010001       ; force load + start, continuous
+   206  c035 8d0edc             	sta CIA1_CONTROL_A
+   207                          
+   208                          	; Calibration: run the poll once and keep the clock value it produces. Every later poll is
+   209                          	; compared against this, so the effect aligns to this frame whatever the code layout is.
+   210  c038 a922               	lda #BAND_A_LINE
+   211  c03a 85fe               	sta TARGET_LINE
+   212  c03c a5fecd12d0d0fbad...	+poll_and_read_clock
+   213  c046 85fd               	sta CALIB
+   214                          
+   215                          	; Raster IRQ two lines above the first band: interrupt latency and the KERNAL's interrupt
+   216                          	; entry take more than one raster line, and the handler must reach its poll in time.
+   217  c048 a920               	lda #BAND_A_LINE - 2
+   218  c04a 8d12d0             	sta SCREEN_RASTER_LINE
+   219  c04d a913               	lda #<Irq
+   220  c04f 8d1403             	sta $0314
+   221  c052 a9c2               	lda #>Irq
+   222  c054 8d1503             	sta $0315
+   223                          
+   224  c057 a90f               	lda #%00001111       ; clear any pending VIC interrupt flag
+   225  c059 8d19d0             	sta $d019
+   226  c05c a901               	lda #%00000001       ; enable raster interrupt signals from VIC
+   227  c05e 8d1ad0             	sta $d01a
+   228                          
+   229  c061 58                 	cli                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+   230  c062 4c62c0             	jmp *
+   231                          
+   232                          ; PAL or NTSC: after the raster passes line 255, remember the last low byte seen before it wraps
+   233                          ; to 0. NTSC wraps after line 262 (low byte 6), PAL after line 311 (low byte 55).
+   234                          DetectModel:
+   235  c065 2c11d0             -	bit SCREEN_CONTROL_REGISTER_1
+   236  c068 10fb               	bpl -
+   237  c06a ad12d0             -	lda SCREEN_RASTER_LINE
+   238  c06d 85fc               	sta LAST_LINE_LO
+   239  c06f 2c11d0             	bit SCREEN_CONTROL_REGISTER_1
+   240  c072 30f6               	bmi -
+   241  c074 a900               	lda #0
+   242  c076 85fb               	sta IS_PAL
+   243  c078 a5fc               	lda LAST_LINE_LO
+   244  c07a c920               	cmp #$20
+   245  c07c 9002               	bcc +
+   246  c07e e6fb               	inc IS_PAL
+   247  c080 60                 +	rts
+   248                          
+   249                          ClearScreen:
+   250  c081 a200               	ldx #0
+   251  c083 a920               	lda #$20
+   252  c085 9d0004             -	sta SCREEN_RAM,x
+   253  c088 9d0005             	sta SCREEN_RAM + $100,x
+   254  c08b 9d0006             	sta SCREEN_RAM + $200,x
+   255  c08e 9d0007             	sta SCREEN_RAM + $300,x
+   256  c091 e8                 	inx
+   257  c092 d0f1               	bne -
+   258  c094 a901               	lda #COLOR_WHITE
+   259  c096 9d00d8             -	sta COLOR_RAM,x
+   260  c099 9d00d9             	sta COLOR_RAM + $100,x
+   261  c09c 9d00da             	sta COLOR_RAM + $200,x
+   262  c09f 9d00db             	sta COLOR_RAM + $300,x
+   263  c0a2 e8                 	inx
+   264  c0a3 d0f1               	bne -
+   265  c0a5 60                 	rts
+   266                          
+   267                          DrawScreen:
+   268  c0a6 a200bdd1c7c9fff0...	+print SCREEN_RAM + 1 * 40, Text0
+   269  c0b5 a200bde7c7c9fff0...	+print SCREEN_RAM + 3 * 40, Text1
+   270  c0c4 a200bd0dc8c9fff0...	+print SCREEN_RAM + 4 * 40, Text2
+   271  c0d3 a200bd35c8c9fff0...	+print SCREEN_RAM + 5 * 40, Text3
+   272  c0e2 a200bd5dc8c9fff0...	+print SCREEN_RAM + 7 * 40, Text4
+   273  c0f1 a200bd85c8c9fff0...	+print SCREEN_RAM + 8 * 40, Text5
+   274  c100 a200bdaac8c9fff0...	+print SCREEN_RAM + 10 * 40, Text6
+   275  c10f a200bdcfc8c9fff0...	+print SCREEN_RAM + 11 * 40, Text7
+   276  c11e a200bdf1c8c9fff0...	+print SCREEN_RAM + 12 * 40, Text8
+   277  c12d a200bd16c9c9fff0...	+print SCREEN_RAM + 14 * 40, Text9
+   278  c13c a200bd38c9c9fff0...	+print SCREEN_RAM + 15 * 40, Text10
+   279  c14b a200bd5fc9c9fff0...	+print SCREEN_RAM + 16 * 40, Text11
+   280  c15a 60                 	rts
+   281                          
+   282                          ; Wait for the raster line in TARGET_LINE and return at the same cycle offset into that line on
+   283                          ; every frame. Uses A; leaves X and Y alone so a band can keep its colours in them.
+   284                          SyncToLine:
+   285  c15b a5fecd12d0d0fbad...	+poll_and_read_clock            ; poll exits 0-6 cycles after the line began
+   286  c165 8502               	sta FILLER                      ; 3   this frame's clock value
+   287  c167 a5fd               	lda CALIB                       ; 3
+   288  c169 38                 	sec                             ; 2
+   289  c16a e502               	sbc FILLER                      ; 3   reference minus this frame: negative if this frame is late
+   290  c16c 18                 	clc                             ; 2
+   291  c16d 6909               	adc #SLIDE_CENTER               ; 2   later frame => larger entry => shorter delay
+   292  c16f 290f               	and #15                         ; 2   a jump into the slide even if the poll ever missed a frame
+   293  c171 8d75c1             	sta SyncSlideJmp + 1            ; 4
+   294                          SyncSlideJmp:
+   295  c174 4c00c2             	jmp SyncSlide                   ; 3
+   296  c177 eaeaeaeaeaeaeaea...	!align 255, 0
+   297                          SyncSlide:
+   298                          	; Entered at offset k (0-17) this takes 19 - k cycles: pairs of $C9 are CMP #$C9 (2 cycles);
+   299                          	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
+   300  c200 c9c9c9c9c9c9c9c9...	!byte $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c5, $ea
+   301  c212 60                 	rts
+   302                          
+   303                          ; Raster interrupt: draw both bands, then leave the border black for the rest of the frame.
+   304                          Irq:
+   305                          	; 4-cycle band: three colours held in A, X and Y. The model is selected through A only, so
+   306                          	; the two colours in X and Y survive into the band.
+   307  c213 a922               	lda #BAND_A_LINE
+   308  c215 85fe               	sta TARGET_LINE
+   309  c217 a202               	ldx #2                          ; red
+   310  c219 a00e               	ldy #14                         ; light blue
+   311  c21b 205bc1             	jsr SyncToLine
+   312  c21e a5fb               	lda IS_PAL
+   313  c220 f005               	beq +
+   314  c222 a901               	lda #COLOR_WHITE
+   315  c224 4c4dc2             	jmp PalBandA
+   316  c227 a901               +	lda #COLOR_WHITE
+   317  c229 4c99c3             	jmp NtscBandA
+   318                          BandADone:
+   319  c22c a900               	lda #COLOR_BLACK                ; blank the two lines between the bands
+   320  c22e 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   321                          
+   322                          	; 6-cycle band: a colour loaded per column.
+   323  c231 a92b               	lda #BAND_B_LINE
+   324  c233 85fe               	sta TARGET_LINE
+   325  c235 205bc1             	jsr SyncToLine
+   326  c238 a5fb               	lda IS_PAL
+   327  c23a f003               	beq +
+   328  c23c 4cecc4             	jmp PalBandB
+   329  c23f 4c5bc6             +	jmp NtscBandB
+   330                          BandBDone:
+   331                          
+   332  c242 a900               	lda #COLOR_BLACK
+   333  c244 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   334  c247 0e19d0             	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   335  c24a 4c81ea             	jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   336                          
+   337  c24d 8d20d08e20d08c20...	+band_a CYCLES_PER_LINE_PAL - BAND_A_COLUMNS * 4, BAND_A_LINES, ~PalBandA
+   338  c396 4c2cc2             	jmp BandADone
+   339  c399 8d20d08e20d08c20...	+band_a CYCLES_PER_LINE_NTSC - BAND_A_COLUMNS * 4, BAND_A_LINES, ~NtscBandA
+   340  c4e9 4c2cc2             	jmp BandADone
+   341  c4ec a9028d20d0a9088d...	+band_b CYCLES_PER_LINE_PAL - BAND_B_COLUMNS * 6, BAND_B_LINES, ~PalBandB
+   342  c658 4c42c2             	jmp BandBDone
+   343  c65b a9028d20d0a9088d...	+band_b CYCLES_PER_LINE_NTSC - BAND_B_COLUMNS * 6, BAND_B_LINES, ~NtscBandB
+   344  c7ce 4c42c2             	jmp BandBDone
+   345                          
+   346                          ;------------------------------------------------------------
+   347                          ;Text (screen codes, $ff terminated; lowercase source shows as uppercase)
+   348                          ;------------------------------------------------------------
+   349                          
+   350  c7d1 1609032d09092003...Text0:	!scr "vic-ii colour columns", $ff
+   351  c7e7 14080520020f1204...Text1:	!scr "the border colour takes effect at the", $ff
+   352  c80d 0319030c05200914...Text2:	!scr "cycle it is written, 8 pixels wide. how", $ff
+   353  c835 030c0f1305201408...Text3:	!scr "close the changes get is up to the cpu.", $ff
+   354  c85d 1510100512200201...Text4:	!scr "upper band: sta/stx/sty $d020 in a row,", $ff
+   355  c885 34200319030c0513...Text5:	!scr "4 cycles = 32 pixels, three colours.", $ff
+   356  c8aa 0c0f170512200201...Text6:	!scr "lower band: lda #col then sta $d020,", $ff
+   357  c8cf 36200319030c0513...Text7:	!scr "6 cycles = 48 pixels, any colour.", $ff
+   358  c8f1 0f0e0520030f0c15...Text8:	!scr "one column per line is wider: a line", $ff
+   359  c916 0913200e0f142001...Text9:	!scr "is not a whole number of columns.", $ff
+   360  c938 090e201408052002...Text10:	!scr "in the border: the vic-ii steals every", $ff
+   361  c95f 381408200c090e05...Text11:	!scr "8th line's middle while display is on.", $ff

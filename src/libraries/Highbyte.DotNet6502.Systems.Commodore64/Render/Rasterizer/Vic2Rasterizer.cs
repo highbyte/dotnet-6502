@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 /// Supports:
 /// - Text mode (Standard, Extended, MultiColor)
 /// - Bitmap mode (Standard/HiRes, MultiColor)
-/// - Colors per raster line
+/// - Border and background colours applied at the cycle they are written (mid-line splits)
 /// - Fine scroll per raster line
 /// - Sprites (Standard, MultiColor). Multiplexing supported when perLineSprites is enabled.
 

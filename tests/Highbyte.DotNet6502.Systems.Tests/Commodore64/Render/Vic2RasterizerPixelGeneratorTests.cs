@@ -194,6 +194,160 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.Equal(0x2000, c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank);
     }
 
+    [Theory]
+    [InlineData(5)]    // a top border line: the whole line is border
+    [InlineData(60)]   // a main screen line: only the side borders show the border colour
+    public void Border_colour_written_mid_line_changes_from_the_pixel_block_after_the_write(int normalizedLine)
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD020, 0);
+        const int writeCycle = 30;   // cycles into the line completed when the write lands
+        var (generator, background, _) = CreateGenerator(c64);
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle, () => c64.Mem.Write(0xD020, 0xF2));   // unused high bits are ignored
+
+        var width = c64.Screen.VisibleWidth;
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X;   // first pixel of the cycle after the write
+        var lineStart = normalizedLine * width;
+        var oldColor = background[lineStart];
+        var newColor = background[lineStart + width - 1];
+        Assert.NotEqual(oldColor, newColor);
+        if (normalizedLine <= normalizedLayout.TopBorder.End.Y)
+        {
+            Assert.Equal(oldColor, background[lineStart + changeX - 1]);
+            Assert.Equal(newColor, background[lineStart + changeX]);
+        }
+        else
+        {
+            // The change lands inside the main screen area: the left border keeps the old colour
+            // and the right border has the new one.
+            Assert.True(changeX > normalizedLayout.LeftBorder.End.X && changeX < normalizedLayout.RightBorder.Start.X);
+            Assert.Equal(oldColor, background[lineStart + normalizedLayout.LeftBorder.End.X]);
+            Assert.Equal(newColor, background[lineStart + normalizedLayout.RightBorder.Start.X]);
+        }
+    }
+
+    [Fact]
+    public void Background_colour_written_mid_line_splits_the_standard_text_background_at_the_write()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD021, 6);
+        const int writeCycle = 30;
+        var (generator, background, _) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = normalizedLayout.Screen.Start.Y + 5;
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle, () => c64.Mem.Write(0xD021, 0));
+
+        var width = c64.Screen.VisibleWidth;
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X;
+        Assert.True(changeX > normalizedLayout.Screen.Start.X && changeX < normalizedLayout.Screen.End.X);
+        var lineStart = normalizedLine * width;
+        var oldColor = background[lineStart + normalizedLayout.Screen.Start.X];
+        var newColor = background[lineStart + normalizedLayout.Screen.End.X];
+        Assert.NotEqual(oldColor, newColor);
+        Assert.Equal(oldColor, background[lineStart + changeX - 1]);
+        Assert.Equal(newColor, background[lineStart + changeX]);
+        // The line below, drawn entirely after the write, has the new colour throughout.
+        Assert.Equal(newColor, background[(normalizedLine + 1) * width + normalizedLayout.Screen.Start.X]);
+    }
+
+    [Fact]
+    public void Border_colour_written_on_every_line_of_a_frame_keeps_landing_at_its_own_cycle()
+    {
+        // A frame's worth of colour changes is far more than the write journal holds at once, so
+        // the journal has to be emptied as the writes are applied rather than filling up.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        const int writeCycle = 30;
+        var (generator, background, _) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        var visibleLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+
+        // Every line writes a different border colour partway along the line.
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            vic2.AdvanceRaster((ulong)writeCycle);
+            c64.Mem.Write(0xD020, (byte)(rasterLine % 16));
+            vic2.AdvanceRaster(cyclesPerLine - (ulong)writeCycle);
+            generator.OnAfterInstruction();
+        }
+
+        // Every line of the top border must show its own two colours, split at the write.
+        var width = c64.Screen.VisibleWidth;
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X;
+        var checkedLines = 0;
+        for (var line = 1; line < 30; line++)
+        {
+            var rasterLine = line + visibleLayout.TopBorder.Start.Y;
+            var previous = (byte)((rasterLine - 1) % 16);
+            var current = (byte)(rasterLine % 16);
+            if (previous == current)
+                continue;
+            Assert.NotEqual(background[line * width + changeX - 1], background[line * width + changeX]);
+            checkedLines++;
+        }
+        Assert.True(checkedLines > 20, $"expected most lines to be checked, was {checkedLines}");
+    }
+
+    [Fact]
+    public void Colour_registers_set_without_the_memory_map_are_picked_up_at_the_end_of_the_frame()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD020, 0);
+        var (generator, background, _) = CreateGenerator(c64);
+        var width = c64.Screen.VisibleWidth;
+
+        // Bypasses the register write journal (as a snapshot restore does).
+        c64.WriteIOStorage(Vic2Addr.BORDER_COLOR, 2);
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine: -1, writeCycle: 0, write: null);
+        var firstFrameBorder = background[5 * width];
+        generator.OnEndFrame();
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine: -1, writeCycle: 0, write: null);
+        var secondFrameBorder = background[5 * width];
+
+        Assert.NotEqual(firstFrameBorder, secondFrameBorder);
+    }
+
+    /// <summary>
+    /// Drives one frame a line at a time like <see cref="RenderFrame"/>, but on the given normalized
+    /// screen line performs <paramref name="write"/> after <paramref name="writeCycle"/> cycles of
+    /// the line, with the line's pixels generated in a single pass afterwards (as the emulator does
+    /// for an instruction that spans the write).
+    /// </summary>
+    private static void RenderFrameWithMidLineWrite(C64 c64, Vic2RasterizerUintPixelGenerator generator, int normalizedLine, int writeCycle, Action? write)
+    {
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        var visibleLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            var screenLine = vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+            if (write != null && screenLine - visibleLayout.TopBorder.Start.Y == normalizedLine)
+            {
+                vic2.AdvanceRaster((ulong)writeCycle);
+                write();
+                vic2.AdvanceRaster(cyclesPerLine - (ulong)writeCycle);
+            }
+            else
+            {
+                vic2.AdvanceRaster(cyclesPerLine);
+            }
+            generator.OnAfterInstruction();
+        }
+    }
+
     private static C64 BuildC64()
     {
         return BuildC64("C64PAL", "PAL");
