@@ -38,6 +38,16 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     // Line render state
     private int _lastScreenLineDataUpdate = -1;
+
+    // The character row's 40 screen codes and colour nibbles, as the VIC-II holds them: it fetches
+    // them once per row, on the row's first line (the bad line), and displays them for the row's
+    // remaining seven lines whatever the CPU writes meanwhile. A row is latched once a full line of
+    // it has been read live (normally its first line).
+    private readonly byte[] _rowScreenCodes = new byte[40];
+    private readonly byte[] _rowColorRam = new byte[40];
+    private int _latchedCharacterRow = -1;   // row whose latch is complete (all 40 columns fetched)
+    private int _fetchingCharacterRow = -1;  // row currently being fetched live
+    private ulong _fetchedColumnsMask;       // columns of that row fetched so far
     private ulong _lastCyclesConsumedCurrentVblank;
 
 
@@ -1064,9 +1074,31 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + characterRow * _vic2ScreenTextCols + col);
         var c64BitMapAddress = (ushort)(_vic2BitmapBaseAddress + characterRow * _vic2ScreenTextCols * 8 + col * 8 + characterLine);
 
-        // Determine character code at current position from video matrix
-        var characterCode = c64.Vic2.ReadMemory(characterAddress);
-        var colorRamCode = c64.ReadIOStorage(colorRamAddress);
+        // Screen code and colour nibble for the cell: from the row latch when this row has been
+        // fetched already (lines after the row's first), otherwise live from the video matrix and
+        // colour RAM, filling the latch on the way.
+        byte characterCode, colorRamCode;
+        if (characterLine != 0 && _latchedCharacterRow == characterRow)
+        {
+            characterCode = _rowScreenCodes[col];
+            colorRamCode = _rowColorRam[col];
+        }
+        else
+        {
+            characterCode = c64.Vic2.ReadMemory(characterAddress);
+            colorRamCode = c64.ReadIOStorage(colorRamAddress);
+            _rowScreenCodes[col] = characterCode;
+            _rowColorRam[col] = colorRamCode;
+            if (_fetchingCharacterRow != characterRow)
+            {
+                _fetchingCharacterRow = characterRow;
+                _fetchedColumnsMask = 0;
+                _latchedCharacterRow = -1;
+            }
+            _fetchedColumnsMask |= 1UL << col;
+            if (_fetchedColumnsMask == (1UL << _vic2ScreenTextCols) - 1)
+                _latchedCharacterRow = characterRow;   // every column read live: the row is fetched
+        }
 
         uint[] eightPixels;
         if (_isTextMode)

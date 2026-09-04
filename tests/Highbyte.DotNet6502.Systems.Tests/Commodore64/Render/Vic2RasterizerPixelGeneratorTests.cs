@@ -108,6 +108,38 @@ public class Vic2RasterizerPixelGeneratorTests
     }
 
     [Fact]
+    public void DrawText_keeps_a_character_rows_screen_codes_from_its_first_line_as_the_vic2_latches_them()
+    {
+        // The VIC-II fetches a character row's screen codes and colour nibbles once, on the row's
+        // first line, and shows them for the row's remaining lines. A screen write made after that
+        // fetch appears in the next row (whose fetch is still ahead), not in the current one.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);   // display on, SCROLLY=3 (the normal position): row r begins on draw line 8r + 3
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        const int col = 5;
+
+        var (_, foreground) = RenderFrame(c64, beforeRasterLine: rasterLine =>
+        {
+            var drawLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine) - visibleLayout.Screen.Start.Y;
+            if (drawLine != 3 + 3)
+                return;
+            // Row 0 is three lines into its display; row 1 has not been fetched yet.
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + 0 * 40 + col)] = 2;   // solid glyph
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + 1 * 40 + col)] = 2;
+        });
+
+        var width = c64.Screen.VisibleWidth;
+        var x = normalizedLayout.Screen.Start.X + col * 8 + 3;   // an interior pixel: blank in code 1's lines 1-7, set in code 2
+        // The normalized layout places row 0's first line at its screen start (SCROLLY=3 is the norm).
+        var row0Line5 = normalizedLayout.Screen.Start.Y + 5;
+        var row1Line5 = normalizedLayout.Screen.Start.Y + 8 + 5;
+        Assert.Equal(0u, foreground[row0Line5 * width + x]);      // row 0 still shows the code it was fetched with
+        Assert.NotEqual(0u, foreground[row1Line5 * width + x]);   // row 1 was fetched after the write
+    }
+
+    [Fact]
     public void DrawText_does_not_sample_below_last_character_row_when_fine_scrolled_up()
     {
         var c64 = BuildC64();
@@ -271,7 +303,7 @@ public class Vic2RasterizerPixelGeneratorTests
     /// advance the raster one line at a time and let the generator process the elapsed cycles.
     /// The optional callback supplies the $D011 value in effect while each raster line renders.
     /// </summary>
-    private static (uint[] Background, uint[] Foreground) RenderFrame(C64 c64, Func<int, byte>? d011ForRasterLine = null)
+    private static (uint[] Background, uint[] Foreground) RenderFrame(C64 c64, Func<int, byte>? d011ForRasterLine = null, Action<int>? beforeRasterLine = null)
     {
         var (generator, background, foreground) = CreateGenerator(c64);
         var vic2 = c64.Vic2;
@@ -280,6 +312,7 @@ public class Vic2RasterizerPixelGeneratorTests
         {
             if (d011ForRasterLine != null)
                 c64.Mem.Write(0xD011, d011ForRasterLine(rasterLine));
+            beforeRasterLine?.Invoke(rasterLine);
             vic2.AdvanceRaster(cyclesPerLine);
             generator.OnAfterInstruction();
         }

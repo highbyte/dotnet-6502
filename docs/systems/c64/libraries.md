@@ -21,7 +21,11 @@ began or the timer underflowed, and the CPU applies its sampling rule to that cy
 the current instruction if it fell at or before the second-to-last cycle, otherwise after the
 next one. The SID does the same through its audio provider (see below). Rendering still samples
 the VIC-II registers once per raster line, so a mid-line register change becomes visible on the
-next line.
+next line. The rasterizer does hold a character row's 40 screen codes and colour nibbles the way
+the VIC-II does: fetched on the row's first line and shown for its remaining seven, so a screen
+write made after that fetch appears from the next row on. When a CPU read is stalled, the VIC-II
+and the renderer are brought through the stalled cycles before the CPU continues, so what the
+VIC-II fetched during the stall reflects memory before the stalled instruction's write.
 
 The VIC-II also takes the bus from the CPU as on hardware: 40 cycles on every bad line (BA low
 from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA on, BA
