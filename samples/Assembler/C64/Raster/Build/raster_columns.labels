@@ -27,20 +27,20 @@ al C:d020 .SCREEN_BORDER_COLOR_ADDRESS
 
 al C:c22c .BandADone
 al C:c213 .Irq
-al C:c0a6 .DrawScreen
+al C:c0ae .DrawScreen
 al C:c242 .BandBDone
 al C:c938 .Text10
 al C:c95f .Text11
-al C:c15b .SyncToLine
+al C:c163 .SyncToLine
 al C:c000 .Init
-al C:c174 .SyncSlideJmp
+al C:c17c .SyncSlideJmp
 al C:c399 .NtscBandA
 al C:c65b .NtscBandB
 al C:c4ec .PalBandB
 al C:c24d .PalBandA
 al C:c200 .SyncSlide
 al C:c065 .DetectModel
-al C:c081 .ClearScreen
+al C:c089 .ClearScreen
 al C:c916 .Text9
 al C:c8f1 .Text8
 al C:c885 .Text5

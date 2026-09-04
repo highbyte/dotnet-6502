@@ -22,11 +22,13 @@
 ; still not a whole number of columns, so one column per line is wider by the remainder: 3 cycles
 ; on PAL, 5 on NTSC.
 ;
-; The effect runs in the border because of bad lines: with the display on, the VIC-II takes the bus
-; for about 40 cycles in the middle of every 8th line to fetch the video matrix, and the CPU stops
-; at its next opcode fetch. That window covers exactly the part of the line the columns need, so
-; columns cannot be drawn across the display area at all while the display is on. Above raster line
-; 48 no bad line can occur, whatever YSCROLL is, so the top border is free of them.
+; The effect runs in the border to keep it simple. With the display on, one raster line in eight is
+; a bad line: the VIC-II takes the bus for about 40 cycles in the middle of it to fetch the video
+; matrix, and the CPU stops at its next opcode fetch. That window covers the whole visible part of
+; that one line, so it comes out in a single colour; the other seven lines are untouched and take
+; columns at the same rate as the border does. Keeping those seven lines in step across the stolen
+; cycles is the work, and screen_columns.asm does it. Above raster line 48 no bad line can occur,
+; whatever YSCROLL is, so the top border needs none of that.
 ;
 ; A raster interrupt alone is not accurate enough to place columns: it arrives a few cycles late
 ; depending on the instruction it interrupts, and the raster line poll that follows is only
@@ -232,11 +234,18 @@ Init:
 ; PAL or NTSC: after the raster passes line 255, remember the last low byte seen before it wraps
 ; to 0. NTSC wraps after line 262 (low byte 6), PAL after line 311 (low byte 55).
 DetectModel:
+	lda #0
+	sta LAST_LINE_LO
 -	bit SCREEN_CONTROL_REGISTER_1
 	bpl -
+	; Keep the highest line low byte seen while bit 8 is set, rather than the last one: the raster
+	; can wrap to 0 between reading the line and testing bit 8, and the last value would then be 0
+	; on either model. That misread makes the effect use the wrong line length on PAL.
 -	lda SCREEN_RASTER_LINE
+	cmp LAST_LINE_LO
+	bcc +
 	sta LAST_LINE_LO
-	bit SCREEN_CONTROL_REGISTER_1
++	bit SCREEN_CONTROL_REGISTER_1
 	bmi -
 	lda #0
 	sta IS_PAL
