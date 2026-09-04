@@ -19,6 +19,10 @@ public class Vic2ModelNTSC_old : Vic2ModelBase
 
     public override int FirstRasterLineOfMainScreen => 51; // TODO: Verify
 
+    // DisplayWindowStartX is left at the base class default: the 6567R56A's X coordinate for the
+    // start of its first cycle has not been established here, and this variant is unfinished anyway
+    // (ConvertRasterLineToScreenLine throws).
+
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
@@ -45,6 +49,19 @@ public class Vic2ModelNTSC : Vic2ModelBase
     // MaxVisibleWidth (418) and MaxVisibleHeight (235) inherited from TvModel.Ntsc.
 
     public override int FirstRasterLineOfMainScreen => 51;
+
+    // The 6567R8's first cycle starts at X coordinate $19c (412), and its X counter wraps to 0 after
+    // 511, not after the line's 520 pixels: the 8 extra pixels of line come from one X value being
+    // held later in the line, past the display window. So X 0 is 100 pixels after the start of the
+    // first cycle, as on PAL, and the display window's first pixel is at 124, four pixels into the
+    // line's 16th cycle. (Taking the line length as the wrap point instead gives 132, which is
+    // wrong by a cycle.)
+    public override int DisplayWindowStartX => 124;
+
+    // Calibrated against VICE with the anchor above; see the base class. Differs from PAL's -11 by
+    // 15 pixels, close to the two cycles by which the two chips' line lengths differ, which is a
+    // hint about where the remaining model dependent difference lives.
+    public override int ColorChangePixelDelay => 4;
 
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
@@ -112,6 +129,14 @@ public class Vic2ModelPAL : Vic2ModelBase
     // MaxVisibleWidth (403) and MaxVisibleHeight (284) inherited from TvModel.Pal.
 
     public override int FirstRasterLineOfMainScreen => 51;
+
+    // The 6569's first cycle starts at X coordinate $194 (404) of the line's 504, and the 40 column
+    // display window is at X 24-343, so its first pixel is (24 - 404) mod 504 = 124 pixels into the
+    // line: four pixels into the line's 16th cycle.
+    public override int DisplayWindowStartX => 124;
+
+    // Calibrated against VICE with the anchor above; see the base class.
+    public override int ColorChangePixelDelay => -11;
 
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     // Should be 312 - 284 = 28  (or "around" 30 as stated in some docs)
@@ -190,6 +215,61 @@ public abstract class Vic2ModelBase
 
     public abstract int TotalWidth { get; }           // CyclesPerLine * PixelsPerCPUCycle;
     public abstract int TotalHeight { get; }
+
+    /// <summary>
+    /// Pixels from the start of a raster line's first cycle to the first pixel of the 40 column
+    /// display window.
+    ///
+    /// <para>On hardware this follows from the VIC-II's own (sprite) X coordinate system, whose
+    /// origin lies in the middle of a raster line rather than at its start. The display window is
+    /// at X 24-343 in 40 column mode on every chip variant, and X 0 falls 100 pixels after the
+    /// start of the line's first cycle on both the 6569 and the 6567R8, so the display window
+    /// starts 124 pixels into the line on both: four pixels into the line's 16th cycle. The two
+    /// chips differ in where their X counter wraps (after 504 on the 6569, which is its whole line;
+    /// after 512 on the 6567R8, whose 520 pixel line holds one X value for an extra 8 pixels later
+    /// in the line), which is why the naive "(24 - X at cycle 1) mod line length" gives the right
+    /// answer for PAL and 8 too many for NTSC.</para>
+    ///
+    /// <para>Everything the rasterizer derives from a cycle is placed relative to this, so a value
+    /// that does not match the chip shifts every raster timed effect sideways compared to hardware,
+    /// while leaving the picture itself looking the same. The default places the display window in
+    /// the middle of the line, which is what this emulator did before the per variant figures were
+    /// established, and which variants without a documented figure keep.</para>
+    /// </summary>
+    public virtual int DisplayWindowStartX => (int)Math.Floor((TotalWidth - DrawableAreaWidth) / 2.0d);
+
+    /// <summary>
+    /// Pixels between a colour register write taking effect and the pixel that first shows it.
+    ///
+    /// <para>On hardware the value a write leaves in a colour register reaches the pixel output
+    /// through a pipeline, so the change appears a few pixels later than the cycle boundary this
+    /// emulator would otherwise place it on. The delay is not in the chip documentation and is not
+    /// a whole number of cycles, so it cannot be derived the way <see cref="DisplayWindowStartX"/>
+    /// can; it has to be measured against hardware or an emulator that models it.</para>
+    ///
+    /// <para>The default of zero puts a colour change exactly on the cycle boundary, which is the
+    /// uncalibrated placement, and is what a variant keeps until it has been measured. The measured
+    /// variants override it with calibrations against VICE, made by eye, which should be treated as
+    /// provisional until a measurement replaces them. A pipeline delay cannot depend on the TV
+    /// standard, so the variants should end up with the same value; that they do not yet means
+    /// some other model dependent timing difference between this emulator and VICE is still being
+    /// absorbed there. A negative value says the same thing: the change shows up before the cycle
+    /// boundary this emulator counts from, so part of what is measured is a whole cycle of timing
+    /// rather than pixels of pipeline.</para>
+    ///
+    /// <para>How to settle it: the calibrations so far come from one program, the screen column
+    /// sample, which takes its whole timing from the bad line bus hold, the raster line register and
+    /// CIA timer A, so a whole-cycle disagreement with VICE in any of those is absorbed here. Compare
+    /// something that depends on none of them: the border column sample, which never meets a bad
+    /// line, or better a minimal program that polls the raster line register and stores a border
+    /// colour at once, run on both variants in both emulators. If the variants then agree on one
+    /// small positive value, that value is the pipeline and the whole cycle gets fixed where it
+    /// belongs, in the timing model. The 15 pixels between the current PAL and NTSC values is close
+    /// to the two cycles by which their line lengths differ, which points at something that scales
+    /// with line length, the raster counter's timing or a per-line loop, rather than at the hold.
+    /// </para>
+    /// </summary>
+    public virtual int ColorChangePixelDelay => 0;
 
     // Default to the shared TV model dimensions; chip variants with non-standard pixel timing
     // (e.g., Vic2ModelNTSC_old) can override to provide chip-specific values.

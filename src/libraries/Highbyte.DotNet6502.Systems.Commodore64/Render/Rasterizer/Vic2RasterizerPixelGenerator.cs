@@ -87,6 +87,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int _drawableAreaHeight;
     private int _drawableAreaWidth;
     private ulong _cyclesPerLine;
+    private int _colorChangePixelDelay;
     private ushort _vic2VideoMatrixBaseAddress;
     private ushort _vic2BitmapBaseAddress;
     private ushort _vic2CharacterSetAddressInVIC2Bank;
@@ -324,6 +325,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         _drawableAreaHeight = _c64.Vic2.Vic2Screen.DrawableAreaHeight;
         _drawableAreaWidth = _c64.Vic2.Vic2Screen.DrawableAreaWidth;
         _cyclesPerLine = _c64.Vic2.Vic2Model.CyclesPerLine;
+        _colorChangePixelDelay = _c64.Vic2.Vic2Model.ColorChangePixelDelay;
 
         _lastScreenLineDataUpdate = -1;
 
@@ -450,9 +452,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _backgroundRunStartX = 0;
             }
 
-            // Register writes take effect from the cycle after the one they land in.
+            // Register writes take effect from the cycle after the one they land in, plus the
+            // pixels the chip's own pipeline takes to show the new value.
             while (_registerWriteNext < _registerWriteCount && _registerWrites[_registerWriteNext].FrameCycle < cycleCurrentVblank)
-                ApplyRegisterWrite(in _registerWrites[_registerWriteNext++], posX - _screenLayoutInclNonVisibleLeftBorderStartX);
+                ApplyRegisterWrite(in _registerWrites[_registerWriteNext++], posX - _screenLayoutInclNonVisibleLeftBorderStartX + _colorChangePixelDelay);
 
             // Skip if not within visible C64 border/text/bitmap area
             if (screenLine < _screenLayoutInclNonVisibleTopBorderStartY || screenLine > _screenLayoutInclNonVisibleBottomBorderEndY)

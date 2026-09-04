@@ -211,7 +211,7 @@ public class Vic2RasterizerPixelGeneratorTests
         var width = c64.Screen.VisibleWidth;
         var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
         var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
-        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X;   // first pixel of the cycle after the write
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X + c64.Vic2.Vic2Model.ColorChangePixelDelay;   // first pixel the change shows on
         var lineStart = normalizedLine * width;
         var oldColor = background[lineStart];
         var newColor = background[lineStart + width - 1];
@@ -247,7 +247,7 @@ public class Vic2RasterizerPixelGeneratorTests
 
         var width = c64.Screen.VisibleWidth;
         var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
-        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X;
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X + c64.Vic2.Vic2Model.ColorChangePixelDelay;
         Assert.True(changeX > normalizedLayout.Screen.Start.X && changeX < normalizedLayout.Screen.End.X);
         var lineStart = normalizedLine * width;
         var oldColor = background[lineStart + normalizedLayout.Screen.Start.X];
@@ -257,6 +257,35 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.Equal(newColor, background[lineStart + changeX]);
         // The line below, drawn entirely after the write, has the new colour throughout.
         Assert.Equal(newColor, background[(normalizedLine + 1) * width + normalizedLayout.Screen.Start.X]);
+    }
+
+    [Theory]
+    [InlineData("C64PAL", "PAL", 124)]
+    [InlineData("C64NTSC", "NTSC", 124)]
+    public void Border_colour_written_on_a_cycle_lands_where_the_chip_puts_that_cycle(string c64Model, string vic2Model, int displayWindowStartX)
+    {
+        // Pins the mapping from cycle to pixel against the chip figures rather than against the
+        // layout: a write completing on cycle c is shown from the start of cycle c + 1, which is
+        // (c + 1) * 8 pixels into the line, and the display window's first pixel is
+        // displayWindowStartX pixels into the line. So the change lands that far into the window.
+        var c64 = BuildC64(c64Model, vic2Model);
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD020, 0);
+        const int writeCycle = 30;
+        var (generator, background, _) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = 5;   // a top border line, where the whole line carries the border colour
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle, () => c64.Mem.Write(0xD020, 2));
+
+        var width = c64.Screen.VisibleWidth;
+        var lineStart = normalizedLine * width;
+        // Pixels into the display window, which can be negative: the change falls in the left border.
+        var changeIntoDisplayWindow = (writeCycle + 1) * 8 - displayWindowStartX + c64.Vic2.Vic2Model.ColorChangePixelDelay;
+        var changeX = normalizedLayout.Screen.Start.X + changeIntoDisplayWindow;
+        Assert.NotEqual(background[lineStart + changeX - 1], background[lineStart + changeX]);
+        Assert.Equal(background[lineStart], background[lineStart + changeX - 1]);
     }
 
     [Fact]
@@ -284,7 +313,7 @@ public class Vic2RasterizerPixelGeneratorTests
 
         // Every line of the top border must show its own two colours, split at the write.
         var width = c64.Screen.VisibleWidth;
-        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X;
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X + c64.Vic2.Vic2Model.ColorChangePixelDelay;
         var checkedLines = 0;
         for (var line = 1; line < 30; line++)
         {
