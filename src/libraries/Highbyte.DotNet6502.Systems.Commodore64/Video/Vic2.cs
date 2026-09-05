@@ -334,8 +334,15 @@ public class Vic2
             _lineDisplayStates = new Vic2LineDisplayState[vic2Model.TotalHeight],
             _logger = loggerFactory.CreateLogger(nameof(Vic2)),
         };
-        // Until the raster has entered a line, every line reads as border: the flip-flop starts set.
-        Array.Fill(vic2._lineDisplayStates, new Vic2LineDisplayState(false, true, 0, 0));
+        // Until the raster has entered a line, the lines read as a plain 25-row frame with the
+        // display on: idle state, border open across the display area. Anything drawn before the
+        // raster has run a frame (a sprite test, a first partial frame) then lands where it would
+        // on such a frame instead of being covered by border everywhere.
+        for (var line = 0; line < vic2._lineDisplayStates.Length; line++)
+        {
+            var insideDisplayArea = line >= 51 && line <= 250;
+            vic2._lineDisplayStates[line] = new Vic2LineDisplayState(false, !insideDisplayArea, 0, 0);
+        }
 
         var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
         vic2.Vic2Screen = vic2Screen;

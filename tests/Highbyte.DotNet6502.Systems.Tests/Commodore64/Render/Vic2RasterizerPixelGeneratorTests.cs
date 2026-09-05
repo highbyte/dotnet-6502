@@ -207,6 +207,128 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.NotEqual(background[yBelow * width + 5], background[yBelow * width + xMid]);   // side border still border
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_sprite_in_the_bottom_border_shows_only_while_the_border_is_kept_open(bool perLineSprites)
+    {
+        // Sprites are covered by the vertical border, so a sprite placed below the display area is
+        // not shown in a normal frame. When the bottom compare line is missed (24 rows for line 251
+        // only) the flip-flop stays clear and the sprite is drawn in what was the bottom border.
+        const int spriteY = 255;   // raster lines 256-276, all in the bottom border
+        uint[] Render(bool openBorder)
+        {
+            var c64 = BuildC64();
+            SetupRowBoundaryMarkerTextScreen(c64);
+            CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192);
+            c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+            c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;   // the per-line sprite pass reads the snapshot this takes
+            var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+            var vic2 = c64.Vic2;
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, openBorder && rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
+            return foreground;
+        }
+        var c64ForLayout = BuildC64();
+        var normalizedLayout = c64ForLayout.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64ForLayout.Screen.VisibleWidth;
+        int CountPixelsBelowScreen(uint[] foreground)
+        {
+            var count = 0;
+            for (var i = (normalizedLayout.Screen.End.Y + 1) * width; i < foreground.Length; i++)
+                if (foreground[i] != 0)
+                    count++;
+            return count;
+        }
+
+        Assert.Equal(0, CountPixelsBelowScreen(Render(openBorder: false)));
+        var open = Render(openBorder: true);
+        Assert.True(CountPixelsBelowScreen(open) > 0, $"perLineSprites={perLineSprites}: no sprite pixels below the screen");
+        var belowScreen = open.Skip((normalizedLayout.Screen.End.Y + 1) * width).ToArray();   // the text glyphs above are foreground too
+        var (_, startX, endX) = GetFirstRenderedSpan(belowScreen, width);
+        Assert.Equal(8, endX - startX + 1);   // the one-byte shape row
+    }
+
+    [Theory]
+    [InlineData("C64NTSC", "NTSC", true)]
+    [InlineData("C64NTSC", "NTSC", false)]
+    [InlineData("C64PAL", "PAL", true)]
+    [InlineData("C64PAL", "PAL", false)]
+    public void A_sprite_that_begins_above_the_visible_area_shows_its_visible_rows_in_an_opened_top_border(string c64Model, string vic2Model, bool perLineSprites)
+    {
+        // Raster lines 28-48 are in the top border; NTSC only shows it from line 34, PAL from 9.
+        // With the bottom compare missed in the previous frame the flip-flop is clear through the
+        // top border, so the sprite's visible rows are drawn (a two-frame render: the first frame
+        // opens the border, the second shows the top border open).
+        const int spriteY = 27;
+        var c64 = BuildC64(c64Model, vic2Model);
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 20), spritePointer: 192);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+        var vic2 = c64.Vic2;
+        for (var frame = 0; frame < 2; frame++)
+        {
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
+        }
+
+        var width = c64.Screen.VisibleWidth;
+        var normalizedLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var (row, startX, endX) = GetFirstRenderedSpan(foreground, width);
+        // The shape's only row is its last, raster line 48, two lines above the display area.
+        Assert.Equal(normalizedLayout.Screen.Start.Y - 3, row);
+        Assert.Equal(8, endX - startX + 1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_sprite_that_runs_past_the_ntsc_frame_end_continues_in_the_frames_last_rows_with_the_border_open(bool perLineSprites)
+    {
+        // The NTSC visible frame is 235 lines from raster line 34, so its last six rows are raster
+        // lines 0-5 of the next frame. A sprite at Y 253 displays on lines 254-262 and then 0-11,
+        // and with the bottom compare missed the flip-flop is clear there, so those rows show.
+        const int spriteY = 253;
+        var c64 = BuildC64("C64NTSC", "NTSC");
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 12), spritePointer: 192);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+        var vic2 = c64.Vic2;
+        for (var frame = 0; frame < 2; frame++)
+        {
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
+        }
+
+        var width = c64.Screen.VisibleWidth;
+        var height = c64.Screen.VisibleHeight;
+        var (row, startX, endX) = GetFirstRenderedSpan(foreground, width);
+        // Shape row 12 is displayed on raster line 266 - 263 = 3, the frame's fourth row from the end.
+        Assert.Equal(height - 3, row);
+        Assert.Equal(8, endX - startX + 1);
+    }
+
     [Fact]
     public void DrawText_keeps_a_character_rows_screen_codes_from_its_first_line_as_the_vic2_latches_them()
     {
@@ -529,7 +651,7 @@ public class Vic2RasterizerPixelGeneratorTests
         return foreground;
     }
 
-    private static (Vic2RasterizerUintPixelGenerator Generator, uint[] Background, uint[] Foreground) CreateGenerator(C64 c64)
+    private static (Vic2RasterizerUintPixelGenerator Generator, uint[] Background, uint[] Foreground) CreateGenerator(C64 c64, bool perLineSprites = false)
     {
         var pixelCount = c64.Screen.VisibleWidth * c64.Screen.VisibleHeight;
         var background = new uint[pixelCount];
@@ -547,7 +669,8 @@ public class Vic2RasterizerPixelGeneratorTests
             (source, sourceIndex, destIndex, width) => source.Slice(sourceIndex, width).CopyTo(background.AsSpan(destIndex, width)),
             (destIndex, width) => background.AsSpan(destIndex, width).Clear(),
             (source, sourceIndex, destIndex, width) => source.Slice(sourceIndex, width).CopyTo(foreground.AsSpan(destIndex, width)),
-            (destIndex, width) => foreground.AsSpan(destIndex, width).Clear());
+            (destIndex, width) => foreground.AsSpan(destIndex, width).Clear(),
+            perLineSprites);
         return (generator, background, foreground);
     }
 

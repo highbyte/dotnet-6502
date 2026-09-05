@@ -19,7 +19,7 @@
 ;   48-pixel vertical colour columns. The loop is entered from a line-clock sync (see
 ;   raster_columns.asm), so the columns land on the same cycle every frame.
 ;
-; Four phases. The first stays until the space bar is pressed; the other three follow at about
+; Five phases. The first stays until the space bar is pressed; the other four follow at about
 ; two seconds each, after which the first waits for space again:
 ;
 ;   1. DEN set all frame: the text screen over the columns. Every bad line halts the loop for
@@ -34,6 +34,13 @@
 ;      glyph without any screen RAM or character set being read.
 ;   4. DEN cleared all frame: the border never opens, so the loop writes the border colour instead
 ;      and the columns run edge to edge.
+;   5. As 3, but $d011 selects 24 rows from the end of line 250 until line 253. The vertical
+;      border flip-flop is set only when the raster reaches the bottom compare line, 251 with 25
+;      rows and 247 with 24, and neither is the case while the register changes, so the flip-flop
+;      stays clear for the rest of the frame and the next one: the display window's columns run
+;      on through the bottom and top borders, and the eight sprites parked there, covered by the
+;      border in every other phase, are shown. (The side borders need the same trick with the
+;      38-column bit at the right cycle of every line and are not opened here.)
 ;
 ; Phases 3 and 4 are why loaders and demo parts switch the display off: the ~1000 cycles per
 ; frame of bad lines come back. An emulator that reads DEN live shows sheared columns and the
@@ -64,9 +71,10 @@ CIA1_CONTROL_A = $dc0e
 
 IDLE_BYTE_ADDRESS = $3fff       ; the byte the VIC-II displays in idle state
 
-; $d011 values: raster bit 8 clear, 25 rows, YSCROLL 3; with DEN on and off.
+; $d011 values: raster bit 8 clear, YSCROLL 3; 25 rows with DEN on and off, and 24 rows with DEN on.
 D011_DEN_ON  = %00011011
 D011_DEN_OFF = %00001011
+D011_ROWS_24 = %00010011
 
 IRQ_LINE          = 40          ; top border on both models; well before line 48
 DEN_SAMPLE_LINE   = 48          ; the line during which the VIC-II samples DEN
@@ -78,9 +86,20 @@ CYCLES_PER_LINE_PAL = 63
 CYCLES_PER_LINE_NTSC = 65
 LOOP_CYCLES = 63                ; one iteration of the column loop without filler
 
-PHASES       = 4
-PHASE_FRAMES = 100              ; frames per phase 2-4 (2 s PAL, 1.7 s NTSC)
+PHASES       = 5
+PHASE_FRAMES = 100              ; frames per phase 2-5 (2 s PAL, 1.7 s NTSC)
 STATUS_ROW   = 24
+STATUS_COL   = 19               ; after "space=run 2-5. now:"
+ROWS_25_AGAIN_LINE = 253        ; phase 5: back to 25 rows once line 251 has passed
+
+SPRITE_POINTERS   = $07f8       ; sprite pointers for the video matrix at $0400
+SPRITE_SHAPE_ADDRESS = $3000    ; block 192
+SPRITE_SHAPE_BLOCK   = SPRITE_SHAPE_ADDRESS / 64
+; Sprite DMA takes the bus from the CPU on the lines a sprite is displayed on, whether the border
+; covers it or not, so both rows are kept clear of line 50, where the column loop is synchronised,
+; and of lines 51-250, where it runs.
+SPRITE_TOP_Y      = 27          ; sprites 0-3: raster lines 28-48, in the top border on both models
+SPRITE_BOTTOM_Y   = 253         ; sprites 4-7: raster lines 254-274, in the bottom border
 
 CIA1_PORT_A = $dc00             ; keyboard matrix row select
 CIA1_PORT_B = $dc01             ; keyboard matrix column read
@@ -89,6 +108,7 @@ SPACE_COLUMN_BIT = %00010000
 
 FILLER       = $02      ; zero page: scratch, also the byte the timing filler reads
 START        = $03      ; zero page: set by the main loop when space starts the cycle
+CONTROL_AFTER = $04     ; zero page: $d011 value the column loop writes as it ends, on line 250
 ENTRY        = $f7      ; zero page, 2 bytes: the column loop to run this frame
 PHASE        = $f9      ; zero page: current phase 0-3
 FRAME        = $fa      ; zero page: frames spent in the current phase
@@ -154,7 +174,8 @@ SPACE_CHAR      = $20
 ; has ended), then eight colours 6 cycles apart, the first of them 3-9 cycles into the next line,
 ; before its visible part. The loop's own counter and branch take the last 7 cycles. Afterwards the
 ; border and background go back to their resting colours, the border write timed to land in the
-; unseen pixels after line 250's visible right border.
+; unseen pixels after line 250's visible right border. Before that the control register is written
+; with the value the phase asked for: phase 5 needs 24 rows selected before line 251 begins.
 !macro column_loop .colour_addr, .fill, ~.entry {
 	!align 127, 0        ; the loop is under 128 bytes: no page crossing on the branch back
 .entry
@@ -183,9 +204,9 @@ SPACE_CHAR      = $20
 	inx                                 ; 2
 	cpx #SCREEN_LINES                   ; 2
 	bne .Line                           ; 3 taken / 2 falling through
-	nop
-	nop
-	lda #COLOR_DARK_GREY                ; the border write lands 62-68 cycles into line 250
+	lda CONTROL_AFTER                   ; $d011 as the phase wants it from line 250's end (59-65 cycles in)
+	sta SCREEN_CONTROL_REGISTER_1
+	lda #COLOR_DARK_GREY                ; the border write lands 65-71 cycles into line 250
 	sta SCREEN_BORDER_COLOR_ADDRESS
 	lda #COLOR_BLACK
 	sta SCREEN_BACKGROUND_COLOR_ADDRESS
@@ -238,6 +259,7 @@ Init:
 	jsr ClearScreen
 	jsr DrawScreen
 	jsr PrintStatus
+	jsr SetupSprites
 
 	; Line clock: timer A counts one raster line per period (latch + 1 cycles), continuously.
 	lda #0
@@ -360,8 +382,49 @@ DrawScreen:
 	+print SCREEN_RAM + 18 * 40, Text18
 	+print SCREEN_RAM + 19 * 40, Text19
 	+print SCREEN_RAM + 20 * 40, Text20
+	+print SCREEN_RAM + 21 * 40, Text21
 	+print SCREEN_RAM + 22 * 40, Text22
 	+print SCREEN_RAM + 23 * 40, Text23
+	+print SCREEN_RAM + 24 * 40, Text24
+	rts
+
+; Eight sprites of one shape, four across the top border and four across the bottom, enabled
+; for good: the border covers them, so they show only while phase 5 keeps it open.
+SetupSprites:
+	ldx #62
+-	lda SpriteShape,x
+	sta SPRITE_SHAPE_ADDRESS,x
+	dex
+	bpl -
+	ldx #7
+-	lda #SPRITE_SHAPE_BLOCK
+	sta SPRITE_POINTERS,x
+	lda SpriteColours,x
+	sta $d027,x
+	dex
+	bpl -
+	ldx #0
+	ldy #0
+-	lda SpriteX,x
+	sta $d000,y          ; X
+	lda #SPRITE_TOP_Y
+	cpx #4
+	bcc +
+	lda #SPRITE_BOTTOM_Y
++	sta $d001,y          ; Y
+	iny
+	iny
+	inx
+	cpx #8
+	bne -
+	lda #%10001000
+	sta $d010            ; X MSB for sprites 3 and 7
+	lda #0
+	sta $d017            ; no expansion
+	sta $d01d
+	sta $d01c            ; single colour
+	lda #%11111111
+	sta $d015            ; all eight enabled
 	rts
 
 ; Status line for the current phase. Only phases 1 and 2 ever show it on hardware: in phase 3
@@ -374,16 +437,21 @@ PrintStatus:
 	beq PrintStatus3
 	cmp #3
 	beq PrintStatus4
-	+print SCREEN_RAM + STATUS_ROW * 40, Status1
+	cmp #4
+	beq PrintStatus5
+	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status1
 	rts
 PrintStatus2:
-	+print SCREEN_RAM + STATUS_ROW * 40, Status2
+	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status2
 	rts
 PrintStatus3:
-	+print SCREEN_RAM + STATUS_ROW * 40, Status3
+	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status3
 	rts
 PrintStatus4:
-	+print SCREEN_RAM + STATUS_ROW * 40, Status4
+	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status4
+	rts
+PrintStatus5:
+	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status5
 	rts
 
 ; Wait for the raster line in TARGET_LINE and return at the same cycle offset into that line on
@@ -412,14 +480,26 @@ SyncSlide:
 ;------------------------------------------------------------
 
 Irq:
+	lda #D011_DEN_ON
+	sta CONTROL_AFTER    ; phases 1-4: the loop leaves $d011 as it is
 	lda PHASE
 	beq Phase1
 	cmp #1
 	beq Phase2
 	cmp #2
 	beq Phase3
+	cmp #3
+	beq Phase4
 
-	; Phase 4: DEN off for the whole frame; the border never opens, so the columns go to $d020.
+	; Phase 5: as phase 3, but the loop ends by selecting 24 rows on line 250, so line 251 is no
+	; longer the bottom compare line and the border flip-flop is never set; ColumnsDone restores
+	; 25 rows on line 253, after which no compare line is left in the frame.
+	lda #D011_ROWS_24
+	sta CONTROL_AFTER
+	jmp Phase3
+
+Phase4:
+	; DEN off for the whole frame; the border never opens, so the columns go to $d020.
 	lda #D011_DEN_OFF
 	sta SCREEN_CONTROL_REGISTER_1
 	ldx #2
@@ -467,9 +547,14 @@ RunColumns:
 	jmp (ENTRY)                     ; 5
 
 ColumnsDone:
-	lda #D011_DEN_ON                ; DEN on for whichever phase comes next
+	lda PHASE
+	cmp #4
+	bne Tail
+	+wait_line ROWS_25_AGAIN_LINE   ; phase 5: 25 rows again, once line 251 has passed
+	lda #D011_DEN_ON
 	sta SCREEN_CONTROL_REGISTER_1
 
+Tail:
 	lda PHASE
 	bne Counting
 	lda START            ; phase 1 stays until the main loop has seen the space bar
@@ -509,6 +594,38 @@ EntryTable:
 ;Tables
 ;------------------------------------------------------------
 
+; A 24x21 ball, the shape of all eight sprites.
+SpriteShape:
+	!byte %00000000, %01111110, %00000000
+	!byte %00000001, %11111111, %10000000
+	!byte %00000011, %11111111, %11000000
+	!byte %00000111, %11111111, %11100000
+	!byte %00001111, %11111111, %11110000
+	!byte %00011111, %11111111, %11111000
+	!byte %00011111, %11111111, %11111000
+	!byte %00111111, %11111111, %11111100
+	!byte %00111111, %11111111, %11111100
+	!byte %00111111, %11111111, %11111100
+	!byte %00111111, %11111111, %11111100
+	!byte %00111111, %11111111, %11111100
+	!byte %00111111, %11111111, %11111100
+	!byte %00111111, %11111111, %11111100
+	!byte %00011111, %11111111, %11111000
+	!byte %00011111, %11111111, %11111000
+	!byte %00001111, %11111111, %11110000
+	!byte %00000111, %11111111, %11100000
+	!byte %00000011, %11111111, %11000000
+	!byte %00000001, %11111111, %10000000
+	!byte %00000000, %01111110, %00000000
+
+SpriteColours:
+	!byte 1, 7, 13, 3, 14, 10, 15, 8
+
+; Sprite X positions: four across the window's width, the same four for the bottom row. The
+; fourth of each row sits at 292, which needs the X MSB bit (sprites 3 and 7 in $d010).
+SpriteX:
+	!byte 52, 132, 212, 292 - 256, 52, 132, 212, 292 - 256
+
 ; One idle byte per display line: 25 groups of 8 glyph rows. Page aligned so that the indexed
 ; read in the loop never crosses a page and costs an extra cycle.
 	!align 255, 0
@@ -543,10 +660,13 @@ Text17:	!scr "   lines, straight columns. no rows are", $ff
 Text18:	!scr "   fetched: the black glyph is the byte", $ff
 Text19:	!scr "   at $3fff, written once per line.", $ff
 Text20:	!scr "4. den cleared all frame: border only.", $ff
-Text22:	!scr "press space to run phases 2-4 and back.", $ff
-Text23:	!scr "phase now:", $ff
+Text21:	!scr "5. as 3, but 24 rows during line 251:", $ff
+Text22:	!scr "   the border never closes and 8 sprites", $ff
+Text23:	!scr "   show in the top and bottom borders.", $ff
+Text24:	!scr "space=run 2-5. now:", $ff
 
-Status1:	!scr "1. den set all frame: columns shear   ", $ff
-Status2:	!scr "2. den off on line 40, on inside 48   ", $ff
-Status3:	!scr "3. den off until line 49: no bad lines", $ff
-Status4:	!scr "4. den off all frame: border only     ", $ff
+Status1:	!scr "1 den on, shear      ", $ff
+Status2:	!scr "2 den on in line 48  ", $ff
+Status3:	!scr "3 den off, idle      ", $ff
+Status4:	!scr "4 den off all frame  ", $ff
+Status5:	!scr "5 border open        ", $ff

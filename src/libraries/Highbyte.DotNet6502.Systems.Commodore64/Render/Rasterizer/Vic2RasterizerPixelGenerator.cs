@@ -625,15 +625,20 @@ public sealed class Vic2RasterizerUintPixelGenerator
             if (!_spriteActive[spriteIndex] && (_slEnableMask & (1 << spriteIndex)) != 0)
             {
                 var spriteScreenPosY = _slY[spriteIndex] + _screenStartY - _spriteScreenOffsetY;
-                if (pixelArrayY == spriteScreenPosY)
+                var doubleHeight = sprites[spriteIndex].DoubleHeight;
+                // Lines above the visible area are never drawn, so a sprite that begins there
+                // (NTSC shows the top border only from raster line 34) is latched on the first
+                // visible line instead, with the rows the raster has already passed accounted for.
+                var linesPassed = pixelArrayY == 0 && spriteScreenPosY < 0 ? -spriteScreenPosY : 0;
+                if (pixelArrayY == spriteScreenPosY || (linesPassed > 0 && linesPassed < SPRITE_ROWS * (doubleHeight ? 2 : 1)))
                 {
                     _spriteActive[spriteIndex] = true;
-                    _spriteRow[spriteIndex] = 0;
-                    _spriteExpandYPhase[spriteIndex] = false;
-                    _spriteActiveDoubleHeight[spriteIndex] = sprites[spriteIndex].DoubleHeight;
+                    _spriteRow[spriteIndex] = doubleHeight ? linesPassed / 2 : linesPassed;
+                    _spriteExpandYPhase[spriteIndex] = doubleHeight && (linesPassed & 1) == 1;
+                    _spriteActiveDoubleHeight[spriteIndex] = doubleHeight;
                     _spriteHadBandThisFrame[spriteIndex] = true;
                     _spriteCurrentBand[spriteIndex] = _bandCount < MAX_BANDS ? _bandCount : -1;
-                    RecordBand(sprites[spriteIndex], pixelArrayY);
+                    RecordBand(sprites[spriteIndex], spriteScreenPosY);
                 }
             }
 
@@ -692,10 +697,17 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         // Default every row to the latch-time colours, so rows the gate never reaches (a cut-short
         // band) still have a sane colour. The gate overwrites each row's colour as it displays.
+        // The default vertical clip is the border flip-flop of the row's own raster line, as the
+        // VIC-II settled it the last time the raster passed there: that covers rows the gate never
+        // reaches because the raster frame ends first (on NTSC the visible frame's last rows are
+        // raster lines 0-5 of the next frame) and sprites that never latched this frame.
         var fg = _c64ToRenderColorMap[sprite.Color];
         var mc0 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
         var mc1 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
         var colorBase = b * SPRITE_ROWS;
+        var totalHeight = _c64.Vic2.Vic2Model.TotalHeight;
+        var firstRasterLine = rowStart + _screenLayoutInclNonVisibleTopBorderStartY - _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(0);
+        var lineAdvance = sprite.DoubleHeight ? 2 : 1;
         for (int row = 0; row < SPRITE_ROWS; row++)
         {
             _bandRowColorFg[colorBase + row] = fg;
@@ -703,8 +715,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
             _bandRowColorMc1[colorBase + row] = mc1;
             _bandRowClipStartX[colorBase + row] = _screenStartXAdjusted;
             _bandRowClipEndX[colorBase + row] = _rightBorderStartXAdjusted;
-            _bandRowClipStartY[colorBase + row] = _topBorderEndYAdjusted + 1;
-            _bandRowClipEndY[colorBase + row] = _bottomBorderStartYAdjusted;
+            var rasterLine = ((firstRasterLine + row * lineAdvance) % totalHeight + totalHeight) % totalHeight;
+            _bandRowClipStartY[colorBase + row] = 0;
+            _bandRowClipEndY[colorBase + row] = _c64.Vic2.GetLineDisplayState(rasterLine).VerticalBorder ? 0 : _height;
         }
 
         // Snapshot shape so a later pointer change (next band) can't corrupt this one.
@@ -1028,6 +1041,9 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         var visibleMainScreenAreaLineData = vic2ScreenLayouts.GetLayout(LayoutType.Visible);
+        // Screen lines are raster lines rotated by a model constant; this undoes it per sprite line.
+        var totalHeight = vic2.Vic2Model.TotalHeight;
+        var screenLineOfRasterLine0 = vic2.Vic2Model.ConvertRasterLineToScreenLine(0);
 
         // Write sprites to a separate bitmap/pixel array
         var sprites = vic2.SpriteManager.Sprites;
@@ -1103,17 +1119,20 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 spriteMultiColor0PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor0];
                 spriteMultiColor1PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor1];
                 var is38ColumnLine = !screenLineIORegisters.ColMode40;
-                var is24RowLine = !screenLineIORegisters.RowMode25;
                 var clipStartX = GetSpriteClipStartX(is38ColumnLine);
                 var clipEndX = GetSpriteClipEndX(is38ColumnLine);
-                var clipStartY = GetSpriteClipStartY(is24RowLine);
-                var clipEndY = GetSpriteClipEndY(is24RowLine);
 
                 // Decode the row using the shared core (same code path as the per-line band draw).
-                // For a Y-expanded sprite the second physical line is the same decode at y+1.
-                DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, clipStartX, clipEndX, clipStartY, clipEndY);
-                if (isDoubleHeight)
-                    DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y + 1, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, clipStartX, clipEndX, clipStartY, clipEndY);
+                // For a Y-expanded sprite the second physical line is the same decode at y+1. The
+                // vertical border flip-flop covers sprites: a physical line the border covers is
+                // skipped, an open one (including one a program opened below the screen) is drawn.
+                for (var physicalLine = 0; physicalLine < spriteLineAdvance; physicalLine++)
+                {
+                    var rasterLine = (lineDataKey + physicalLine - screenLineOfRasterLine0 + totalHeight) % totalHeight;
+                    if (vic2.GetLineDisplayState(rasterLine).VerticalBorder)
+                        continue;
+                    DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y + physicalLine, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, clipStartX, clipEndX, 0, _height);
+                }
 
                 y += spriteLineAdvance;
             }
@@ -1128,13 +1147,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int GetSpriteClipEndX(bool is38ColumnLine)
         => _rightBorderStartX + (is38ColumnLine ? Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA : 0);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetSpriteClipStartY(bool is24RowLine)
-        => _screenStartY + (is24RowLine ? Vic2Screen.ROW_24_SCREEN_START_Y_DELTA : 0);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetSpriteClipEndY(bool is24RowLine)
-        => _bottomBorderStartY + (is24RowLine ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
 
     /// <summary>
     /// Draw the border colour on one line between two normalized x positions (end exclusive),
