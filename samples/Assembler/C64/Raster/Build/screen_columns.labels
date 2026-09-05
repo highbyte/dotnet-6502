@@ -1,45 +1,57 @@
-
-al C:0000 .COLOR_BLACK
-al C:0400 .SCREEN_RAM
-al C:000c .SLIDE_CENTER
-al C:00fc .LAST_LINE_LO
-al C:000b .INTO_HOLD_CYCLES
-al C:d800 .COLOR_RAM
-al C:d021 .SCREEN_BACKGROUND_COLOR_ADDRESS
-al C:dc0e .CIA1_CONTROL_A
-al C:0005 .LINES_PER_GROUP
-al C:000f .COLUMNS
-al C:00f8 .CALIB_SET
-al C:0001 .COLOR_WHITE
-al C:d011 .SCREEN_CONTROL_REGISTER_1
-al C:00f9 .GROUP_COUNT
-al C:00fb .IS_PAL
-al C:0041 .CYCLES_PER_LINE_NTSC
-al C:003f .CYCLES_PER_LINE_PAL
-al C:d012 .SCREEN_RASTER_LINE
-al C:0033 .FIRST_BAD_LINE
-al C:dc05 .CIA1_TIMER_A_HI
-al C:dc04 .CIA1_TIMER_A_LO
-al C:0002 .FILLER
-al C:0002 .BEFORE_BAD_LINE_BITS
-al C:0010 .GROUPS
-al C:00fd .CALIB
-al C:0003 .BAD_LINE_BITS
-al C:d020 .SCREEN_BORDER_COLOR_ADDRESS
-
-al C:c0ff .Irq
-al C:c105 .GroupLoop
-al C:c0a4 .DrawScreen
-al C:c312 .NtscGroup
-al C:c13e .PalGroup
-al C:c133 .GroupsDone
-al C:c000 .Init
-al C:c12c .GroupDone
-al C:c059 .DetectModel
-al C:c07f .ClearScreen
-al C:c5dc .Text5
-al C:c5b2 .Text4
-al C:c53e .Text1
-al C:c517 .Text0
-al C:c58a .Text3
-al C:c561 .Text2
+	COLOR_BLACK	= $0
+	SCREEN_RAM	= $400
+	LINE_CYCLES	= $f8
+	SLIDE_CENTER	= $11
+	LargestCalibReading	= $c0c9	; ?
+	LAST_LINE_LO	= $fc
+	Irq	= $c1bc	; ?
+	INTO_HOLD_CYCLES	= $b
+	COLOR_RAM	= $d800
+	SCREEN_BACKGROUND_COLOR_ADDRESS	= $d021
+	GroupLoop	= $c1c2
+	DrawScreen	= $c161	; ?
+	CIA1_CONTROL_A	= $dc0e
+	LINES_PER_GROUP	= $5
+	COLUMNS	= $f
+	ARRIVAL_OFFSET	= $f7
+	COLOR_WHITE	= $1
+	NtscGroup	= $c412	; ?
+	SCREEN_CONTROL_REGISTER_1	= $d011
+	GROUP_COUNT	= $f9
+	MEAS_INDEX	= $fa	; unused
+	IS_PAL	= $fb
+	PalGroup	= $c1fb	; ?
+	GroupsDone	= $c1f0	; ?
+	Init	= $c000	; unused
+	CYCLES_PER_LINE_NTSC	= $41
+	CYCLES_PER_LINE_PAL	= $3f
+	SCREEN_RASTER_LINE	= $d012
+	CALIB_FIRST_LINE	= $a
+	TARGET_LINE	= $fe
+	ARRIVAL_OFFSET_NTSC	= $f6
+	FIRST_BAD_LINE	= $33
+	SLIDE_RANGE	= $10
+	GroupDone	= $c1e9
+	CIA1_TIMER_A_HI	= $dc05
+	CalibrateLineClock	= $c091	; ?
+	CIA1_TIMER_A_LO	= $dc04
+	FILLER	= $2
+	DetectModel	= $c05b	; ?
+	CALIB_LINES	= $10
+	BEFORE_BAD_LINE_BITS	= $2
+	ARRIVAL_OFFSET_PAL	= $fd
+	GROUPS	= $10
+	CalibReadings	= $c0f4	; ?
+	CALIB	= $fd
+	SlideEntryTable	= $c700	; ?
+	BAD_LINE_BITS	= $3
+	BuildSlideEntryTable	= $c105	; ?
+	ClearScreen	= $c13c	; ?
+	SCREEN_BORDER_COLOR_ADDRESS	= $d020
+	Text5	= $c8c5	; ?
+	LINE_CYCLES_SAVE	= $c104	; ?
+	Text4	= $c89b	; ?
+	Text1	= $c827	; ?
+	Text0	= $c800	; ?
+	Text3	= $c873	; ?
+	Text2	= $c84a	; ?

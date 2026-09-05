@@ -29,7 +29,7 @@ pixels land follows the chip: the display window's first pixel is 124 pixels int
 on both PAL and NTSC, taken from the VIC-II's display window at X 24 and where X 0 falls relative to
 the line's first cycle. How much border is drawn around that window is a presentation choice, since
 real sets showed different amounts. A colour register write is shown a few pixels away from the
-cycle boundary it lands on, by a per-variant amount calibrated against VICE. The
+cycle boundary it lands on, by an amount measured against VICE that is the same on PAL and NTSC. The
 rasterizer does hold a character row's 40 screen codes and colour nibbles the way
 the VIC-II does: fetched on the row's first line and shown for its remaining seven, so a screen
 write made after that fetch appears from the next row on. When a CPU read is stalled, the VIC-II
