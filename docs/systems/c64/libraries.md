@@ -58,6 +58,19 @@ toggling RSEL around line 251 and row stretching by avoiding bad lines come out 
 A `$D011` write early enough in a line (before the border check at cycle 16 and the bad line
 check at cycle 14) still counts for that line.
 
+The side borders come from the chip's main border flip-flop, followed pixel by pixel: it is set
+when the X coordinate reaches the right compare value (344 with 40 columns, 335 with 38) and reset
+at the left one (24 or 31) on a line the vertical flip-flop leaves open, and a pixel is border
+colour while it is set. The 40 and 38 column layouts are what those rules give on an ordinary
+line; a program that selects 38 columns in the one cycle between the two right compares misses
+both, and the display then runs to the frame's edges on that line and the left border of the
+next, with sprites visible there. The column select bit follows the register write journal at the
+cycle boundary after the write; XSCROLL and the mode bits are still sampled once per line. An
+opened border shows the sequencer's idle output, the byte at `$3FFF` in black over the background
+colour. Sprite X positions wrap at 512 as on the chip, so a sprite at X 496 sits in the left
+border. Sprite DMA takes the bus one cycle later on the 6567R8 than on the 6569 (its sprite 0
+pointer fetch is in cycle 59 rather than 58), which is what a program timed by that hold sees.
+
 ## Implementation libraries
 
 C64-specific host code lives in its own **engine-plugin** libraries, one per host technology,

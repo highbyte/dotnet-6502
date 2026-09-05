@@ -54,9 +54,18 @@ public class Vic2RasterizerPixelGeneratorTests
         var spriteScreenX = col38Layout.RightBorder.Start.X - 4;
         var spriteX = c64.Vic2.SpriteManager.ScreenOffsetX + spriteScreenX - normalLayout.Screen.Start.X;
         SetAllScreenLinesToColumnMode(c64, colMode40: false);
+        c64.Mem.Write(0xD016, 0xC0);   // 38 columns: the border unit's compare points move in
+        c64.Mem.Write(0xD011, 0x1B);
         CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192, x: spriteX);
 
-        var foreground = RenderSprites(c64);
+        // The clip comes from the border unit as the raster runs the line, so render a frame.
+        var (generator, _, foreground) = CreateGenerator(c64);
+        for (var rasterLine = 0; rasterLine < c64.Vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
+            generator.OnAfterInstruction();
+        }
+        generator.OnEndFrame();
 
         var (_, startX, endX) = GetFirstRenderedSpan(foreground, c64.Screen.VisibleWidth);
         Assert.Equal(spriteScreenX, startX);
@@ -327,6 +336,68 @@ public class Vic2RasterizerPixelGeneratorTests
         // Shape row 12 is displayed on raster line 266 - 263 = 3, the frame's fourth row from the end.
         Assert.Equal(height - 3, row);
         Assert.Equal(8, endX - startX + 1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Selecting_38_columns_between_the_two_right_compares_keeps_the_side_border_open(bool perLineSprites)
+    {
+        // The main border flip-flop is set when X reaches 335 with 38 columns selected or 344 with
+        // 40. A program with 40 columns at the first point and 38 at the second misses both: the
+        // right border stays open on that line, and the left border of the next line too, since
+        // the flip-flop is only reset at the left compare and was never set. The write has to land
+        // in cycle 54 (X 335 is checked in cycle 54, X 344 in cycle 55; the write shows from the
+        // cycle after it): one cycle earlier and the 38 column compare closes the border as usual.
+        const int line = 100;   // normalized frame line inside the display area
+        uint[] background = null!, foreground = null!;
+        C64 c64 = null!;
+        void Render(int writeCycle)
+        {
+            c64 = BuildC64();
+            c64.Mem.Write(0xD011, 0x1B);
+            c64.Mem.Write(0xD016, 0xC8);   // 40 columns
+            c64.Mem.Write(0xD018, 0x18);
+            c64.Mem.Write(0xD020, 2);      // red border
+            c64.Mem.Write(0xD021, 6);      // blue background
+            c64.Vic2.Vic2Mem[0x3FFF] = 0;  // idle output blank: an opened border shows the background
+            var normalLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+            // A sprite whose row sits in the right border, on the frame line of the write.
+            var spriteX = c64.Vic2.SpriteManager.ScreenOffsetX + (normalLayout.RightBorder.Start.X + 10) - normalLayout.Screen.Start.X;
+            CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192, x: spriteX);
+            c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, (byte)(c64.Vic2.SpriteManager.ScreenOffsetY + line - normalLayout.Screen.Start.Y));
+            // A second sprite at X 496: the chip's X coordinate wraps at 512, so it sits in the left
+            // border, and its second shape row falls on the next line, where the left border is open.
+            CreateVisibleSprite(c64, spriteNumber: 1, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 1), spritePointer: 193, x: 496);
+            c64.WriteIOStorage(Vic2Addr.SPRITE_1_Y, (byte)(c64.Vic2.SpriteManager.ScreenOffsetY + line - normalLayout.Screen.Start.Y));
+            c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+            var generator = default(Vic2RasterizerUintPixelGenerator);
+            (generator, background, foreground) = CreateGenerator(c64, perLineSprites);
+            RenderFrameWithMidLineWrite(c64, generator, line, writeCycle, () => c64.Mem.Write(0xD016, 0xC0));   // 38 columns
+            generator.OnEndFrame();
+        }
+        var width = BuildC64().Screen.VisibleWidth;
+        var layout = BuildC64().Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var rightBorderX = layout.RightBorder.Start.X + 20;
+        var leftBorderX = 10;
+        uint Pixel(uint[] layer, int y, int x) => layer[y * width + x] & 0xFFFFFF;
+
+        Render(writeCycle: 54);
+        var red = Pixel(background, line - 1, rightBorderX);
+        var blue = Pixel(background, line, layout.Screen.Start.X + 100);
+        Assert.NotEqual(red, blue);
+        Assert.Equal(blue, Pixel(background, line, rightBorderX));        // right border open on the write's line
+        Assert.Equal(red, Pixel(background, line, leftBorderX));          // its left border was closed as usual
+        Assert.Equal(blue, Pixel(background, line + 1, leftBorderX));     // next line: left border open
+        Assert.Equal(red, Pixel(background, line + 1, rightBorderX));     // and closed again at the 38 column compare
+        Assert.NotEqual(0u, foreground[line * width + rightBorderX - 10]);        // the sprite shows in the opened border
+        Assert.Equal(0u, foreground[(line - 1) * width + rightBorderX - 10]);     // and not where the border is closed
+        var wrappedX = 496 - c64.Vic2.Vic2Model.XCoordinateAtLineStart - c64.Vic2.Vic2Screen.VisibleAreaStartX;   // 9 pixels into the frame
+        Assert.NotEqual(0u, foreground[(line + 1) * width + wrappedX + 2]);       // the wrapped sprite, in the opened left border
+        Assert.Equal(0u, foreground[(line + 2) * width + wrappedX + 2]);          // covered again once the border is closed
+
+        Render(writeCycle: 53);
+        Assert.Equal(red, Pixel(background, line, rightBorderX));         // one cycle early: the 335 compare closes it
     }
 
     [Fact]

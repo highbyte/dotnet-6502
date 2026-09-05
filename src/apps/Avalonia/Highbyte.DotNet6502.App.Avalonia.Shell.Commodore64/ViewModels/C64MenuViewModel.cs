@@ -943,6 +943,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.raster_columns.prg", "RasterColumns"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.screen_columns.prg", "ScreenColumns"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.idle_graphics.prg", "IdleGraphics"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.side_border.prg", "SideBorder"));
         // Initialize basic examples
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));

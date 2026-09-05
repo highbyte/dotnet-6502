@@ -39,8 +39,8 @@
 ;      rows and 247 with 24, and neither is the case while the register changes, so the flip-flop
 ;      stays clear for the rest of the frame and the next one: the display window's columns run
 ;      on through the bottom and top borders, and the eight sprites parked there, covered by the
-;      border in every other phase, are shown. (The side borders need the same trick with the
-;      38-column bit at the right cycle of every line and are not opened here.)
+;      border in every other phase, are shown. (The side borders need the 38 column bit switched
+;      in one cycle of every line and are not opened here; side_border.asm does that.)
 ;
 ; Phases 3 and 4 are why loaders and demo parts switch the display off: the ~1000 cycles per
 ; frame of bad lines come back. An emulator that reads DEN live shows sheared columns and the
@@ -110,6 +110,7 @@ FILLER       = $02      ; zero page: scratch, also the byte the timing filler re
 START        = $03      ; zero page: set by the main loop when space starts the cycle
 CONTROL_AFTER = $04     ; zero page: $d011 value the column loop writes as it ends, on line 250
 LINE_CYCLES  = $05      ; zero page: 63 on PAL, 65 on NTSC
+SAVE_X       = $06      ; zero page: the caller's X across SyncToLine
 ENTRY        = $f7      ; zero page, 2 bytes: the column loop to run this frame
 PHASE        = $f9      ; zero page: current phase 0-3
 FRAME        = $fa      ; zero page: frames spent in the current phase
@@ -118,8 +119,8 @@ LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
 CALIB        = $fd      ; zero page: line clock value 9 cycles into a raster line (see CalibrateLineClock)
 TARGET_LINE  = $fe      ; zero page: raster line SyncToLine waits for
 
-; Slide entry for a poll that got out of its loop as early as possible. SyncToLine's poll loop is
-; 7 cycles, so a poll gets out 0-6 cycles later than that and the entry stays within 9-15.
+; Slide entry for a poll that got out of its loop 4 cycles later than the earliest possible.
+; SyncToLine's poll loop is 7 cycles, so the entry stays within 5-11.
 SLIDE_CENTER = 9
 ; The slide entry table covers timer differences this far either side of the expected one.
 SLIDE_RANGE = 8
@@ -176,8 +177,8 @@ SPACE_CHAR      = $20
 }
 
 ; The column loop: 200 iterations of exactly one raster line. Iteration x runs on line 50 + x and
-; prepares line 51 + x: its idle byte (written 60 cycles into the line, after the display window
-; has ended), then eight colours 6 cycles apart, the first of them 3 cycles into the next line,
+; prepares line 51 + x: its idle byte (written 64 cycles into the line, after the display window
+; has ended), then eight colours 6 cycles apart, the first of them 7 cycles into the next line,
 ; before its visible part. The loop's own counter and branch take the last 7 cycles. Afterwards the
 ; border and background go back to their resting colours, the border write timed to land in the
 ; unseen pixels after line 250's visible right border. Before that the control register is written
@@ -355,9 +356,9 @@ DetectModel:
 ; in the loop the line change falls depends on the start cycle. This loop is 11 cycles, which
 ; neither 63 nor 65 is a multiple of, so its position drifts by 8 (PAL) or 10 (NTSC) cycles per
 ; line (7 on PAL, 5 on NTSC, counting the work between two lines' polls) and within 11 lines
-; every position has come up once, including the earliest: the poll that got out 6 cycles into
-; the line, whose timer read (the 4th cycle of the LDA, so 9 cycles in) gives the largest value,
-; since the timer counts down. That value is the reference.
+; every position has come up once, including the earliest: the poll whose compare read the new
+; line on its first cycle and so got out 7 cycles in, whose timer read (the 4th cycle of the LDA,
+; 10 cycles in) gives the largest value, since the timer counts down. That value is the reference.
 CalibrateLineClock:
 	lda #CALIB_FIRST_LINE
 	sta TARGET_LINE
@@ -420,8 +421,8 @@ LINE_CYCLES_SAVE:
 	!byte 0
 
 ; The slide entry for every possible timer difference (reference minus this poll's reading), so
-; SyncToLine needs no arithmetic that could branch or wrap. SyncToLine's poll gets out 2-8 cycles
-; into the line and reads the timer 3 cycles later, 5-11 cycles in against the reference's 9, so
+; SyncToLine needs no arithmetic that could branch or wrap. SyncToLine's poll gets out 3-9 cycles
+; into the line and reads the timer 3 cycles later, 6-12 cycles in against the reference's 10, so
 ; the difference is -4 to +2 for a poll that made it, and the entry is SLIDE_CENTER plus that. The
 ; difference can also come out a line period off, when the two readings straddle the timer's
 ; reload: those entries are filled the same way. Everything else gets the nominal entry.
@@ -565,14 +566,14 @@ PrintStatus5:
 	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status5
 	rts
 
-; Wait for the raster line in TARGET_LINE and return 46 cycles into it, on every frame and on
-; every run. Uses A; leaves X and Y alone.
+; Wait for the raster line in TARGET_LINE and return 50 cycles into it (51 with SLIDE_CENTER 8),
+; on every frame and on every run. Uses A; X and Y are preserved so a caller can keep colours or counters in them.
 SyncToLine:
-	+poll_and_read_clock            ; poll exits 2-8 cycles after the line began
-	sta FILLER                      ; 3   this poll's clock value
-	lda CALIB                       ; 3
-	sec                             ; 2
-	sbc FILLER                      ; 3   reference minus this poll: larger the later the poll got out
+	stx SAVE_X
+	+poll_and_read_clock            ; poll exits 3-9 cycles after the line began
+	eor #$ff                        ; 2   reference minus this poll's clock value (larger the later
+	sec                             ; 2   the poll got out): CALIB + (255 - value) + 1
+	adc CALIB                       ; 3
 	tax                             ; 2
 	lda SlideEntryTable,x           ; 4   later poll => larger entry => shorter delay
 	sta SyncSlideJmp + 1            ; 4
@@ -585,7 +586,8 @@ SyncSlide:
 	; Entered at offset k (0-17) this takes 19 - k cycles: pairs of $C9 are CMP #$C9 (2 cycles);
 	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
 	!byte $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c5, $ea
-	rts
+	ldx SAVE_X                      ; 3
+	rts                             ; 6
 
 ;------------------------------------------------------------
 ;Raster interrupt, entered in the top border on line 40
@@ -654,7 +656,7 @@ RunColumns:
 	sta ENTRY + 1
 	lda #SYNC_LINE
 	sta TARGET_LINE
-	jsr SyncToLine                  ; returns 46 cycles into line 50
+	jsr SyncToLine                  ; returns 50 cycles into line 50
 	ldx #0                          ; 2
 	jmp (ENTRY)                     ; 5
 

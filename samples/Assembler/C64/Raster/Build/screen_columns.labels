@@ -15,7 +15,7 @@
 	COLUMNS	= $f
 	ARRIVAL_OFFSET	= $f7
 	COLOR_WHITE	= $1
-	NtscGroup	= $c412	; ?
+	NtscGroup	= $c414	; ?
 	SCREEN_CONTROL_REGISTER_1	= $d011
 	GROUP_COUNT	= $f9
 	MEAS_INDEX	= $fa	; unused
@@ -42,6 +42,7 @@
 	ARRIVAL_OFFSET_PAL	= $fd
 	GROUPS	= $10
 	CalibReadings	= $c0f4	; ?
+	SAVE_X	= $4
 	CALIB	= $fd
 	SlideEntryTable	= $c700	; ?
 	BAD_LINE_BITS	= $3

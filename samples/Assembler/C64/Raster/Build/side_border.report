@@ -1,0 +1,532 @@
+
+; ******** Source: side_border.asm
+     1                          ;ACME assembler
+     2                          ;!to "./side_border.prg"
+     3                          
+     4                          ; VIC-II side borders: opening them, and what it takes.
+     5                          ;
+     6                          ; The VIC-II's border unit has one flip-flop for the left and right border. It is set when the
+     7                          ; X coordinate reaches the right compare value, 344 with 40 columns selected or 335 with 38, and
+     8                          ; reset when X reaches the left one (24 or 31) on a line the vertical border leaves open. A pixel
+     9                          ; is border colour while the flip-flop is set. So a program that has 40 columns selected when
+    10                          ; X passes 335 and 38 columns when it passes 344 misses both compares: the flip-flop stays clear,
+    11                          ; the display window's output continues to the frame's edges on that line and the left border of
+    12                          ; the next, and sprites placed there are shown. X 335 is reached in cycle 55 and X 344 in cycle
+    13                          ; 56 (counting from 1), and a register write is in effect from the cycle after it, so the 38
+    14                          ; column write has to land in cycle 55 exactly, on every line the border is to stay open.
+    15                          ;
+    16                          ; Two things take the CPU away on such lines. A bad line halts it from cycle 12 to 55, so no
+    17                          ; write can be placed on it: this band therefore avoids bad lines by changing YSCROLL every line
+    18                          ; (FLD), which also means the band's lines show idle output, the background colour, and the rows
+    19                          ; below are pushed down. And sprite DMA halts it from cycle 55 until 10 (6569) or 9 (6567R8)
+    20                          ; cycles into the next line, for the eight sprites the band uses; the 38 column write is the
+    21                          ; last thing before that halt, and the halt's release is what keeps the band's lines in step:
+    22                          ; every line of the band resumes on the same cycle, so the loop is timed from there and needs
+    23                          ; no other synchronisation. Only the first line is entered from the line clock sync.
+    24                          ;
+    25                          ; The band: 21 lines with eight X-expanded sprites in a row across the full width of the frame,
+    26                          ; the outer ones in the side borders, over the background colour running edge to edge.
+    27                          
+    28                          ;code start address
+    29                          * = $c000
+    30                          
+    31                          ;------------------------------------------------------------
+    32                          ;Program settings
+    33                          ;------------------------------------------------------------
+    34                          
+    35                          SCREEN_RAM      = $0400
+    36                          COLOR_RAM       = $d800
+    37                          
+    38                          SCREEN_CONTROL_REGISTER_1 = $d011
+    39                          SCREEN_RASTER_LINE = $d012
+    40                          SCREEN_CONTROL_REGISTER_2 = $d016
+    41                          SCREEN_BORDER_COLOR_ADDRESS = $d020
+    42                          SCREEN_BACKGROUND_COLOR_ADDRESS = $d021
+    43                          
+    44                          CIA1_TIMER_A_LO = $dc04
+    45                          CIA1_TIMER_A_HI = $dc05
+    46                          CIA1_CONTROL_A = $dc0e
+    47                          
+    48                          IDLE_BYTE_ADDRESS = $3fff       ; shown in the opened borders: blank
+    49                          
+    50                          COLUMNS_40 = %11001000          ; $d016: 40 columns, XSCROLL 0
+    51                          COLUMNS_38 = %11000000          ; 38 columns
+    52                          
+    53                          D011_BASE = %00011000           ; DEN on, 25 rows; low three bits carry YSCROLL
+    54                          YSCROLL_NORMAL = 3
+    55                          YSCROLL_BEFORE_BAND = 5         ; no line from the interrupt to the band's first line is a bad line
+    56                          
+    57                          SPRITE_Y = 146                  ; sprites on raster lines 147-167 (the last line of row 11 is 146)
+    58                          BAND_LINES = 21
+    59                          IRQ_LINE = SPRITE_Y - 3
+    60                          SPRITE_POINTERS = $07f8
+    61                          SPRITE_SHAPE_ADDRESS = $3000
+    62                          SPRITE_SHAPE_BLOCK = SPRITE_SHAPE_ADDRESS / 64
+    63                          
+    64                          CYCLES_PER_LINE_PAL = 63
+    65                          CYCLES_PER_LINE_NTSC = 65
+    66                          
+    67                          FILLER       = $02      ; zero page: scratch, also the byte the timing filler reads
+    68                          LINE_CYCLES  = $03      ; zero page: 63 on PAL, 65 on NTSC
+    69                          ENTRY        = $04      ; zero page, 2 bytes: the band loop for this model
+    70                          SAVE_X       = $06      ; zero page: the caller's X across SyncToLine
+    71                          IS_PAL       = $fb      ; zero page: 1 on PAL, 0 on NTSC
+    72                          LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
+    73                          CALIB        = $fd      ; zero page: line clock value 9 cycles into a raster line (see CalibrateLineClock)
+    74                          TARGET_LINE  = $fe      ; zero page: raster line SyncToLine waits for
+    75                          
+    76                          ; Lines the calibration polls: in the top border, above any bad line, no sprites there.
+    77                          CALIB_FIRST_LINE = 10
+    78                          CALIB_LINES = 16
+    79                          
+    80                          ; With the slide centred one entry lower than in the other samples, SyncToLine returns 51 cycles
+    81                          ; into the line, which is where the 38 column store has to start for its write to be in cycle 54.
+    82                          SLIDE_CENTER = 8
+    83                          SLIDE_RANGE = 8
+    84                          
+    85                          COLOR_BLUE = 6
+    86                          COLOR_WHITE = 1
+    87                          COLOR_DARK_GREY = 11
+    88                          SPACE_CHAR = $20
+    89                          
+    90                          ;------------------------------------------------------------
+    91                          ;Macros
+    92                          ;------------------------------------------------------------
+    93                          
+    94                          ; Burn .cycles cycles (>= 2). NOPs in pairs, with a 3-cycle BIT for an odd count.
+    95                          !macro delay_cycles .cycles {
+    96                          	!if .cycles & 1 {
+    97                          		bit FILLER
+    98                          		!fill (.cycles - 3) / 2, $ea
+    99                          	} else {
+   100                          		!fill .cycles / 2, $ea
+   101                          	}
+   102                          }
+   103                          
+   104                          ; Wait for the raster line in TARGET_LINE, then read the line clock, always 3 cycles after the
+   105                          ; poll got out of its loop, so the reading says when that was.
+   106                          !macro poll_and_read_clock {
+   107                          	lda TARGET_LINE                 ; 3
+   108                          -	cmp SCREEN_RASTER_LINE          ; 4
+   109                          	bne -                           ; 3 taken / 2 falling through
+   110                          	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
+   111                          }
+   112                          
+   113                          ; Copy a $ff-terminated screen-code string to screen memory.
+   114                          !macro print .screenaddr, .text {
+   115                          	ldx #0
+   116                          -	lda .text,x
+   117                          	cmp #$ff
+   118                          	beq +
+   119                          	sta .screenaddr,x
+   120                          	inx
+   121                          	bne -
+   122                          +
+   123                          }
+   124                          
+   125                          
+   126                          ; One band line, entered .resume cycles into the line when the sprite DMA hold releases the CPU.
+   127                          ; 40 columns first (the 335 compare must see them), YSCROLL for the next line (written after this
+   128                          ; line's bad line decision at cycle 14, before the next line's), then the 38 column write timed to
+   129                          ; land in cycle 55 (index 54); the DEX after it is halted by the next line's sprite DMA.
+   130                          !macro band_loop .resume, ~.entry {
+   131                          .entry
+   132                          	lda #COLUMNS_40                 ; 2   from .resume + 5 (DEX's second cycle and the branch)
+   133                          	sta SCREEN_CONTROL_REGISTER_2   ; 4
+   134                          	lda YscrollTable,x              ; 4   the next line's YSCROLL, indexed by the line counter
+   135                          	sta SCREEN_CONTROL_REGISTER_1   ; 4
+   136                          	lda #COLUMNS_38                 ; 2
+   137                          	+delay_cycles 51 - (.resume + 5 + 16)
+   138                          	sta SCREEN_CONTROL_REGISTER_2   ; 4   starts at cycle index 51: the write is in 54
+   139                          	dex                             ; 2   halted on its first cycle until the sprite DMA ends
+   140                          	bne .entry                      ; 3
+   141                          	lda #COLUMNS_40
+   142                          	sta SCREEN_CONTROL_REGISTER_2
+   143                          	jmp BandDone
+   144                          }
+   145                          
+   146                          ;------------------------------------------------------------
+   147                          ;Code start
+   148                          ;------------------------------------------------------------
+   149                          
+   150                          Init:
+   151  c000 78                 	sei                  ; set interrupt bit, make the CPU ignore interrupt requests
+   152  c001 a97f               	lda #%01111111       ; switch off interrupt signals from CIA-1
+   153  c003 8d0ddc             	sta $dc0d
+   154                          
+   155  c006 2d11d0             	and SCREEN_CONTROL_REGISTER_1 ; clear most significant bit of VIC's raster register
+   156  c009 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   157                          
+   158  c00c ad0ddc             	lda $dc0d            ; acknowledge pending interrupts from CIA-1
+   159  c00f ad0ddd             	lda $dd0d            ; acknowledge pending interrupts from CIA-2
+   160                          
+   161  c012 2083c0             	jsr DetectModel
+   162                          
+   163  c015 a90b               	lda #COLOR_DARK_GREY
+   164  c017 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   165  c01a a906               	lda #COLOR_BLUE
+   166  c01c 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   167  c01f a900               	lda #0
+   168  c021 8dff3f             	sta IDLE_BYTE_ADDRESS
+   169  c024 a9c8               	lda #COLUMNS_40
+   170  c026 8d16d0             	sta SCREEN_CONTROL_REGISTER_2
+   171  c029 a91b               	lda #D011_BASE + YSCROLL_NORMAL
+   172  c02b 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   173                          
+   174  c02e 2096c1             	jsr ClearScreen
+   175  c031 20bbc1             	jsr DrawScreen
+   176                          
+   177                          	; Line clock: timer A counts one raster line per period (latch + 1 cycles), continuously.
+   178  c034 a900               	lda #0
+   179  c036 8d05dc             	sta CIA1_TIMER_A_HI
+   180  c039 a940               	lda #CYCLES_PER_LINE_NTSC - 1
+   181  c03b a6fb               	ldx IS_PAL
+   182  c03d f002               	beq +
+   183  c03f a93e               	lda #CYCLES_PER_LINE_PAL - 1
+   184  c041 8d04dc             +	sta CIA1_TIMER_A_LO
+   185  c044 a911               	lda #%00010001       ; force load + start, continuous
+   186  c046 8d0edc             	sta CIA1_CONTROL_A
+   187  c049 20afc0             	jsr CalibrateLineClock
+   188  c04c 2023c1             	jsr BuildSlideEntryTable
+   189  c04f 2054c1             	jsr SetupSprites     ; after the calibration: sprite DMA would stall its polls
+   190                          
+   191                          	; The band loop for this model
+   192  c052 a956               	lda #<NtscBand
+   193  c054 8504               	sta ENTRY
+   194  c056 a9c4               	lda #>NtscBand
+   195  c058 8505               	sta ENTRY + 1
+   196  c05a a5fb               	lda IS_PAL
+   197  c05c f008               	beq +
+   198  c05e a931               	lda #<PalBand
+   199  c060 8504               	sta ENTRY
+   200  c062 a9c4               	lda #>PalBand
+   201  c064 8505               	sta ENTRY + 1
+   202                          +
+   203                          	; Raster IRQ three lines above the band
+   204  c066 a98f               	lda #IRQ_LINE
+   205  c068 8d12d0             	sta SCREEN_RASTER_LINE
+   206  c06b a915               	lda #<Irq
+   207  c06d 8d1403             	sta $0314
+   208  c070 a9c4               	lda #>Irq
+   209  c072 8d1503             	sta $0315
+   210                          
+   211  c075 a90f               	lda #%00001111       ; clear any pending VIC interrupt flag
+   212  c077 8d19d0             	sta $d019
+   213  c07a a901               	lda #%00000001       ; enable raster interrupt signals from VIC
+   214  c07c 8d1ad0             	sta $d01a
+   215                          
+   216  c07f 58                 	cli                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+   217  c080 4c80c0             	jmp *
+   218                          
+   219                          ; PAL or NTSC: after the raster passes line 255, remember the last low byte seen before it wraps
+   220                          ; to 0. NTSC wraps after line 262 (low byte 6), PAL after line 311 (low byte 55).
+   221                          DetectModel:
+   222  c083 a900               	lda #0
+   223  c085 85fc               	sta LAST_LINE_LO
+   224  c087 2c11d0             -	bit SCREEN_CONTROL_REGISTER_1
+   225  c08a 10fb               	bpl -
+   226                          	; Keep the highest line low byte seen while bit 8 is set, rather than the last one: the raster
+   227                          	; can wrap to 0 between reading the line and testing bit 8, and the last value would then be 0
+   228                          	; on either model. That misread makes the effect use the wrong line length on PAL.
+   229  c08c ad12d0             -	lda SCREEN_RASTER_LINE
+   230  c08f c5fc               	cmp LAST_LINE_LO
+   231  c091 9002               	bcc +
+   232  c093 85fc               	sta LAST_LINE_LO
+   233  c095 2c11d0             +	bit SCREEN_CONTROL_REGISTER_1
+   234  c098 30f2               	bmi -
+   235  c09a a900               	lda #0
+   236  c09c 85fb               	sta IS_PAL
+   237  c09e a941               	lda #CYCLES_PER_LINE_NTSC
+   238  c0a0 8503               	sta LINE_CYCLES
+   239  c0a2 a5fc               	lda LAST_LINE_LO
+   240  c0a4 c920               	cmp #$20
+   241  c0a6 9006               	bcc +
+   242  c0a8 e6fb               	inc IS_PAL
+   243  c0aa a93f               	lda #CYCLES_PER_LINE_PAL
+   244  c0ac 8503               	sta LINE_CYCLES
+   245  c0ae 60                 +	rts
+   246                          
+   247                          ; Read the line clock at a fixed cycle of a raster line, whatever cycle this program was started
+   248                          ; on. A poll loop can only get out of its loop a whole loop length after the line began, and where
+   249                          ; in the loop the line change falls depends on the start cycle. This loop is 11 cycles, which
+   250                          ; neither 63 nor 65 is a multiple of, so its position drifts by 8 (PAL) or 10 (NTSC) cycles per
+   251                          ; line (7 on PAL, 5 on NTSC, counting the work between two lines' polls) and within 11 lines
+   252                          ; every position has come up once, including the earliest: the poll whose compare read the new
+   253                          ; line on its first cycle and so got out 7 cycles in, whose timer read (the 4th cycle of the LDA,
+   254                          ; 10 cycles in) gives the largest value, since the timer counts down. That value is the reference.
+   255                          CalibrateLineClock:
+   256  c0af a90a               	lda #CALIB_FIRST_LINE
+   257  c0b1 85fe               	sta TARGET_LINE
+   258  c0b3 a200               	ldx #0
+   259  c0b5 a5fe               -	lda TARGET_LINE                 ; 3
+   260  c0b7 cd12d0             --	cmp SCREEN_RASTER_LINE          ; 4   (the read lands on the 4th cycle)
+   261  c0ba ea                 	nop                             ; 2
+   262  c0bb ea                 	nop                             ; 2
+   263  c0bc d0f9               	bne --                          ; 3 taken / 2 falling through
+   264  c0be ad04dc             	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
+   265  c0c1 9d12c1             	sta CalibReadings,x             ; 5   every reading is kept, so the work between two lines'
+   266  c0c4 e8                 	inx                             ; 2   polls is always the same and the loop's position drifts
+   267  c0c5 e6fe               	inc TARGET_LINE                 ; 5   by the same amount each line (7 on PAL, 5 on NTSC)
+   268  c0c7 a5fe               	lda TARGET_LINE                 ; 3
+   269  c0c9 c91a               	cmp #CALIB_FIRST_LINE + CALIB_LINES ; 2
+   270  c0cb d0e8               	bne -                           ; 3
+   271                          	; The reading from the earliest exit is the largest, the others lie within 10 below it. If the
+   272                          	; readings straddle the timer's reload, the ones from the later exits have wrapped to the top
+   273                          	; of the period and the earliest is then the largest of those below 11.
+   274  c0cd a9ff               	lda #255
+   275  c0cf 8502               	sta FILLER
+   276  c0d1 20e7c0             	jsr LargestCalibReading
+   277  c0d4 85fd               	sta CALIB
+   278  c0d6 38                 	sec
+   279  c0d7 e502               	sbc FILLER                      ; largest minus smallest
+   280  c0d9 c90b               	cmp #11
+   281  c0db 9009               	bcc +
+   282  c0dd a90b               	lda #11
+   283  c0df 8502               	sta FILLER                      ; only readings below 11 count
+   284  c0e1 20e7c0             	jsr LargestCalibReading
+   285  c0e4 85fd               	sta CALIB
+   286  c0e6 60                 +	rts
+   287                          
+   288                          ; A = the largest reading below FILLER's value on entry (FILLER = 255 for all of them); FILLER
+   289                          ; leaves with the smallest reading.
+   290                          LargestCalibReading:
+   291  c0e7 a20f               	ldx #CALIB_LINES - 1
+   292  c0e9 a900               	lda #0
+   293  c0eb 85fe               	sta TARGET_LINE                 ; largest so far
+   294  c0ed a9ff               	lda #255
+   295  c0ef 8d22c1             	sta LINE_CYCLES_SAVE            ; smallest so far
+   296  c0f2 bd12c1             -	lda CalibReadings,x
+   297  c0f5 c502               	cmp FILLER
+   298  c0f7 b00e               	bcs +                           ; at or above the limit: skip
+   299  c0f9 c5fe               	cmp TARGET_LINE
+   300  c0fb 9002               	bcc ++
+   301  c0fd 85fe               	sta TARGET_LINE
+   302  c0ff cd22c1             ++	cmp LINE_CYCLES_SAVE
+   303  c102 b003               	bcs +
+   304  c104 8d22c1             	sta LINE_CYCLES_SAVE
+   305  c107 ca                 +	dex
+   306  c108 10e8               	bpl -
+   307  c10a ad22c1             	lda LINE_CYCLES_SAVE
+   308  c10d 8502               	sta FILLER
+   309  c10f a5fe               	lda TARGET_LINE
+   310  c111 60                 	rts
+   311                          CalibReadings:
+   312  c112 0000000000000000...	!fill CALIB_LINES, 0
+   313                          LINE_CYCLES_SAVE:
+   314  c122 00                 	!byte 0
+   315                          
+   316                          ; The slide entry for every possible timer difference (reference minus this poll's reading), so
+   317                          ; SyncToLine needs no arithmetic that could branch or wrap. SyncToLine's poll gets out 3-9 cycles
+   318                          ; into the line and reads the timer 3 cycles later, 6-12 cycles in against the reference's 10, so
+   319                          ; the difference is -4 to +2 for a poll that made it, and the entry is SLIDE_CENTER plus that. The
+   320                          ; difference can also come out a line period off, when the two readings straddle the timer's
+   321                          ; reload: those entries are filled the same way. Everything else gets the nominal entry.
+   322                          BuildSlideEntryTable:
+   323  c123 a200               	ldx #0
+   324  c125 a908               	lda #SLIDE_CENTER
+   325  c127 9d00c3             -	sta SlideEntryTable,x
+   326  c12a e8                 	inx
+   327  c12b d0fa               	bne -
+   328  c12d a2f8               	ldx #<-SLIDE_RANGE              ; difference, as a byte
+   329  c12f a900               	lda #SLIDE_CENTER - SLIDE_RANGE ; its entry
+   330  c131 8502               	sta FILLER
+   331  c133 a502               -	lda FILLER
+   332  c135 9d00c3             	sta SlideEntryTable,x           ; difference as it is
+   333  c138 8a                 	txa
+   334  c139 18                 	clc
+   335  c13a 6503               	adc LINE_CYCLES
+   336  c13c a8                 	tay
+   337  c13d a502               	lda FILLER
+   338  c13f 9900c3             	sta SlideEntryTable,y           ; difference plus a period
+   339  c142 8a                 	txa
+   340  c143 38                 	sec
+   341  c144 e503               	sbc LINE_CYCLES
+   342  c146 a8                 	tay
+   343  c147 a502               	lda FILLER
+   344  c149 9900c3             	sta SlideEntryTable,y           ; difference minus a period
+   345  c14c e602               	inc FILLER
+   346  c14e e8                 	inx
+   347  c14f e009               	cpx #SLIDE_RANGE + 1
+   348  c151 d0e0               	bne -
+   349  c153 60                 	rts
+   350                          
+   351                          ; Eight X-expanded sprites in a row on the band's lines, spread over the full width of the frame:
+   352                          ; the first and the last two sit in the side borders (X below 24 and above 343).
+   353                          SetupSprites:
+   354  c154 a23e               	ldx #62
+   355  c156 bd92c4             -	lda SpriteShape,x
+   356  c159 9d0030             	sta SPRITE_SHAPE_ADDRESS,x
+   357  c15c ca                 	dex
+   358  c15d 10f7               	bpl -
+   359  c15f a207               	ldx #7
+   360  c161 a00e               	ldy #14
+   361  c163 a9c0               -	lda #SPRITE_SHAPE_BLOCK
+   362  c165 9df807             	sta SPRITE_POINTERS,x
+   363  c168 bdd1c4             	lda SpriteColours,x
+   364  c16b 9d27d0             	sta $d027,x
+   365  c16e bdd9c4             	lda SpriteX,x
+   366  c171 9900d0             	sta $d000,y
+   367  c174 a992               	lda #SPRITE_Y
+   368  c176 9901d0             	sta $d001,y
+   369  c179 88                 	dey
+   370  c17a 88                 	dey
+   371  c17b ca                 	dex
+   372  c17c 10e5               	bpl -
+   373  c17e a9c1               	lda #%11000001
+   374  c180 8d10d0             	sta $d010            ; X above 255 for sprites 0, 6 and 7
+   375  c183 a9ff               	lda #%11111111
+   376  c185 8d1dd0             	sta $d01d            ; X expanded
+   377  c188 a900               	lda #0
+   378  c18a 8d17d0             	sta $d017            ; not Y expanded
+   379  c18d 8d1cd0             	sta $d01c            ; single colour
+   380  c190 a9ff               	lda #%11111111
+   381  c192 8d15d0             	sta $d015            ; all eight enabled
+   382  c195 60                 	rts
+   383                          
+   384                          ClearScreen:
+   385  c196 a200               	ldx #0
+   386  c198 a920               	lda #SPACE_CHAR
+   387  c19a 9d0004             -	sta SCREEN_RAM,x
+   388  c19d 9d0005             	sta SCREEN_RAM + $100,x
+   389  c1a0 9d0006             	sta SCREEN_RAM + $200,x
+   390  c1a3 9d0007             	sta SCREEN_RAM + $300,x
+   391  c1a6 e8                 	inx
+   392  c1a7 d0f1               	bne -
+   393  c1a9 a901               	lda #COLOR_WHITE
+   394  c1ab 9d00d8             -	sta COLOR_RAM,x
+   395  c1ae 9d00d9             	sta COLOR_RAM + $100,x
+   396  c1b1 9d00da             	sta COLOR_RAM + $200,x
+   397  c1b4 9d00db             	sta COLOR_RAM + $300,x
+   398  c1b7 e8                 	inx
+   399  c1b8 d0f1               	bne -
+   400  c1ba 60                 	rts
+   401                          
+   402                          DrawScreen:
+   403  c1bb a200bde1c4c9fff0...	+print SCREEN_RAM + 0 * 40, Text0
+   404  c1ca a200bdf5c4c9fff0...	+print SCREEN_RAM + 2 * 40, Text2
+   405  c1d9 a200bd1ac5c9fff0...	+print SCREEN_RAM + 3 * 40, Text3
+   406  c1e8 a200bd3fc5c9fff0...	+print SCREEN_RAM + 4 * 40, Text4
+   407  c1f7 a200bd65c5c9fff0...	+print SCREEN_RAM + 5 * 40, Text5
+   408  c206 a200bd8bc5c9fff0...	+print SCREEN_RAM + 6 * 40, Text6
+   409  c215 a200bdb2c5c9fff0...	+print SCREEN_RAM + 7 * 40, Text7
+   410  c224 a200bdd5c5c9fff0...	+print SCREEN_RAM + 8 * 40, Text8
+   411  c233 a200bdf9c5c9fff0...	+print SCREEN_RAM + 9 * 40, Text9
+   412  c242 a200bd1ec6c9fff0...	+print SCREEN_RAM + 10 * 40, Text10
+   413  c251 60                 	rts
+   414                          
+   415                          ; Wait for the raster line in TARGET_LINE and return 50 cycles into it (51 with SLIDE_CENTER 8),
+   416                          ; on every frame and on every run. Uses A; X and Y are preserved so a caller can keep colours or counters in them.
+   417                          SyncToLine:
+   418  c252 8606               	stx SAVE_X
+   419  c254 a5fecd12d0d0fbad...	+poll_and_read_clock            ; poll exits 3-9 cycles after the line began
+   420  c25e 49ff               	eor #$ff                        ; 2   reference minus this poll's clock value (larger the later
+   421  c260 38                 	sec                             ; 2   the poll got out): CALIB + (255 - value) + 1
+   422  c261 65fd               	adc CALIB                       ; 3
+   423  c263 aa                 	tax                             ; 2
+   424  c264 bd00c3             	lda SlideEntryTable,x           ; 4   later poll => larger entry => shorter delay
+   425  c267 8d6bc2             	sta SyncSlideJmp + 1            ; 4
+   426                          SyncSlideJmp:
+   427  c26a 4c00c4             	jmp SyncSlide                   ; 3
+   428  c26d eaeaeaeaeaeaeaea...	!align 255, 0
+   429                          SlideEntryTable:
+   430  c300 0000000000000000...	!fill 256, 0
+   431                          SyncSlide:
+   432                          	; Entered at offset k (0-17) this takes 19 - k cycles: pairs of $C9 are CMP #$C9 (2 cycles);
+   433                          	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
+   434  c400 c9c9c9c9c9c9c9c9...	!byte $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c5, $ea
+   435  c412 a606               	ldx SAVE_X                      ; 3
+   436  c414 60                 	rts                             ; 6
+   437                          
+   438                          
+   439                          ;------------------------------------------------------------
+   440                          ;Raster interrupt: the band
+   441                          ;------------------------------------------------------------
+   442                          
+   443                          Irq:
+   444                          	; No bad line from here to the band's first line: YSCROLL 5 matches none of lines 144-147.
+   445  c415 a91d               	lda #D011_BASE + YSCROLL_BEFORE_BAND
+   446  c417 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   447                          
+   448  c41a a992               	lda #SPRITE_Y
+   449  c41c 85fe               	sta TARGET_LINE
+   450  c41e a215               	ldx #BAND_LINES                 ; lines the loop runs, 147-167 (X and Y survive the sync)
+   451  c420 a0c0               	ldy #COLUMNS_38
+   452  c422 2052c2             	jsr SyncToLine                  ; returns 51 cycles into line 146, the line before the sprites
+   453                          !ifdef MEASURE {
+   454                          	sta $d020                       ; measurement builds: writes 3, 7, 11, ... cycles after the return
+   455                          	sta $d020                       ; show where the return is and where the sprite DMA halt begins
+   456                          	sta $d020
+   457                          	sta $d020
+   458                          	sta $d020
+   459                          	sta $d020
+   460                          }
+   461  c425 8c16d0             	sty SCREEN_CONTROL_REGISTER_2   ; 4   starts at 51: the write is in cycle index 54
+   462  c428 6c0400             	jmp (ENTRY)                     ; its opcode fetch, at 55, is halted by the first sprite DMA;
+   463                          	                                ; the loop is entered 5 cycles after the release, as after DEX+BNE
+   464                          BandDone:
+   465  c42b 0e19d0             	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   466  c42e 4c81ea             	jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   467                          
+   468  c431 a9c88d16d0bd7cc4...	+band_loop 10, ~PalBand
+   469  c456 a9c88d16d0bd7cc4...	+band_loop 9, ~NtscBand
+   470                          
+   471                          ;------------------------------------------------------------
+   472                          ;Tables
+   473                          ;------------------------------------------------------------
+   474                          
+   475                          ; YSCROLL for lines 148-168, written on the line before each: the line's own low three bits plus
+   476                          ; four, so none of them is a bad line; the last (index 1, written on line 167) puts the normal value
+   477                          ; back, and the next row then starts on line 171. Indexed by the loop counter, which is 21 on
+   478                          ; line 147 and 1 on line 167, so entry j is for line 169 - j.
+   479                          YscrollTable:
+   480  c47c 00                 	!byte 0                         ; index 0 is never used
+   481  c47d 1b                 	!byte D011_BASE + YSCROLL_NORMAL
+   482                          	!for .j, 2, BAND_LINES {
+   483                          		!byte D011_BASE + ((((169 - .j) & 7) + 4) & 7)
+   484  c47e 1b1a19181f1e1d1c...	}
+   485                          
+   486                          ; A 24x21 ball, the shape of all eight sprites.
+   487                          SpriteShape:
+   488  c492 007e00             	!byte %00000000, %01111110, %00000000
+   489  c495 01ff80             	!byte %00000001, %11111111, %10000000
+   490  c498 03ffc0             	!byte %00000011, %11111111, %11000000
+   491  c49b 07ffe0             	!byte %00000111, %11111111, %11100000
+   492  c49e 0ffff0             	!byte %00001111, %11111111, %11110000
+   493  c4a1 1ffff8             	!byte %00011111, %11111111, %11111000
+   494  c4a4 1ffff8             	!byte %00011111, %11111111, %11111000
+   495  c4a7 3ffffc             	!byte %00111111, %11111111, %11111100
+   496  c4aa 3ffffc             	!byte %00111111, %11111111, %11111100
+   497  c4ad 3ffffc             	!byte %00111111, %11111111, %11111100
+   498  c4b0 3ffffc             	!byte %00111111, %11111111, %11111100
+   499  c4b3 3ffffc             	!byte %00111111, %11111111, %11111100
+   500  c4b6 3ffffc             	!byte %00111111, %11111111, %11111100
+   501  c4b9 3ffffc             	!byte %00111111, %11111111, %11111100
+   502  c4bc 1ffff8             	!byte %00011111, %11111111, %11111000
+   503  c4bf 1ffff8             	!byte %00011111, %11111111, %11111000
+   504  c4c2 0ffff0             	!byte %00001111, %11111111, %11110000
+   505  c4c5 07ffe0             	!byte %00000111, %11111111, %11100000
+   506  c4c8 03ffc0             	!byte %00000011, %11111111, %11000000
+   507  c4cb 01ff80             	!byte %00000001, %11111111, %10000000
+   508  c4ce 007e00             	!byte %00000000, %01111110, %00000000
+   509                          
+   510                          SpriteColours:
+   511  c4d1 01070d030e0a0f08   	!byte 1, 7, 13, 3, 14, 10, 15, 8
+   512                          
+   513                          ; Sprite X (low byte): 50 pixels apart from X -16 (496) to 334; each is 48 pixels wide.
+   514                          SpriteX:
+   515  c4d9 f0225486b8ea1c4e   	!byte <496, 34, 84, 134, 184, 234, <284, <334
+   516                          
+   517                          ;------------------------------------------------------------
+   518                          ;Text (screen codes, $ff terminated; lowercase source shows as uppercase)
+   519                          ;------------------------------------------------------------
+   520                          
+   521  c4e1 1609032d09092013...Text0:	!scr "vic-ii side borders", $ff
+   522  c4f5 14080520020f1204...Text2:	!scr "the border flip-flop is set when the", $ff
+   523  c51a 1201131405122012...Text3:	!scr "raster reaches x 335 (38 columns) or", $ff
+   524  c53f 1820333434202834...Text4:	!scr "x 344 (40 columns). 40 columns at the", $ff
+   525  c565 060912131420010e...Text5:	!scr "first and 38 at the second miss both:", $ff
+   526  c58b 1408052013090405...Text6:	!scr "the side borders stay open, the screen", $ff
+   527  c5b2 12150e1320050407...Text7:	!scr "runs edge to edge and sprites show", $ff
+   528  c5d5 14080512052e2014...Text8:	!scr "there. the band below does it on 21", $ff
+   529  c5f9 0c090e05132c2014...Text9:	!scr "lines, timed by the sprite dma hold,", $ff
+   530  c61e 1709140820020104...Text10:	!scr "with bad lines pushed away (fld).", $ff
