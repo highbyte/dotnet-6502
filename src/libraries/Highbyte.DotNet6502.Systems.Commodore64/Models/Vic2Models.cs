@@ -241,10 +241,16 @@ public abstract class Vic2ModelBase
     /// pipeline delay has to be: the earlier per-model calibrations (-11 and +4) had compared
     /// screenshots taken at different start phases of the sample and measured that, not the chip.</para>
     ///
-    /// <para>The value is negative because the write's reported frame cycle is the cycle the CPU's
-    /// store instruction ends on, one after the bus cycle the write happens in, so 8 of the 11
-    /// pixels undo that cycle and the new colour then shows from 5 pixels into the cycle that
-    /// follows the write. If the write cycle is ever reported exactly, this becomes +5.</para>
+    /// <para>The value is not derived, and its sign says something is still unexplained: with -11 a
+    /// write reported in cycle c shows from pixel 8 * (c + 1) - 11 = 8 * (c - 1) + 5, five pixels
+    /// into the cycle before the one the write is reported in. A change cannot precede its write,
+    /// and the reported cycle is the store's own write cycle in this emulator's cycle count (see
+    /// C64DeviceAccessTimingTests), so the emulator's cycle index must run about two cycles ahead
+    /// of the chip's cycle as VICE places pixels against it, the pipeline itself being those five
+    /// pixels. Where the two cycles sit (the raster line's cycle origin against the CPU's count, or
+    /// the CPU's access phase) has not been established; this constant absorbs them, and it should
+    /// be re-measured if either of those is ever changed. If they are found and fixed, this becomes
+    /// +5.</para>
     /// </summary>
     public virtual int ColorChangePixelDelay => -11;
 
