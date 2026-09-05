@@ -197,16 +197,18 @@ public class Vic2RasterizerPixelGeneratorTests
     [Fact]
     public void Keeping_the_border_open_shows_the_background_colour_below_the_screen()
     {
-        // Switching to 24 rows only for raster line 251 means neither 247 nor 251 matches the
-        // bottom compare value in force on it, so the vertical border flip-flop never sets: the
-        // bottom border area shows idle output (the background colour) between the side borders.
+        // With 24 rows selected before line 251 begins and kept through its left edge, neither 247
+        // nor 251 matches the bottom compare value when the chip checks it, so the vertical border
+        // flip-flop never sets: the bottom border area shows idle output (the background colour)
+        // between the side borders. (The switch has to be in effect as line 251 begins: the chip
+        // evaluates the compare then, and a write in the line's first cycles is already too late.)
         var c64 = BuildC64();
         SetupRowBoundaryMarkerTextScreen(c64);
         c64.Mem.Write(0xD020, 2);
         c64.Mem.Write(0xD021, 6);
         var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
-        var (background, _) = RenderFrame(c64, rasterLine => rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+        var (background, _) = RenderFrame(c64, rasterLine => rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
 
         var width = c64.Screen.VisibleWidth;
         var yScreen = normalizedLayout.Screen.Start.Y + 100;
@@ -236,7 +238,7 @@ public class Vic2RasterizerPixelGeneratorTests
             var vic2 = c64.Vic2;
             for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
             {
-                c64.Mem.Write(0xD011, openBorder && rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                c64.Mem.Write(0xD011, openBorder && rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
                 generator.OnAfterInstruction();
             }
@@ -287,7 +289,7 @@ public class Vic2RasterizerPixelGeneratorTests
         {
             for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
             {
-                c64.Mem.Write(0xD011, rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
                 generator.OnAfterInstruction();
             }
@@ -323,7 +325,7 @@ public class Vic2RasterizerPixelGeneratorTests
         {
             for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
             {
-                c64.Mem.Write(0xD011, rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
                 generator.OnAfterInstruction();
             }
@@ -347,8 +349,10 @@ public class Vic2RasterizerPixelGeneratorTests
         // 40. A program with 40 columns at the first point and 38 at the second misses both: the
         // right border stays open on that line, and the left border of the next line too, since
         // the flip-flop is only reset at the left compare and was never set. The write has to land
-        // in cycle 54 (X 335 is checked in cycle 54, X 344 in cycle 55; the write shows from the
-        // cycle after it): one cycle earlier and the 38 column compare closes the border as usual.
+        // in cycle 55 (0-based): the chip evaluates the 335 compare in cycle 55 with the registers
+        // as written up to cycle 54, and the 344 compare in cycle 56 with those up to 55 (VICE's
+        // border-250 test opens the border with a write in cycle 56 counting from 1). One cycle
+        // earlier and the 38 column compare closes the border as usual.
         const int line = 100;   // normalized frame line inside the display area
         uint[] background = null!, foreground = null!;
         C64 c64 = null!;
@@ -382,7 +386,7 @@ public class Vic2RasterizerPixelGeneratorTests
         var leftBorderX = 10;
         uint Pixel(uint[] layer, int y, int x) => layer[y * width + x] & 0xFFFFFF;
 
-        Render(writeCycle: 54);
+        Render(writeCycle: 55);
         var red = Pixel(background, line - 1, rightBorderX);
         var blue = Pixel(background, line, layout.Screen.Start.X + 100);
         Assert.NotEqual(red, blue);
@@ -396,7 +400,7 @@ public class Vic2RasterizerPixelGeneratorTests
         Assert.NotEqual(0u, foreground[(line + 1) * width + wrappedX + 2]);       // the wrapped sprite, in the opened left border
         Assert.Equal(0u, foreground[(line + 2) * width + wrappedX + 2]);          // covered again once the border is closed
 
-        Render(writeCycle: 53);
+        Render(writeCycle: 54);
         Assert.Equal(red, Pixel(background, line, rightBorderX));         // one cycle early: the 335 compare closes it
     }
 

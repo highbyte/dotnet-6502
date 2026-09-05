@@ -98,7 +98,7 @@ public class Vic2DisplayStateTests
         // 25 row mode compares at 251, 24 row mode at 247. Switching to 24 rows just for line 251
         // (and back after) means neither line ever equals the compare value in force on it.
         var c64 = Build();
-        var states = RunFrame(c64, line => (byte)(line == 251 ? 0x13 : 0x1B));
+        var states = RunFrame(c64, line => (byte)(line is 250 or 251 ? 0x13 : 0x1B));
 
         Assert.False(states[251].VerticalBorder);
         Assert.False(states[270].VerticalBorder);
@@ -120,6 +120,48 @@ public class Vic2DisplayStateTests
         Assert.False(c64.Vic2.GetLineDisplayState(59).DisplayState);
         Assert.True(c64.Vic2.GetLineDisplayState(60).DisplayState);   // 60 & 7 == 4: the new bad line
         Assert.Equal(40, c64.Vic2.GetLineDisplayState(60).VideoCounterBase);
+    }
+
+    [Theory]
+    [InlineData(10, 247)]   // before the left compare: the flip-flop is set at line 247's left edge
+    [InlineData(40, 248)]   // after it: the armed latch is taken over as line 248 is entered
+    public void Clearing_rsel_for_a_few_cycles_in_line_247_closes_the_border(int writeCycle, int firstBorderLine)
+    {
+        // 24 row mode compares at 247. A write is first seen by the compare in the cycle after it,
+        // and the bottom compare arms a latch the flip-flop takes over at the line's left edge and
+        // at the start of the next line (VICE's border/vborder2 tests).
+        var c64 = Build();
+        c64.Mem.Write(0xD011, 0x1B);
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        c64.Vic2.AdvanceRaster(247 * cyclesPerLine + (ulong)writeCycle);
+        c64.Mem.Write(0xD011, 0x13);
+        c64.Vic2.AdvanceRaster(4);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Vic2.AdvanceRaster(2 * cyclesPerLine);
+
+        Assert.False(c64.Vic2.GetLineDisplayState(firstBorderLine - 1).VerticalBorder);
+        Assert.True(c64.Vic2.GetLineDisplayState(firstBorderLine).VerticalBorder);
+    }
+
+    [Fact]
+    public void A_write_in_a_lines_last_cycle_is_compared_on_the_next_line()
+    {
+        // RSEL cleared in the last cycle of line 247 is first seen in line 248, which matches neither
+        // compare value; set again in line 251's last cycle it is first seen in 252. The border
+        // stays open (VICE's border/vborder-33-09).
+        var c64 = Build();
+        c64.Mem.Write(0xD011, 0x1B);
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        c64.Vic2.AdvanceRaster(248 * cyclesPerLine - 1);
+        c64.Mem.Write(0xD011, 0x13);
+        c64.Vic2.AdvanceRaster(4 * cyclesPerLine);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Vic2.AdvanceRaster(2 * cyclesPerLine);
+
+        Assert.False(c64.Vic2.GetLineDisplayState(248).VerticalBorder);
+        Assert.False(c64.Vic2.GetLineDisplayState(251).VerticalBorder);
+        Assert.False(c64.Vic2.GetLineDisplayState(252).VerticalBorder);
+        Assert.False(c64.Vic2.GetLineDisplayState(253).VerticalBorder);
     }
 
     private static Vic2LineDisplayState[] RunFrame(C64 c64, Func<int, byte>? d011ForLine = null)
