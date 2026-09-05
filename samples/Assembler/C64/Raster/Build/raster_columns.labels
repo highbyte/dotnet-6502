@@ -1,53 +1,61 @@
-
-al C:0000 .COLOR_BLACK
-al C:0400 .SCREEN_RAM
-al C:0009 .SLIDE_CENTER
-al C:00fc .LAST_LINE_LO
-al C:d800 .COLOR_RAM
-al C:d021 .SCREEN_BACKGROUND_COLOR_ADDRESS
-al C:dc0e .CIA1_CONTROL_A
-al C:0001 .COLOR_WHITE
-al C:d011 .SCREEN_CONTROL_REGISTER_1
-al C:00fb .IS_PAL
-al C:0041 .CYCLES_PER_LINE_NTSC
-al C:003f .CYCLES_PER_LINE_PAL
-al C:d012 .SCREEN_RASTER_LINE
-al C:00fe .TARGET_LINE
-al C:000f .BAND_A_COLUMNS
-al C:000a .BAND_B_COLUMNS
-al C:0007 .BAND_A_LINES
-al C:0007 .BAND_B_LINES
-al C:dc05 .CIA1_TIMER_A_HI
-al C:dc04 .CIA1_TIMER_A_LO
-al C:0002 .FILLER
-al C:0022 .BAND_A_LINE
-al C:002b .BAND_B_LINE
-al C:00fd .CALIB
-al C:d020 .SCREEN_BORDER_COLOR_ADDRESS
-
-al C:c22c .BandADone
-al C:c213 .Irq
-al C:c0ae .DrawScreen
-al C:c242 .BandBDone
-al C:c938 .Text10
-al C:c95f .Text11
-al C:c163 .SyncToLine
-al C:c000 .Init
-al C:c17c .SyncSlideJmp
-al C:c399 .NtscBandA
-al C:c65b .NtscBandB
-al C:c4ec .PalBandB
-al C:c24d .PalBandA
-al C:c200 .SyncSlide
-al C:c065 .DetectModel
-al C:c089 .ClearScreen
-al C:c916 .Text9
-al C:c8f1 .Text8
-al C:c885 .Text5
-al C:c85d .Text4
-al C:c8cf .Text7
-al C:c8aa .Text6
-al C:c7e7 .Text1
-al C:c7d1 .Text0
-al C:c835 .Text3
-al C:c80d .Text2
+	COLOR_BLACK	= $0
+	SCREEN_RAM	= $400
+	LINE_CYCLES	= $3
+	SLIDE_CENTER	= $9
+	LargestCalibReading	= $c0bf	; ?
+	BandADone	= $c42c
+	LAST_LINE_LO	= $fc
+	Irq	= $c413	; ?
+	COLOR_RAM	= $d800
+	SCREEN_BACKGROUND_COLOR_ADDRESS	= $d021
+	DrawScreen	= $c151	; ?
+	CIA1_CONTROL_A	= $dc0e
+	BandBDone	= $c442
+	Text10	= $cb38	; ?
+	Text11	= $cb5f	; ?
+	SyncToLine	= $c206
+	COLOR_WHITE	= $1
+	SCREEN_CONTROL_REGISTER_1	= $d011
+	IS_PAL	= $fb
+	Init	= $c000	; unused
+	CYCLES_PER_LINE_NTSC	= $41
+	CYCLES_PER_LINE_PAL	= $3f
+	SCREEN_RASTER_LINE	= $d012
+	SyncSlideJmp	= $c21e	; ?
+	CALIB_FIRST_LINE	= $a
+	NtscBandA	= $c599	; ?
+	TARGET_LINE	= $fe
+	NtscBandB	= $c85b	; ?
+	SLIDE_RANGE	= $8
+	PalBandB	= $c6ec	; ?
+	PalBandA	= $c44d	; ?
+	BAND_A_COLUMNS	= $f
+	BAND_B_COLUMNS	= $a
+	BAND_A_LINES	= $7
+	SyncSlide	= $c400	; ?
+	BAND_B_LINES	= $7
+	CIA1_TIMER_A_HI	= $dc05
+	CalibrateLineClock	= $c087	; ?
+	CIA1_TIMER_A_LO	= $dc04
+	FILLER	= $2
+	BAND_A_LINE	= $22
+	DetectModel	= $c05b	; ?
+	CALIB_LINES	= $10
+	BAND_B_LINE	= $2b
+	CalibReadings	= $c0ea	; ?
+	CALIB	= $fd
+	SlideEntryTable	= $c300	; ?
+	BuildSlideEntryTable	= $c0fb	; ?
+	ClearScreen	= $c12c	; ?
+	Text9	= $cb16	; ?
+	Text8	= $caf1	; ?
+	SCREEN_BORDER_COLOR_ADDRESS	= $d020
+	Text5	= $ca85	; ?
+	LINE_CYCLES_SAVE	= $c0fa	; ?
+	Text4	= $ca5d	; ?
+	Text7	= $cacf	; ?
+	Text6	= $caaa	; ?
+	Text1	= $c9e7	; ?
+	Text0	= $c9d1	; ?
+	Text3	= $ca35	; ?
+	Text2	= $ca0d	; ?
