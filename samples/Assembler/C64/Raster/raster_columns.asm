@@ -279,6 +279,15 @@ DetectModel:
 CalibrateLineClock:
 	lda #CALIB_FIRST_LINE
 	sta TARGET_LINE
+	; Enter the first poll on the line before the first polled one, so that every poll waits for a
+	; line change. Entered on the polled line itself, a poll gets out at once, anywhere in the line,
+	; and so does the next one, and those two readings are then not the timer's value near the
+	; line's start.
+-	bit SCREEN_CONTROL_REGISTER_1
+	bmi -
+	lda SCREEN_RASTER_LINE
+	cmp #CALIB_FIRST_LINE - 1
+	bne -
 	ldx #0
 -	lda TARGET_LINE                 ; 3
 --	cmp SCREEN_RASTER_LINE          ; 4   (the read lands on the 4th cycle)

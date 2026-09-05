@@ -9,18 +9,23 @@
 ; is border colour while the flip-flop is set. So a program that has 40 columns selected when
 ; X passes 335 and 38 columns when it passes 344 misses both compares: the flip-flop stays clear,
 ; the display window's output continues to the frame's edges on that line and the left border of
-; the next, and sprites placed there are shown. X 335 is reached in cycle 55 and X 344 in cycle
-; 56 (counting from 1), and a register write is in effect from the cycle after it, so the 38
-; column write has to land in cycle 55 exactly, on every line the border is to stay open.
+; the next, and sprites placed there are shown. The chip evaluates the 335 compare in cycle 56
+; and the 344 compare in cycle 57 (counting from 1), each with the registers as written before
+; that cycle, so the 38 column write has to land in cycle 56 exactly, on every line the border
+; is to stay open.
 ;
 ; Two things take the CPU away on such lines. A bad line halts it from cycle 12 to 55, so no
 ; write can be placed on it: this band therefore avoids bad lines by changing YSCROLL every line
 ; (FLD), which also means the band's lines show idle output, the background colour, and the rows
-; below are pushed down. And sprite DMA halts it from cycle 55 until 10 (6569) or 9 (6567R8)
-; cycles into the next line, for the eight sprites the band uses; the 38 column write is the
-; last thing before that halt, and the halt's release is what keeps the band's lines in step:
-; every line of the band resumes on the same cycle, so the loop is timed from there and needs
-; no other synchronisation. Only the first line is entered from the line clock sync.
+; below are pushed down. And sprite DMA, for the eight sprites the band uses, halts the CPU at
+; its first read from cycle 55 on until 10 (6569) or 9 (6567R8) cycles into the next line. Writes
+; still go through, but a plain store's operand fetch in cycle 55 would be halted, so the 38
+; column write is made with DEC: a read-modify-write whose last read is in cycle 54 and whose two
+; writes are in cycles 55 and 56, the first putting the 40 column value back and the second
+; writing it decremented, which clears the column select bit (and sets XSCROLL to 7, harmless on
+; the band's idle lines). The halt's release is what keeps the band's lines in step: every line
+; of the band resumes on the same cycle, so the loop is timed from there and needs no other
+; synchronisation. Only the first line is entered from the line clock sync.
 ;
 ; The band: 21 lines with eight X-expanded sprites in a row across the full width of the frame,
 ; the outer ones in the side borders, over the background colour running edge to edge.
@@ -47,8 +52,7 @@ CIA1_CONTROL_A = $dc0e
 
 IDLE_BYTE_ADDRESS = $3fff       ; shown in the opened borders: blank
 
-COLUMNS_40 = %11001000          ; $d016: 40 columns, XSCROLL 0
-COLUMNS_38 = %11000000          ; 38 columns
+COLUMNS_40 = %11001000          ; $d016: 40 columns, XSCROLL 0 (DEC of it selects 38 columns)
 
 D011_BASE = %00011000           ; DEN on, 25 rows; low three bits carry YSCROLL
 YSCROLL_NORMAL = 3
@@ -77,9 +81,10 @@ TARGET_LINE  = $fe      ; zero page: raster line SyncToLine waits for
 CALIB_FIRST_LINE = 10
 CALIB_LINES = 16
 
-; With the slide centred one entry lower than in the other samples, SyncToLine returns 51 cycles
-; into the line, which is where the 38 column store has to start for its write to be in cycle 54.
-SLIDE_CENTER = 8
+; SyncToLine returns 50 cycles into the line, which is where the DEC has to start for its second
+; write to be in cycle index 55. (The centre must not be below SLIDE_RANGE: the table's entry for
+; the difference -SLIDE_RANGE is SLIDE_CENTER - SLIDE_RANGE.)
+SLIDE_CENTER = 9
 SLIDE_RANGE = 8
 
 COLOR_BLUE = 6
@@ -125,17 +130,17 @@ SPACE_CHAR = $20
 
 ; One band line, entered .resume cycles into the line when the sprite DMA hold releases the CPU.
 ; 40 columns first (the 335 compare must see them), YSCROLL for the next line (written after this
-; line's bad line decision at cycle 14, before the next line's), then the 38 column write timed to
-; land in cycle 55 (index 54); the DEX after it is halted by the next line's sprite DMA.
+; line's bad line decision at cycle 14, before the next line's), then the DEC timed so its second
+; write lands in cycle 56 (index 55); the DEX after it is halted by the next line's sprite DMA.
 !macro band_loop .resume, ~.entry {
 .entry
 	lda #COLUMNS_40                 ; 2   from .resume + 5 (DEX's second cycle and the branch)
 	sta SCREEN_CONTROL_REGISTER_2   ; 4
 	lda YscrollTable,x              ; 4   the next line's YSCROLL, indexed by the line counter
 	sta SCREEN_CONTROL_REGISTER_1   ; 4
-	lda #COLUMNS_38                 ; 2
-	+delay_cycles 51 - (.resume + 5 + 16)
-	sta SCREEN_CONTROL_REGISTER_2   ; 4   starts at cycle index 51: the write is in 54
+	+delay_cycles 50 - (.resume + 5 + 14)
+	dec SCREEN_CONTROL_REGISTER_2   ; 6   starts at cycle index 50: writes in 54 (40 columns
+	                                ;     again) and 55 (38 columns)
 	dex                             ; 2   halted on its first cycle until the sprite DMA ends
 	bne .entry                      ; 3
 	lda #COLUMNS_40
@@ -255,6 +260,15 @@ DetectModel:
 CalibrateLineClock:
 	lda #CALIB_FIRST_LINE
 	sta TARGET_LINE
+	; Enter the first poll on the line before the first polled one, so that every poll waits for a
+	; line change. Entered on the polled line itself, a poll gets out at once, anywhere in the line,
+	; and so does the next one, and those two readings are then not the timer's value near the
+	; line's start.
+-	bit SCREEN_CONTROL_REGISTER_1
+	bmi -
+	lda SCREEN_RASTER_LINE
+	cmp #CALIB_FIRST_LINE - 1
+	bne -
 	ldx #0
 -	lda TARGET_LINE                 ; 3
 --	cmp SCREEN_RASTER_LINE          ; 4   (the read lands on the 4th cycle)
@@ -412,7 +426,7 @@ DrawScreen:
 	+print SCREEN_RAM + 10 * 40, Text10
 	rts
 
-; Wait for the raster line in TARGET_LINE and return 50 cycles into it (51 with SLIDE_CENTER 8),
+; Wait for the raster line in TARGET_LINE and return 50 cycles into it,
 ; on every frame and on every run. Uses A; X and Y are preserved so a caller can keep colours or counters in them.
 SyncToLine:
 	stx SAVE_X
@@ -447,9 +461,8 @@ Irq:
 
 	lda #SPRITE_Y
 	sta TARGET_LINE
-	ldx #BAND_LINES                 ; lines the loop runs, 147-167 (X and Y survive the sync)
-	ldy #COLUMNS_38
-	jsr SyncToLine                  ; returns 51 cycles into line 146, the line before the sprites
+	ldx #BAND_LINES                 ; lines the loop runs, 147-167 (X survives the sync)
+	jsr SyncToLine                  ; returns 50 cycles into line 146, the line before the sprites
 !ifdef MEASURE {
 	sta $d020                       ; measurement builds: writes 3, 7, 11, ... cycles after the return
 	sta $d020                       ; show where the return is and where the sprite DMA halt begins
@@ -458,8 +471,8 @@ Irq:
 	sta $d020
 	sta $d020
 }
-	sty SCREEN_CONTROL_REGISTER_2   ; 4   starts at 51: the write is in cycle index 54
-	jmp (ENTRY)                     ; its opcode fetch, at 55, is halted by the first sprite DMA;
+	dec SCREEN_CONTROL_REGISTER_2   ; 6   starts at 50: the writes are in cycle index 54 and 55
+	jmp (ENTRY)                     ; its opcode fetch, at 56, is halted by the first sprite DMA;
 	                                ; the loop is entered 5 cycles after the release, as after DEX+BNE
 BandDone:
 	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag

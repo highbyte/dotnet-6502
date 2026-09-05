@@ -19,7 +19,11 @@ timer read returns the count at that cycle, a raster-compare or timer-control wr
 on its own cycle. A raster or CIA timer interrupt is dated to the cycle on which the raster line
 began or the timer underflowed, and the CPU applies its sampling rule to that cycle: taken after
 the current instruction if it fell at or before the second-to-last cycle, otherwise after the
-next one. The SID does the same through its audio provider (see below). The rasterizer applies a
+next one. The raster interrupt is raised when the raster compare goes from not matching to
+matching, checked as the raster enters a line (a cycle later for line 0) and in the cycle after a
+`$D011` or `$D012` write: writing the current line's number raises it at once, while a program
+that moves the compare value to the next line in every line's last cycle keeps it matched and
+gets no further interrupt. The SID does the same through its audio provider (see below). The rasterizer applies a
 write to the border or background colour registers (`$D020`-`$D024`) from the cycle after the
 write lands, so a colour change in the middle of a line splits that line at the write's pixel
 position, as on hardware; the VIC-II reports each register write with its frame cycle for this.
@@ -50,21 +54,27 @@ Which character row a raster line shows, and which of its eight lines, is not ar
 line number but the chip's own display state: a bad line starts a row (the row counter resets and
 the row is fetched), the eighth line of a row advances the row pointer by 40 and drops the chip
 into idle state until the next bad line, and in idle state the display area shows the byte at
-`$3FFF` (`$39FF` with ECM) in black over the background colour. The vertical border flip-flop is
-set when the raster reaches the bottom compare line (251, or 247 with RSEL clear) and reset at the
-top one (51 or 55) only if DEN is set; while it is set the whole line, sprites included, is border
-colour. That is what makes vertical fine scrolling, a switched-off screen, a border opened by
-toggling RSEL around line 251 and row stretching by avoiding bad lines come out as on hardware.
-A `$D011` write early enough in a line (before the border check at cycle 16 and the bad line
-check at cycle 14) still counts for that line.
+`$3FFF` (`$39FF` with ECM) in black over the background colour. The vertical border compares are
+checked in every cycle with the registers as they are then: the top compare (line 51, or 55 with
+RSEL clear) with DEN set clears the vertical border flip-flop at once, and the bottom compare (251
+or 247) arms a latch that the flip-flop takes over as the raster enters a line and at the display
+window's left edge; while the flip-flop is set the whole line, sprites included, is border colour.
+That is what makes vertical fine scrolling, a switched-off screen, a border opened by toggling
+RSEL around line 251 and row stretching by avoiding bad lines come out as on hardware, and it is
+why RSEL cleared for a few cycles in line 247 closes the border at that line's left edge or, if
+later in the line, from the next line. A `$D011` write is seen from the cycle after it, so one
+early enough in a line (before the left edge check in cycle 16 and the bad line check at cycle 14)
+still counts for that line, and one in a line's last cycle counts for the next.
 
 The side borders come from the chip's main border flip-flop, followed pixel by pixel: it is set
 when the X coordinate reaches the right compare value (344 with 40 columns, 335 with 38) and reset
 at the left one (24 or 31) on a line the vertical flip-flop leaves open, and a pixel is border
-colour while it is set. The 40 and 38 column layouts are what those rules give on an ordinary
-line; a program that selects 38 columns in the one cycle between the two right compares misses
-both, and the display then runs to the frame's edges on that line and the left border of the
-next, with sprites visible there. The column select bit follows the register write journal at the
+colour while it is set. Each compare is evaluated in the cycle after the one its X coordinate
+falls in, with the registers as written before that cycle: the 38 column right compare in cycle
+56 (counting from 1) and the 40 column one in 57. The 40 and 38 column layouts are what those
+rules give on an ordinary line; a program that selects 38 columns with a write in cycle 56 misses
+both compares, and the display then runs to the frame's edges on that line and the left border of
+the next, with sprites visible there. The column select bit follows the register write journal at the
 cycle boundary after the write; XSCROLL and the mode bits are still sampled once per line. An
 opened border shows the sequencer's idle output, the byte at `$3FFF` in black over the background
 colour. Sprite X positions wrap at 512 as on the chip, so a sprite at X 496 sits in the left

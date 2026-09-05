@@ -121,23 +121,30 @@ public class Vic2
     // set during some cycle of raster line $30. Bad lines then occur on the lines whose low three
     // bits equal YSCROLL, each starting a row (display state, RC = 0); after the row's eighth line
     // the chip drops to idle state until the next bad line. The vertical border flip-flop is set
-    // when the raster reaches the bottom compare line and reset at the top compare line only if DEN
+    // when the raster is on the bottom compare line and reset on the top compare line only if DEN
     // is set then, so a display that is switched off shows border colour everywhere, and a program
     // that keeps the raster from ever matching the bottom compare line keeps the border open.
     private const int BadLineFirstRasterLine = 0x30;
     private const int BadLineLastRasterLine = 0xF7;
     private const int RowLines = 8;
     private const int BadLineDecisionCycle = 14;  // RC is reset if the condition holds at this cycle
-    private const int BorderDecisionCycle = 16;   // the border flip-flop is checked at the display window's left edge
+    // The border unit evaluates its left compare in the cycle after the one X 24 falls in (index 16,
+    // one later with 38 columns), with the registers as written before that cycle.
+    private const int BorderDecisionCycle = 16;
     private bool _displayEnabledLatch;
     private bool _displayState;
     private bool _verticalBorder = true;
+    // The bottom compare arms this latch; the flip-flop takes it over at a line's start and at the
+    // left compare (VICE's set_vborder).
+    private bool _verticalBorderLatch = true;
+    // Whether the raster compare currently matches (VICE's raster_irq_triggered): the interrupt is
+    // raised when the comparison goes from non-match to match, not while it stays matched.
+    private bool _rasterIrqConditionMet;
     private ushort _videoCounterBase;
     private byte _rowCounter;
-    // The state a line entered with, so a $D011 write early in the line can redo its decisions.
+    // The state a line entered with, so a $D011 write early in the line can redo its bad line decision.
     private bool _displayStateAtLineStart;
     private byte _rowCounterAtLineStart;
-    private bool _verticalBorderAtLineStart;
     private Vic2LineDisplayState[] _lineDisplayStates = default!;
 
     /// <summary>The vertical state the VIC-II settled for a raster line when the raster entered it.</summary>
@@ -190,30 +197,35 @@ public class Vic2
         if (line == BadLineFirstRasterLine)
             _displayEnabledLatch = (control & 0x10) != 0;
 
-        _verticalBorderAtLineStart = _verticalBorder;
         _displayStateAtLineStart = _displayState;
         _rowCounterAtLineStart = _rowCounter;
-        ApplyBorderDecision(line, control);
+        CheckVerticalBorderCompares(line, control);
+        _verticalBorder = _verticalBorderLatch;
         ApplyBadLineDecision(line);
     }
 
-    // The vertical border flip-flop's rules for this line, from the registers as they are now: set
-    // when the line is the bottom compare line, reset when it is the top one and DEN is set. The
-    // chip checks these at the line's left edge (and again at its last cycle), so a $D011 write
-    // before the left edge can still change the outcome; the line is then re-decided from the state
-    // it started with. A program that keeps the raster from ever matching the bottom compare line
-    // by switching RSEL just for that line keeps the border open this way.
-    private void ApplyBorderDecision(ushort line, byte control)
+    // The vertical border compares, as VICE models them: they are checked in every cycle with the
+    // registers as they are then. The top compare with DEN set clears the flip-flop and its latch
+    // at once; the bottom compare only arms the latch, which the flip-flop takes over as the raster
+    // enters a line and at the display window's left edge. So a DEN cleared after line 51 began
+    // does not close a border already opened (VICE's dentest den10-51-1 shows the text for exactly
+    // that), RSEL cleared for a few cycles anywhere in line 247 closes the border at that line's
+    // left edge or, after it, from the next line (VICE's border/vborder2 tests), and a program that
+    // keeps the raster from ever matching the bottom compare line by switching RSEL around it keeps
+    // the border open.
+    private void CheckVerticalBorderCompares(ushort line, byte control)
     {
         var displayEnabled = (control & 0x10) != 0;
         var rows25 = (control & 0x08) != 0;
         var topCompare = rows25 ? 51 : 55;
         var bottomCompare = rows25 ? 251 : 247;
-        _verticalBorder = _verticalBorderAtLineStart;
-        if (line == bottomCompare)
-            _verticalBorder = true;
-        else if (line == topCompare && displayEnabled)
+        if (line == topCompare && displayEnabled)
+        {
             _verticalBorder = false;
+            _verticalBorderLatch = false;
+        }
+        if (line == bottomCompare)
+            _verticalBorderLatch = true;
     }
 
     // Decide the line's bad line condition from the registers as they are now, and record the
@@ -238,8 +250,9 @@ public class Vic2
     private void StoreLineState(ushort line)
         => _lineDisplayStates[line] = new Vic2LineDisplayState(_displayState, _verticalBorder, _videoCounterBase, _rowCounter);
 
-    // A $D011 write: DEN during line $30 counts for the frame; a write before this line's decision
-    // cycles can still change its border flip-flop and bad line condition.
+    // A $D011 write: DEN during line $30 counts for the frame; the vertical border compares see the
+    // new value at once, and a write before this line's decision cycles can still change the line's
+    // border flip-flop and bad line condition.
     private void OnScreenControlWritten()
     {
         var line = _currentRasterLineInternal;
@@ -250,14 +263,36 @@ public class Vic2
         if (line == BadLineFirstRasterLine && displayEnabled)
             _displayEnabledLatch = true;
 
+        // The chip compares in the cycle after the write. For a write in the line's last cycle that
+        // is the first cycle of the next line, whose entry evaluates the compares with this value
+        // (VICE's border/vborder tests: RSEL cleared in line 247's last cycle leaves the border open).
         var cyclesIntoLine = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine;
-        if (cyclesIntoLine >= (ulong)BorderDecisionCycle)
+        if (cyclesIntoLine == Vic2Model.CyclesPerLine - 1)
             return;
-        ApplyBorderDecision(line, control);
+        CheckVerticalBorderCompares(line, control);
+
+        var leftCompareCycle = BorderDecisionCycle + (Is38ColumnDisplayEnabled ? 1 : 0);
+        if (cyclesIntoLine >= (ulong)leftCompareCycle)
+            return;
+        _verticalBorder = _verticalBorderLatch;
         if (cyclesIntoLine < (ulong)BadLineDecisionCycle)
             ApplyBadLineDecision(line);
         else
             StoreLineState(line);
+    }
+
+    // A $D011 or $D012 write changed the raster compare value: the chip compares again in the next
+    // cycle. When the write is in a line's last cycle that next cycle is the first of the following
+    // line, and the comparison there is the one made as the raster enters that line.
+    private void OnRasterCompareWritten()
+    {
+        if (_currentRasterLineInternal == ushort.MaxValue)
+            return;
+        var cyclesIntoLine = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine;
+        if (cyclesIntoLine == Vic2Model.CyclesPerLine - 1)
+            return;
+        // The write is in the bus cycle after the last one the VIC-II has been advanced through.
+        CheckRasterIrq(C64.CPU, _advancedToBusCycle + 2);
     }
 
     public bool Is38ColumnDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
@@ -952,6 +987,8 @@ public class Vic2
         // that combines to more lines than the model has. Just log it instead of treating it as an error.
         if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.TotalHeight)
             _logger.LogDebug("Raster IRQ compare line {IRQLine} is beyond the {Model} model's total height ({TotalHeight}); IRQ will not fire for this line until reprogrammed.", Vic2IRQ.ConfiguredIRQRasterLine, Vic2Model.Name, Vic2Model.TotalHeight);
+
+        OnRasterCompareWritten();
     }
 
     public byte ScrCtrlReg1Load(ushort address)
@@ -972,6 +1009,7 @@ public class Vic2
             newIRQRasterLine = (ushort)(Vic2IRQ.ConfiguredIRQRasterLine & 0b0000_0001_0000_0000);
         }
         Vic2IRQ.ConfiguredIRQRasterLine = newIRQRasterLine |= value;
+        OnRasterCompareWritten();
     }
 
     public byte RasterLoad(ushort _)
@@ -1150,7 +1188,9 @@ public class Vic2
                 ? CyclesConsumedCurrentVblank - lineStart
                 : CyclesConsumedCurrentVblank + Vic2Model.CyclesPerFrame - lineStart;
             var lineStartBusCycle = endBusCycle + 1 > cyclesIntoLine ? endBusCycle + 1 - cyclesIntoLine : 0;
-            RaiseRasterIRQ(cpu, lineStartBusCycle);
+            // The raster counter takes its new value in the line's first cycle, except that line 0
+            // is entered a cycle later; the comparison is made in the same cycle.
+            CheckRasterIrq(cpu, line == 0 ? lineStartBusCycle + 1 : lineStartBusCycle);
 
             EnterLineVerticalState(line);
             UpdateSpriteDma(line);
@@ -1218,16 +1258,24 @@ public class Vic2
         SpriteDmaMask = mask;
     }
 
-    private void RaiseRasterIRQ(CPU cpu, ulong atBusCycle)
+    // Compare the raster counter with the raster compare value, as the chip does in every cycle;
+    // called whenever either can have changed. The interrupt is raised only when the comparison
+    // goes from non-match to match, so a program that moves the compare value to the next line in
+    // the last cycle of every line keeps it matched and gets no further interrupt (VICE's
+    // rasterirq/rasterirq_hold test), while writing the current line's number raises one at once.
+    private void CheckRasterIrq(CPU cpu, ulong atBusCycle)
     {
-        // Check if a IRQ should be issued
-        var source = IRQSource.RasterCompare;
-        if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
-            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.TotalHeight))
-            && !Vic2IRQ.IsTriggered(source))
+        if (_currentRasterLineInternal != Vic2IRQ.ConfiguredIRQRasterLine)
         {
-            Vic2IRQ.Trigger(source, cpu, atBusCycle);
+            _rasterIrqConditionMet = false;
+            return;
         }
+        if (_rasterIrqConditionMet)
+            return;
+        _rasterIrqConditionMet = true;
+        var source = IRQSource.RasterCompare;
+        if (!Vic2IRQ.IsTriggered(source))
+            Vic2IRQ.Trigger(source, cpu, atBusCycle);
     }
 
     private static Dictionary<int, ScreenLineData> BuildScreenLineDataLookup(Vic2ModelBase vic2Model)

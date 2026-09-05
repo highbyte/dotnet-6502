@@ -344,16 +344,21 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         // The border unit's compare points. The display window starts DisplayWindowStartX pixels
         // into the raster line (X 24, 4 pixels into the chip's cycle 16 = index 15); 38 columns move
-        // the left edge 7 pixels right (X 31) and the right one 9 pixels left (X 335).
+        // the left edge 7 pixels right (X 31) and the right one 9 pixels left (X 335). The chip
+        // evaluates each compare one cycle after the cycle its X coordinate falls in, with the
+        // registers as written up to the cycle before that (VICE's cycle tables: the 38 column
+        // right compare in cycle 56, the 40 column one in 57, counting from 1), which is why a 38
+        // column write in cycle 56 opens the side border: the first compare does not see it yet and
+        // the second does. The pixel positions the flip-flop changes at are the X coordinates.
         var displayWindowStartLineX = _c64.Vic2.Vic2Model.DisplayWindowStartX;
         _leftCompareX40 = _screenStartX;
         _leftCompareX38 = _screenStartX + Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA;
         _rightCompareX40 = _rightBorderStartX;
         _rightCompareX38 = _rightBorderStartX + Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA;
-        _leftCompareCycle40 = displayWindowStartLineX / 8;
-        _leftCompareCycle38 = (displayWindowStartLineX + Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA) / 8;
-        _rightCompareCycle40 = (displayWindowStartLineX + _drawableAreaWidth) / 8;
-        _rightCompareCycle38 = (displayWindowStartLineX + _drawableAreaWidth + Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA) / 8;
+        _leftCompareCycle40 = displayWindowStartLineX / 8 + 1;
+        _leftCompareCycle38 = (displayWindowStartLineX + Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA) / 8 + 1;
+        _rightCompareCycle40 = (displayWindowStartLineX + _drawableAreaWidth) / 8 + 1;
+        _rightCompareCycle38 = (displayWindowStartLineX + _drawableAreaWidth + Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA) / 8 + 1;
         _csel40 = !_c64.Vic2.Is38ColumnDisplayEnabled;
 
         // Until the raster has run a frame, every line reads as a plain 40 column display: the
@@ -564,7 +569,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
             // (A cycle just outside the frame is kept when its 8-pixel block on the character grid,
             // which starts 4 pixels into the cycle, reaches into the frame: the opened side border's
             // outermost pixels are drawn from those blocks.)
-            if (posX + 8 <= _screenLayoutInclNonVisibleLeftBorderStartX || posX - 4 > _screenLayoutInclNonVisibleRightBorderEndX)
+            if (posX + 16 <= _screenLayoutInclNonVisibleLeftBorderStartX || posX - 12 > _screenLayoutInclNonVisibleRightBorderEndX)
                 continue;
 
             var isNewLine = screenLine != _lastScreenLineDataUpdate;
@@ -578,11 +583,15 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 if (_lastScreenLineDataUpdate >= 0 && _perLineSprites)
                     DrawSpritesForLine(_lastScreenLineDataUpdate);
 
+                // A new line: clear its foreground row before anything is drawn on it, so nothing
+                // from the previous frame remains (fine scrolling leaves gaps). Per line rather than
+                // once per frame at the first visible line, because on NTSC the visible frame's last
+                // rows are raster lines 0-5, which are drawn before that first visible line and
+                // would be wiped by a whole-frame clear there.
+                _clearForegroundPixels((screenLine - _screenLayoutInclNonVisibleTopBorderStartY) * _width, _width);
+
                 if (screenLine - _screenLayoutInclNonVisibleTopBorderStartY == 0)
                 {
-                    // First line of screen. Clear foreground bitmap, otherwise it will contain garbage from previous frame if fine scrolling is used.
-                    //Array.Clear(PixelArray_Foreground, 0, PixelArray_Foreground.Length);
-                    _clearForegroundPixels(0, _width * _height);
 
                     // New frame: reset the sprite display latch so no sprite carries over.
                     if (_perLineSprites)
@@ -638,19 +647,19 @@ public sealed class Vic2RasterizerUintPixelGenerator
             }
 
             // Graphics show wherever the border flip-flop is clear. The display window's columns
-            // start 4 pixels into a cycle, so column k is drawn while the cycle after the one it
-            // starts in is processed: by then the compares that can clip it have been evaluated.
-            // Outside the window (a side border a program has opened, or the top and bottom border
-            // with the vertical flip-flop kept clear) the sequencer shows its idle output on the
-            // same 8-pixel grid.
+            // start 4 pixels into a cycle and the compares that can clip a column are evaluated a
+            // cycle after the cycle they fall in, so column k is drawn two cycles after the one it
+            // starts in: by then those compares have been evaluated. Outside the window (a side
+            // border a program has opened, or the top and bottom border with the vertical flip-flop
+            // kept clear) the sequencer shows its idle output on the same 8-pixel grid.
             if (_lineClearStartX < _width)
             {
-                var col = (posX - _screenLayoutInclNonVisibleScreenStartX - 4) / 8;
+                var col = (posX - _screenLayoutInclNonVisibleScreenStartX - 12) >> 3;
                 var drawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
                 if (col >= 0 && col < _vic2ScreenTextCols)
                     DrawTextAndBitmapPixels(_c64, drawLine, col);
-                else if (posX >= _screenLayoutInclNonVisibleScreenStartX - 4 || col < 0 && posX + 4 > _screenLayoutInclNonVisibleLeftBorderStartX)
-                    DrawIdleBlock(_c64, drawLine, (posX - _screenLayoutInclNonVisibleScreenStartX - 4) >> 3);
+                else
+                    DrawIdleBlock(_c64, drawLine, col);
             }
 
         } // End for each cycle

@@ -94,7 +94,20 @@ DOTNET6502_C64_ROM_DIR=/tmp/c64-roms DOTNET6502_DOWNLOAD_TEST_ROMS=1 \
   dotnet test tests/Highbyte.DotNet6502.Systems.Tests --filter TestType=Integration
 ```
 
-The `Build & run tests` workflow sets both variables (with the ROM directory cached between runs), so these tests run in CI. Use the same helper for any future C64 test that needs a booted machine, for example the VICE test programs planned for the cycle-exact work.
+The `Build & run tests` workflow sets both variables (with the ROM directory cached between runs), so these tests run in CI. Use the same helper for any future C64 test that needs a booted machine.
+
+### VIC-II tests from the VICE test programs
+
+`tools/vice-testprogs/Highbyte.DotNet6502.ViceTestprogs` runs the VIC-II test programs from the [VICE test programs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/) repository against the C64 emulation and compares the picture with the reference screenshots that ship with them. It is a console tool, not part of the test suite: the programs and their references are not in this repository (fetch a suite directory, for example `testprogs/VICII/border`, from the Subversion repository at `https://svn.code.sf.net/p/vice-emu/code/testprogs/VICII/`), and many of the pictures are not expected to match yet.
+
+The tool boots the real ROMs to the `READY.` prompt, loads a `.prg`, runs it from its BASIC `SYS` line and stops at the first write to `$D7FF`, which is how the programs report their result (`$00` passed, `$FF` failed) and end. The frame completed before that write is compared with the reference, colour index by colour index, over the part of the frame both pictures cover. For each program it writes a picture with the reference, the emulator's frame and the differing pixels side by side, and a `results.md` table with the exit code and the number of differing pixels.
+
+```sh
+dotnet run --project tools/vice-testprogs/Highbyte.DotNet6502.ViceTestprogs -c Release -- \
+  --tests /path/to/testprogs/VICII --suite border,dentest --roms /path/to/c64-roms --out /tmp/vice-results --model both
+```
+
+`--suite` names the directories to run, `--filter` selects programs by name, `--model` picks the PAL or NTSC machine (`_ntsc.prg` variants are run on the NTSC machine, plain ones on the PAL machine), `--frames` caps the run for programs that never write the exit code. Set `VICETEST_TRACE` to a comma separated list of raster lines to log the VIC-II register writes on those lines with their cycle, the quickest way to see what a program does on the line where its picture differs. `--measure <png>` prints the reference picture's layout, for adding a suite whose window differs.
 
 ### WASM AOT publish smoke tests
 
