@@ -84,7 +84,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int _vic2ScreenCharacterHeight;
     private int _width;
     private int _height;
-    private int _drawableAreaHeight;
     private int _drawableAreaWidth;
     private ulong _cyclesPerLine;
     private int _colorChangePixelDelay;
@@ -95,13 +94,18 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private CharMode _characterMode;
     private BitmMode _bitmapMode;
     private bool _invalidMode; // ECM combined with BMM/MCM: VIC-II outputs black for the display area.
-    // Invalid-mode lines render black and don't advance the character-row counter, so rows below a
-    // band are pushed down past it (VIC-II "flexible line distance" effect). Normally 0 - identical
-    // to baseline rendering for ordinary screens.
-    private int _charGridYOffset;   // grid snap (0-7) after an invalid-mode band; 0 for normal screens.
-    private bool _prevInvalidMode;  // invalid-mode state of the previous line (to detect band end).
     private int _scrollX;
-    private int _scrollY;
+
+    // The VIC-II's vertical state for the line being drawn, as it settled it when the raster
+    // entered the line (see Vic2LineDisplayState). Which row is drawn and which of its lines is
+    // not arithmetic on the raster line: rows start where bad lines occur, the chip drops to idle
+    // state after a row's eighth line until the next bad line, and the vertical border flip-flop
+    // decides whether the line shows graphics at all. That is what makes vertical fine scroll,
+    // FLD-style row stretching, a switched-off display and an opened border come out as on hardware.
+    private bool _lineDisplayState;
+    private bool _lineVerticalBorder = true;
+    private int _lineVideoCounterBase;
+    private int _lineRowCounter;
 
     // VIC-II colour registers as the rasterizer holds them. They change only through the register
     // write journal below, at the cycle after the write lands, so a write in the middle of a line
@@ -322,7 +326,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
         _vic2ScreenCharacterHeight = _c64.Vic2.Vic2Screen.CharacterHeight;
         _width = _c64.Vic2.Vic2Screen.VisibleWidth;
         _height = _c64.Vic2.Vic2Screen.VisibleHeight;
-        _drawableAreaHeight = _c64.Vic2.Vic2Screen.DrawableAreaHeight;
         _drawableAreaWidth = _c64.Vic2.Vic2Screen.DrawableAreaWidth;
         _cyclesPerLine = _c64.Vic2.Vic2Model.CyclesPerLine;
         _colorChangePixelDelay = _c64.Vic2.Vic2Model.ColorChangePixelDelay;
@@ -480,9 +483,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     //Array.Clear(PixelArray_Foreground, 0, PixelArray_Foreground.Length);
                     _clearForegroundPixels(0, _width * _height);
 
-                    // New frame: character grid locked to the screen top.
-                    _charGridYOffset = 0;
-                    _prevInvalidMode = false;
                     // New frame: reset the sprite display latch so no sprite carries over.
                     if (_perLineSprites)
                     {
@@ -501,30 +501,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _bitmapMode = _c64.Vic2.BitmapMode;
                 _invalidMode = _c64.Vic2.IsInvalidVideoMode;
 
-                // Invalid-mode (ECM+BMM/MCM) lines render black and DO NOT advance the character-row
-                // counter - matching the VIC-II "flexible line distance" effect a program produces by
-                // suppressing bad lines during the band. The character grid for the lines below the
-                // band is therefore pushed down by the number of invalid lines, so a row that would
-                // otherwise straddle the band (clipping e.g. a title's text) lands cleanly after it.
-                // For normal screens (no invalid lines) this stays 0, identical to baseline rendering.
-                // When the display resumes after an invalid-mode band, snap the character grid to the
-                // next character-row boundary so the resuming row starts cleanly *after* the band
-                // (the band absorbs the partial separator row it overlapped). This is the minimal
-                // downward shift needed to clear the band - pushing by the full band height would
-                // over-shift and drop the rows below off the bottom border. Only ever non-zero after
-                // an invalid band, so normal (non-split) screens are unaffected.
                 _scrollX = _c64.Vic2.GetScrollX();
-                _scrollY = _c64.Vic2.GetScrollY();
 
-                if (_prevInvalidMode && !_invalidMode)
-                {
-                    // The snap must account for the resume line's vertical fine scroll: gridLine
-                    // subtracts both _charGridYOffset and _scrollY, so the offset is chosen to make
-                    // gridLine land exactly on a character-row boundary at the resume line.
-                    var resumeDrawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
-                    _charGridYOffset = (((resumeDrawLine - _scrollY) % 8) + 8) % 8;
-                }
-                _prevInvalidMode = _invalidMode;
+                var lineState = _c64.Vic2.GetLineDisplayState(rasterLine);
+                _lineDisplayState = lineState.DisplayState;
+                _lineVerticalBorder = lineState.VerticalBorder;
+                _lineVideoCounterBase = lineState.VideoCounterBase;
+                _lineRowCounter = lineState.RowCounter;
 
                 // Colour registers are not sampled here: they follow the register write journal.
 
@@ -563,9 +546,11 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _lastScreenLineDataUpdate = screenLine;
             }
 
-            // Only draw main screen area (text/bitmap) if within it
-            if (!(screenLine < _screenLayoutInclNonVisibleScreenStartY || screenLine > _screenLayoutInclNonVisibleScreenEndY
-                || posX < _screenLayoutInclNonVisibleScreenStartX || posX > _screenLayoutInclNonVisibleScreenEndX))
+            // Graphics are drawn on every line the vertical border flip-flop leaves open, within the
+            // display window's columns. That is the screen rows for an ordinary picture; with the
+            // border opened it extends into what would be the top or bottom border.
+            if (!_lineVerticalBorder
+                && !(posX < _screenLayoutInclNonVisibleScreenStartX || posX > _screenLayoutInclNonVisibleScreenEndX))
             {
                 DrawTextAndBitmapPixels(_c64, drawLine: screenLine - _screenLayoutInclNonVisibleScreenStartY, col: (posX - _screenLayoutInclNonVisibleScreenStartX) / 8);
             }
@@ -666,8 +651,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _bandRowColorMc1[ci] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
                 _bandRowClipStartX[ci] = _screenStartXAdjusted;
                 _bandRowClipEndX[ci] = _rightBorderStartXAdjusted;
-                _bandRowClipStartY[ci] = _topBorderEndYAdjusted + 1;
-                _bandRowClipEndY[ci] = _bottomBorderStartYAdjusted;
+                // The border covers sprites too: a row recorded on a line the vertical border
+                // flip-flop covers is not shown, one on an open line is.
+                _bandRowClipStartY[ci] = 0;
+                _bandRowClipEndY[ci] = _lineVerticalBorder ? 0 : _height;
             }
 
             // Advance the active-run gate (double-height keeps each row for 2 lines). This only
@@ -1164,8 +1151,8 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var lineStartIndex = normalizedScreenLine * _width;
         var borderLine = _oneLineSameColorPixels[_borderColor];
 
-        // Top or bottom border
-        if (normalizedScreenLine <= _topBorderEndYAdjusted || normalizedScreenLine >= _bottomBorderStartYAdjusted)
+        // Vertical border: the whole line is border colour
+        if (_lineVerticalBorder)
         {
             _setBackgroundPixels(borderLine, 0, lineStartIndex + fromX, toX - fromX);
             return;
@@ -1194,34 +1181,43 @@ public sealed class Vic2RasterizerUintPixelGenerator
         if (_invalidMode)
         {
             // Clear pixels
-            WriteToPixelArray(_oneLineSameColorPixels[(byte)C64Colors.Black], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
-            WriteToPixelArray(_oneLineTransparentPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+            WriteToPixelArray(_oneLineSameColorPixels[(byte)C64Colors.Black], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
+            WriteToPixelArray(_oneLineTransparentPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
             return;
         }
 
-        // Vertical fine scroll changes which character row/line is sampled at the current raster
-        // line. Do not delay the destination Y write itself, because raster splits must affect the
-        // pixels being drawn on this line instead of appearing a few lines later.
         var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
-        var gridLine = drawLine - _charGridYOffset - _scrollY;
-        if (gridLine < 0 || gridLine >= _drawableAreaHeight)
+
+        // Idle state: no row is being displayed (before the first bad line, after a row's eighth
+        // line until the next bad line, or all frame when the display was off during line $30).
+        // The sequencer still runs, on the byte at the end of the VIC-II bank ($3FFF, or $39FF with
+        // ECM) with no video matrix data: black over the background colour, or all black in the
+        // bitmap modes where both colours would come from the matrix.
+        if (!_lineDisplayState)
         {
-            // The shifted sample position is above the first or below the last character row, where
-            // the real VIC-II pixel sequencer idles. Approximate idle output with the background
-            // color (never sample outside the video matrix), and clear the foreground so stale
-            // pixels cannot show through while keeping the line transparent for sprite compositing.
+            var idleData = c64.Vic2.ReadMemory((ushort)(_isTextMode && _characterMode == CharMode.Extended ? 0x39FF : 0x3FFF));
+            uint[] idlePixels;
+            if (_isTextMode)
+                idlePixels = _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex(idleData, (byte)C64Colors.Black)];
+            else if (_bitmapMode == BitmMode.Standard)
+                idlePixels = _eightPixelsTwoColors[GetTwoColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black)];
+            else
+                idlePixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black, (byte)C64Colors.Black)];
             if (!backgroundIsPrefilled)
-                WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
-            WriteToPixelArray(_oneLineTransparentPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+                WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
+            WriteToPixelArray(idlePixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
             return;
         }
 
-        var characterRow = gridLine / 8;
-        var characterLine = (ushort)(gridLine % 8);
+        // Display state: the row is the one VC points at and the line within it is RC, both as the
+        // VIC-II counted them; VC is ten bits and advances by one per column.
+        var characterLine = (ushort)_lineRowCounter;
+        var videoCounter = (ushort)((_lineVideoCounterBase + col) & 0x3FF);
+        var characterRow = _lineVideoCounterBase;   // identifies the row for the row latch
 
-        var characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + characterRow * _vic2ScreenTextCols + col);
-        var colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + characterRow * _vic2ScreenTextCols + col);
-        var c64BitMapAddress = (ushort)(_vic2BitmapBaseAddress + characterRow * _vic2ScreenTextCols * 8 + col * 8 + characterLine);
+        var characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + videoCounter);
+        var colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + videoCounter);
+        var c64BitMapAddress = (ushort)(_vic2BitmapBaseAddress + videoCounter * 8 + characterLine);
 
         // Screen code and colour nibble for the cell: from the row latch when this row has been
         // fetched already (lines after the row's first), otherwise live from the video matrix and
@@ -1350,29 +1346,25 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         // Write the background color to the pixel array for background and border
         if (!backgroundIsPrefilled)
-            WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
+            WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
 
         // Write the character to the current raster line. Horizontal fine scroll still shifts the
         // destination X, but vertical fine scroll was already applied to gridLine above.
-        WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+        WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
 
 
-        //void WriteToPixelArray(uint[] fnEightPixels, uint[] fnPixelArray, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)
-        void WriteToPixelArray(uint[] fnEightPixels, bool foreground, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)
+        void WriteToPixelArray(uint[] fnEightPixels, bool foreground, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX)
         {
             // Draw 8 pixels (or less) of character on the the pixel array part used for the C64 drawable screen (320x200)
 
             // ----------
             // Y position
             // ----------
-            if (fnAdjustForScrollY)
-                fnMainScreenY += _scrollY;
             var ypos = _screenStartY + fnMainScreenY;
 
-            // Adjust for invalid mode lines offset
-            ypos -= _charGridYOffset;
-
-            if (ypos <= _topBorderEndYAdjusted || ypos >= _bottomBorderStartYAdjusted)
+            // The vertical border flip-flop decides whether this line shows graphics at all (the
+            // caller checks it); here only the frame's edge clips.
+            if (ypos < 0 || ypos >= _height)
                 return;
 
             // If inverted Y coordinate system is used, flip it
@@ -1437,10 +1429,10 @@ public sealed class Vic2RasterizerUintPixelGenerator
         if (!_isTextMode || _characterMode != CharMode.Standard)
             return;
 
-        var ypos = normalizedScreenLine;
-        if (ypos <= _topBorderEndYAdjusted || ypos >= _bottomBorderStartYAdjusted)
+        if (_lineVerticalBorder)
             return;
 
+        var ypos = normalizedScreenLine;
         if (FlipY)
             ypos = _height - ypos - 1;
 

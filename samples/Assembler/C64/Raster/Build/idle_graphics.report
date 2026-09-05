@@ -1,0 +1,554 @@
+
+; ******** Source: idle_graphics.asm
+     1                          ;ACME assembler
+     2                          ;!to "./idle_graphics.prg"
+     3                          
+     4                          ; VIC-II display enable (DEN) test: the same cycle-counted colour loop with the display on and off.
+     5                          ;
+     6                          ; DEN is bit 4 of $d011. The VIC-II does not read it continuously: it samples it during raster
+     7                          ; line 48 ($30), and what it saw there decides for the whole frame whether any line can be a bad
+     8                          ; line, that is whether character rows are fetched and displayed at all. Separately, DEN gates the
+     9                          ; vertical border: the border flip-flop opens at line 51 only if DEN is set at that moment.
+    10                          ;
+    11                          ; With the display on, every 8th line of the display area is a bad line: the VIC-II takes the bus
+    12                          ; for about 40 cycles in the middle of it and the CPU stops at its next opcode fetch. Nothing a
+    13                          ; program does inside those lines can avoid that. With DEN clear during line 48 there are no bad
+    14                          ; lines, the CPU owns every cycle of the frame, and cycle-counted code runs straight through the
+    15                          ; display area. That is what this program shows, by running the same loop in every phase:
+    16                          ;
+    17                          ;   200 iterations of exactly one raster line (63 cycles on PAL, 65 on NTSC; the model is detected
+    18                          ;   at start), each writing eight background colours 6 cycles apart, so the display area shows
+    19                          ;   48-pixel vertical colour columns. The loop is entered from a line-clock sync (see
+    20                          ;   raster_columns.asm), so the columns land on the same cycle every frame.
+    21                          ;
+    22                          ; Four phases. The first stays until the space bar is pressed; the other three follow at about
+    23                          ; two seconds each, after which the first waits for space again:
+    24                          ;
+    25                          ;   1. DEN set all frame: the text screen over the columns. Every bad line halts the loop for
+    26                          ;      about 40 cycles, so from there on the colour writes are 40 cycles late and the columns
+    27                          ;      shear sideways, 25 times down the screen.
+    28                          ;   2. DEN cleared on line 40 and set again a few cycles into line 48: the same picture, because a
+    29                          ;      write during line 48 counts and the frame has its bad lines.
+    30                          ;   3. DEN cleared until line 49: the border opens at 51, but the frame has no bad lines, so the
+    31                          ;      columns are straight. No character row is fetched either: the display area shows "idle
+    32                          ;      graphics", the byte at $3fff in every cell, black over the background colour. The loop
+    33                          ;      writes one row of an 8x8 glyph to $3fff on every line, so all 1000 cells show the same
+    34                          ;      glyph without any screen RAM or character set being read.
+    35                          ;   4. DEN cleared all frame: the border never opens, so the loop writes the border colour instead
+    36                          ;      and the columns run edge to edge.
+    37                          ;
+    38                          ; Phases 3 and 4 are why loaders and demo parts switch the display off: the ~1000 cycles per
+    39                          ; frame of bad lines come back. An emulator that reads DEN live shows sheared columns and the
+    40                          ; text screen in phase 3, with its status line saying "3".
+    41                          ;
+    42                          ; Timing inside the loop: the idle byte is written after the previous line's display window and
+    43                          ; the first colour before the next line's visible part begins, so both the idle graphics and the
+    44                          ; phase 4 border columns have straight top and left edges.
+    45                          
+    46                          ;code start address
+    47                          * = $c000
+    48                          
+    49                          ;------------------------------------------------------------
+    50                          ;Program settings
+    51                          ;------------------------------------------------------------
+    52                          
+    53                          SCREEN_RAM      = $0400
+    54                          COLOR_RAM       = $d800
+    55                          
+    56                          SCREEN_CONTROL_REGISTER_1 = $d011
+    57                          SCREEN_RASTER_LINE = $d012
+    58                          SCREEN_BORDER_COLOR_ADDRESS = $d020
+    59                          SCREEN_BACKGROUND_COLOR_ADDRESS = $d021
+    60                          
+    61                          CIA1_TIMER_A_LO = $dc04
+    62                          CIA1_TIMER_A_HI = $dc05
+    63                          CIA1_CONTROL_A = $dc0e
+    64                          
+    65                          IDLE_BYTE_ADDRESS = $3fff       ; the byte the VIC-II displays in idle state
+    66                          
+    67                          ; $d011 values: raster bit 8 clear, 25 rows, YSCROLL 3; with DEN on and off.
+    68                          D011_DEN_ON  = %00011011
+    69                          D011_DEN_OFF = %00001011
+    70                          
+    71                          IRQ_LINE          = 40          ; top border on both models; well before line 48
+    72                          DEN_SAMPLE_LINE   = 48          ; the line during which the VIC-II samples DEN
+    73                          SYNC_LINE         = 50          ; the loop is entered from this line, one above the display area
+    74                          FIRST_SCREEN_LINE = 51
+    75                          SCREEN_LINES      = 200
+    76                          
+    77                          CYCLES_PER_LINE_PAL = 63
+    78                          CYCLES_PER_LINE_NTSC = 65
+    79                          LOOP_CYCLES = 63                ; one iteration of the column loop without filler
+    80                          
+    81                          PHASES       = 4
+    82                          PHASE_FRAMES = 100              ; frames per phase 2-4 (2 s PAL, 1.7 s NTSC)
+    83                          STATUS_ROW   = 24
+    84                          
+    85                          CIA1_PORT_A = $dc00             ; keyboard matrix row select
+    86                          CIA1_PORT_B = $dc01             ; keyboard matrix column read
+    87                          SPACE_ROW_SELECT = %01111111    ; the space bar is row 7, column 4
+    88                          SPACE_COLUMN_BIT = %00010000
+    89                          
+    90                          FILLER       = $02      ; zero page: scratch, also the byte the timing filler reads
+    91                          START        = $03      ; zero page: set by the main loop when space starts the cycle
+    92                          ENTRY        = $f7      ; zero page, 2 bytes: the column loop to run this frame
+    93                          PHASE        = $f9      ; zero page: current phase 0-3
+    94                          FRAME        = $fa      ; zero page: frames spent in the current phase
+    95                          IS_PAL       = $fb      ; zero page: 1 on PAL, 0 on NTSC
+    96                          LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
+    97                          CALIB        = $fd      ; zero page: line clock value of the reference poll (see SyncToLine)
+    98                          TARGET_LINE  = $fe      ; zero page: raster line SyncToLine waits for
+    99                          
+   100                          ; Slide entry for a frame exactly as early as the reference frame. The poll loop is 7 cycles, so a
+   101                          ; frame differs from the reference by at most 6 cycles either way and the entry stays within 3-15.
+   102                          SLIDE_CENTER = 9
+   103                          
+   104                          COLOR_BLACK     = 0
+   105                          COLOR_WHITE     = 1
+   106                          COLOR_DARK_GREY = 11
+   107                          SPACE_CHAR      = $20
+   108                          
+   109                          ;------------------------------------------------------------
+   110                          ;Macros
+   111                          ;------------------------------------------------------------
+   112                          
+   113                          ; Burn .cycles cycles (>= 2). NOPs in pairs, with a 3-cycle BIT for an odd count.
+   114                          !macro delay_cycles .cycles {
+   115                          	!if .cycles & 1 {
+   116                          		bit FILLER
+   117                          		!fill (.cycles - 3) / 2, $ea
+   118                          	} else {
+   119                          		!fill .cycles / 2, $ea
+   120                          	}
+   121                          }
+   122                          
+   123                          ; Busy-wait until the raster reaches .line (0-255). Exits 2-8 cycles into the line.
+   124                          !macro wait_line .line {
+   125                          	lda #.line
+   126                          -	cmp SCREEN_RASTER_LINE
+   127                          	bne -
+   128                          }
+   129                          
+   130                          ; Wait for the raster line in TARGET_LINE, then read the line clock. Written once and used both by
+   131                          ; the calibration in Init and by SyncToLine, so the clock is always read at the same offset after
+   132                          ; the poll and the two values can be compared directly.
+   133                          !macro poll_and_read_clock {
+   134                          	lda TARGET_LINE                 ; 3
+   135                          -	cmp SCREEN_RASTER_LINE          ; 4
+   136                          	bne -                           ; 3 taken / 2 falling through
+   137                          	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
+   138                          }
+   139                          
+   140                          ; Copy a $ff-terminated screen-code string to screen memory.
+   141                          !macro print .screenaddr, .text {
+   142                          	ldx #0
+   143                          -	lda .text,x
+   144                          	cmp #$ff
+   145                          	beq +
+   146                          	sta .screenaddr,x
+   147                          	inx
+   148                          	bne -
+   149                          +
+   150                          }
+   151                          
+   152                          ; The column loop: 200 iterations of exactly one raster line. Iteration x runs on line 50 + x and
+   153                          ; prepares line 51 + x: its idle byte (written 60-66 cycles into the line, after the display window
+   154                          ; has ended), then eight colours 6 cycles apart, the first of them 3-9 cycles into the next line,
+   155                          ; before its visible part. The loop's own counter and branch take the last 7 cycles. Afterwards the
+   156                          ; border and background go back to their resting colours, the border write timed to land in the
+   157                          ; unseen pixels after line 250's visible right border.
+   158                          !macro column_loop .colour_addr, .fill, ~.entry {
+   159                          	!align 127, 0        ; the loop is under 128 bytes: no page crossing on the branch back
+   160                          .entry
+   161                          .Line:
+   162                          	lda IdleBytes,x                     ; 4
+   163                          	sta IDLE_BYTE_ADDRESS               ; 4
+   164                          	lda #COLOR_WHITE                    ; 2
+   165                          	sta .colour_addr                    ; 4
+   166                          	lda #7                              ; yellow
+   167                          	sta .colour_addr
+   168                          	lda #8                              ; orange
+   169                          	sta .colour_addr
+   170                          	lda #10                             ; light red
+   171                          	sta .colour_addr
+   172                          	lda #13                             ; light green
+   173                          	sta .colour_addr
+   174                          	lda #3                              ; cyan
+   175                          	sta .colour_addr
+   176                          	lda #14                             ; light blue
+   177                          	sta .colour_addr
+   178                          	lda #15                             ; light grey
+   179                          	sta .colour_addr
+   180                          	!if .fill {
+   181                          		+delay_cycles .fill
+   182                          	}
+   183                          	inx                                 ; 2
+   184                          	cpx #SCREEN_LINES                   ; 2
+   185                          	bne .Line                           ; 3 taken / 2 falling through
+   186                          	nop
+   187                          	nop
+   188                          	lda #COLOR_DARK_GREY                ; the border write lands 62-68 cycles into line 250
+   189                          	sta SCREEN_BORDER_COLOR_ADDRESS
+   190                          	lda #COLOR_BLACK
+   191                          	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   192                          	jmp ColumnsDone
+   193                          }
+   194                          
+   195                          ; 8x8 glyphs as idle bytes, one row per raster line; five glyphs, repeated down the screen.
+   196                          !macro heart {
+   197                          	!byte %00000000, %01100110, %11111111, %11111111, %01111110, %00111100, %00011000, %00000000
+   198                          }
+   199                          !macro smiley {
+   200                          	!byte %00000000, %00111100, %01000010, %10100101, %10011001, %01000010, %00111100, %00000000
+   201                          }
+   202                          !macro diamond {
+   203                          	!byte %00000000, %00011000, %00111100, %01111110, %01111110, %00111100, %00011000, %00000000
+   204                          }
+   205                          !macro arrow {
+   206                          	!byte %00000000, %00011000, %00111100, %01111110, %00011000, %00011000, %00011000, %00000000
+   207                          }
+   208                          !macro cross {
+   209                          	!byte %00000000, %01000010, %00100100, %00011000, %00011000, %00100100, %01000010, %00000000
+   210                          }
+   211                          
+   212                          ;------------------------------------------------------------
+   213                          ;Code start
+   214                          ;------------------------------------------------------------
+   215                          
+   216                          Init:
+   217  c000 78                 	sei                  ; set interrupt bit, make the CPU ignore interrupt requests
+   218  c001 a97f               	lda #%01111111       ; switch off interrupt signals from CIA-1
+   219  c003 8d0ddc             	sta $dc0d
+   220                          
+   221  c006 2d11d0             	and SCREEN_CONTROL_REGISTER_1 ; clear most significant bit of VIC's raster register
+   222  c009 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   223                          
+   224  c00c ad0ddc             	lda $dc0d            ; acknowledge pending interrupts from CIA-1
+   225  c00f ad0ddd             	lda $dd0d            ; acknowledge pending interrupts from CIA-2
+   226                          
+   227  c012 2096c0             	jsr DetectModel
+   228                          
+   229  c015 a90b               	lda #COLOR_DARK_GREY
+   230  c017 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   231  c01a a900               	lda #COLOR_BLACK
+   232  c01c 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   233  c01f 8dff3f             	sta IDLE_BYTE_ADDRESS
+   234  c022 85f9               	sta PHASE
+   235  c024 85fa               	sta FRAME
+   236  c026 8503               	sta START
+   237                          
+   238  c028 20bac0             	jsr ClearScreen
+   239  c02b 20dfc0             	jsr DrawScreen
+   240  c02e 200cc2             	jsr PrintStatus
+   241                          
+   242                          	; Line clock: timer A counts one raster line per period (latch + 1 cycles), continuously.
+   243  c031 a900               	lda #0
+   244  c033 8d05dc             	sta CIA1_TIMER_A_HI
+   245  c036 a940               	lda #CYCLES_PER_LINE_NTSC - 1
+   246  c038 a6fb               	ldx IS_PAL
+   247  c03a f002               	beq +
+   248  c03c a93e               	lda #CYCLES_PER_LINE_PAL - 1
+   249  c03e 8d04dc             +	sta CIA1_TIMER_A_LO
+   250                          
+   251  c041 a911               	lda #%00010001       ; force load + start, continuous
+   252  c043 8d0edc             	sta CIA1_CONTROL_A
+   253                          
+   254                          	; Calibration: run the poll once and keep the clock value it produces. Every later poll is
+   255                          	; compared against this, so the loop aligns to this frame whatever the code layout is.
+   256  c046 a932               	lda #SYNC_LINE
+   257  c048 85fe               	sta TARGET_LINE
+   258  c04a a5fecd12d0d0fbad...	+poll_and_read_clock
+   259  c054 85fd               	sta CALIB
+   260                          
+   261                          	; Raster IRQ in the top border, before the DEN sample line
+   262  c056 a928               	lda #IRQ_LINE
+   263  c058 8d12d0             	sta SCREEN_RASTER_LINE
+   264  c05b a913               	lda #<Irq
+   265  c05d 8d1403             	sta $0314
+   266  c060 a9c3               	lda #>Irq
+   267  c062 8d1503             	sta $0315
+   268                          
+   269  c065 a90f               	lda #%00001111       ; clear any pending VIC interrupt flag
+   270  c067 8d19d0             	sta $d019
+   271  c06a a901               	lda #%00000001       ; enable raster interrupt signals from VIC
+   272  c06c 8d1ad0             	sta $d01a
+   273                          
+   274  c06f 58                 	cli                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+   275                          
+   276                          ; Main loop: while phase 1 is showing, a press of the space bar (after it has been released) starts
+   277                          ; the cycle; the interrupt takes it from there and the loop waits for phase 1 to come round again.
+   278                          Main:
+   279  c070 a5f9               -	lda PHASE
+   280  c072 d0fc               	bne -
+   281  c074 2082c0             	jsr WaitSpace
+   282  c077 a901               	lda #1
+   283  c079 8503               	sta START
+   284  c07b a5f9               -	lda PHASE
+   285  c07d f0fc               	beq -
+   286  c07f 4c70c0             	jmp Main
+   287                          
+   288                          ; Wait for the space bar to be up, then down, reading the keyboard matrix directly (the KERNAL's
+   289                          ; scan is off with the CIA interrupt).
+   290                          WaitSpace:
+   291  c082 a97f               	lda #SPACE_ROW_SELECT
+   292  c084 8d00dc             	sta CIA1_PORT_A
+   293  c087 ad01dc             -	lda CIA1_PORT_B
+   294  c08a 2910               	and #SPACE_COLUMN_BIT
+   295  c08c f0f9               	beq -                ; still held from before
+   296  c08e ad01dc             -	lda CIA1_PORT_B
+   297  c091 2910               	and #SPACE_COLUMN_BIT
+   298  c093 d0f9               	bne -                ; not pressed yet
+   299  c095 60                 	rts
+   300                          
+   301                          ; PAL or NTSC: after the raster passes line 255, remember the last low byte seen before it wraps
+   302                          ; to 0. NTSC wraps after line 262 (low byte 6), PAL after line 311 (low byte 55).
+   303                          DetectModel:
+   304  c096 a900               	lda #0
+   305  c098 85fc               	sta LAST_LINE_LO
+   306  c09a 2c11d0             -	bit SCREEN_CONTROL_REGISTER_1
+   307  c09d 10fb               	bpl -
+   308                          	; Keep the highest line low byte seen while bit 8 is set, rather than the last one: the raster
+   309                          	; can wrap to 0 between reading the line and testing bit 8, and the last value would then be 0
+   310                          	; on either model.
+   311  c09f ad12d0             -	lda SCREEN_RASTER_LINE
+   312  c0a2 c5fc               	cmp LAST_LINE_LO
+   313  c0a4 9002               	bcc +
+   314  c0a6 85fc               	sta LAST_LINE_LO
+   315  c0a8 2c11d0             +	bit SCREEN_CONTROL_REGISTER_1
+   316  c0ab 30f2               	bmi -
+   317  c0ad a900               	lda #0
+   318  c0af 85fb               	sta IS_PAL
+   319  c0b1 a5fc               	lda LAST_LINE_LO
+   320  c0b3 c920               	cmp #$20
+   321  c0b5 9002               	bcc +
+   322  c0b7 e6fb               	inc IS_PAL
+   323  c0b9 60                 +	rts
+   324                          
+   325                          ; Fill screen RAM with spaces and colour RAM with black, so the text reads over the columns.
+   326                          ClearScreen:
+   327  c0ba a200               	ldx #0
+   328  c0bc a920               	lda #SPACE_CHAR
+   329  c0be 9d0004             -	sta SCREEN_RAM,x
+   330  c0c1 9d0005             	sta SCREEN_RAM + $100,x
+   331  c0c4 9d0006             	sta SCREEN_RAM + $200,x
+   332  c0c7 9d0007             	sta SCREEN_RAM + $300,x
+   333  c0ca e8                 	inx
+   334  c0cb d0f1               	bne -
+   335  c0cd a900               	lda #COLOR_BLACK
+   336  c0cf 9d00d8             -	sta COLOR_RAM,x
+   337  c0d2 9d00d9             	sta COLOR_RAM + $100,x
+   338  c0d5 9d00da             	sta COLOR_RAM + $200,x
+   339  c0d8 9d00db             	sta COLOR_RAM + $300,x
+   340  c0db e8                 	inx
+   341  c0dc d0f1               	bne -
+   342  c0de 60                 	rts
+   343                          
+   344                          DrawScreen:
+   345  c0df a200bdc8c6c9fff0...	+print SCREEN_RAM + 0 * 40, Text0
+   346  c0ee a200bde9c6c9fff0...	+print SCREEN_RAM + 2 * 40, Text2
+   347  c0fd a200bd0ec7c9fff0...	+print SCREEN_RAM + 3 * 40, Text3
+   348  c10c a200bd33c7c9fff0...	+print SCREEN_RAM + 4 * 40, Text4
+   349  c11b a200bd5ac7c9fff0...	+print SCREEN_RAM + 5 * 40, Text5
+   350  c12a a200bd7bc7c9fff0...	+print SCREEN_RAM + 7 * 40, Text7
+   351  c139 a200bda3c7c9fff0...	+print SCREEN_RAM + 8 * 40, Text8
+   352  c148 a200bdc9c7c9fff0...	+print SCREEN_RAM + 9 * 40, Text9
+   353  c157 a200bdf0c7c9fff0...	+print SCREEN_RAM + 11 * 40, Text11
+   354  c166 a200bd18c8c9fff0...	+print SCREEN_RAM + 12 * 40, Text12
+   355  c175 a200bd40c8c9fff0...	+print SCREEN_RAM + 13 * 40, Text13
+   356  c184 a200bd61c8c9fff0...	+print SCREEN_RAM + 14 * 40, Text14
+   357  c193 a200bd86c8c9fff0...	+print SCREEN_RAM + 15 * 40, Text15
+   358  c1a2 a200bdaec8c9fff0...	+print SCREEN_RAM + 16 * 40, Text16
+   359  c1b1 a200bdd3c8c9fff0...	+print SCREEN_RAM + 17 * 40, Text17
+   360  c1c0 a200bdfbc8c9fff0...	+print SCREEN_RAM + 18 * 40, Text18
+   361  c1cf a200bd23c9c9fff0...	+print SCREEN_RAM + 19 * 40, Text19
+   362  c1de a200bd47c9c9fff0...	+print SCREEN_RAM + 20 * 40, Text20
+   363  c1ed a200bd6ec9c9fff0...	+print SCREEN_RAM + 22 * 40, Text22
+   364  c1fc a200bd96c9c9fff0...	+print SCREEN_RAM + 23 * 40, Text23
+   365  c20b 60                 	rts
+   366                          
+   367                          ; Status line for the current phase. Only phases 1 and 2 ever show it on hardware: in phase 3
+   368                          ; the text screen is not fetched and in phase 4 the border covers it.
+   369                          PrintStatus:
+   370  c20c a5f9               	lda PHASE
+   371  c20e c901               	cmp #1
+   372  c210 f018               	beq PrintStatus2
+   373  c212 c902               	cmp #2
+   374  c214 f024               	beq PrintStatus3
+   375  c216 c903               	cmp #3
+   376  c218 f030               	beq PrintStatus4
+   377  c21a a200bda1c9c9fff0...	+print SCREEN_RAM + STATUS_ROW * 40, Status1
+   378  c229 60                 	rts
+   379                          PrintStatus2:
+   380  c22a a200bdc8c9c9fff0...	+print SCREEN_RAM + STATUS_ROW * 40, Status2
+   381  c239 60                 	rts
+   382                          PrintStatus3:
+   383  c23a a200bdefc9c9fff0...	+print SCREEN_RAM + STATUS_ROW * 40, Status3
+   384  c249 60                 	rts
+   385                          PrintStatus4:
+   386  c24a a200bd16cac9fff0...	+print SCREEN_RAM + STATUS_ROW * 40, Status4
+   387  c259 60                 	rts
+   388                          
+   389                          ; Wait for the raster line in TARGET_LINE and return at the same cycle offset into that line on
+   390                          ; every frame. Uses A; leaves X and Y alone.
+   391                          SyncToLine:
+   392  c25a a5fecd12d0d0fbad...	+poll_and_read_clock            ; poll exits 0-6 cycles after the line began
+   393  c264 8502               	sta FILLER                      ; 3   this frame's clock value
+   394  c266 a5fd               	lda CALIB                       ; 3
+   395  c268 38                 	sec                             ; 2
+   396  c269 e502               	sbc FILLER                      ; 3   reference minus this frame: negative if this frame is late
+   397  c26b 18                 	clc                             ; 2
+   398  c26c 6909               	adc #SLIDE_CENTER               ; 2   later frame => larger entry => shorter delay
+   399  c26e 290f               	and #15                         ; 2   a jump into the slide even if the poll ever missed a frame
+   400  c270 8d74c2             	sta SyncSlideJmp + 1            ; 4
+   401                          SyncSlideJmp:
+   402  c273 4c00c3             	jmp SyncSlide                   ; 3
+   403  c276 eaeaeaeaeaeaeaea...	!align 255, 0
+   404                          SyncSlide:
+   405                          	; Entered at offset k (0-17) this takes 19 - k cycles: pairs of $C9 are CMP #$C9 (2 cycles);
+   406                          	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
+   407  c300 c9c9c9c9c9c9c9c9...	!byte $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c5, $ea
+   408  c312 60                 	rts
+   409                          
+   410                          ;------------------------------------------------------------
+   411                          ;Raster interrupt, entered in the top border on line 40
+   412                          ;------------------------------------------------------------
+   413                          
+   414                          Irq:
+   415  c313 a5f9               	lda PHASE
+   416  c315 f039               	beq Phase1
+   417  c317 c901               	cmp #1
+   418  c319 f024               	beq Phase2
+   419  c31b c902               	cmp #2
+   420  c31d f00a               	beq Phase3
+   421                          
+   422                          	; Phase 4: DEN off for the whole frame; the border never opens, so the columns go to $d020.
+   423  c31f a90b               	lda #D011_DEN_OFF
+   424  c321 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   425  c324 a202               	ldx #2
+   426  c326 4c52c3             	jmp RunColumns
+   427                          
+   428                          Phase3:
+   429                          	; DEN off through line 48, on again on line 49: no bad lines, border open, idle graphics.
+   430  c329 a90b               	lda #D011_DEN_OFF
+   431  c32b 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   432  c32e a931cd12d0d0fb     	+wait_line DEN_SAMPLE_LINE + 1
+   433  c335 a91b               	lda #D011_DEN_ON
+   434  c337 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   435  c33a a200               	ldx #0
+   436  c33c 4c52c3             	jmp RunColumns
+   437                          
+   438                          Phase2:
+   439                          	; DEN off from line 40, set again a few cycles into line 48: the VIC-II sees it during the
+   440                          	; line, so this frame displays normally, bad lines included.
+   441  c33f a90b               	lda #D011_DEN_OFF
+   442  c341 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   443  c344 a930cd12d0d0fb     	+wait_line DEN_SAMPLE_LINE
+   444  c34b a91b               	lda #D011_DEN_ON
+   445  c34d 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   446                          Phase1:
+   447  c350 a200               	ldx #0
+   448                          
+   449                          ; X = 0 for background columns, 2 for border columns. Picks the loop for the model, syncs to
+   450                          ; line 50 and enters it; the loop is written for the return to land a fixed number of cycles
+   451                          ; before the first idle byte write.
+   452                          RunColumns:
+   453  c352 a5fb               	lda IS_PAL
+   454  c354 f004               	beq +
+   455  c356 e8                 	inx
+   456  c357 e8                 	inx
+   457  c358 e8                 	inx
+   458  c359 e8                 	inx
+   459  c35a bda4c3             +	lda EntryTable,x
+   460  c35d 85f7               	sta ENTRY
+   461  c35f bda5c3             	lda EntryTable + 1,x
+   462  c362 85f8               	sta ENTRY + 1
+   463  c364 a932               	lda #SYNC_LINE
+   464  c366 85fe               	sta TARGET_LINE
+   465  c368 205ac2             	jsr SyncToLine                  ; returns 44-50 cycles into line 50
+   466  c36b a200               	ldx #0                          ; 2
+   467  c36d 6cf700             	jmp (ENTRY)                     ; 5
+   468                          
+   469                          ColumnsDone:
+   470  c370 a91b               	lda #D011_DEN_ON                ; DEN on for whichever phase comes next
+   471  c372 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   472                          
+   473  c375 a5f9               	lda PHASE
+   474  c377 d00a               	bne Counting
+   475  c379 a503               	lda START            ; phase 1 stays until the main loop has seen the space bar
+   476  c37b f021               	beq Done
+   477  c37d a900               	lda #0
+   478  c37f 8503               	sta START
+   479  c381 f008               	beq Advance
+   480                          Counting:
+   481  c383 e6fa               	inc FRAME
+   482  c385 a5fa               	lda FRAME
+   483  c387 c964               	cmp #PHASE_FRAMES
+   484  c389 d013               	bne Done
+   485                          Advance:
+   486  c38b a900               	lda #0
+   487  c38d 85fa               	sta FRAME
+   488  c38f e6f9               	inc PHASE
+   489  c391 a5f9               	lda PHASE
+   490  c393 c904               	cmp #PHASES
+   491  c395 d004               	bne +
+   492  c397 a900               	lda #0
+   493  c399 85f9               	sta PHASE
+   494  c39b 200cc2             +	jsr PrintStatus
+   495                          Done:
+   496  c39e 0e19d0             	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   497  c3a1 4c81ea             	jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   498                          
+   499                          EntryTable:
+   500  c3a4 00c580c5           	!word NtscBackgroundColumns, NtscBorderColumns
+   501  c3a8 00c480c4           	!word PalBackgroundColumns, PalBorderColumns
+   502                          
+   503  c3ac eaeaeaeaeaeaeaea...	+column_loop SCREEN_BACKGROUND_COLOR_ADDRESS, CYCLES_PER_LINE_PAL - LOOP_CYCLES, ~PalBackgroundColumns
+   504  c442 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BORDER_COLOR_ADDRESS, CYCLES_PER_LINE_PAL - LOOP_CYCLES, ~PalBorderColumns
+   505  c4c2 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BACKGROUND_COLOR_ADDRESS, CYCLES_PER_LINE_NTSC - LOOP_CYCLES, ~NtscBackgroundColumns
+   506  c543 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BORDER_COLOR_ADDRESS, CYCLES_PER_LINE_NTSC - LOOP_CYCLES, ~NtscBorderColumns
+   507                          
+   508                          ;------------------------------------------------------------
+   509                          ;Tables
+   510                          ;------------------------------------------------------------
+   511                          
+   512                          ; One idle byte per display line: 25 groups of 8 glyph rows. Page aligned so that the indexed
+   513                          ; read in the loop never crosses a page and costs an extra cycle.
+   514  c5c3 eaeaeaeaeaeaeaea...	!align 255, 0
+   515                          IdleBytes:
+   516                          	!for .group, 1, 5 {
+   517                          		+heart
+   518                          		+smiley
+   519                          		+diamond
+   520                          		+arrow
+   521                          		+cross
+   522  c600 0066ffff7e3c1800...	}
+   523                          
+   524                          ;------------------------------------------------------------
+   525                          ;Text (screen codes, $ff terminated; lowercase source shows as uppercase)
+   526                          ;------------------------------------------------------------
+   527                          
+   528  c6c8 1609032d09092004...Text0:	!scr "vic-ii display enable (den) test", $ff
+   529  c6e9 04050e2028020914...Text2:	!scr "den (bit 4 of $d011) is sampled once", $ff
+   530  c70e 100512200612010d...Text3:	!scr "per frame, during raster line 48. it", $ff
+   531  c733 0405030904051320...Text4:	!scr "decides if the frame has bad lines and", $ff
+   532  c75a 0c05141320140805...Text5:	!scr "lets the border open at line 51.", $ff
+   533  c77b 0516051219201008...Text7:	!scr "every phase runs the same cycle-counted", $ff
+   534  c7a3 0c0f0f10200f1605...Text8:	!scr "loop over the 200 screen lines: eight", $ff
+   535  c7c9 0201030b07120f15...Text9:	!scr "background colours per line = columns.", $ff
+   536  c7f0 312e2004050e2013...Text11:	!scr "1. den set all frame: every 8th line is", $ff
+   537  c818 2020200120020104...Text12:	!scr "   a bad line that halts the cpu for 40", $ff
+   538  c840 2020200319030c05...Text13:	!scr "   cycles, so the columns shear.", $ff
+   539  c861 322e2004050e2003...Text14:	!scr "2. den cleared on line 40, set again", $ff
+   540  c886 202020090e130904...Text15:	!scr "   inside line 48: counts, still shears", $ff
+   541  c8ae 332e2004050e2003...Text16:	!scr "3. den cleared until line 49: no bad", $ff
+   542  c8d3 2020200c090e0513...Text17:	!scr "   lines, straight columns. no rows are", $ff
+   543  c8fb 2020200605140308...Text18:	!scr "   fetched: the black glyph is the byte", $ff
+   544  c923 2020200114202433...Text19:	!scr "   at $3fff, written once per line.", $ff
+   545  c947 342e2004050e2003...Text20:	!scr "4. den cleared all frame: border only.", $ff
+   546  c96e 1012051313201310...Text22:	!scr "press space to run phases 2-4 and back.", $ff
+   547  c996 1008011305200e0f...Text23:	!scr "phase now:", $ff
+   548                          
+   549  c9a1 312e2004050e2013...Status1:	!scr "1. den set all frame: columns shear   ", $ff
+   550  c9c8 322e2004050e200f...Status2:	!scr "2. den off on line 40, on inside 48   ", $ff
+   551  c9ef 332e2004050e200f...Status3:	!scr "3. den off until line 49: no bad lines", $ff
+   552  ca16 342e2004050e200f...Status4:	!scr "4. den off all frame: border only     ", $ff

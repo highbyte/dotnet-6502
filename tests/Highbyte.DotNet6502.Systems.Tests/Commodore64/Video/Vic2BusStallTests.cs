@@ -87,6 +87,31 @@ public class Vic2BusStallTests
     }
 
     [Fact]
+    public void Display_switched_off_after_line_48_still_has_bad_lines_for_the_rest_of_the_frame()
+    {
+        // DEN is sampled during line $30 only; clearing it afterwards does not stop the fetches.
+        var c64 = Build([0xEA]);
+        EnableDisplay(c64);
+        PositionAt(c64, 0x31, 1);
+        c64.Mem.Write(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, 0x0B);
+        c64.Vic2.AdvanceRaster((ulong)(BadLine - 0x31) * 63 + 11);   // to the bad line, cycle 12
+
+        Assert.Equal(2 + 43UL, Step(c64));
+    }
+
+    [Fact]
+    public void Display_switched_on_after_line_48_has_no_bad_lines_until_the_next_frame()
+    {
+        var c64 = Build([0xEA]);
+        c64.Mem.Write(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, 0x0B);
+        PositionAt(c64, 0x31, 1);
+        EnableDisplay(c64);
+        c64.Vic2.AdvanceRaster((ulong)(BadLine - 0x31) * 63 + 11);
+
+        Assert.Equal(2UL, Step(c64));
+    }
+
+    [Fact]
     public void Bad_line_follows_a_change_of_yscroll()
     {
         var c64 = Build([0xEA]);

@@ -39,11 +39,24 @@ VIC-II fetched during the stall reflects memory before the stalled instruction's
 The VIC-II also takes the bus from the CPU as on hardware: 40 cycles on every bad line (BA low
 from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA on, BA
 low three cycles ahead. A CPU read that falls inside such a window waits until the window ends;
-writes do not wait. Bad lines follow the DEN bit and YSCROLL. Sprite DMA switches on when an
+writes do not wait. Bad lines follow YSCROLL and the DEN bit as the VIC-II saw it during raster
+line $30: clearing DEN before that line switches the display, and its bad lines, off for the whole
+frame, clearing it later has no effect until the next frame. Sprite DMA switches on when an
 enabled sprite's Y register equals the raster line as the VIC-II compares them and then runs for
 the sprite's 21 rows (42 when Y-expanded) whatever the registers do meanwhile, so a Y written to
-a line the raster has already passed costs nothing until the raster comes round again. Not
-modelled: the DEN latch at line $30 and the display-off idle state.
+a line the raster has already passed costs nothing until the raster comes round again.
+
+Which character row a raster line shows, and which of its eight lines, is not arithmetic on the
+line number but the chip's own display state: a bad line starts a row (the row counter resets and
+the row is fetched), the eighth line of a row advances the row pointer by 40 and drops the chip
+into idle state until the next bad line, and in idle state the display area shows the byte at
+`$3FFF` (`$39FF` with ECM) in black over the background colour. The vertical border flip-flop is
+set when the raster reaches the bottom compare line (251, or 247 with RSEL clear) and reset at the
+top one (51 or 55) only if DEN is set; while it is set the whole line, sprites included, is border
+colour. That is what makes vertical fine scrolling, a switched-off screen, a border opened by
+toggling RSEL around line 251 and row stretching by avoiding bad lines come out as on hardware.
+A `$D011` write early enough in a line (before the border check at cycle 16 and the bad line
+check at cycle 14) still counts for that line.
 
 ## Implementation libraries
 
