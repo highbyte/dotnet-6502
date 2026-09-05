@@ -233,24 +233,64 @@ public abstract class Vic2ModelBase
     /// <summary>
     /// Pixels between the cycle boundary after a colour register write and the pixel that first
     /// shows the new colour: the rasterizer applies a write reported in frame cycle c from pixel
-    /// 8 * (c + 1) of the line plus this value.
+    /// 8 * (c + 1) of the raster line plus this value.
     ///
-    /// <para>Measured against VICE (x64sc) with the screen column sample, once that sample had been
-    /// made to start on the same cycle on every run: with -11 every colour edge lands within a pixel
-    /// of VICE's on the 6569 and 8565 (PAL) and on the 6567R8 (NTSC). One value for every chip, as a
-    /// pipeline delay has to be: the earlier per-model calibrations (-11 and +4) had compared
-    /// screenshots taken at different start phases of the sample and measured that, not the chip.</para>
+    /// <para><b>How it was measured.</b> Against VICE (x64sc, CRT emulation off) with the screen
+    /// column sample, after that sample had been made to start on the same cycle on every run (its
+    /// earlier first-arrival calibration made the picture depend on the start cycle, and the first
+    /// per-model values of -11 and +4 had compared screenshots taken at different phases). With
+    /// -11 every colour edge lands within a pixel of VICE's on the 6569 and the 8565 (PAL) and on
+    /// the 6567R8 (NTSC). One value for every chip, as a pipeline delay has to be. The 6567R56A is
+    /// not modelled and was not measured.</para>
     ///
-    /// <para>The value is not derived, and its sign says something is still unexplained: with -11 a
-    /// write reported in cycle c shows from pixel 8 * (c + 1) - 11 = 8 * (c - 1) + 5, five pixels
-    /// into the cycle before the one the write is reported in. A change cannot precede its write,
-    /// and the reported cycle is the store's own write cycle in this emulator's cycle count (see
-    /// C64DeviceAccessTimingTests), so the emulator's cycle index must run about two cycles ahead
-    /// of the chip's cycle as VICE places pixels against it, the pipeline itself being those five
-    /// pixels. Where the two cycles sit (the raster line's cycle origin against the CPU's count, or
-    /// the CPU's access phase) has not been established; this constant absorbs them, and it should
-    /// be re-measured if either of those is ever changed. If they are found and fixed, this becomes
-    /// +5.</para>
+    /// <para><b>What the value means.</b> Split it into whole cycles and pixels:
+    /// 8 * (c + 1) - 11 = 8 * (c - 1) + 5, that is five pixels into the cycle <i>before</i> the one
+    /// the write is reported in. Two things are pinned: the reported cycle is the store's own bus
+    /// write cycle in this emulator's cycle count (C64DeviceAccessTimingTests), and the display
+    /// window anchor (<see cref="DisplayWindowStartX"/>, 124 pixels, X 24 in the second half of the
+    /// chip's cycle 16) agrees with VICE's cycle tables, so pixels are placed against the chip's
+    /// cycles as VICE places them. A change cannot precede its write, so the only consistent
+    /// reading is that this emulator's cycle index runs about two cycles ahead of the chip's cycle
+    /// as the pixel side sees it, and the chip's own register-to-pixel pipeline is the remaining
+    /// five pixels. Five is plausible: the CPU's write lands in the second half of its cycle and the
+    /// VIC-II's output stage delays register changes by a few pixels; hardware measurements of the
+    /// border colour changing part way through a character cell are in that range.</para>
+    ///
+    /// <para><b>Where the two cycles could come from</b>, none of it established:</para>
+    /// <list type="bullet">
+    /// <item><description>The raster line's cycle origin. This emulator's line cycle 0 is where
+    /// <c>CyclesConsumedCurrentVblank</c> is a multiple of the line length, and the raster line
+    /// register changes there. Bauer's timing diagrams number the chip's cycles from 1 and put the
+    /// X coordinate $194 (PAL) at the start of cycle 1; if the RASTER register on the chip
+    /// increments at a different cycle than the one the pixel anchor was derived from, every CPU
+    /// event is dated against a line origin that is shifted from the pixel origin by that
+    /// difference. Check: VICE's vicii-cycle.c, where raster_line is incremented against the cycle
+    /// at which its xpos table restarts.</description></item>
+    /// <item><description>The CPU's access phase. The 6510 reads and writes in the second half of a
+    /// cycle (phi2); the VIC-II fetches in the first half. If the cycle engine dates an access to
+    /// the cycle in which the instruction's bus cycle begins while the pixel side counts from
+    /// where the VIC-II's cycle begins, there is a half-cycle, four pixels, in the difference, which
+    /// with rounding to a cycle boundary can look like a whole cycle.</description></item>
+    /// <item><description>Interrupt and stall bookkeeping. A raster interrupt is dated to the cycle
+    /// the line began and a bad line release to cycle 55; if either is placed a cycle off, every
+    /// program timed from them is off by that cycle, and the two column samples are timed from
+    /// exactly those. The border column sample, which never meets a bad line, gave the same value,
+    /// which argues against the release being the culprit but not against the line origin.
+    /// </description></item>
+    /// </list>
+    ///
+    /// <para><b>How to pin it down.</b> Use an event whose bus cycle is fixed by the chip rather than
+    /// by the CPU's count: a store issued immediately after a bad line release lands on chip cycle
+    /// 55 + 3 by construction (the release cycle, then the store's three cycles before its write),
+    /// whatever this emulator's cycle index says. Where VICE shows that edge, measured from the
+    /// display window's left edge, gives the chip's pipeline alone; the part of the eleven pixels
+    /// it does not explain is this emulator's alignment, and then belongs in the timing model (the
+    /// line origin or the access phase), not here. A second, independent check: the cycle at which
+    /// a program first sees the raster line register change, compared with VICE's, gives the line
+    /// origin directly. Once the alignment is fixed this constant becomes the pipeline alone, about
+    /// +5, and must be re-measured; until then it absorbs both, and every cycle-derived effect
+    /// (colour edges, border opening, sprite positions against colour changes) is offset by the
+    /// same amount, which is why nothing visible depends on the split.</para>
     /// </summary>
     public virtual int ColorChangePixelDelay => -11;
 
