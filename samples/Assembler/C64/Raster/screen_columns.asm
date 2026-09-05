@@ -58,6 +58,7 @@ IS_PAL = $fb            ; zero page: $80 on PAL, 0 on NTSC (bit 7, so BIT can te
 CALIB = $fd             ; zero page: line clock value 9 cycles into a raster line (see CalibrateLineClock)
 LINE_CYCLES = $f8       ; zero page: 63 on PAL, 65 on NTSC
 TARGET_LINE = $fe       ; zero page: raster line CalibrateLineClock waits for
+SAVE_X = $04            ; zero page: the column colour in X across the alignment
 LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
 GROUP_COUNT = $f9       ; zero page: groups left to draw this frame
 MEAS_INDEX = $fa        ; measurement builds only: next slot in the arrival log at $8000
@@ -131,6 +132,7 @@ COLOR_WHITE = 1
 ; of one run; the entry table turns the difference into the slide entry without arithmetic that
 ; could wrap when the two readings straddle the timer's reload.
 !macro align_to_reference {
+	stx SAVE_X                      ; 3   the column colour in X survives the table lookup
 	sta FILLER                      ; 3   this arrival's clock reading
 !ifdef MEASURE {
 	sty $8100
@@ -156,6 +158,7 @@ COLOR_WHITE = 1
 	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
 	!fill 32, $c9
 	!byte $c5, $ea
+	ldx SAVE_X                      ; 3
 }
 
 ; The slide entry table, page aligned so the lookup never crosses a page.
@@ -287,9 +290,9 @@ DetectModel:
 ; in the loop the line change falls depends on the start cycle. This loop is 11 cycles, which
 ; neither 63 nor 65 is a multiple of, so its position drifts by 8 (PAL) or 10 (NTSC) cycles per
 ; line (7 on PAL, 5 on NTSC, counting the work between two lines' polls) and within 11 lines
-; every position has come up once, including the earliest: the poll that got out 6 cycles into
-; the line, whose timer read (the 4th cycle of the LDA, so 9 cycles in) gives the largest value,
-; since the timer counts down. That value is the reference.
+; every position has come up once, including the earliest: the poll whose compare read the new
+; line on its first cycle and so got out 7 cycles in, whose timer read (the 4th cycle of the LDA,
+; 10 cycles in) gives the largest value, since the timer counts down. That value is the reference.
 CalibrateLineClock:
 	lda #CALIB_FIRST_LINE
 	sta TARGET_LINE

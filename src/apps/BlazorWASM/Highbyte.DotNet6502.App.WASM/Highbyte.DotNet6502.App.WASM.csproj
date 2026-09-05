@@ -102,6 +102,7 @@
     <Copy SourceFiles="..\..\..\..\samples\Assembler\C64\Raster\Build\raster_columns.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
     <Copy SourceFiles="..\..\..\..\samples\Assembler\C64\Raster\Build\screen_columns.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
     <Copy SourceFiles="..\..\..\..\samples\Assembler\C64\Raster\Build\idle_graphics.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
+    <Copy SourceFiles="..\..\..\..\samples\Assembler\C64\Raster\Build\side_border.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
 
     <Copy SourceFiles="..\..\..\..\samples\Basic\C64\Text\Build\HelloWorld.prg" DestinationFolder="wwwroot\6502binaries\C64\Basic" />
     <Copy SourceFiles="..\..\..\..\samples\Basic\C64\Sound\Build\PlaySoundVoice1TriangleScale.prg" DestinationFolder="wwwroot\6502binaries\C64\Basic" />

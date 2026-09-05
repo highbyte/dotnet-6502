@@ -41,8 +41,8 @@
     39                          ;      rows and 247 with 24, and neither is the case while the register changes, so the flip-flop
     40                          ;      stays clear for the rest of the frame and the next one: the display window's columns run
     41                          ;      on through the bottom and top borders, and the eight sprites parked there, covered by the
-    42                          ;      border in every other phase, are shown. (The side borders need the same trick with the
-    43                          ;      38-column bit at the right cycle of every line and are not opened here.)
+    42                          ;      border in every other phase, are shown. (The side borders need the 38 column bit switched
+    43                          ;      in one cycle of every line and are not opened here; side_border.asm does that.)
     44                          ;
     45                          ; Phases 3 and 4 are why loaders and demo parts switch the display off: the ~1000 cycles per
     46                          ; frame of bad lines come back. An emulator that reads DEN live shows sheared columns and the
@@ -112,675 +112,677 @@
    110                          START        = $03      ; zero page: set by the main loop when space starts the cycle
    111                          CONTROL_AFTER = $04     ; zero page: $d011 value the column loop writes as it ends, on line 250
    112                          LINE_CYCLES  = $05      ; zero page: 63 on PAL, 65 on NTSC
-   113                          ENTRY        = $f7      ; zero page, 2 bytes: the column loop to run this frame
-   114                          PHASE        = $f9      ; zero page: current phase 0-3
-   115                          FRAME        = $fa      ; zero page: frames spent in the current phase
-   116                          IS_PAL       = $fb      ; zero page: 1 on PAL, 0 on NTSC
-   117                          LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
-   118                          CALIB        = $fd      ; zero page: line clock value 9 cycles into a raster line (see CalibrateLineClock)
-   119                          TARGET_LINE  = $fe      ; zero page: raster line SyncToLine waits for
-   120                          
-   121                          ; Slide entry for a poll that got out of its loop as early as possible. SyncToLine's poll loop is
-   122                          ; 7 cycles, so a poll gets out 0-6 cycles later than that and the entry stays within 9-15.
-   123                          SLIDE_CENTER = 9
-   124                          ; The slide entry table covers timer differences this far either side of the expected one.
-   125                          SLIDE_RANGE = 8
-   126                          
-   127                          ; Lines the calibration polls: in the top border, above any bad line and above the top sprites.
-   128                          CALIB_FIRST_LINE = 10
-   129                          CALIB_LINES = 16
-   130                          
-   131                          COLOR_BLACK     = 0
-   132                          COLOR_WHITE     = 1
-   133                          COLOR_DARK_GREY = 11
-   134                          SPACE_CHAR      = $20
-   135                          
-   136                          ;------------------------------------------------------------
-   137                          ;Macros
-   138                          ;------------------------------------------------------------
-   139                          
-   140                          ; Burn .cycles cycles (>= 2). NOPs in pairs, with a 3-cycle BIT for an odd count.
-   141                          !macro delay_cycles .cycles {
-   142                          	!if .cycles & 1 {
-   143                          		bit FILLER
-   144                          		!fill (.cycles - 3) / 2, $ea
-   145                          	} else {
-   146                          		!fill .cycles / 2, $ea
-   147                          	}
-   148                          }
-   149                          
-   150                          ; Busy-wait until the raster reaches .line (0-255). Exits 2-8 cycles into the line.
-   151                          !macro wait_line .line {
-   152                          	lda #.line
-   153                          -	cmp SCREEN_RASTER_LINE
-   154                          	bne -
-   155                          }
-   156                          
-   157                          ; Wait for the raster line in TARGET_LINE, then read the line clock, always 3 cycles after the
-   158                          ; poll got out of its loop, so the reading says when that was.
-   159                          !macro poll_and_read_clock {
-   160                          	lda TARGET_LINE                 ; 3
-   161                          -	cmp SCREEN_RASTER_LINE          ; 4
-   162                          	bne -                           ; 3 taken / 2 falling through
-   163                          	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
-   164                          }
-   165                          
-   166                          ; Copy a $ff-terminated screen-code string to screen memory.
-   167                          !macro print .screenaddr, .text {
-   168                          	ldx #0
-   169                          -	lda .text,x
-   170                          	cmp #$ff
-   171                          	beq +
-   172                          	sta .screenaddr,x
-   173                          	inx
-   174                          	bne -
-   175                          +
-   176                          }
-   177                          
-   178                          ; The column loop: 200 iterations of exactly one raster line. Iteration x runs on line 50 + x and
-   179                          ; prepares line 51 + x: its idle byte (written 60 cycles into the line, after the display window
-   180                          ; has ended), then eight colours 6 cycles apart, the first of them 3 cycles into the next line,
-   181                          ; before its visible part. The loop's own counter and branch take the last 7 cycles. Afterwards the
-   182                          ; border and background go back to their resting colours, the border write timed to land in the
-   183                          ; unseen pixels after line 250's visible right border. Before that the control register is written
-   184                          ; with the value the phase asked for: phase 5 needs 24 rows selected before line 251 begins.
-   185                          !macro column_loop .colour_addr, .fill, ~.entry {
-   186                          	!align 127, 0        ; the loop is under 128 bytes: no page crossing on the branch back
-   187                          .entry
-   188                          .Line:
-   189                          	lda IdleBytes,x                     ; 4
-   190                          	sta IDLE_BYTE_ADDRESS               ; 4
-   191                          	lda #COLOR_WHITE                    ; 2
-   192                          	sta .colour_addr                    ; 4
-   193                          	lda #7                              ; yellow
-   194                          	sta .colour_addr
-   195                          	lda #8                              ; orange
-   196                          	sta .colour_addr
-   197                          	lda #10                             ; light red
-   198                          	sta .colour_addr
-   199                          	lda #13                             ; light green
-   200                          	sta .colour_addr
-   201                          	lda #3                              ; cyan
-   202                          	sta .colour_addr
-   203                          	lda #14                             ; light blue
-   204                          	sta .colour_addr
-   205                          	lda #15                             ; light grey
-   206                          	sta .colour_addr
-   207                          	!if .fill {
-   208                          		+delay_cycles .fill
-   209                          	}
-   210                          	inx                                 ; 2
-   211                          	cpx #SCREEN_LINES                   ; 2
-   212                          	bne .Line                           ; 3 taken / 2 falling through
-   213                          	lda CONTROL_AFTER                   ; $d011 as the phase wants it from line 250's end (59-65 cycles in)
-   214                          	sta SCREEN_CONTROL_REGISTER_1
-   215                          	lda #COLOR_DARK_GREY                ; the border write lands 65-71 cycles into line 250
-   216                          	sta SCREEN_BORDER_COLOR_ADDRESS
-   217                          	lda #COLOR_BLACK
-   218                          	sta SCREEN_BACKGROUND_COLOR_ADDRESS
-   219                          	jmp ColumnsDone
-   220                          }
-   221                          
-   222                          ; 8x8 glyphs as idle bytes, one row per raster line; five glyphs, repeated down the screen.
-   223                          !macro heart {
-   224                          	!byte %00000000, %01100110, %11111111, %11111111, %01111110, %00111100, %00011000, %00000000
-   225                          }
-   226                          !macro smiley {
-   227                          	!byte %00000000, %00111100, %01000010, %10100101, %10011001, %01000010, %00111100, %00000000
-   228                          }
-   229                          !macro diamond {
-   230                          	!byte %00000000, %00011000, %00111100, %01111110, %01111110, %00111100, %00011000, %00000000
-   231                          }
-   232                          !macro arrow {
-   233                          	!byte %00000000, %00011000, %00111100, %01111110, %00011000, %00011000, %00011000, %00000000
-   234                          }
-   235                          !macro cross {
-   236                          	!byte %00000000, %01000010, %00100100, %00011000, %00011000, %00100100, %01000010, %00000000
-   237                          }
-   238                          
-   239                          ;------------------------------------------------------------
-   240                          ;Code start
-   241                          ;------------------------------------------------------------
-   242                          
-   243                          Init:
-   244  c000 78                 	sei                  ; set interrupt bit, make the CPU ignore interrupt requests
-   245  c001 a97f               	lda #%01111111       ; switch off interrupt signals from CIA-1
-   246  c003 8d0ddc             	sta $dc0d
-   247                          
-   248  c006 2d11d0             	and SCREEN_CONTROL_REGISTER_1 ; clear most significant bit of VIC's raster register
-   249  c009 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
-   250                          
-   251  c00c ad0ddc             	lda $dc0d            ; acknowledge pending interrupts from CIA-1
-   252  c00f ad0ddd             	lda $dd0d            ; acknowledge pending interrupts from CIA-2
-   253                          
-   254  c012 208fc0             	jsr DetectModel
-   255                          
-   256  c015 a90b               	lda #COLOR_DARK_GREY
-   257  c017 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
-   258  c01a a900               	lda #COLOR_BLACK
-   259  c01c 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
-   260  c01f 8dff3f             	sta IDLE_BYTE_ADDRESS
-   261  c022 85f9               	sta PHASE
-   262  c024 85fa               	sta FRAME
-   263  c026 8503               	sta START
-   264                          
-   265  c028 2060c1             	jsr ClearScreen
-   266  c02b 2085c1             	jsr DrawScreen
-   267  c02e 201dc3             	jsr PrintStatus
-   268                          
-   269                          	; Line clock: timer A counts one raster line per period (latch + 1 cycles), continuously.
-   270  c031 a900               	lda #0
-   271  c033 8d05dc             	sta CIA1_TIMER_A_HI
-   272  c036 a940               	lda #CYCLES_PER_LINE_NTSC - 1
-   273  c038 a6fb               	ldx IS_PAL
-   274  c03a f002               	beq +
-   275  c03c a93e               	lda #CYCLES_PER_LINE_PAL - 1
-   276  c03e 8d04dc             +	sta CIA1_TIMER_A_LO
-   277                          
-   278  c041 a911               	lda #%00010001       ; force load + start, continuous
-   279  c043 8d0edc             	sta CIA1_CONTROL_A
-   280                          
-   281  c046 20bbc0             	jsr CalibrateLineClock
-   282  c049 202fc1             	jsr BuildSlideEntryTable
-   283  c04c 20d0c2             	jsr SetupSprites     ; after the calibration: sprite DMA would stall its polls
-   284                          
-   285                          	; Raster IRQ in the top border, before the DEN sample line
-   286  c04f a928               	lda #IRQ_LINE
-   287  c051 8d12d0             	sta SCREEN_RASTER_LINE
-   288  c054 a913               	lda #<Irq
-   289  c056 8d1403             	sta $0314
-   290  c059 a9c5               	lda #>Irq
-   291  c05b 8d1503             	sta $0315
-   292                          
-   293  c05e a90f               	lda #%00001111       ; clear any pending VIC interrupt flag
-   294  c060 8d19d0             	sta $d019
-   295  c063 a901               	lda #%00000001       ; enable raster interrupt signals from VIC
-   296  c065 8d1ad0             	sta $d01a
-   297                          
-   298  c068 58                 	cli                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
-   299                          
-   300                          ; Main loop: while phase 1 is showing, a press of the space bar (after it has been released) starts
-   301                          ; the cycle; the interrupt takes it from there and the loop waits for phase 1 to come round again.
-   302                          Main:
-   303  c069 a5f9               -	lda PHASE
-   304  c06b d0fc               	bne -
-   305  c06d 207bc0             	jsr WaitSpace
-   306  c070 a901               	lda #1
-   307  c072 8503               	sta START
-   308  c074 a5f9               -	lda PHASE
-   309  c076 f0fc               	beq -
-   310  c078 4c69c0             	jmp Main
-   311                          
-   312                          ; Wait for the space bar to be up, then down, reading the keyboard matrix directly (the KERNAL's
-   313                          ; scan is off with the CIA interrupt).
-   314                          WaitSpace:
-   315  c07b a97f               	lda #SPACE_ROW_SELECT
-   316  c07d 8d00dc             	sta CIA1_PORT_A
-   317  c080 ad01dc             -	lda CIA1_PORT_B
-   318  c083 2910               	and #SPACE_COLUMN_BIT
-   319  c085 f0f9               	beq -                ; still held from before
-   320  c087 ad01dc             -	lda CIA1_PORT_B
-   321  c08a 2910               	and #SPACE_COLUMN_BIT
-   322  c08c d0f9               	bne -                ; not pressed yet
-   323  c08e 60                 	rts
-   324                          
-   325                          ; PAL or NTSC: after the raster passes line 255, remember the last low byte seen before it wraps
-   326                          ; to 0. NTSC wraps after line 262 (low byte 6), PAL after line 311 (low byte 55).
-   327                          DetectModel:
-   328  c08f a900               	lda #0
-   329  c091 85fc               	sta LAST_LINE_LO
-   330  c093 2c11d0             -	bit SCREEN_CONTROL_REGISTER_1
-   331  c096 10fb               	bpl -
-   332                          	; Keep the highest line low byte seen while bit 8 is set, rather than the last one: the raster
-   333                          	; can wrap to 0 between reading the line and testing bit 8, and the last value would then be 0
-   334                          	; on either model.
-   335  c098 ad12d0             -	lda SCREEN_RASTER_LINE
-   336  c09b c5fc               	cmp LAST_LINE_LO
-   337  c09d 9002               	bcc +
-   338  c09f 85fc               	sta LAST_LINE_LO
-   339  c0a1 2c11d0             +	bit SCREEN_CONTROL_REGISTER_1
-   340  c0a4 30f2               	bmi -
-   341  c0a6 a900               	lda #0
-   342  c0a8 85fb               	sta IS_PAL
-   343  c0aa a941               	lda #CYCLES_PER_LINE_NTSC
-   344  c0ac 8505               	sta LINE_CYCLES
-   345  c0ae a5fc               	lda LAST_LINE_LO
-   346  c0b0 c920               	cmp #$20
-   347  c0b2 9006               	bcc +
-   348  c0b4 e6fb               	inc IS_PAL
-   349  c0b6 a93f               	lda #CYCLES_PER_LINE_PAL
-   350  c0b8 8505               	sta LINE_CYCLES
-   351  c0ba 60                 +	rts
-   352                          
-   353                          ; Read the line clock at a fixed cycle of a raster line, whatever cycle this program was started
-   354                          ; on. A poll loop can only get out of its loop a whole loop length after the line began, and where
-   355                          ; in the loop the line change falls depends on the start cycle. This loop is 11 cycles, which
-   356                          ; neither 63 nor 65 is a multiple of, so its position drifts by 8 (PAL) or 10 (NTSC) cycles per
-   357                          ; line (7 on PAL, 5 on NTSC, counting the work between two lines' polls) and within 11 lines
-   358                          ; every position has come up once, including the earliest: the poll that got out 6 cycles into
-   359                          ; the line, whose timer read (the 4th cycle of the LDA, so 9 cycles in) gives the largest value,
-   360                          ; since the timer counts down. That value is the reference.
-   361                          CalibrateLineClock:
-   362  c0bb a90a               	lda #CALIB_FIRST_LINE
-   363  c0bd 85fe               	sta TARGET_LINE
-   364  c0bf a200               	ldx #0
-   365  c0c1 a5fe               -	lda TARGET_LINE                 ; 3
-   366  c0c3 cd12d0             --	cmp SCREEN_RASTER_LINE          ; 4   (the read lands on the 4th cycle)
-   367  c0c6 ea                 	nop                             ; 2
-   368  c0c7 ea                 	nop                             ; 2
-   369  c0c8 d0f9               	bne --                          ; 3 taken / 2 falling through
-   370  c0ca ad04dc             	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
-   371  c0cd 9d1ec1             	sta CalibReadings,x             ; 5   every reading is kept, so the work between two lines'
-   372  c0d0 e8                 	inx                             ; 2   polls is always the same and the loop's position drifts
-   373  c0d1 e6fe               	inc TARGET_LINE                 ; 5   by the same amount each line (7 on PAL, 5 on NTSC)
-   374  c0d3 a5fe               	lda TARGET_LINE                 ; 3
-   375  c0d5 c91a               	cmp #CALIB_FIRST_LINE + CALIB_LINES ; 2
-   376  c0d7 d0e8               	bne -                           ; 3
-   377                          	; The reading from the earliest exit is the largest, the others lie within 10 below it. If the
-   378                          	; readings straddle the timer's reload, the ones from the later exits have wrapped to the top
-   379                          	; of the period and the earliest is then the largest of those below 11.
-   380  c0d9 a9ff               	lda #255
-   381  c0db 8502               	sta FILLER
-   382  c0dd 20f3c0             	jsr LargestCalibReading
-   383  c0e0 85fd               	sta CALIB
-   384  c0e2 38                 	sec
-   385  c0e3 e502               	sbc FILLER                      ; largest minus smallest
-   386  c0e5 c90b               	cmp #11
-   387  c0e7 9009               	bcc +
-   388  c0e9 a90b               	lda #11
-   389  c0eb 8502               	sta FILLER                      ; only readings below 11 count
-   390  c0ed 20f3c0             	jsr LargestCalibReading
-   391  c0f0 85fd               	sta CALIB
-   392  c0f2 60                 +	rts
-   393                          
-   394                          ; A = the largest reading below FILLER's value on entry (FILLER = 255 for all of them); FILLER
-   395                          ; leaves with the smallest reading.
-   396                          LargestCalibReading:
-   397  c0f3 a20f               	ldx #CALIB_LINES - 1
-   398  c0f5 a900               	lda #0
-   399  c0f7 85fe               	sta TARGET_LINE                 ; largest so far
-   400  c0f9 a9ff               	lda #255
-   401  c0fb 8d2ec1             	sta LINE_CYCLES_SAVE            ; smallest so far
-   402  c0fe bd1ec1             -	lda CalibReadings,x
-   403  c101 c502               	cmp FILLER
-   404  c103 b00e               	bcs +                           ; at or above the limit: skip
-   405  c105 c5fe               	cmp TARGET_LINE
-   406  c107 9002               	bcc ++
-   407  c109 85fe               	sta TARGET_LINE
-   408  c10b cd2ec1             ++	cmp LINE_CYCLES_SAVE
-   409  c10e b003               	bcs +
-   410  c110 8d2ec1             	sta LINE_CYCLES_SAVE
-   411  c113 ca                 +	dex
-   412  c114 10e8               	bpl -
-   413  c116 ad2ec1             	lda LINE_CYCLES_SAVE
-   414  c119 8502               	sta FILLER
-   415  c11b a5fe               	lda TARGET_LINE
-   416  c11d 60                 	rts
-   417                          CalibReadings:
-   418  c11e 0000000000000000...	!fill CALIB_LINES, 0
-   419                          LINE_CYCLES_SAVE:
-   420  c12e 00                 	!byte 0
-   421                          
-   422                          ; The slide entry for every possible timer difference (reference minus this poll's reading), so
-   423                          ; SyncToLine needs no arithmetic that could branch or wrap. SyncToLine's poll gets out 2-8 cycles
-   424                          ; into the line and reads the timer 3 cycles later, 5-11 cycles in against the reference's 9, so
-   425                          ; the difference is -4 to +2 for a poll that made it, and the entry is SLIDE_CENTER plus that. The
-   426                          ; difference can also come out a line period off, when the two readings straddle the timer's
-   427                          ; reload: those entries are filled the same way. Everything else gets the nominal entry.
-   428                          BuildSlideEntryTable:
-   429  c12f a200               	ldx #0
-   430  c131 a909               	lda #SLIDE_CENTER
-   431  c133 9d00c4             -	sta SlideEntryTable,x
-   432  c136 e8                 	inx
-   433  c137 d0fa               	bne -
-   434  c139 a2f8               	ldx #<-SLIDE_RANGE              ; difference, as a byte
-   435  c13b a901               	lda #SLIDE_CENTER - SLIDE_RANGE ; its entry
-   436  c13d 8502               	sta FILLER
-   437  c13f a502               -	lda FILLER
-   438  c141 9d00c4             	sta SlideEntryTable,x           ; difference as it is
-   439  c144 8a                 	txa
-   440  c145 18                 	clc
-   441  c146 6505               	adc LINE_CYCLES
-   442  c148 a8                 	tay
-   443  c149 a502               	lda FILLER
-   444  c14b 9900c4             	sta SlideEntryTable,y           ; difference plus a period
-   445  c14e 8a                 	txa
-   446  c14f 38                 	sec
-   447  c150 e505               	sbc LINE_CYCLES
-   448  c152 a8                 	tay
-   449  c153 a502               	lda FILLER
-   450  c155 9900c4             	sta SlideEntryTable,y           ; difference minus a period
-   451  c158 e602               	inc FILLER
-   452  c15a e8                 	inx
-   453  c15b e009               	cpx #SLIDE_RANGE + 1
-   454  c15d d0e0               	bne -
-   455  c15f 60                 	rts
-   456                          
+   113                          SAVE_X       = $06      ; zero page: the caller's X across SyncToLine
+   114                          ENTRY        = $f7      ; zero page, 2 bytes: the column loop to run this frame
+   115                          PHASE        = $f9      ; zero page: current phase 0-3
+   116                          FRAME        = $fa      ; zero page: frames spent in the current phase
+   117                          IS_PAL       = $fb      ; zero page: 1 on PAL, 0 on NTSC
+   118                          LAST_LINE_LO = $fc      ; zero page: scratch for the model detection
+   119                          CALIB        = $fd      ; zero page: line clock value 9 cycles into a raster line (see CalibrateLineClock)
+   120                          TARGET_LINE  = $fe      ; zero page: raster line SyncToLine waits for
+   121                          
+   122                          ; Slide entry for a poll that got out of its loop 4 cycles later than the earliest possible.
+   123                          ; SyncToLine's poll loop is 7 cycles, so the entry stays within 5-11.
+   124                          SLIDE_CENTER = 9
+   125                          ; The slide entry table covers timer differences this far either side of the expected one.
+   126                          SLIDE_RANGE = 8
+   127                          
+   128                          ; Lines the calibration polls: in the top border, above any bad line and above the top sprites.
+   129                          CALIB_FIRST_LINE = 10
+   130                          CALIB_LINES = 16
+   131                          
+   132                          COLOR_BLACK     = 0
+   133                          COLOR_WHITE     = 1
+   134                          COLOR_DARK_GREY = 11
+   135                          SPACE_CHAR      = $20
+   136                          
+   137                          ;------------------------------------------------------------
+   138                          ;Macros
+   139                          ;------------------------------------------------------------
+   140                          
+   141                          ; Burn .cycles cycles (>= 2). NOPs in pairs, with a 3-cycle BIT for an odd count.
+   142                          !macro delay_cycles .cycles {
+   143                          	!if .cycles & 1 {
+   144                          		bit FILLER
+   145                          		!fill (.cycles - 3) / 2, $ea
+   146                          	} else {
+   147                          		!fill .cycles / 2, $ea
+   148                          	}
+   149                          }
+   150                          
+   151                          ; Busy-wait until the raster reaches .line (0-255). Exits 2-8 cycles into the line.
+   152                          !macro wait_line .line {
+   153                          	lda #.line
+   154                          -	cmp SCREEN_RASTER_LINE
+   155                          	bne -
+   156                          }
+   157                          
+   158                          ; Wait for the raster line in TARGET_LINE, then read the line clock, always 3 cycles after the
+   159                          ; poll got out of its loop, so the reading says when that was.
+   160                          !macro poll_and_read_clock {
+   161                          	lda TARGET_LINE                 ; 3
+   162                          -	cmp SCREEN_RASTER_LINE          ; 4
+   163                          	bne -                           ; 3 taken / 2 falling through
+   164                          	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
+   165                          }
+   166                          
+   167                          ; Copy a $ff-terminated screen-code string to screen memory.
+   168                          !macro print .screenaddr, .text {
+   169                          	ldx #0
+   170                          -	lda .text,x
+   171                          	cmp #$ff
+   172                          	beq +
+   173                          	sta .screenaddr,x
+   174                          	inx
+   175                          	bne -
+   176                          +
+   177                          }
+   178                          
+   179                          ; The column loop: 200 iterations of exactly one raster line. Iteration x runs on line 50 + x and
+   180                          ; prepares line 51 + x: its idle byte (written 64 cycles into the line, after the display window
+   181                          ; has ended), then eight colours 6 cycles apart, the first of them 7 cycles into the next line,
+   182                          ; before its visible part. The loop's own counter and branch take the last 7 cycles. Afterwards the
+   183                          ; border and background go back to their resting colours, the border write timed to land in the
+   184                          ; unseen pixels after line 250's visible right border. Before that the control register is written
+   185                          ; with the value the phase asked for: phase 5 needs 24 rows selected before line 251 begins.
+   186                          !macro column_loop .colour_addr, .fill, ~.entry {
+   187                          	!align 127, 0        ; the loop is under 128 bytes: no page crossing on the branch back
+   188                          .entry
+   189                          .Line:
+   190                          	lda IdleBytes,x                     ; 4
+   191                          	sta IDLE_BYTE_ADDRESS               ; 4
+   192                          	lda #COLOR_WHITE                    ; 2
+   193                          	sta .colour_addr                    ; 4
+   194                          	lda #7                              ; yellow
+   195                          	sta .colour_addr
+   196                          	lda #8                              ; orange
+   197                          	sta .colour_addr
+   198                          	lda #10                             ; light red
+   199                          	sta .colour_addr
+   200                          	lda #13                             ; light green
+   201                          	sta .colour_addr
+   202                          	lda #3                              ; cyan
+   203                          	sta .colour_addr
+   204                          	lda #14                             ; light blue
+   205                          	sta .colour_addr
+   206                          	lda #15                             ; light grey
+   207                          	sta .colour_addr
+   208                          	!if .fill {
+   209                          		+delay_cycles .fill
+   210                          	}
+   211                          	inx                                 ; 2
+   212                          	cpx #SCREEN_LINES                   ; 2
+   213                          	bne .Line                           ; 3 taken / 2 falling through
+   214                          	lda CONTROL_AFTER                   ; $d011 as the phase wants it from line 250's end (59-65 cycles in)
+   215                          	sta SCREEN_CONTROL_REGISTER_1
+   216                          	lda #COLOR_DARK_GREY                ; the border write lands 65-71 cycles into line 250
+   217                          	sta SCREEN_BORDER_COLOR_ADDRESS
+   218                          	lda #COLOR_BLACK
+   219                          	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   220                          	jmp ColumnsDone
+   221                          }
+   222                          
+   223                          ; 8x8 glyphs as idle bytes, one row per raster line; five glyphs, repeated down the screen.
+   224                          !macro heart {
+   225                          	!byte %00000000, %01100110, %11111111, %11111111, %01111110, %00111100, %00011000, %00000000
+   226                          }
+   227                          !macro smiley {
+   228                          	!byte %00000000, %00111100, %01000010, %10100101, %10011001, %01000010, %00111100, %00000000
+   229                          }
+   230                          !macro diamond {
+   231                          	!byte %00000000, %00011000, %00111100, %01111110, %01111110, %00111100, %00011000, %00000000
+   232                          }
+   233                          !macro arrow {
+   234                          	!byte %00000000, %00011000, %00111100, %01111110, %00011000, %00011000, %00011000, %00000000
+   235                          }
+   236                          !macro cross {
+   237                          	!byte %00000000, %01000010, %00100100, %00011000, %00011000, %00100100, %01000010, %00000000
+   238                          }
+   239                          
+   240                          ;------------------------------------------------------------
+   241                          ;Code start
+   242                          ;------------------------------------------------------------
+   243                          
+   244                          Init:
+   245  c000 78                 	sei                  ; set interrupt bit, make the CPU ignore interrupt requests
+   246  c001 a97f               	lda #%01111111       ; switch off interrupt signals from CIA-1
+   247  c003 8d0ddc             	sta $dc0d
+   248                          
+   249  c006 2d11d0             	and SCREEN_CONTROL_REGISTER_1 ; clear most significant bit of VIC's raster register
+   250  c009 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   251                          
+   252  c00c ad0ddc             	lda $dc0d            ; acknowledge pending interrupts from CIA-1
+   253  c00f ad0ddd             	lda $dd0d            ; acknowledge pending interrupts from CIA-2
+   254                          
+   255  c012 208fc0             	jsr DetectModel
+   256                          
+   257  c015 a90b               	lda #COLOR_DARK_GREY
+   258  c017 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   259  c01a a900               	lda #COLOR_BLACK
+   260  c01c 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   261  c01f 8dff3f             	sta IDLE_BYTE_ADDRESS
+   262  c022 85f9               	sta PHASE
+   263  c024 85fa               	sta FRAME
+   264  c026 8503               	sta START
+   265                          
+   266  c028 2060c1             	jsr ClearScreen
+   267  c02b 2085c1             	jsr DrawScreen
+   268  c02e 201dc3             	jsr PrintStatus
+   269                          
+   270                          	; Line clock: timer A counts one raster line per period (latch + 1 cycles), continuously.
+   271  c031 a900               	lda #0
+   272  c033 8d05dc             	sta CIA1_TIMER_A_HI
+   273  c036 a940               	lda #CYCLES_PER_LINE_NTSC - 1
+   274  c038 a6fb               	ldx IS_PAL
+   275  c03a f002               	beq +
+   276  c03c a93e               	lda #CYCLES_PER_LINE_PAL - 1
+   277  c03e 8d04dc             +	sta CIA1_TIMER_A_LO
+   278                          
+   279  c041 a911               	lda #%00010001       ; force load + start, continuous
+   280  c043 8d0edc             	sta CIA1_CONTROL_A
+   281                          
+   282  c046 20bbc0             	jsr CalibrateLineClock
+   283  c049 202fc1             	jsr BuildSlideEntryTable
+   284  c04c 20d0c2             	jsr SetupSprites     ; after the calibration: sprite DMA would stall its polls
+   285                          
+   286                          	; Raster IRQ in the top border, before the DEN sample line
+   287  c04f a928               	lda #IRQ_LINE
+   288  c051 8d12d0             	sta SCREEN_RASTER_LINE
+   289  c054 a915               	lda #<Irq
+   290  c056 8d1403             	sta $0314
+   291  c059 a9c5               	lda #>Irq
+   292  c05b 8d1503             	sta $0315
+   293                          
+   294  c05e a90f               	lda #%00001111       ; clear any pending VIC interrupt flag
+   295  c060 8d19d0             	sta $d019
+   296  c063 a901               	lda #%00000001       ; enable raster interrupt signals from VIC
+   297  c065 8d1ad0             	sta $d01a
+   298                          
+   299  c068 58                 	cli                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+   300                          
+   301                          ; Main loop: while phase 1 is showing, a press of the space bar (after it has been released) starts
+   302                          ; the cycle; the interrupt takes it from there and the loop waits for phase 1 to come round again.
+   303                          Main:
+   304  c069 a5f9               -	lda PHASE
+   305  c06b d0fc               	bne -
+   306  c06d 207bc0             	jsr WaitSpace
+   307  c070 a901               	lda #1
+   308  c072 8503               	sta START
+   309  c074 a5f9               -	lda PHASE
+   310  c076 f0fc               	beq -
+   311  c078 4c69c0             	jmp Main
+   312                          
+   313                          ; Wait for the space bar to be up, then down, reading the keyboard matrix directly (the KERNAL's
+   314                          ; scan is off with the CIA interrupt).
+   315                          WaitSpace:
+   316  c07b a97f               	lda #SPACE_ROW_SELECT
+   317  c07d 8d00dc             	sta CIA1_PORT_A
+   318  c080 ad01dc             -	lda CIA1_PORT_B
+   319  c083 2910               	and #SPACE_COLUMN_BIT
+   320  c085 f0f9               	beq -                ; still held from before
+   321  c087 ad01dc             -	lda CIA1_PORT_B
+   322  c08a 2910               	and #SPACE_COLUMN_BIT
+   323  c08c d0f9               	bne -                ; not pressed yet
+   324  c08e 60                 	rts
+   325                          
+   326                          ; PAL or NTSC: after the raster passes line 255, remember the last low byte seen before it wraps
+   327                          ; to 0. NTSC wraps after line 262 (low byte 6), PAL after line 311 (low byte 55).
+   328                          DetectModel:
+   329  c08f a900               	lda #0
+   330  c091 85fc               	sta LAST_LINE_LO
+   331  c093 2c11d0             -	bit SCREEN_CONTROL_REGISTER_1
+   332  c096 10fb               	bpl -
+   333                          	; Keep the highest line low byte seen while bit 8 is set, rather than the last one: the raster
+   334                          	; can wrap to 0 between reading the line and testing bit 8, and the last value would then be 0
+   335                          	; on either model.
+   336  c098 ad12d0             -	lda SCREEN_RASTER_LINE
+   337  c09b c5fc               	cmp LAST_LINE_LO
+   338  c09d 9002               	bcc +
+   339  c09f 85fc               	sta LAST_LINE_LO
+   340  c0a1 2c11d0             +	bit SCREEN_CONTROL_REGISTER_1
+   341  c0a4 30f2               	bmi -
+   342  c0a6 a900               	lda #0
+   343  c0a8 85fb               	sta IS_PAL
+   344  c0aa a941               	lda #CYCLES_PER_LINE_NTSC
+   345  c0ac 8505               	sta LINE_CYCLES
+   346  c0ae a5fc               	lda LAST_LINE_LO
+   347  c0b0 c920               	cmp #$20
+   348  c0b2 9006               	bcc +
+   349  c0b4 e6fb               	inc IS_PAL
+   350  c0b6 a93f               	lda #CYCLES_PER_LINE_PAL
+   351  c0b8 8505               	sta LINE_CYCLES
+   352  c0ba 60                 +	rts
+   353                          
+   354                          ; Read the line clock at a fixed cycle of a raster line, whatever cycle this program was started
+   355                          ; on. A poll loop can only get out of its loop a whole loop length after the line began, and where
+   356                          ; in the loop the line change falls depends on the start cycle. This loop is 11 cycles, which
+   357                          ; neither 63 nor 65 is a multiple of, so its position drifts by 8 (PAL) or 10 (NTSC) cycles per
+   358                          ; line (7 on PAL, 5 on NTSC, counting the work between two lines' polls) and within 11 lines
+   359                          ; every position has come up once, including the earliest: the poll whose compare read the new
+   360                          ; line on its first cycle and so got out 7 cycles in, whose timer read (the 4th cycle of the LDA,
+   361                          ; 10 cycles in) gives the largest value, since the timer counts down. That value is the reference.
+   362                          CalibrateLineClock:
+   363  c0bb a90a               	lda #CALIB_FIRST_LINE
+   364  c0bd 85fe               	sta TARGET_LINE
+   365  c0bf a200               	ldx #0
+   366  c0c1 a5fe               -	lda TARGET_LINE                 ; 3
+   367  c0c3 cd12d0             --	cmp SCREEN_RASTER_LINE          ; 4   (the read lands on the 4th cycle)
+   368  c0c6 ea                 	nop                             ; 2
+   369  c0c7 ea                 	nop                             ; 2
+   370  c0c8 d0f9               	bne --                          ; 3 taken / 2 falling through
+   371  c0ca ad04dc             	lda CIA1_TIMER_A_LO             ; 4   (the read lands on the 4th cycle)
+   372  c0cd 9d1ec1             	sta CalibReadings,x             ; 5   every reading is kept, so the work between two lines'
+   373  c0d0 e8                 	inx                             ; 2   polls is always the same and the loop's position drifts
+   374  c0d1 e6fe               	inc TARGET_LINE                 ; 5   by the same amount each line (7 on PAL, 5 on NTSC)
+   375  c0d3 a5fe               	lda TARGET_LINE                 ; 3
+   376  c0d5 c91a               	cmp #CALIB_FIRST_LINE + CALIB_LINES ; 2
+   377  c0d7 d0e8               	bne -                           ; 3
+   378                          	; The reading from the earliest exit is the largest, the others lie within 10 below it. If the
+   379                          	; readings straddle the timer's reload, the ones from the later exits have wrapped to the top
+   380                          	; of the period and the earliest is then the largest of those below 11.
+   381  c0d9 a9ff               	lda #255
+   382  c0db 8502               	sta FILLER
+   383  c0dd 20f3c0             	jsr LargestCalibReading
+   384  c0e0 85fd               	sta CALIB
+   385  c0e2 38                 	sec
+   386  c0e3 e502               	sbc FILLER                      ; largest minus smallest
+   387  c0e5 c90b               	cmp #11
+   388  c0e7 9009               	bcc +
+   389  c0e9 a90b               	lda #11
+   390  c0eb 8502               	sta FILLER                      ; only readings below 11 count
+   391  c0ed 20f3c0             	jsr LargestCalibReading
+   392  c0f0 85fd               	sta CALIB
+   393  c0f2 60                 +	rts
+   394                          
+   395                          ; A = the largest reading below FILLER's value on entry (FILLER = 255 for all of them); FILLER
+   396                          ; leaves with the smallest reading.
+   397                          LargestCalibReading:
+   398  c0f3 a20f               	ldx #CALIB_LINES - 1
+   399  c0f5 a900               	lda #0
+   400  c0f7 85fe               	sta TARGET_LINE                 ; largest so far
+   401  c0f9 a9ff               	lda #255
+   402  c0fb 8d2ec1             	sta LINE_CYCLES_SAVE            ; smallest so far
+   403  c0fe bd1ec1             -	lda CalibReadings,x
+   404  c101 c502               	cmp FILLER
+   405  c103 b00e               	bcs +                           ; at or above the limit: skip
+   406  c105 c5fe               	cmp TARGET_LINE
+   407  c107 9002               	bcc ++
+   408  c109 85fe               	sta TARGET_LINE
+   409  c10b cd2ec1             ++	cmp LINE_CYCLES_SAVE
+   410  c10e b003               	bcs +
+   411  c110 8d2ec1             	sta LINE_CYCLES_SAVE
+   412  c113 ca                 +	dex
+   413  c114 10e8               	bpl -
+   414  c116 ad2ec1             	lda LINE_CYCLES_SAVE
+   415  c119 8502               	sta FILLER
+   416  c11b a5fe               	lda TARGET_LINE
+   417  c11d 60                 	rts
+   418                          CalibReadings:
+   419  c11e 0000000000000000...	!fill CALIB_LINES, 0
+   420                          LINE_CYCLES_SAVE:
+   421  c12e 00                 	!byte 0
+   422                          
+   423                          ; The slide entry for every possible timer difference (reference minus this poll's reading), so
+   424                          ; SyncToLine needs no arithmetic that could branch or wrap. SyncToLine's poll gets out 3-9 cycles
+   425                          ; into the line and reads the timer 3 cycles later, 6-12 cycles in against the reference's 10, so
+   426                          ; the difference is -4 to +2 for a poll that made it, and the entry is SLIDE_CENTER plus that. The
+   427                          ; difference can also come out a line period off, when the two readings straddle the timer's
+   428                          ; reload: those entries are filled the same way. Everything else gets the nominal entry.
+   429                          BuildSlideEntryTable:
+   430  c12f a200               	ldx #0
+   431  c131 a909               	lda #SLIDE_CENTER
+   432  c133 9d00c4             -	sta SlideEntryTable,x
+   433  c136 e8                 	inx
+   434  c137 d0fa               	bne -
+   435  c139 a2f8               	ldx #<-SLIDE_RANGE              ; difference, as a byte
+   436  c13b a901               	lda #SLIDE_CENTER - SLIDE_RANGE ; its entry
+   437  c13d 8502               	sta FILLER
+   438  c13f a502               -	lda FILLER
+   439  c141 9d00c4             	sta SlideEntryTable,x           ; difference as it is
+   440  c144 8a                 	txa
+   441  c145 18                 	clc
+   442  c146 6505               	adc LINE_CYCLES
+   443  c148 a8                 	tay
+   444  c149 a502               	lda FILLER
+   445  c14b 9900c4             	sta SlideEntryTable,y           ; difference plus a period
+   446  c14e 8a                 	txa
+   447  c14f 38                 	sec
+   448  c150 e505               	sbc LINE_CYCLES
+   449  c152 a8                 	tay
+   450  c153 a502               	lda FILLER
+   451  c155 9900c4             	sta SlideEntryTable,y           ; difference minus a period
+   452  c158 e602               	inc FILLER
+   453  c15a e8                 	inx
+   454  c15b e009               	cpx #SLIDE_RANGE + 1
+   455  c15d d0e0               	bne -
+   456  c15f 60                 	rts
    457                          
-   458                          ; Fill screen RAM with spaces and colour RAM with black, so the text reads over the columns.
-   459                          ClearScreen:
-   460  c160 a200               	ldx #0
-   461  c162 a920               	lda #SPACE_CHAR
-   462  c164 9d0004             -	sta SCREEN_RAM,x
-   463  c167 9d0005             	sta SCREEN_RAM + $100,x
-   464  c16a 9d0006             	sta SCREEN_RAM + $200,x
-   465  c16d 9d0007             	sta SCREEN_RAM + $300,x
-   466  c170 e8                 	inx
-   467  c171 d0f1               	bne -
-   468  c173 a900               	lda #COLOR_BLACK
-   469  c175 9d00d8             -	sta COLOR_RAM,x
-   470  c178 9d00d9             	sta COLOR_RAM + $100,x
-   471  c17b 9d00da             	sta COLOR_RAM + $200,x
-   472  c17e 9d00db             	sta COLOR_RAM + $300,x
-   473  c181 e8                 	inx
-   474  c182 d0f1               	bne -
-   475  c184 60                 	rts
-   476                          
-   477                          DrawScreen:
-   478  c185 a200bdc8c9c9fff0...	+print SCREEN_RAM + 0 * 40, Text0
-   479  c194 a200bde9c9c9fff0...	+print SCREEN_RAM + 2 * 40, Text2
-   480  c1a3 a200bd0ecac9fff0...	+print SCREEN_RAM + 3 * 40, Text3
-   481  c1b2 a200bd33cac9fff0...	+print SCREEN_RAM + 4 * 40, Text4
-   482  c1c1 a200bd5acac9fff0...	+print SCREEN_RAM + 5 * 40, Text5
-   483  c1d0 a200bd7bcac9fff0...	+print SCREEN_RAM + 7 * 40, Text7
-   484  c1df a200bda3cac9fff0...	+print SCREEN_RAM + 8 * 40, Text8
-   485  c1ee a200bdc9cac9fff0...	+print SCREEN_RAM + 9 * 40, Text9
-   486  c1fd a200bdf0cac9fff0...	+print SCREEN_RAM + 11 * 40, Text11
-   487  c20c a200bd18cbc9fff0...	+print SCREEN_RAM + 12 * 40, Text12
-   488  c21b a200bd40cbc9fff0...	+print SCREEN_RAM + 13 * 40, Text13
-   489  c22a a200bd61cbc9fff0...	+print SCREEN_RAM + 14 * 40, Text14
-   490  c239 a200bd86cbc9fff0...	+print SCREEN_RAM + 15 * 40, Text15
-   491  c248 a200bdaecbc9fff0...	+print SCREEN_RAM + 16 * 40, Text16
-   492  c257 a200bdd3cbc9fff0...	+print SCREEN_RAM + 17 * 40, Text17
-   493  c266 a200bdfbcbc9fff0...	+print SCREEN_RAM + 18 * 40, Text18
-   494  c275 a200bd23ccc9fff0...	+print SCREEN_RAM + 19 * 40, Text19
-   495  c284 a200bd47ccc9fff0...	+print SCREEN_RAM + 20 * 40, Text20
-   496  c293 a200bd6eccc9fff0...	+print SCREEN_RAM + 21 * 40, Text21
-   497  c2a2 a200bd94ccc9fff0...	+print SCREEN_RAM + 22 * 40, Text22
-   498  c2b1 a200bdbdccc9fff0...	+print SCREEN_RAM + 23 * 40, Text23
-   499  c2c0 a200bde4ccc9fff0...	+print SCREEN_RAM + 24 * 40, Text24
-   500  c2cf 60                 	rts
-   501                          
-   502                          ; Eight sprites of one shape, four across the top border and four across the bottom, enabled
-   503                          ; for good: the border covers them, so they show only while phase 5 keeps it open.
-   504                          SetupSprites:
-   505  c2d0 a23e               	ldx #62
-   506  c2d2 bdc6c7             -	lda SpriteShape,x
-   507  c2d5 9d0030             	sta SPRITE_SHAPE_ADDRESS,x
-   508  c2d8 ca                 	dex
-   509  c2d9 10f7               	bpl -
-   510  c2db a207               	ldx #7
-   511  c2dd a9c0               -	lda #SPRITE_SHAPE_BLOCK
-   512  c2df 9df807             	sta SPRITE_POINTERS,x
-   513  c2e2 bd05c8             	lda SpriteColours,x
-   514  c2e5 9d27d0             	sta $d027,x
-   515  c2e8 ca                 	dex
-   516  c2e9 10f2               	bpl -
-   517  c2eb a200               	ldx #0
-   518  c2ed a000               	ldy #0
-   519  c2ef bd0dc8             -	lda SpriteX,x
-   520  c2f2 9900d0             	sta $d000,y          ; X
-   521  c2f5 a91b               	lda #SPRITE_TOP_Y
-   522  c2f7 e004               	cpx #4
-   523  c2f9 9002               	bcc +
-   524  c2fb a9fd               	lda #SPRITE_BOTTOM_Y
-   525  c2fd 9901d0             +	sta $d001,y          ; Y
-   526  c300 c8                 	iny
-   527  c301 c8                 	iny
-   528  c302 e8                 	inx
-   529  c303 e008               	cpx #8
-   530  c305 d0e8               	bne -
-   531  c307 a988               	lda #%10001000
-   532  c309 8d10d0             	sta $d010            ; X MSB for sprites 3 and 7
-   533  c30c a900               	lda #0
-   534  c30e 8d17d0             	sta $d017            ; no expansion
-   535  c311 8d1dd0             	sta $d01d
-   536  c314 8d1cd0             	sta $d01c            ; single colour
-   537  c317 a9ff               	lda #%11111111
-   538  c319 8d15d0             	sta $d015            ; all eight enabled
-   539  c31c 60                 	rts
-   540                          
-   541                          ; Status line for the current phase. Only phases 1 and 2 ever show it on hardware: in phase 3
-   542                          ; the text screen is not fetched and in phase 4 the border covers it.
-   543                          PrintStatus:
-   544  c31d a5f9               	lda PHASE
-   545  c31f c901               	cmp #1
-   546  c321 f01c               	beq PrintStatus2
-   547  c323 c902               	cmp #2
-   548  c325 f028               	beq PrintStatus3
-   549  c327 c903               	cmp #3
-   550  c329 f034               	beq PrintStatus4
-   551  c32b c904               	cmp #4
-   552  c32d f040               	beq PrintStatus5
-   553  c32f a200bdf8ccc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status1
-   554  c33e 60                 	rts
-   555                          PrintStatus2:
-   556  c33f a200bd0ecdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status2
-   557  c34e 60                 	rts
-   558                          PrintStatus3:
-   559  c34f a200bd24cdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status3
-   560  c35e 60                 	rts
-   561                          PrintStatus4:
-   562  c35f a200bd3acdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status4
-   563  c36e 60                 	rts
-   564                          PrintStatus5:
-   565  c36f a200bd50cdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status5
-   566  c37e 60                 	rts
-   567                          
-   568                          ; Wait for the raster line in TARGET_LINE and return 46 cycles into it, on every frame and on
-   569                          ; every run. Uses A; leaves X and Y alone.
-   570                          SyncToLine:
-   571  c37f a5fecd12d0d0fbad...	+poll_and_read_clock            ; poll exits 2-8 cycles after the line began
-   572  c389 8502               	sta FILLER                      ; 3   this poll's clock value
-   573  c38b a5fd               	lda CALIB                       ; 3
-   574  c38d 38                 	sec                             ; 2
-   575  c38e e502               	sbc FILLER                      ; 3   reference minus this poll: larger the later the poll got out
-   576  c390 aa                 	tax                             ; 2
-   577  c391 bd00c4             	lda SlideEntryTable,x           ; 4   later poll => larger entry => shorter delay
-   578  c394 8d98c3             	sta SyncSlideJmp + 1            ; 4
-   579                          SyncSlideJmp:
-   580  c397 4c00c5             	jmp SyncSlide                   ; 3
-   581  c39a eaeaeaeaeaeaeaea...	!align 255, 0
-   582                          SlideEntryTable:
-   583  c400 0000000000000000...	!fill 256, 0
-   584                          SyncSlide:
-   585                          	; Entered at offset k (0-17) this takes 19 - k cycles: pairs of $C9 are CMP #$C9 (2 cycles);
-   586                          	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
-   587  c500 c9c9c9c9c9c9c9c9...	!byte $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c5, $ea
-   588  c512 60                 	rts
-   589                          
-   590                          ;------------------------------------------------------------
-   591                          ;Raster interrupt, entered in the top border on line 40
+   458                          
+   459                          ; Fill screen RAM with spaces and colour RAM with black, so the text reads over the columns.
+   460                          ClearScreen:
+   461  c160 a200               	ldx #0
+   462  c162 a920               	lda #SPACE_CHAR
+   463  c164 9d0004             -	sta SCREEN_RAM,x
+   464  c167 9d0005             	sta SCREEN_RAM + $100,x
+   465  c16a 9d0006             	sta SCREEN_RAM + $200,x
+   466  c16d 9d0007             	sta SCREEN_RAM + $300,x
+   467  c170 e8                 	inx
+   468  c171 d0f1               	bne -
+   469  c173 a900               	lda #COLOR_BLACK
+   470  c175 9d00d8             -	sta COLOR_RAM,x
+   471  c178 9d00d9             	sta COLOR_RAM + $100,x
+   472  c17b 9d00da             	sta COLOR_RAM + $200,x
+   473  c17e 9d00db             	sta COLOR_RAM + $300,x
+   474  c181 e8                 	inx
+   475  c182 d0f1               	bne -
+   476  c184 60                 	rts
+   477                          
+   478                          DrawScreen:
+   479  c185 a200bdc8c9c9fff0...	+print SCREEN_RAM + 0 * 40, Text0
+   480  c194 a200bde9c9c9fff0...	+print SCREEN_RAM + 2 * 40, Text2
+   481  c1a3 a200bd0ecac9fff0...	+print SCREEN_RAM + 3 * 40, Text3
+   482  c1b2 a200bd33cac9fff0...	+print SCREEN_RAM + 4 * 40, Text4
+   483  c1c1 a200bd5acac9fff0...	+print SCREEN_RAM + 5 * 40, Text5
+   484  c1d0 a200bd7bcac9fff0...	+print SCREEN_RAM + 7 * 40, Text7
+   485  c1df a200bda3cac9fff0...	+print SCREEN_RAM + 8 * 40, Text8
+   486  c1ee a200bdc9cac9fff0...	+print SCREEN_RAM + 9 * 40, Text9
+   487  c1fd a200bdf0cac9fff0...	+print SCREEN_RAM + 11 * 40, Text11
+   488  c20c a200bd18cbc9fff0...	+print SCREEN_RAM + 12 * 40, Text12
+   489  c21b a200bd40cbc9fff0...	+print SCREEN_RAM + 13 * 40, Text13
+   490  c22a a200bd61cbc9fff0...	+print SCREEN_RAM + 14 * 40, Text14
+   491  c239 a200bd86cbc9fff0...	+print SCREEN_RAM + 15 * 40, Text15
+   492  c248 a200bdaecbc9fff0...	+print SCREEN_RAM + 16 * 40, Text16
+   493  c257 a200bdd3cbc9fff0...	+print SCREEN_RAM + 17 * 40, Text17
+   494  c266 a200bdfbcbc9fff0...	+print SCREEN_RAM + 18 * 40, Text18
+   495  c275 a200bd23ccc9fff0...	+print SCREEN_RAM + 19 * 40, Text19
+   496  c284 a200bd47ccc9fff0...	+print SCREEN_RAM + 20 * 40, Text20
+   497  c293 a200bd6eccc9fff0...	+print SCREEN_RAM + 21 * 40, Text21
+   498  c2a2 a200bd94ccc9fff0...	+print SCREEN_RAM + 22 * 40, Text22
+   499  c2b1 a200bdbdccc9fff0...	+print SCREEN_RAM + 23 * 40, Text23
+   500  c2c0 a200bde4ccc9fff0...	+print SCREEN_RAM + 24 * 40, Text24
+   501  c2cf 60                 	rts
+   502                          
+   503                          ; Eight sprites of one shape, four across the top border and four across the bottom, enabled
+   504                          ; for good: the border covers them, so they show only while phase 5 keeps it open.
+   505                          SetupSprites:
+   506  c2d0 a23e               	ldx #62
+   507  c2d2 bdc6c7             -	lda SpriteShape,x
+   508  c2d5 9d0030             	sta SPRITE_SHAPE_ADDRESS,x
+   509  c2d8 ca                 	dex
+   510  c2d9 10f7               	bpl -
+   511  c2db a207               	ldx #7
+   512  c2dd a9c0               -	lda #SPRITE_SHAPE_BLOCK
+   513  c2df 9df807             	sta SPRITE_POINTERS,x
+   514  c2e2 bd05c8             	lda SpriteColours,x
+   515  c2e5 9d27d0             	sta $d027,x
+   516  c2e8 ca                 	dex
+   517  c2e9 10f2               	bpl -
+   518  c2eb a200               	ldx #0
+   519  c2ed a000               	ldy #0
+   520  c2ef bd0dc8             -	lda SpriteX,x
+   521  c2f2 9900d0             	sta $d000,y          ; X
+   522  c2f5 a91b               	lda #SPRITE_TOP_Y
+   523  c2f7 e004               	cpx #4
+   524  c2f9 9002               	bcc +
+   525  c2fb a9fd               	lda #SPRITE_BOTTOM_Y
+   526  c2fd 9901d0             +	sta $d001,y          ; Y
+   527  c300 c8                 	iny
+   528  c301 c8                 	iny
+   529  c302 e8                 	inx
+   530  c303 e008               	cpx #8
+   531  c305 d0e8               	bne -
+   532  c307 a988               	lda #%10001000
+   533  c309 8d10d0             	sta $d010            ; X MSB for sprites 3 and 7
+   534  c30c a900               	lda #0
+   535  c30e 8d17d0             	sta $d017            ; no expansion
+   536  c311 8d1dd0             	sta $d01d
+   537  c314 8d1cd0             	sta $d01c            ; single colour
+   538  c317 a9ff               	lda #%11111111
+   539  c319 8d15d0             	sta $d015            ; all eight enabled
+   540  c31c 60                 	rts
+   541                          
+   542                          ; Status line for the current phase. Only phases 1 and 2 ever show it on hardware: in phase 3
+   543                          ; the text screen is not fetched and in phase 4 the border covers it.
+   544                          PrintStatus:
+   545  c31d a5f9               	lda PHASE
+   546  c31f c901               	cmp #1
+   547  c321 f01c               	beq PrintStatus2
+   548  c323 c902               	cmp #2
+   549  c325 f028               	beq PrintStatus3
+   550  c327 c903               	cmp #3
+   551  c329 f034               	beq PrintStatus4
+   552  c32b c904               	cmp #4
+   553  c32d f040               	beq PrintStatus5
+   554  c32f a200bdf8ccc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status1
+   555  c33e 60                 	rts
+   556                          PrintStatus2:
+   557  c33f a200bd0ecdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status2
+   558  c34e 60                 	rts
+   559                          PrintStatus3:
+   560  c34f a200bd24cdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status3
+   561  c35e 60                 	rts
+   562                          PrintStatus4:
+   563  c35f a200bd3acdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status4
+   564  c36e 60                 	rts
+   565                          PrintStatus5:
+   566  c36f a200bd50cdc9fff0...	+print SCREEN_RAM + STATUS_ROW * 40 + STATUS_COL, Status5
+   567  c37e 60                 	rts
+   568                          
+   569                          ; Wait for the raster line in TARGET_LINE and return 50 cycles into it (51 with SLIDE_CENTER 8),
+   570                          ; on every frame and on every run. Uses A; X and Y are preserved so a caller can keep colours or counters in them.
+   571                          SyncToLine:
+   572  c37f 8606               	stx SAVE_X
+   573  c381 a5fecd12d0d0fbad...	+poll_and_read_clock            ; poll exits 3-9 cycles after the line began
+   574  c38b 49ff               	eor #$ff                        ; 2   reference minus this poll's clock value (larger the later
+   575  c38d 38                 	sec                             ; 2   the poll got out): CALIB + (255 - value) + 1
+   576  c38e 65fd               	adc CALIB                       ; 3
+   577  c390 aa                 	tax                             ; 2
+   578  c391 bd00c4             	lda SlideEntryTable,x           ; 4   later poll => larger entry => shorter delay
+   579  c394 8d98c3             	sta SyncSlideJmp + 1            ; 4
+   580                          SyncSlideJmp:
+   581  c397 4c00c5             	jmp SyncSlide                   ; 3
+   582  c39a eaeaeaeaeaeaeaea...	!align 255, 0
+   583                          SlideEntryTable:
+   584  c400 0000000000000000...	!fill 256, 0
+   585                          SyncSlide:
+   586                          	; Entered at offset k (0-17) this takes 19 - k cycles: pairs of $C9 are CMP #$C9 (2 cycles);
+   587                          	; the tail is either CMP $EA (3 cycles) or CMP #$C5 + NOP (4 cycles) depending on parity.
+   588  c500 c9c9c9c9c9c9c9c9...	!byte $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c9, $c5, $ea
+   589  c512 a606               	ldx SAVE_X                      ; 3
+   590  c514 60                 	rts                             ; 6
+   591                          
    592                          ;------------------------------------------------------------
-   593                          
-   594                          Irq:
-   595  c513 a91b               	lda #D011_DEN_ON
-   596  c515 8504               	sta CONTROL_AFTER    ; phases 1-4: the loop leaves $d011 as it is
-   597  c517 a5f9               	lda PHASE
-   598  c519 f044               	beq Phase1
-   599  c51b c901               	cmp #1
-   600  c51d f02f               	beq Phase2
-   601  c51f c902               	cmp #2
-   602  c521 f015               	beq Phase3
-   603  c523 c903               	cmp #3
-   604  c525 f007               	beq Phase4
-   605                          
-   606                          	; Phase 5: as phase 3, but the loop ends by selecting 24 rows on line 250, so line 251 is no
-   607                          	; longer the bottom compare line and the border flip-flop is never set; ColumnsDone restores
-   608                          	; 25 rows on line 253, after which no compare line is left in the frame.
-   609  c527 a913               	lda #D011_ROWS_24
-   610  c529 8504               	sta CONTROL_AFTER
-   611  c52b 4c38c5             	jmp Phase3
-   612                          
-   613                          Phase4:
-   614                          	; DEN off for the whole frame; the border never opens, so the columns go to $d020.
-   615  c52e a90b               	lda #D011_DEN_OFF
-   616  c530 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
-   617  c533 a202               	ldx #2
-   618  c535 4c61c5             	jmp RunColumns
-   619                          
-   620                          Phase3:
-   621                          	; DEN off through line 48, on again on line 49: no bad lines, border open, idle graphics.
-   622  c538 a90b               	lda #D011_DEN_OFF
-   623  c53a 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
-   624  c53d a931cd12d0d0fb     	+wait_line DEN_SAMPLE_LINE + 1
-   625  c544 a91b               	lda #D011_DEN_ON
-   626  c546 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
-   627  c549 a200               	ldx #0
-   628  c54b 4c61c5             	jmp RunColumns
-   629                          
-   630                          Phase2:
-   631                          	; DEN off from line 40, set again a few cycles into line 48: the VIC-II sees it during the
-   632                          	; line, so this frame displays normally, bad lines included.
-   633  c54e a90b               	lda #D011_DEN_OFF
-   634  c550 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
-   635  c553 a930cd12d0d0fb     	+wait_line DEN_SAMPLE_LINE
-   636  c55a a91b               	lda #D011_DEN_ON
-   637  c55c 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
-   638                          Phase1:
-   639  c55f a200               	ldx #0
-   640                          
-   641                          ; X = 0 for background columns, 2 for border columns. Picks the loop for the model, syncs to
-   642                          ; line 50 and enters it; the loop is written for the return to land a fixed number of cycles
-   643                          ; before the first idle byte write.
-   644                          RunColumns:
-   645  c561 a5fb               	lda IS_PAL
-   646  c563 f004               	beq +
-   647  c565 e8                 	inx
-   648  c566 e8                 	inx
+   593                          ;Raster interrupt, entered in the top border on line 40
+   594                          ;------------------------------------------------------------
+   595                          
+   596                          Irq:
+   597  c515 a91b               	lda #D011_DEN_ON
+   598  c517 8504               	sta CONTROL_AFTER    ; phases 1-4: the loop leaves $d011 as it is
+   599  c519 a5f9               	lda PHASE
+   600  c51b f044               	beq Phase1
+   601  c51d c901               	cmp #1
+   602  c51f f02f               	beq Phase2
+   603  c521 c902               	cmp #2
+   604  c523 f015               	beq Phase3
+   605  c525 c903               	cmp #3
+   606  c527 f007               	beq Phase4
+   607                          
+   608                          	; Phase 5: as phase 3, but the loop ends by selecting 24 rows on line 250, so line 251 is no
+   609                          	; longer the bottom compare line and the border flip-flop is never set; ColumnsDone restores
+   610                          	; 25 rows on line 253, after which no compare line is left in the frame.
+   611  c529 a913               	lda #D011_ROWS_24
+   612  c52b 8504               	sta CONTROL_AFTER
+   613  c52d 4c3ac5             	jmp Phase3
+   614                          
+   615                          Phase4:
+   616                          	; DEN off for the whole frame; the border never opens, so the columns go to $d020.
+   617  c530 a90b               	lda #D011_DEN_OFF
+   618  c532 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   619  c535 a202               	ldx #2
+   620  c537 4c63c5             	jmp RunColumns
+   621                          
+   622                          Phase3:
+   623                          	; DEN off through line 48, on again on line 49: no bad lines, border open, idle graphics.
+   624  c53a a90b               	lda #D011_DEN_OFF
+   625  c53c 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   626  c53f a931cd12d0d0fb     	+wait_line DEN_SAMPLE_LINE + 1
+   627  c546 a91b               	lda #D011_DEN_ON
+   628  c548 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   629  c54b a200               	ldx #0
+   630  c54d 4c63c5             	jmp RunColumns
+   631                          
+   632                          Phase2:
+   633                          	; DEN off from line 40, set again a few cycles into line 48: the VIC-II sees it during the
+   634                          	; line, so this frame displays normally, bad lines included.
+   635  c550 a90b               	lda #D011_DEN_OFF
+   636  c552 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   637  c555 a930cd12d0d0fb     	+wait_line DEN_SAMPLE_LINE
+   638  c55c a91b               	lda #D011_DEN_ON
+   639  c55e 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   640                          Phase1:
+   641  c561 a200               	ldx #0
+   642                          
+   643                          ; X = 0 for background columns, 2 for border columns. Picks the loop for the model, syncs to
+   644                          ; line 50 and enters it; the loop is written for the return to land a fixed number of cycles
+   645                          ; before the first idle byte write.
+   646                          RunColumns:
+   647  c563 a5fb               	lda IS_PAL
+   648  c565 f004               	beq +
    649  c567 e8                 	inx
    650  c568 e8                 	inx
-   651  c569 bdc0c5             +	lda EntryTable,x
-   652  c56c 85f7               	sta ENTRY
-   653  c56e bdc1c5             	lda EntryTable + 1,x
-   654  c571 85f8               	sta ENTRY + 1
-   655  c573 a932               	lda #SYNC_LINE
-   656  c575 85fe               	sta TARGET_LINE
-   657  c577 207fc3             	jsr SyncToLine                  ; returns 46 cycles into line 50
-   658  c57a a200               	ldx #0                          ; 2
-   659  c57c 6cf700             	jmp (ENTRY)                     ; 5
-   660                          
-   661                          ColumnsDone:
-   662  c57f a5f9               	lda PHASE
-   663  c581 c904               	cmp #4
-   664  c583 d00c               	bne Tail
-   665  c585 a9fdcd12d0d0fb     	+wait_line ROWS_25_AGAIN_LINE   ; phase 5: 25 rows again, once line 251 has passed
-   666  c58c a91b               	lda #D011_DEN_ON
-   667  c58e 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
-   668                          
-   669                          Tail:
-   670  c591 a5f9               	lda PHASE
-   671  c593 d00a               	bne Counting
-   672  c595 a503               	lda START            ; phase 1 stays until the main loop has seen the space bar
-   673  c597 f021               	beq Done
-   674  c599 a900               	lda #0
-   675  c59b 8503               	sta START
-   676  c59d f008               	beq Advance
-   677                          Counting:
-   678  c59f e6fa               	inc FRAME
-   679  c5a1 a5fa               	lda FRAME
-   680  c5a3 c964               	cmp #PHASE_FRAMES
-   681  c5a5 d013               	bne Done
-   682                          Advance:
-   683  c5a7 a900               	lda #0
-   684  c5a9 85fa               	sta FRAME
-   685  c5ab e6f9               	inc PHASE
-   686  c5ad a5f9               	lda PHASE
-   687  c5af c905               	cmp #PHASES
-   688  c5b1 d004               	bne +
-   689  c5b3 a900               	lda #0
-   690  c5b5 85f9               	sta PHASE
-   691  c5b7 201dc3             +	jsr PrintStatus
-   692                          Done:
-   693  c5ba 0e19d0             	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
-   694  c5bd 4c81ea             	jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
-   695                          
-   696                          EntryTable:
-   697  c5c0 00c780c7           	!word NtscBackgroundColumns, NtscBorderColumns
-   698  c5c4 00c680c6           	!word PalBackgroundColumns, PalBorderColumns
-   699                          
-   700  c5c8 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BACKGROUND_COLOR_ADDRESS, CYCLES_PER_LINE_PAL - LOOP_CYCLES, ~PalBackgroundColumns
-   701  c645 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BORDER_COLOR_ADDRESS, CYCLES_PER_LINE_PAL - LOOP_CYCLES, ~PalBorderColumns
-   702  c6c5 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BACKGROUND_COLOR_ADDRESS, CYCLES_PER_LINE_NTSC - LOOP_CYCLES, ~NtscBackgroundColumns
-   703  c746 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BORDER_COLOR_ADDRESS, CYCLES_PER_LINE_NTSC - LOOP_CYCLES, ~NtscBorderColumns
-   704                          
-   705                          ;------------------------------------------------------------
-   706                          ;Tables
+   651  c569 e8                 	inx
+   652  c56a e8                 	inx
+   653  c56b bdc2c5             +	lda EntryTable,x
+   654  c56e 85f7               	sta ENTRY
+   655  c570 bdc3c5             	lda EntryTable + 1,x
+   656  c573 85f8               	sta ENTRY + 1
+   657  c575 a932               	lda #SYNC_LINE
+   658  c577 85fe               	sta TARGET_LINE
+   659  c579 207fc3             	jsr SyncToLine                  ; returns 50 cycles into line 50
+   660  c57c a200               	ldx #0                          ; 2
+   661  c57e 6cf700             	jmp (ENTRY)                     ; 5
+   662                          
+   663                          ColumnsDone:
+   664  c581 a5f9               	lda PHASE
+   665  c583 c904               	cmp #4
+   666  c585 d00c               	bne Tail
+   667  c587 a9fdcd12d0d0fb     	+wait_line ROWS_25_AGAIN_LINE   ; phase 5: 25 rows again, once line 251 has passed
+   668  c58e a91b               	lda #D011_DEN_ON
+   669  c590 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   670                          
+   671                          Tail:
+   672  c593 a5f9               	lda PHASE
+   673  c595 d00a               	bne Counting
+   674  c597 a503               	lda START            ; phase 1 stays until the main loop has seen the space bar
+   675  c599 f021               	beq Done
+   676  c59b a900               	lda #0
+   677  c59d 8503               	sta START
+   678  c59f f008               	beq Advance
+   679                          Counting:
+   680  c5a1 e6fa               	inc FRAME
+   681  c5a3 a5fa               	lda FRAME
+   682  c5a5 c964               	cmp #PHASE_FRAMES
+   683  c5a7 d013               	bne Done
+   684                          Advance:
+   685  c5a9 a900               	lda #0
+   686  c5ab 85fa               	sta FRAME
+   687  c5ad e6f9               	inc PHASE
+   688  c5af a5f9               	lda PHASE
+   689  c5b1 c905               	cmp #PHASES
+   690  c5b3 d004               	bne +
+   691  c5b5 a900               	lda #0
+   692  c5b7 85f9               	sta PHASE
+   693  c5b9 201dc3             +	jsr PrintStatus
+   694                          Done:
+   695  c5bc 0e19d0             	asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   696  c5bf 4c81ea             	jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   697                          
+   698                          EntryTable:
+   699  c5c2 00c780c7           	!word NtscBackgroundColumns, NtscBorderColumns
+   700  c5c6 00c680c6           	!word PalBackgroundColumns, PalBorderColumns
+   701                          
+   702  c5ca eaeaeaeaeaeaeaea...	+column_loop SCREEN_BACKGROUND_COLOR_ADDRESS, CYCLES_PER_LINE_PAL - LOOP_CYCLES, ~PalBackgroundColumns
+   703  c645 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BORDER_COLOR_ADDRESS, CYCLES_PER_LINE_PAL - LOOP_CYCLES, ~PalBorderColumns
+   704  c6c5 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BACKGROUND_COLOR_ADDRESS, CYCLES_PER_LINE_NTSC - LOOP_CYCLES, ~NtscBackgroundColumns
+   705  c746 eaeaeaeaeaeaeaea...	+column_loop SCREEN_BORDER_COLOR_ADDRESS, CYCLES_PER_LINE_NTSC - LOOP_CYCLES, ~NtscBorderColumns
+   706                          
    707                          ;------------------------------------------------------------
-   708                          
-   709                          ; A 24x21 ball, the shape of all eight sprites.
-   710                          SpriteShape:
-   711  c7c6 007e00             	!byte %00000000, %01111110, %00000000
-   712  c7c9 01ff80             	!byte %00000001, %11111111, %10000000
-   713  c7cc 03ffc0             	!byte %00000011, %11111111, %11000000
-   714  c7cf 07ffe0             	!byte %00000111, %11111111, %11100000
-   715  c7d2 0ffff0             	!byte %00001111, %11111111, %11110000
-   716  c7d5 1ffff8             	!byte %00011111, %11111111, %11111000
-   717  c7d8 1ffff8             	!byte %00011111, %11111111, %11111000
-   718  c7db 3ffffc             	!byte %00111111, %11111111, %11111100
-   719  c7de 3ffffc             	!byte %00111111, %11111111, %11111100
-   720  c7e1 3ffffc             	!byte %00111111, %11111111, %11111100
-   721  c7e4 3ffffc             	!byte %00111111, %11111111, %11111100
-   722  c7e7 3ffffc             	!byte %00111111, %11111111, %11111100
-   723  c7ea 3ffffc             	!byte %00111111, %11111111, %11111100
-   724  c7ed 3ffffc             	!byte %00111111, %11111111, %11111100
-   725  c7f0 1ffff8             	!byte %00011111, %11111111, %11111000
-   726  c7f3 1ffff8             	!byte %00011111, %11111111, %11111000
-   727  c7f6 0ffff0             	!byte %00001111, %11111111, %11110000
-   728  c7f9 07ffe0             	!byte %00000111, %11111111, %11100000
-   729  c7fc 03ffc0             	!byte %00000011, %11111111, %11000000
-   730  c7ff 01ff80             	!byte %00000001, %11111111, %10000000
-   731  c802 007e00             	!byte %00000000, %01111110, %00000000
-   732                          
-   733                          SpriteColours:
-   734  c805 01070d030e0a0f08   	!byte 1, 7, 13, 3, 14, 10, 15, 8
-   735                          
-   736                          ; Sprite X positions: four across the window's width, the same four for the bottom row. The
-   737                          ; fourth of each row sits at 292, which needs the X MSB bit (sprites 3 and 7 in $d010).
-   738                          SpriteX:
-   739  c80d 3484d4243484d424   	!byte 52, 132, 212, 292 - 256, 52, 132, 212, 292 - 256
-   740                          
-   741                          ; One idle byte per display line: 25 groups of 8 glyph rows. Page aligned so that the indexed
-   742                          ; read in the loop never crosses a page and costs an extra cycle.
-   743  c815 eaeaeaeaeaeaeaea...	!align 255, 0
-   744                          IdleBytes:
-   745                          	!for .group, 1, 5 {
-   746                          		+heart
-   747                          		+smiley
-   748                          		+diamond
-   749                          		+arrow
-   750                          		+cross
-   751  c900 0066ffff7e3c1800...	}
-   752                          
-   753                          ;------------------------------------------------------------
-   754                          ;Text (screen codes, $ff terminated; lowercase source shows as uppercase)
+   708                          ;Tables
+   709                          ;------------------------------------------------------------
+   710                          
+   711                          ; A 24x21 ball, the shape of all eight sprites.
+   712                          SpriteShape:
+   713  c7c6 007e00             	!byte %00000000, %01111110, %00000000
+   714  c7c9 01ff80             	!byte %00000001, %11111111, %10000000
+   715  c7cc 03ffc0             	!byte %00000011, %11111111, %11000000
+   716  c7cf 07ffe0             	!byte %00000111, %11111111, %11100000
+   717  c7d2 0ffff0             	!byte %00001111, %11111111, %11110000
+   718  c7d5 1ffff8             	!byte %00011111, %11111111, %11111000
+   719  c7d8 1ffff8             	!byte %00011111, %11111111, %11111000
+   720  c7db 3ffffc             	!byte %00111111, %11111111, %11111100
+   721  c7de 3ffffc             	!byte %00111111, %11111111, %11111100
+   722  c7e1 3ffffc             	!byte %00111111, %11111111, %11111100
+   723  c7e4 3ffffc             	!byte %00111111, %11111111, %11111100
+   724  c7e7 3ffffc             	!byte %00111111, %11111111, %11111100
+   725  c7ea 3ffffc             	!byte %00111111, %11111111, %11111100
+   726  c7ed 3ffffc             	!byte %00111111, %11111111, %11111100
+   727  c7f0 1ffff8             	!byte %00011111, %11111111, %11111000
+   728  c7f3 1ffff8             	!byte %00011111, %11111111, %11111000
+   729  c7f6 0ffff0             	!byte %00001111, %11111111, %11110000
+   730  c7f9 07ffe0             	!byte %00000111, %11111111, %11100000
+   731  c7fc 03ffc0             	!byte %00000011, %11111111, %11000000
+   732  c7ff 01ff80             	!byte %00000001, %11111111, %10000000
+   733  c802 007e00             	!byte %00000000, %01111110, %00000000
+   734                          
+   735                          SpriteColours:
+   736  c805 01070d030e0a0f08   	!byte 1, 7, 13, 3, 14, 10, 15, 8
+   737                          
+   738                          ; Sprite X positions: four across the window's width, the same four for the bottom row. The
+   739                          ; fourth of each row sits at 292, which needs the X MSB bit (sprites 3 and 7 in $d010).
+   740                          SpriteX:
+   741  c80d 3484d4243484d424   	!byte 52, 132, 212, 292 - 256, 52, 132, 212, 292 - 256
+   742                          
+   743                          ; One idle byte per display line: 25 groups of 8 glyph rows. Page aligned so that the indexed
+   744                          ; read in the loop never crosses a page and costs an extra cycle.
+   745  c815 eaeaeaeaeaeaeaea...	!align 255, 0
+   746                          IdleBytes:
+   747                          	!for .group, 1, 5 {
+   748                          		+heart
+   749                          		+smiley
+   750                          		+diamond
+   751                          		+arrow
+   752                          		+cross
+   753  c900 0066ffff7e3c1800...	}
+   754                          
    755                          ;------------------------------------------------------------
-   756                          
-   757  c9c8 1609032d09092004...Text0:	!scr "vic-ii display enable (den) test", $ff
-   758  c9e9 04050e2028020914...Text2:	!scr "den (bit 4 of $d011) is sampled once", $ff
-   759  ca0e 100512200612010d...Text3:	!scr "per frame, during raster line 48. it", $ff
-   760  ca33 0405030904051320...Text4:	!scr "decides if the frame has bad lines and", $ff
-   761  ca5a 0c05141320140805...Text5:	!scr "lets the border open at line 51.", $ff
-   762  ca7b 0516051219201008...Text7:	!scr "every phase runs the same cycle-counted", $ff
-   763  caa3 0c0f0f10200f1605...Text8:	!scr "loop over the 200 screen lines: eight", $ff
-   764  cac9 0201030b07120f15...Text9:	!scr "background colours per line = columns.", $ff
-   765  caf0 312e2004050e2013...Text11:	!scr "1. den set all frame: every 8th line is", $ff
-   766  cb18 2020200120020104...Text12:	!scr "   a bad line that halts the cpu for 40", $ff
-   767  cb40 2020200319030c05...Text13:	!scr "   cycles, so the columns shear.", $ff
-   768  cb61 322e2004050e2003...Text14:	!scr "2. den cleared on line 40, set again", $ff
-   769  cb86 202020090e130904...Text15:	!scr "   inside line 48: counts, still shears", $ff
-   770  cbae 332e2004050e2003...Text16:	!scr "3. den cleared until line 49: no bad", $ff
-   771  cbd3 2020200c090e0513...Text17:	!scr "   lines, straight columns. no rows are", $ff
-   772  cbfb 2020200605140308...Text18:	!scr "   fetched: the black glyph is the byte", $ff
-   773  cc23 2020200114202433...Text19:	!scr "   at $3fff, written once per line.", $ff
-   774  cc47 342e2004050e2003...Text20:	!scr "4. den cleared all frame: border only.", $ff
-   775  cc6e 352e20011320332c...Text21:	!scr "5. as 3, but 24 rows during line 251:", $ff
-   776  cc94 2020201408052002...Text22:	!scr "   the border never closes and 8 sprites", $ff
-   777  ccbd 20202013080f1720...Text23:	!scr "   show in the top and bottom borders.", $ff
-   778  cce4 13100103053d1215...Text24:	!scr "space=run 2-5. now:", $ff
-   779                          
-   780  ccf8 312004050e200f0e...Status1:	!scr "1 den on, shear      ", $ff
-   781  cd0e 322004050e200f0e...Status2:	!scr "2 den on in line 48  ", $ff
-   782  cd24 332004050e200f06...Status3:	!scr "3 den off, idle      ", $ff
-   783  cd3a 342004050e200f06...Status4:	!scr "4 den off all frame  ", $ff
-   784  cd50 3520020f12040512...Status5:	!scr "5 border open        ", $ff
+   756                          ;Text (screen codes, $ff terminated; lowercase source shows as uppercase)
+   757                          ;------------------------------------------------------------
+   758                          
+   759  c9c8 1609032d09092004...Text0:	!scr "vic-ii display enable (den) test", $ff
+   760  c9e9 04050e2028020914...Text2:	!scr "den (bit 4 of $d011) is sampled once", $ff
+   761  ca0e 100512200612010d...Text3:	!scr "per frame, during raster line 48. it", $ff
+   762  ca33 0405030904051320...Text4:	!scr "decides if the frame has bad lines and", $ff
+   763  ca5a 0c05141320140805...Text5:	!scr "lets the border open at line 51.", $ff
+   764  ca7b 0516051219201008...Text7:	!scr "every phase runs the same cycle-counted", $ff
+   765  caa3 0c0f0f10200f1605...Text8:	!scr "loop over the 200 screen lines: eight", $ff
+   766  cac9 0201030b07120f15...Text9:	!scr "background colours per line = columns.", $ff
+   767  caf0 312e2004050e2013...Text11:	!scr "1. den set all frame: every 8th line is", $ff
+   768  cb18 2020200120020104...Text12:	!scr "   a bad line that halts the cpu for 40", $ff
+   769  cb40 2020200319030c05...Text13:	!scr "   cycles, so the columns shear.", $ff
+   770  cb61 322e2004050e2003...Text14:	!scr "2. den cleared on line 40, set again", $ff
+   771  cb86 202020090e130904...Text15:	!scr "   inside line 48: counts, still shears", $ff
+   772  cbae 332e2004050e2003...Text16:	!scr "3. den cleared until line 49: no bad", $ff
+   773  cbd3 2020200c090e0513...Text17:	!scr "   lines, straight columns. no rows are", $ff
+   774  cbfb 2020200605140308...Text18:	!scr "   fetched: the black glyph is the byte", $ff
+   775  cc23 2020200114202433...Text19:	!scr "   at $3fff, written once per line.", $ff
+   776  cc47 342e2004050e2003...Text20:	!scr "4. den cleared all frame: border only.", $ff
+   777  cc6e 352e20011320332c...Text21:	!scr "5. as 3, but 24 rows during line 251:", $ff
+   778  cc94 2020201408052002...Text22:	!scr "   the border never closes and 8 sprites", $ff
+   779  ccbd 20202013080f1720...Text23:	!scr "   show in the top and bottom borders.", $ff
+   780  cce4 13100103053d1215...Text24:	!scr "space=run 2-5. now:", $ff
+   781                          
+   782  ccf8 312004050e200f0e...Status1:	!scr "1 den on, shear      ", $ff
+   783  cd0e 322004050e200f0e...Status2:	!scr "2 den on in line 48  ", $ff
+   784  cd24 332004050e200f06...Status3:	!scr "3 den off, idle      ", $ff
+   785  cd3a 342004050e200f06...Status4:	!scr "4 den off all frame  ", $ff
+   786  cd50 3520020f12040512...Status5:	!scr "5 border open        ", $ff

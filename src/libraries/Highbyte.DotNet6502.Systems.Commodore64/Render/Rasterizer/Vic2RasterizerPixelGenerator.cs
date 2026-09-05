@@ -142,16 +142,27 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int _borderRunStartX;       // normalized x where the open border run starts
     private int _backgroundRunStartX;   // normalized x where the open background run starts
 
-    private bool _is38ColModeEnabled;
-    private bool _is24RowModeEnabled;
-
-    private int _leftBorderEndXAdjusted;
-    private int _leftBorderLengthAdjusted;
-    private int _rightBorderStartXAdjusted;
-    private int _rightBorderLengthAdjusted;
-    private int _topBorderEndYAdjusted;
-    private int _bottomBorderStartYAdjusted;
-    private int _screenStartXAdjusted;
+    // --- The border unit (main border flip-flop), per pixel.
+    // The VIC-II shows border colour wherever its main border flip-flop is set. The flip-flop is
+    // set when the X coordinate reaches the right compare value (344 with 40 columns, 335 with 38)
+    // and reset when it reaches the left one (24 or 31) while the vertical border flip-flop is
+    // clear; nothing else touches it, so it carries over from one line to the next and from one
+    // frame to the next. The ordinary 40 and 38 column layouts are what those rules produce on a
+    // line where nothing changes; a program that has 40 columns selected at the 335 compare and 38
+    // at the 344 compare misses both and keeps the side borders open on that line and the left
+    // border of the next. CSEL follows the register write journal, at the cycle boundary after
+    // the write; XSCROLL and the mode bits are still sampled once per line.
+    private int _xCoordinateAtLineStart;
+    private bool _csel40 = true;
+    private bool _mainBorder = true;
+    private int _leftCompareX40, _leftCompareX38, _rightCompareX40, _rightCompareX38;   // normalized x
+    private int _leftCompareCycle40, _leftCompareCycle38, _rightCompareCycle40, _rightCompareCycle38;
+    // The span of the current line where the flip-flop is clear (normalized x, end exclusive):
+    // graphics and sprites show only there. Per frame row copies feed the sprite passes.
+    private int _lineClearStartX = int.MaxValue;
+    private int _lineClearEndX;
+    private int[] _lineClearStartXs = default!;
+    private int[] _lineClearEndXs = default!;
 
     private int _screenLayoutInclNonVisibleTopBorderStartY;
     private int _screenLayoutInclNonVisibleBottomBorderEndY;
@@ -329,6 +340,32 @@ public sealed class Vic2RasterizerUintPixelGenerator
         _drawableAreaWidth = _c64.Vic2.Vic2Screen.DrawableAreaWidth;
         _cyclesPerLine = _c64.Vic2.Vic2Model.CyclesPerLine;
         _colorChangePixelDelay = _c64.Vic2.Vic2Model.ColorChangePixelDelay;
+        _xCoordinateAtLineStart = _c64.Vic2.Vic2Model.XCoordinateAtLineStart;
+
+        // The border unit's compare points. The display window starts DisplayWindowStartX pixels
+        // into the raster line (X 24, 4 pixels into the chip's cycle 16 = index 15); 38 columns move
+        // the left edge 7 pixels right (X 31) and the right one 9 pixels left (X 335).
+        var displayWindowStartLineX = _c64.Vic2.Vic2Model.DisplayWindowStartX;
+        _leftCompareX40 = _screenStartX;
+        _leftCompareX38 = _screenStartX + Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA;
+        _rightCompareX40 = _rightBorderStartX;
+        _rightCompareX38 = _rightBorderStartX + Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA;
+        _leftCompareCycle40 = displayWindowStartLineX / 8;
+        _leftCompareCycle38 = (displayWindowStartLineX + Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA) / 8;
+        _rightCompareCycle40 = (displayWindowStartLineX + _drawableAreaWidth) / 8;
+        _rightCompareCycle38 = (displayWindowStartLineX + _drawableAreaWidth + Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA) / 8;
+        _csel40 = !_c64.Vic2.Is38ColumnDisplayEnabled;
+
+        // Until the raster has run a frame, every line reads as a plain 40 column display: the
+        // sprite passes can then draw before any line has been processed (unit tests do).
+        _lineClearStartXs = new int[_height];
+        _lineClearEndXs = new int[_height];
+        for (var row = 0; row < _height; row++)
+        {
+            var displayArea = row >= _screenStartY && row < _screenStartY + _c64.Vic2.Vic2Screen.DrawableAreaHeight;
+            _lineClearStartXs[row] = displayArea ? _leftCompareX40 : _width;
+            _lineClearEndXs[row] = displayArea ? _rightCompareX40 : _width;
+        }
 
         _lastScreenLineDataUpdate = -1;
 
@@ -358,6 +395,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         _backgroundColor1 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
         _backgroundColor2 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
         _backgroundColor3 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+        _csel40 = _c64.Vic2.Is38ColumnDisplayEnabled == false;
         _registerWriteCount = 0;
         _registerWriteNext = 0;
         _registerWritesOverflowed = false;
@@ -366,24 +404,38 @@ public sealed class Vic2RasterizerUintPixelGenerator
     // Apply a journaled register write at the pixel position (normalized x on the open line)
     // from which it is visible. The journal carries the value as written; the colour registers
     // keep only their low four bits.
-    private void ApplyRegisterWrite(in RegisterWrite write, int changeX)
+    private void ApplyRegisterWrite(in RegisterWrite write, int cycleStartX)
     {
         var color = (byte)(write.Value & 0x0F);
+        var changeX = cycleStartX + _colorChangePixelDelay;
         switch (write.Register)
         {
             case Vic2Addr.BORDER_COLOR:
                 if (_borderColor != color)
                 {
-                    CloseBorderRun(changeX);
+                    if (_borderRunStartX >= 0)
+                    {
+                        CloseBorderRun(changeX);
+                        _borderRunStartX = Math.Max(_borderRunStartX, changeX);
+                    }
                     _borderColor = color;
                 }
                 break;
             case Vic2Addr.BACKGROUND_COLOR_0:
                 if (_backgroundColor0 != color)
                 {
-                    CloseBackgroundRun(changeX);
+                    if (_backgroundRunStartX >= 0)
+                    {
+                        CloseBackgroundRun(changeX);
+                        _backgroundRunStartX = Math.Max(_backgroundRunStartX, changeX);
+                    }
                     _backgroundColor0 = color;
                 }
+                break;
+            case Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER:
+                // CSEL: in effect from the cycle boundary after the write, with no pipeline: it
+                // feeds the compares, not the pixel output.
+                _csel40 = (write.Value & 0x08) != 0;
                 break;
             case Vic2Addr.BACKGROUND_COLOR_1:
                 _backgroundColor1 = color;
@@ -401,28 +453,61 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     private bool IsRunLineVisible => _runLine >= _screenLayoutInclNonVisibleTopBorderStartY && _runLine <= _screenLayoutInclNonVisibleBottomBorderEndY;
 
-    private void CloseBorderRun(int changeX)
+    // Paint the open border run up to x (it stays open; the caller moves or ends it).
+    private void CloseBorderRun(int x)
     {
         if (IsRunLineVisible)
-            DrawBorderRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _borderRunStartX, changeX);
-        _borderRunStartX = Math.Max(_borderRunStartX, changeX);
+            DrawBorderRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _borderRunStartX, x);
     }
 
-    private void CloseBackgroundRun(int changeX)
+    // Paint the open background run up to x (it stays open; the caller moves or ends it).
+    private void CloseBackgroundRun(int x)
     {
         if (IsRunLineVisible)
-            DrawBackgroundRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _backgroundRunStartX, changeX);
-        _backgroundRunStartX = Math.Max(_backgroundRunStartX, changeX);
+            DrawBackgroundRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _backgroundRunStartX, x);
     }
 
-    // Draw the rest of the open line's border and background runs and close the line.
+    // The right compare: border colour from x on this line, and until the next left compare.
+    private void SetMainBorder(int x)
+    {
+        if (_mainBorder)
+            return;
+        _mainBorder = true;
+        if (x < _lineClearEndX)
+            _lineClearEndX = x;
+        if (_backgroundRunStartX >= 0)
+            CloseBackgroundRun(x);
+        _backgroundRunStartX = -1;
+        _borderRunStartX = x;
+    }
+
+    // The left compare: graphics from x, but only while the vertical border flip-flop is clear.
+    private void ResetMainBorder(int x, int rasterLine)
+    {
+        if (!_mainBorder || _c64.Vic2.GetLineDisplayState(rasterLine).VerticalBorder)
+            return;
+        _mainBorder = false;
+        if (x < _lineClearStartX)
+            _lineClearStartX = x;
+        if (_borderRunStartX >= 0)
+            CloseBorderRun(x);
+        _borderRunStartX = -1;
+        _backgroundRunStartX = x;
+    }
+
+    // Draw the rest of the open line's run and close the line, keeping its clear span for the
+    // sprite passes.
     private void FinishLineRuns()
     {
         if (IsRunLineVisible)
         {
             var normalizedLine = _runLine - _screenLayoutInclNonVisibleTopBorderStartY;
-            DrawBorderRun(normalizedLine, _borderRunStartX, _width);
-            DrawBackgroundRun(normalizedLine, _backgroundRunStartX, _width);
+            if (_borderRunStartX >= 0)
+                DrawBorderRun(normalizedLine, _borderRunStartX, _width);
+            if (_backgroundRunStartX >= 0)
+                DrawBackgroundRun(normalizedLine, _backgroundRunStartX, _width);
+            _lineClearStartXs[normalizedLine] = _lineClearStartX;
+            _lineClearEndXs[normalizedLine] = _lineClearEndX;
         }
         _runLine = -1;
     }
@@ -446,24 +531,40 @@ public sealed class Vic2RasterizerUintPixelGenerator
             var posX = (int)(cycleOnScreenLine * 8); // 1 cycle = 8 pixels;
 
             // Line change: draw the rest of the previous line's border/background runs with the
-            // colours in effect at its end, and open runs for this line.
+            // colours in effect at its end, and open this line's first run in whichever state the
+            // border flip-flop carried over.
             if (screenLine != _runLine)
             {
                 FinishLineRuns();
                 _runLine = screenLine;
-                _borderRunStartX = 0;
-                _backgroundRunStartX = 0;
+                _lineClearStartX = _mainBorder ? int.MaxValue : 0;
+                _lineClearEndX = _width;
+                _borderRunStartX = _mainBorder ? 0 : -1;
+                _backgroundRunStartX = _mainBorder ? -1 : 0;
             }
 
-            // Register writes take effect from the cycle after the one they land in, plus the
-            // pixels the chip's own pipeline takes to show the new value.
+            // Register writes take effect from the cycle after the one they land in (colour
+            // registers plus the pixels the chip's own pipeline takes to show the new value).
             while (_registerWriteNext < _registerWriteCount && _registerWrites[_registerWriteNext].FrameCycle < cycleCurrentVblank)
-                ApplyRegisterWrite(in _registerWrites[_registerWriteNext++], posX - _screenLayoutInclNonVisibleLeftBorderStartX + _colorChangePixelDelay);
+                ApplyRegisterWrite(in _registerWrites[_registerWriteNext++], posX - _screenLayoutInclNonVisibleLeftBorderStartX);
+
+            // The border unit's compares for this cycle, with CSEL as it is now.
+            if (cycleOnScreenLine == (ulong)_leftCompareCycle40 && _csel40)
+                ResetMainBorder(_leftCompareX40, rasterLine);
+            else if (cycleOnScreenLine == (ulong)_leftCompareCycle38 && !_csel40)
+                ResetMainBorder(_leftCompareX38, rasterLine);
+            else if (cycleOnScreenLine == (ulong)_rightCompareCycle38 && !_csel40)
+                SetMainBorder(_rightCompareX38);
+            else if (cycleOnScreenLine == (ulong)_rightCompareCycle40 && _csel40)
+                SetMainBorder(_rightCompareX40);
 
             // Skip if not within visible C64 border/text/bitmap area
             if (screenLine < _screenLayoutInclNonVisibleTopBorderStartY || screenLine > _screenLayoutInclNonVisibleBottomBorderEndY)
                 continue;
-            if (posX < _screenLayoutInclNonVisibleLeftBorderStartX || posX > _screenLayoutInclNonVisibleRightBorderEndX)
+            // (A cycle just outside the frame is kept when its 8-pixel block on the character grid,
+            // which starts 4 pixels into the cycle, reaches into the frame: the opened side border's
+            // outermost pixels are drawn from those blocks.)
+            if (posX + 8 <= _screenLayoutInclNonVisibleLeftBorderStartX || posX - 4 > _screenLayoutInclNonVisibleRightBorderEndX)
                 continue;
 
             var isNewLine = screenLine != _lastScreenLineDataUpdate;
@@ -511,18 +612,8 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
                 // Colour registers are not sampled here: they follow the register write journal.
 
-                _is38ColModeEnabled = _c64.Vic2.Is38ColumnDisplayEnabled;
-                _is24RowModeEnabled = _c64.Vic2.Is24RowDisplayEnabled;
-
-                _leftBorderEndXAdjusted = _leftBorderEndX + (_is38ColModeEnabled ? Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA : 0);
-                _leftBorderLengthAdjusted = _leftBorderEndXAdjusted - _leftBorderStartX + 1;
-                _rightBorderStartXAdjusted = _rightBorderStartX + (_is38ColModeEnabled ? Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA : 0);
-                _rightBorderLengthAdjusted = _width - _rightBorderStartXAdjusted;
-
-                _topBorderEndYAdjusted = _topBorderEndY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_TOP_BORDER_END_Y_DELTA : 0);
-                _bottomBorderStartYAdjusted = _bottomBorderStartY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
-
-                _screenStartXAdjusted = _leftBorderEndXAdjusted + 1;
+                // The 38/24 column and row selections are not sampled here: CSEL goes through the
+                // register write journal into the border unit, RSEL into the per-line vertical state.
 
                 // Copy the sprite trigger inputs (enable + Y) for this line from the shared system-layer
                 // snapshot (captured in Vic2.AdvanceRaster earlier this same instruction - identical
@@ -546,13 +637,20 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _lastScreenLineDataUpdate = screenLine;
             }
 
-            // Graphics are drawn on every line the vertical border flip-flop leaves open, within the
-            // display window's columns. That is the screen rows for an ordinary picture; with the
-            // border opened it extends into what would be the top or bottom border.
-            if (!_lineVerticalBorder
-                && !(posX < _screenLayoutInclNonVisibleScreenStartX || posX > _screenLayoutInclNonVisibleScreenEndX))
+            // Graphics show wherever the border flip-flop is clear. The display window's columns
+            // start 4 pixels into a cycle, so column k is drawn while the cycle after the one it
+            // starts in is processed: by then the compares that can clip it have been evaluated.
+            // Outside the window (a side border a program has opened, or the top and bottom border
+            // with the vertical flip-flop kept clear) the sequencer shows its idle output on the
+            // same 8-pixel grid.
+            if (_lineClearStartX < _width)
             {
-                DrawTextAndBitmapPixels(_c64, drawLine: screenLine - _screenLayoutInclNonVisibleScreenStartY, col: (posX - _screenLayoutInclNonVisibleScreenStartX) / 8);
+                var col = (posX - _screenLayoutInclNonVisibleScreenStartX - 4) / 8;
+                var drawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
+                if (col >= 0 && col < _vic2ScreenTextCols)
+                    DrawTextAndBitmapPixels(_c64, drawLine, col);
+                else if (posX >= _screenLayoutInclNonVisibleScreenStartX - 4 || col < 0 && posX + 4 > _screenLayoutInclNonVisibleLeftBorderStartX)
+                    DrawIdleBlock(_c64, drawLine, (posX - _screenLayoutInclNonVisibleScreenStartX - 4) >> 3);
             }
 
         } // End for each cycle
@@ -654,12 +752,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 _bandRowColorFg[ci] = _c64ToRenderColorMap[sprites[spriteIndex].Color];
                 _bandRowColorMc0[ci] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
                 _bandRowColorMc1[ci] = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
-                _bandRowClipStartX[ci] = _screenStartXAdjusted;
-                _bandRowClipEndX[ci] = _rightBorderStartXAdjusted;
-                // The border covers sprites too: a row recorded on a line the vertical border
-                // flip-flop covers is not shown, one on an open line is.
+                // The border covers sprites too: a row shows only where this line's border
+                // flip-flop was clear (nowhere on a line the vertical border covers, out into a
+                // side border a program has opened). The line is finished, so its span is stored.
+                _bandRowClipStartX[ci] = _lineClearStartXs[pixelArrayY];
+                _bandRowClipEndX[ci] = _lineClearEndXs[pixelArrayY];
                 _bandRowClipStartY[ci] = 0;
-                _bandRowClipEndY[ci] = _lineVerticalBorder ? 0 : _height;
+                _bandRowClipEndY[ci] = _height;
             }
 
             // Advance the active-run gate (double-height keeps each row for 2 lines). This only
@@ -689,7 +788,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         var b = _bandCount;
         _bandRowStart[b] = rowStart;
-        _bandX[b] = sprite.X + _screenStartX - _spriteScreenOffsetX;
+        _bandX[b] = SpriteScreenX(sprite.X);
         _bandDoubleWidth[b] = sprite.DoubleWidth;
         _bandDoubleHeight[b] = sprite.DoubleHeight;
         _bandMultiColor[b] = sprite.Multicolor;
@@ -697,27 +796,26 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         // Default every row to the latch-time colours, so rows the gate never reaches (a cut-short
         // band) still have a sane colour. The gate overwrites each row's colour as it displays.
-        // The default vertical clip is the border flip-flop of the row's own raster line, as the
-        // VIC-II settled it the last time the raster passed there: that covers rows the gate never
-        // reaches because the raster frame ends first (on NTSC the visible frame's last rows are
-        // raster lines 0-5 of the next frame) and sprites that never latched this frame.
+        // The default clip is the span where the row's own frame line last had the border
+        // flip-flop clear: that covers rows the gate never reaches because the raster frame ends
+        // first (on NTSC the visible frame's last rows are raster lines 0-5 of the next frame) and
+        // sprites that never latched this frame.
         var fg = _c64ToRenderColorMap[sprite.Color];
         var mc0 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
         var mc1 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
         var colorBase = b * SPRITE_ROWS;
-        var totalHeight = _c64.Vic2.Vic2Model.TotalHeight;
-        var firstRasterLine = rowStart + _screenLayoutInclNonVisibleTopBorderStartY - _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(0);
         var lineAdvance = sprite.DoubleHeight ? 2 : 1;
         for (int row = 0; row < SPRITE_ROWS; row++)
         {
             _bandRowColorFg[colorBase + row] = fg;
             _bandRowColorMc0[colorBase + row] = mc0;
             _bandRowColorMc1[colorBase + row] = mc1;
-            _bandRowClipStartX[colorBase + row] = _screenStartXAdjusted;
-            _bandRowClipEndX[colorBase + row] = _rightBorderStartXAdjusted;
-            var rasterLine = ((firstRasterLine + row * lineAdvance) % totalHeight + totalHeight) % totalHeight;
+            var frameRow = rowStart + row * lineAdvance;
+            var inFrame = frameRow >= 0 && frameRow < _height;
+            _bandRowClipStartX[colorBase + row] = inFrame ? _lineClearStartXs[frameRow] : _width;
+            _bandRowClipEndX[colorBase + row] = inFrame ? _lineClearEndXs[frameRow] : _width;
             _bandRowClipStartY[colorBase + row] = 0;
-            _bandRowClipEndY[colorBase + row] = _c64.Vic2.GetLineDisplayState(rasterLine).VerticalBorder ? 0 : _height;
+            _bandRowClipEndY[colorBase + row] = _height;
         }
 
         // Snapshot shape so a later pointer change (next band) can't corrupt this one.
@@ -1041,9 +1139,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         var visibleMainScreenAreaLineData = vic2ScreenLayouts.GetLayout(LayoutType.Visible);
-        // Screen lines are raster lines rotated by a model constant; this undoes it per sprite line.
-        var totalHeight = vic2.Vic2Model.TotalHeight;
-        var screenLineOfRasterLine0 = vic2.Vic2Model.ConvertRasterLineToScreenLine(0);
 
         // Write sprites to a separate bitmap/pixel array
         var sprites = vic2.SpriteManager.Sprites;
@@ -1053,7 +1148,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
             if (!sprite.Visible)
                 continue;
 
-            var spriteScreenPosX = sprite.X + visibleMainScreenArea.Screen.Start.X - vic2.SpriteManager.ScreenOffsetX;
+            var spriteScreenPosX = SpriteScreenX(sprite.X);
             var spriteScreenPosY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - vic2.SpriteManager.ScreenOffsetY;
             var priorityOverForground = sprite.PriorityOverForeground;
             var isMultiColor = sprite.Multicolor;
@@ -1118,20 +1213,16 @@ public sealed class Vic2RasterizerUintPixelGenerator
                 spriteForegroundPixelColor = _c64ToRenderColorMap[spriteColorValue];
                 spriteMultiColor0PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor0];
                 spriteMultiColor1PixelColor = _c64ToRenderColorMap[screenLineIORegisters.SpriteMultiColor1];
-                var is38ColumnLine = !screenLineIORegisters.ColMode40;
-                var clipStartX = GetSpriteClipStartX(is38ColumnLine);
-                var clipEndX = GetSpriteClipEndX(is38ColumnLine);
-
                 // Decode the row using the shared core (same code path as the per-line band draw).
                 // For a Y-expanded sprite the second physical line is the same decode at y+1. The
-                // vertical border flip-flop covers sprites: a physical line the border covers is
-                // skipped, an open one (including one a program opened below the screen) is drawn.
+                // border covers sprites: each physical line shows only where its border flip-flop
+                // was clear (nowhere under the vertical border, out into an opened side border).
                 for (var physicalLine = 0; physicalLine < spriteLineAdvance; physicalLine++)
                 {
-                    var rasterLine = (lineDataKey + physicalLine - screenLineOfRasterLine0 + totalHeight) % totalHeight;
-                    if (vic2.GetLineDisplayState(rasterLine).VerticalBorder)
+                    var frameRow = spriteScreenPosY + y + physicalLine;
+                    if (frameRow < 0 || frameRow >= _height)
                         continue;
-                    DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, spriteScreenPosY + y + physicalLine, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, clipStartX, clipEndX, 0, _height);
+                    DecodeAndWriteSpriteRow(spriteRow.Bytes, spriteScreenPosX, frameRow, isDoubleWidth, isMultiColor, priorityOverForground, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, _lineClearStartXs[frameRow], _lineClearEndXs[frameRow], 0, _height);
                 }
 
                 y += spriteLineAdvance;
@@ -1139,13 +1230,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetSpriteClipStartX(bool is38ColumnLine)
-        => _screenStartX + (is38ColumnLine ? Vic2Screen.COL_38_SCREEN_START_X_DELTA : 0);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetSpriteClipEndX(bool is38ColumnLine)
-        => _rightBorderStartX + (is38ColumnLine ? Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA : 0);
 
 
     /// <summary>
@@ -1160,25 +1244,37 @@ public sealed class Vic2RasterizerUintPixelGenerator
         if (fromX >= toX)
             return;
 
-        var lineStartIndex = normalizedScreenLine * _width;
-        var borderLine = _oneLineSameColorPixels[_borderColor];
+        // A border run only ever spans pixels where the flip-flop was set, so it is painted as is.
+        _setBackgroundPixels(_oneLineSameColorPixels[_borderColor], 0, normalizedScreenLine * _width + fromX, toX - fromX);
+    }
 
-        // Vertical border: the whole line is border colour
-        if (_lineVerticalBorder)
-        {
-            _setBackgroundPixels(borderLine, 0, lineStartIndex + fromX, toX - fromX);
+    // A sprite's X as a normalized frame x. The chip's X coordinate wraps at 512 and the line
+    // starts at X 404 (PAL) or 412 (NTSC), so an X at or beyond that is at the line's start, in the
+    // left border: where it shows when the border there is opened.
+    private int SpriteScreenX(int spriteX)
+        => spriteX >= _xCoordinateAtLineStart
+            ? spriteX - _xCoordinateAtLineStart - _screenLayoutInclNonVisibleLeftBorderStartX
+            : spriteX + _screenStartX - _spriteScreenOffsetX;
+
+    // The sequencer's idle output in a part of the line outside the display window where the
+    // border flip-flop is clear (an opened side border): the byte at the end of the VIC-II bank
+    // in black over the background colour, on the character grid. col is negative to the left of
+    // the window and 40 or more to its right; the clip in WriteToPixelArray keeps it to the span
+    // that is open and inside the frame.
+    private void DrawIdleBlock(C64 c64, int drawLine, int col)
+    {
+        if (_invalidMode)
             return;
-        }
-
-        // Left border
-        var leftEnd = Math.Min(toX, _leftBorderEndXAdjusted + 1);
-        if (fromX < leftEnd)
-            _setBackgroundPixels(borderLine, 0, lineStartIndex + fromX, leftEnd - fromX);
-
-        // Right border
-        var rightStart = Math.Max(fromX, _rightBorderStartXAdjusted);
-        if (rightStart < toX)
-            _setBackgroundPixels(borderLine, 0, lineStartIndex + rightStart, toX - rightStart);
+        var idleData = c64.Vic2.ReadMemory((ushort)(_isTextMode && _characterMode == CharMode.Extended ? 0x39FF : 0x3FFF));
+        uint[] idlePixels;
+        if (_isTextMode)
+            idlePixels = _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex(idleData, (byte)C64Colors.Black)];
+        else if (_bitmapMode == BitmMode.Standard)
+            idlePixels = _eightPixelsTwoColors[GetTwoColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black)];
+        else
+            idlePixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black, (byte)C64Colors.Black)];
+        WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
+        WriteToPixelArray(idlePixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
     }
 
     private void DrawTextAndBitmapPixels(C64 c64, int drawLine, int col)
@@ -1364,71 +1460,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
         // destination X, but vertical fine scroll was already applied to gridLine above.
         WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
 
-
-        void WriteToPixelArray(uint[] fnEightPixels, bool foreground, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX)
-        {
-            // Draw 8 pixels (or less) of character on the the pixel array part used for the C64 drawable screen (320x200)
-
-            // ----------
-            // Y position
-            // ----------
-            var ypos = _screenStartY + fnMainScreenY;
-
-            // The vertical border flip-flop decides whether this line shows graphics at all (the
-            // caller checks it); here only the frame's edge clips.
-            if (ypos < 0 || ypos >= _height)
-                return;
-
-            // If inverted Y coordinate system is used, flip it
-            if (FlipY)
-                ypos = _height - ypos - 1;
-
-            // ----------
-            // X position
-            // ----------
-            var sourcePixelStart = 0;
-            if (fnAdjustForScrollX)
-                fnMainScreenX += _scrollX;
-            var xpos = _screenStartX + fnMainScreenX;
-
-
-            if (xpos + fnLength <= _screenStartXAdjusted || xpos >= _rightBorderStartXAdjusted)
-                return;
-            if (xpos < _screenStartXAdjusted)
-            {
-                fnLength = xpos + fnLength - _screenStartXAdjusted;
-                xpos = _screenStartXAdjusted;
-                sourcePixelStart = 8 - fnLength;
-            }
-            else if (xpos + fnLength >= _rightBorderStartXAdjusted)
-            {
-                fnLength = _rightBorderStartXAdjusted - xpos;
-            }
-
-            // ----------
-            // Copy pixels to correct location in pixel array
-            // ----------
-            // Calculate the position in the bitmap where the 8 pixels should be drawn
-            var lBitmapIndex = ypos * _width + xpos;
-
-            // Copy array with Span
-            // - Seems to be a bit faster on .NET 8 WASM than Array.Copy and Buffer.BlockCopy.
-            // - TODO: Is the extra heap memory allocation of Span objects (which leads to GC pressure) worth the performance gain?
-            //var source = new ReadOnlySpan<uint>(fnEightPixels, sourcePixelStart, fnLength);
-            //var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
-            //source.CopyTo(target);
-
-            // Or Copy array with Array.Copy
-            //Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
-
-            // Or Copy array with Buffer.BlockCopy
-            //Buffer.BlockCopy(fnEightPixels, 0, fnPixelArray, lBitmapIndex * 4, fnLength * 4);   // Note: Buffer.BlockCopy uses byte size, so multiply by 4 to get uint size
-
-            if (foreground)
-                _setForegroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
-            else
-                _setBackgroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
-        }
     }
 
     /// <summary>
@@ -1441,19 +1472,84 @@ public sealed class Vic2RasterizerUintPixelGenerator
         if (!_isTextMode || _characterMode != CharMode.Standard)
             return;
 
-        if (_lineVerticalBorder)
-            return;
-
         var ypos = normalizedScreenLine;
         if (FlipY)
             ypos = _height - ypos - 1;
 
-        fromX = Math.Max(fromX, _screenStartXAdjusted);
-        toX = Math.Min(toX, _rightBorderStartXAdjusted);
+        // The run spans pixels where the flip-flop was clear; the display window's part of it is
+        // the prefill under the text columns, the rest is painted block by block as idle output.
+        fromX = Math.Max(fromX, _screenStartX);
+        toX = Math.Min(toX, _rightBorderStartX);
         if (fromX >= toX)
             return;
 
         _setBackgroundPixels(_oneLineSameColorPixels[_backgroundColor0], 0, ypos * _width + fromX, toX - fromX);
+    }
+
+    private void WriteToPixelArray(uint[] fnEightPixels, bool foreground, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX)
+    {
+        // Draw 8 pixels (or less) of character on the the pixel array part used for the C64 drawable screen (320x200)
+
+        // ----------
+        // Y position
+        // ----------
+        var ypos = _screenStartY + fnMainScreenY;
+
+        // The vertical border flip-flop decides whether this line shows graphics at all (the
+        // caller checks it); here only the frame's edge clips.
+        if (ypos < 0 || ypos >= _height)
+            return;
+
+        // If inverted Y coordinate system is used, flip it
+        if (FlipY)
+            ypos = _height - ypos - 1;
+
+        // ----------
+        // X position
+        // ----------
+        var sourcePixelStart = 0;
+        if (fnAdjustForScrollX)
+            fnMainScreenX += _scrollX;
+        var xpos = _screenStartX + fnMainScreenX;
+
+
+        // Only the pixels where the border flip-flop is clear on this line are shown.
+        var clipStart = Math.Max(_lineClearStartX, 0);
+        var clipEnd = Math.Min(_lineClearEndX, _width);
+        if (xpos + fnLength <= clipStart || xpos >= clipEnd)
+            return;
+        if (xpos < clipStart)
+        {
+            sourcePixelStart = clipStart - xpos;
+            fnLength -= sourcePixelStart;
+            xpos = clipStart;
+        }
+        if (xpos + fnLength > clipEnd)
+            fnLength = clipEnd - xpos;
+
+        // ----------
+        // Copy pixels to correct location in pixel array
+        // ----------
+        // Calculate the position in the bitmap where the 8 pixels should be drawn
+        var lBitmapIndex = ypos * _width + xpos;
+
+        // Copy array with Span
+        // - Seems to be a bit faster on .NET 8 WASM than Array.Copy and Buffer.BlockCopy.
+        // - TODO: Is the extra heap memory allocation of Span objects (which leads to GC pressure) worth the performance gain?
+        //var source = new ReadOnlySpan<uint>(fnEightPixels, sourcePixelStart, fnLength);
+        //var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
+        //source.CopyTo(target);
+
+        // Or Copy array with Array.Copy
+        //Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
+
+        // Or Copy array with Buffer.BlockCopy
+        //Buffer.BlockCopy(fnEightPixels, 0, fnPixelArray, lBitmapIndex * 4, fnLength * 4);   // Note: Buffer.BlockCopy uses byte size, so multiply by 4 to get uint size
+
+        if (foreground)
+            _setForegroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
+        else
+            _setBackgroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
     }
 
 }

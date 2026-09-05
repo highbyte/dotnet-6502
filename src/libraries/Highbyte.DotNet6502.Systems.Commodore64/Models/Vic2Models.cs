@@ -58,6 +58,9 @@ public class Vic2ModelNTSC : Vic2ModelBase
     // wrong by a cycle.)
     public override int DisplayWindowStartX => 124;
 
+    // The 6567R8's first cycle starts at X $19c; its X counter wraps at 512, not at the line's 520.
+    public override int XCoordinateAtLineStart => 412;
+
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
@@ -293,6 +296,14 @@ public abstract class Vic2ModelBase
     /// same amount, which is why nothing visible depends on the split.</para>
     /// </summary>
     public virtual int ColorChangePixelDelay => -11;
+
+    /// <summary>
+    /// The VIC-II X coordinate at the start of the raster line's first cycle: $194 (404) on the
+    /// 6569, $19c (412) on the 6567R8. Sprite X positions are compared against this coordinate,
+    /// which counts up to 511 and wraps, so a sprite at an X of 404 or more on PAL (412 on NTSC)
+    /// appears from the line's start, in the left border, rather than off the right edge.
+    /// </summary>
+    public virtual int XCoordinateAtLineStart => 404;
 
     // Default to the shared TV model dimensions; chip variants with non-standard pixel timing
     // (e.g., Vic2ModelNTSC_old) can override to provide chip-specific values.

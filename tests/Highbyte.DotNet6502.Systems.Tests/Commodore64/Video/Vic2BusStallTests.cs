@@ -141,6 +141,45 @@ public class Vic2BusStallTests
         Assert.Equal(2 + (ulong)expectedStall, Step(c64));
     }
 
+    [Theory]
+    [InlineData(56, 5)]   // 6567R8: sprite 0's pointer fetch is on cycle 59, one later than the 6569's, BA low from 56
+    [InlineData(59, 2)]
+    [InlineData(61, 0)]
+    public void Read_during_sprite_0_dma_on_ntsc_waits_one_cycle_later_than_on_pal(int cycle, int expectedStall)
+    {
+        // The 6567R8's two extra cycles per line are not spread over the sprite fetches: sprites
+        // 0-7 fetch at cycles 59, 61, 63, 65, 2, 4, 6, 8 (VICE's cycle tables), so the CPU gets the
+        // bus back at cycle 10 of the next line with all eight active, not 11 as on the 6569.
+        var c64 = C64.BuildC64(new C64Config { LoadROMs = false, C64Model = "C64NTSC", Vic2Model = "NTSC" }, NullLoggerFactory.Instance);
+        c64.Mem.StoreData(Start, [0xEA]);
+        c64.CPU.PC = Start;
+        c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0x01);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_Y, (byte)BadLine);
+        PositionAt(c64, BadLine + 5, cycle);
+
+        Assert.Equal(2 + (ulong)expectedStall, Step(c64));
+    }
+
+    [Fact]
+    public void All_eight_sprites_release_the_bus_on_cycle_11_on_pal_and_10_on_ntsc()
+    {
+        foreach (var (model, vic2Model, releaseCycle) in new[] { ("C64PAL", "PAL", 11), ("C64NTSC", "NTSC", 10) })
+        {
+            var c64 = C64.BuildC64(new C64Config { LoadROMs = false, C64Model = model, Vic2Model = vic2Model }, NullLoggerFactory.Instance);
+            c64.Mem.StoreData(Start, [0xEA]);
+            c64.CPU.PC = Start;
+            c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0xFF);
+            for (var n = 0; n < 8; n++)
+                c64.Mem.Write((ushort)(Vic2Addr.SPRITE_0_Y + 2 * n), (byte)BadLine);
+            // A read on the last cycle before sprite 0's window waits through all eight fetches.
+            var firstStalledCycle = model == "C64PAL" ? 55 : 56;
+            PositionAt(c64, BadLine + 5, firstStalledCycle);
+            var cyclesPerLine = (int)c64.Vic2.Vic2Model.CyclesPerLine;
+            var expectedStall = cyclesPerLine - firstStalledCycle + releaseCycle;
+            Assert.Equal(2 + (ulong)expectedStall, Step(c64));
+        }
+    }
+
     [Fact]
     public void Adjacent_sprites_keep_BA_low_across_their_fetches()
     {

@@ -49,7 +49,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
         {"ghostngoblins", new C64DownloadProgramInfo("Ghosts 'n Goblins", "https://csdb.dk/release/download.php?id=120333", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,  directLoadPRGName: "*")},
-        {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
+        {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
         {"greenberet", new C64DownloadProgramInfo("Green Beret", "https://csdb.dk/release/download.php?id=157678", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true)},
         {"lastninja", new C64DownloadProgramInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
         {"minizork", new C64DownloadProgramInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
@@ -943,6 +943,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.raster_columns.prg", "RasterColumns"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.screen_columns.prg", "ScreenColumns"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.idle_graphics.prg", "IdleGraphics"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.side_border.prg", "SideBorder"));
         // Initialize basic examples
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
