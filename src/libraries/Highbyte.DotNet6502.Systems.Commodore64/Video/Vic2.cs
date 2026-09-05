@@ -116,6 +116,150 @@ public class Vic2
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
+    // --- Vertical state: display enable latch, display/idle state, row counters, border flip-flop.
+    // The VIC-II decides once per frame whether it will fetch the video matrix at all: DEN has to be
+    // set during some cycle of raster line $30. Bad lines then occur on the lines whose low three
+    // bits equal YSCROLL, each starting a row (display state, RC = 0); after the row's eighth line
+    // the chip drops to idle state until the next bad line. The vertical border flip-flop is set
+    // when the raster reaches the bottom compare line and reset at the top compare line only if DEN
+    // is set then, so a display that is switched off shows border colour everywhere, and a program
+    // that keeps the raster from ever matching the bottom compare line keeps the border open.
+    private const int BadLineFirstRasterLine = 0x30;
+    private const int BadLineLastRasterLine = 0xF7;
+    private const int RowLines = 8;
+    private const int BadLineDecisionCycle = 14;  // RC is reset if the condition holds at this cycle
+    private const int BorderDecisionCycle = 16;   // the border flip-flop is checked at the display window's left edge
+    private bool _displayEnabledLatch;
+    private bool _displayState;
+    private bool _verticalBorder = true;
+    private ushort _videoCounterBase;
+    private byte _rowCounter;
+    // The state a line entered with, so a $D011 write early in the line can redo its decisions.
+    private bool _displayStateAtLineStart;
+    private byte _rowCounterAtLineStart;
+    private bool _verticalBorderAtLineStart;
+    private Vic2LineDisplayState[] _lineDisplayStates = default!;
+
+    /// <summary>The vertical state the VIC-II settled for a raster line when the raster entered it.</summary>
+    public Vic2LineDisplayState GetLineDisplayState(int rasterLine) => _lineDisplayStates[rasterLine];
+
+    /// <summary>
+    /// Whether DEN was seen set during raster line $30 of the current frame, which is what decides
+    /// whether any line of the frame can be a bad line.
+    /// </summary>
+    public bool DisplayEnabledThisFrame => _displayEnabledLatch;
+
+    /// <summary>
+    /// The bad line condition for a raster line: inside the display area's line range, low three
+    /// bits equal to YSCROLL, and the display enabled for this frame.
+    /// </summary>
+    public bool IsBadLine(int rasterLine)
+    {
+        if (rasterLine < BadLineFirstRasterLine || rasterLine > BadLineLastRasterLine)
+            return false;
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+        return _displayEnabledLatch && (rasterLine & 7) == (control & 7);
+    }
+
+    // Settle the vertical state for a line the raster has just entered. Called for every line
+    // crossed, in order, so the counters advance line by line as on the chip.
+    private void EnterLineVerticalState(ushort line)
+    {
+        // The previous line's cycle 58: in display state RC advances, and the row's eighth line
+        // ends it (idle state, VCBASE takes the row's advance of 40).
+        if (_displayState)
+        {
+            if (_rowCounter == RowLines - 1)
+            {
+                _displayState = false;
+                _videoCounterBase = (ushort)((_videoCounterBase + Vic2Screen.TextCols) & 0x3FF);
+            }
+            else
+            {
+                _rowCounter++;
+            }
+        }
+
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+
+        // VCBASE is reset once per frame, outside the bad line range; the chip does it in line 0.
+        if (line == 0)
+            _videoCounterBase = 0;
+
+        // DEN is sampled through raster line $30; a write during the line ORs in (see the store).
+        if (line == BadLineFirstRasterLine)
+            _displayEnabledLatch = (control & 0x10) != 0;
+
+        _verticalBorderAtLineStart = _verticalBorder;
+        _displayStateAtLineStart = _displayState;
+        _rowCounterAtLineStart = _rowCounter;
+        ApplyBorderDecision(line, control);
+        ApplyBadLineDecision(line);
+    }
+
+    // The vertical border flip-flop's rules for this line, from the registers as they are now: set
+    // when the line is the bottom compare line, reset when it is the top one and DEN is set. The
+    // chip checks these at the line's left edge (and again at its last cycle), so a $D011 write
+    // before the left edge can still change the outcome; the line is then re-decided from the state
+    // it started with. A program that keeps the raster from ever matching the bottom compare line
+    // by switching RSEL just for that line keeps the border open this way.
+    private void ApplyBorderDecision(ushort line, byte control)
+    {
+        var displayEnabled = (control & 0x10) != 0;
+        var rows25 = (control & 0x08) != 0;
+        var topCompare = rows25 ? 51 : 55;
+        var bottomCompare = rows25 ? 251 : 247;
+        _verticalBorder = _verticalBorderAtLineStart;
+        if (line == bottomCompare)
+            _verticalBorder = true;
+        else if (line == topCompare && displayEnabled)
+            _verticalBorder = false;
+    }
+
+    // Decide the line's bad line condition from the registers as they are now, and record the
+    // line's state. Called when the line is entered and again if $D011 is written before the
+    // chip's decision cycle, so a program that changes YSCROLL at the start of a line gets the
+    // line it asked for.
+    private void ApplyBadLineDecision(ushort line)
+    {
+        if (IsBadLine(line))
+        {
+            _displayState = true;
+            _rowCounter = 0;
+        }
+        else
+        {
+            _displayState = _displayStateAtLineStart;
+            _rowCounter = _rowCounterAtLineStart;
+        }
+        StoreLineState(line);
+    }
+
+    private void StoreLineState(ushort line)
+        => _lineDisplayStates[line] = new Vic2LineDisplayState(_displayState, _verticalBorder, _videoCounterBase, _rowCounter);
+
+    // A $D011 write: DEN during line $30 counts for the frame; a write before this line's decision
+    // cycles can still change its border flip-flop and bad line condition.
+    private void OnScreenControlWritten()
+    {
+        var line = _currentRasterLineInternal;
+        if (line == ushort.MaxValue)
+            return;
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+        var displayEnabled = (control & 0x10) != 0;
+        if (line == BadLineFirstRasterLine && displayEnabled)
+            _displayEnabledLatch = true;
+
+        var cyclesIntoLine = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine;
+        if (cyclesIntoLine >= (ulong)BorderDecisionCycle)
+            return;
+        ApplyBorderDecision(line, control);
+        if (cyclesIntoLine < (ulong)BadLineDecisionCycle)
+            ApplyBadLineDecision(line);
+        else
+            StoreLineState(line);
+    }
+
     public bool Is38ColumnDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
     public byte FineScrollXValue => (byte)(C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollX()
@@ -187,8 +331,18 @@ public class Vic2
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineIORegisterValues = screenLineData,
+            _lineDisplayStates = new Vic2LineDisplayState[vic2Model.TotalHeight],
             _logger = loggerFactory.CreateLogger(nameof(Vic2)),
         };
+        // Until the raster has entered a line, the lines read as a plain 25-row frame with the
+        // display on: idle state, border open across the display area. Anything drawn before the
+        // raster has run a frame (a sprite test, a first partial frame) then lands where it would
+        // on such a frame instead of being covered by border everywhere.
+        for (var line = 0; line < vic2._lineDisplayStates.Length; line++)
+        {
+            var insideDisplayArea = line >= 51 && line <= 250;
+            vic2._lineDisplayStates[line] = new Vic2LineDisplayState(false, !insideDisplayArea, 0, 0);
+        }
 
         var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
         vic2.Vic2Screen = vic2Screen;
@@ -774,6 +928,7 @@ public class Vic2
     public void ScrCtrlReg1Store(ushort address, byte value)
     {
         C64.WriteIOStorage(address, (byte)(value & 0b0111_1111));
+        OnScreenControlWritten();
 
         // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
         // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
@@ -997,6 +1152,7 @@ public class Vic2
             var lineStartBusCycle = endBusCycle + 1 > cyclesIntoLine ? endBusCycle + 1 - cyclesIntoLine : 0;
             RaiseRasterIRQ(cpu, lineStartBusCycle);
 
+            EnterLineVerticalState(line);
             UpdateSpriteDma(line);
 
             // Remember colors and other IO registers for each raster line

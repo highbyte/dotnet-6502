@@ -64,47 +64,269 @@ public class Vic2RasterizerPixelGeneratorTests
     }
 
     [Fact]
-    public void DrawText_resumes_on_character_row_boundary_after_invalid_band_with_vertical_fine_scroll()
+    public void DrawText_resumes_the_interrupted_row_after_an_invalid_band_and_starts_the_next_row_on_its_bad_line()
     {
         var c64 = BuildC64();
         SetupRowBoundaryMarkerTextScreen(c64);
-        // The generator's internal drawLine is relative to the Visible layout's screen start; the
-        // rendered pixel position is relative to the VisibleNormalized layout's screen start.
         var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
         var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
-        const int bandStartDrawLine = 100;
-        const int resumeDrawLine = 116;
-        // SCROLLY=5 (= +2 relative to the default 3) below the band; invalid mode = ECM+BMM.
+        // Invalid mode (ECM+BMM) on draw lines 100-115 (raster 151-166) with YSCROLL 3; then YSCROLL 5.
         var (_, foreground) = RenderFrame(c64, rasterLine =>
         {
             var drawLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine) - visibleLayout.Screen.Start.Y;
-            if (drawLine < bandStartDrawLine)
+            if (drawLine < 100)
                 return 0x1B;
-            if (drawLine < resumeDrawLine)
+            if (drawLine < 116)
                 return 0x7B;
             return 0x1D;
         });
 
-        // The character grid snap must include the resume line's vertical fine scroll (SCROLLY=5 =>
-        // snap offset 2, drawing the resumed area from pixel row resumeDrawLine - 2). Without it the
-        // snap is 4, which draws the tail glyph lines of the character row the band should hide over
-        // the band's bottom rows - the garbled seam seen in e.g. Commando.
+        // Bad lines do not care about the mode, so rows keep starting inside the band (row 14 at
+        // raster 163, draw line 112) and the band shows black. When the mode becomes valid again on
+        // draw line 116, row 14 is on its 5th line and finishes on lines 116-119 with its glyph
+        // lines 4-7 (a sparse pattern: set at the cell's first and last pixel, clear inside). The
+        // chip then idles until the first bad line of the new YSCROLL, raster 173 (173 & 7 == 5),
+        // draw line 122, where row 15 starts with its solid glyph line 0.
         var width = c64.Screen.VisibleWidth;
-        var bandTopY = normalizedLayout.Screen.Start.Y + bandStartDrawLine;
-        var firstResumedY = normalizedLayout.Screen.Start.Y + resumeDrawLine - 2;
-        for (var y = bandTopY; y < firstResumedY; y++)
+        var x0 = normalizedLayout.Screen.Start.X;
+        int Y(int drawLine) => normalizedLayout.Screen.Start.Y + drawLine;
+        for (var drawLine = 100; drawLine < 116; drawLine++)
+            for (var x = x0; x <= normalizedLayout.Screen.End.X; x++)
+                Assert.Equal(0u, foreground[Y(drawLine) * width + x]);
+        for (var drawLine = 116; drawLine < 120; drawLine++)
         {
-            for (var x = normalizedLayout.Screen.Start.X; x <= normalizedLayout.Screen.End.X; x++)
+            Assert.NotEqual(0u, foreground[Y(drawLine) * width + x0]);
+            Assert.Equal(0u, foreground[Y(drawLine) * width + x0 + 3]);
+        }
+        for (var drawLine = 120; drawLine < 122; drawLine++)
+            for (var x = x0; x < x0 + 8; x++)
+                Assert.Equal(0u, foreground[Y(drawLine) * width + x]);
+        for (var x = x0; x < x0 + 8; x++)
+            Assert.NotEqual(0u, foreground[Y(122) * width + x]);
+    }
+
+    [Fact]
+    public void Display_switched_off_shows_the_border_colour_across_the_screen()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD020, 2);
+        c64.Mem.Write(0xD021, 6);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (background, foreground) = RenderFrame(c64, _ => 0x0B);   // DEN clear all frame
+
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 100;
+        var xMid = normalizedLayout.Screen.Start.X + 100;
+        Assert.Equal(background[y * width + 5], background[y * width + xMid]);   // same as the left border
+        Assert.Equal(0u, foreground[y * width + xMid]);                          // and no glyphs
+    }
+
+    [Fact]
+    public void Display_off_only_during_line_48_shows_idle_output_with_the_border_open()
+    {
+        // No bad line can occur this frame, so nothing is fetched: the display area shows the
+        // background colour (the idle byte at $3FFF is 0) and no glyphs. The border still opens,
+        // since DEN is set again when the raster reaches the top compare line.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD020, 2);
+        c64.Mem.Write(0xD021, 6);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (background, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 40 and <= 48 ? (byte)0x0B : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 100;
+        var xMid = normalizedLayout.Screen.Start.X + 100;
+        Assert.NotEqual(background[y * width + 5], background[y * width + xMid]);   // not border colour
+        for (var x = normalizedLayout.Screen.Start.X; x <= normalizedLayout.Screen.End.X; x++)
+            Assert.Equal(0u, foreground[y * width + x]);
+    }
+
+    [Fact]
+    public void Idle_output_shows_the_byte_at_the_end_of_the_bank_in_black()
+    {
+        // With $3FFF set, idle lines show its bit pattern (here every pixel of the cell) in black.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Vic2.Vic2Mem[0x3FFF] = 0xFF;
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (_, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 40 and <= 48 ? (byte)0x0B : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 100;
+        var pixel = foreground[y * width + normalizedLayout.Screen.Start.X + 100];
+        Assert.NotEqual(0u, pixel);                       // drawn on the foreground
+        Assert.Equal(0u, pixel & 0x00FFFFFF);             // and black
+    }
+
+    [Fact]
+    public void Avoiding_bad_lines_pushes_the_rows_below_down()
+    {
+        // YSCROLL kept one ahead of each line's low bits on raster 100-115: row 6 (started at 99)
+        // finishes at 106, then the chip idles until row 7 starts at 123 instead of 107.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (_, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 100 and < 116 ? (byte)(0x18 | ((rasterLine + 1) & 7)) : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var x0 = normalizedLayout.Screen.Start.X;
+        int Y(int rasterLine) => normalizedLayout.Screen.Start.Y + rasterLine - 51;
+        Assert.NotEqual(0u, foreground[Y(99) * width + x0 + 3]);          // row 6 line 0: solid
+        for (var rasterLine = 107; rasterLine < 123; rasterLine++)          // idle: nothing drawn
+            for (var x = x0; x < x0 + 8; x++)
+                Assert.Equal(0u, foreground[Y(rasterLine) * width + x]);
+        for (var x = x0; x < x0 + 8; x++)                                   // row 7 line 0 at 123
+            Assert.NotEqual(0u, foreground[Y(123) * width + x]);
+    }
+
+    [Fact]
+    public void Keeping_the_border_open_shows_the_background_colour_below_the_screen()
+    {
+        // Switching to 24 rows only for raster line 251 means neither 247 nor 251 matches the
+        // bottom compare value in force on it, so the vertical border flip-flop never sets: the
+        // bottom border area shows idle output (the background colour) between the side borders.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD020, 2);
+        c64.Mem.Write(0xD021, 6);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (background, _) = RenderFrame(c64, rasterLine => rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var yScreen = normalizedLayout.Screen.Start.Y + 100;
+        var yBelow = normalizedLayout.Screen.End.Y + 10;
+        var xMid = normalizedLayout.Screen.Start.X + 100;
+        Assert.Equal(background[yScreen * width + xMid], background[yBelow * width + xMid]);   // background colour
+        Assert.NotEqual(background[yBelow * width + 5], background[yBelow * width + xMid]);   // side border still border
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_sprite_in_the_bottom_border_shows_only_while_the_border_is_kept_open(bool perLineSprites)
+    {
+        // Sprites are covered by the vertical border, so a sprite placed below the display area is
+        // not shown in a normal frame. When the bottom compare line is missed (24 rows for line 251
+        // only) the flip-flop stays clear and the sprite is drawn in what was the bottom border.
+        const int spriteY = 255;   // raster lines 256-276, all in the bottom border
+        uint[] Render(bool openBorder)
+        {
+            var c64 = BuildC64();
+            SetupRowBoundaryMarkerTextScreen(c64);
+            CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192);
+            c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+            c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;   // the per-line sprite pass reads the snapshot this takes
+            var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+            var vic2 = c64.Vic2;
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
             {
-                Assert.Equal(0u, foreground[y * width + x]);
+                c64.Mem.Write(0xD011, openBorder && rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
             }
+            generator.OnEndFrame();
+            return foreground;
+        }
+        var c64ForLayout = BuildC64();
+        var normalizedLayout = c64ForLayout.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64ForLayout.Screen.VisibleWidth;
+        int CountPixelsBelowScreen(uint[] foreground)
+        {
+            var count = 0;
+            for (var i = (normalizedLayout.Screen.End.Y + 1) * width; i < foreground.Length; i++)
+                if (foreground[i] != 0)
+                    count++;
+            return count;
         }
 
-        // The first resumed row must start on a character-row boundary: glyph line 0 is solid.
-        for (var x = normalizedLayout.Screen.Start.X; x < normalizedLayout.Screen.Start.X + 8; x++)
+        Assert.Equal(0, CountPixelsBelowScreen(Render(openBorder: false)));
+        var open = Render(openBorder: true);
+        Assert.True(CountPixelsBelowScreen(open) > 0, $"perLineSprites={perLineSprites}: no sprite pixels below the screen");
+        var belowScreen = open.Skip((normalizedLayout.Screen.End.Y + 1) * width).ToArray();   // the text glyphs above are foreground too
+        var (_, startX, endX) = GetFirstRenderedSpan(belowScreen, width);
+        Assert.Equal(8, endX - startX + 1);   // the one-byte shape row
+    }
+
+    [Theory]
+    [InlineData("C64NTSC", "NTSC", true)]
+    [InlineData("C64NTSC", "NTSC", false)]
+    [InlineData("C64PAL", "PAL", true)]
+    [InlineData("C64PAL", "PAL", false)]
+    public void A_sprite_that_begins_above_the_visible_area_shows_its_visible_rows_in_an_opened_top_border(string c64Model, string vic2Model, bool perLineSprites)
+    {
+        // Raster lines 28-48 are in the top border; NTSC only shows it from line 34, PAL from 9.
+        // With the bottom compare missed in the previous frame the flip-flop is clear through the
+        // top border, so the sprite's visible rows are drawn (a two-frame render: the first frame
+        // opens the border, the second shows the top border open).
+        const int spriteY = 27;
+        var c64 = BuildC64(c64Model, vic2Model);
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 20), spritePointer: 192);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+        var vic2 = c64.Vic2;
+        for (var frame = 0; frame < 2; frame++)
         {
-            Assert.NotEqual(0u, foreground[firstResumedY * width + x]);
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
         }
+
+        var width = c64.Screen.VisibleWidth;
+        var normalizedLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var (row, startX, endX) = GetFirstRenderedSpan(foreground, width);
+        // The shape's only row is its last, raster line 48, two lines above the display area.
+        Assert.Equal(normalizedLayout.Screen.Start.Y - 3, row);
+        Assert.Equal(8, endX - startX + 1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_sprite_that_runs_past_the_ntsc_frame_end_continues_in_the_frames_last_rows_with_the_border_open(bool perLineSprites)
+    {
+        // The NTSC visible frame is 235 lines from raster line 34, so its last six rows are raster
+        // lines 0-5 of the next frame. A sprite at Y 253 displays on lines 254-262 and then 0-11,
+        // and with the bottom compare missed the flip-flop is clear there, so those rows show.
+        const int spriteY = 253;
+        var c64 = BuildC64("C64NTSC", "NTSC");
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 12), spritePointer: 192);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+        var vic2 = c64.Vic2;
+        for (var frame = 0; frame < 2; frame++)
+        {
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, rasterLine == 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
+        }
+
+        var width = c64.Screen.VisibleWidth;
+        var height = c64.Screen.VisibleHeight;
+        var (row, startX, endX) = GetFirstRenderedSpan(foreground, width);
+        // Shape row 12 is displayed on raster line 266 - 263 = 3, the frame's fourth row from the end.
+        Assert.Equal(height - 3, row);
+        Assert.Equal(8, endX - startX + 1);
     }
 
     [Fact]
@@ -429,7 +651,7 @@ public class Vic2RasterizerPixelGeneratorTests
         return foreground;
     }
 
-    private static (Vic2RasterizerUintPixelGenerator Generator, uint[] Background, uint[] Foreground) CreateGenerator(C64 c64)
+    private static (Vic2RasterizerUintPixelGenerator Generator, uint[] Background, uint[] Foreground) CreateGenerator(C64 c64, bool perLineSprites = false)
     {
         var pixelCount = c64.Screen.VisibleWidth * c64.Screen.VisibleHeight;
         var background = new uint[pixelCount];
@@ -447,7 +669,8 @@ public class Vic2RasterizerPixelGeneratorTests
             (source, sourceIndex, destIndex, width) => source.Slice(sourceIndex, width).CopyTo(background.AsSpan(destIndex, width)),
             (destIndex, width) => background.AsSpan(destIndex, width).Clear(),
             (source, sourceIndex, destIndex, width) => source.Slice(sourceIndex, width).CopyTo(foreground.AsSpan(destIndex, width)),
-            (destIndex, width) => foreground.AsSpan(destIndex, width).Clear());
+            (destIndex, width) => foreground.AsSpan(destIndex, width).Clear(),
+            perLineSprites);
         return (generator, background, foreground);
     }
 

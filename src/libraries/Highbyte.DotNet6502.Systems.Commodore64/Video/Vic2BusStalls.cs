@@ -11,9 +11,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 ///
 /// <para>Sprite DMA comes from the VIC-II's per-sprite DMA state (<see cref="Vic2.SpriteDmaMask"/>),
 /// which switches on at the Y compare and runs for the sprite's rows; the VIC-II is caught up to
-/// the read's cycle first so that state is current. Approximations: the DEN bit is read live
-/// instead of being latched during line $30; the bad-line condition does not model the
-/// display-off idle state.</para>
+/// the read's cycle first so that state is current. The bad line condition is the VIC-II's own
+/// (<see cref="Vic2.IsBadLine"/>): DEN as seen during line $30, not as it is at the read.</para>
 ///
 /// <para>Cycle numbering follows the usual VIC-II documentation: cycle 1 is the first cycle of a
 /// line. Internally 0-based offsets within the line are used.</para>
@@ -22,8 +21,6 @@ internal sealed class Vic2BusStalls : IBusStallSource
 {
     private const int BadLineBaLowOffset = 11;    // cycle 12
     private const int BadLineBaHighOffset = 54;   // cycle 55
-    private const int BadLineFirstLine = 0x30;
-    private const int BadLineLastLine = 0xF7;
     private const int SpriteBaLeadCycles = 3;
     private const int SpriteDmaCycles = 2;
 
@@ -158,12 +155,6 @@ internal sealed class Vic2BusStalls : IBusStallSource
         _windowCount = merged;
     }
 
-    private bool IsBadLine(int line)
-    {
-        if (line < BadLineFirstLine || line > BadLineLastLine)
-            return false;
-        var control = _c64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
-        var displayEnabled = (control & 0x10) != 0;
-        return displayEnabled && (line & 7) == (control & 7);
-    }
+    // The VIC-II's own decision: DEN as seen during raster line $30, not as it is now.
+    private bool IsBadLine(int line) => _vic2.IsBadLine(line);
 }
