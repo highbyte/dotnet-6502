@@ -26,15 +26,28 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     // Line render state
     private int _lastScreenLineDataUpdate = -1;
 
-    // The character row's 40 screen codes and colour nibbles, as the VIC-II holds them: it fetches
-    // them once per row, on the row's first line (the bad line), and displays them for the row's
-    // remaining seven lines whatever the CPU writes meanwhile. A row is latched once a full line of
-    // it has been read live (normally its first line).
-    private readonly byte[] _rowScreenCodes = new byte[40];
-    private readonly byte[] _rowColorRam = new byte[40];
-    private int _latchedCharacterRow = -1;   // row whose latch is complete (all 40 columns fetched)
-    private int _fetchingCharacterRow = -1;  // row currently being fetched live
-    private ulong _fetchedColumnsMask;       // columns of that row fetched so far
+    // --- The video matrix line and the counters that address it, cycle by cycle after the VIC-II
+    // article's section 3.7.2. The video matrix line is the 40 screen codes and colour nibbles the
+    // c-accesses of a bad line read, at the position VMLI; the g-accesses read them from there in
+    // display state and advance VMLI and VC after each. In cycle 14 VC is loaded from VCBASE and
+    // VMLI cleared, and RC reset if there is a bad line condition then; in cycle 58, RC 7 sends the
+    // sequencer to idle state and VC into VCBASE, and in display state RC advances. The bad line
+    // condition is the article's: raster line $30-$F7, its low three bits equal to YSCROLL as it is
+    // in that cycle, DEN seen during line $30. It can come and go within a line: a condition in
+    // cycles 12-54 pulls BA low and starts the c-accesses (cycles 15-54), whose first three read $FF
+    // and the low nibble of the CPU's next opcode while the CPU still holds the bus (3.14.6, the DMA
+    // delay); one taken away before cycle 14 leaves RC as it is (3.14.4, linecrunch); one asserted
+    // in cycles 54-57 of a row's last line keeps display state and repeats the row (3.14.5).
+    private readonly byte[] _matrixLine = new byte[40];
+    private readonly byte[] _colorLine = new byte[40];
+    private int _vc;              // video counter, 10 bits
+    private int _vcBase;          // video counter base
+    private int _rc;              // row counter, 3 bits
+    private int _vmli;            // video matrix line index
+    private bool _displayState;   // display state, else idle state
+    private int _baLowSince = -1; // the cycle BA went low for this line's c-accesses, -1 if it has not
+    private const int BadLineFirstRasterLine = 0x30;
+    private const int BadLineLastRasterLine = 0xF7;
     private ulong _lastCyclesConsumedCurrentVblank;
 
 
@@ -145,16 +158,10 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private readonly int[] _bgColorEventCount = new int[4];
     private readonly byte[] _bgColorAtLineStart = new byte[4];
 
-    // The VIC-II's vertical state for the line being drawn, as it settled it when the raster
-    // entered the line (see Vic2LineDisplayState). Which row is drawn and which of its lines is
-    // not arithmetic on the raster line: rows start where bad lines occur, the chip drops to idle
-    // state after a row's eighth line until the next bad line, and the vertical border flip-flop
-    // decides whether the line shows graphics at all. That is what makes vertical fine scroll,
-    // FLD-style row stretching, a switched-off display and an opened border come out as on hardware.
-    private bool _lineDisplayState;
+    // The vertical border flip-flop for the line being drawn, as the VIC-II settled it when the
+    // raster entered the line (see Vic2LineDisplayState): while it is set the sequencer's output
+    // is the background colour whatever it fetches (3.7.3).
     private bool _lineVerticalBorder = true;
-    private int _lineVideoCounterBase;
-    private int _lineRowCounter;
 
     // VIC-II colour registers as the rasterizer holds them. They change only through the register
     // write journal below, at the cycle after the write lands, so a write in the middle of a line
@@ -647,6 +654,10 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
 
                 if (screenLine - _screenLayoutInclNonVisibleTopBorderStartY == 0)
                 {
+                    // New frame: VCBASE is reset once per frame outside the bad line range (rule 1,
+                    // the chip presumably does it in line 0); the frame's first visible line is
+                    // outside that range on both models, and the lines above it are not processed.
+                    _vcBase = 0;
 
                     // New frame: reset the sprite display latch so no sprite carries over.
                     if (_perLineSprites)
@@ -657,11 +668,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                     }
                 }
 
-                var lineState = _c64.Vic2.GetLineDisplayState(rasterLine);
-                _lineDisplayState = lineState.DisplayState;
-                _lineVerticalBorder = lineState.VerticalBorder;
-                _lineVideoCounterBase = lineState.VideoCounterBase;
-                _lineRowCounter = lineState.RowCounter;
+                _lineVerticalBorder = _c64.Vic2.GetLineDisplayState(rasterLine).VerticalBorder;
+                _baLowSince = -1;
 
                 // Colour registers are not sampled here: they follow the register write journal.
 
@@ -696,7 +704,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             // compares that can clip them have been evaluated. The sequencer runs on every cycle
             // (its pipeline has to move on) and draws wherever the border flip-flop is clear.
             var blockX = posX - _screenLayoutInclNonVisibleLeftBorderStartX - 12;
-            DrawGraphicsCycle((int)cycleOnScreenLine, blockX, render: blockX + 8 > 0 && blockX < _width && _lineClearStartX < _width);
+            DrawGraphicsCycle((int)cycleOnScreenLine, rasterLine, blockX, render: blockX + 8 > 0 && blockX < _width && _lineClearStartX < _width);
 
         } // End for each cycle
 
@@ -1177,7 +1185,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// line's buffers, inside the border flip-flop's clear span only, and resolved into the layers
     /// when the line ends.
     /// </summary>
-    private void DrawGraphicsCycle(int cycle, int blockX, bool render)
+    private void DrawGraphicsCycle(int cycle, int rasterLine, int blockX, bool render)
     {
         var clipStart = Math.Max(_lineClearStartX, 0);
         var clipEnd = Math.Min(_lineClearEndX, _width);
@@ -1301,18 +1309,44 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             }
         }
 
-        // This cycle's g-access, for the output two cycles on. The g-accesses are the chip's cycles
-        // 16-55 (column 0-39) on a line the vertical border flip-flop leaves open: a row's data in
-        // display state, the byte at the end of the bank ($39FF with ECM) with no matrix data in idle
-        // state. Outside them the sequencer is fed zeros, and the matrix data stays as it is.
+        // The cycle's accesses and counter work (3.7.2), then the fetched byte into the pipeline for
+        // the output two cycles on. Cycle numbers below count from 1 as the article does; `cycle`
+        // counts from 0.
+        var chipCycle = cycle + 1;
+        var badLineCondition = rasterLine >= BadLineFirstRasterLine && rasterLine <= BadLineLastRasterLine
+            && (rasterLine & 7) == (_d011 & 7) && _c64.Vic2.DisplayEnabledThisFrame;
+        if (chipCycle == 14)
+        {
+            _vc = _vcBase;                                  // rule 2
+            _vmli = 0;
+            if (badLineCondition)
+                _rc = 0;
+        }
+        // The g-access (cycles 16-55): a row's data in display state, the byte at the end of the bank
+        // ($39FF with ECM) with the matrix data read as zero in idle state (3.7.3.9). VC and VMLI
+        // advance after it in display state (rule 4).
         var fetchSlot = cycle % 3;
-        var column = cycle - FirstFetchCycle;
-        if (column >= 0 && column < _vic2ScreenTextCols && !_lineVerticalBorder)
+        if (chipCycle >= 16 && chipCycle <= 55 && _lineVerticalBorder)
+        {
+            // The access and the counters go on, but while the vertical border flip-flop is set the
+            // sequencer shows the last background colour (3.7.3): zeros over the matrix data it has.
+            if (_displayState)
+            {
+                _vmli++;
+                _vc = (_vc + 1) & 0x3FF;
+            }
+            _fetchedData[fetchSlot] = 0;
+            _fetchedMatrix[fetchSlot] = _fetchedMatrix[(cycle + 2) % 3];
+            _fetchedColor[fetchSlot] = _fetchedColor[(cycle + 2) % 3];
+        }
+        else if (chipCycle >= 16 && chipCycle <= 55)
         {
             _loadPixel = (byte)(_d016 & 0x07);
-            if (_lineDisplayState)
+            if (_displayState)
             {
-                FetchColumn(column, fetchSlot);
+                FetchGraphics(fetchSlot);
+                _vmli++;
+                _vc = (_vc + 1) & 0x3FF;
             }
             else
             {
@@ -1326,6 +1360,80 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             _fetchedData[fetchSlot] = 0;
             _fetchedMatrix[fetchSlot] = _fetchedMatrix[(cycle + 2) % 3];
             _fetchedColor[fetchSlot] = _fetchedColor[(cycle + 2) % 3];
+        }
+
+        // A bad line condition in any cycle puts the sequencer in display state (3.5, 3.14.6), from
+        // the cycle's second phase on: the g-access of the cycle the condition first appears in is
+        // still an idle one, which is what makes a condition created in cycle 16 shift the screen
+        // by two columns (VICE's screenpos test) and puts the first $FF of a DMA delay at the start
+        // of the video matrix line. One in cycles 12-54 also pulls BA low and starts the c-accesses
+        // (rule 3).
+        if (badLineCondition)
+        {
+            _displayState = true;
+            if (_baLowSince < 0 && chipCycle >= 12 && chipCycle <= 54)
+                _baLowSince = cycle;
+        }
+
+        // The c-access (cycles 15-54 with the condition): the screen code and colour nibble at VC
+        // into the video matrix line at VMLI. In the three cycles after BA went low the CPU still
+        // holds the bus, and the chip reads $FF and the low nibble of the CPU's next opcode instead.
+        if (badLineCondition && _baLowSince >= 0 && chipCycle >= 15 && chipCycle <= 54 && _vmli < _matrixLine.Length)
+        {
+            if (cycle - _baLowSince < 3)
+            {
+                _matrixLine[_vmli] = 0xFF;
+                _colorLine[_vmli] = (byte)(_c64.Mem[_c64.CPU.PC] & 0x0F);
+            }
+            else
+            {
+                var videoMatrixBase = (_d018 & 0xF0) << 6;
+                _matrixLine[_vmli] = _c64.Vic2.ReadMemory((ushort)(videoMatrixBase + _vc));
+                _colorLine[_vmli] = (byte)(_c64.ReadIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + _vc)) & 0x0F);
+            }
+        }
+        if (!badLineCondition)
+            _baLowSince = -1;                               // the condition taken away: BA high again
+
+        if (chipCycle == 58)
+        {
+            // Rule 5: a row's eighth line ends it, unless a bad line condition keeps the display
+            // state going (3.14.5, the row then repeats); in display state RC advances.
+            if (_rc == 7)
+            {
+                _displayState = false;
+                _vcBase = _vc;
+            }
+            if (_displayState || badLineCondition)
+            {
+                _rc = (_rc + 1) & 7;
+                _displayState = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The g-access in display state: the screen code and colour nibble at VMLI in the video
+    /// matrix line, the graphics byte from the bitmap at VC and RC or from the character set the
+    /// memory pointers select now (with ECM only the low six bits of the screen code select the
+    /// shape).
+    /// </summary>
+    private void FetchGraphics(int slot)
+    {
+        var index = _vmli < _matrixLine.Length ? _vmli : _matrixLine.Length - 1;
+        var screenCode = _matrixLine[index];
+        _fetchedMatrix[slot] = screenCode;
+        _fetchedColor[slot] = _colorLine[index];
+        if ((_d011 & 0x20) != 0)
+        {
+            var bitmapBase = (_d018 & 0x08) << 10;
+            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(bitmapBase + _vc * 8 + _rc));
+        }
+        else
+        {
+            var characterSetBase = (_d018 & 0x0E) << 10;
+            var shape = (_d011 & 0x40) != 0 ? screenCode & 0x3F : screenCode;
+            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(characterSetBase + shape * _vic2ScreenCharacterHeight + _rc));
         }
     }
 
@@ -1414,61 +1522,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         {
             _lineFgCodes[x] = CODE_NONE;
             _lineBgCodes[x] = code;
-        }
-    }
-
-    /// <summary>
-    /// The c- and g-access for a column in display state: the row is the one VC points at and the
-    /// line within it is RC, both as the VIC-II counted them; VC is ten bits and advances by one
-    /// per column. The screen code and colour nibble come from the row latch when this row has
-    /// been fetched already (lines after the row's first), otherwise live from the video matrix
-    /// and colour RAM, filling the latch on the way. The graphics byte comes from the bitmap or
-    /// the character set the memory pointers select now.
-    /// </summary>
-    private void FetchColumn(int column, int slot)
-    {
-        var characterLine = _lineRowCounter;
-        var videoCounter = (_lineVideoCounterBase + column) & 0x3FF;
-        var characterRow = _lineVideoCounterBase;   // identifies the row for the row latch
-
-        byte screenCode, colorNibble;
-        if (characterLine != 0 && _latchedCharacterRow == characterRow)
-        {
-            screenCode = _rowScreenCodes[column];
-            colorNibble = _rowColorRam[column];
-        }
-        else
-        {
-            var videoMatrixBase = (_d018 & 0xF0) << 6;
-            screenCode = _c64.Vic2.ReadMemory((ushort)(videoMatrixBase + videoCounter));
-            colorNibble = (byte)(_c64.ReadIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + videoCounter)) & 0x0F);
-            _rowScreenCodes[column] = screenCode;
-            _rowColorRam[column] = colorNibble;
-            if (_fetchingCharacterRow != characterRow)
-            {
-                _fetchingCharacterRow = characterRow;
-                _fetchedColumnsMask = 0;
-                _latchedCharacterRow = -1;
-            }
-            _fetchedColumnsMask |= 1UL << column;
-            if (_fetchedColumnsMask == (1UL << _vic2ScreenTextCols) - 1)
-                _latchedCharacterRow = characterRow;   // every column read live: the row is fetched
-        }
-        _fetchedMatrix[slot] = screenCode;
-        _fetchedColor[slot] = colorNibble;
-
-        if ((_d011 & 0x20) != 0)
-        {
-            // BMM: the bitmap, eight bytes per cell.
-            var bitmapBase = (_d018 & 0x08) << 10;
-            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(bitmapBase + videoCounter * 8 + characterLine));
-        }
-        else
-        {
-            // The character set; with ECM only the low six bits of the screen code select the shape.
-            var characterSetBase = (_d018 & 0x0E) << 10;
-            var shape = (_d011 & 0x40) != 0 ? screenCode & 0x3F : screenCode;
-            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(characterSetBase + shape * _vic2ScreenCharacterHeight + characterLine));
         }
     }
 

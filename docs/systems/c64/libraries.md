@@ -23,7 +23,10 @@ next one. The raster interrupt is raised when the raster compare goes from not m
 matching, checked as the raster enters a line (a cycle later for line 0) and in the cycle after a
 `$D011` or `$D012` write: writing the current line's number raises it at once, while a program
 that moves the compare value to the next line in every line's last cycle keeps it matched and
-gets no further interrupt. The SID does the same through its audio provider (see below). The rasterizer applies a
+gets no further interrupt. The light pen input, CIA 1's port B bit 4, latches the beam position on
+a negative edge: `$D013` the X coordinate at the end of that cycle halved, `$D014` the raster line,
+once per frame, with the light pen interrupt; programs pull it low to learn the cycle they are on.
+The SID does the same through its audio provider (see below). The rasterizer applies a
 write to the border or background colour registers (`$D020`-`$D024`) from the cycle after the
 write lands, so a colour change in the middle of a line splits that line at the write's pixel
 position, as on hardware; the VIC-II reports each register write with its frame cycle for this.
@@ -54,7 +57,16 @@ Which character row a raster line shows, and which of its eight lines, is not ar
 line number but the chip's own display state: a bad line starts a row (the row counter resets and
 the row is fetched), the eighth line of a row advances the row pointer by 40 and drops the chip
 into idle state until the next bad line, and in idle state the display area shows the byte at
-`$3FFF` (`$39FF` with ECM) in black over the background colour. The vertical border compares are
+`$3FFF` (`$39FF` with ECM) in black over the background colour. The VIC-II keeps that state per
+line for the legacy pixel generator and the bus stalls; the sequencer pixel generator runs the
+chip's counters cycle by cycle after the VIC-II article's rules: the bad line condition (raster
+line $30-$F7, its low three bits equal to YSCROLL as it is in that cycle, DEN seen during line $30)
+is evaluated every cycle, cycle 14 loads the video counter and resets the row counter on a
+condition, a condition in any cycle puts the sequencer in display state and one in cycles 12-54
+starts the video matrix fetches, whose first three read $FF while the CPU still holds the bus, and
+cycle 58 ends a row after its eighth line unless a condition keeps the display going. That is what
+makes the DMA delay (a bad line condition created in the middle of a line shifts the screen right
+by a column per cycle), linecrunch, doubled rows and FLD come out as on hardware. The vertical border compares are
 checked in every cycle with the registers as they are then: the top compare (line 51, or 55 with
 RSEL clear) with DEN set clears the vertical border flip-flop at once, and the bottom compare (251
 or 247) arms a latch that the flip-flop takes over as the raster enters a line and at the display

@@ -45,6 +45,8 @@ public static class Vic2Addr
 
     public const ushort SPRITE_Y_EXPAND = 0xd017;
 
+    public const ushort LIGHT_PEN_X = 0xd013;
+    public const ushort LIGHT_PEN_Y = 0xd014;
     public const ushort MEMORY_SETUP = 0xd018;
 
     public const ushort VIC_IRQ = 0xd019;

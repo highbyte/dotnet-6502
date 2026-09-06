@@ -175,13 +175,16 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
     [Fact]
     public void Avoiding_bad_lines_pushes_the_rows_below_down()
     {
-        // YSCROLL kept one ahead of each line's low bits on raster 100-115: row 6 (started at 99)
-        // finishes at 106, then the chip idles until row 7 starts at 123 instead of 107.
+        // YSCROLL kept two ahead of each line's low bits on raster 100-115, written as each line
+        // begins: the value must match neither the line it is written on nor the next line's first
+        // cycle, where the previous value is still in force, since a bad line condition in any cycle
+        // puts the sequencer in display state (this is how FLD routines do it). Row 6 (started at
+        // 99) finishes at 106, then the chip idles until row 7 starts at 123 instead of 107.
         var c64 = BuildC64();
         SetupRowBoundaryMarkerTextScreen(c64);
         var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
-        var (_, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 100 and < 116 ? (byte)(0x18 | ((rasterLine + 1) & 7)) : (byte)0x1B);
+        var (_, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 100 and < 116 ? (byte)(0x18 | ((rasterLine + 2) & 7)) : (byte)0x1B);
 
         var width = c64.Screen.VisibleWidth;
         var x0 = normalizedLayout.Screen.Start.X;
@@ -736,6 +739,72 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         Assert.Equal(Rgb(c64, 2), background[block + 11]);
         Assert.Equal(Rgb(c64, 2), background[block + 12]);
         Assert.Equal(Rgb(c64, 5), foreground[block + 13]);
+    }
+
+    [Fact]
+    public void A_bad_line_condition_created_mid_line_starts_the_row_there_with_the_dma_delay()
+    {
+        // The DMA delay (VIC-II article 3.14.6): YSCROLL made to match in cycle 16 of an idle line
+        // in the display window. The c-accesses start in cycle 17 and the first three read $FF with
+        // the low nibble of the CPU's next opcode as colour; the g-access of cycle 17 is still idle,
+        // so columns 0 and 1 show idle output, columns 2-4 the $FF cells, and from column 5 on the
+        // row's codes (VC counts on from VCBASE, 80 after two rows) two columns right of where they
+        // belong.
+        var c64 = BuildC64();
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        for (var i = 0; i < 8; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 1 * 8 + i)] = 0xFF;    // code 1: solid
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 2 * 8 + i)] = 0x00;    // code 2: blank
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 255 * 8 + i)] = 0xF0;  // code $FF: half
+        }
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 1;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), 1);
+        }
+        c64.Vic2.Vic2Mem[0x0400 + 80 + 3] = 2;   // the row's fourth cell is blank: it shows in column 5
+        c64.Mem.Write(0xD011, 0x1B);
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        var width = c64.Screen.VisibleWidth;
+
+        // Rows 0 and 1 display normally (their bad lines at 51 and 59). YSCROLL 5, written as line 66
+        // begins (it matches neither 66 nor 67 at any cycle), keeps 67 from being row 2's bad line, so
+        // line 68 is idle; YSCROLL 4 (line 68 & 7) written in its cycle 16 makes a bad line of it.
+        var vic2 = c64.Vic2;
+        var visibleLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            if (rasterLine == 66)
+                c64.Mem.Write(0xD011, 0x1D);   // YSCROLL 5
+            if (rasterLine == 68)
+            {
+                vic2.AdvanceRaster(15);
+                c64.Mem.Write(0xD011, 0x1C);   // YSCROLL 4 in cycle 16 (counting from 1)
+                vic2.AdvanceRaster(cyclesPerLine - 15);
+            }
+            else
+            {
+                vic2.AdvanceRaster(cyclesPerLine);
+            }
+            generator.OnAfterInstruction();
+        }
+
+        var y = normalizedLayout.Screen.Start.Y + 68 - 51;   // the line the condition was created on
+        var x0 = normalizedLayout.Screen.Start.X;
+        uint Fg(int column, int pixel) => foreground[y * width + x0 + column * 8 + pixel];
+        var white = Rgb(c64, 1);
+        Assert.Equal(0u, Fg(1, 0));         // column 1: still an idle g-access, and $3FFF is blank
+        Assert.NotEqual(0u, Fg(2, 0));      // columns 2-4: the $FF glyph, half set
+        Assert.Equal(0u, Fg(2, 7));
+        Assert.NotEqual(0u, Fg(4, 0));
+        Assert.Equal(0u, Fg(4, 7));
+        Assert.Equal(0u, Fg(5, 0));         // column 5: the row's fourth code, the blank one: shifted two columns right
+        Assert.Equal(0u, Fg(5, 7));
+        Assert.Equal(white, Fg(6, 0));      // column 6: code 4, solid again
     }
 
     [Fact]

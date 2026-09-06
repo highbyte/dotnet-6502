@@ -28,6 +28,12 @@ A list of applications that seem to work decently with the [C64 emulator](overvi
 
 For advanced use, see [Useful tools](useful-tools.md) for how to extract PRG files from D64 disk images.
 
+## Demos and intros
+
+| Program | D/L URL | File | Comment |
+|---------|---------|------|---------|
+| Fairlight Intro (Golden Collection) | <https://csdb.dk/release/download.php?id=221432> | `flt-25.prg` | C64 PAL variant. Character mode with multicolour register changes every second line, per-line background colour bars, a mid-frame charset switch and a hires scroller, all timed by polling the raster register. |
+
 ## Online / modem-style software
 
 | Program | Media | SwiftLink requirement | Comment |

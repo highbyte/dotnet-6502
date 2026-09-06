@@ -48,6 +48,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         {"compunetreborn", new C64DownloadProgramInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.prg", downloadType: C64DownloadProgramType.Prg, availableInBrowser: true, c64Variant: "C64PAL", swiftLinkEnabled: true)},
         {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
+        {"fairlightintro", new C64DownloadProgramInfo("Fairlight Intro (Golden Collection)", "https://csdb.dk/release/download.php?id=221432", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true)},
         {"ghostngoblins", new C64DownloadProgramInfo("Ghosts 'n Goblins", "https://csdb.dk/release/download.php?id=120333", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,  directLoadPRGName: "*")},
         {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
         {"greenberet", new C64DownloadProgramInfo("Green Beret", "https://csdb.dk/release/download.php?id=157678", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true)},
@@ -945,6 +946,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.idle_graphics.prg", "IdleGraphics"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.side_border.prg", "SideBorder"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.line_splits.prg", "LineSplits"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.dma_delay.prg", "DmaDelay"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.row_stretch.prg", "RowStretch"));
         // Initialize basic examples
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
