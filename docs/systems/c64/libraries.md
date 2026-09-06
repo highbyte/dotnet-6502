@@ -75,9 +75,29 @@ falls in, with the registers as written before that cycle: the 38 column right c
 rules give on an ordinary line; a program that selects 38 columns with a write in cycle 56 misses
 both compares, and the display then runs to the frame's edges on that line and the left border of
 the next, with sprites visible there. The column select bit follows the register write journal at the
-cycle boundary after the write; XSCROLL and the mode bits are still sampled once per line. An
-opened border shows the sequencer's idle output, the byte at `$3FFF` in black over the background
-colour. Sprite X positions wrap at 512 as on the chip, so a sprite at X 496 sits in the left
+cycle boundary after the write. An opened border shows the sequencer's idle output, the byte at
+`$3FFF` in black over the background colour.
+
+The graphics themselves come from the chip's sequencer, followed pixel by pixel the way VICE models
+the 6569 and 6567R8. Each cycle's g-access (the chip's cycles 16-55, one per column) puts a byte into
+a two-stage pipeline, and the shift register takes it at the pixel XSCROLL selects in the cycle
+after that, together with the video matrix byte and colour nibble that belong to it; in idle state
+the byte comes from `$3FFF` (`$39FF` with ECM) with no matrix data, and outside those cycles the
+pipeline is fed zeros. XSCROLL, the mode bits and the memory pointers reach the sequencer through
+the register write journal, from the cycle after the write: XSCROLL moves the next load within its
+cycle (the old byte's zeros show until then), MCM takes effect four pixels into the cycle, ECM and
+BMM four pixels in when set and six when cleared, and the pointers apply to the next g-access. Each
+pixel's two bits select its colour source from the mode table (a background colour register, the
+matrix nibbles, the colour nibble, or black in the invalid modes) and its priority, and the line's
+pixels are resolved into the two layers when the line ends, with the background colour registers'
+values at each pixel. That is what makes mid-line mode, scroll and character set switches, and the
+opened-border and idle pictures of VICE's border and videomode tests, come out as on hardware. One
+limit remains: the rasterizer runs after each instruction, so a program that changes graphics
+memory in the very cycles the chip fetches it sees the change a few cycles early. The sequencer
+costs about a tenth more render time per frame than the generator it replaced, so that generator
+(8-pixel blocks, the display registers sampled once per line) is kept as the legacy pixel
+generator, selectable with the `Vic2RasterizerPixelGeneratorType` configuration option and in the
+hosts' C64 settings, for browsers and other hosts where that matters. It receives no new features. Sprite X positions wrap at 512 as on the chip, so a sprite at X 496 sits in the left
 border. Sprite DMA takes the bus one cycle later on the 6567R8 than on the 6569 (its sprite 0
 pointer fetch is in cycle 59 rather than 58), which is what a program timed by that hold sees.
 
