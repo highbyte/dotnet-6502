@@ -1119,6 +1119,36 @@ public class Vic2
     /// Advance the VIC-II to the cycle of the bus access the CPU is performing right now: every
     /// cycle before the current access has completed, the current one is in progress.
     /// </summary>
+    // --- Light pen (VIC-II article, 3.11). A negative edge on the LP input, which CIA 1's port B
+    // bit 4 drives, latches the raster beam's position: LPX the X coordinate at the end of the
+    // cycle the edge is in, halved (8 of the 9 bits), LPY the raster line's low 8 bits. Only the
+    // first edge in a frame counts; the trigger is released in the vertical blank. The edge can
+    // also raise the light pen interrupt, likewise once per frame.
+    private bool _lightPenTriggeredThisFrame;
+
+    /// <summary>
+    /// A negative edge on the LP input, from CIA 1 port B bit 4: latch the beam position of the
+    /// cycle of the access that caused it and raise the light pen interrupt, unless the frame has
+    /// already had its edge.
+    /// </summary>
+    internal void TriggerLightPen()
+    {
+        CatchUpToCurrentAccess();
+        if (_lightPenTriggeredThisFrame || _currentRasterLineInternal == ushort.MaxValue)
+            return;
+        _lightPenTriggeredThisFrame = true;
+
+        var cyclesIntoLine = (int)(CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine);   // the access's cycle
+        var linePixels = (int)Vic2Model.CyclesPerLine * 8;
+        var xAtCycleEnd = (Vic2Model.XCoordinateAtLineStart + (cyclesIntoLine + 1) * 8) % linePixels;
+        C64.WriteIOStorage(Vic2Addr.LIGHT_PEN_X, (byte)(xAtCycleEnd >> 1));
+        C64.WriteIOStorage(Vic2Addr.LIGHT_PEN_Y, (byte)_currentRasterLineInternal);
+
+        var source = IRQSource.LightPenTrigger;
+        if (!Vic2IRQ.IsTriggered(source))
+            Vic2IRQ.Trigger(source, C64.CPU, _advancedToBusCycle + 1);
+    }
+
     private void CatchUpToCurrentAccess()
     {
         var busCycles = C64.CPU.BusCycles;
@@ -1179,6 +1209,8 @@ public class Vic2
         do
         {
             line = line >= totalLines - 1 ? (ushort)0 : (ushort)(line + 1);   // MaxValue (unset) wraps to 0 too
+            if (line == 0)
+                _lightPenTriggeredThisFrame = false;   // the light pen trigger is released in the vertical blank
             _currentRasterLineInternal = line;
 
             // Date the line's start: it began `cyclesIntoLine` completed cycles ago, counted from the
