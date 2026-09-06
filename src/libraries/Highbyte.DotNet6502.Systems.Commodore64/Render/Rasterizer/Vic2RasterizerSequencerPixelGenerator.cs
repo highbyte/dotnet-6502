@@ -75,50 +75,60 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private ulong _cyclesPerLine;
     private int _colorChangePixelDelay;
 
-    // --- The graphics sequencer, pixel by pixel, as VICE models the 6569 and 6567R8.
+    // --- The graphics data sequencer, pixel by pixel.
+    // The VIC-II article (Christian Bauer, "The MOS 6567/6569 video controller (VIC-II) and its
+    // application in the Commodore 64", sections 3.7 and 3.8) describes the sequencer: the g-access
+    // of each cycle 16-55 fetches one byte, the sequencer shifts it out one bit (one pair of bits in
+    // multicolour) per pixel, the shift register is loaded at the pixel XSCROLL selects, the modes
+    // decide what colour each bit or pair stands for and which of them are foreground, and in idle
+    // state the byte comes from $3FFF ($39FF with ECM) with the matrix data read as zero. The output
+    // shows a byte two cycles after its g-access. Where in a cycle a register change reaches the
+    // output is not in the article; those points (the mode bits four pixels in, or six when a bit is
+    // cleared; the multicolour decoding a cycle after its colour selection; the colour of a set bit in
+    // a multicolour cell during that gap) are the chip's observed behaviour as established by the
+    // VICE project's viciisc emulation (vicii-draw-cycle.c) and its VICII test programs, whose
+    // reference pictures this generator is checked against. VICE is the reference, not the source.
+
     // The display registers as the sequencer sees them, through the register write journal: a
     // write is seen from the cycle after it lands.
     private byte _d011;   // ECM, BMM (and the vertical state's bits, used elsewhere)
     private byte _d016;   // MCM, CSEL, XSCROLL
     private byte _d018;   // video matrix, character set and bitmap pointers
-    // The data pipeline. A cycle's g-access puts its byte into stage 0; a cycle later it moves to
-    // stage 1; the shift register takes it at the pixel XSCROLL selects in the cycle after that,
-    // together with the video matrix byte and colour nibble that travel with it. So a byte fetched
-    // in cycle c is shown from cycle c+2, and an XSCROLL change moves the load within the cycle:
-    // the shift register keeps shifting the old byte (zeros once it is used up) until then.
-    private byte _gbufPipe0, _gbufPipe1, _gbufReg, _gbufPixel;
-    private byte _vbufPipe0, _vbufPipe1, _vbufReg;
-    private byte _cbufPipe0, _cbufPipe1, _cbufReg;
-    private byte _xscrollPipe;
-    // The mode bits as the sequencer has them: they change part way through a cycle (see
-    // DrawGraphicsCycle). Bits: ECM 0x10, BMM 0x08 (from $D011), MCM 0x04 (from $D016).
-    private byte _vmode11Pipe, _vmode16Pipe, _vmode16Pipe2;
-    private bool _gbufMcFlop;   // which half of a multicolour pixel pair is being shifted out
+
+    // What the last three cycles' g-accesses fetched, by cycle number modulo 3: the graphics byte and
+    // the matrix byte and colour nibble that belong to it. The shift register takes the entry fetched
+    // two cycles earlier.
+    private readonly byte[] _fetchedData = new byte[3];
+    private readonly byte[] _fetchedMatrix = new byte[3];
+    private readonly byte[] _fetchedColor = new byte[3];
+    private byte _loadPixel;   // the pixel within a cycle the shift register is loaded at (XSCROLL)
+
+    // The shift register and what it was loaded with.
+    private byte _shiftData;
+    private byte _shiftMatrix;
+    private byte _shiftColor;
+    private bool _pairSecondHalf;   // in multicolour the second pixel of a pair repeats the first
+    private byte _pixelValue;       // the value of the pixel being output: the bit twice, or the pair
+
+    // The modes as they stand at the output. ECM and BMM are held as a pair of bits that a change
+    // reaches four pixels into a cycle when set and six when cleared; the colour selection follows
+    // MCM four pixels in, the decoding into pairs a cycle later.
+    private const byte MODE_ECM = 0x04, MODE_BMM = 0x02, MODE_MCM = 0x01;
+    private byte _modeEcmBmm;      // MODE_ECM | MODE_BMM as they stand
+    private bool _colorMcm;        // MCM as the colour selection has it
+    private bool _decodeMcm;       // MCM as the decoding into pairs has it
     private const int FirstFetchCycle = 15;   // the g-access of column 0 (the chip's cycle 16)
 
     // The line's graphics, as colour codes, resolved into the two layers when the line ends: a
     // code below 16 is a colour, CODE_BG0 + n the background colour register n as it stands at
-    // that pixel, CODE_NONE no foreground pixel. What a pixel's colour comes from is the mode
-    // table below (VICE's draw_graphics), indexed by the mode bits and the pixel's two bits.
+    // that pixel, CODE_NONE no foreground pixel.
     private const byte CODE_BG0 = 16;
     private const byte CODE_NONE = 255;
-    private const byte COL_D021 = CODE_BG0, COL_D022 = CODE_BG0 + 1, COL_D023 = CODE_BG0 + 2;
-    private const byte COL_CBUF = 32, COL_CBUF_MC = 33, COL_VBUF_L = 34, COL_VBUF_H = 35, COL_D02X_EXT = 36, COL_NONE = 37;
-    private static readonly byte[] s_pixelColorSource =
-    {
-        COL_D021, COL_D021, COL_CBUF, COL_CBUF,             // ECM=0 BMM=0 MCM=0: standard text
-        COL_D021, COL_D022, COL_D023, COL_CBUF_MC,          // ECM=0 BMM=0 MCM=1: multicolour text
-        COL_VBUF_L, COL_VBUF_L, COL_VBUF_H, COL_VBUF_H,     // ECM=0 BMM=1 MCM=0: standard bitmap
-        COL_D021, COL_VBUF_H, COL_VBUF_L, COL_CBUF,         // ECM=0 BMM=1 MCM=1: multicolour bitmap
-        COL_D02X_EXT, COL_D02X_EXT, COL_CBUF, COL_CBUF,     // ECM=1 BMM=0 MCM=0: extended colour text
-        COL_NONE, COL_NONE, COL_NONE, COL_NONE,             // ECM=1 BMM=0 MCM=1: invalid, black
-        COL_NONE, COL_NONE, COL_NONE, COL_NONE,             // ECM=1 BMM=1 MCM=0: invalid, black
-        COL_NONE, COL_NONE, COL_NONE, COL_NONE,             // ECM=1 BMM=1 MCM=1: invalid, black
-    };
-    // The colour code for each of the four pixel values with the registers as they are now.
+    // The colour code for each of the four pixel values with the modes and the shift register's
+    // matrix byte and colour nibble as they are now.
     private readonly byte[] _colorCodes = new byte[4];
     private bool _colorCodesValid;
-    private int _colorCodesKey = -1;   // vmode, matrix byte and colour nibble the codes were made for
+    private int _colorCodesKey = -1;
     // Colour per code for a line without background colour writes (codes 0-15 and the four
     // registers), and per foreground code (CODE_NONE is transparent); rebuilt when a line is resolved.
     private readonly uint[] _bgCodeColor = new uint[CODE_BG0 + 4];
@@ -1162,123 +1172,123 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     // the window and 40 or more to its right; the clip in WriteToPixelArray keeps it to the span
     // that is open and inside the frame.
     /// <summary>
-    /// One cycle of the graphics sequencer (VICE's draw_graphics8 for the 6569 and 6567R8): eight
-    /// pixels from the shift register, then the pipeline moves on with the byte this cycle
-    /// fetches. Pixels are recorded as colour codes on the line's buffers, inside the border
-    /// flip-flop's clear span only, and resolved into the layers when the line ends.
+    /// One cycle of the graphics data sequencer: eight pixels shifted out, then the g-access of
+    /// this cycle stored for the output two cycles on. Pixels are recorded as colour codes on the
+    /// line's buffers, inside the border flip-flop's clear span only, and resolved into the layers
+    /// when the line ends.
     /// </summary>
     private void DrawGraphicsCycle(int cycle, int blockX, bool render)
     {
         var clipStart = Math.Max(_lineClearStartX, 0);
         var clipEnd = Math.Min(_lineClearEndX, _width);
         var draw = render && blockX + 8 > clipStart && blockX < clipEnd;
-        var vmode11 = (byte)((_d011 & 0x60) >> 2);
-        var vmode16 = (byte)((_d016 & 0x10) >> 2);
-        var modeStable = _vmode11Pipe == vmode11 && _vmode16Pipe == vmode16 && _vmode16Pipe2 == vmode16;
+        var newEcmBmm = (byte)(((_d011 & 0x40) != 0 ? MODE_ECM : 0) | ((_d011 & 0x20) != 0 ? MODE_BMM : 0));
+        var newMcm = (_d016 & 0x10) != 0;
+        var modeStable = _modeEcmBmm == newEcmBmm && _colorMcm == newMcm && _decodeMcm == newMcm;
+        var loadSlot = (cycle + 1) % 3;   // the entry fetched two cycles ago: (cycle - 2) mod 3
 
-        if (!draw && modeStable && _gbufPipe1 == 0 && _gbufReg == 0 && _gbufPixel == 0)
+        if (!draw && modeStable && _fetchedData[loadSlot] == 0 && _shiftData == 0 && _pixelValue == 0)
         {
             // Nothing to show and nothing in the shift register (the border, or a line the vertical
-            // flip-flop covers): the cycle only takes the empty next stage and settles the pair phase.
-            _vbufReg = _vbufPipe1;
-            _cbufReg = _cbufPipe1;
-            _gbufMcFlop = ((8 - _xscrollPipe) & 1) == 0;
+            // flip-flop covers): the cycle only takes the empty entry and settles the pair phase.
+            _shiftMatrix = _fetchedMatrix[loadSlot];
+            _shiftColor = _fetchedColor[loadSlot];
+            _pairSecondHalf = ((8 - _loadPixel) & 1) != 0;
         }
-        else if (draw && modeStable && _xscrollPipe == 0 && blockX >= clipStart && blockX + 8 <= clipEnd)
+        else if (draw && modeStable && _loadPixel == 0 && blockX >= clipStart && blockX + 8 <= clipEnd)
         {
-            // The steady state: the byte is taken at pixel 0, the mode does not change and the whole
+            // The steady state: the byte is taken at pixel 0, the modes do not change and the whole
             // block shows. Decoded without the per-pixel bookkeeping of the general case below.
-            _vbufReg = _vbufPipe1;
-            _cbufReg = _cbufPipe1;
-            var data = _gbufPipe1;
-            var multicolorCell = (_vmode11Pipe & 0x08) != 0 || (_cbufReg & 0x08) != 0;
-            ComputeColorCodes();
-            byte px = 0;
+            _shiftMatrix = _fetchedMatrix[loadSlot];
+            _shiftColor = _fetchedColor[loadSlot];
+            var data = _fetchedData[loadSlot];
+            var multicolorCell = (_modeEcmBmm & MODE_BMM) != 0 || (_shiftColor & 0x08) != 0;
+            ResolveColorCodes();
+            byte value = 0;
             if (data == 0)
             {
                 // A blank byte (most of a text screen): every pixel is value 0, background priority.
                 Array.Fill(_lineFgCodes, CODE_NONE, blockX, 8);
                 Array.Fill(_lineBgCodes, _colorCodes[0], blockX, 8);
             }
-            else if (_vmode16Pipe2 != 0 && multicolorCell)
+            else if (_decodeMcm && multicolorCell)
             {
                 for (var i = 0; i < 8; i += 2)
                 {
-                    px = (byte)((data >> (6 - i)) & 3);
-                    WritePixelCode(blockX + i, px);
-                    WritePixelCode(blockX + i + 1, px);
+                    value = (byte)((data >> (6 - i)) & 3);
+                    WritePixelCode(blockX + i, value);
+                    WritePixelCode(blockX + i + 1, value);
                 }
             }
             else
             {
-                var setValue = (byte)(_vmode16Pipe2 == 0 && multicolorCell ? 2 : 3);
                 for (var i = 0; i < 8; i++)
                 {
-                    px = (data & (0x80 >> i)) != 0 ? setValue : (byte)0;
-                    WritePixelCode(blockX + i, px);
+                    value = (data & (0x80 >> i)) != 0 ? (byte)3 : (byte)0;
+                    WritePixelCode(blockX + i, value);
                 }
             }
-            _gbufReg = 0;
-            _gbufPixel = px;
-            _gbufMcFlop = true;
+            _shiftData = 0;
+            _pixelValue = value;
+            _pairSecondHalf = false;
         }
         else
         {
             for (var i = 0; i < 8; i++)
             {
-                // The mode bits reach the sequencer part way through the cycle: MCM at pixel 4; ECM and
-                // BMM at pixel 4 when set and pixel 6 when cleared (the chips' colour latency). MCM
-                // switched on restarts the pixel pair phase at pixel 7.
+                // A register change reaches the output part way through the cycle: MCM's colour
+                // selection at pixel 4, ECM and BMM at pixel 4 when set and pixel 6 when cleared.
+                // The decoding into pairs follows MCM a cycle later, at pixel 7, and MCM switched on
+                // starts the pairs afresh from the next pixel.
                 if (i == 4)
                 {
-                    _vmode16Pipe = vmode16;
-                    _vmode11Pipe |= vmode11;
+                    _colorMcm = newMcm;
+                    _modeEcmBmm |= newEcmBmm;
                     _colorCodesValid = false;
                 }
                 else if (i == 6)
                 {
-                    _vmode11Pipe &= vmode11;
+                    _modeEcmBmm &= newEcmBmm;
                     _colorCodesValid = false;
                 }
                 else if (i == 7)
                 {
-                    if (_vmode16Pipe != 0 && _vmode16Pipe2 == 0)
-                        _gbufMcFlop = false;
-                    _vmode16Pipe2 = _vmode16Pipe;
+                    if (_colorMcm && !_decodeMcm)
+                        _pairSecondHalf = true;
+                    _decodeMcm = _colorMcm;
                 }
 
-                // The shift register takes the next byte at the pixel XSCROLL selects.
-                if (i == _xscrollPipe)
+                // The shift register is loaded at the pixel XSCROLL selects.
+                if (i == _loadPixel)
                 {
-                    _vbufReg = _vbufPipe1;
-                    _cbufReg = _cbufPipe1;
-                    _gbufReg = _gbufPipe1;
-                    _gbufMcFlop = true;
+                    _shiftData = _fetchedData[loadSlot];
+                    _shiftMatrix = _fetchedMatrix[loadSlot];
+                    _shiftColor = _fetchedColor[loadSlot];
+                    _pairSecondHalf = false;
                     _colorCodesValid = false;
                 }
 
-                // Two bits per pixel: a pair in multicolour (with BMM, or a colour nibble with bit 3 set),
-                // else the bit twice (2 in a hires cell of a multicolour-capable mode, so the $D023
-                // glitch at an MCM switch comes out as on the chip).
-                var multicolorCell = (_vmode11Pipe & 0x08) != 0 || (_cbufReg & 0x08) != 0;
-                if (_vmode16Pipe2 != 0)
+                // The pixel's value: in a multicolour cell (BMM, or a colour nibble with bit 3 set)
+                // being decoded as pairs, the top two bits, held for the pair's second pixel; else
+                // the top bit as 3 or 0. A set bit in a multicolour cell while the colour selection
+                // is already multicolour but the decoding is not yet shows as value 2 (the chip's
+                // $D023 flash at an MCM switch).
+                var multicolorCell = (_modeEcmBmm & MODE_BMM) != 0 || (_shiftColor & 0x08) != 0;
+                if (_decodeMcm && multicolorCell)
                 {
-                    if (multicolorCell)
-                    {
-                        if (_gbufMcFlop)
-                            _gbufPixel = (byte)(_gbufReg >> 6);
-                    }
-                    else
-                    {
-                        _gbufPixel = (byte)((_gbufReg & 0x80) != 0 ? 3 : 0);
-                    }
+                    if (!_pairSecondHalf)
+                        _pixelValue = (byte)(_shiftData >> 6);
+                }
+                else if ((_shiftData & 0x80) == 0)
+                {
+                    _pixelValue = 0;
                 }
                 else
                 {
-                    _gbufPixel = (byte)((_gbufReg & 0x80) != 0 ? (multicolorCell ? 2 : 3) : 0);
+                    _pixelValue = _colorMcm && multicolorCell ? (byte)2 : (byte)3;
                 }
-                _gbufReg <<= 1;
-                _gbufMcFlop = !_gbufMcFlop;
+                _shiftData <<= 1;
+                _pairSecondHalf = !_pairSecondHalf;
 
                 if (!draw)
                     continue;
@@ -1286,78 +1296,119 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 if (x < clipStart || x >= clipEnd)
                     continue;
                 if (!_colorCodesValid)
-                    ComputeColorCodes();
-                WritePixelCode(x, _gbufPixel);
+                    ResolveColorCodes();
+                WritePixelCode(x, _pixelValue);
             }
         }
 
-        // The pipeline moves on. The g-accesses are the chip's cycles 16-55 (column 0-39) on a line
-        // the vertical border flip-flop leaves open: a row's data in display state, the byte at the
-        // end of the bank ($39FF with ECM) with no matrix data in idle state. Outside them the
-        // sequencer is fed zeros, and the matrix data stays as it is.
-        _vbufPipe1 = _vbufPipe0;
-        _cbufPipe1 = _cbufPipe0;
-        _gbufPipe1 = _gbufPipe0;
+        // This cycle's g-access, for the output two cycles on. The g-accesses are the chip's cycles
+        // 16-55 (column 0-39) on a line the vertical border flip-flop leaves open: a row's data in
+        // display state, the byte at the end of the bank ($39FF with ECM) with no matrix data in idle
+        // state. Outside them the sequencer is fed zeros, and the matrix data stays as it is.
+        var fetchSlot = cycle % 3;
         var column = cycle - FirstFetchCycle;
         if (column >= 0 && column < _vic2ScreenTextCols && !_lineVerticalBorder)
         {
-            _xscrollPipe = (byte)(_d016 & 0x07);
+            _loadPixel = (byte)(_d016 & 0x07);
             if (_lineDisplayState)
             {
-                FetchColumn(column);
+                FetchColumn(column, fetchSlot);
             }
             else
             {
-                _vbufPipe0 = 0;
-                _cbufPipe0 = 0;
-                _gbufPipe0 = _c64.Vic2.ReadMemory((ushort)((_d011 & 0x40) != 0 ? 0x39FF : 0x3FFF));
+                _fetchedMatrix[fetchSlot] = 0;
+                _fetchedColor[fetchSlot] = 0;
+                _fetchedData[fetchSlot] = _c64.Vic2.ReadMemory((ushort)((_d011 & 0x40) != 0 ? 0x39FF : 0x3FFF));
             }
         }
         else
         {
-            _gbufPipe0 = 0;
+            _fetchedData[fetchSlot] = 0;
+            _fetchedMatrix[fetchSlot] = _fetchedMatrix[(cycle + 2) % 3];
+            _fetchedColor[fetchSlot] = _fetchedColor[(cycle + 2) % 3];
         }
     }
 
-    // The colour codes of the four pixel values: what the mode table says the pixel's colour comes
-    // from, made concrete with the matrix byte and colour nibble in the shift register.
-    private void ComputeColorCodes()
+    // The colour codes of the four pixel values, from the article's mode tables (3.7.3): what a bit
+    // or a pair stands for in each mode, with the matrix byte and colour nibble in the shift register.
+    // Values 2 and 3 are foreground pixels in every mode (3.8.5); value 2 only occurs as a pair, or
+    // as the flash at an MCM switch. The invalid modes (ECM with BMM or MCM) show black.
+    private void ResolveColorCodes()
     {
-        var vmode = _vmode11Pipe | _vmode16Pipe;
-        var key = (vmode << 16) | (_vbufReg << 8) | _cbufReg;
+        var key = (_modeEcmBmm << 17) | (_colorMcm ? 1 << 16 : 0) | (_shiftMatrix << 8) | _shiftColor;
         if (key == _colorCodesKey)
         {
             _colorCodesValid = true;
             return;
         }
         _colorCodesKey = key;
-        for (var px = 0; px < 4; px++)
+        var matrix = _shiftMatrix;
+        var color = _shiftColor;
+        byte c0, c1, c2, c3;
+        switch (_modeEcmBmm)
         {
-            var source = s_pixelColorSource[vmode | px];
-            _colorCodes[px] = source switch
-            {
-                COL_NONE => (byte)0,
-                COL_VBUF_L => (byte)(_vbufReg & 0x0F),
-                COL_VBUF_H => (byte)(_vbufReg >> 4),
-                COL_CBUF => _cbufReg,
-                COL_CBUF_MC => (byte)(_cbufReg & 0x07),
-                COL_D02X_EXT => (byte)(CODE_BG0 + (_vbufReg >> 6)),
-                _ => source,
-            };
+            case 0:   // text
+                if (_colorMcm)
+                {
+                    // Multicolour text: pairs 00, 01, 10 the background colours 0-2, 11 the colour
+                    // nibble's low three bits; a hires cell (bit 3 clear) shows those bits for its
+                    // set bits. Value 2 is background colour 2 either way.
+                    c0 = CODE_BG0;
+                    c1 = CODE_BG0 + 1;
+                    c2 = CODE_BG0 + 2;
+                    c3 = (byte)(color & 0x07);
+                }
+                else
+                {
+                    // Standard text: a clear bit background colour 0, a set bit the colour nibble.
+                    c0 = c1 = CODE_BG0;
+                    c2 = c3 = color;
+                }
+                break;
+            case MODE_BMM:
+                if (_colorMcm)
+                {
+                    // Multicolour bitmap: 00 background colour 0, 01 the matrix byte's high nibble,
+                    // 10 its low nibble, 11 the colour nibble.
+                    c0 = CODE_BG0;
+                    c1 = (byte)(matrix >> 4);
+                    c2 = (byte)(matrix & 0x0F);
+                    c3 = color;
+                }
+                else
+                {
+                    // Standard bitmap: a clear bit the low nibble, a set bit the high nibble.
+                    c0 = c1 = (byte)(matrix & 0x0F);
+                    c2 = c3 = (byte)(matrix >> 4);
+                }
+                break;
+            case MODE_ECM when !_colorMcm:
+                // Extended colour text: a clear bit background colour 0-3 by the matrix byte's top
+                // two bits, a set bit the colour nibble.
+                c0 = c1 = (byte)(CODE_BG0 + (matrix >> 6));
+                c2 = c3 = color;
+                break;
+            default:
+                c0 = c1 = c2 = c3 = 0;
+                break;
         }
+        _colorCodes[0] = c0;
+        _colorCodes[1] = c1;
+        _colorCodes[2] = c2;
+        _colorCodes[3] = c3;
         _colorCodesValid = true;
     }
 
-    // Record a pixel on the line's code buffers. Bit 1 of the pixel value is its priority: set means
-    // a foreground pixel, which sprites with the priority bit set go behind.
+    // Record a pixel on the line's code buffers. Values 2 and 3 are foreground pixels, which
+    // sprites with the priority bit set go behind.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WritePixelCode(int x, byte px)
+    private void WritePixelCode(int x, byte value)
     {
-        var code = _colorCodes[px];
-        if ((px & 2) != 0)
+        var code = _colorCodes[value];
+        if ((value & 2) != 0)
         {
             _lineFgCodes[x] = code;
-            _lineBgCodes[x] = COL_D021;
+            _lineBgCodes[x] = CODE_BG0;
         }
         else
         {
@@ -1374,7 +1425,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// and colour RAM, filling the latch on the way. The graphics byte comes from the bitmap or
     /// the character set the memory pointers select now.
     /// </summary>
-    private void FetchColumn(int column)
+    private void FetchColumn(int column, int slot)
     {
         var characterLine = _lineRowCounter;
         var videoCounter = (_lineVideoCounterBase + column) & 0x3FF;
@@ -1403,21 +1454,21 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             if (_fetchedColumnsMask == (1UL << _vic2ScreenTextCols) - 1)
                 _latchedCharacterRow = characterRow;   // every column read live: the row is fetched
         }
-        _vbufPipe0 = screenCode;
-        _cbufPipe0 = colorNibble;
+        _fetchedMatrix[slot] = screenCode;
+        _fetchedColor[slot] = colorNibble;
 
         if ((_d011 & 0x20) != 0)
         {
             // BMM: the bitmap, eight bytes per cell.
             var bitmapBase = (_d018 & 0x08) << 10;
-            _gbufPipe0 = _c64.Vic2.ReadMemory((ushort)(bitmapBase + videoCounter * 8 + characterLine));
+            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(bitmapBase + videoCounter * 8 + characterLine));
         }
         else
         {
             // The character set; with ECM only the low six bits of the screen code select the shape.
             var characterSetBase = (_d018 & 0x0E) << 10;
             var shape = (_d011 & 0x40) != 0 ? screenCode & 0x3F : screenCode;
-            _gbufPipe0 = _c64.Vic2.ReadMemory((ushort)(characterSetBase + shape * _vic2ScreenCharacterHeight + characterLine));
+            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(characterSetBase + shape * _vic2ScreenCharacterHeight + characterLine));
         }
     }
 

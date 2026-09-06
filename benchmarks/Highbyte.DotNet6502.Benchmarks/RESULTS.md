@@ -373,7 +373,7 @@ Observations that matter for the cycle work:
 
 The rasterizer's per-column block drawing (precomputed 8-pixel arrays, XSCROLL, mode bits and
 `$D018` sampled once per line) is replaced by the chip's graphics sequencer followed pixel by
-pixel, as VICE models it: a two-stage data pipeline fed by each cycle's g-access, a shift register
+pixel, after the VIC-II article with VICE's timings as the reference: a two-stage data pipeline fed by each cycle's g-access, a shift register
 loaded at the XSCROLL pixel, the mode bits taking effect part way through a cycle, and the pixels
 recorded as colour codes that are resolved into the two layers when the line ends. The cost is per
 cycle rather than per column, so it is measured with the display off (the benchmark's own scenario,

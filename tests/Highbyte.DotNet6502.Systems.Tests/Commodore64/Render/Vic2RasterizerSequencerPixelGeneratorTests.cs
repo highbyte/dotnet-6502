@@ -682,6 +682,63 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
     }
 
     [Fact]
+    public void Xscroll_written_mid_line_in_multicolour_keeps_the_pair_phase_across_the_cycle_boundary()
+    {
+        // Multicolour text, every cell the byte %01101100 (pairs 01, 10, 11, 00) in a cell whose
+        // colour nibble has bit 3 set. XSCROLL 3 written in cycle 30 moves the load in cycle 32 to
+        // pixel 3: pixels 0-2 of that block are the zeros shifting out of the used-up byte, the new
+        // byte's pairs then run 3-4, 5-6, 7-8 and 9-10, so the "11" pair straddles the boundary into
+        // cycle 33's block, and the load at pixel 3 of that block starts the next byte.
+        var c64 = BuildC64();
+        c64.Mem.Write(0xD016, 0xC8 | 0x10);
+        c64.Mem.Write(0xD018, 0x18);
+        for (var i = 0; i < 8; i++)
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 8 + i)] = 0b01101100;
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 1;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), 9);   // multicolour cell, colour 1
+        }
+        c64.Mem.Write(0xD021, 6);
+        c64.Mem.Write(0xD022, 2);
+        c64.Mem.Write(0xD023, 5);
+        c64.Mem.Write(0xD011, 0x1B);
+        var (generator, background, foreground) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = normalizedLayout.Screen.Start.Y + 5;
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle: 30, () => c64.Mem.Write(0xD016, 0xC8 | 0x10 | 3));
+
+        var width = c64.Screen.VisibleWidth;
+        var block = normalizedLine * width + normalizedLayout.Screen.Start.X + (32 - 17) * 8;   // cycle 32's pixels
+        // The previous byte's last pair (00) ends the block before; then the zeros shifting out.
+        Assert.Equal(0u, foreground[block - 1]);
+        Assert.Equal(Rgb(c64, 6), background[block - 1]);
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.Equal(0u, foreground[block + i]);
+            Assert.Equal(Rgb(c64, 6), background[block + i]);
+        }
+        // 01: background colour 1, background priority.
+        Assert.Equal(0u, foreground[block + 3]);
+        Assert.Equal(Rgb(c64, 2), background[block + 3]);
+        Assert.Equal(Rgb(c64, 2), background[block + 4]);
+        // 10: background colour 2, foreground priority.
+        Assert.Equal(Rgb(c64, 5), foreground[block + 5]);
+        Assert.Equal(Rgb(c64, 5), foreground[block + 6]);
+        // 11: the colour nibble's low bits, the pair held across the cycle boundary.
+        Assert.Equal(Rgb(c64, 1), foreground[block + 7]);
+        Assert.Equal(Rgb(c64, 1), foreground[block + 8]);
+        // 00, then the next byte's first pair from the load at pixel 3 of the next block.
+        Assert.Equal(0u, foreground[block + 9]);
+        Assert.Equal(Rgb(c64, 6), background[block + 9]);
+        Assert.Equal(Rgb(c64, 6), background[block + 10]);
+        Assert.Equal(Rgb(c64, 2), background[block + 11]);
+        Assert.Equal(Rgb(c64, 2), background[block + 12]);
+        Assert.Equal(Rgb(c64, 5), foreground[block + 13]);
+    }
+
+    [Fact]
     public void Multicolour_written_mid_line_takes_effect_four_pixels_into_the_next_cycle()
     {
         // MCM reaches the sequencer at pixel 4 of the cycle after the write. Until pixel 7 the pixels

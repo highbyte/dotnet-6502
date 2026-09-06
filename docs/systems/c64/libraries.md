@@ -78,8 +78,10 @@ the next, with sprites visible there. The column select bit follows the register
 cycle boundary after the write. An opened border shows the sequencer's idle output, the byte at
 `$3FFF` in black over the background colour.
 
-The graphics themselves come from the chip's sequencer, followed pixel by pixel the way VICE models
-the 6569 and 6567R8. Each cycle's g-access (the chip's cycles 16-55, one per column) puts a byte into
+The graphics themselves come from the chip's graphics data sequencer, followed pixel by pixel as
+the VIC-II article describes it, with the points within a cycle at which register changes reach the
+output taken from the VICE project's emulation and test programs, which the result is checked
+against. Each cycle's g-access (the chip's cycles 16-55, one per column) puts a byte into
 a two-stage pipeline, and the shift register takes it at the pixel XSCROLL selects in the cycle
 after that, together with the video matrix byte and colour nibble that belong to it; in idle state
 the byte comes from `$3FFF` (`$39FF` with ECM) with no matrix data, and outside those cycles the
