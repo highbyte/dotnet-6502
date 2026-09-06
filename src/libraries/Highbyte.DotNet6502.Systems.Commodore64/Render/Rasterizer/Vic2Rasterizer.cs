@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Utils;
@@ -68,9 +69,12 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         }
     }
 
-    private readonly Vic2RasterizerUintPixelGenerator _pixelGenerator;
+    private readonly IVic2RasterizerPixelGenerator _pixelGenerator;
 
-    public Vic2Rasterizer(C64 c64, bool useDoubleBuffering = true, bool perLineSprites = false)
+    /// <summary>The pixel generator this rasterizer draws with (see <see cref="Vic2PixelGeneratorType"/>).</summary>
+    public Vic2PixelGeneratorType PixelGeneratorType { get; }
+
+    public Vic2Rasterizer(C64 c64, bool useDoubleBuffering = true, bool perLineSprites = false, Vic2PixelGeneratorType pixelGeneratorType = Vic2PixelGeneratorType.Sequencer)
     {
         var width = c64.Screen.VisibleWidth;
         var height = c64.Screen.VisibleHeight;
@@ -93,14 +97,12 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
             _frontForeground.AsMemory()
         };
 
-        _pixelGenerator = new Vic2RasterizerUintPixelGenerator(
-            _c64,
-            SetPixel,
-            SetBackgroundPixels,
-            ClearBackgroundPixels,
-            SetForegroundPixels,
-            ClearForegroundPixels,
-            perLineSprites);
+        // The sequencer follows the chip pixel by pixel; the legacy generator draws by 8-pixel
+        // blocks with the display registers sampled once per line, faster and kept as a fallback.
+        PixelGeneratorType = pixelGeneratorType;
+        _pixelGenerator = pixelGeneratorType == Vic2PixelGeneratorType.Legacy
+            ? new Vic2RasterizerUintPixelGenerator(_c64, SetPixel, SetBackgroundPixels, ClearBackgroundPixels, SetForegroundPixels, ClearForegroundPixels, perLineSprites)
+            : new Vic2RasterizerSequencerPixelGenerator(_c64, SetPixel, SetBackgroundPixels, ClearBackgroundPixels, SetForegroundPixels, ClearForegroundPixels, perLineSprites);
     }
 
     #region C64 emulator integration points

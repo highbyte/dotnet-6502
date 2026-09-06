@@ -1,0 +1,1043 @@
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.Render;
+
+public class Vic2RasterizerSequencerPixelGeneratorTests
+{
+    [Fact]
+    public void DrawSprites_renders_double_width_sprite_at_double_horizontal_span()
+    {
+        var c64 = BuildC64();
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: true, doubleHeight: false, CreateSingleRowSprite(0b1111_0000), spritePointer: 192);
+        var foreground = RenderSprites(c64);
+
+        var (_, startX, endX) = GetFirstRenderedSpan(foreground, c64.Screen.VisibleWidth);
+
+        Assert.Equal(8, endX - startX + 1);
+    }
+
+    [Fact]
+    public void DrawSprites_does_not_expand_width_for_double_height_only_sprite()
+    {
+        var c64 = BuildC64();
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: true, CreateSingleRowSprite(0b1111_0000), spritePointer: 192);
+        var foreground = RenderSprites(c64);
+
+        var (_, startX, endX) = GetFirstRenderedSpan(foreground, c64.Screen.VisibleWidth);
+
+        Assert.Equal(4, endX - startX + 1);
+    }
+
+    [Fact]
+    public void DrawSprites_preserves_y_position_after_empty_leading_rows()
+    {
+        var c64 = BuildC64();
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0b1111_0000, rowIndex: 2), spritePointer: 192);
+        var foreground = RenderSprites(c64);
+        var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (row, _, _) = GetFirstRenderedSpan(foreground, c64.Screen.VisibleWidth);
+
+        Assert.Equal(visibleMainScreenArea.Screen.Start.Y + 2, row);
+    }
+
+    [Fact]
+    public void DrawSprites_clips_right_edge_to_38_column_border()
+    {
+        var c64 = BuildC64();
+        var normalLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var col38Layout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: true);
+        var spriteScreenX = col38Layout.RightBorder.Start.X - 4;
+        var spriteX = c64.Vic2.SpriteManager.ScreenOffsetX + spriteScreenX - normalLayout.Screen.Start.X;
+        SetAllScreenLinesToColumnMode(c64, colMode40: false);
+        c64.Mem.Write(0xD016, 0xC0);   // 38 columns: the border unit's compare points move in
+        c64.Mem.Write(0xD011, 0x1B);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192, x: spriteX);
+
+        // The clip comes from the border unit as the raster runs the line, so render a frame.
+        var (generator, _, foreground) = CreateGenerator(c64);
+        for (var rasterLine = 0; rasterLine < c64.Vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
+            generator.OnAfterInstruction();
+        }
+        generator.OnEndFrame();
+
+        var (_, startX, endX) = GetFirstRenderedSpan(foreground, c64.Screen.VisibleWidth);
+        Assert.Equal(spriteScreenX, startX);
+        Assert.Equal(col38Layout.RightBorder.Start.X - 1, endX);
+    }
+
+    [Fact]
+    public void DrawText_resumes_the_interrupted_row_after_an_invalid_band_and_starts_the_next_row_on_its_bad_line()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        // Invalid mode (ECM+BMM) on draw lines 100-115 (raster 151-166) with YSCROLL 3; then YSCROLL 5.
+        var (_, foreground) = RenderFrame(c64, rasterLine =>
+        {
+            var drawLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine) - visibleLayout.Screen.Start.Y;
+            if (drawLine < 100)
+                return 0x1B;
+            if (drawLine < 116)
+                return 0x7B;
+            return 0x1D;
+        });
+
+        // Bad lines do not care about the mode, so rows keep starting inside the band (row 14 at
+        // raster 163, draw line 112) and the band shows black. When the mode becomes valid again on
+        // draw line 116, row 14 is on its 5th line and finishes on lines 116-119 with its glyph
+        // lines 4-7 (a sparse pattern: set at the cell's first and last pixel, clear inside). The
+        // chip then idles until the first bad line of the new YSCROLL, raster 173 (173 & 7 == 5),
+        // draw line 122, where row 15 starts with its solid glyph line 0.
+        var width = c64.Screen.VisibleWidth;
+        var x0 = normalizedLayout.Screen.Start.X;
+        int Y(int drawLine) => normalizedLayout.Screen.Start.Y + drawLine;
+        for (var drawLine = 100; drawLine < 116; drawLine++)
+            for (var x = x0; x <= normalizedLayout.Screen.End.X; x++)
+                Assert.Equal(0u, foreground[Y(drawLine) * width + x]);
+        for (var drawLine = 116; drawLine < 120; drawLine++)
+        {
+            Assert.NotEqual(0u, foreground[Y(drawLine) * width + x0]);
+            Assert.Equal(0u, foreground[Y(drawLine) * width + x0 + 3]);
+        }
+        for (var drawLine = 120; drawLine < 122; drawLine++)
+            for (var x = x0; x < x0 + 8; x++)
+                Assert.Equal(0u, foreground[Y(drawLine) * width + x]);
+        for (var x = x0; x < x0 + 8; x++)
+            Assert.NotEqual(0u, foreground[Y(122) * width + x]);
+    }
+
+    [Fact]
+    public void Display_switched_off_shows_the_border_colour_across_the_screen()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD020, 2);
+        c64.Mem.Write(0xD021, 6);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (background, foreground) = RenderFrame(c64, _ => 0x0B);   // DEN clear all frame
+
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 100;
+        var xMid = normalizedLayout.Screen.Start.X + 100;
+        Assert.Equal(background[y * width + 5], background[y * width + xMid]);   // same as the left border
+        Assert.Equal(0u, foreground[y * width + xMid]);                          // and no glyphs
+    }
+
+    [Fact]
+    public void Display_off_only_during_line_48_shows_idle_output_with_the_border_open()
+    {
+        // No bad line can occur this frame, so nothing is fetched: the display area shows the
+        // background colour (the idle byte at $3FFF is 0) and no glyphs. The border still opens,
+        // since DEN is set again when the raster reaches the top compare line.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD020, 2);
+        c64.Mem.Write(0xD021, 6);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (background, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 40 and <= 48 ? (byte)0x0B : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 100;
+        var xMid = normalizedLayout.Screen.Start.X + 100;
+        Assert.NotEqual(background[y * width + 5], background[y * width + xMid]);   // not border colour
+        for (var x = normalizedLayout.Screen.Start.X; x <= normalizedLayout.Screen.End.X; x++)
+            Assert.Equal(0u, foreground[y * width + x]);
+    }
+
+    [Fact]
+    public void Idle_output_shows_the_byte_at_the_end_of_the_bank_in_black()
+    {
+        // With $3FFF set, idle lines show its bit pattern (here every pixel of the cell) in black.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Vic2.Vic2Mem[0x3FFF] = 0xFF;
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (_, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 40 and <= 48 ? (byte)0x0B : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 100;
+        var pixel = foreground[y * width + normalizedLayout.Screen.Start.X + 100];
+        Assert.NotEqual(0u, pixel);                       // drawn on the foreground
+        Assert.Equal(0u, pixel & 0x00FFFFFF);             // and black
+    }
+
+    [Fact]
+    public void Avoiding_bad_lines_pushes_the_rows_below_down()
+    {
+        // YSCROLL kept one ahead of each line's low bits on raster 100-115: row 6 (started at 99)
+        // finishes at 106, then the chip idles until row 7 starts at 123 instead of 107.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (_, foreground) = RenderFrame(c64, rasterLine => rasterLine is >= 100 and < 116 ? (byte)(0x18 | ((rasterLine + 1) & 7)) : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var x0 = normalizedLayout.Screen.Start.X;
+        int Y(int rasterLine) => normalizedLayout.Screen.Start.Y + rasterLine - 51;
+        Assert.NotEqual(0u, foreground[Y(99) * width + x0 + 3]);          // row 6 line 0: solid
+        for (var rasterLine = 107; rasterLine < 123; rasterLine++)          // idle: nothing drawn
+            for (var x = x0; x < x0 + 8; x++)
+                Assert.Equal(0u, foreground[Y(rasterLine) * width + x]);
+        for (var x = x0; x < x0 + 8; x++)                                   // row 7 line 0 at 123
+            Assert.NotEqual(0u, foreground[Y(123) * width + x]);
+    }
+
+    [Fact]
+    public void Keeping_the_border_open_shows_the_background_colour_below_the_screen()
+    {
+        // With 24 rows selected before line 251 begins and kept through its left edge, neither 247
+        // nor 251 matches the bottom compare value when the chip checks it, so the vertical border
+        // flip-flop never sets: the bottom border area shows idle output (the background colour)
+        // between the side borders. (The switch has to be in effect as line 251 begins: the chip
+        // evaluates the compare then, and a write in the line's first cycles is already too late.)
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD020, 2);
+        c64.Mem.Write(0xD021, 6);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        var (background, _) = RenderFrame(c64, rasterLine => rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
+
+        var width = c64.Screen.VisibleWidth;
+        var yScreen = normalizedLayout.Screen.Start.Y + 100;
+        var yBelow = normalizedLayout.Screen.End.Y + 10;
+        var xMid = normalizedLayout.Screen.Start.X + 100;
+        Assert.Equal(background[yScreen * width + xMid], background[yBelow * width + xMid]);   // background colour
+        Assert.NotEqual(background[yBelow * width + 5], background[yBelow * width + xMid]);   // side border still border
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_sprite_in_the_bottom_border_shows_only_while_the_border_is_kept_open(bool perLineSprites)
+    {
+        // Sprites are covered by the vertical border, so a sprite placed below the display area is
+        // not shown in a normal frame. When the bottom compare line is missed (24 rows for line 251
+        // only) the flip-flop stays clear and the sprite is drawn in what was the bottom border.
+        const int spriteY = 255;   // raster lines 256-276, all in the bottom border
+        uint[] Render(bool openBorder)
+        {
+            var c64 = BuildC64();
+            SetupRowBoundaryMarkerTextScreen(c64);
+            CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192);
+            c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+            c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;   // the per-line sprite pass reads the snapshot this takes
+            var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+            var vic2 = c64.Vic2;
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, openBorder && rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
+            return foreground;
+        }
+        var c64ForLayout = BuildC64();
+        var normalizedLayout = c64ForLayout.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64ForLayout.Screen.VisibleWidth;
+        int CountPixelsBelowScreen(uint[] foreground)
+        {
+            var count = 0;
+            for (var i = (normalizedLayout.Screen.End.Y + 1) * width; i < foreground.Length; i++)
+                if (foreground[i] != 0)
+                    count++;
+            return count;
+        }
+
+        Assert.Equal(0, CountPixelsBelowScreen(Render(openBorder: false)));
+        var open = Render(openBorder: true);
+        Assert.True(CountPixelsBelowScreen(open) > 0, $"perLineSprites={perLineSprites}: no sprite pixels below the screen");
+        var belowScreen = open.Skip((normalizedLayout.Screen.End.Y + 1) * width).ToArray();   // the text glyphs above are foreground too
+        var (_, startX, endX) = GetFirstRenderedSpan(belowScreen, width);
+        Assert.Equal(8, endX - startX + 1);   // the one-byte shape row
+    }
+
+    [Theory]
+    [InlineData("C64NTSC", "NTSC", true)]
+    [InlineData("C64NTSC", "NTSC", false)]
+    [InlineData("C64PAL", "PAL", true)]
+    [InlineData("C64PAL", "PAL", false)]
+    public void A_sprite_that_begins_above_the_visible_area_shows_its_visible_rows_in_an_opened_top_border(string c64Model, string vic2Model, bool perLineSprites)
+    {
+        // Raster lines 28-48 are in the top border; NTSC only shows it from line 34, PAL from 9.
+        // With the bottom compare missed in the previous frame the flip-flop is clear through the
+        // top border, so the sprite's visible rows are drawn (a two-frame render: the first frame
+        // opens the border, the second shows the top border open).
+        const int spriteY = 27;
+        var c64 = BuildC64(c64Model, vic2Model);
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 20), spritePointer: 192);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+        var vic2 = c64.Vic2;
+        for (var frame = 0; frame < 2; frame++)
+        {
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
+        }
+
+        var width = c64.Screen.VisibleWidth;
+        var normalizedLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var (row, startX, endX) = GetFirstRenderedSpan(foreground, width);
+        // The shape's only row is its last, raster line 48, two lines above the display area.
+        Assert.Equal(normalizedLayout.Screen.Start.Y - 3, row);
+        Assert.Equal(8, endX - startX + 1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_sprite_that_runs_past_the_ntsc_frame_end_continues_in_the_frames_last_rows_with_the_border_open(bool perLineSprites)
+    {
+        // The NTSC visible frame is 235 lines from raster line 34, so its last six rows are raster
+        // lines 0-5 of the next frame. A sprite at Y 253 displays on lines 254-262 and then 0-11,
+        // and with the bottom compare missed the flip-flop is clear there, so those rows show.
+        const int spriteY = 253;
+        var c64 = BuildC64("C64NTSC", "NTSC");
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 12), spritePointer: 192);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites);
+        var vic2 = c64.Vic2;
+        for (var frame = 0; frame < 2; frame++)
+        {
+            for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+            {
+                c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
+                vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+                generator.OnAfterInstruction();
+            }
+            generator.OnEndFrame();
+        }
+
+        var width = c64.Screen.VisibleWidth;
+        var height = c64.Screen.VisibleHeight;
+        var (row, startX, endX) = GetFirstRenderedSpan(foreground, width);
+        // Shape row 12 is displayed on raster line 266 - 263 = 3, the frame's fourth row from the end.
+        Assert.Equal(height - 3, row);
+        Assert.Equal(8, endX - startX + 1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Selecting_38_columns_between_the_two_right_compares_keeps_the_side_border_open(bool perLineSprites)
+    {
+        // The main border flip-flop is set when X reaches 335 with 38 columns selected or 344 with
+        // 40. A program with 40 columns at the first point and 38 at the second misses both: the
+        // right border stays open on that line, and the left border of the next line too, since
+        // the flip-flop is only reset at the left compare and was never set. The write has to land
+        // in cycle 55 (0-based): the chip evaluates the 335 compare in cycle 55 with the registers
+        // as written up to cycle 54, and the 344 compare in cycle 56 with those up to 55 (VICE's
+        // border-250 test opens the border with a write in cycle 56 counting from 1). One cycle
+        // earlier and the 38 column compare closes the border as usual.
+        const int line = 100;   // normalized frame line inside the display area
+        uint[] background = null!, foreground = null!;
+        C64 c64 = null!;
+        void Render(int writeCycle)
+        {
+            c64 = BuildC64();
+            c64.Mem.Write(0xD011, 0x1B);
+            c64.Mem.Write(0xD016, 0xC8);   // 40 columns
+            c64.Mem.Write(0xD018, 0x18);
+            c64.Mem.Write(0xD020, 2);      // red border
+            c64.Mem.Write(0xD021, 6);      // blue background
+            c64.Vic2.Vic2Mem[0x3FFF] = 0;  // idle output blank: an opened border shows the background
+            var normalLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+            // A sprite whose row sits in the right border, on the frame line of the write.
+            var spriteX = c64.Vic2.SpriteManager.ScreenOffsetX + (normalLayout.RightBorder.Start.X + 10) - normalLayout.Screen.Start.X;
+            CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff), spritePointer: 192, x: spriteX);
+            c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, (byte)(c64.Vic2.SpriteManager.ScreenOffsetY + line - normalLayout.Screen.Start.Y));
+            // A second sprite at X 496: the chip's X coordinate wraps at 512, so it sits in the left
+            // border, and its second shape row falls on the next line, where the left border is open.
+            CreateVisibleSprite(c64, spriteNumber: 1, doubleWidth: false, doubleHeight: false, CreateSingleRowSprite(0xff, rowIndex: 1), spritePointer: 193, x: 496);
+            c64.WriteIOStorage(Vic2Addr.SPRITE_1_Y, (byte)(c64.Vic2.SpriteManager.ScreenOffsetY + line - normalLayout.Screen.Start.Y));
+            c64.Vic2.SpriteManager.PerLineCollisionEnabled = perLineSprites;
+            var generator = default(Vic2RasterizerSequencerPixelGenerator);
+            (generator, background, foreground) = CreateGenerator(c64, perLineSprites);
+            RenderFrameWithMidLineWrite(c64, generator, line, writeCycle, () => c64.Mem.Write(0xD016, 0xC0));   // 38 columns
+            generator.OnEndFrame();
+        }
+        var width = BuildC64().Screen.VisibleWidth;
+        var layout = BuildC64().Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var rightBorderX = layout.RightBorder.Start.X + 20;
+        var leftBorderX = 10;
+        uint Pixel(uint[] layer, int y, int x) => layer[y * width + x] & 0xFFFFFF;
+
+        Render(writeCycle: 55);
+        var red = Pixel(background, line - 1, rightBorderX);
+        var blue = Pixel(background, line, layout.Screen.Start.X + 100);
+        Assert.NotEqual(red, blue);
+        Assert.Equal(blue, Pixel(background, line, rightBorderX));        // right border open on the write's line
+        Assert.Equal(red, Pixel(background, line, leftBorderX));          // its left border was closed as usual
+        Assert.Equal(blue, Pixel(background, line + 1, leftBorderX));     // next line: left border open
+        Assert.Equal(red, Pixel(background, line + 1, rightBorderX));     // and closed again at the 38 column compare
+        Assert.NotEqual(0u, foreground[line * width + rightBorderX - 10]);        // the sprite shows in the opened border
+        Assert.Equal(0u, foreground[(line - 1) * width + rightBorderX - 10]);     // and not where the border is closed
+        var wrappedX = 496 - c64.Vic2.Vic2Model.XCoordinateAtLineStart - c64.Vic2.Vic2Screen.VisibleAreaStartX;   // 9 pixels into the frame
+        Assert.NotEqual(0u, foreground[(line + 1) * width + wrappedX + 2]);       // the wrapped sprite, in the opened left border
+        Assert.Equal(0u, foreground[(line + 2) * width + wrappedX + 2]);          // covered again once the border is closed
+
+        Render(writeCycle: 54);
+        Assert.Equal(red, Pixel(background, line, rightBorderX));         // one cycle early: the 335 compare closes it
+    }
+
+    [Fact]
+    public void DrawText_keeps_a_character_rows_screen_codes_from_its_first_line_as_the_vic2_latches_them()
+    {
+        // The VIC-II fetches a character row's screen codes and colour nibbles once, on the row's
+        // first line, and shows them for the row's remaining lines. A screen write made after that
+        // fetch appears in the next row (whose fetch is still ahead), not in the current one.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);   // display on, SCROLLY=3 (the normal position): row r begins on draw line 8r + 3
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        const int col = 5;
+
+        var (_, foreground) = RenderFrame(c64, beforeRasterLine: rasterLine =>
+        {
+            var drawLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine) - visibleLayout.Screen.Start.Y;
+            if (drawLine != 3 + 3)
+                return;
+            // Row 0 is three lines into its display; row 1 has not been fetched yet.
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + 0 * 40 + col)] = 2;   // solid glyph
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + 1 * 40 + col)] = 2;
+        });
+
+        var width = c64.Screen.VisibleWidth;
+        var x = normalizedLayout.Screen.Start.X + col * 8 + 3;   // an interior pixel: blank in code 1's lines 1-7, set in code 2
+        // The normalized layout places row 0's first line at its screen start (SCROLLY=3 is the norm).
+        var row0Line5 = normalizedLayout.Screen.Start.Y + 5;
+        var row1Line5 = normalizedLayout.Screen.Start.Y + 8 + 5;
+        Assert.Equal(0u, foreground[row0Line5 * width + x]);      // row 0 still shows the code it was fetched with
+        Assert.NotEqual(0u, foreground[row1Line5 * width + x]);   // row 1 was fetched after the write
+    }
+
+    [Fact]
+    public void DrawText_does_not_sample_below_last_character_row_when_fine_scrolled_up()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        var layout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        // Fill the memory directly after the 1000-byte video matrix with characters that render
+        // solid pixels on every glyph line, so sampling past character row 24 becomes visible.
+        for (var i = 0; i < 40; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + 1000 + i)] = 2;
+        }
+
+        // SCROLLY=0 (= -3 relative to the default 3) on all lines samples 3 lines ahead.
+        var (_, foreground) = RenderFrame(c64, _ => 0x18);
+
+        // The last 3 main screen lines have no character row to sample; they must stay blank
+        // instead of rendering data from beyond the video matrix.
+        var width = c64.Screen.VisibleWidth;
+        for (var drawLine = 197; drawLine < 200; drawLine++)
+        {
+            var y = layout.Screen.Start.Y + drawLine;
+            for (var x = layout.Screen.Start.X; x <= layout.Screen.End.X; x++)
+            {
+                Assert.Equal(0u, foreground[y * width + x]);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("C64PAL", "PAL")]
+    [InlineData("C64NTSC", "NTSC")]
+    public void ConvertRasterLineToScreenLine_aligns_first_display_raster_line_with_visible_layout(string c64Model, string vic2Model)
+    {
+        var c64 = BuildC64(c64Model, vic2Model);
+        var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+
+        var screenLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(c64.Vic2.Vic2Model.FirstRasterLineOfMainScreen);
+
+        Assert.Equal(visibleMainScreenArea.Screen.Start.Y, screenLine);
+    }
+
+    [Fact]
+    public void Vic2_register_mirrors_update_display_state_used_by_raster_timed_cartridge_code()
+    {
+        var c64 = BuildC64();
+
+        c64.Mem.Write(0xD051, 0x3B); // Mirror of $D011.
+        c64.Mem.Write(0xD058, 0xCD); // Mirror of $D018.
+
+        Assert.Equal(Vic2.DispMode.Bitmap, c64.Vic2.DisplayMode);
+        Assert.Equal(0x3000, c64.Vic2.VideoMatrixBaseAddress);
+        Assert.Equal(0x2000, c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank);
+    }
+
+    [Theory]
+    [InlineData(5)]    // a top border line: the whole line is border
+    [InlineData(60)]   // a main screen line: only the side borders show the border colour
+    public void Border_colour_written_mid_line_changes_from_the_pixel_block_after_the_write(int normalizedLine)
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD020, 0);
+        const int writeCycle = 30;   // cycles into the line completed when the write lands
+        var (generator, background, _) = CreateGenerator(c64);
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle, () => c64.Mem.Write(0xD020, 0xF2));   // unused high bits are ignored
+
+        var width = c64.Screen.VisibleWidth;
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X + c64.Vic2.Vic2Model.ColorChangePixelDelay;   // first pixel the change shows on
+        var lineStart = normalizedLine * width;
+        var oldColor = background[lineStart];
+        var newColor = background[lineStart + width - 1];
+        Assert.NotEqual(oldColor, newColor);
+        if (normalizedLine <= normalizedLayout.TopBorder.End.Y)
+        {
+            Assert.Equal(oldColor, background[lineStart + changeX - 1]);
+            Assert.Equal(newColor, background[lineStart + changeX]);
+        }
+        else
+        {
+            // The change lands inside the main screen area: the left border keeps the old colour
+            // and the right border has the new one.
+            Assert.True(changeX > normalizedLayout.LeftBorder.End.X && changeX < normalizedLayout.RightBorder.Start.X);
+            Assert.Equal(oldColor, background[lineStart + normalizedLayout.LeftBorder.End.X]);
+            Assert.Equal(newColor, background[lineStart + normalizedLayout.RightBorder.Start.X]);
+        }
+    }
+
+    [Fact]
+    public void Background_colour_written_mid_line_splits_the_standard_text_background_at_the_write()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD021, 6);
+        const int writeCycle = 30;
+        var (generator, background, _) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = normalizedLayout.Screen.Start.Y + 5;
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle, () => c64.Mem.Write(0xD021, 0));
+
+        var width = c64.Screen.VisibleWidth;
+        var visibleLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X + c64.Vic2.Vic2Model.ColorChangePixelDelay;
+        Assert.True(changeX > normalizedLayout.Screen.Start.X && changeX < normalizedLayout.Screen.End.X);
+        var lineStart = normalizedLine * width;
+        var oldColor = background[lineStart + normalizedLayout.Screen.Start.X];
+        var newColor = background[lineStart + normalizedLayout.Screen.End.X];
+        Assert.NotEqual(oldColor, newColor);
+        Assert.Equal(oldColor, background[lineStart + changeX - 1]);
+        Assert.Equal(newColor, background[lineStart + changeX]);
+        // The line below, drawn entirely after the write, has the new colour throughout.
+        Assert.Equal(newColor, background[(normalizedLine + 1) * width + normalizedLayout.Screen.Start.X]);
+    }
+
+    [Theory]
+    [InlineData("C64PAL", "PAL", 124)]
+    [InlineData("C64NTSC", "NTSC", 124)]
+    public void Border_colour_written_on_a_cycle_lands_where_the_chip_puts_that_cycle(string c64Model, string vic2Model, int displayWindowStartX)
+    {
+        // Pins the mapping from cycle to pixel against the chip figures rather than against the
+        // layout: a write completing on cycle c is shown from the start of cycle c + 1, which is
+        // (c + 1) * 8 pixels into the line, and the display window's first pixel is
+        // displayWindowStartX pixels into the line. So the change lands that far into the window.
+        var c64 = BuildC64(c64Model, vic2Model);
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD020, 0);
+        const int writeCycle = 30;
+        var (generator, background, _) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = 5;   // a top border line, where the whole line carries the border colour
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle, () => c64.Mem.Write(0xD020, 2));
+
+        var width = c64.Screen.VisibleWidth;
+        var lineStart = normalizedLine * width;
+        // Pixels into the display window, which can be negative: the change falls in the left border.
+        var changeIntoDisplayWindow = (writeCycle + 1) * 8 - displayWindowStartX + c64.Vic2.Vic2Model.ColorChangePixelDelay;
+        var changeX = normalizedLayout.Screen.Start.X + changeIntoDisplayWindow;
+        Assert.NotEqual(background[lineStart + changeX - 1], background[lineStart + changeX]);
+        Assert.Equal(background[lineStart], background[lineStart + changeX - 1]);
+    }
+
+    [Fact]
+    public void Border_colour_written_on_every_line_of_a_frame_keeps_landing_at_its_own_cycle()
+    {
+        // A frame's worth of colour changes is far more than the write journal holds at once, so
+        // the journal has to be emptied as the writes are applied rather than filling up.
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        const int writeCycle = 30;
+        var (generator, background, _) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        var visibleLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+
+        // Every line writes a different border colour partway along the line.
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            vic2.AdvanceRaster((ulong)writeCycle);
+            c64.Mem.Write(0xD020, (byte)(rasterLine % 16));
+            vic2.AdvanceRaster(cyclesPerLine - (ulong)writeCycle);
+            generator.OnAfterInstruction();
+        }
+
+        // Every line of the top border must show its own two colours, split at the write.
+        var width = c64.Screen.VisibleWidth;
+        var changeX = (writeCycle + 1) * 8 - visibleLayout.LeftBorder.Start.X + c64.Vic2.Vic2Model.ColorChangePixelDelay;
+        var checkedLines = 0;
+        for (var line = 1; line < 30; line++)
+        {
+            var rasterLine = line + visibleLayout.TopBorder.Start.Y;
+            var previous = (byte)((rasterLine - 1) % 16);
+            var current = (byte)(rasterLine % 16);
+            if (previous == current)
+                continue;
+            Assert.NotEqual(background[line * width + changeX - 1], background[line * width + changeX]);
+            checkedLines++;
+        }
+        Assert.True(checkedLines > 20, $"expected most lines to be checked, was {checkedLines}");
+    }
+
+    [Fact]
+    public void Colour_registers_set_without_the_memory_map_are_picked_up_at_the_end_of_the_frame()
+    {
+        var c64 = BuildC64();
+        SetupRowBoundaryMarkerTextScreen(c64);
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD020, 0);
+        var (generator, background, _) = CreateGenerator(c64);
+        var width = c64.Screen.VisibleWidth;
+
+        // Bypasses the register write journal (as a snapshot restore does).
+        c64.WriteIOStorage(Vic2Addr.BORDER_COLOR, 2);
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine: -1, writeCycle: 0, write: null);
+        var firstFrameBorder = background[5 * width];
+        generator.OnEndFrame();
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine: -1, writeCycle: 0, write: null);
+        var secondFrameBorder = background[5 * width];
+
+        Assert.NotEqual(firstFrameBorder, secondFrameBorder);
+    }
+
+    /// <summary>
+    /// Drives one frame a line at a time like <see cref="RenderFrame"/>, but on the given normalized
+    /// screen line performs <paramref name="write"/> after <paramref name="writeCycle"/> cycles of
+    /// the line, with the line's pixels generated in a single pass afterwards (as the emulator does
+    /// for an instruction that spans the write).
+    /// </summary>
+    [Fact]
+    public void Xscroll_written_mid_line_moves_the_load_within_the_next_cycle_and_shows_background_until_it()
+    {
+        // The shift register takes each byte at the pixel XSCROLL selects. A write in cycle 30 is seen
+        // by the sequencer in cycle 31 and applies to the load in cycle 32: the byte loaded in cycle 31
+        // runs out after its eight pixels, so the first three pixels of cycle 32's block are the zeros
+        // shifting out (background), and the next byte follows from the third pixel on.
+        var c64 = BuildC64();
+        SetupSolidTextScreen(c64);
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = normalizedLayout.Screen.Start.Y + 5;
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle: 30, () => c64.Mem.Write(0xD016, 0xC8 | 3));
+
+        var width = c64.Screen.VisibleWidth;
+        var blockX = normalizedLayout.Screen.Start.X + (32 - 17) * 8;   // cycle 32's pixels
+        var lineStart = normalizedLine * width;
+        var white = Rgb(c64, 1);
+        Assert.Equal(white, foreground[lineStart + blockX - 1]);
+        Assert.Equal(0u, foreground[lineStart + blockX]);
+        Assert.Equal(0u, foreground[lineStart + blockX + 2]);
+        Assert.Equal(white, foreground[lineStart + blockX + 3]);
+        // The line below is fine scrolled throughout: its first three pixels show the same zeros.
+        var nextLine = (normalizedLine + 1) * width + normalizedLayout.Screen.Start.X;
+        Assert.Equal(0u, foreground[nextLine + 2]);
+        Assert.Equal(white, foreground[nextLine + 3]);
+    }
+
+    [Fact]
+    public void Xscroll_written_mid_line_in_multicolour_keeps_the_pair_phase_across_the_cycle_boundary()
+    {
+        // Multicolour text, every cell the byte %01101100 (pairs 01, 10, 11, 00) in a cell whose
+        // colour nibble has bit 3 set. XSCROLL 3 written in cycle 30 moves the load in cycle 32 to
+        // pixel 3: pixels 0-2 of that block are the zeros shifting out of the used-up byte, the new
+        // byte's pairs then run 3-4, 5-6, 7-8 and 9-10, so the "11" pair straddles the boundary into
+        // cycle 33's block, and the load at pixel 3 of that block starts the next byte.
+        var c64 = BuildC64();
+        c64.Mem.Write(0xD016, 0xC8 | 0x10);
+        c64.Mem.Write(0xD018, 0x18);
+        for (var i = 0; i < 8; i++)
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 8 + i)] = 0b01101100;
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 1;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), 9);   // multicolour cell, colour 1
+        }
+        c64.Mem.Write(0xD021, 6);
+        c64.Mem.Write(0xD022, 2);
+        c64.Mem.Write(0xD023, 5);
+        c64.Mem.Write(0xD011, 0x1B);
+        var (generator, background, foreground) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = normalizedLayout.Screen.Start.Y + 5;
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle: 30, () => c64.Mem.Write(0xD016, 0xC8 | 0x10 | 3));
+
+        var width = c64.Screen.VisibleWidth;
+        var block = normalizedLine * width + normalizedLayout.Screen.Start.X + (32 - 17) * 8;   // cycle 32's pixels
+        // The previous byte's last pair (00) ends the block before; then the zeros shifting out.
+        Assert.Equal(0u, foreground[block - 1]);
+        Assert.Equal(Rgb(c64, 6), background[block - 1]);
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.Equal(0u, foreground[block + i]);
+            Assert.Equal(Rgb(c64, 6), background[block + i]);
+        }
+        // 01: background colour 1, background priority.
+        Assert.Equal(0u, foreground[block + 3]);
+        Assert.Equal(Rgb(c64, 2), background[block + 3]);
+        Assert.Equal(Rgb(c64, 2), background[block + 4]);
+        // 10: background colour 2, foreground priority.
+        Assert.Equal(Rgb(c64, 5), foreground[block + 5]);
+        Assert.Equal(Rgb(c64, 5), foreground[block + 6]);
+        // 11: the colour nibble's low bits, the pair held across the cycle boundary.
+        Assert.Equal(Rgb(c64, 1), foreground[block + 7]);
+        Assert.Equal(Rgb(c64, 1), foreground[block + 8]);
+        // 00, then the next byte's first pair from the load at pixel 3 of the next block.
+        Assert.Equal(0u, foreground[block + 9]);
+        Assert.Equal(Rgb(c64, 6), background[block + 9]);
+        Assert.Equal(Rgb(c64, 6), background[block + 10]);
+        Assert.Equal(Rgb(c64, 2), background[block + 11]);
+        Assert.Equal(Rgb(c64, 2), background[block + 12]);
+        Assert.Equal(Rgb(c64, 5), foreground[block + 13]);
+    }
+
+    [Fact]
+    public void Multicolour_written_mid_line_takes_effect_four_pixels_into_the_next_cycle()
+    {
+        // MCM reaches the sequencer at pixel 4 of the cycle after the write. Until pixel 7 the pixels
+        // are still decoded as hires, and a hires pixel of a cell whose colour nibble has bit 3 set
+        // takes background colour 2 in that state (the chip's $D023 glitch); pixel 7 switches to
+        // pixel pairs, holding that value for the pair's second pixel, and from the next cycle on a
+        // "11" pair shows the nibble's low three bits.
+        var c64 = BuildC64();
+        SetupSolidTextScreen(c64, colorRam: 9);
+        c64.Mem.Write(0xD023, 5);
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = normalizedLayout.Screen.Start.Y + 5;
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle: 30, () => c64.Mem.Write(0xD016, 0xC8 | 0x10));
+
+        var width = c64.Screen.VisibleWidth;
+        var blockX = normalizedLayout.Screen.Start.X + (31 - 17) * 8;   // cycle 31's pixels
+        var lineStart = normalizedLine * width;
+        Assert.Equal(Rgb(c64, 9), foreground[lineStart + blockX + 3]);
+        Assert.Equal(Rgb(c64, 5), foreground[lineStart + blockX + 4]);
+        Assert.Equal(Rgb(c64, 5), foreground[lineStart + blockX + 7]);
+        Assert.Equal(Rgb(c64, 1), foreground[lineStart + blockX + 8]);
+        Assert.Equal(Rgb(c64, 1), foreground[lineStart + blockX + 16]);
+    }
+
+    [Fact]
+    public void Character_set_pointer_written_mid_line_changes_the_columns_fetched_from_the_next_cycle()
+    {
+        // The g-access of column k is in cycle 15 + k and reads the character set the pointer selects
+        // then; a write in cycle 30 is seen from cycle 31, so column 16 is the first from the new set.
+        var c64 = BuildC64();
+        SetupSolidTextScreen(c64);   // solid glyphs at $2000; the set at $2800 is empty
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var normalizedLine = normalizedLayout.Screen.Start.Y + 5;
+
+        RenderFrameWithMidLineWrite(c64, generator, normalizedLine, writeCycle: 30, () => c64.Mem.Write(0xD018, 0x1A));
+
+        var width = c64.Screen.VisibleWidth;
+        var column16 = normalizedLayout.Screen.Start.X + 16 * 8;
+        var lineStart = normalizedLine * width;
+        Assert.Equal(Rgb(c64, 1), foreground[lineStart + column16 - 1]);
+        Assert.Equal(0u, foreground[lineStart + column16]);
+        Assert.Equal(0u, foreground[lineStart + normalizedLayout.Screen.End.X - 1]);
+    }
+
+    [Fact]
+    public void Bitmap_pixels_that_are_clear_are_background_priority_in_the_cell_colour()
+    {
+        // In bitmap mode a clear bit shows the cell's low nibble colour but is background priority: a
+        // sprite with its priority bit set goes in front of it and behind a set bit.
+        var c64 = BuildC64();
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);   // video matrix $0400, bitmap $2000
+        c64.Vic2.Vic2Mem[0x0400] = 0x25;   // set bits colour 2, clear bits colour 5
+        c64.Vic2.Vic2Mem[0x2000] = 0xF0;   // cell 0, line 0
+        c64.Mem.Write(0xD011, 0x3B);
+        var (background, foreground) = RenderFrame(c64);
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64.Screen.VisibleWidth;
+        var x = normalizedLayout.Screen.Start.Y * width + normalizedLayout.Screen.Start.X;
+        Assert.Equal(Rgb(c64, 2), foreground[x]);
+        Assert.Equal(Rgb(c64, 2), foreground[x + 3]);
+        Assert.Equal(0u, foreground[x + 4]);
+        Assert.Equal(Rgb(c64, 5), background[x + 4]);
+        Assert.Equal(Rgb(c64, 5), background[x + 7]);
+    }
+
+    [Theory]
+    [InlineData(Vic2PixelGeneratorType.Sequencer)]
+    [InlineData(Vic2PixelGeneratorType.Legacy)]
+    public void The_configured_pixel_generator_is_the_one_the_rasterizer_draws_with(Vic2PixelGeneratorType pixelGeneratorType)
+    {
+        var c64 = C64.BuildC64(new C64Config
+        {
+            LoadROMs = false,
+            C64Model = "C64PAL",
+            Vic2Model = "PAL",
+            RenderProviderType = typeof(Vic2Rasterizer),
+            Vic2RasterizerPixelGeneratorType = pixelGeneratorType,
+        }, NullLoggerFactory.Instance);
+
+        var rasterizer = Assert.IsType<Vic2Rasterizer>(c64.RenderProvider);
+        Assert.Equal(pixelGeneratorType, rasterizer.PixelGeneratorType);
+    }
+
+    private static uint Rgb(C64 c64, int color) => (uint)ColorMaps.GetSystemColor((byte)color, c64.ColorMapName).ToArgb();
+
+    /// <summary>Standard text mode, 40 columns, every cell character 1 whose eight glyph lines are solid.</summary>
+    private static void SetupSolidTextScreen(C64 c64, byte colorRam = 1)
+    {
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);   // video matrix $0400, character set $2000
+        for (var i = 0; i < 8; i++)
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 8 + i)] = 0xFF;
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 1;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), colorRam);
+        }
+        c64.Mem.Write(0xD011, 0x1B);
+    }
+
+    private static void RenderFrameWithMidLineWrite(C64 c64, Vic2RasterizerSequencerPixelGenerator generator, int normalizedLine, int writeCycle, Action? write)
+    {
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        var visibleLayout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            var screenLine = vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+            if (write != null && screenLine - visibleLayout.TopBorder.Start.Y == normalizedLine)
+            {
+                vic2.AdvanceRaster((ulong)writeCycle);
+                write();
+                vic2.AdvanceRaster(cyclesPerLine - (ulong)writeCycle);
+            }
+            else
+            {
+                vic2.AdvanceRaster(cyclesPerLine);
+            }
+            generator.OnAfterInstruction();
+        }
+    }
+
+    private static C64 BuildC64()
+    {
+        return BuildC64("C64PAL", "PAL");
+    }
+
+    private static C64 BuildC64(string c64Model, string vic2Model)
+    {
+        return C64.BuildC64(new C64Config
+        {
+            LoadROMs = false,
+            C64Model = c64Model,
+            Vic2Model = vic2Model
+        }, NullLoggerFactory.Instance);
+    }
+
+    private static void CreateVisibleSprite(C64 c64, int spriteNumber, bool doubleWidth, bool doubleHeight, byte[] spriteShape, byte spritePointer, int? x = null)
+    {
+        var spriteManager = c64.Vic2.SpriteManager;
+        var spriteX = x ?? spriteManager.ScreenOffsetX;
+        c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2), (byte)(spriteX & 0xff));
+        c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2), (byte)spriteManager.ScreenOffsetY);
+        var spriteMsbX = c64.ReadIOStorage(Vic2Addr.SPRITE_MSB_X);
+        spriteMsbX = spriteX > 255 ? (byte)(spriteMsbX | (1 << spriteNumber)) : (byte)(spriteMsbX & ~(1 << spriteNumber));
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, spriteMsbX);
+
+        var spriteEnable = c64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+        spriteEnable |= (byte)(1 << spriteNumber);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_ENABLE, spriteEnable);
+
+        var spriteXExpand = c64.ReadIOStorage(Vic2Addr.SPRITE_X_EXPAND);
+        spriteXExpand = doubleWidth ? (byte)(spriteXExpand | (1 << spriteNumber)) : (byte)(spriteXExpand & ~(1 << spriteNumber));
+        c64.WriteIOStorage(Vic2Addr.SPRITE_X_EXPAND, spriteXExpand);
+
+        var spriteYExpand = c64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND);
+        spriteYExpand = doubleHeight ? (byte)(spriteYExpand | (1 << spriteNumber)) : (byte)(spriteYExpand & ~(1 << spriteNumber));
+        c64.WriteIOStorage(Vic2Addr.SPRITE_Y_EXPAND, spriteYExpand);
+
+        c64.Vic2.Vic2Mem[(ushort)(spriteManager.SpritePointerStartAddress + spriteNumber)] = spritePointer;
+        var spriteDataAddress = (ushort)(spritePointer * 64);
+        for (int i = 0; i < spriteShape.Length; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(spriteDataAddress + i)] = spriteShape[i];
+        }
+    }
+
+    private static uint[] RenderSprites(C64 c64)
+    {
+        var (generator, _, foreground) = CreateGenerator(c64);
+        generator.DrawSpritesToBitmapBackedByPixelArray();
+        return foreground;
+    }
+
+    private static (Vic2RasterizerSequencerPixelGenerator Generator, uint[] Background, uint[] Foreground) CreateGenerator(C64 c64, bool perLineSprites = false)
+    {
+        var pixelCount = c64.Screen.VisibleWidth * c64.Screen.VisibleHeight;
+        var background = new uint[pixelCount];
+        var foreground = new uint[pixelCount];
+
+        var generator = new Vic2RasterizerSequencerPixelGenerator(
+            c64,
+            (packedBgra, index, toForeground) =>
+            {
+                if (toForeground)
+                    foreground[index] = packedBgra;
+                else
+                    background[index] = packedBgra;
+            },
+            (source, sourceIndex, destIndex, width) => source.Slice(sourceIndex, width).CopyTo(background.AsSpan(destIndex, width)),
+            (destIndex, width) => background.AsSpan(destIndex, width).Clear(),
+            (source, sourceIndex, destIndex, width) => source.Slice(sourceIndex, width).CopyTo(foreground.AsSpan(destIndex, width)),
+            (destIndex, width) => foreground.AsSpan(destIndex, width).Clear(),
+            perLineSprites);
+        return (generator, background, foreground);
+    }
+
+    /// <summary>
+    /// Standard text mode screen where every character cell renders a solid foreground line on
+    /// glyph line 0 and a sparse-but-visible pattern on glyph lines 1-7, making both character-row
+    /// boundaries and partial (mid-row) glyph lines observable.
+    /// Character code 2 renders solid pixels on all glyph lines (for out-of-matrix detection).
+    /// </summary>
+    private static void SetupRowBoundaryMarkerTextScreen(C64 c64)
+    {
+        // 40-column mode, no horizontal fine scroll (ROMs are not loaded, so nothing else sets it).
+        c64.Mem.Write(0xD016, 0xC8);
+        // Video matrix at 0x0400, charset at 0x2000 (plain RAM, avoids the char ROM shadow).
+        c64.Mem.Write(0xD018, 0x18);
+        var charsetAddress = (ushort)0x2000;
+        c64.Vic2.Vic2Mem[(ushort)(charsetAddress + 1 * 8)] = 0xFF;
+        for (var i = 1; i < 8; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(charsetAddress + 1 * 8 + i)] = 0x81;
+        }
+        for (var i = 0; i < 8; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(charsetAddress + 2 * 8 + i)] = 0xFF;
+        }
+
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 1;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), 1); // White
+        }
+    }
+
+    /// <summary>
+    /// Drives the pixel generator through one full frame the same way the emulator main loop does:
+    /// advance the raster one line at a time and let the generator process the elapsed cycles.
+    /// The optional callback supplies the $D011 value in effect while each raster line renders.
+    /// </summary>
+    private static (uint[] Background, uint[] Foreground) RenderFrame(C64 c64, Func<int, byte>? d011ForRasterLine = null, Action<int>? beforeRasterLine = null)
+    {
+        var (generator, background, foreground) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            if (d011ForRasterLine != null)
+                c64.Mem.Write(0xD011, d011ForRasterLine(rasterLine));
+            beforeRasterLine?.Invoke(rasterLine);
+            vic2.AdvanceRaster(cyclesPerLine);
+            generator.OnAfterInstruction();
+        }
+        return (background, foreground);
+    }
+
+    private static void SetAllScreenLinesToColumnMode(C64 c64, bool colMode40)
+    {
+        foreach (var screenLineData in c64.Vic2.ScreenLineIORegisterValues.Values)
+        {
+            screenLineData.ColMode40 = colMode40;
+        }
+    }
+
+    private static (int Row, int StartX, int EndX) GetFirstRenderedSpan(uint[] pixels, int width)
+    {
+        var height = pixels.Length / width;
+        for (var row = 0; row < height; row++)
+        {
+            var rowStart = row * width;
+            var startX = -1;
+            var endX = -1;
+            for (var x = 0; x < width; x++)
+            {
+                if (pixels[rowStart + x] == 0)
+                    continue;
+
+                startX = x;
+                break;
+            }
+
+            if (startX < 0)
+                continue;
+
+            for (var x = width - 1; x >= startX; x--)
+            {
+                if (pixels[rowStart + x] == 0)
+                    continue;
+
+                endX = x;
+                break;
+            }
+
+            return (row, startX, endX);
+        }
+
+        throw new Xunit.Sdk.XunitException("Expected rendered sprite pixels, but no non-zero pixels were found.");
+    }
+
+    private static byte[] CreateSingleRowSprite(byte firstRowFirstByte, int rowIndex = 0)
+    {
+        var spriteShape = new byte[63];
+        spriteShape[rowIndex * 3] = firstRowFirstByte;
+        return spriteShape;
+    }
+}

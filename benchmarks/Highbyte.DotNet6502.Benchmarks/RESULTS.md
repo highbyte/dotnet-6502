@@ -369,6 +369,47 @@ Observations that matter for the cycle work:
 
 ## History
 
+### 2026-09-05 — VIC-II graphics sequencer per pixel
+
+The rasterizer's per-column block drawing (precomputed 8-pixel arrays, XSCROLL, mode bits and
+`$D018` sampled once per line) is replaced by the chip's graphics sequencer followed pixel by
+pixel, after the VIC-II article with VICE's timings as the reference: a two-stage data pipeline fed by each cycle's g-access, a shift register
+loaded at the XSCROLL pixel, the mode bits taking effect part way through a cycle, and the pixels
+recorded as colour codes that are resolved into the two layers when the line ends. The cost is per
+cycle rather than per column, so it is measured with the display off (the benchmark's own scenario,
+border only) and on (`$D011 = $1B`, the KERNAL's value, applied with a temporary edit to the
+scenario). A first version ran the eight-pixel loop on every cycle and took `RenderOnly` to 587 µs
+with the display off; a constant-time path for cycles with nothing to show and an empty shift
+register, and a branch-free path for the steady-state block, brought it to the numbers below.
+Apple M1, .NET 10.0.7, same session, integration branch `e4c6525d` as baseline.
+
+| Benchmark | Display off, before | Display off, after | Δ | Display on, before | Display on, after | Δ |
+|-----------|--------------------:|-------------------:|--:|-------------------:|------------------:|--:|
+| C64 frame `CoreOnly` / `None` | 264.9 µs | 262.2 µs | 0% | 259.4 µs | 260.3 µs | 0% |
+| C64 frame `RenderOnly` / `None` | 360.3 µs | 392.6 µs | +9% | 353.7 µs | 393.7 µs | +11% |
+| C64 frame `RenderOnly` / `MixedVisibleSprites` | 362.5 µs | 390.9 µs | +8% | 372.6 µs | 402.6 µs | +8% |
+| C64 frame `AudioOnly` / `None` | 409.5 µs | 403.8 µs | −1% | 409.5 µs | 404.2 µs | −1% |
+| C64 frame `RenderAndAudio` / `None` | 540.3 µs | 586.3 µs | +9% | 550.1 µs | 587.2 µs | +7% |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 542.6 µs | 590.1 µs | +9% | 570.9 µs | 593.9 µs | +4% |
+
+Accepted: about 35-40 µs per frame for pixel-exact mid-line mode, scroll and pointer changes
+(VICE's border, colorsplit and dentest suites now match in full, videomode within a few pixels),
+with the frame still well under a PAL frame's 20 ms. Because the difference is felt more in the
+browser, the previous generator is kept unchanged as the legacy pixel generator
+(`C64Config.Vic2RasterizerPixelGeneratorType = Legacy`, "before" in the table); the sequencer is the
+default. The remaining overhead with the display off is the per-cycle call and the per-line
+resolve; both are candidates if the budget ever tightens.
+
+After the table was recorded, three more reductions went in (colour codes reused across blocks
+with the same matrix byte and nibble, blank bytes filled without the per-pixel loop, lines without
+background colour writes resolved through a lookup table). Their re-measurement on the same day
+was inconclusive: the machine had been under load (a debugger-run instance of the app, then
+indexing) and the CPU-only rows drifted from 262 to 331 µs between runs, more than the effect
+being measured. The table above therefore stands as the branch's recorded numbers; re-measure on
+an idle machine before relying on a finer comparison. In a Debug build on the same laptop, booted
+to BASIC, the app's own stats panel showed the render provider's per-instruction time at 1.51 ms
+per frame with the legacy generator and 2.27 ms with the sequencer before these reductions.
+
 ### 2026-09-03 — VIC-II bus stalls (bad lines and sprite DMA)
 
 The CPU can now be stalled by a bus master through `CPU.BusStallSource`: before a read it asks

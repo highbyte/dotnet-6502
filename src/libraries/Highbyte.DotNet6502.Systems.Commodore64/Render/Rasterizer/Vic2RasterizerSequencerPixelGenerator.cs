@@ -7,7 +7,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 
-public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGenerator
+public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixelGenerator
 {
     private readonly C64 _c64;
     // Arrays of color for C64 screen to render to
@@ -20,20 +20,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
 
 
     // Pre-calculated pixel arrays
-    private uint[][] _oneLineSameColorPixels; // pixelArray
-    private uint[] _oneLineTransparentPixels = default!; // a line of the transparent color, used to clear the foreground layer
-
-    // Text standard mode: 8-bit patterns mapped to 8 pixels (1 pixel = 1 uint rgba).
-    // 1 maps to the color in the lookup table, and 0 maps to a predefined "background" color that will be replaced in shader.
-    private uint[][] _eightPixelsOneColorAndBackground;
-
-    // Text extended and bitmap "Standard" (HiRes) mode: 8-bit patterns mapped to 8 pixels (1 pixel = 1 uint rgba).
-    // 1 and 0 maps to the two colors in the lookup table.
-    private uint[][] _eightPixelsTwoColors;
-
-    // For text and bitmap mode "Multicolor": 8-bit patterns mapped to 4 width 2 pixels (1 pixel = 1 uint rgba).
-    // 01, 10, and 11 maps to the colors in the lookup table, and 00 maps to a predefined "background" color that will be replaced in shader.
-    private uint[][] _eightPixelsThreeColorsAndBackground;
+    private uint[][] _oneLineSameColorPixels; // a line of each colour, for the border runs
 
 
     // Line render state
@@ -87,14 +74,76 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
     private int _drawableAreaWidth;
     private ulong _cyclesPerLine;
     private int _colorChangePixelDelay;
-    private ushort _vic2VideoMatrixBaseAddress;
-    private ushort _vic2BitmapBaseAddress;
-    private ushort _vic2CharacterSetAddressInVIC2Bank;
-    private bool _isTextMode;
-    private CharMode _characterMode;
-    private BitmMode _bitmapMode;
-    private bool _invalidMode; // ECM combined with BMM/MCM: VIC-II outputs black for the display area.
-    private int _scrollX;
+
+    // --- The graphics data sequencer, pixel by pixel.
+    // The VIC-II article (Christian Bauer, "The MOS 6567/6569 video controller (VIC-II) and its
+    // application in the Commodore 64", sections 3.7 and 3.8) describes the sequencer: the g-access
+    // of each cycle 16-55 fetches one byte, the sequencer shifts it out one bit (one pair of bits in
+    // multicolour) per pixel, the shift register is loaded at the pixel XSCROLL selects, the modes
+    // decide what colour each bit or pair stands for and which of them are foreground, and in idle
+    // state the byte comes from $3FFF ($39FF with ECM) with the matrix data read as zero. The output
+    // shows a byte two cycles after its g-access. Where in a cycle a register change reaches the
+    // output is not in the article; those points (the mode bits four pixels in, or six when a bit is
+    // cleared; the multicolour decoding a cycle after its colour selection; the colour of a set bit in
+    // a multicolour cell during that gap) are the chip's observed behaviour as established by the
+    // VICE project's viciisc emulation (vicii-draw-cycle.c) and its VICII test programs, whose
+    // reference pictures this generator is checked against. VICE is the reference, not the source.
+
+    // The display registers as the sequencer sees them, through the register write journal: a
+    // write is seen from the cycle after it lands.
+    private byte _d011;   // ECM, BMM (and the vertical state's bits, used elsewhere)
+    private byte _d016;   // MCM, CSEL, XSCROLL
+    private byte _d018;   // video matrix, character set and bitmap pointers
+
+    // What the last three cycles' g-accesses fetched, by cycle number modulo 3: the graphics byte and
+    // the matrix byte and colour nibble that belong to it. The shift register takes the entry fetched
+    // two cycles earlier.
+    private readonly byte[] _fetchedData = new byte[3];
+    private readonly byte[] _fetchedMatrix = new byte[3];
+    private readonly byte[] _fetchedColor = new byte[3];
+    private byte _loadPixel;   // the pixel within a cycle the shift register is loaded at (XSCROLL)
+
+    // The shift register and what it was loaded with.
+    private byte _shiftData;
+    private byte _shiftMatrix;
+    private byte _shiftColor;
+    private bool _pairSecondHalf;   // in multicolour the second pixel of a pair repeats the first
+    private byte _pixelValue;       // the value of the pixel being output: the bit twice, or the pair
+
+    // The modes as they stand at the output. ECM and BMM are held as a pair of bits that a change
+    // reaches four pixels into a cycle when set and six when cleared; the colour selection follows
+    // MCM four pixels in, the decoding into pairs a cycle later.
+    private const byte MODE_ECM = 0x04, MODE_BMM = 0x02, MODE_MCM = 0x01;
+    private byte _modeEcmBmm;      // MODE_ECM | MODE_BMM as they stand
+    private bool _colorMcm;        // MCM as the colour selection has it
+    private bool _decodeMcm;       // MCM as the decoding into pairs has it
+    private const int FirstFetchCycle = 15;   // the g-access of column 0 (the chip's cycle 16)
+
+    // The line's graphics, as colour codes, resolved into the two layers when the line ends: a
+    // code below 16 is a colour, CODE_BG0 + n the background colour register n as it stands at
+    // that pixel, CODE_NONE no foreground pixel.
+    private const byte CODE_BG0 = 16;
+    private const byte CODE_NONE = 255;
+    // The colour code for each of the four pixel values with the modes and the shift register's
+    // matrix byte and colour nibble as they are now.
+    private readonly byte[] _colorCodes = new byte[4];
+    private bool _colorCodesValid;
+    private int _colorCodesKey = -1;
+    // Colour per code for a line without background colour writes (codes 0-15 and the four
+    // registers), and per foreground code (CODE_NONE is transparent); rebuilt when a line is resolved.
+    private readonly uint[] _bgCodeColor = new uint[CODE_BG0 + 4];
+    private readonly uint[] _fgCodeColor = new uint[256];
+    private byte[] _lineBgCodes = default!;
+    private byte[] _lineFgCodes = default!;
+    private uint[] _lineBgPixels = default!;
+    private uint[] _lineFgPixels = default!;
+    // The background colour register writes that landed on the current line (normalized x and
+    // colour, per register), and the registers' values when the line began.
+    private const int BG_COLOR_EVENT_CAPACITY = 32;
+    private readonly int[] _bgColorEventX = new int[4 * BG_COLOR_EVENT_CAPACITY];
+    private readonly byte[] _bgColorEventColor = new byte[4 * BG_COLOR_EVENT_CAPACITY];
+    private readonly int[] _bgColorEventCount = new int[4];
+    private readonly byte[] _bgColorAtLineStart = new byte[4];
 
     // The VIC-II's vertical state for the line being drawn, as it settled it when the raster
     // entered the line (see Vic2LineDisplayState). Which row is drawn and which of its lines is
@@ -135,12 +184,11 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
     private int _registerWriteNext;
     private bool _registerWritesOverflowed;
 
-    // The background layer's border and (standard text mode) background are drawn as runs along
-    // the line: a run is closed where a colour write lands and the rest of the line is drawn when
-    // the line ends, so a line without colour writes still costs one copy per border part.
+    // The border is drawn as runs along the line: a run is closed where a border colour write
+    // lands and the rest of the line is drawn when the line ends. The graphics between the runs
+    // are resolved from their colour codes when the line ends too (see ResolveLineGraphics).
     private int _runLine = -1;          // screen line (Visible layout) whose runs are open
     private int _borderRunStartX;       // normalized x where the open border run starts
-    private int _backgroundRunStartX;   // normalized x where the open background run starts
 
     // --- The border unit (main border flip-flop), per pixel.
     // The VIC-II shows border colour wherever its main border flip-flop is set. The flip-flop is
@@ -151,7 +199,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
     // line where nothing changes; a program that has 40 columns selected at the 335 compare and 38
     // at the 344 compare misses both and keeps the side borders open on that line and the left
     // border of the next. CSEL follows the register write journal, at the cycle boundary after
-    // the write; XSCROLL and the mode bits are still sampled once per line.
+    // the write, as do XSCROLL, the mode bits and the memory pointers the sequencer uses.
     private int _xCoordinateAtLineStart;
     private bool _csel40 = true;
     private bool _mainBorder = true;
@@ -242,7 +290,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
     private byte _slEnableMask;
     private readonly int[] _slY = new int[SPRITE_COUNT];
 
-    public Vic2RasterizerUintPixelGenerator(
+    public Vic2RasterizerSequencerPixelGenerator(
         C64 c64,
         Action<uint, int, bool> setPixel,
         Action<Span<uint>, int, int, int> setBackgroundPixels,
@@ -269,10 +317,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
 
     [MemberNotNull(
         nameof(_c64ToRenderColorMap),
-        nameof(_oneLineSameColorPixels),
-        nameof(_eightPixelsOneColorAndBackground),
-        nameof(_eightPixelsTwoColors),
-        nameof(_eightPixelsThreeColorsAndBackground))]
+        nameof(_oneLineSameColorPixels))]
     private void Init()
     {
         _c64ToRenderColorMap = new uint[16];
@@ -337,6 +382,10 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
         _vic2ScreenCharacterHeight = _c64.Vic2.Vic2Screen.CharacterHeight;
         _width = _c64.Vic2.Vic2Screen.VisibleWidth;
         _height = _c64.Vic2.Vic2Screen.VisibleHeight;
+        _lineBgCodes = new byte[_width];
+        _lineFgCodes = new byte[_width];
+        _lineBgPixels = new uint[_width];
+        _lineFgPixels = new uint[_width];
         _drawableAreaWidth = _c64.Vic2.Vic2Screen.DrawableAreaWidth;
         _cyclesPerLine = _c64.Vic2.Vic2Model.CyclesPerLine;
         _colorChangePixelDelay = _c64.Vic2.Vic2Model.ColorChangePixelDelay;
@@ -392,15 +441,18 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
         _registerWrites[_registerWriteCount++] = new RegisterWrite { FrameCycle = frameCycle, Register = register, Value = value };
     }
 
-    // Take the colour registers as they are now and forget any pending writes.
+    // Take the colour and display registers as they are now and forget any pending writes.
     private void ResyncColorRegisters()
     {
-        _borderColor = _c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
-        _backgroundColor0 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
-        _backgroundColor1 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
-        _backgroundColor2 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
-        _backgroundColor3 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
-        _csel40 = _c64.Vic2.Is38ColumnDisplayEnabled == false;
+        _borderColor = (byte)(_c64.ReadIOStorage(Vic2Addr.BORDER_COLOR) & 0x0F);
+        _backgroundColor0 = (byte)(_c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0) & 0x0F);
+        _backgroundColor1 = (byte)(_c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1) & 0x0F);
+        _backgroundColor2 = (byte)(_c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2) & 0x0F);
+        _backgroundColor3 = (byte)(_c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3) & 0x0F);
+        _d011 = _c64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+        _d016 = _c64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER);
+        _d018 = _c64.ReadIOStorage(Vic2Addr.MEMORY_SETUP);
+        _csel40 = (_d016 & 0x08) != 0;
         _registerWriteCount = 0;
         _registerWriteNext = 0;
         _registerWritesOverflowed = false;
@@ -408,7 +460,9 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
 
     // Apply a journaled register write at the pixel position (normalized x on the open line)
     // from which it is visible. The journal carries the value as written; the colour registers
-    // keep only their low four bits.
+    // keep only their low four bits. A colour register change is visible from the pixel after
+    // the first of the cycle following the write (ColorChangePixelDelay); the display registers
+    // are seen by the sequencer from that cycle on, and it applies their own pipeline delays.
     private void ApplyRegisterWrite(in RegisterWrite write, int cycleStartX)
     {
         var color = (byte)(write.Value & 0x0F);
@@ -427,33 +481,47 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
                 }
                 break;
             case Vic2Addr.BACKGROUND_COLOR_0:
-                if (_backgroundColor0 != color)
-                {
-                    if (_backgroundRunStartX >= 0)
-                    {
-                        CloseBackgroundRun(changeX);
-                        _backgroundRunStartX = Math.Max(_backgroundRunStartX, changeX);
-                    }
-                    _backgroundColor0 = color;
-                }
+                RecordBackgroundColor(0, ref _backgroundColor0, color, changeX);
+                break;
+            case Vic2Addr.BACKGROUND_COLOR_1:
+                RecordBackgroundColor(1, ref _backgroundColor1, color, changeX);
+                break;
+            case Vic2Addr.BACKGROUND_COLOR_2:
+                RecordBackgroundColor(2, ref _backgroundColor2, color, changeX);
+                break;
+            case Vic2Addr.BACKGROUND_COLOR_3:
+                RecordBackgroundColor(3, ref _backgroundColor3, color, changeX);
+                break;
+            case Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER:
+                _d011 = write.Value;
                 break;
             case Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER:
                 // CSEL: in effect from the cycle boundary after the write, with no pipeline: it
                 // feeds the compares, not the pixel output.
+                _d016 = write.Value;
                 _csel40 = (write.Value & 0x08) != 0;
                 break;
-            case Vic2Addr.BACKGROUND_COLOR_1:
-                _backgroundColor1 = color;
-                break;
-            case Vic2Addr.BACKGROUND_COLOR_2:
-                _backgroundColor2 = color;
-                break;
-            case Vic2Addr.BACKGROUND_COLOR_3:
-                _backgroundColor3 = color;
+            case Vic2Addr.MEMORY_SETUP:
+                _d018 = write.Value;
                 break;
             default:
                 break;
         }
+    }
+
+    // A background colour register changes on the open line at x: remember where, so the line's
+    // pixels that take their colour from it can be resolved when the line ends.
+    private void RecordBackgroundColor(int register, ref byte current, byte color, int x)
+    {
+        if (current == color)
+            return;
+        current = color;
+        var n = _bgColorEventCount[register];
+        if (n == BG_COLOR_EVENT_CAPACITY)
+            return;   // more changes on one line than the chip can show apart: the last value wins
+        _bgColorEventX[register * BG_COLOR_EVENT_CAPACITY + n] = x;
+        _bgColorEventColor[register * BG_COLOR_EVENT_CAPACITY + n] = color;
+        _bgColorEventCount[register] = n + 1;
     }
 
     private bool IsRunLineVisible => _runLine >= _screenLayoutInclNonVisibleTopBorderStartY && _runLine <= _screenLayoutInclNonVisibleBottomBorderEndY;
@@ -465,13 +533,6 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
             DrawBorderRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _borderRunStartX, x);
     }
 
-    // Paint the open background run up to x (it stays open; the caller moves or ends it).
-    private void CloseBackgroundRun(int x)
-    {
-        if (IsRunLineVisible)
-            DrawBackgroundRun(_runLine - _screenLayoutInclNonVisibleTopBorderStartY, _backgroundRunStartX, x);
-    }
-
     // The right compare: border colour from x on this line, and until the next left compare.
     private void SetMainBorder(int x)
     {
@@ -480,9 +541,6 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
         _mainBorder = true;
         if (x < _lineClearEndX)
             _lineClearEndX = x;
-        if (_backgroundRunStartX >= 0)
-            CloseBackgroundRun(x);
-        _backgroundRunStartX = -1;
         _borderRunStartX = x;
     }
 
@@ -497,7 +555,6 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
         if (_borderRunStartX >= 0)
             CloseBorderRun(x);
         _borderRunStartX = -1;
-        _backgroundRunStartX = x;
     }
 
     // Draw the rest of the open line's run and close the line, keeping its clear span for the
@@ -509,8 +566,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
             var normalizedLine = _runLine - _screenLayoutInclNonVisibleTopBorderStartY;
             if (_borderRunStartX >= 0)
                 DrawBorderRun(normalizedLine, _borderRunStartX, _width);
-            if (_backgroundRunStartX >= 0)
-                DrawBackgroundRun(normalizedLine, _backgroundRunStartX, _width);
+            ResolveLineGraphics(normalizedLine);
             _lineClearStartXs[normalizedLine] = _lineClearStartX;
             _lineClearEndXs[normalizedLine] = _lineClearEndX;
         }
@@ -545,7 +601,11 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
                 _lineClearStartX = _mainBorder ? int.MaxValue : 0;
                 _lineClearEndX = _width;
                 _borderRunStartX = _mainBorder ? 0 : -1;
-                _backgroundRunStartX = _mainBorder ? -1 : 0;
+                _bgColorEventCount[0] = _bgColorEventCount[1] = _bgColorEventCount[2] = _bgColorEventCount[3] = 0;
+                _bgColorAtLineStart[0] = _backgroundColor0;
+                _bgColorAtLineStart[1] = _backgroundColor1;
+                _bgColorAtLineStart[2] = _backgroundColor2;
+                _bgColorAtLineStart[3] = _backgroundColor3;
             }
 
             // Register writes take effect from the cycle after the one they land in (colour
@@ -565,11 +625,6 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
 
             // Skip if not within visible C64 border/text/bitmap area
             if (screenLine < _screenLayoutInclNonVisibleTopBorderStartY || screenLine > _screenLayoutInclNonVisibleBottomBorderEndY)
-                continue;
-            // (A cycle just outside the frame is kept when its 8-pixel block on the character grid,
-            // which starts 4 pixels into the cycle, reaches into the frame: the opened side border's
-            // outermost pixels are drawn from those blocks.)
-            if (posX + 16 <= _screenLayoutInclNonVisibleLeftBorderStartX || posX - 12 > _screenLayoutInclNonVisibleRightBorderEndX)
                 continue;
 
             var isNewLine = screenLine != _lastScreenLineDataUpdate;
@@ -601,17 +656,6 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
                         _bandCount = 0;
                     }
                 }
-
-                _vic2VideoMatrixBaseAddress = _c64.Vic2.VideoMatrixBaseAddress;
-                _vic2BitmapBaseAddress = _c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
-                _vic2CharacterSetAddressInVIC2Bank = _c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
-
-                _isTextMode = _c64.Vic2.DisplayMode == DispMode.Text;
-                _characterMode = _c64.Vic2.CharacterMode;
-                _bitmapMode = _c64.Vic2.BitmapMode;
-                _invalidMode = _c64.Vic2.IsInvalidVideoMode;
-
-                _scrollX = _c64.Vic2.GetScrollX();
 
                 var lineState = _c64.Vic2.GetLineDisplayState(rasterLine);
                 _lineDisplayState = lineState.DisplayState;
@@ -646,21 +690,13 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
                 _lastScreenLineDataUpdate = screenLine;
             }
 
-            // Graphics show wherever the border flip-flop is clear. The display window's columns
-            // start 4 pixels into a cycle and the compares that can clip a column are evaluated a
-            // cycle after the cycle they fall in, so column k is drawn two cycles after the one it
-            // starts in: by then those compares have been evaluated. Outside the window (a side
-            // border a program has opened, or the top and bottom border with the vertical flip-flop
-            // kept clear) the sequencer shows its idle output on the same 8-pixel grid.
-            if (_lineClearStartX < _width)
-            {
-                var col = (posX - _screenLayoutInclNonVisibleScreenStartX - 12) >> 3;
-                var drawLine = screenLine - _screenLayoutInclNonVisibleScreenStartY;
-                if (col >= 0 && col < _vic2ScreenTextCols)
-                    DrawTextAndBitmapPixels(_c64, drawLine, col);
-                else
-                    DrawIdleBlock(_c64, drawLine, col);
-            }
+            // The graphics sequencer's eight pixels for this cycle. They land twelve pixels before the
+            // cycle's position: the display window's columns start 4 pixels into a cycle, and the
+            // pixels a cycle shows come from the byte fetched two cycles earlier, by which time the
+            // compares that can clip them have been evaluated. The sequencer runs on every cycle
+            // (its pipeline has to move on) and draws wherever the border flip-flop is clear.
+            var blockX = posX - _screenLayoutInclNonVisibleLeftBorderStartX - 12;
+            DrawGraphicsCycle((int)cycleOnScreenLine, blockX, render: blockX + 8 > 0 && blockX < _width && _lineClearStartX < _width);
 
         } // End for each cycle
 
@@ -975,11 +1011,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
         var height = vic2Screen.VisibleHeight;
     }
 
-    [MemberNotNull(
-        nameof(_oneLineSameColorPixels),
-        nameof(_eightPixelsOneColorAndBackground),
-        nameof(_eightPixelsTwoColors),
-        nameof(_eightPixelsThreeColorsAndBackground))]
+    [MemberNotNull(nameof(_oneLineSameColorPixels))]
     private void InitBitPatternToPixelMaps(C64 c64)
     {
         // Create 8 precalculated pixels (with colors to be used in the shader) for each 8 bit pattern suited for C64 normal color or multicolor text/bitmap.
@@ -1001,138 +1033,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
                 oneLine[i] = colorVal;
             _oneLineSameColorPixels[colorCode] = oneLine;
         }
-
-        var transparentColorVal = TransparentColor;
-
-        // A single line of the transparent color. Used to clear the foreground layer (e.g. invalid mode).
-        _oneLineTransparentPixels = new uint[width];
-        for (var i = 0; i < _oneLineTransparentPixels.Length; i++)
-            _oneLineTransparentPixels[i] = transparentColorVal;
-
-        // Text (normal) & bitmap (standard "HiRes") mode with one foreground color with a single "transparent" color as background color
-        // 8 bits => 8 pixels
-        _eightPixelsOneColorAndBackground = new uint[256 * 16][];
-        for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
-        {
-            for (byte bitmapFgColorCode = 0; bitmapFgColorCode < 16; bitmapFgColorCode++)
-            {
-                var bitmapFgColorVal = _c64ToRenderColorMap[bitmapFgColorCode];
-
-                // Standard (Hires) mode, 8 bits => 8 pixels. 2 "foreground" colors (fg color and bg color from text screen). No background color that will be replaced in shader.
-                var bitmapPixels = new uint[8];
-                for (var pixelPos = 0; pixelPos < 8; pixelPos++)
-                {
-                    // If bit is set, use foreground color, else use background color
-                    var isBitSet = (pixelPattern & 1 << 7 - pixelPos) != 0;
-                    if (isBitSet)
-                        bitmapPixels[pixelPos] = bitmapFgColorVal;
-                    else
-                        bitmapPixels[pixelPos] = transparentColorVal;
-                }
-                _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex((byte)pixelPattern, bitmapFgColorCode)] = bitmapPixels;
-            }
-        }
-
-        // Text extended & bitmap standard "HiRes" mode with one foreground color and a "background" color (non-transparent)
-        // 8 bits => 8 pixels
-        _eightPixelsTwoColors = new uint[256 * 16 * 16][];
-
-        for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
-        {
-            for (byte bitmapBgColorCode = 0; bitmapBgColorCode < 16; bitmapBgColorCode++)
-            {
-                var bitmapBgColorVal = _c64ToRenderColorMap[bitmapBgColorCode];
-
-                for (byte bitmapFgColorCode = 0; bitmapFgColorCode < 16; bitmapFgColorCode++)
-                {
-                    var bitmapFgColorVal = _c64ToRenderColorMap[bitmapFgColorCode];
-
-                    // Standard (Hires) mode, 8 bits => 8 pixels. 2 "foreground" colors (fg color and bg color from text screen). No background color that will be replaced in shader.
-                    var bitmapPixels = new uint[8];
-                    for (var pixelPos = 0; pixelPos < 8; pixelPos++)
-                    {
-                        // If bit is set, use foreground color, else use background color
-                        var isBitSet = (pixelPattern & 1 << 7 - pixelPos) != 0;
-                        if (isBitSet)
-                            bitmapPixels[pixelPos] = bitmapFgColorVal;
-                        else
-                            bitmapPixels[pixelPos] = bitmapBgColorVal;
-                    }
-                    _eightPixelsTwoColors[GetTwoColorsIndex((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode)] = bitmapPixels;
-                }
-            }
-        }
-
-
-        // Text multicolor & bitmap multicolor mode with one foreground color, two other colors, with a single "transparent" color as background color
-        // 8 bits => 4 pixels (with length 2)
-        _eightPixelsThreeColorsAndBackground = new uint[256 * 16 * 16 * 16][];
-
-        for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
-        {
-            for (byte color1 = 0; color1 < 16; color1++)
-            {
-                var color1Val = _c64ToRenderColorMap[color1];
-
-                for (byte color2 = 0; color2 < 16; color2++)
-                {
-                    var color2Val = _c64ToRenderColorMap[color2];
-
-                    for (byte color3 = 0; color3 < 16; color3++)
-                    {
-                        var color3Val = _c64ToRenderColorMap[color3];
-
-                        var bitmapMulicolorPixels = new uint[8];
-
-                        // Loop each multi-color pixel pair (4 pixel pairs)
-                        var mask = 0b11000000;
-                        // Text multicolor pixel patterns
-                        //      00 => screen bg color (transparent)
-                        //      01 (multi color 1) => backgroundColor1
-                        //      10 (multi color 2) => backgroundColor2
-                        //      11 (multi color 3) => foreground color from color RAM.
-
-                        // Bitmap multicolor pixel patterns
-                        //      00 => screen bg color (transparent)
-                        //      01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
-                        //      10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
-                        //      11 (multi color 3) => color RAM color (for corresponding position in text screen)
-
-
-                        for (var pixel = 0; pixel < 4; pixel++)
-                        {
-                            var pixelPair = (pixelPattern & mask) >> 6 - pixel * 2;
-                            var pairColorVal = pixelPair switch
-                            {
-                                0b00 => transparentColorVal,
-                                0b01 => color1Val,
-                                0b10 => color2Val,
-                                0b11 => color3Val,
-                                _ => throw new DotNet6502Exception("Invalid pixel pair value.")
-                            };
-                            mask = mask >> 2;
-                            bitmapMulicolorPixels[pixel * 2] = pairColorVal;
-                            bitmapMulicolorPixels[pixel * 2 + 1] = pairColorVal;
-                        }
-                        _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex((byte)pixelPattern, color1, color2, color3)] = bitmapMulicolorPixels;
-                    }
-                }
-            }
-        }
-
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int GetOneColorAndBackgroundIndex(byte eightPixels, byte color1)
-        => (eightPixels << 4) | color1;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int GetTwoColorsIndex(byte eightPixels, byte color0, byte color1)
-        => (eightPixels << 8) | (color0 << 4) | color1;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int GetThreeColorsIndex(byte eightPixels, byte color1, byte color2, byte color3)
-        => (eightPixels << 12) | (color1 << 8) | (color2 << 4) | color3;
 
     public void DrawSpritesToBitmapBackedByPixelArray()
     {
@@ -1270,295 +1171,369 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
     // in black over the background colour, on the character grid. col is negative to the left of
     // the window and 40 or more to its right; the clip in WriteToPixelArray keeps it to the span
     // that is open and inside the frame.
-    private void DrawIdleBlock(C64 c64, int drawLine, int col)
+    /// <summary>
+    /// One cycle of the graphics data sequencer: eight pixels shifted out, then the g-access of
+    /// this cycle stored for the output two cycles on. Pixels are recorded as colour codes on the
+    /// line's buffers, inside the border flip-flop's clear span only, and resolved into the layers
+    /// when the line ends.
+    /// </summary>
+    private void DrawGraphicsCycle(int cycle, int blockX, bool render)
     {
-        if (_invalidMode)
-            return;
-        var idleData = c64.Vic2.ReadMemory((ushort)(_isTextMode && _characterMode == CharMode.Extended ? 0x39FF : 0x3FFF));
-        uint[] idlePixels;
-        if (_isTextMode)
-            idlePixels = _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex(idleData, (byte)C64Colors.Black)];
-        else if (_bitmapMode == BitmMode.Standard)
-            idlePixels = _eightPixelsTwoColors[GetTwoColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black)];
+        var clipStart = Math.Max(_lineClearStartX, 0);
+        var clipEnd = Math.Min(_lineClearEndX, _width);
+        var draw = render && blockX + 8 > clipStart && blockX < clipEnd;
+        var newEcmBmm = (byte)(((_d011 & 0x40) != 0 ? MODE_ECM : 0) | ((_d011 & 0x20) != 0 ? MODE_BMM : 0));
+        var newMcm = (_d016 & 0x10) != 0;
+        var modeStable = _modeEcmBmm == newEcmBmm && _colorMcm == newMcm && _decodeMcm == newMcm;
+        var loadSlot = (cycle + 1) % 3;   // the entry fetched two cycles ago: (cycle - 2) mod 3
+
+        if (!draw && modeStable && _fetchedData[loadSlot] == 0 && _shiftData == 0 && _pixelValue == 0)
+        {
+            // Nothing to show and nothing in the shift register (the border, or a line the vertical
+            // flip-flop covers): the cycle only takes the empty entry and settles the pair phase.
+            _shiftMatrix = _fetchedMatrix[loadSlot];
+            _shiftColor = _fetchedColor[loadSlot];
+            _pairSecondHalf = ((8 - _loadPixel) & 1) != 0;
+        }
+        else if (draw && modeStable && _loadPixel == 0 && blockX >= clipStart && blockX + 8 <= clipEnd)
+        {
+            // The steady state: the byte is taken at pixel 0, the modes do not change and the whole
+            // block shows. Decoded without the per-pixel bookkeeping of the general case below.
+            _shiftMatrix = _fetchedMatrix[loadSlot];
+            _shiftColor = _fetchedColor[loadSlot];
+            var data = _fetchedData[loadSlot];
+            var multicolorCell = (_modeEcmBmm & MODE_BMM) != 0 || (_shiftColor & 0x08) != 0;
+            ResolveColorCodes();
+            byte value = 0;
+            if (data == 0)
+            {
+                // A blank byte (most of a text screen): every pixel is value 0, background priority.
+                Array.Fill(_lineFgCodes, CODE_NONE, blockX, 8);
+                Array.Fill(_lineBgCodes, _colorCodes[0], blockX, 8);
+            }
+            else if (_decodeMcm && multicolorCell)
+            {
+                for (var i = 0; i < 8; i += 2)
+                {
+                    value = (byte)((data >> (6 - i)) & 3);
+                    WritePixelCode(blockX + i, value);
+                    WritePixelCode(blockX + i + 1, value);
+                }
+            }
+            else
+            {
+                for (var i = 0; i < 8; i++)
+                {
+                    value = (data & (0x80 >> i)) != 0 ? (byte)3 : (byte)0;
+                    WritePixelCode(blockX + i, value);
+                }
+            }
+            _shiftData = 0;
+            _pixelValue = value;
+            _pairSecondHalf = false;
+        }
         else
-            idlePixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black, (byte)C64Colors.Black)];
-        WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
-        WriteToPixelArray(idlePixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
+        {
+            for (var i = 0; i < 8; i++)
+            {
+                // A register change reaches the output part way through the cycle: MCM's colour
+                // selection at pixel 4, ECM and BMM at pixel 4 when set and pixel 6 when cleared.
+                // The decoding into pairs follows MCM a cycle later, at pixel 7, and MCM switched on
+                // starts the pairs afresh from the next pixel.
+                if (i == 4)
+                {
+                    _colorMcm = newMcm;
+                    _modeEcmBmm |= newEcmBmm;
+                    _colorCodesValid = false;
+                }
+                else if (i == 6)
+                {
+                    _modeEcmBmm &= newEcmBmm;
+                    _colorCodesValid = false;
+                }
+                else if (i == 7)
+                {
+                    if (_colorMcm && !_decodeMcm)
+                        _pairSecondHalf = true;
+                    _decodeMcm = _colorMcm;
+                }
+
+                // The shift register is loaded at the pixel XSCROLL selects.
+                if (i == _loadPixel)
+                {
+                    _shiftData = _fetchedData[loadSlot];
+                    _shiftMatrix = _fetchedMatrix[loadSlot];
+                    _shiftColor = _fetchedColor[loadSlot];
+                    _pairSecondHalf = false;
+                    _colorCodesValid = false;
+                }
+
+                // The pixel's value: in a multicolour cell (BMM, or a colour nibble with bit 3 set)
+                // being decoded as pairs, the top two bits, held for the pair's second pixel; else
+                // the top bit as 3 or 0. A set bit in a multicolour cell while the colour selection
+                // is already multicolour but the decoding is not yet shows as value 2 (the chip's
+                // $D023 flash at an MCM switch).
+                var multicolorCell = (_modeEcmBmm & MODE_BMM) != 0 || (_shiftColor & 0x08) != 0;
+                if (_decodeMcm && multicolorCell)
+                {
+                    if (!_pairSecondHalf)
+                        _pixelValue = (byte)(_shiftData >> 6);
+                }
+                else if ((_shiftData & 0x80) == 0)
+                {
+                    _pixelValue = 0;
+                }
+                else
+                {
+                    _pixelValue = _colorMcm && multicolorCell ? (byte)2 : (byte)3;
+                }
+                _shiftData <<= 1;
+                _pairSecondHalf = !_pairSecondHalf;
+
+                if (!draw)
+                    continue;
+                var x = blockX + i;
+                if (x < clipStart || x >= clipEnd)
+                    continue;
+                if (!_colorCodesValid)
+                    ResolveColorCodes();
+                WritePixelCode(x, _pixelValue);
+            }
+        }
+
+        // This cycle's g-access, for the output two cycles on. The g-accesses are the chip's cycles
+        // 16-55 (column 0-39) on a line the vertical border flip-flop leaves open: a row's data in
+        // display state, the byte at the end of the bank ($39FF with ECM) with no matrix data in idle
+        // state. Outside them the sequencer is fed zeros, and the matrix data stays as it is.
+        var fetchSlot = cycle % 3;
+        var column = cycle - FirstFetchCycle;
+        if (column >= 0 && column < _vic2ScreenTextCols && !_lineVerticalBorder)
+        {
+            _loadPixel = (byte)(_d016 & 0x07);
+            if (_lineDisplayState)
+            {
+                FetchColumn(column, fetchSlot);
+            }
+            else
+            {
+                _fetchedMatrix[fetchSlot] = 0;
+                _fetchedColor[fetchSlot] = 0;
+                _fetchedData[fetchSlot] = _c64.Vic2.ReadMemory((ushort)((_d011 & 0x40) != 0 ? 0x39FF : 0x3FFF));
+            }
+        }
+        else
+        {
+            _fetchedData[fetchSlot] = 0;
+            _fetchedMatrix[fetchSlot] = _fetchedMatrix[(cycle + 2) % 3];
+            _fetchedColor[fetchSlot] = _fetchedColor[(cycle + 2) % 3];
+        }
     }
 
-    private void DrawTextAndBitmapPixels(C64 c64, int drawLine, int col)
+    // The colour codes of the four pixel values, from the article's mode tables (3.7.3): what a bit
+    // or a pair stands for in each mode, with the matrix byte and colour nibble in the shift register.
+    // Values 2 and 3 are foreground pixels in every mode (3.8.5); value 2 only occurs as a pair, or
+    // as the flash at an MCM switch. The invalid modes (ECM with BMM or MCM) show black.
+    private void ResolveColorCodes()
     {
-        // Invalid VIC-II mode (ECM combined with BMM/MCM): the pixel sequencer is disabled and the
-        // display area outputs black at the physical raster line, regardless of screen/char/bitmap
-        // memory. (Without this, the BMM bit alone makes us render garbage bitmap data - the cause of
-        // the garbled band seen in e.g. Commando, which toggles this mode on for a few raster lines.)
-        // Fill the background layer black, and clear the foreground layer on the band's own raster
-        // lines so nothing drawn earlier this frame remains visible inside the band. Clearing rather
-        // than painting black keeps the foreground transparent so sprites still composite normally.
-        if (_invalidMode)
+        var key = (_modeEcmBmm << 17) | (_colorMcm ? 1 << 16 : 0) | (_shiftMatrix << 8) | _shiftColor;
+        if (key == _colorCodesKey)
         {
-            // Clear pixels
-            WriteToPixelArray(_oneLineSameColorPixels[(byte)C64Colors.Black], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
-            WriteToPixelArray(_oneLineTransparentPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
+            _colorCodesValid = true;
             return;
         }
-
-        var backgroundIsPrefilled = _isTextMode && _characterMode == CharMode.Standard;
-
-        // Idle state: no row is being displayed (before the first bad line, after a row's eighth
-        // line until the next bad line, or all frame when the display was off during line $30).
-        // The sequencer still runs, on the byte at the end of the VIC-II bank ($3FFF, or $39FF with
-        // ECM) with no video matrix data: black over the background colour, or all black in the
-        // bitmap modes where both colours would come from the matrix.
-        if (!_lineDisplayState)
+        _colorCodesKey = key;
+        var matrix = _shiftMatrix;
+        var color = _shiftColor;
+        byte c0, c1, c2, c3;
+        switch (_modeEcmBmm)
         {
-            var idleData = c64.Vic2.ReadMemory((ushort)(_isTextMode && _characterMode == CharMode.Extended ? 0x39FF : 0x3FFF));
-            uint[] idlePixels;
-            if (_isTextMode)
-                idlePixels = _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex(idleData, (byte)C64Colors.Black)];
-            else if (_bitmapMode == BitmMode.Standard)
-                idlePixels = _eightPixelsTwoColors[GetTwoColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black)];
-            else
-                idlePixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(idleData, (byte)C64Colors.Black, (byte)C64Colors.Black, (byte)C64Colors.Black)];
-            if (!backgroundIsPrefilled)
-                WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
-            WriteToPixelArray(idlePixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
-            return;
+            case 0:   // text
+                if (_colorMcm)
+                {
+                    // Multicolour text: pairs 00, 01, 10 the background colours 0-2, 11 the colour
+                    // nibble's low three bits; a hires cell (bit 3 clear) shows those bits for its
+                    // set bits. Value 2 is background colour 2 either way.
+                    c0 = CODE_BG0;
+                    c1 = CODE_BG0 + 1;
+                    c2 = CODE_BG0 + 2;
+                    c3 = (byte)(color & 0x07);
+                }
+                else
+                {
+                    // Standard text: a clear bit background colour 0, a set bit the colour nibble.
+                    c0 = c1 = CODE_BG0;
+                    c2 = c3 = color;
+                }
+                break;
+            case MODE_BMM:
+                if (_colorMcm)
+                {
+                    // Multicolour bitmap: 00 background colour 0, 01 the matrix byte's high nibble,
+                    // 10 its low nibble, 11 the colour nibble.
+                    c0 = CODE_BG0;
+                    c1 = (byte)(matrix >> 4);
+                    c2 = (byte)(matrix & 0x0F);
+                    c3 = color;
+                }
+                else
+                {
+                    // Standard bitmap: a clear bit the low nibble, a set bit the high nibble.
+                    c0 = c1 = (byte)(matrix & 0x0F);
+                    c2 = c3 = (byte)(matrix >> 4);
+                }
+                break;
+            case MODE_ECM when !_colorMcm:
+                // Extended colour text: a clear bit background colour 0-3 by the matrix byte's top
+                // two bits, a set bit the colour nibble.
+                c0 = c1 = (byte)(CODE_BG0 + (matrix >> 6));
+                c2 = c3 = color;
+                break;
+            default:
+                c0 = c1 = c2 = c3 = 0;
+                break;
         }
+        _colorCodes[0] = c0;
+        _colorCodes[1] = c1;
+        _colorCodes[2] = c2;
+        _colorCodes[3] = c3;
+        _colorCodesValid = true;
+    }
 
-        // Display state: the row is the one VC points at and the line within it is RC, both as the
-        // VIC-II counted them; VC is ten bits and advances by one per column.
-        var characterLine = (ushort)_lineRowCounter;
-        var videoCounter = (ushort)((_lineVideoCounterBase + col) & 0x3FF);
-        var characterRow = _lineVideoCounterBase;   // identifies the row for the row latch
-
-        var characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + videoCounter);
-        var colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + videoCounter);
-        var c64BitMapAddress = (ushort)(_vic2BitmapBaseAddress + videoCounter * 8 + characterLine);
-
-        // Screen code and colour nibble for the cell: from the row latch when this row has been
-        // fetched already (lines after the row's first), otherwise live from the video matrix and
-        // colour RAM, filling the latch on the way.
-        byte characterCode, colorRamCode;
-        if (characterLine != 0 && _latchedCharacterRow == characterRow)
+    // Record a pixel on the line's code buffers. Values 2 and 3 are foreground pixels, which
+    // sprites with the priority bit set go behind.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WritePixelCode(int x, byte value)
+    {
+        var code = _colorCodes[value];
+        if ((value & 2) != 0)
         {
-            characterCode = _rowScreenCodes[col];
-            colorRamCode = _rowColorRam[col];
+            _lineFgCodes[x] = code;
+            _lineBgCodes[x] = CODE_BG0;
         }
         else
         {
-            characterCode = c64.Vic2.ReadMemory(characterAddress);
-            colorRamCode = c64.ReadIOStorage(colorRamAddress);
-            _rowScreenCodes[col] = characterCode;
-            _rowColorRam[col] = colorRamCode;
+            _lineFgCodes[x] = CODE_NONE;
+            _lineBgCodes[x] = code;
+        }
+    }
+
+    /// <summary>
+    /// The c- and g-access for a column in display state: the row is the one VC points at and the
+    /// line within it is RC, both as the VIC-II counted them; VC is ten bits and advances by one
+    /// per column. The screen code and colour nibble come from the row latch when this row has
+    /// been fetched already (lines after the row's first), otherwise live from the video matrix
+    /// and colour RAM, filling the latch on the way. The graphics byte comes from the bitmap or
+    /// the character set the memory pointers select now.
+    /// </summary>
+    private void FetchColumn(int column, int slot)
+    {
+        var characterLine = _lineRowCounter;
+        var videoCounter = (_lineVideoCounterBase + column) & 0x3FF;
+        var characterRow = _lineVideoCounterBase;   // identifies the row for the row latch
+
+        byte screenCode, colorNibble;
+        if (characterLine != 0 && _latchedCharacterRow == characterRow)
+        {
+            screenCode = _rowScreenCodes[column];
+            colorNibble = _rowColorRam[column];
+        }
+        else
+        {
+            var videoMatrixBase = (_d018 & 0xF0) << 6;
+            screenCode = _c64.Vic2.ReadMemory((ushort)(videoMatrixBase + videoCounter));
+            colorNibble = (byte)(_c64.ReadIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + videoCounter)) & 0x0F);
+            _rowScreenCodes[column] = screenCode;
+            _rowColorRam[column] = colorNibble;
             if (_fetchingCharacterRow != characterRow)
             {
                 _fetchingCharacterRow = characterRow;
                 _fetchedColumnsMask = 0;
                 _latchedCharacterRow = -1;
             }
-            _fetchedColumnsMask |= 1UL << col;
+            _fetchedColumnsMask |= 1UL << column;
             if (_fetchedColumnsMask == (1UL << _vic2ScreenTextCols) - 1)
                 _latchedCharacterRow = characterRow;   // every column read live: the row is fetched
         }
+        _fetchedMatrix[slot] = screenCode;
+        _fetchedColor[slot] = colorNibble;
 
-        uint[] eightPixels;
-        if (_isTextMode)
+        if ((_d011 & 0x20) != 0)
         {
-            var characterMode = _characterMode;
-            // Determine colors
-            var fgColorCode = colorRamCode;
-            int bgColorNumber;  // 0-3
-            if (characterMode == CharMode.Standard)
-                bgColorNumber = 0;
-            else if (characterMode == CharMode.Extended)
-            {
-                bgColorNumber = characterCode >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
-                characterCode = (byte)(characterCode & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
-
-            }
-            else // Asume multicolor mode
-            {
-                bgColorNumber = 0;
-                // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
-                if (fgColorCode <= 7)
-                    // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
-                    characterMode = CharMode.Standard;
-                else
-                {
-                    // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
-                    // Thus color values 8-15 are transformed to 0-7
-                    fgColorCode = (byte)((fgColorCode & 0b00001111) - 8);
-                }
-            }
-
-            // Read one line (8 bits/pixels) of character pixel data from character set from the current line of the character code
-            var characterSetLineAddress = (ushort)(_vic2CharacterSetAddressInVIC2Bank
-                + characterCode * _vic2ScreenCharacterHeight
-                + characterLine);
-            var lineData = c64.Vic2.ReadMemory(characterSetLineAddress);
-
-            // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
-            if (characterMode == CharMode.Standard || characterMode == CharMode.Extended)
-            {
-                switch (bgColorNumber)
-                {
-                    case 0:
-                        eightPixels = _eightPixelsOneColorAndBackground[GetOneColorAndBackgroundIndex(lineData, fgColorCode)];
-                        break;
-                    case 1:
-                        eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(lineData, _backgroundColor1, fgColorCode)];
-                        break;
-                    case 2:
-                        eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(lineData, _backgroundColor2, fgColorCode)];
-                        break;
-                    case 3:
-                        eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(lineData, _backgroundColor3, fgColorCode)];
-                        break;
-                    default:
-                        throw new DotNet6502Exception("Invalid background color number.");
-                }
-            }
-            else // Assume text multicolor mode
-            {
-                // Text multicolor mode color usage (8 bits, 4 pixel pairs)
-                // Transparent background = the color of pixel-pair 00
-                // backgroundColor1       = the color of pixel-pair 01
-                // backgroundColor2       = the color of pixel-pair 10
-                // fgColorCode            = the color of pixel-pair 11
-
-                // Get the corresponding array of uints representing the 8 pixels of the character
-                eightPixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(lineData, _backgroundColor1, _backgroundColor2, fgColorCode)];
-            }
+            // BMM: the bitmap, eight bytes per cell.
+            var bitmapBase = (_d018 & 0x08) << 10;
+            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(bitmapBase + videoCounter * 8 + characterLine));
         }
         else
         {
-            // Assume bitmap mode
-
-            // 8 bits of bitmap data for the current line, at the current column
-            var bitmapLineData = c64.Vic2.ReadMemory(c64BitMapAddress);
-
-            // Bg color is picked from text screen, low 4 bits.
-            var bitmapBgColorCode = (byte)(characterCode & 0b00001111);
-            // Fg color is picked from text screen, high 4 bits.
-            var bitmapFgColorCode = (byte)((characterCode & 0b11110000) >> 4);
-
-            if (_bitmapMode == BitmMode.Standard)
-                // Bitmap Standard (HiRes) mode, 8 bits => 8 pixels
-                // ----------
-                // Pixel not set (bit = 0) => bitmap bg color (from text screen low 4 bits)
-                // Pixel set (bit = 1) => bitmap fg color
-                eightPixels = _eightPixelsTwoColors[GetTwoColorsIndex(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode)];
-            else
-            {
-                // Bitmap Multi color mode, 8 bits => 4 pixels
-                // ----------
-                // Pixel pattern 00 => screen bg color
-                // Pixel pattern 01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
-                // Pixel pattern 10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
-                // Pixel pattern 11 (multi color 3) => color RAM color (for corresponding position in text screen)
-                eightPixels = _eightPixelsThreeColorsAndBackground[GetThreeColorsIndex(bitmapLineData, bitmapFgColorCode, bitmapBgColorCode, colorRamCode)];
-            }
+            // The character set; with ECM only the low six bits of the screen code select the shape.
+            var characterSetBase = (_d018 & 0x0E) << 10;
+            var shape = (_d011 & 0x40) != 0 ? screenCode & 0x3F : screenCode;
+            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(characterSetBase + shape * _vic2ScreenCharacterHeight + characterLine));
         }
-
-        // Write the background color to the pixel array for background and border
-        if (!backgroundIsPrefilled)
-            WriteToPixelArray(_oneLineSameColorPixels[_backgroundColor0], foreground: false, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false);
-
-        // Write the character to the current raster line. Horizontal fine scroll still shifts the
-        // destination X, but vertical fine scroll was already applied to gridLine above.
-        WriteToPixelArray(eightPixels, foreground: true, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true);
-
     }
 
     /// <summary>
-    /// Standard text mode draws its cells on the foreground layer only, so the background colour is
-    /// laid down on the background layer separately: this draws it on one main-screen line between
-    /// two normalized x positions (end exclusive), clipped to the screen area.
+    /// Resolve the line's colour codes into the background and foreground layers over the span
+    /// where the border flip-flop was clear, giving each pixel that takes its colour from a
+    /// background colour register the register's value at that pixel.
     /// </summary>
-    private void DrawBackgroundRun(int normalizedScreenLine, int fromX, int toX)
+    private void ResolveLineGraphics(int normalizedLine)
     {
-        if (!_isTextMode || _characterMode != CharMode.Standard)
+        var start = Math.Max(_lineClearStartX, 0);
+        var end = Math.Min(_lineClearEndX, _width);
+        if (start >= end)
             return;
+        var ypos = FlipY ? _height - normalizedLine - 1 : normalizedLine;
+        var transparent = TransparentColor;
 
-        var ypos = normalizedScreenLine;
-        if (FlipY)
-            ypos = _height - ypos - 1;
-
-        // The run spans pixels where the flip-flop was clear; the display window's part of it is
-        // the prefill under the text columns, the rest is painted block by block as idle output.
-        fromX = Math.Max(fromX, _screenStartX);
-        toX = Math.Min(toX, _rightBorderStartX);
-        if (fromX >= toX)
-            return;
-
-        _setBackgroundPixels(_oneLineSameColorPixels[_backgroundColor0], 0, ypos * _width + fromX, toX - fromX);
-    }
-
-    private void WriteToPixelArray(uint[] fnEightPixels, bool foreground, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX)
-    {
-        // Draw 8 pixels (or less) of character on the the pixel array part used for the C64 drawable screen (320x200)
-
-        // ----------
-        // Y position
-        // ----------
-        var ypos = _screenStartY + fnMainScreenY;
-
-        // The vertical border flip-flop decides whether this line shows graphics at all (the
-        // caller checks it); here only the frame's edge clips.
-        if (ypos < 0 || ypos >= _height)
-            return;
-
-        // If inverted Y coordinate system is used, flip it
-        if (FlipY)
-            ypos = _height - ypos - 1;
-
-        // ----------
-        // X position
-        // ----------
-        var sourcePixelStart = 0;
-        if (fnAdjustForScrollX)
-            fnMainScreenX += _scrollX;
-        var xpos = _screenStartX + fnMainScreenX;
-
-
-        // Only the pixels where the border flip-flop is clear on this line are shown.
-        var clipStart = Math.Max(_lineClearStartX, 0);
-        var clipEnd = Math.Min(_lineClearEndX, _width);
-        if (xpos + fnLength <= clipStart || xpos >= clipEnd)
-            return;
-        if (xpos < clipStart)
+        var anyEvents = _bgColorEventCount[0] > 0 || _bgColorEventCount[1] > 0 || _bgColorEventCount[2] > 0 || _bgColorEventCount[3] > 0;
+        if (!anyEvents)
         {
-            sourcePixelStart = clipStart - xpos;
-            fnLength -= sourcePixelStart;
-            xpos = clipStart;
+            // No background colour write on the line: one lookup per pixel and layer.
+            for (var c = 0; c < CODE_BG0; c++)
+                _bgCodeColor[c] = _c64ToRenderColorMap[c];
+            for (var r = 0; r < 4; r++)
+                _bgCodeColor[CODE_BG0 + r] = _c64ToRenderColorMap[_bgColorAtLineStart[r]];
+            for (var c = 0; c < CODE_BG0 + 4; c++)
+                _fgCodeColor[c] = _bgCodeColor[c];
+            _fgCodeColor[CODE_NONE] = transparent;
+            for (var x = start; x < end; x++)
+            {
+                _lineBgPixels[x] = _bgCodeColor[_lineBgCodes[x]];
+                _lineFgPixels[x] = _fgCodeColor[_lineFgCodes[x]];
+            }
         }
-        if (xpos + fnLength > clipEnd)
-            fnLength = clipEnd - xpos;
-
-        // ----------
-        // Copy pixels to correct location in pixel array
-        // ----------
-        // Calculate the position in the bitmap where the 8 pixels should be drawn
-        var lBitmapIndex = ypos * _width + xpos;
-
-        // Copy array with Span
-        // - Seems to be a bit faster on .NET 8 WASM than Array.Copy and Buffer.BlockCopy.
-        // - TODO: Is the extra heap memory allocation of Span objects (which leads to GC pressure) worth the performance gain?
-        //var source = new ReadOnlySpan<uint>(fnEightPixels, sourcePixelStart, fnLength);
-        //var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
-        //source.CopyTo(target);
-
-        // Or Copy array with Array.Copy
-        //Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
-
-        // Or Copy array with Buffer.BlockCopy
-        //Buffer.BlockCopy(fnEightPixels, 0, fnPixelArray, lBitmapIndex * 4, fnLength * 4);   // Note: Buffer.BlockCopy uses byte size, so multiply by 4 to get uint size
-
-        if (foreground)
-            _setForegroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
         else
-            _setBackgroundPixels(fnEightPixels, sourcePixelStart, lBitmapIndex, fnLength);
+        {
+            Span<byte> registerColor = stackalloc byte[4];
+            Span<int> next = stackalloc int[4];
+            for (var r = 0; r < 4; r++)
+            {
+                registerColor[r] = _bgColorAtLineStart[r];
+                next[r] = 0;
+            }
+            for (var x = start; x < end; x++)
+            {
+                for (var r = 0; r < 4; r++)
+                {
+                    var n = next[r];
+                    while (n < _bgColorEventCount[r] && _bgColorEventX[r * BG_COLOR_EVENT_CAPACITY + n] <= x)
+                    {
+                        registerColor[r] = _bgColorEventColor[r * BG_COLOR_EVENT_CAPACITY + n];
+                        n++;
+                    }
+                    next[r] = n;
+                }
+                var bg = _lineBgCodes[x];
+                _lineBgPixels[x] = _c64ToRenderColorMap[bg < CODE_BG0 ? bg : registerColor[bg - CODE_BG0]];
+                var fg = _lineFgCodes[x];
+                _lineFgPixels[x] = fg == CODE_NONE ? transparent : _c64ToRenderColorMap[fg < CODE_BG0 ? fg : registerColor[fg - CODE_BG0]];
+            }
+        }
+
+        var index = ypos * _width + start;
+        _setBackgroundPixels(_lineBgPixels, start, index, end - start);
+        _setForegroundPixels(_lineFgPixels, start, index, end - start);
     }
 
 }

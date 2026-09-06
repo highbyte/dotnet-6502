@@ -34,6 +34,13 @@ public class C64Config
     /// </summary>
     public bool Vic2RasterizerPerLineSprites { get; set; }
 
+    /// <summary>
+    /// Which pixel generator the Vic2Rasterizer render provider draws with: the graphics sequencer
+    /// followed pixel by pixel (the default, exact for mid-line register changes) or the legacy
+    /// block-based generator, which is faster and kept unchanged as a fallback.
+    /// </summary>
+    public Vic2PixelGeneratorType Vic2RasterizerPixelGeneratorType { get; set; } = Vic2PixelGeneratorType.Sequencer;
+
     public Type? AudioProviderType { get; set; }
     public SidEmulationMode SidEmulationMode { get; set; } = SidEmulationMode.Auto;
     public CpuCompatibilityProfile CpuCompatibilityProfile { get; set; } = CpuCompatibilityProfile.StableUnofficial;

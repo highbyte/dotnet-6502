@@ -1,0 +1,17 @@
+namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
+
+/// <summary>
+/// The part of <see cref="Vic2Rasterizer"/> that turns the VIC-II's state into pixels on the two
+/// layers. Two implementations exist: <see cref="Vic2RasterizerSequencerPixelGenerator"/>, which
+/// follows the chip's graphics sequencer pixel by pixel, and the legacy
+/// <see cref="Vic2RasterizerUintPixelGenerator"/>, which draws by 8-pixel blocks with the display
+/// registers sampled once per line and is kept, unchanged, as the faster fallback.
+/// </summary>
+public interface IVic2RasterizerPixelGenerator
+{
+    /// <summary>Draw the pixels of the cycles the CPU has executed since the last call.</summary>
+    void OnAfterInstruction();
+
+    /// <summary>Finish the frame: the last line, the end-of-frame sprite pass, register resync.</summary>
+    void OnEndFrame();
+}

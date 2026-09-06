@@ -170,7 +170,7 @@
                 <TextBlock Text="Video"
                             Classes=""/>
 
-                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Classes="spacing-tight">
                     <TextBlock Grid.Row="0" Grid.Column="0"
                                 Text="Render provider:"
                                 Classes="secondary-text"/>
@@ -213,6 +213,14 @@
                             Content="Per-line sprites (multiplexing)"
                             IsChecked="{Binding Vic2RasterizerPerLineSprites}"
                             ToolTip.Tip="Render sprites per raster line, enabling sprite multiplexing and per-line sprite collision, instead of once at end-of-frame. Only affects the Rasterizer render provider."
+                            Classes=""/>
+
+                    <CheckBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                            AutomationProperties.AutomationId="LegacyPixelGeneratorCheckBox"
+                            AutomationProperties.Name="Legacy pixel generator (faster)"
+                            Content="Legacy pixel generator (faster)"
+                            IsChecked="{Binding Vic2RasterizerLegacyPixelGenerator}"
+                            ToolTip.Tip="Draw with the previous block-based pixel generator, which samples scroll, mode and memory pointer registers once per line, instead of following the VIC-II's graphics sequencer pixel by pixel. Faster; mid-line register changes are less exact. Only affects the Rasterizer render provider."
                             Classes=""/>
                 </Grid>
 

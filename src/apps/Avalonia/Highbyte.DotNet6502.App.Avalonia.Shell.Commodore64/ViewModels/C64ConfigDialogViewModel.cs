@@ -513,6 +513,25 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    private bool _vic2RasterizerLegacyPixelGenerator;
+    /// <summary>
+    /// When enabled, the Rasterizer render provider draws with the legacy block-based pixel generator
+    /// (display registers sampled once per line) instead of the graphics sequencer followed pixel by
+    /// pixel. Faster, less exact for mid-line register changes. Only affects the Rasterizer provider.
+    /// </summary>
+    public bool Vic2RasterizerLegacyPixelGenerator
+    {
+        get => _vic2RasterizerLegacyPixelGenerator;
+        set
+        {
+            if (_vic2RasterizerLegacyPixelGenerator == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _vic2RasterizerLegacyPixelGenerator, value);
+            _workingConfig.SystemConfig.Vic2RasterizerPixelGeneratorType = value ? Vic2PixelGeneratorType.Legacy : Vic2PixelGeneratorType.Sequencer;
+        }
+    }
+
     /// <summary>
     /// Whether the BASIC AI coding assistant is enabled by default when the C64 starts. The F9 key
     /// still toggles it live while running. (Moved here from the C64 menu to keep it with the other
@@ -1589,6 +1608,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         _originalConfig.SystemConfig.CpuCompatibilityProfile = _workingConfig.SystemConfig.CpuCompatibilityProfile;
         _originalConfig.SystemConfig.SidEmulationMode = _workingConfig.SystemConfig.SidEmulationMode;
+        _originalConfig.SystemConfig.Vic2RasterizerPerLineSprites = _workingConfig.SystemConfig.Vic2RasterizerPerLineSprites;
+        _originalConfig.SystemConfig.Vic2RasterizerPixelGeneratorType = _workingConfig.SystemConfig.Vic2RasterizerPixelGeneratorType;
 
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.InputConfig = (C64InputConfig)_workingConfig.InputConfig.Clone();
@@ -1624,6 +1645,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         Vic2RasterizerPerLineSprites = _workingConfig.SystemConfig.Vic2RasterizerPerLineSprites;
+        Vic2RasterizerLegacyPixelGenerator = _workingConfig.SystemConfig.Vic2RasterizerPixelGeneratorType == Vic2PixelGeneratorType.Legacy;
         SelectedCpuCompatibilityProfile = CpuCompatibilityProfileOption.FromProfile(_workingConfig.SystemConfig.CpuCompatibilityProfile);
 
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
