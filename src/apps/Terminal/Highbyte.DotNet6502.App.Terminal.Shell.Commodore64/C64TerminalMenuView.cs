@@ -47,6 +47,12 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
                 availableInBrowser: true,
                 c64Variant: "C64PAL",
                 swiftLinkEnabled: true),
+            ["Fairlight Intro (Golden Collection)"] = new(
+                "Fairlight Intro (Golden Collection)",
+                "https://csdb.dk/release/download.php?id=221432",
+                downloadType: C64DownloadProgramType.Prg,
+                c64Variant: "C64PAL",
+                audioEnabled: true),
             ["Mini Zork"] = new(
                 "Mini Zork",
                 "https://csdb.dk/release/download.php?id=42919",
