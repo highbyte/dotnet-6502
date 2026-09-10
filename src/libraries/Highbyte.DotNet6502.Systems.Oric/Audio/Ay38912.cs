@@ -20,7 +20,10 @@ public sealed class Ay38912
     private readonly bool[] _toneHigh = [true, true, true];
     private readonly int _clockHz;
     private readonly int _sampleRateHz;
-    private double _sampleCycleAccumulator;
+    // Integer phase in sample-rate units: each AY cycle adds sampleRateHz, and a
+    // PCM interval spans clockHz units. This also preserves fractional AY cycles.
+    private int _samplePhase;
+    private double _sampleArea;
     private int _noiseCounter = 1;
     private bool _noiseHigh = true;
     private uint _noiseLfsr = 0x1ffff;
@@ -76,17 +79,27 @@ public sealed class Ay38912
             return 0;
 
         var written = 0;
-        var cyclesPerSample = (double)_clockHz / _sampleRateHz;
         for (var cycle = 0; cycle < cycles; cycle++)
         {
             TickGenerators();
-            _sampleCycleAccumulator += 1.0;
-            if (_sampleCycleAccumulator < cyclesPerSample)
-                continue;
+            var level = MixSample();
+            var remaining = _sampleRateHz;
+            while (remaining > 0)
+            {
+                var portion = Math.Min(remaining, _clockHz - _samplePhase);
+                _sampleArea += (double)level * portion;
+                _samplePhase += portion;
+                remaining -= portion;
+                if (_samplePhase != _clockHz)
+                    continue;
 
-            _sampleCycleAccumulator -= cyclesPerSample;
-            if (written < destination.Length)
-                destination[written++] = MixSample();
+                // Integrate the entire interval, including changes between calls or
+                // register writes, instead of aliasing an instantaneous mixer value.
+                if (written < destination.Length)
+                    destination[written++] = (float)(_sampleArea / _clockHz);
+                _samplePhase = 0;
+                _sampleArea = 0;
+            }
         }
         return written;
     }
@@ -100,7 +113,8 @@ public sealed class Ay38912
         _noiseCounter = 1;
         _noiseHigh = true;
         _noiseLfsr = 0x1ffff;
-        _sampleCycleAccumulator = 0;
+        _samplePhase = 0;
+        _sampleArea = 0;
         RestartEnvelope(0);
         PortAOutputChanged?.Invoke(0);
     }
@@ -125,7 +139,7 @@ public sealed class Ay38912
 
         if (--_envelopeCounter <= 0)
         {
-            _envelopeCounter = 256 * EnvelopePeriod();
+            _envelopeCounter = EnvelopeStepCycles();
             AdvanceEnvelope();
         }
     }
@@ -137,14 +151,18 @@ public sealed class Ay38912
         return Math.Max(1, fine | (coarse << 8));
     }
 
-    private int EnvelopePeriod()
-        => Math.Max(1, _registers[11] | (_registers[12] << 8));
+    private int EnvelopeStepCycles()
+    {
+        // AY has 16 levels: clock / (256 * period) describes a whole ramp,
+        // not one step. A zero envelope period runs at half the period-one interval.
+        var period = _registers[11] | (_registers[12] << 8);
+        return period == 0 ? 8 : 16 * period;
+    }
 
     private float MixSample()
     {
         var mixer = _registers[7];
         var mixed = 0f;
-        var activeChannelCount = 0;
         for (var channel = 0; channel < 3; channel++)
         {
             var volumeRegister = _registers[8 + channel];
@@ -152,10 +170,8 @@ public sealed class Ay38912
             var fixedVolume = volumeRegister & 0x0f;
             var toneEnabled = (mixer & (1 << channel)) == 0;
             var noiseEnabled = (mixer & (1 << (channel + 3))) == 0;
-            if ((!usesEnvelope && fixedVolume == 0) || (!toneEnabled && !noiseEnabled))
-                continue;
-
-            activeChannelCount++;
+            // Disabled generators force their mixer inputs high. Disabling both
+            // therefore leaves the DAC at its selected volume (used by sampled audio).
             var tonePasses = !toneEnabled || _toneHigh[channel];
             var noisePasses = !noiseEnabled || _noiseHigh;
             if (!tonePasses || !noisePasses)
@@ -165,12 +181,9 @@ public sealed class Ay38912
             mixed += s_volumeTable[volume];
         }
 
-        // Average only channels configured to produce an audible tone or noise, then normalize
-        // against the measured table's peak. This lets a solo channel use the PCM range while
-        // preserving headroom when all three channels are active.
-        return activeChannelCount == 0
-            ? 0f
-            : mixed / (activeChannelCount * s_volumeTable[^1]);
+        // Fixed headroom prevents one channel's gain changing when another starts
+        // or stops. All three channels at maximum volume sum to full scale.
+        return mixed / (3 * s_volumeTable[^1]);
     }
 
     private void RestartEnvelope(byte shape)
@@ -179,7 +192,7 @@ public sealed class Ay38912
         _envelopeStep = attack ? 0 : 15;
         _envelopeDirection = attack ? 1 : -1;
         _envelopeHolding = false;
-        _envelopeCounter = 256 * EnvelopePeriod();
+        _envelopeCounter = EnvelopeStepCycles();
     }
 
     private void AdvanceEnvelope()
@@ -219,7 +232,8 @@ public sealed class Ay38912
             SelectedRegister,
             _toneCounter.ToArray(),
             _toneHigh.ToArray(),
-            _sampleCycleAccumulator,
+            _samplePhase,
+            _sampleArea,
             _noiseCounter,
             _noiseHigh,
             _noiseLfsr,
@@ -237,9 +251,9 @@ public sealed class Ay38912
         ArgumentOutOfRangeException.ThrowIfNegative(state.SelectedRegister);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(state.SelectedRegister, RegisterCount);
         if (state.ToneCounters.Any(counter => counter <= 0) ||
-            !double.IsFinite(state.SampleCycleAccumulator) ||
-            state.SampleCycleAccumulator < 0 ||
-            state.SampleCycleAccumulator >= (double)_clockHz / _sampleRateHz ||
+            state.SamplePhase < 0 || state.SamplePhase >= _clockHz ||
+            !double.IsFinite(state.SampleArea) ||
+            state.SampleArea < 0 || state.SampleArea > state.SamplePhase ||
             state.NoiseCounter <= 0 ||
             state.NoiseLfsr is 0 or > 0x1ffff ||
             state.EnvelopeCounter <= 0 ||
@@ -253,7 +267,8 @@ public sealed class Ay38912
         SelectedRegister = state.SelectedRegister;
         Array.Copy(state.ToneCounters, _toneCounter, _toneCounter.Length);
         Array.Copy(state.ToneHigh, _toneHigh, _toneHigh.Length);
-        _sampleCycleAccumulator = state.SampleCycleAccumulator;
+        _samplePhase = state.SamplePhase;
+        _sampleArea = state.SampleArea;
         _noiseCounter = state.NoiseCounter;
         _noiseHigh = state.NoiseHigh;
         _noiseLfsr = state.NoiseLfsr;
@@ -270,7 +285,8 @@ internal readonly record struct Ay38912SnapshotState(
     int SelectedRegister,
     int[] ToneCounters,
     bool[] ToneHigh,
-    double SampleCycleAccumulator,
+    int SamplePhase,
+    double SampleArea,
     int NoiseCounter,
     bool NoiseHigh,
     uint NoiseLfsr,

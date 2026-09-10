@@ -6,7 +6,8 @@ Requirements and local development setup.
 
 - Windows, Linux, or Mac.
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) installed.
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) 10.0.401 or a later
+  10.0.4xx patch installed, as specified in `global.json`.
 
 - *Browser project specifics:* To enable build of the browser projects in the solution (Blazor WASM and Avalonia Browser), install the WebAssembly build tools:
     - In the command prompt, change current directory to where the repo is checked out, and run `dotnet workload restore`.

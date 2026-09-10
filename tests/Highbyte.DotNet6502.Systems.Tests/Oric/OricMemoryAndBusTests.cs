@@ -48,6 +48,41 @@ public sealed class OricMemoryAndBusTests
     }
 
     [Fact]
+    public void LeavingAyAddressLatchDoesNotWriteRegisterNumberAsData()
+    {
+        var oric = new OricMachine();
+        oric.Ay.WriteRegister(8, 12);
+        oric.Mem[0x0301] = 8;
+        oric.Mem[0x030c] = 0xee; // latch address: CA2=1, CB2=1
+        oric.Mem[0x030c] = 0xcc; // inactive: CA2=0, CB2=0, one PCR write
+
+        Assert.Equal(12, oric.Ay.ReadRegister(8));
+        oric.Mem[0x0301] = 10;
+        oric.Mem[0x030c] = 0xec; // data write strobe
+        oric.Mem[0x030c] = 0xcc;
+        Assert.Equal(10, oric.Ay.ReadRegister(8));
+    }
+
+    [Fact]
+    public void LeavingAyAddressLatchDoesNotRetriggerEnvelope()
+    {
+        var oric = new OricMachine();
+        oric.Ay.WriteRegister(7, 0x3f);
+        oric.Ay.WriteRegister(8, 16);
+        oric.Ay.WriteRegister(11, 1);
+        oric.Ay.WriteRegister(13, 0);
+        oric.Ay.AdvanceCycles(1000, new float[64]); // decay has finished
+        oric.Mem[0x0301] = 13;
+        oric.Mem[0x030c] = 0xee;
+        oric.Mem[0x030c] = 0xcc;
+
+        Assert.Equal(0, oric.Ay.ReadRegister(13));
+        var samples = new float[64];
+        var count = oric.Ay.AdvanceCycles(1000, samples);
+        Assert.All(samples[..count], sample => Assert.Equal(0f, sample));
+    }
+
+    [Fact]
     public void AyKeyboardMaskDrivesViaPb3SenseInput()
     {
         var oric = new OricMachine();
