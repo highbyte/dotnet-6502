@@ -259,18 +259,22 @@ public class Vic2BusStallTests
     [Fact]
     public void Dma_switches_on_when_the_raster_reaches_the_sprite_y()
     {
+        // The compare is made in cycle 55 of the line the sprite's Y names; the DMA ends in cycle
+        // 16 of the line after the sprite's last row, once its data counter base has reached 63.
         var c64 = Build([0xEA]);
         c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0x01);
         c64.Mem.Write(Vic2Addr.SPRITE_0_Y, 100);
         PositionAt(c64, 99, 1);
         Assert.Equal(0, c64.Vic2.SpriteDmaMask);
 
-        c64.Vic2.AdvanceRaster(63);                                       // into line 100
+        c64.Vic2.AdvanceRaster(63 + 53);                                  // line 100, cycle 54
+        Assert.Equal(0, c64.Vic2.SpriteDmaMask);
+        c64.Vic2.AdvanceRaster(1);                                        // cycle 55: on
         Assert.Equal(1, c64.Vic2.SpriteDmaMask);
 
-        c64.Vic2.AdvanceRaster(63 * 20);                                  // line 120: last row
+        c64.Vic2.AdvanceRaster(63 * 21 - 54 + 14);                        // line 121, cycle 15: row 20 was fetched at the line's start
         Assert.Equal(1, c64.Vic2.SpriteDmaMask);
-        c64.Vic2.AdvanceRaster(63);                                       // line 121: off
+        c64.Vic2.AdvanceRaster(1);                                        // cycle 16: off
         Assert.Equal(0, c64.Vic2.SpriteDmaMask);
     }
 

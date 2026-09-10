@@ -125,7 +125,7 @@ public class Vic2SpriteManagerTests
             // After sprite 0's first band (raster 10..30) finishes, move it far away (multiplex reuse).
             if (line == 40)
                 c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, 200);
-            sm.CaptureLineSpriteSnapshot();
+            sm.CaptureLineSpriteSnapshot(line);
             sm.AccumulatePerLineCollisions(line);
         }
 
@@ -166,14 +166,14 @@ public class Vic2SpriteManagerTests
         var sm = c64.Vic2.SpriteManager;
 
         // Before the sprites' display band (raster 60..80): no collision, no IRQ.
-        sm.CaptureLineSpriteSnapshot();
+        sm.CaptureLineSpriteSnapshot(50);
         sm.AccumulatePerLineCollisions(50);
         Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
 
         // Process the band: the collision must raise the IRQ mid-frame.
         for (int line = 60; line <= 80; line++)
         {
-            sm.CaptureLineSpriteSnapshot();
+            sm.CaptureLineSpriteSnapshot(line);
             sm.AccumulatePerLineCollisions(line);
         }
 
@@ -187,7 +187,7 @@ public class Vic2SpriteManagerTests
         for (int line = 0; line < totalHeight; line++)
         {
             // Mirror Vic2.AdvanceRaster: capture the shared per-line snapshot, then accumulate.
-            sm.CaptureLineSpriteSnapshot();
+            sm.CaptureLineSpriteSnapshot(line);
             sm.AccumulatePerLineCollisions(line);
         }
     }

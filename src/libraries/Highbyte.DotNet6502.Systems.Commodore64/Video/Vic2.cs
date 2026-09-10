@@ -19,7 +19,23 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 public class Vic2
 {
     public C64 C64 { get; private set; } = default!;
-    public Vic2ModelBase Vic2Model { get; private set; } = default!;
+    private Vic2ModelBase _vic2Model = default!;
+    public Vic2ModelBase Vic2Model
+    {
+        get => _vic2Model;
+        private set
+        {
+            _vic2Model = value;
+            // The model's constants the raster advance needs on every call, cached: the properties
+            // are abstract, and a virtual call per emulated instruction is a measurable share of it.
+            _cyclesPerLine = (int)value.CyclesPerLine;
+            _cyclesPerFrame = value.CyclesPerFrame;
+            _totalHeight = value.TotalHeight;
+        }
+    }
+    private int _cyclesPerLine;
+    private ulong _cyclesPerFrame;
+    private int _totalHeight;
     public Vic2Screen Vic2Screen { get; private set; } = default!;
     /// <summary>
     /// Vic2 screem memory for text, graphics and sprites.
@@ -42,18 +58,56 @@ public class Vic2
     private ulong _advancedToBusCycle;
     internal ulong AdvancedToBusCycle => _advancedToBusCycle;
 
+    // --- Sprite DMA and display (VIC-II article, section 3.8.1) ---
+    // Each sprite has a data counter MC, loaded from its base MCBASE in cycle 58, and an expansion
+    // flip-flop for the Y expansion. In the first phase of cycle 55 the flip-flop is inverted if the
+    // sprite's Y-expand bit is set; in cycles 55 and 56 a sprite that is enabled and whose Y equals
+    // the raster line's low byte gets its DMA switched on, MCBASE cleared and (if Y-expanded) the
+    // flip-flop cleared. In cycle 58 MC is loaded from MCBASE and the display is switched on for a
+    // sprite whose DMA is on and whose Y matches. In cycles 15 and 16 MCBASE advances by 2 and 1
+    // if the flip-flop is set, and a sprite whose MCBASE has reached 63 has its DMA and display
+    // switched off. The flip-flop is set as long as the Y-expand bit is cleared. So a Y-expanded
+    // sprite fetches the same row on two lines, a mid-sprite change of the expand bit changes the
+    // count of lines from there on, and a Y written to a line the raster has already passed does
+    // nothing until the raster comes round again. The events are applied as the raster advances,
+    // so a register write lands before or after a cycle's check according to its own cycle.
+    private readonly byte[] _spriteMcBase = new byte[8];
+    private readonly byte[] _spriteMc = new byte[8];
+    // The sprite registers the events read, cached: refreshed from the IO storage when a line is
+    // entered and by the register writes in between, so the events do not go through the storage
+    // for every sprite on every line.
+    private readonly byte[] _spriteYCache = new byte[8];
+    private byte _spriteEnableCache;
+    private byte _spriteYExpandCache;
+    // The enabled sprites whose Y names a line, computed once per line and kept until a Y or
+    // enable write: the two compares of a line and the bus stall model's checks all ask for it.
+    private int _spriteYMatchLine = -1;
+    private byte _spriteYMatchMask;
+    private readonly bool[] _spriteExpandFlipFlop = { true, true, true, true, true, true, true, true };
+    private const int SpriteEventMcBaseStep2Offset = 14;   // cycle 15
+    private const int SpriteEventMcBaseStep1Offset = 15;   // cycle 16
+    private const int SpriteEventFirstCompareOffset = 54;  // cycle 55
+    private const int SpriteEventSecondCompareOffset = 55; // cycle 56
+    private const int SpriteEventLoadMcOffset = 57;        // cycle 58
+    private static readonly int[] SpriteEventOffsets = { SpriteEventMcBaseStep2Offset, SpriteEventMcBaseStep1Offset, SpriteEventFirstCompareOffset, SpriteEventSecondCompareOffset, SpriteEventLoadMcOffset };
+    // The events of the current line are applied in order as the raster advances: the index of
+    // the next one and its offset (int.MaxValue once the line's events are all applied), so an
+    // advance that reaches no event costs one compare.
+    private int _spriteEventIndex;
+    private int _nextSpriteEventOffset = SpriteEventMcBaseStep2Offset;
+
     /// <summary>
-    /// Sprites whose DMA is on during the current raster line (bit n = sprite n), and during the
-    /// previous one. Sprite DMA switches on when the sprite is enabled and its Y register equals the
-    /// low byte of the raster line as the VIC-II compares them, and then runs for the sprite's 21
-    /// rows (42 when Y-expanded) no matter how the registers change in the meantime; a Y written
-    /// to a line the raster has already passed does nothing until the raster comes round again.
-    /// Maintained by the per-line work in <see cref="AdvanceRaster(ulong)"/>; consumed by the bus
-    /// stall model.
+    /// Sprites whose DMA is on (bit n = sprite n): switched on in cycle 55 or 56 of the line the
+    /// sprite's Y names, off in cycle 16 of the line after its last row. Consumed by the bus stall
+    /// model, which anticipates the switch-on with <see cref="SpriteDmaStartMask"/>.
     /// </summary>
     public byte SpriteDmaMask { get; private set; }
+    /// <summary>The DMA mask as it stood when the current line began: the sprites 3-7 fetching in its first cycles.</summary>
     public byte SpriteDmaMaskPreviousLine { get; private set; }
-    private readonly byte[] _spriteDmaLinesLeft = new byte[8];
+    /// <summary>Sprites whose display is on, as decided in cycle 58 of the previous line.</summary>
+    public byte SpriteDisplayMask { get; private set; }
+    /// <summary>The sprite's data counter as loaded in cycle 58 of the previous line: the offset of the row its next line shows.</summary>
+    public byte SpriteMc(int sprite) => _spriteMc[sprite];
 
     public byte CurrentVIC2Bank { get; private set; }
 
@@ -406,7 +460,7 @@ public class Vic2
         // Addresses 0xd000 - 0xd00f: Sprite X/Y coordinates.
         for (ushort address = Vic2Addr.SPRITE_0_X; address <= Vic2Addr.SPRITE_7_Y; address++)
         {
-            MapRegisterMirrors(c64Mem, address, C64.ReadIOStorage, C64.WriteIOStorage);
+            MapRegisterMirrors(c64Mem, address, C64.ReadIOStorage, SpritePositionStore);
         }
 
         // Address 0xd010: Sprite X position MSB.
@@ -429,7 +483,7 @@ public class Vic2
         MapRegisterMirrors(c64Mem, Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXLoad, ScrollXStore);
 
         // Address 0xd017: Sprite Y expansion.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_Y_EXPAND, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_Y_EXPAND, C64.ReadIOStorage, SpriteYExpandStore);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
         MapRegisterMirrors(c64Mem, Vic2Addr.MEMORY_SETUP, MemorySetupLoad, MemorySetupStore);
@@ -648,6 +702,18 @@ public class Vic2
     public void SpriteEnableStore(ushort address, byte value)
     {
         C64.WriteIOStorage(address, value);
+        _spriteEnableCache = value;
+        _spriteYMatchLine = -1;
+    }
+
+    public void SpritePositionStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        if ((address & 1) != 0)
+        {
+            _spriteYCache[(address - Vic2Addr.SPRITE_0_Y) >> 1] = value;
+            _spriteYMatchLine = -1;
+        }
     }
     public byte SpriteEnableLoad(ushort address)
     {
@@ -1181,6 +1247,8 @@ public class Vic2
     {
         var cpu = C64.CPU;
         var mem = C64.Mem;
+        var cyclesPerLine = _cyclesPerLine;
+        var startLine = _currentRasterLineInternal;
 
         CyclesConsumedCurrentVblank += cyclesConsumed;
 
@@ -1188,9 +1256,9 @@ public class Vic2
         // them would put the CPU ahead of the raster by up to an instruction's length (which, with
         // bus stalls, can be most of a raster line). Wrapping before the line is derived below makes
         // line 0 current, and its raster interrupt due, in this same advance.
-        if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
+        if (CyclesConsumedCurrentVblank >= _cyclesPerFrame)
         {
-            CyclesConsumedCurrentVblank -= Vic2Model.CyclesPerFrame;
+            CyclesConsumedCurrentVblank -= _cyclesPerFrame;
             // The bus-cycle to frame-position mapping moved: re-evaluate CPU stalls.
             cpu.RequestBusStallCheck();
         }
@@ -1199,9 +1267,17 @@ public class Vic2
         // since the last advance gets its per-line work, not just the line we land on: a CPU read
         // stalled by a bad line with sprite DMA can span a whole line, and a raster interrupt or a
         // per-line sprite snapshot for a line jumped over must not be lost.
-        var newLine = (ushort)Math.Min(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine, (ulong)Vic2Model.TotalHeight - 1);
+        var newLine = (ushort)Math.Min(CyclesConsumedCurrentVblank / (ulong)cyclesPerLine, (ulong)_totalHeight - 1);
+        var newOffset = (int)(CyclesConsumedCurrentVblank - (ulong)newLine * (ulong)cyclesPerLine);   // the frame's cycle count never reaches a line past the last
         if (newLine == _currentRasterLineInternal)
+        {
+            if (newOffset >= _nextSpriteEventOffset)
+                ApplySpriteEventsUpTo(startLine, newOffset);
             return;
+        }
+        // The rest of the line the advance started in.
+        if (startLine != ushort.MaxValue && _nextSpriteEventOffset != int.MaxValue)
+            ApplySpriteEventsUpTo(startLine, cyclesPerLine - 1);
 
         var totalLines = (ushort)Vic2Model.TotalHeight;
         var line = _currentRasterLineInternal;
@@ -1225,7 +1301,10 @@ public class Vic2
             CheckRasterIrq(cpu, line == 0 ? lineStartBusCycle + 1 : lineStartBusCycle);
 
             EnterLineVerticalState(line);
-            UpdateSpriteDma(line);
+            SpriteDmaMaskPreviousLine = SpriteDmaMask;
+            RefreshSpriteRegisterCache();
+            _spriteEventIndex = 0;
+            _nextSpriteEventOffset = SpriteEventOffsets[0];
 
             // Remember colors and other IO registers for each raster line
             if (C64.RememberVic2RegistersPerRasterLine)
@@ -1237,11 +1316,205 @@ public class Vic2
             // OnAfterInstruction) read it - so the registers are sampled once per line, not twice.
             if (SpriteManager.PerLineCollisionEnabled)
             {
-                SpriteManager.CaptureLineSpriteSnapshot();
+                SpriteManager.CaptureLineSpriteSnapshot(line);
                 SpriteManager.AccumulatePerLineCollisions(line);
             }
+            // The line's sprite events up to the position the advance ends at.
+            var upTo = line == newLine ? newOffset : cyclesPerLine - 1;
+            if (upTo >= _nextSpriteEventOffset)
+                ApplySpriteEventsUpTo(line, upTo);
         }
         while (line != newLine && --remaining > 0);
+    }
+
+    /// <summary>
+    /// Applies the current line's sprite events whose cycle offsets (0-based) are at or before the
+    /// given one, in order. The first phase of a cycle precedes the CPU's access in it, so an
+    /// advance that ends in a cycle applies that cycle's event before the access is performed.
+    /// </summary>
+    private void ApplySpriteEventsUpTo(ushort line, int offsetInclusive)
+    {
+        while (_nextSpriteEventOffset <= offsetInclusive)
+        {
+            ApplySpriteEvent(line, _spriteEventIndex);
+            _spriteEventIndex++;
+            _nextSpriteEventOffset = _spriteEventIndex < SpriteEventOffsets.Length ? SpriteEventOffsets[_spriteEventIndex] : int.MaxValue;
+        }
+    }
+
+    private void ApplySpriteEvent(ushort line, int eventIndex)
+    {
+        // Nothing to do while no sprite is enabled and none is fetching: the flip-flops of sprites
+        // that are off only matter from the compare that switches them on, which sets them itself
+        // (rule 3) or leaves them set by rule 1.
+        var enabled = _spriteEnableCache;
+        var dma = SpriteDmaMask;
+        if ((enabled | dma) == 0)
+            return;
+        switch (eventIndex)
+        {
+            case 0:
+                if (dma != 0)
+                    SpriteMcBaseStep(dma, 2);
+                break;
+            case 1:
+                if (dma != 0)
+                {
+                    SpriteMcBaseStep(dma, 1);
+                    SpriteDmaEndCheck(dma);
+                }
+                break;
+            case 2:
+                SpriteExpandFlipFlopToggle((byte)(enabled | dma));
+                SpriteCompare(line);
+                break;
+            case 3:
+                SpriteCompare(line);
+                break;
+            default:
+                if (SpriteDmaMask != 0)
+                    SpriteLoadMc(line);
+                break;
+        }
+    }
+
+    // Take the sprite registers as they stand (a line entry; also covers values set without going
+    // through the memory map, e.g. a snapshot or a test).
+    private void RefreshSpriteRegisterCache()
+    {
+        _spriteEnableCache = C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+        _spriteYExpandCache = C64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND);
+        for (var n = 0; n < 8; n++)
+            _spriteYCache[n] = C64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + n * 2));
+        _spriteYMatchLine = -1;
+    }
+
+    // The enabled sprites whose Y equals the line's low byte.
+    private byte SpriteYMatchMask(int line)
+    {
+        if (_spriteYMatchLine == line)
+            return _spriteYMatchMask;
+        var enabled = _spriteEnableCache;
+        var lineLow = (byte)line;
+        byte mask = 0;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((enabled & (1 << n)) != 0 && _spriteYCache[n] == lineLow)
+                mask |= (byte)(1 << n);
+        }
+        _spriteYMatchLine = line;
+        _spriteYMatchMask = mask;
+        return mask;
+    }
+
+    /// <summary>
+    /// Writing the Y-expand register: the expansion flip-flop of every sprite whose bit is cleared
+    /// is set at once (rule 1). That is what makes the sprite stretcher work: clearing the bit after
+    /// cycle 16 and setting it again before cycle 55 leaves the flip-flop cleared by the inversion
+    /// in cycle 55, so the data counter does not advance and the row is shown again.
+    /// </summary>
+    public void SpriteYExpandStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        _spriteYExpandCache = value;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((value & (1 << n)) == 0)
+                _spriteExpandFlipFlop[n] = true;
+        }
+    }
+
+    // The expansion flip-flop is set as long as the sprite's Y-expand bit is cleared (rule 1).
+    private bool SpriteExpandFlipFlop(int sprite, byte yExpand)
+    {
+        if ((yExpand & (1 << sprite)) == 0)
+            _spriteExpandFlipFlop[sprite] = true;
+        return _spriteExpandFlipFlop[sprite];
+    }
+
+    // Cycles 15 and 16: MCBASE advances (by 2, then 1) for a fetching sprite whose flip-flop is set.
+    private void SpriteMcBaseStep(byte dma, int step)
+    {
+        var yExpand = _spriteYExpandCache;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((dma & (1 << n)) != 0 && SpriteExpandFlipFlop(n, yExpand))
+                _spriteMcBase[n] = (byte)((_spriteMcBase[n] + step) & 0x3F);
+        }
+    }
+
+    // Cycle 16: a sprite whose MCBASE has reached 63 has fetched its last row.
+    private void SpriteDmaEndCheck(byte dma)
+    {
+        for (var n = 0; n < 8; n++)
+        {
+            if ((dma & (1 << n)) != 0 && _spriteMcBase[n] == 63)
+            {
+                SpriteDmaMask &= (byte)~(1 << n);
+                SpriteDisplayMask &= (byte)~(1 << n);
+            }
+        }
+    }
+
+    // Cycle 55: the flip-flop of a Y-expanded sprite is inverted (only sprites that are enabled or
+    // fetching are followed; the others' flip-flops are settled by the compare that starts them).
+    private void SpriteExpandFlipFlopToggle(byte sprites)
+    {
+        // Sprites with the bit cleared have their flip-flop set already (the write did it, and
+        // the MCBASE step applies rule 1 before it reads the flip-flop), so only set bits matter.
+        var expanded = (byte)(sprites & _spriteYExpandCache);
+        if (expanded == 0)
+            return;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((expanded & (1 << n)) != 0)
+                _spriteExpandFlipFlop[n] = !_spriteExpandFlipFlop[n];
+        }
+    }
+
+    // Cycles 55 and 56: an enabled sprite whose Y names this line starts fetching.
+    private void SpriteCompare(ushort line)
+    {
+        var start = SpriteDmaStartMask(line);
+        if (start == 0)
+            return;
+        var yExpand = _spriteYExpandCache;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((start & (1 << n)) == 0)
+                continue;
+            SpriteDmaMask |= (byte)(1 << n);
+            _spriteMcBase[n] = 0;
+            if ((yExpand & (1 << n)) != 0)
+                _spriteExpandFlipFlop[n] = false;
+        }
+    }
+
+    // Cycle 58: MC is loaded from MCBASE, and a fetching sprite whose Y names this line is displayed.
+    private void SpriteLoadMc(ushort line)
+    {
+        var dma = SpriteDmaMask;
+        var lineLow = (byte)line;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((dma & (1 << n)) == 0)
+                continue;   // MC only matters for a fetching sprite
+            _spriteMc[n] = _spriteMcBase[n];
+            if (_spriteYCache[n] == lineLow)   // rule 4 asks for DMA and Y, not the enable bit
+                SpriteDisplayMask |= (byte)(1 << n);
+        }
+    }
+
+    /// <summary>
+    /// The sprites the compare in cycles 55 and 56 of the given line switches on: enabled, DMA off,
+    /// Y equal to the line's low byte. The bus stall model uses it to see the BA-low window of a
+    /// sprite before the compare that starts it.
+    /// </summary>
+    public byte SpriteDmaStartMask(int line)
+    {
+        if ((_spriteEnableCache & ~SpriteDmaMask) == 0)
+            return 0;
+        return (byte)(SpriteYMatchMask(line) & ~SpriteDmaMask);
     }
 
     // --- Snapshot support (consumed by the c64-vic2 snapshot module in the same assembly) ---
@@ -1265,29 +1538,13 @@ public class Vic2
 
         var line = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
         _currentRasterLineInternal = (ushort)Math.Clamp(line, 0, Vic2Model.TotalHeight - 1);
+        var offset = (int)(CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine);
+        _spriteEventIndex = 0;
+        while (_spriteEventIndex < SpriteEventOffsets.Length && SpriteEventOffsets[_spriteEventIndex] <= offset)
+            _spriteEventIndex++;
+        _nextSpriteEventOffset = _spriteEventIndex < SpriteEventOffsets.Length ? SpriteEventOffsets[_spriteEventIndex] : int.MaxValue;
+        RefreshSpriteRegisterCache();
         ResyncToBusCycle();
-    }
-
-    // Advance the sprite DMA state into the given line: sprites whose run ended switch off, and a
-    // sprite whose Y matches this line switches on (or restarts) for its rows.
-    private void UpdateSpriteDma(ushort line)
-    {
-        SpriteDmaMaskPreviousLine = SpriteDmaMask;
-        var enabled = C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
-        var expanded = C64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND);
-        var lineLow = (byte)line;
-        byte mask = 0;
-        for (var n = 0; n < 8; n++)
-        {
-            var bit = 1 << n;
-            if (_spriteDmaLinesLeft[n] > 0)
-                _spriteDmaLinesLeft[n]--;
-            if ((enabled & bit) != 0 && C64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + n * 2)) == lineLow)
-                _spriteDmaLinesLeft[n] = (expanded & bit) != 0 ? (byte)42 : (byte)21;
-            if (_spriteDmaLinesLeft[n] > 0)
-                mask |= (byte)bit;
-        }
-        SpriteDmaMask = mask;
     }
 
     // Compare the raster counter with the raster compare value, as the chip does in every cycle;

@@ -53,6 +53,20 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
                 downloadType: C64DownloadProgramType.Prg,
                 c64Variant: "C64PAL",
                 audioEnabled: true),
+            ["For Your Sprites Only"] = new(
+                "For Your Sprites Only",
+                "https://csdb.dk/release/download.php?id=245856",
+                downloadType: C64DownloadProgramType.Prg,
+                c64Variant: "C64PAL",
+                audioEnabled: true,
+                requiresPerLineSprites: true),
+            ["Unfortunate Coincidence"] = new(
+                "Unfortunate Coincidence",
+                "https://csdb.dk/release/download.php?id=245796",
+                downloadType: C64DownloadProgramType.Prg,
+                c64Variant: "C64PAL",
+                audioEnabled: true,
+                requiresPerLineSprites: true),
             ["Mini Zork"] = new(
                 "Mini Zork",
                 "https://csdb.dk/release/download.php?id=42919",
@@ -377,6 +391,8 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
 
         systemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
         systemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+        if (programInfo.RequiresPerLineSprites)
+            systemConfig.Vic2RasterizerPerLineSprites = true;
         systemConfig.AudioEnabled = false; // Terminal host has no audio output.
         systemConfig.SwiftLink.Enabled = programInfo.SwiftLinkEnabled;
 

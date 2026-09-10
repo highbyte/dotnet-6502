@@ -49,6 +49,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
         {"fairlightintro", new C64DownloadProgramInfo("Fairlight Intro (Golden Collection)", "https://csdb.dk/release/download.php?id=221432", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true)},
+        {"foryourspritesonly", new C64DownloadProgramInfo("For Your Sprites Only", "https://csdb.dk/release/download.php?id=245856", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true)},
+        {"unfortunatecoincidence", new C64DownloadProgramInfo("Unfortunate Coincidence", "https://csdb.dk/release/download.php?id=245796", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true)},
         {"ghostngoblins", new C64DownloadProgramInfo("Ghosts 'n Goblins", "https://csdb.dk/release/download.php?id=120333", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,  directLoadPRGName: "*")},
         {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
         {"greenberet", new C64DownloadProgramInfo("Green Beret", "https://csdb.dk/release/download.php?id=157678", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true)},
@@ -948,6 +950,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.line_splits.prg", "LineSplits"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.dma_delay.prg", "DmaDelay"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.row_stretch.prg", "RowStretch"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.sprite_stretch.prg", "SpriteStretch"));
         // Initialize basic examples
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
@@ -1382,6 +1385,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                     // Apply keyboard joystick settings to config object while emulator is stopped
                     c64SystemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
                     c64SystemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+                    if (programInfo.RequiresPerLineSprites)
+                        c64SystemConfig.Vic2RasterizerPerLineSprites = true;
 
                     // Apply keyboard settings to config object while emulator is stopped (assume joystick should use same as keyboard joystick number)
                     c64HostConfig.InputConfig.CurrentJoystick = programInfo.KeyboardJoystickNumber;

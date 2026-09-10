@@ -39,6 +39,17 @@ public class Vic2SpriteManager : IVic2SpriteManager
     public byte LineSpriteEnableMask { get; private set; }
     public int[] LineSpriteY { get; } = new int[NUMBERS_OF_SPRITES];
 
+    // What the VIC-II shows of each sprite on the line that begins: the sprites whose display is
+    // on (decided in cycle 58 of the line before) and the three bytes their s-accesses fetch for
+    // it, at the sprite pointer read in the same accesses plus the data counter MC. Captured once
+    // per raster line for the per-line renderer, so a change of the Y-expand bit, of the pointer
+    // or of the data mid-sprite shows on the line it reaches.
+    private const int MAX_RASTER_LINES = 320;   // covers the PAL (312) and NTSC (263) line counts
+    private readonly byte[] _lineSpriteDisplayMasks = new byte[MAX_RASTER_LINES];
+    private readonly byte[] _lineSpriteData = new byte[MAX_RASTER_LINES * NUMBERS_OF_SPRITES * 3];
+    public byte LineSpriteDisplayMask(int rasterLine) => _lineSpriteDisplayMasks[rasterLine];
+    public ReadOnlySpan<byte> LineSpriteData(int rasterLine, int sprite) => _lineSpriteData.AsSpan((rasterLine * NUMBERS_OF_SPRITES + sprite) * 3, 3);
+
     // Pre-calculate all possible sprite combination for collision detection
     // Get all K-Combinations of sprite numbers (2)
     // This will give us all possible combinations of sprite pairs
@@ -152,8 +163,25 @@ public class Vic2SpriteManager : IVic2SpriteManager
     /// line is (rasterLine - spriteY). That is exactly the spriteScreenLine the helpers expect, so a
     /// static scene reproduces the end-of-frame result line-for-line.
     /// </summary>
-    public void CaptureLineSpriteSnapshot()
+    public void CaptureLineSpriteSnapshot(int rasterLine)
     {
+        var displayMask = Vic2.SpriteDisplayMask;
+        _lineSpriteDisplayMasks[rasterLine] = displayMask;
+        if (displayMask != 0)
+        {
+            for (int i = 0; i < NUMBERS_OF_SPRITES; i++)
+            {
+                if ((displayMask & (1 << i)) == 0)
+                    continue;
+                var pointer = Vic2.ReadMemory((ushort)(SpritePointerStartAddress + i));
+                var address = pointer * 64 + Vic2.SpriteMc(i);
+                var dataIndex = (rasterLine * NUMBERS_OF_SPRITES + i) * 3;
+                _lineSpriteData[dataIndex] = Vic2.ReadMemory((ushort)address);
+                _lineSpriteData[dataIndex + 1] = Vic2.ReadMemory((ushort)((address + 1) & 0x3FFF));
+                _lineSpriteData[dataIndex + 2] = Vic2.ReadMemory((ushort)((address + 2) & 0x3FFF));
+            }
+        }
+
         LineSpriteEnableMask = Vic2.C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
         if (LineSpriteEnableMask == 0)
             return;
