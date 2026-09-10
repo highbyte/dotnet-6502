@@ -25,6 +25,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
 
     // Line render state
     private int _lastScreenLineDataUpdate = -1;
+    // Screen line of each raster line, from the model once: looked up per cycle.
+    private int[] _rasterToScreenLine = Array.Empty<int>();
 
     // --- The video matrix line and the counters that address it, cycle by cycle after the VIC-II
     // article's section 3.7.2. The video matrix line is the 40 screen codes and colour nibbles the
@@ -406,6 +408,9 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         // sprite passes can then draw before any line has been processed (unit tests do).
         _lineClearStartXs = new int[_height];
         _lineClearEndXs = new int[_height];
+        _rasterToScreenLine = new int[_c64.Vic2.Vic2Model.TotalHeight];
+        for (var line = 0; line < _rasterToScreenLine.Length; line++)
+            _rasterToScreenLine[line] = _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(line);
         _lineSpriteMask = new byte[_height];
         _lineSpriteData = new byte[_height * SPRITE_COUNT * SPRITE_ROW_BYTES];
         _lineSpriteX = new int[_height * SPRITE_COUNT];
@@ -583,13 +588,21 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         if (_registerWritesOverflowed)
             ResyncColorRegisters();
 
-        // Loop cycles since last time we processed (each instruction)
-        for (var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank; cycleCurrentVblank < _c64.Vic2.CyclesConsumedCurrentVblank; cycleCurrentVblank++)
+        // Loop cycles since last time we processed (each instruction). The line and the cycle
+        // within it are derived once and then counted along: a division per cycle would be a
+        // large share of the frame on its own.
+        var endCycle = _c64.Vic2.CyclesConsumedCurrentVblank;
+        var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank;
+        var rasterLine = (int)(cycleCurrentVblank / _cyclesPerLine);
+        var cycleOnScreenLine = cycleCurrentVblank - (ulong)rasterLine * _cyclesPerLine;
+        for (; cycleCurrentVblank < endCycle; cycleCurrentVblank++, cycleOnScreenLine++)
         {
-            // For the cycle processed in current loop iteration, get line and x position.
-            var rasterLine = (int)(cycleCurrentVblank / _cyclesPerLine);
-            var screenLine = _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-            var cycleOnScreenLine = cycleCurrentVblank % _cyclesPerLine;
+            if (cycleOnScreenLine == _cyclesPerLine)
+            {
+                cycleOnScreenLine = 0;
+                rasterLine++;
+            }
+            var screenLine = rasterLine < _rasterToScreenLine.Length ? _rasterToScreenLine[rasterLine] : rasterLine;
             var posX = (int)(cycleOnScreenLine * 8); // 1 cycle = 8 pixels;
 
             // Line change: draw the rest of the previous line's border/background runs with the
