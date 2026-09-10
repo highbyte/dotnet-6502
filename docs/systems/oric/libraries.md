@@ -55,5 +55,14 @@ the Oric handler applies the keyboard matrix, keyboard layout, and joystick mapp
 generic NAudio sample target (OpenAL on Desktop and WebAudio in Browser). Terminal and Headless
 disable audio.
 
+The AY generator averages output over each PCM sample interval to reduce aliasing. Envelope
+levels advance every `16 × period` AY clocks (eight clocks for period zero), with all sixteen
+shapes and retriggers supported. The mixer reserves fixed headroom for three channels; disabling
+both tone and noise leaves a channel at its selected DAC level, and volume zero silences it.
+
+Snapshots store the partial sample's phase and accumulated output in `oric-ay` module version 2.
+Version 1 snapshots remain readable: their envelope timing is converted and the incomplete PCM
+sample is discarded with a warning. Version 2 snapshots resume sample generation exactly.
+
 For the cross-system view, see the
 [Implementation libraries overview](../../libraries/implementation/overview.md).

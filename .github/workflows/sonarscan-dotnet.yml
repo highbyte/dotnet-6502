@@ -41,13 +41,13 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: '0'
 
       # Runs a single command using the runners shell
       - name: SonarScanner for .NET 10 with pull request decoration support
-        uses: highbyte/sonarscan-dotnet@v2.5.1
+        uses: highbyte/sonarscan-dotnet@8642efb8793ae4a89bd1e6cdf0a1aef1e582f9bb # v2.5.1
         with:
           # The key of the SonarQube project
           sonarProjectKey: highbyte_dotnet-6502
@@ -55,8 +55,15 @@ jobs:
           sonarProjectName:  dotnet-6502
           # The name of the SonarQube organization in SonarCloud. For hosted SonarQube, skip this setting.
           sonarOrganization: highbyte
-          # Optional command run before the 'dotnet build'
-          #dotnetPreBuildCmd: dotnet workload install wasm-tools
+          # The scanner container bundles an older SDK. Install the global.json SDK
+          # inside that container; a host setup-dotnet step cannot update its SDK.
+          # SHA-512 is from Microsoft's .NET 10 release metadata for linux-x64.
+          dotnetPreBuildCmd: >-
+            curl --fail --location --retry 3
+            https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.401/dotnet-sdk-10.0.401-linux-x64.tar.gz
+            --output /tmp/dotnet-sdk.tar.gz
+            && echo '51c8b999af9e8dd9998c9edc5944e19a90788862068acd38694e098889054ce8c23d4f0c5cccfa16bf187d044562359e5ee69a9f8ad0bbe913ba90311fbce25b  /tmp/dotnet-sdk.tar.gz' | sha512sum --check --status
+            && tar --extract --gzip --file /tmp/dotnet-sdk.tar.gz --directory /usr/share/dotnet
           # Optional command arguments to 'dotnet build'
           dotnetBuildArguments: ./tests/Highbyte.DotNet6502.Tests
           # Optional command arguments to dotnet test

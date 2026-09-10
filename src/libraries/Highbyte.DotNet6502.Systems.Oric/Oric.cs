@@ -69,8 +69,7 @@ public sealed class Oric : ISystem, ITextMode, IScreen, ISystemState, ISystemSna
             writePortAOutput: _ => UpdateAyBus(),
             readPortBInput: ReadViaPortBInput,
             writePortBOutput: _ => { },
-            writeCa2: value => { _ayBusCa2 = value; UpdateAyBus(); },
-            writeCb2: value => { _ayBusCb2 = value; UpdateAyBus(); },
+            writeControlOutputs: (ca2, cb2) => { _ayBusCa2 = ca2; _ayBusCb2 = cb2; UpdateAyBus(); },
             irqChanged: UpdateViaIrq);
         RasterClock.FrameCompleted += OnRasterFrameCompleted;
         RasterClock.RasterLineStarted += OnRasterLineStarted;

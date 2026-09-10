@@ -144,6 +144,97 @@ public sealed class OricSnapshotRoundTripTests
     }
 
     [Fact]
+    public void LegacyAyFixtureRestoresWithCorrectedEnvelopeTimingAndWarning()
+    {
+        // Captured with the actual v1 writer at 4b280911, before the sound fix.
+        // R11=100, shape=0, 1234 cycles elapsed: old remaining counter=24366.
+        using var stream = File.OpenRead(Path.Combine(AppContext.BaseDirectory,
+            "Snapshots", "Fixtures", "oric-ay-v1.d6502snap"));
+        var restored = BuildOric();
+        var result = new SnapshotService().Restore(restored, stream);
+        Assert.Contains(result.Warnings, warning => warning.Contains("partial PCM sample"));
+        Assert.Equal(100, restored.Ay.ReadRegister(11));
+        restored.Ay.WriteRegister(7, 0x3f); // observe the envelope directly
+
+        var samples = new float[128];
+        var count = restored.Ay.AdvanceCycles(1000, samples);
+        Assert.All(samples[..count], sample => Assert.Equal(1f / 3, sample, 6));
+        count = restored.Ay.AdvanceCycles(1000, samples);
+        Assert.Contains(samples[..count], sample => sample < 1f / 3);
+        // The old remaining phase is scaled, not restarted at a full slow step.
+        restored.Ay.AdvanceCycles(25_000, new float[1200]);
+        count = restored.Ay.AdvanceCycles(1000, samples);
+        Assert.All(samples[..count], sample => Assert.Equal(0f, sample));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(12)]
+    [InlineData(13)]
+    [InlineData(14)]
+    [InlineData(15)]
+    public void AySnapshotPreservesPartlyIntegratedPcmAndEnvelopeAcrossRetrigger(byte shape)
+    {
+        var source = BuildOric();
+        source.Ay.WriteRegister(7, 0x3f);
+        source.Ay.WriteRegister(8, 15);
+        source.Ay.AdvanceCycles(13, new float[1]); // nonzero area, before first PCM sample
+        source.Ay.WriteRegister(0, 9);
+        source.Ay.WriteRegister(6, 3);
+        source.Ay.WriteRegister(7, 0x36);
+        source.Ay.WriteRegister(8, 16);
+        source.Ay.WriteRegister(11, 3);
+        source.Ay.WriteRegister(13, shape);
+        using var stream = new MemoryStream();
+        var service = new SnapshotService();
+        service.Save(source, stream);
+        stream.Position = 0;
+        var restored = BuildOric();
+        var result = service.Restore(restored, stream);
+        Assert.Empty(result.Warnings);
+        Assert.Equal(2, result.Manifest.Modules.Single(module => module.Name == "oric-ay").Version);
+        var expected = new float[256];
+        var actual = new float[256];
+        for (int run = 0; run < 2; run++)
+        {
+            var expectedCount = source.Ay.AdvanceCycles(5003, expected);
+            var actualCount = restored.Ay.AdvanceCycles(5003, actual);
+            Assert.Equal(expectedCount, actualCount);
+            Assert.Equal(expected[..expectedCount], actual[..actualCount]);
+            source.Ay.WriteRegister(13, shape);
+            restored.Ay.WriteRegister(13, shape);
+        }
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(1_000_000, 0)]
+    [InlineData(10, double.NaN)]
+    [InlineData(10, double.PositiveInfinity)]
+    [InlineData(10, -1)]
+    [InlineData(10, 11)]
+    public void AySnapshotRejectsInvalidSampleIntegrationState(int phase, double area)
+    {
+        var module = new OricAySnapshotModule();
+        using var stream = new MemoryStream();
+        module.Capture(new SnapshotModuleWriter(stream), new SnapshotCaptureContext(BuildOric(), new()));
+        // Length-prefixed 16 registers + selected register + 3 (counter, bool) pairs.
+        stream.Position = 4 + 16 + 4 + 3 * (4 + 1);
+        var writer = new SnapshotModuleWriter(stream);
+        writer.WriteInt32(phase);
+        writer.WriteUInt64(BitConverter.DoubleToUInt64Bits(area));
+        stream.Position = 0;
+        var manifest = new SnapshotManifest();
+        manifest.Modules.Add(new() { Name = module.Name, Version = module.Version });
+        Assert.Throws<SnapshotException>(() => module.Restore(new SnapshotModuleReader(stream),
+            new SnapshotRestoreContext(BuildOric(), manifest, new Dictionary<string, byte[]>())));
+    }
+
+    [Fact]
     public void Restore_warns_when_target_vsync_modification_differs()
     {
         var source = BuildOric(vSyncHackEnabled: true);
