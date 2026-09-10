@@ -74,7 +74,13 @@ condition, a condition in any cycle puts the sequencer in display state and one 
 starts the video matrix fetches, whose first three read $FF while the CPU still holds the bus, and
 cycle 58 ends a row after its eighth line unless a condition keeps the display going. That is what
 makes the DMA delay (a bad line condition created in the middle of a line shifts the screen right
-by a column per cycle), linecrunch, doubled rows and FLD come out as on hardware. The vertical border compares are
+by a column per cycle), linecrunch, doubled rows and FLD come out as on hardware. Running every
+cycle of every line makes an opened border, where the whole line is output, about twice the work
+of a text screen, so the per-cycle path is kept cheap: a cycle whose fetched bytes, mode and
+pipeline state equal the cycle before repeats that block's pixels by copy (runs of identical
+cells, the idle byte across an opened border, blank cells under any XSCROLL), the line's colour
+resolve copies such blocks as well, and sprite rows are written as runs of pixels rather than a
+pixel at a time. The vertical border compares are
 checked in every cycle with the registers as they are then: the top compare (line 51, or 55 with
 RSEL clear) with DEN set clears the vertical border flip-flop at once, and the bottom compare (251
 or 247) arms a latch that the flip-flop takes over as the raster enters a line and at the display

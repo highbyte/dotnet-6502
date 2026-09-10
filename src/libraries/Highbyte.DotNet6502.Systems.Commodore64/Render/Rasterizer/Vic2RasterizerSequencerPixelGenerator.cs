@@ -408,6 +408,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         // sprite passes can then draw before any line has been processed (unit tests do).
         _lineClearStartXs = new int[_height];
         _lineClearEndXs = new int[_height];
+        _lineRepeatMark = new int[_width + 8];
         _rasterToScreenLine = new int[_c64.Vic2.Vic2Model.TotalHeight];
         for (var line = 0; line < _rasterToScreenLine.Length; line++)
             _rasterToScreenLine[line] = _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(line);
@@ -612,6 +613,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             {
                 FinishLineRuns();
                 _runLine = screenLine;
+                _lineSerial++;
                 _lineClearStartX = _mainBorder ? int.MaxValue : 0;
                 _lineClearEndX = _width;
                 _borderRunStartX = _mainBorder ? 0 : -1;
@@ -894,87 +896,76 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// difference between them is which producer supplies the position, shape and per-row colours.
     /// Handles single/multi colour and X expansion; the caller handles Y expansion (calls twice).
     /// </summary>
+    // A decoded sprite row: the colour of each of its up to 48 pixels, 0 where transparent.
+    private readonly uint[] _spriteRowPixels = new uint[Vic2Sprite.DEFAULT_WIDTH * 2];
+
+    /// <summary>
+    /// Decodes one sprite shape row (3 bytes / 24 px) and writes its pixels at (destX, destY).
+    /// Shared by both the end-of-frame (per-frame) and per-line sprite paths - the only difference
+    /// between them is which producer supplies the position, shape and per-row colours. Handles
+    /// single/multi colour and X expansion; the caller handles Y expansion (calls twice). The row
+    /// is decoded into a buffer first and written as runs of set pixels, one copy per run rather
+    /// than a call per pixel.
+    /// </summary>
     private void DecodeAndWriteSpriteRow(ReadOnlySpan<byte> rowBytes, int destX, int destY, bool isDoubleWidth, bool isMultiColor, bool priorityOverForeground, uint spriteForegroundPixelColor, uint spriteMultiColor0PixelColor, uint spriteMultiColor1PixelColor, int clipStartX, int clipEndX, int clipStartY, int clipEndY)
     {
-        var singleColorPixelAdvance = isDoubleWidth ? 2 : 1;
-        var multiColorPixelAdvance = isDoubleWidth ? 4 : 2;
-        var spriteLinePartAdvance = isDoubleWidth ? 16 : 8;
-
+        if (destY < 0 || destY > _height || destY < clipStartY || destY >= clipEndY)
+            return;
+        var rowWidth = isDoubleWidth ? Vic2Sprite.DEFAULT_WIDTH * 2 : Vic2Sprite.DEFAULT_WIDTH;
+        var pixels = _spriteRowPixels;
         var x = 0;
-        for (int byteIndex = 0; byteIndex < SPRITE_ROW_BYTES; byteIndex++)
+        if (isMultiColor)
         {
-            var spriteLinePart = rowBytes[byteIndex];
-            if (spriteLinePart == 0) { x += spriteLinePartAdvance; continue; }
-
-            if (isMultiColor)
+            var pairWidth = isDoubleWidth ? 4 : 2;
+            for (int byteIndex = 0; byteIndex < SPRITE_ROW_BYTES; byteIndex++)
             {
-                var maskMultiColor0Mask = 0b01000000;
-                var maskSpriteColorMask = 0b10000000;
-                var maskMultiColor1Mask = 0b11000000;
-
-                for (var pixel = 0; pixel < 8; pixel += 2)
+                var part = rowBytes[byteIndex];
+                for (var pair = 0; pair < 4; pair++)
                 {
-                    uint spriteColor;
-                    if ((spriteLinePart & maskMultiColor1Mask) == maskMultiColor1Mask)
-                        spriteColor = spriteMultiColor1PixelColor;
-                    else if ((spriteLinePart & maskSpriteColorMask) == maskSpriteColorMask)
-                        spriteColor = spriteForegroundPixelColor;
-                    else if ((spriteLinePart & maskMultiColor0Mask) == maskMultiColor0Mask)
-                        spriteColor = spriteMultiColor0PixelColor;
-                    else
-                        spriteColor = 0;
-
-                    if (spriteColor > 0)
+                    var color = ((part >> (6 - pair * 2)) & 3) switch
                     {
-                        WriteSpritePixel(destX + x, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
-                        WriteSpritePixel(destX + x + 1, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
-                        if (isDoubleWidth)
-                        {
-                            WriteSpritePixel(destX + x + 2, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
-                            WriteSpritePixel(destX + x + 3, destY, spriteColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
-                        }
-                    }
-
-                    maskMultiColor0Mask >>= 2;
-                    maskMultiColor1Mask >>= 2;
-                    maskSpriteColorMask >>= 2;
-                    x += multiColorPixelAdvance;
-                }
-            }
-            else
-            {
-                var mask = 0b10000000;
-                for (var pixel = 0; pixel < 8; pixel++)
-                {
-                    if ((spriteLinePart & mask) == mask)
-                    {
-                        WriteSpritePixel(destX + x, destY, spriteForegroundPixelColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
-                        if (isDoubleWidth)
-                            WriteSpritePixel(destX + x + 1, destY, spriteForegroundPixelColor, priorityOverForeground, clipStartX, clipEndX, clipStartY, clipEndY);
-                    }
-                    mask >>= 1;
-                    x += singleColorPixelAdvance;
+                        3 => spriteMultiColor1PixelColor,
+                        2 => spriteForegroundPixelColor,
+                        1 => spriteMultiColor0PixelColor,
+                        _ => 0u,
+                    };
+                    for (var k = 0; k < pairWidth; k++)
+                        pixels[x++] = color;
                 }
             }
         }
-    }
+        else
+        {
+            var pixelWidth = isDoubleWidth ? 2 : 1;
+            for (int byteIndex = 0; byteIndex < SPRITE_ROW_BYTES; byteIndex++)
+            {
+                var part = rowBytes[byteIndex];
+                for (var bit = 0; bit < 8; bit++)
+                {
+                    var color = (part & (0x80 >> bit)) != 0 ? spriteForegroundPixelColor : 0u;
+                    for (var k = 0; k < pixelWidth; k++)
+                        pixels[x++] = color;
+                }
+            }
+        }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteSpritePixel(int screenPosX, int screenPosY, uint color, bool priorityOverForeground, int clipStartX, int clipEndX, int clipStartY, int clipEndY)
-    {
-        if (screenPosX < 0 || screenPosX >= _width || screenPosY < 0 || screenPosY > _height)
+        // Runs of set pixels within the visible and unclipped span of the row.
+        var from = Math.Max(Math.Max(0, clipStartX), destX);
+        var to = Math.Min(Math.Min(_width, clipEndX), destX + rowWidth);
+        if (from >= to)
             return;
-        if (screenPosX < clipStartX || screenPosX >= clipEndX)   // side borders closed (TODO: open)
-            return;
-        if (screenPosY < clipStartY || screenPosY >= clipEndY)   // top/bottom borders closed (TODO: open)
-            return;
-
-        if (FlipY)
-            screenPosY = _height - screenPosY - 1;
-
-        var bitmapIndex = screenPosY * _width + screenPosX;
-        // priorityOverForeground => foreground layer (on top of text/bitmap), else background layer.
-        _setPixel(color, bitmapIndex, priorityOverForeground);
+        var ypos = FlipY ? _height - destY - 1 : destY;
+        var rowIndex = ypos * _width;
+        var write = priorityOverForeground ? _setForegroundPixels : _setBackgroundPixels;
+        var i = from - destX;
+        var end = to - destX;
+        while (i < end)
+        {
+            if (pixels[i] == 0) { i++; continue; }
+            var runStart = i;
+            while (i < end && pixels[i] != 0) i++;
+            write(pixels, runStart, rowIndex + destX + runStart, i - runStart);
+        }
     }
 
     private void InitBitmaps(C64 c64)
@@ -1161,7 +1152,31 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         var newEcmBmm = (byte)(((_d011 & 0x40) != 0 ? MODE_ECM : 0) | ((_d011 & 0x20) != 0 ? MODE_BMM : 0));
         var newMcm = (_d016 & 0x10) != 0;
         var modeStable = _modeEcmBmm == newEcmBmm && _colorMcm == newMcm && _decodeMcm == newMcm;
-        var loadSlot = (cycle + 1) % 3;   // the entry fetched two cycles ago: (cycle - 2) mod 3
+        var fetchSlot = cycle % 3;                       // this cycle's entry in the fetch ring
+        var loadSlot = fetchSlot == 2 ? 0 : fetchSlot + 1;   // the entry fetched two cycles ago: (cycle - 2) mod 3
+        var wholeBlock = draw && modeStable && blockX >= clipStart && blockX + 8 <= clipEnd;
+        // The block's inputs and the pipeline state it starts from, as one key.
+        var blockKey = (ulong)_fetchedData[loadSlot] | ((ulong)_fetchedMatrix[loadSlot] << 8) | ((ulong)_fetchedColor[loadSlot] << 16)
+            | ((ulong)_shiftData << 24) | ((ulong)_shiftMatrix << 32) | ((ulong)_shiftColor << 40)
+            | ((ulong)_pixelValue << 48) | (_pairSecondHalf ? 1UL << 56 : 0) | ((ulong)_loadPixel << 57);
+        if (wholeBlock && blockX == _blockCacheX + 8 && blockKey == _blockCacheKey)
+        {
+            // The same inputs as the block before, in the same state: the eight codes repeat (a run
+            // of identical cells, the idle byte across an opened border, blank cells under any
+            // XSCROLL), and the state after is the state the previous block left.
+            Unsafe.As<byte, ulong>(ref _lineFgCodes[blockX]) = Unsafe.As<byte, ulong>(ref _lineFgCodes[blockX - 8]);
+            Unsafe.As<byte, ulong>(ref _lineBgCodes[blockX]) = Unsafe.As<byte, ulong>(ref _lineBgCodes[blockX - 8]);
+            _lineRepeatMark[blockX] = _lineSerial;   // the resolve pass copies this block's colours from the one before
+            _shiftData = _blockCachePostShiftData;
+            _pixelValue = _blockCachePostPixelValue;
+            _pairSecondHalf = _blockCachePostPairSecondHalf;
+            _shiftMatrix = _fetchedMatrix[loadSlot];
+            _shiftColor = _fetchedColor[loadSlot];
+            _blockCacheX = blockX;
+            FetchCycle(cycle, rasterLine, fetchSlot);
+            return;
+        }
+        _blockCacheKey = blockKey;
 
         if (!draw && modeStable && _fetchedData[loadSlot] == 0 && _shiftData == 0 && _pixelValue == 0)
         {
@@ -1277,10 +1292,41 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             }
         }
 
-        // The cycle's accesses and counter work (3.7.2), then the fetched byte into the pipeline for
-        // the output two cycles on. Cycle numbers below count from 1 as the article does; `cycle`
-        // counts from 0.
+        if (wholeBlock)
+        {
+            _blockCacheX = blockX;
+            _blockCachePostShiftData = _shiftData;
+            _blockCachePostPixelValue = _pixelValue;
+            _blockCachePostPairSecondHalf = _pairSecondHalf;
+        }
+        else
+        {
+            _blockCacheX = int.MinValue;
+        }
+        FetchCycle(cycle, rasterLine, fetchSlot);
+    }
+
+    // The block cache: the inputs and state of the last whole block drawn, so an identical block
+    // right after it repeats its codes without decoding.
+    private int _blockCacheX = int.MinValue;
+    private ulong _blockCacheKey;
+    // Per pixel-array X: the serial of the line on which a block starting there repeated the block
+    // before it, so the resolve pass copies its colours instead of looking them up. A serial per
+    // line saves clearing the marks.
+    private int[] _lineRepeatMark = Array.Empty<int>();
+    private int _lineSerial = 1;
+    private byte _blockCachePostShiftData, _blockCachePostPixelValue;
+    private bool _blockCachePostPairSecondHalf;
+
+    /// <summary>
+    /// The cycle's accesses and counter work (3.7.2), then the fetched byte into the pipeline for
+    /// the output two cycles on. Cycle numbers below count from 1 as the article does; `cycle`
+    /// counts from 0.
+    /// </summary>
+    private void FetchCycle(int cycle, int rasterLine, int fetchSlot)
+    {
         var chipCycle = cycle + 1;
+        var previousSlot = fetchSlot == 0 ? 2 : fetchSlot - 1;   // the entry fetched the cycle before: (cycle - 1) mod 3
         var badLineCondition = rasterLine >= BadLineFirstRasterLine && rasterLine <= BadLineLastRasterLine
             && (rasterLine & 7) == (_d011 & 7) && _c64.Vic2.DisplayEnabledThisFrame;
         if (chipCycle == 14)
@@ -1293,7 +1339,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         // The g-access (cycles 16-55): a row's data in display state, the byte at the end of the bank
         // ($39FF with ECM) with the matrix data read as zero in idle state (3.7.3.9). VC and VMLI
         // advance after it in display state (rule 4).
-        var fetchSlot = cycle % 3;
         if (chipCycle >= 16 && chipCycle <= 55 && _lineVerticalBorder)
         {
             // The access and the counters go on, but while the vertical border flip-flop is set the
@@ -1304,8 +1349,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 _vc = (_vc + 1) & 0x3FF;
             }
             _fetchedData[fetchSlot] = 0;
-            _fetchedMatrix[fetchSlot] = _fetchedMatrix[(cycle + 2) % 3];
-            _fetchedColor[fetchSlot] = _fetchedColor[(cycle + 2) % 3];
+            _fetchedMatrix[fetchSlot] = _fetchedMatrix[previousSlot];
+            _fetchedColor[fetchSlot] = _fetchedColor[previousSlot];
         }
         else if (chipCycle >= 16 && chipCycle <= 55)
         {
@@ -1326,8 +1371,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         else
         {
             _fetchedData[fetchSlot] = 0;
-            _fetchedMatrix[fetchSlot] = _fetchedMatrix[(cycle + 2) % 3];
-            _fetchedColor[fetchSlot] = _fetchedColor[(cycle + 2) % 3];
+            _fetchedMatrix[fetchSlot] = _fetchedMatrix[previousSlot];
+            _fetchedColor[fetchSlot] = _fetchedColor[previousSlot];
         }
 
         // A bad line condition in any cycle puts the sequencer in display state (3.5, 3.14.6), from
@@ -1518,10 +1563,25 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             for (var c = 0; c < CODE_BG0 + 4; c++)
                 _fgCodeColor[c] = _bgCodeColor[c];
             _fgCodeColor[CODE_NONE] = transparent;
-            for (var x = start; x < end; x++)
+            var serial = _lineSerial;
+            var x = start;
+            while (x < end)
             {
+                if (_lineRepeatMark[x] == serial && x >= start + 8 && x + 8 <= end)
+                {
+                    var bg = _lineBgPixels;
+                    var fg = _lineFgPixels;
+                    for (var k = 0; k < 8; k++)
+                    {
+                        bg[x + k] = bg[x - 8 + k];
+                        fg[x + k] = fg[x - 8 + k];
+                    }
+                    x += 8;
+                    continue;
+                }
                 _lineBgPixels[x] = _bgCodeColor[_lineBgCodes[x]];
                 _lineFgPixels[x] = _fgCodeColor[_lineFgCodes[x]];
+                x++;
             }
         }
         else
