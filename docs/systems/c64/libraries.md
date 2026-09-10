@@ -48,10 +48,18 @@ from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite w
 low three cycles ahead. A CPU read that falls inside such a window waits until the window ends;
 writes do not wait. Bad lines follow YSCROLL and the DEN bit as the VIC-II saw it during raster
 line $30: clearing DEN before that line switches the display, and its bad lines, off for the whole
-frame, clearing it later has no effect until the next frame. Sprite DMA switches on when an
-enabled sprite's Y register equals the raster line as the VIC-II compares them and then runs for
-the sprite's 21 rows (42 when Y-expanded) whatever the registers do meanwhile, so a Y written to
-a line the raster has already passed costs nothing until the raster comes round again.
+frame, clearing it later has no effect until the next frame. Sprites follow the chip's data
+counters: the compare in cycles 55 and 56 of the line an enabled sprite's Y register names
+switches its DMA on and the display follows in cycle 58, the row it fetches for each line comes
+from a counter that advances in cycles 15 and 16 of every line where the Y-expansion flip-flop is
+set (inverted in cycle 55 while the expand bit is set, held set while it is cleared), and the DMA
+ends once that counter has passed the last row. So a Y-expanded sprite shows every row twice, a
+change of the expand bit mid-sprite changes the line count from there on, a Y written to a line
+the raster has already passed costs nothing until the raster comes round again, and a Y rewritten
+below a finished sprite shows it again there. With per-line sprites on, the rasterizer's
+sequencer generator draws each raster line's sprites from what the chip fetched for it, so sprite
+pointer and data changes mid-sprite, per-line X moves and reused sprites show as on hardware; the
+legacy generator keeps its per-sprite bands.
 
 Which character row a raster line shows, and which of its eight lines, is not arithmetic on the
 line number but the chip's own display state: a bad line starts a row (the row counter resets and

@@ -44,11 +44,20 @@ public interface IVic2SpriteManager
     public int[] LineSpriteY { get; }
 
     /// <summary>
+    /// Start-of-line snapshot of what the VIC-II displays on a raster line: the sprites whose
+    /// display is on (decided in cycle 58 of the line before) and, per sprite, the three bytes its
+    /// s-accesses fetch for the line. Kept per line, since the renderer can reach a line after the
+    /// VIC-II has already entered the next.
+    /// </summary>
+    public byte LineSpriteDisplayMask(int rasterLine);
+    public ReadOnlySpan<byte> LineSpriteData(int rasterLine, int sprite);
+
+    /// <summary>
     /// Captures the per-line sprite trigger-input snapshot (enable mask + Y). Called once per raster
     /// line from <see cref="Vic2.AdvanceRaster"/> when per-line sprite processing is active, before
     /// the collision accumulation and before the rasterizer's per-line sprite pass reads it.
     /// </summary>
-    public void CaptureLineSpriteSnapshot();
+    public void CaptureLineSpriteSnapshot(int rasterLine);
 
     /// <summary>
     /// Accumulates sprite-to-sprite and sprite-to-background collisions for a single raster line into

@@ -308,6 +308,65 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
     }
 
     [Theory]
+    [InlineData(54)]
+    [InlineData(57)]
+    public void Clearing_the_y_expand_bit_mid_sprite_shows_the_rows_the_data_counter_names(int writeCycle)
+    {
+        // VICE's spritedma/d017 tests: a Y-expanded sprite whose expand bit is cleared on its third
+        // line shows rows 0 and 1 on two lines each and the rest on one, 23 lines in all, whether the
+        // write lands before the flip-flop check in cycle 55 or after it. The per-line renderer
+        // takes each line's row from the VIC-II's data counter, so it follows.
+        const int spriteY = 60;
+        var c64 = BuildC64();
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        // Row k's second byte is k: the rows are told apart by their pixels.
+        var shape = new byte[63];
+        for (var row = 0; row < 21; row++)
+        {
+            shape[row * 3] = 0xFF;
+            shape[row * 3 + 1] = (byte)row;
+        }
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: true, shape, spritePointer: 192);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, spriteY);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = true;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites: true);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = (int)vic2.Vic2Model.CyclesPerLine;
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            vic2.AdvanceRaster((ulong)(writeCycle - 1));
+            generator.OnAfterInstruction();
+            if (rasterLine == spriteY + 3)
+                c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x00);
+            vic2.AdvanceRaster((ulong)(cyclesPerLine - (writeCycle - 1)));
+            generator.OnAfterInstruction();
+        }
+        generator.OnEndFrame();
+
+        var width = c64.Screen.VisibleWidth;
+        var layout = vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var firstRow = layout.Screen.Start.Y + spriteY + 1 - 51;   // the display starts on the line after Y
+        var x0 = layout.Screen.Start.X;
+        int RowNumberShownOn(int pixelRow)
+        {
+            if (foreground[pixelRow * width + x0] == 0)
+                return -1;
+            var value = 0;
+            for (var bit = 0; bit < 8; bit++)
+                if (foreground[pixelRow * width + x0 + 8 + bit] != 0)
+                    value |= 0x80 >> bit;
+            return value;
+        }
+        var expectedRows = new[] { 0, 0, 1, 1 }.Concat(Enumerable.Range(2, 19)).ToArray();
+        for (var i = 0; i < expectedRows.Length; i++)
+            Assert.Equal(expectedRows[i], RowNumberShownOn(firstRow + i));
+        Assert.Equal(-1, RowNumberShownOn(firstRow - 1));
+        Assert.Equal(-1, RowNumberShownOn(firstRow + expectedRows.Length));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void A_sprite_that_runs_past_the_ntsc_frame_end_continues_in_the_frames_last_rows_with_the_border_open(bool perLineSprites)

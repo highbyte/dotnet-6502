@@ -28,6 +28,7 @@
     <None Remove="Resources\Sample6502Programs\Assembler\C64\line_splits.prg" />
     <None Remove="Resources\Sample6502Programs\Assembler\C64\dma_delay.prg" />
     <None Remove="Resources\Sample6502Programs\Assembler\C64\row_stretch.prg" />
+    <None Remove="Resources\Sample6502Programs\Assembler\C64\sprite_stretch.prg" />
     <None Remove="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
     <None Remove="Resources\Sample6502Programs\Assembler\VIC20\color_cycle.prg" />
     <None Remove="Resources\Sample6502Programs\Basic\Apple2\HelloWorld.bas" />
@@ -55,6 +56,7 @@
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\line_splits.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\dma_delay.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\row_stretch.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\sprite_stretch.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\VIC20\color_cycle.prg" />
     <EmbeddedResource Include="Resources\Sample6502Programs\Basic\Apple2\HelloWorld.bas" />

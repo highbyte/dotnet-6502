@@ -10,8 +10,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// registers.
 ///
 /// <para>Sprite DMA comes from the VIC-II's per-sprite DMA state (<see cref="Vic2.SpriteDmaMask"/>),
-/// which switches on at the Y compare and runs for the sprite's rows; the VIC-II is caught up to
-/// the read's cycle first so that state is current. The bad line condition is the VIC-II's own
+/// which switches on at the Y compare in cycle 55 and runs until the row counter has fetched the
+/// sprite's last row; the VIC-II is caught up to the read's cycle first so that state is current,
+/// and a sprite the compare is about to switch on (<see cref="Vic2.SpriteDmaStartMask"/>) counts
+/// for the windows that start with the compare. The bad line condition is the VIC-II's own
 /// (<see cref="Vic2.IsBadLine"/>): DEN as seen during line $30, not as it is at the read.</para>
 ///
 /// <para>Cycle numbering follows the usual VIC-II documentation: cycle 1 is the first cycle of a
@@ -100,7 +102,9 @@ internal sealed class Vic2BusStalls : IBusStallSource
         if (IsBadLine(line))
             AddRange(BadLineBaLowOffset, BadLineBaHighOffset);
 
-        var active = _vic2.SpriteDmaMask;
+        // The compare in cycle 55 switches DMA on in the same cycle sprite 0's window begins, so
+        // a sprite about to start counts here; the read that hits the window is re-evaluated there.
+        var active = (byte)(_vic2.SpriteDmaMask | _vic2.SpriteDmaStartMask(line));
         for (var n = 0; n < 8; n++)
             if ((active & (1 << n)) != 0)
                 AddWindow(SpritePointerOffset(n));
