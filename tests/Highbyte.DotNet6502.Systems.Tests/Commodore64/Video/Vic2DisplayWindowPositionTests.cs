@@ -29,28 +29,32 @@ public class Vic2DisplayWindowPositionTests
     }
 
     [Theory]
-    [InlineData("C64PAL", "PAL", 124)]
-    [InlineData("C64NTSC", "NTSC", 124)]
-    public void Visible_area_is_placed_so_the_display_window_keeps_its_offset_into_the_line(string c64Model, string vic2Model, int expectedStartX)
+    [InlineData("C64PAL", "PAL", 124, 76)]
+    [InlineData("C64NTSC", "NTSC", 124, 77)]
+    public void Visible_area_is_placed_so_the_display_window_keeps_its_offset_into_the_line(string c64Model, string vic2Model, int expectedStartX, int expectedVisibleStartX)
     {
+        // The visible frame starts where the chip's horizontal blanking ends: X 480 on the 6569
+        // and X 489 on the 6567R8, 76 and 77 pixels into the line.
         var c64 = BuildC64(c64Model, vic2Model);
         var screen = c64.Vic2.Vic2Screen;
 
         var visible = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.Visible, for24RowMode: false, for38ColMode: false);
 
         Assert.Equal(expectedStartX, visible.Screen.Start.X);
-        Assert.Equal(expectedStartX - screen.VisibleLeftRightBorderWidth, visible.LeftBorder.Start.X);
+        Assert.Equal(expectedVisibleStartX, visible.LeftBorder.Start.X);
+        Assert.Equal(expectedStartX - screen.VisibleLeftBorderWidth, visible.LeftBorder.Start.X);
         Assert.Equal(screen.VisibleWidth, visible.RightBorder.End.X - visible.LeftBorder.Start.X + 1);
     }
 
     [Theory]
-    [InlineData("C64PAL", "PAL", 41, 42)]
-    [InlineData("C64NTSC", "NTSC", 49, 49)]
+    [InlineData("C64PAL", "PAL", 48, 35)]
+    [InlineData("C64NTSC", "NTSC", 47, 51)]
     public void Border_widths_within_the_visible_area_are_unchanged_by_where_the_line_starts(string c64Model, string vic2Model, int expectedLeftBorderWidth, int expectedRightBorderWidth)
     {
-        // The visible frame and the display window's place inside it are a presentation choice (real
-        // sets showed different amounts of border); only the offset into the line above is fixed by
-        // the chip. This pins the choice so the anchor cannot move the picture within the frame.
+        // The visible frame is the part of the line between the chip's horizontal blanking, X 480-378
+        // on the 6569 and X 489-394 on the 6567R8, so the borders around the display window at X
+        // 24-343 are asymmetric: 48 and 35 pixels on the 6569, 47 and 51 on the 6567R8. This pins
+        // them so the anchor cannot move the picture within the frame.
         var c64 = BuildC64(c64Model, vic2Model);
         var screen = c64.Vic2.Vic2Screen;
 

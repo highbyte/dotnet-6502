@@ -26,10 +26,10 @@ public class Vic2ModelNTSC_old : Vic2ModelBase
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
-    public override int ConvertRasterLineToScreenLine(int rasterLine)
-    {
-        throw new NotImplementedException();
-    }
+    // The 6567R56A's vertical blanking covers lines 13-40 and its first visible pixel is at X $1e8
+    // (VIC-II article, section 3.4).
+    public override int FirstVisibleRasterLine => 41;
+    public override int FirstVisibleX => 488;
 }
 
 /// <summary>
@@ -64,6 +64,12 @@ public class Vic2ModelNTSC : Vic2ModelBase
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
+    // The 6567R8's vertical blanking covers lines 13-40, so its 235 visible lines are 41-262 and
+    // 0-12, ten above the display window and 25 below it; its first visible pixel is at X $1e9
+    // (VIC-II article, section 3.4).
+    public override int FirstVisibleRasterLine => 41;
+    public override int FirstVisibleX => 489;
+
     // NTSC (new) RSEL 1 (25 text lines/200 pixels = default) raster lines
     //
     // Raster line | Scr line    | Comment 
@@ -91,19 +97,6 @@ public class Vic2ModelNTSC : Vic2ModelBase
     //    55       | First line of screen
     //   246       | Last line of screen
     //   247       | Fist line of bottom border
-
-    public override int ConvertRasterLineToScreenLine(int rasterLine)
-    {
-        // TODO: Is there difference in conversion between RSEL 0 (24 rows) and RSEL 1 (25 rows) mode ?
-
-        const int rasterLineForTopmostScreenLine = 20;
-        if (rasterLine < rasterLineForTopmostScreenLine)
-            //return (ushort)(rasterLine + 243);
-            return (rasterLine + (TotalHeight - rasterLineForTopmostScreenLine));
-        else
-            //return (ushort)(rasterLine - 20);
-            return (rasterLine - rasterLineForTopmostScreenLine);
-    }
 
     // Raster x coord where CSEL 1 (40 characters, 320 pixels) screen starts: 24
     // Raster x coord where CSEL 0 (38 characters, 304 pixels) screen starts: 31
@@ -137,16 +130,11 @@ public class Vic2ModelPAL : Vic2ModelBase
     // Should be 312 - 284 = 28  (or "around" 30 as stated in some docs)
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
-    public override int ConvertRasterLineToScreenLine(int rasterLine)
-    {
-        var screenLine = rasterLine + (GetVisibleScreenStartLine() - FirstRasterLineOfMainScreen);
-        if (screenLine < 0)
-            screenLine += TotalHeight;
-        else if (screenLine >= TotalHeight)
-            screenLine -= TotalHeight;
-
-        return screenLine;
-    }
+    // The 6569's vertical blanking covers lines 300-15, so its 284 visible lines are 16-299, 35
+    // above the display window and 49 below it; its first visible pixel is at X $1e0 (VIC-II
+    // article, section 3.4).
+    public override int FirstVisibleRasterLine => 16;
+    public override int FirstVisibleX => 480;
 
 
     // PAL (new) RSEL 1 (25 text lines/200 pixels = default) raster lines
@@ -315,13 +303,49 @@ public abstract class Vic2ModelBase
     public abstract int HBlankWidth { get; }
     public abstract int VBlankHeight { get; }
 
-    public abstract int ConvertRasterLineToScreenLine(int rasterLine);
+    /// <summary>
+    /// The first raster line a display shows: the line after the chip's vertical blanking. The
+    /// visible lines are this and the <see cref="MaxVisibleHeight"/> - 1 that follow, wrapping at the
+    /// frame's end (VIC-II article, section 3.4).
+    /// </summary>
+    public abstract int FirstVisibleRasterLine { get; }
 
+    /// <summary>
+    /// The VIC-II X coordinate of the first visible pixel of a line: the pixel after the chip's
+    /// horizontal blanking. The visible pixels are this and the <see cref="MaxVisibleWidth"/> - 1 that
+    /// follow (VIC-II article, section 3.4).
+    /// </summary>
+    public abstract int FirstVisibleX { get; }
+
+    /// <summary>
+    /// Pixels from the start of a raster line's first cycle to the first visible pixel.
+    /// </summary>
+    public int VisibleAreaStartX => FirstVisibleX - XCoordinateAtLineStart;
+
+    /// <summary>
+    /// The frame's screen line of a raster line. Screen lines number the frame's lines in display
+    /// order from the top invisible lines, so that the visible frame is a contiguous block of them:
+    /// the first visible raster line lands on the screen line where the visible frame begins, and
+    /// the lines before it in raster order wrap to the end.
+    /// </summary>
+    public int ConvertRasterLineToScreenLine(int rasterLine)
+    {
+        var screenLine = rasterLine + (GetVisibleScreenStartLine() - FirstRasterLineOfMainScreen);
+        if (screenLine < 0)
+            screenLine += TotalHeight;
+        else if (screenLine >= TotalHeight)
+            screenLine -= TotalHeight;
+        return screenLine;
+    }
+
+    /// <summary>
+    /// The screen line of the display window's first raster line, in the frame's unnormalized
+    /// screen coordinates (the visible frame begins after the top invisible lines).
+    /// </summary>
     protected int GetVisibleScreenStartLine()
     {
         var topInvisibleLines = (int)Math.Floor((TotalHeight - MaxVisibleHeight) / 2.0d);
-        var visibleTopBorderHeight = (int)Math.Floor((MaxVisibleHeight - DrawableAreaHeight) / 2.0d);
-        return topInvisibleLines + visibleTopBorderHeight;
+        return topInvisibleLines + (FirstRasterLineOfMainScreen - FirstVisibleRasterLine);
     }
 
     public bool IsRasterLineInMainScreen(int rasterLine)

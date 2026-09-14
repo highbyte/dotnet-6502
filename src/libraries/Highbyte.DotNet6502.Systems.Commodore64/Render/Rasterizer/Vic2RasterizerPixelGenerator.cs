@@ -586,7 +586,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
                 // A new line: clear its foreground row before anything is drawn on it, so nothing
                 // from the previous frame remains (fine scrolling leaves gaps). Per line rather than
                 // once per frame at the first visible line, because on NTSC the visible frame's last
-                // rows are raster lines 0-5, which are drawn before that first visible line and
+                // rows are raster lines 0-12, which are drawn before that first visible line and
                 // would be wiped by a whole-frame clear there.
                 _clearForegroundPixels((screenLine - _screenLayoutInclNonVisibleTopBorderStartY) * _width, _width);
 
@@ -734,7 +734,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
                 var spriteScreenPosY = _slY[spriteIndex] + _screenStartY - _spriteScreenOffsetY;
                 var doubleHeight = sprites[spriteIndex].DoubleHeight;
                 // Lines above the visible area are never drawn, so a sprite that begins there
-                // (NTSC shows the top border only from raster line 34) is latched on the first
+                // (NTSC shows the top border only from raster line 41) is latched on the first
                 // visible line instead, with the rows the raster has already passed accounted for.
                 var linesPassed = pixelArrayY == 0 && spriteScreenPosY < 0 ? -spriteScreenPosY : 0;
                 if (pixelArrayY == spriteScreenPosY || (linesPassed > 0 && linesPassed < SPRITE_ROWS * (doubleHeight ? 2 : 1)))
@@ -807,7 +807,7 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
         // band) still have a sane colour. The gate overwrites each row's colour as it displays.
         // The default clip is the span where the row's own frame line last had the border
         // flip-flop clear: that covers rows the gate never reaches because the raster frame ends
-        // first (on NTSC the visible frame's last rows are raster lines 0-5 of the next frame) and
+        // first (on NTSC the visible frame's last rows are raster lines 0-12 of the next frame) and
         // sprites that never latched this frame.
         var fg = _c64ToRenderColorMap[sprite.Color];
         var mc0 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];

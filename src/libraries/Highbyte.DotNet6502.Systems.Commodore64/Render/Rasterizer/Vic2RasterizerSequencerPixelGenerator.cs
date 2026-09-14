@@ -660,7 +660,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 // A new line: clear its foreground row before anything is drawn on it, so nothing
                 // from the previous frame remains (fine scrolling leaves gaps). Per line rather than
                 // once per frame at the first visible line, because on NTSC the visible frame's last
-                // rows are raster lines 0-5, which are drawn before that first visible line and
+                // rows are raster lines 0-12, which are drawn before that first visible line and
                 // would be wiped by a whole-frame clear there.
                 _clearForegroundPixels((screenLine - _screenLayoutInclNonVisibleTopBorderStartY) * _width, _width);
 
@@ -686,7 +686,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 if (_perLineSprites)
                 {
                     // This line's record starts empty (a per-line clear rather than one per frame,
-                    // since on NTSC the visible frame's last rows are raster lines 0-5, recorded
+                    // since on NTSC the visible frame's last rows are raster lines 0-12, recorded
                     // before the frame's first visible line).
                     var lineIndex = screenLine - _screenLayoutInclNonVisibleTopBorderStartY;
                     if (lineIndex >= 0 && lineIndex < _height)
