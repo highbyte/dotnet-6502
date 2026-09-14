@@ -51,6 +51,23 @@ public interface IVic2SpriteManager
     /// </summary>
     public byte LineSpriteDisplayMask(int rasterLine);
     public ReadOnlySpan<byte> LineSpriteData(int rasterLine, int sprite);
+    public byte LineSpriteXExpand(int rasterLine);
+    public byte LineSpriteMultiColor(int rasterLine);
+
+    /// <summary>
+    /// The output runs of a sprite on a line, derived by the VIC-II when the line ends from its X
+    /// compare per pixel: the pixel index within the line where each run starts, the three bytes
+    /// of the row it shifts out, how many of its pixels are shown, and how many more repeat the
+    /// last shown pixel (a sprite still shifting when its own fetch begins).
+    /// </summary>
+    public byte LineSpriteRunMask(int rasterLine);
+    public int LineSpriteRunCount(int rasterLine, int sprite);
+    public int LineSpriteRunStart(int rasterLine, int sprite, int run);
+    public uint LineSpriteRunData(int rasterLine, int sprite, int run);
+    public int LineSpriteRunLength(int rasterLine, int sprite, int run);
+    public int LineSpriteRunStretch(int rasterLine, int sprite, int run);
+    public void AddLineSpriteRun(int rasterLine, int sprite, int run, int startPixel, uint rowBits, int length, int stretch);
+    public void EndLineSpriteCollisions(int rasterLine);
 
     /// <summary>
     /// Captures the per-line sprite trigger-input snapshot (enable mask + Y). Called once per raster
@@ -60,9 +77,10 @@ public interface IVic2SpriteManager
     public void CaptureLineSpriteSnapshot(int rasterLine);
 
     /// <summary>
-    /// Accumulates sprite-to-sprite and sprite-to-background collisions for a single raster line into
-    /// the collision stores, using the sprites' current (per-line / multiplex) positions. Called once
-    /// per raster line from <see cref="Vic2.AdvanceRaster"/> when <see cref="PerLineCollisionEnabled"/>.
+    /// Accumulates sprite-to-background collisions for a single raster line into the collision
+    /// store, using the sprites' positions at the line's start. Called once per raster line from
+    /// <see cref="Vic2.AdvanceRaster"/> when <see cref="PerLineCollisionEnabled"/>. Sprite-to-sprite
+    /// collisions come from the line's output runs instead (<see cref="EndLineSpriteCollisions"/>).
     /// </summary>
     public void AccumulatePerLineCollisions(int rasterLine);
 

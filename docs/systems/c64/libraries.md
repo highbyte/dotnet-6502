@@ -58,8 +58,18 @@ change of the expand bit mid-sprite changes the line count from there on, a Y wr
 the raster has already passed costs nothing until the raster comes round again, and a Y rewritten
 below a finished sprite shows it again there. With per-line sprites on, the rasterizer's
 sequencer generator draws each raster line's sprites from what the chip fetched for it, so sprite
-pointer and data changes mid-sprite, per-line X moves and reused sprites show as on hardware; the
-legacy generator keeps its per-sprite bands.
+pointer and data changes mid-sprite show as on hardware; the legacy generator keeps its per-sprite
+bands. Where a sprite appears on a line follows the chip's X compare per pixel: a sprite starts
+shifting its row out where its X register equals the beam position, an X written in a cycle counts
+from that cycle's fifth pixel, and a sprite whose X is moved past the beam after it was shown
+starts again, so one sprite can appear twice on a line. It cannot start while its own data is
+being fetched (cycles 58 and 59 for sprite 0, two cycles on per sprite, so X 355 to 366 on the
+6569); one still shifting when its fetch begins repeats its last pixel for seven pixels and stops;
+and the fetch loads the next row, which can start on the same line, so a sprite whose X lies beyond
+its fetch shows each row a line higher. An X the beam never reaches (504 to 511 on the 6569) is
+never shown. Sprite-to-sprite collisions come from these runs and are latched as the line ends;
+sprite-to-background collisions still use the sprite's position at the start of the line. The
+SpriteX sample in the Avalonia and browser menus shows each of these cases.
 
 Which character row a raster line shows, and which of its eight lines, is not arithmetic on the
 line number but the chip's own display state: a bad line starts a row (the row counter resets and
