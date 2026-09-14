@@ -118,21 +118,20 @@ public class Vic2SpriteManagerTests
         CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 30, y: 10, spritePointer: 193); // static, top
         CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 30, y: 10, spritePointer: 192); // band 1 overlaps sprite 1
 
-        var sm = c64.Vic2.SpriteManager;
         var totalHeight = c64.Vic2.Vic2Model.TotalHeight;
-        for (int line = 0; line < totalHeight; line++)
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        for (int line = 0; line <= totalHeight; line++)
         {
-            // After sprite 0's first band (raster 10..30) finishes, move it far away (multiplex reuse).
+            // After sprite 0's first band (raster 11..31) finishes, move it far away (multiplex reuse).
             if (line == 40)
                 c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, 200);
-            sm.CaptureLineSpriteSnapshot(line);
-            sm.AccumulatePerLineCollisions(line);
+            c64.Vic2.AdvanceRaster(cyclesPerLine);
         }
 
         // Per-line caught the band-1 overlap.
-        Assert.Equal(0b0000_0011, sm.SpriteToSpriteCollisionStore);
+        Assert.Equal(0b0000_0011, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
         // ...and the end-of-frame single-position check (sprite 0 now at y=200) would have missed it.
-        Assert.Equal(0, sm.GetSpriteToSpriteCollision());
+        Assert.Equal(0, c64.Vic2.SpriteManager.GetSpriteToSpriteCollision());
     }
 
     [Fact]
@@ -163,42 +162,189 @@ public class Vic2SpriteManagerTests
         CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 20, y: 60, spritePointer: 192);
         CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 25, y: 60, spritePointer: 193);
 
-        var sm = c64.Vic2.SpriteManager;
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
 
-        // Before the sprites' display band (raster 60..80): no collision, no IRQ.
-        sm.CaptureLineSpriteSnapshot(50);
-        sm.AccumulatePerLineCollisions(50);
+        // Before the sprites' display band (raster 61..81): no collision, no IRQ.
+        c64.Vic2.AdvanceRaster(cyclesPerLine * 51);   // into line 51
         Assert.False(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
 
-        // Process the band: the collision must raise the IRQ mid-frame.
-        for (int line = 60; line <= 80; line++)
-        {
-            sm.CaptureLineSpriteSnapshot(line);
-            sm.AccumulatePerLineCollisions(line);
-        }
-
+        // Into the band: the collision is latched as the band's first line ends, and must raise the
+        // IRQ there, mid-frame.
+        c64.Vic2.AdvanceRaster(cyclesPerLine * 12);   // into line 63
         Assert.True(c64.CPU.CPUInterrupts.IsIRQSourceActive(SpriteToSpriteCollisionIrqSource));
     }
 
+    // Drives the raster through a frame line by line: the VIC-II's own per-line work captures the
+    // sprite snapshot, accumulates the per-line collisions and, as each line ends, derives the
+    // sprites' output runs and their sprite-to-sprite collisions.
     private static void DrivePerLineCollisionsForFrame(C64 c64)
     {
-        var sm = c64.Vic2.SpriteManager;
         var totalHeight = c64.Vic2.Vic2Model.TotalHeight;
-        for (int line = 0; line < totalHeight; line++)
-        {
-            // Mirror Vic2.AdvanceRaster: capture the shared per-line snapshot, then accumulate.
-            sm.CaptureLineSpriteSnapshot(line);
-            sm.AccumulatePerLineCollisions(line);
-        }
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        for (int line = 0; line <= totalHeight; line++)
+            c64.Vic2.AdvanceRaster(cyclesPerLine);
     }
 
-    private static C64 BuildC64(bool perLineSprites = false)
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Sprites_beyond_x_255_with_sparse_rows_collide(bool perLineSprites)
+    {
+        // VICE's spritex testsuite, its first case, held still: sprite 0 solid and sprite 7 with only
+        // its row 6's first and last pixel, both at X 72 with the X high bit set (328) and Y 49.
+        // Sprite 7's two pixels lie inside sprite 0's row 6, so the two collide.
+        var c64 = BuildC64(perLineSprites);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 72, y: 49, spritePointer: 0xF8);
+        CreateVisibleSprite(c64, spriteNumber: 7, x: 72, y: 49, spritePointer: 0xFC, SparseRow6());
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x81);
+
+        if (perLineSprites)
+            DrivePerLineCollisionsForFrame(c64);
+        else
+            c64.Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+
+        Assert.Equal(0x81, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+    }
+
+    [Theory]
+    [InlineData(24, 0)]      // written in the cycle whose fourth pixel is X 95: compared from pixel 4, so the old X matches
+    [InlineData(23, 0x81)]   // written a cycle earlier: the new X 96 matches, and its last pixel meets sprite 7's first
+    public void Sprite_X_written_in_a_cycle_is_compared_from_its_fifth_pixel(int writeCycle, byte expectedCollision)
+    {
+        // VICE's spritex suite, tests 2 and 3 on the 6569: sprite 0 solid at X 95, sprite 7 with only
+        // its row 6's first and last pixel at X 119, sprite 0's X written to 96 on row 6's line.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 95, y: 49, spritePointer: 0xF8);
+        CreateVisibleSprite(c64, spriteNumber: 7, x: 119, y: 49, spritePointer: 0xFC, SparseRow6());
+
+        RunFrameWithWriteAt(c64, line: 49 + 1 + 6, writeCycle, () => c64.Mem.Write(Vic2Addr.SPRITE_0_X, 96));
+
+        Assert.Equal(expectedCollision, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+    }
+
+    [Theory]
+    [InlineData(365, 0, 0)]      // X 365 lies in sprite 0's own fetch (cycles 58-59): never shown
+    [InlineData(367, 0x81, 1)]   // the first X after the fetch: shown, and it overlaps sprite 7
+    public void Sprite_cannot_start_while_its_own_data_is_fetched(int spriteX, byte expectedCollision, int expectedRuns)
+    {
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: (byte)(spriteX - 256), y: 49, spritePointer: 0xF8);
+        CreateVisibleSolidSprite(c64, spriteNumber: 7, x: 360 - 256, y: 49, spritePointer: 0xFC);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x81);
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        Assert.Equal(expectedCollision, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+        Assert.Equal(expectedRuns, c64.Vic2.SpriteManager.LineSpriteRunCount(56, 0));
+    }
+
+    [Fact]
+    public void Sprite_still_shifting_at_its_fetch_repeats_its_last_pixel_and_stops()
+    {
+        // The Demus Interruptus emulator check: sprite 0 with every row $02 (its pixel 22 set) and
+        // sprite 1 with every row $55, both at X 332, which never overlap as drawn. Sprite 0 is
+        // still shifting when its fetch begins at X 355, so its last shifted pixel, the set one,
+        // repeats there and meets sprite 1's pixel 23.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSprite(c64, spriteNumber: 0, x: 332 - 256, y: 92, spritePointer: 0xF8, Enumerable.Repeat((byte)0x02, 63).ToArray());
+        CreateVisibleSprite(c64, spriteNumber: 1, x: 332 - 256, y: 92, spritePointer: 0xFC, Enumerable.Repeat((byte)0x55, 63).ToArray());
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x03);
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        Assert.Equal(0b0000_0011, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+        var sm = c64.Vic2.SpriteManager;
+        Assert.Equal(1, sm.LineSpriteRunCount(100, 0));
+        Assert.Equal(332 - 404 + 504, sm.LineSpriteRunStart(100, 0, 0));   // the line's pixel index of X 332
+        Assert.Equal(23, sm.LineSpriteRunLength(100, 0, 0));               // shown up to X 354
+        Assert.Equal(7, sm.LineSpriteRunStretch(100, 0, 0));               // then repeated through X 361
+        Assert.Equal(24, sm.LineSpriteRunLength(100, 1, 0));               // sprite 1's fetch is two cycles on: untouched
+    }
+
+    [Fact]
+    public void Sprite_row_loaded_by_the_fetch_starts_on_the_same_line()
+    {
+        // A sprite whose X lies beyond its fetch shows each row on the line the row was fetched
+        // on, one line higher than a sprite to the left of the fetch.
+        var c64 = BuildC64(perLineSprites: true);
+        var shape = new byte[63];
+        shape[0] = 0xAA;   // row 0
+        shape[3] = 0x55;   // row 1
+        CreateVisibleSprite(c64, spriteNumber: 0, x: 380 - 256, y: 100, spritePointer: 0xF8, shape);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x01);
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        var sm = c64.Vic2.SpriteManager;
+        Assert.Equal(0, sm.LineSpriteRunCount(99, 0));
+        Assert.Equal(1, sm.LineSpriteRunCount(100, 0));
+        Assert.Equal(380 - 404 + 504, sm.LineSpriteRunStart(100, 0, 0));
+        Assert.Equal(0xAA0000u, sm.LineSpriteRunData(100, 0, 0));
+        Assert.Equal(0x550000u, sm.LineSpriteRunData(101, 0, 0));
+    }
+
+    [Theory]
+    [InlineData("PAL", 0, 0)]        // the 6569's line has 504 pixels: X 504 is never reached
+    [InlineData("NTSC", 0b11, 1)]    // the 6567R8's has 520: X 504 lies at the line's 92nd pixel
+    public void Sprite_X_the_beam_never_reaches_is_never_shown(string model, byte expectedCollision, int expectedRuns)
+    {
+        var c64 = BuildC64(perLineSprites: true, model);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 504 - 256, y: 49, spritePointer: 0xF8);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 504 - 256, y: 49, spritePointer: 0xFC);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x03);
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        Assert.Equal(expectedCollision, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+        Assert.Equal(expectedRuns, c64.Vic2.SpriteManager.LineSpriteRunCount(56, 0));
+    }
+
+    [Theory]
+    [InlineData(111, 0x81)]   // moved to X 367, the first X after its fetch: shown again with the next row
+    [InlineData(110, 0)]      // moved to X 366, inside the fetch: not shown again
+    public void Sprite_moved_past_the_beam_starts_again_after_its_fetch(byte newXLow, byte expectedCollision)
+    {
+        // VICE's spritex suite, tests 15 and 16 on the 6569: sprite 0 solid at X 256 and sprite 7
+        // with only its row 6's first and last pixel at X 367; sprite 0's X rewritten in cycle 45 of
+        // row 6's line, after its first run.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 0, y: 49, spritePointer: 0xF8);
+        CreateVisibleSprite(c64, spriteNumber: 7, x: 367 - 256, y: 49, spritePointer: 0xFC, SparseRow6());
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x81);
+
+        RunFrameWithWriteAt(c64, line: 49 + 1 + 6, cycle: 45, () => c64.Mem.Write(Vic2Addr.SPRITE_0_X, newXLow));
+
+        Assert.Equal(expectedCollision, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+    }
+
+    // A sprite with only its row 6's first and last pixel set.
+    private static byte[] SparseRow6()
+    {
+        var sparse = new byte[63];
+        sparse[6 * 3] = 0x80;
+        sparse[6 * 3 + 2] = 0x01;
+        return sparse;
+    }
+
+    // Drives the raster from the frame's start to the given cycle (0-based) of the given line,
+    // performs the write there, then on to line 200: past the sprites, but short of line 256,
+    // where the Y compare (on the raster's low byte) would start them again with the new X.
+    private static void RunFrameWithWriteAt(C64 c64, int line, int cycle, Action write)
+    {
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        var at = (ulong)line * cyclesPerLine + (ulong)cycle;
+        c64.Vic2.AdvanceRaster(at);
+        write();
+        c64.Vic2.AdvanceRaster(200 * cyclesPerLine - at);
+    }
+
+    private static C64 BuildC64(bool perLineSprites = false, string model = "PAL")
     {
         return C64.BuildC64(new C64Config
         {
             LoadROMs = false,
-            C64Model = "C64PAL",
-            Vic2Model = "PAL",
+            C64Model = model == "PAL" ? "C64PAL" : "C64NTSC",
+            Vic2Model = model,
             // These tests target the end-of-frame collision recompute path; pin the mode so the
             // (default-on) per-line collision path doesn't skip it. Per-line is covered separately.
             Vic2RasterizerPerLineSprites = perLineSprites,

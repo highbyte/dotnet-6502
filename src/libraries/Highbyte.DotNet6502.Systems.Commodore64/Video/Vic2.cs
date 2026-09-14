@@ -83,6 +83,23 @@ public class Vic2
     // enable write: the two compares of a line and the bus stall model's checks all ask for it.
     private int _spriteYMatchLine = -1;
     private byte _spriteYMatchMask;
+
+    // --- Sprite X compare per pixel ---
+    // The chip compares every sprite's X register with the beam's X coordinate at every pixel and
+    // starts shifting the sprite's data register out where they match. A program can write an X
+    // register in the middle of a line, so the writes of the current line are journalled with
+    // their cycle and the line's sprite output is derived when the line ends (EndLineSprites),
+    // from the X in force at each pixel: a write in a cycle is seen by the compare from that
+    // cycle's pixel 4 on (the CPU writes in the cycle's second phase). Once the compare has
+    // matched, the sprite shifts its 24 (48) pixels out whatever later writes do; a match after
+    // the register has been shifted out shows nothing until the sprite's own fetch has loaded the
+    // next row, and a match while that fetch is under way is ignored.
+    private const int SpriteXJournalCapacity = 64;
+    private readonly ushort[] _spriteXJournalRegister = new ushort[SpriteXJournalCapacity];
+    private readonly byte[] _spriteXJournalValue = new byte[SpriteXJournalCapacity];
+    private readonly int[] _spriteXJournalPixel = new int[SpriteXJournalCapacity];   // the line pixel index the write is seen from
+    private int _spriteXJournalCount;
+    private const int SpriteWriteVisiblePixel = 4;
     private readonly bool[] _spriteExpandFlipFlop = { true, true, true, true, true, true, true, true };
     private const int SpriteEventMcBaseStep2Offset = 14;   // cycle 15
     private const int SpriteEventMcBaseStep1Offset = 15;   // cycle 16
@@ -464,7 +481,7 @@ public class Vic2
         }
 
         // Address 0xd010: Sprite X position MSB.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MSB_X, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MSB_X, C64.ReadIOStorage, SpriteMsbXStore);
 
         // Address 0xd011: "Vertical Fine Scrollling and Screen Control Register"
         MapRegisterMirrors(c64Mem, Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Load, ScrCtrlReg1Store);
@@ -714,6 +731,160 @@ public class Vic2
             _spriteYCache[(address - Vic2Addr.SPRITE_0_Y) >> 1] = value;
             _spriteYMatchLine = -1;
         }
+        else
+        {
+            JournalSpriteXWrite(address, value);
+        }
+    }
+
+    public void SpriteMsbXStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        JournalSpriteXWrite(address, value);
+    }
+
+    private void JournalSpriteXWrite(ushort address, byte value)
+    {
+        if (_spriteXJournalCount == SpriteXJournalCapacity || _currentRasterLineInternal == ushort.MaxValue)
+            return;   // more X writes on one line than any program makes: the last value wins from the next line
+        var cycle = (int)(CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine);
+        _spriteXJournalRegister[_spriteXJournalCount] = address;
+        _spriteXJournalValue[_spriteXJournalCount] = value;
+        _spriteXJournalPixel[_spriteXJournalCount] = cycle * 8 + SpriteWriteVisiblePixel;
+        _spriteXJournalCount++;
+    }
+
+    /// <summary>
+    /// Derives the output runs of the sprites on the line that has just ended and hands them, with
+    /// the line's sprite-to-sprite collisions, to the sprite manager. A sprite starts shifting its
+    /// data register out where its X register equals the beam position, provided it is displayed,
+    /// not still shifting, and its own data fetch is not under way: from the pixel before its
+    /// pointer access until the fetch has ended it cannot start, one that is shifting then repeats
+    /// its last pixel for seven pixels and stops, and the fetch loads the next row, which can start
+    /// later on the same line. Which sprites are displayed switches at the display decision of
+    /// cycle 58. A row that no match shifts out stays in the register for the next line.
+    /// </summary>
+    private void EndLineSprites(ushort line)
+    {
+        var nextLine = line + 1 >= _totalHeight ? 0 : line + 1;
+        var displayBefore = SpriteManager.LineSpriteDisplayMask(line);
+        var displayAfter = SpriteManager.LineSpriteDisplayMask(nextLine);
+        if ((displayBefore | displayAfter | _spriteShiftRegisterMask) == 0)
+        {
+            _spriteXJournalCount = 0;   // nothing could have been output: no runs, no collisions
+            return;
+        }
+        var pixelsPerLine = _cyclesPerLine * 8;
+        var xAtLineStart = Vic2Model.XCoordinateAtLineStart;
+        var xExpand = SpriteManager.LineSpriteXExpand(line);
+        // Cycle 58 (1-based): the display decision for the next line is taken.
+        var displaySwitchPixel = (_cyclesPerLine - 6) * 8;
+        var journalCount = _spriteXJournalCount;
+        var registerMask = 0;
+        for (var n = 0; n < 8; n++)
+        {
+            var bit = 1 << n;
+            // The row this line's fetch loads: the next line's for sprites 0-2, fetched at the
+            // line's end, this line's for sprites 3-7, fetched at its start.
+            var loadLine = n < 3 ? nextLine : line;
+            var loaded = ((n < 3 ? displayAfter : displayBefore) & bit) != 0
+                ? SpriteRowBits(SpriteManager.LineSpriteData(loadLine, n))
+                : 0u;
+            var register = _spriteShiftRegister[n];
+            if (register == 0 && loaded == 0)
+                continue;
+            // The sprite's pointer access: cycle 58 (1-based) for sprite 0, two cycles on per
+            // sprite, wrapping into the next line for sprites 3-7.
+            var pointerPixel = (_cyclesPerLine - 6 + 2 * n) % _cyclesPerLine * 8;
+            var freezePixel = pointerPixel - 1;     // a shifting sprite repeats its last pixel from here
+            var stopPixel = pointerPixel + 6;       // and stops here
+            var loadPixel = pointerPixel + 8;       // the fetched row is in the register
+            var resumePixel = pointerPixel + 11;    // and the sprite can start again
+            var width = (xExpand & bit) != 0 ? 48 : 24;
+            var xRegister = (ushort)(Vic2Addr.SPRITE_0_X + n * 2);
+            var isLoaded = false;
+            var runCount = 0;
+            var activeUntil = 0;   // the pixel the current run ends at (exclusive)
+            // The X register as it stood when the line began; the journal carries the writes
+            // made during the line, in order, each seen from its pixel on.
+            int xLow = (byte)(_spriteXLowAtLineStart >> (n * 8));
+            int msb = _spriteMsbXAtLineStart;
+            var pixel = 0;
+            var next = 0;   // the next journalled write
+            while (pixel < pixelsPerLine && runCount < Vic2SpriteManager.MaxSpriteRunsPerLine)
+            {
+                // The X in force from this pixel until the next journalled write, and the beam
+                // pixel where it matches, if that lies in the segment.
+                var segmentEnd = next < journalCount ? _spriteXJournalPixel[next] : pixelsPerLine;
+                var x = xLow | ((msb >> n) & 1) << 8;
+                var matchPixel = x - xAtLineStart;
+                if (matchPixel < 0)
+                    matchPixel += pixelsPerLine;
+                if (x < pixelsPerLine && matchPixel >= pixel && matchPixel < segmentEnd)
+                {
+                    if (matchPixel >= loadPixel && !isLoaded)
+                    {
+                        register = loaded;
+                        isLoaded = true;
+                    }
+                    var displayed = ((matchPixel < displaySwitchPixel ? displayBefore : displayAfter) & bit) != 0;
+                    var fetching = matchPixel >= freezePixel && matchPixel < resumePixel;
+                    if (displayed && !fetching && matchPixel >= activeUntil && register != 0)
+                    {
+                        var length = width;
+                        var stretch = 0;
+                        if (matchPixel < freezePixel && matchPixel + width > freezePixel)
+                        {
+                            length = freezePixel - matchPixel;
+                            stretch = stopPixel - freezePixel;
+                        }
+                        SpriteManager.AddLineSpriteRun(line, n, runCount++, matchPixel, register, length, stretch);
+                        activeUntil = matchPixel + length + stretch;
+                        register = 0;
+                    }
+                }
+                if (next < journalCount)
+                {
+                    var written = _spriteXJournalRegister[next];
+                    if (written == Vic2Addr.SPRITE_MSB_X)
+                        msb = _spriteXJournalValue[next];
+                    else if (written == xRegister)
+                        xLow = _spriteXJournalValue[next];
+                    next++;
+                }
+                pixel = segmentEnd;
+            }
+            if (!isLoaded)
+                register = loaded;
+            _spriteShiftRegister[n] = register;
+            if (register != 0)
+                registerMask |= bit;
+        }
+        _spriteShiftRegisterMask = registerMask;
+        _spriteXJournalCount = 0;
+        SpriteManager.EndLineSpriteCollisions(line);
+    }
+
+    private static uint SpriteRowBits(ReadOnlySpan<byte> row) => (uint)(row[0] << 16 | row[1] << 8 | row[2]);
+
+    // Each sprite's data register between lines: the row its fetch loaded, until an X match shifts
+    // it out (0 once it has). A sprite that matches before its fetch on a line shows this row.
+    private readonly uint[] _spriteShiftRegister = new uint[8];
+    private int _spriteShiftRegisterMask;   // the sprites whose register holds a row
+
+    // The X registers as the line began (the journal only records the writes made during it):
+    // the eight low bytes packed, sprite 0 lowest, and the MSB register.
+    private ulong _spriteXLowAtLineStart;
+    private byte _spriteMsbXAtLineStart;
+
+    private void CaptureSpriteXAtLineStart()
+    {
+        ulong packed = 0;
+        for (var n = 7; n >= 0; n--)
+            packed = packed << 8 | C64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_X + n * 2));
+        _spriteXLowAtLineStart = packed;
+        _spriteMsbXAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_MSB_X);
+        _spriteXJournalCount = 0;
     }
     public byte SpriteEnableLoad(ushort address)
     {
@@ -1317,8 +1488,14 @@ public class Vic2
             if (SpriteManager.PerLineCollisionEnabled)
             {
                 SpriteManager.CaptureLineSpriteSnapshot(line);
+                // The line that has just ended: its sprites' output runs and collisions, from the X
+                // writes journalled while it ran. After this line's snapshot, since the rows the
+                // ended line's fetches loaded are the ones displayed on this line.
+                if (_currentRasterLineInternal != ushort.MaxValue)
+                    EndLineSprites((ushort)(line == 0 ? totalLines - 1 : line - 1));
                 SpriteManager.AccumulatePerLineCollisions(line);
             }
+            CaptureSpriteXAtLineStart();
             // The line's sprite events up to the position the advance ends at.
             var upTo = line == newLine ? newOffset : cyclesPerLine - 1;
             if (upTo >= _nextSpriteEventOffset)
