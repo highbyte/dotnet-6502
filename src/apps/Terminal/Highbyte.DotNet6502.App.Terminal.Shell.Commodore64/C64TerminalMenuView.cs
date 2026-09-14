@@ -53,6 +53,14 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
                 downloadType: C64DownloadProgramType.Prg,
                 c64Variant: "C64PAL",
                 audioEnabled: true),
+            ["Demus Interruptus"] = new(
+                "Demus Interruptus",
+                "https://csdb.dk/release/download.php?id=87571",
+                downloadType: C64DownloadProgramType.D64Zip,
+                c64Variant: "C64PAL",
+                audioEnabled: true,
+                requiresPerLineSprites: true,
+                directLoadPRGName: "*"),
             ["For Your Sprites Only"] = new(
                 "For Your Sprites Only",
                 "https://csdb.dk/release/download.php?id=245856",

@@ -51,6 +51,27 @@ public class C64D64ContentLoaderTests
     }
 
     [Fact]
+    public async Task LoadBytesAsync_DirectLoad_Wildcard_PicksTheFirstProgramFilePastDecorativeEntries()
+    {
+        // Demo disks often open their directory with decorative entries of the deleted type. The
+        // wildcard must load what the drive's own wildcard would: the first program file.
+        var c64 = BuildC64();
+        var d64Bytes = BuildSyntheticD64(leadingDecorativeEntry: true);
+        var programInfo = new C64DownloadProgramInfo(
+            displayName: "synthetic",
+            downloadUrl: string.Empty,
+            directLoadPRGName: "*",
+            runCommands: new List<string>());
+
+        await C64D64ContentLoader.LoadBytesAsync(
+            c64, d64Bytes, programInfo, issueRunCommands: true, NullLogger.Instance);
+
+        Assert.Equal(0xEA, c64.Mem[PrgLoadAddress]);
+        Assert.Equal(0xEA, c64.Mem[PrgLoadAddress + 1]);
+        Assert.Equal(0x60, c64.Mem[PrgLoadAddress + 2]);
+    }
+
+    [Fact]
     public async Task LoadBytesAsync_DiskMount_AttachesDiskImageToDrive()
     {
         var c64 = BuildC64();
@@ -85,7 +106,7 @@ public class C64D64ContentLoaderTests
     /// CBM format: track 18 sector 0 = BAM (disk name/id), track 18 sector 1 = first directory
     /// sector with one entry pointing at the file's start track/sector.
     /// </summary>
-    private static byte[] BuildSyntheticD64()
+    private static byte[] BuildSyntheticD64(bool leadingDecorativeEntry = false)
     {
         const int totalSectors = 683;
         const int sectorSize = 256;
@@ -110,8 +131,17 @@ public class C64D64ContentLoaderTests
         const byte fileStartTrack = 1;
         const byte fileStartSector = 0;
 
-        // First directory entry begins at +2.
-        const int entryOffset = 2;
+        // First directory entry begins at +2; with a decorative entry first (deleted type, no
+        // blocks, a name of shifted spaces, as demo disks use for directory art), the program
+        // file is the second entry, 32 bytes on.
+        var entryOffset = 2;
+        if (leadingDecorativeEntry)
+        {
+            image[dirOffset + entryOffset + 0] = 0x80;   // DEL (file type 0) + closed bit
+            for (int i = 0; i < 16; i++)
+                image[dirOffset + entryOffset + 3 + i] = 0xa0;
+            entryOffset += 32;
+        }
         image[dirOffset + entryOffset + 0] = 0x82;   // PRG (file type 2) + closed bit (0x80)
         image[dirOffset + entryOffset + 1] = fileStartTrack;
         image[dirOffset + entryOffset + 2] = fileStartSector;

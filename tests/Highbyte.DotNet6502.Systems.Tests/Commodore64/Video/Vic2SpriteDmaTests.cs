@@ -8,8 +8,9 @@ namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.Video;
 /// <summary>
 /// The VIC-II's sprite DMA and display, by the rules of section 3.8.1 of the VIC-II article: the
 /// compare in cycles 55 and 56 of the line a sprite's Y names switches its DMA on, the display
-/// follows in cycle 58, the data counter base MCBASE advances in cycles 15 and 16 of every line
-/// where the expansion flip-flop is set, and the DMA ends in cycle 16 once MCBASE has reached 63.
+/// follows in cycle 58, the data counter base MCBASE takes the data counter MC (three on after
+/// the line's fetch) in cycle 16 of every line where the expansion flip-flop is set, and the DMA
+/// ends in cycle 16 once MCBASE has reached 63.
 /// Cycle numbers are 1-based as in the article; the raster is positioned with 0-based offsets.
 /// </summary>
 public class Vic2SpriteDmaTests
@@ -147,6 +148,47 @@ public class Vic2SpriteDmaTests
         Assert.Equal(9, c64.Vic2.SpriteMc(0));                 // line 111 was decided by line 109's writes
         AdvanceTo(c64, 112, 1);
         Assert.Equal(12, c64.Vic2.SpriteMc(0));                // row 4
+    }
+
+    [Theory]
+    [InlineData(14, 6)]   // before the crunch cycle: the flip-flop is set by the write, cycle 16 takes MC (3 + 3)
+    [InlineData(15, 7)]   // the crunch cycle: MC becomes the merge of MCBASE 3 and MC 6, and cycle 16 takes it
+    [InlineData(16, 3)]   // after cycle 16's update, made with the flip-flop clear: MCBASE stays
+    public void Clearing_the_y_expand_bit_with_the_flip_flop_clear_crunches_the_counter_in_cycle_15(int writeCycle, int expectedMc)
+    {
+        // A Y-expanded sprite from line 100: the flip-flop is clear on lines 101 and 103 (cleared
+        // at the compare, inverted in cycle 55 of every line). Row 0 is fetched for 101 and 102,
+        // MCBASE becomes 3 in cycle 16 of line 102, and the fetch for line 103 leaves MC at 6.
+        var c64 = Build();
+        c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0x01);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x01);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_Y, 100);
+        PositionAt(c64, 103, 1);
+        Assert.Equal(3, c64.Vic2.SpriteMc(0));
+        AdvanceTo(c64, 103, writeCycle);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x00);
+        AdvanceTo(c64, 104, 1);
+        Assert.Equal(expectedMc, c64.Vic2.SpriteMc(0));
+    }
+
+    [Fact]
+    public void A_crunched_sprite_keeps_fetching_past_its_last_row()
+    {
+        // Crunched to 7 on line 103 and unexpanded from then on, MCBASE steps 7, 10, ... 61, 0, 3,
+        // ... and only meets 63 twenty lines after the wrap: the DMA runs on to line 143 instead
+        // of ending on line 122.
+        var c64 = Build();
+        c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0x01);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x01);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_Y, 100);
+        PositionAt(c64, 103, 15);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x00);
+        AdvanceTo(c64, 130, 1);
+        Assert.Equal(1, c64.Vic2.SpriteDmaMask);
+        AdvanceTo(c64, 143, 1);
+        Assert.Equal(1, c64.Vic2.SpriteDmaMask);
+        AdvanceTo(c64, 144, 1);
+        Assert.Equal(0, c64.Vic2.SpriteDmaMask);
     }
 
     [Fact]

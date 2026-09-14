@@ -73,6 +73,9 @@ public class Vic2
     // so a register write lands before or after a cycle's check according to its own cycle.
     private readonly byte[] _spriteMcBase = new byte[8];
     private readonly byte[] _spriteMc = new byte[8];
+    // MC as the line's three s-accesses leave it: MCBASE + 3, unless a Y-expand write in the crunch
+    // cycle has merged it with MCBASE (the sprite crunch). Cycle 16 loads MCBASE from it.
+    private readonly byte[] _spriteMcAfterFetch = new byte[8];
     // The sprite registers the events read, cached: refreshed from the IO storage when a line is
     // entered and by the register writes in between, so the events do not go through the storage
     // for every sprite on every line.
@@ -101,17 +104,17 @@ public class Vic2
     private int _spriteXJournalCount;
     private const int SpriteWriteVisiblePixel = 4;
     private readonly bool[] _spriteExpandFlipFlop = { true, true, true, true, true, true, true, true };
-    private const int SpriteEventMcBaseStep2Offset = 14;   // cycle 15
-    private const int SpriteEventMcBaseStep1Offset = 15;   // cycle 16
+    private const int SpriteCrunchCycleOffset = 14;        // cycle 15: a Y-expand write here crunches
+    private const int SpriteEventMcBaseUpdateOffset = 15;  // cycle 16
     private const int SpriteEventFirstCompareOffset = 54;  // cycle 55
     private const int SpriteEventSecondCompareOffset = 55; // cycle 56
     private const int SpriteEventLoadMcOffset = 57;        // cycle 58
-    private static readonly int[] SpriteEventOffsets = { SpriteEventMcBaseStep2Offset, SpriteEventMcBaseStep1Offset, SpriteEventFirstCompareOffset, SpriteEventSecondCompareOffset, SpriteEventLoadMcOffset };
+    private static readonly int[] SpriteEventOffsets = { SpriteEventMcBaseUpdateOffset, SpriteEventFirstCompareOffset, SpriteEventSecondCompareOffset, SpriteEventLoadMcOffset };
     // The events of the current line are applied in order as the raster advances: the index of
     // the next one and its offset (int.MaxValue once the line's events are all applied), so an
     // advance that reaches no event costs one compare.
     private int _spriteEventIndex;
-    private int _nextSpriteEventOffset = SpriteEventMcBaseStep2Offset;
+    private int _nextSpriteEventOffset = SpriteEventMcBaseUpdateOffset;
 
     /// <summary>
     /// Sprites whose DMA is on (bit n = sprite n): switched on in cycle 55 or 56 of the line the
@@ -1532,20 +1535,13 @@ public class Vic2
         {
             case 0:
                 if (dma != 0)
-                    SpriteMcBaseStep(dma, 2);
+                    SpriteMcBaseUpdate(dma);
                 break;
             case 1:
-                if (dma != 0)
-                {
-                    SpriteMcBaseStep(dma, 1);
-                    SpriteDmaEndCheck(dma);
-                }
-                break;
-            case 2:
                 SpriteExpandFlipFlopToggle((byte)(enabled | dma));
                 SpriteCompare(line);
                 break;
-            case 3:
+            case 2:
                 SpriteCompare(line);
                 break;
             default:
@@ -1594,10 +1590,24 @@ public class Vic2
     {
         C64.WriteIOStorage(address, value);
         _spriteYExpandCache = value;
+        // A bit cleared in cycle 15 while the sprite's flip-flop is clear crunches: MC, which the
+        // s-accesses left at MCBASE + 3, takes a bitwise merge of MCBASE and itself (the odd bits
+        // where both are set, the even bits where either is), and cycle 16 loads MCBASE from that.
+        // The counter is then off its stride of three, misses 63, and the sprite's DMA runs on
+        // through the wrap: the sprite crunch of the demos.
+        var crunchCycle = _currentRasterLineInternal != ushort.MaxValue
+            && (int)(CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine) == SpriteCrunchCycleOffset;
         for (var n = 0; n < 8; n++)
         {
-            if ((value & (1 << n)) == 0)
-                _spriteExpandFlipFlop[n] = true;
+            if ((value & (1 << n)) != 0)
+                continue;
+            if (crunchCycle && !_spriteExpandFlipFlop[n] && (SpriteDmaMask & (1 << n)) != 0)
+            {
+                var mcBase = _spriteMcBase[n];
+                var mc = _spriteMcAfterFetch[n];
+                _spriteMcAfterFetch[n] = (byte)((0x2A & (mcBase & mc)) | (0x15 & (mcBase | mc)));
+            }
+            _spriteExpandFlipFlop[n] = true;
         }
     }
 
@@ -1609,23 +1619,20 @@ public class Vic2
         return _spriteExpandFlipFlop[sprite];
     }
 
-    // Cycles 15 and 16: MCBASE advances (by 2, then 1) for a fetching sprite whose flip-flop is set.
-    private void SpriteMcBaseStep(byte dma, int step)
+    // Cycle 16: a fetching sprite whose flip-flop is set takes MC, as the line's s-accesses left
+    // it, into MCBASE (three on from the row just fetched, so the next fetch is the next row;
+    // unchanged with the flip-flop clear, so the row is fetched again), and one whose MCBASE has
+    // reached 63 has fetched its last row.
+    private void SpriteMcBaseUpdate(byte dma)
     {
         var yExpand = _spriteYExpandCache;
         for (var n = 0; n < 8; n++)
         {
-            if ((dma & (1 << n)) != 0 && SpriteExpandFlipFlop(n, yExpand))
-                _spriteMcBase[n] = (byte)((_spriteMcBase[n] + step) & 0x3F);
-        }
-    }
-
-    // Cycle 16: a sprite whose MCBASE has reached 63 has fetched its last row.
-    private void SpriteDmaEndCheck(byte dma)
-    {
-        for (var n = 0; n < 8; n++)
-        {
-            if ((dma & (1 << n)) != 0 && _spriteMcBase[n] == 63)
+            if ((dma & (1 << n)) == 0)
+                continue;
+            if (SpriteExpandFlipFlop(n, yExpand))
+                _spriteMcBase[n] = _spriteMcAfterFetch[n];
+            if (_spriteMcBase[n] == 63)
             {
                 SpriteDmaMask &= (byte)~(1 << n);
                 SpriteDisplayMask &= (byte)~(1 << n);
@@ -1677,6 +1684,7 @@ public class Vic2
             if ((dma & (1 << n)) == 0)
                 continue;   // MC only matters for a fetching sprite
             _spriteMc[n] = _spriteMcBase[n];
+            _spriteMcAfterFetch[n] = (byte)((_spriteMcBase[n] + 3) & 0x3F);   // the three s-accesses
             if (_spriteYCache[n] == lineLow)   // rule 4 asks for DMA and Y, not the enable bit
                 SpriteDisplayMask |= (byte)(1 << n);
         }
