@@ -275,7 +275,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
     [InlineData("C64PAL", "PAL", false)]
     public void A_sprite_that_begins_above_the_visible_area_shows_its_visible_rows_in_an_opened_top_border(string c64Model, string vic2Model, bool perLineSprites)
     {
-        // Raster lines 28-48 are in the top border; NTSC only shows it from line 34, PAL from 9.
+        // Raster lines 28-48 are in the top border; NTSC only shows it from line 41, PAL from 16.
         // With the bottom compare missed in the previous frame the flip-flop is clear through the
         // top border, so the sprite's visible rows are drawn (a two-frame render: the first frame
         // opens the border, the second shows the top border open).
@@ -371,8 +371,8 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
     [InlineData(false)]
     public void A_sprite_that_runs_past_the_ntsc_frame_end_continues_in_the_frames_last_rows_with_the_border_open(bool perLineSprites)
     {
-        // The NTSC visible frame is 235 lines from raster line 34, so its last six rows are raster
-        // lines 0-5 of the next frame. A sprite at Y 253 displays on lines 254-262 and then 0-11,
+        // The NTSC visible frame is 235 lines from raster line 41, so its last 13 rows are raster
+        // lines 0-12 of the next frame. A sprite at Y 253 displays on lines 254-262 and then 0-11,
         // and with the bottom compare missed the flip-flop is clear there, so those rows show.
         const int spriteY = 253;
         var c64 = BuildC64("C64NTSC", "NTSC");
@@ -397,8 +397,8 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         var width = c64.Screen.VisibleWidth;
         var height = c64.Screen.VisibleHeight;
         var (row, startX, endX) = GetFirstRenderedSpan(foreground, width);
-        // Shape row 12 is displayed on raster line 266 - 263 = 3, the frame's fourth row from the end.
-        Assert.Equal(height - 3, row);
+        // Shape row 12 is displayed on raster line 266 - 263 = 3, the fourth of the frame's last 13 rows.
+        Assert.Equal(height - 13 + 3, row);
         Assert.Equal(8, endX - startX + 1);
     }
 

@@ -25,9 +25,18 @@ public class Vic2Screen : ITextMode, IScreen
     public int TotalLeftRightBorderWidth => (int)Math.Floor((double)((TotalWidth - DrawableAreaWidth) / 2.0d));
     public int TotalTopBottomBorderHeight => (int)Math.Floor((double)((TotalHeight - DrawableAreaHeight) / 2.0d));
 
-    // Visible screen and border sizes (that can be seen on a monitor)
+    // Visible screen and border sizes (that can be seen on a monitor). The visible frame is the
+    // chip's line and pixel range outside its blanking (VIC-II article, section 3.4), so the
+    // borders around the display window are not equal: on PAL 35 lines above and 49 below, 48
+    // pixels left and 35 right; on NTSC 10 above and 25 below, 47 left and 51 right.
     public int VisibleWidth => _vic2Model.MaxVisibleWidth;
     public int VisibleHeight => _vic2Model.MaxVisibleHeight;
+    public int VisibleLeftBorderWidth => DisplayWindowStartX - VisibleAreaStartX;
+    public int VisibleRightBorderWidth => VisibleWidth - DrawableAreaWidth - VisibleLeftBorderWidth;
+    public int VisibleTopBorderHeight => _vic2Model.FirstRasterLineOfMainScreen - _vic2Model.FirstVisibleRasterLine;
+    public int VisibleBottomBorderHeight => VisibleHeight - DrawableAreaHeight - VisibleTopBorderHeight;
+    // The symmetric figures of the generic screen interface, which the text hosts use to size
+    // their border columns and rows.
     public int VisibleLeftRightBorderWidth => (int)Math.Floor((double)((VisibleWidth - DrawableAreaWidth) / 2.0d));
     public int VisibleTopBottomBorderHeight => (int)Math.Floor((double)((VisibleHeight - DrawableAreaHeight) / 2.0d));
 
@@ -36,11 +45,8 @@ public class Vic2Screen : ITextMode, IScreen
     // because everything derived from a cycle is placed relative to it.
     public int DisplayWindowStartX => _vic2Model.DisplayWindowStartX;
 
-    // The first visible pixel of the line. Placed so the display window keeps the same position
-    // within the visible area as it would if that area were centred on it, which is how a TV set is
-    // adjusted: on the picture, not on the line's timing. How much border a set showed varied, so
-    // this is a presentation choice; where the display window falls within the line is not.
-    public int VisibleAreaStartX => DisplayWindowStartX - VisibleLeftRightBorderWidth;
+    // The first visible pixel of the line: the one after the chip's horizontal blanking.
+    public int VisibleAreaStartX => _vic2Model.VisibleAreaStartX;
 
 
     // 38 col mode border and screen differencies
@@ -115,8 +121,8 @@ public class Vic2Screen : ITextMode, IScreen
                 topBorderStartY = 0;
             else
                 topBorderStartY = (int)Math.Floor((double)((TotalHeight - VisibleHeight) / 2.0d));
-            borderHeight = VisibleTopBottomBorderHeight;
-            bottomBorderEndY = TotalHeight - topBorderStartY - 1;
+            borderHeight = VisibleTopBorderHeight;
+            bottomBorderEndY = topBorderStartY + VisibleHeight - 1;
         }
         else
         {
@@ -159,7 +165,7 @@ public class Vic2Screen : ITextMode, IScreen
         if (visible)
         {
             leftBorderStartX = normalizeToVisible ? 0 : VisibleAreaStartX;
-            borderWidth = VisibleLeftRightBorderWidth;
+            borderWidth = VisibleLeftBorderWidth;
             rightBorderEndX = leftBorderStartX + VisibleWidth - 1;
         }
         else

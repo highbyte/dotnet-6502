@@ -34,8 +34,11 @@ The other display registers (mode, scroll, 38/24-column, memory setup) are still
 raster line, so a mid-line change to one of those becomes visible on the next line. Where a cycle's
 pixels land follows the chip: the display window's first pixel is 124 pixels into the raster line
 on both PAL and NTSC, taken from the VIC-II's display window at X 24 and where X 0 falls relative to
-the line's first cycle. How much border is drawn around that window is a presentation choice, since
-real sets showed different amounts. A colour register write is shown a few pixels away from the
+the line's first cycle. The visible frame is the chip's own: the lines and pixels outside its
+vertical and horizontal blanking, raster lines 16-299 and X 480-378 on the 6569, lines 41-12 and
+X 489-394 on the 6567R8. So the border above the display window is smaller than the one below it
+(35 and 49 lines on PAL, 10 and 25 on NTSC), and nothing from the blanking, where a sprite or an
+opened border can still produce pixels, is shown. A colour register write is shown a few pixels away from the
 cycle boundary it lands on, by an amount measured against VICE that is the same on PAL and NTSC. The
 rasterizer does hold a character row's 40 screen codes and colour nibbles the way
 the VIC-II does: fetched on the row's first line and shown for its remaining seven, so a screen
