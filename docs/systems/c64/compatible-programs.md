@@ -32,6 +32,7 @@ For advanced use, see [Useful tools](useful-tools.md) for how to extract PRG fil
 
 | Program | D/L URL | File | Comment |
 |---------|---------|------|---------|
+| Demus Interruptus | <https://csdb.dk/release/download.php?id=87571> | `DemusInterruptus.D64` → `demusinterruptus` | C64 PAL variant, per-line sprites switched on. Press the space bar to move from one part to the next. An FLI picture paced by crunched sprites (the Y-expand bit cleared in cycle 15 so the sprite DMA never ends), a sine-bar part, and the side-border bar effects the demo is named for, with a scroller. |
 | Fairlight Intro (Golden Collection) | <https://csdb.dk/release/download.php?id=221432> | `flt-25.prg` | C64 PAL variant. Character mode with multicolour register changes every second line, per-line background colour bars, a mid-frame charset switch and a hires scroller, all timed by polling the raster register. |
 | For Your Sprites Only | <https://csdb.dk/release/download.php?id=245856> | `foryourspritesonly.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: the display is off and the vertical border opened, sprite rows are stretched by rewriting the Y-expand register every line, sprite pointers and colours change per line, raster bars in the border and background. |
 | Unfortunate Coincidence | <https://csdb.dk/release/download.php?id=245796> | `unf-coincidence.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: sprite multiplexing with per-line changes of the scroll/mode and memory setup registers. |
