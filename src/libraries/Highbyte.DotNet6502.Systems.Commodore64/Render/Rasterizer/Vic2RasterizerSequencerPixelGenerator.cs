@@ -278,6 +278,38 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private const byte LineSpriteFlagDoubleWidth = 1;
     private const byte LineSpriteFlagMultiColor = 2;
     private const byte LineSpriteFlagPriority = 4;
+    private const byte LineSpriteFlagDecoded = 8;
+    // A decoded run's pixels (a mode or priority bit changed while the sprite shifted, so the
+    // VIC-II followed it pixel by pixel; see Vic2SpriteManager.RunFlagDecoded), index * RUN_PIXELS.
+    private const int RUN_PIXELS = Vic2SpriteManager.RunPixelCapacity;
+    private byte[] _lineSpriteRunCodes = default!;
+    // The sprite colour changes that land while a run is output (slot 0 the sprite's own colour,
+    // 1 and 2 the shared multicolours), by pixel-array x: such a run is drawn pixel by pixel.
+    private const int RUN_COLOR_EVENTS = 8;
+    private byte[] _lineSpriteRunColorEventCount = default!;
+    private int[] _lineSpriteRunColorEventX = default!;
+    private byte[] _lineSpriteRunColorEventSlot = default!;
+    private uint[] _lineSpriteRunColorEventColor = default!;
+    private readonly byte[] _spriteRunLayers = new byte[RUN_PIXELS];
+
+    // The sprite colour registers as the sequencer sees them, through the register write journal
+    // like the background colours: the eight sprite colours and the two shared multicolours by
+    // slot, the writes that landed on the current line by pixel-array x, and the same for the
+    // line before (its sprites are composited when the next line begins).
+    private const int SPRITE_COLOR_SLOTS = 10;
+    private const int SPRITE_COLOR_SLOT_MC0 = 8;
+    private const int SPRITE_COLOR_SLOT_MC1 = 9;
+    private const int SPRITE_COLOR_EVENT_CAPACITY = 8;
+    private readonly byte[] _spriteColors = new byte[SPRITE_COLOR_SLOTS];
+    private readonly byte[] _spriteColorAtLineStart = new byte[SPRITE_COLOR_SLOTS];
+    private readonly int[] _spriteColorEventX = new int[SPRITE_COLOR_SLOTS * SPRITE_COLOR_EVENT_CAPACITY];
+    private readonly byte[] _spriteColorEventColor = new byte[SPRITE_COLOR_SLOTS * SPRITE_COLOR_EVENT_CAPACITY];
+    private readonly int[] _spriteColorEventCount = new int[SPRITE_COLOR_SLOTS];
+    private readonly byte[] _prevSpriteColorAtLineStart = new byte[SPRITE_COLOR_SLOTS];
+    private readonly int[] _prevSpriteColorEventX = new int[SPRITE_COLOR_SLOTS * SPRITE_COLOR_EVENT_CAPACITY];
+    private readonly byte[] _prevSpriteColorEventColor = new byte[SPRITE_COLOR_SLOTS * SPRITE_COLOR_EVENT_CAPACITY];
+    private readonly int[] _prevSpriteColorEventCount = new int[SPRITE_COLOR_SLOTS];
+    private bool _spriteColorEventsPending;   // any event recorded on the current line
 
 
     // The raster line the screen line being recorded shows; its sprite runs are read from the
@@ -422,6 +454,11 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         _lineSpriteColorFg = new uint[_height * SPRITE_COUNT * SPRITE_RUNS];
         _lineSpriteColorMc0 = new uint[_height * SPRITE_COUNT * SPRITE_RUNS];
         _lineSpriteColorMc1 = new uint[_height * SPRITE_COUNT * SPRITE_RUNS];
+        _lineSpriteRunCodes = new byte[_height * SPRITE_COUNT * SPRITE_RUNS * RUN_PIXELS];
+        _lineSpriteRunColorEventCount = new byte[_height * SPRITE_COUNT * SPRITE_RUNS];
+        _lineSpriteRunColorEventX = new int[_height * SPRITE_COUNT * SPRITE_RUNS * RUN_COLOR_EVENTS];
+        _lineSpriteRunColorEventSlot = new byte[_height * SPRITE_COUNT * SPRITE_RUNS * RUN_COLOR_EVENTS];
+        _lineSpriteRunColorEventColor = new uint[_height * SPRITE_COUNT * SPRITE_RUNS * RUN_COLOR_EVENTS];
         _lineSpriteClipStartX = new int[_height * SPRITE_COUNT * SPRITE_RUNS];
         _lineSpriteClipEndX = new int[_height * SPRITE_COUNT * SPRITE_RUNS];
         for (var row = 0; row < _height; row++)
@@ -463,6 +500,10 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         _d016 = _c64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER);
         _d018 = _c64.ReadIOStorage(Vic2Addr.MEMORY_SETUP);
         _csel40 = (_d016 & 0x08) != 0;
+        for (var n = 0; n < SPRITE_COUNT; n++)
+            _spriteColors[n] = (byte)(_c64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_COLOR + n)) & 0x0F);
+        _spriteColors[SPRITE_COLOR_SLOT_MC0] = (byte)(_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0) & 0x0F);
+        _spriteColors[SPRITE_COLOR_SLOT_MC1] = (byte)(_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1) & 0x0F);
         _registerWriteCount = 0;
         _registerWriteNext = 0;
         _registerWritesOverflowed = false;
@@ -514,9 +555,34 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             case Vic2Addr.MEMORY_SETUP:
                 _d018 = write.Value;
                 break;
+            case Vic2Addr.SPRITE_MULTI_COLOR_0:
+                RecordSpriteColor(SPRITE_COLOR_SLOT_MC0, color, changeX);
+                break;
+            case Vic2Addr.SPRITE_MULTI_COLOR_1:
+                RecordSpriteColor(SPRITE_COLOR_SLOT_MC1, color, changeX);
+                break;
+            case >= Vic2Addr.SPRITE_0_COLOR and <= Vic2Addr.SPRITE_7_COLOR:
+                RecordSpriteColor(write.Register - Vic2Addr.SPRITE_0_COLOR, color, changeX);
+                break;
             default:
                 break;
         }
+    }
+
+    // A sprite colour register changes on the open line at x: remember where, so a sprite run
+    // output across it can be drawn with both colours.
+    private void RecordSpriteColor(int slot, byte color, int x)
+    {
+        if (_spriteColors[slot] == color)
+            return;
+        _spriteColors[slot] = color;
+        var n = _spriteColorEventCount[slot];
+        if (n == SPRITE_COLOR_EVENT_CAPACITY)
+            return;   // more changes on one line than the chip can show apart: the last value wins
+        _spriteColorEventX[slot * SPRITE_COLOR_EVENT_CAPACITY + n] = x;
+        _spriteColorEventColor[slot * SPRITE_COLOR_EVENT_CAPACITY + n] = color;
+        _spriteColorEventCount[slot] = n + 1;
+        _spriteColorEventsPending = true;
     }
 
     // A background colour register changes on the open line at x: remember where, so the line's
@@ -625,6 +691,22 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 _bgColorAtLineStart[1] = _backgroundColor1;
                 _bgColorAtLineStart[2] = _backgroundColor2;
                 _bgColorAtLineStart[3] = _backgroundColor3;
+                // The ended line's sprite colour changes go to its sprite pass (below, when this
+                // line's first cycle is processed); this line starts with none.
+                _spriteColorAtLineStart.CopyTo(_prevSpriteColorAtLineStart, 0);
+                _spriteColors.CopyTo(_spriteColorAtLineStart, 0);
+                if (_spriteColorEventsPending)
+                {
+                    _spriteColorEventCount.CopyTo(_prevSpriteColorEventCount, 0);
+                    _spriteColorEventX.CopyTo(_prevSpriteColorEventX, 0);
+                    _spriteColorEventColor.CopyTo(_prevSpriteColorEventColor, 0);
+                    Array.Clear(_spriteColorEventCount);
+                    _spriteColorEventsPending = false;
+                }
+                else
+                {
+                    Array.Clear(_prevSpriteColorEventCount);
+                }
             }
 
             // Register writes take effect from the cycle after the one they land in (colour
@@ -762,12 +844,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         if (pixelArrayY < 0 || pixelArrayY >= _height)
             return;
 
-        var sprites = spriteManager.Sprites;
-        var mc0 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0)];
-        var mc1 = _c64ToRenderColorMap[_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1)];
-        var xExpand = spriteManager.LineSpriteXExpand(_slRasterLine);
-        var multiColor = spriteManager.LineSpriteMultiColor(_slRasterLine);
-        var priority = _c64.ReadIOStorage(Vic2Addr.SPRITE_FOREGROUND_PRIO);
         var clipStartX = _lineClearStartXs[pixelArrayY];
         var clipEndX = _lineClearEndXs[pixelArrayY];
         var pixelsPerLine = (int)_cyclesPerLine * 8;
@@ -779,9 +855,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             // pixel: none when the register never matched the beam (X beyond the line's reach, or
             // moved past the beam before matching).
             var runs = spriteManager.LineSpriteRunCount(_slRasterLine, spriteIndex);
-            var flags = (byte)(((xExpand & (1 << spriteIndex)) != 0 ? LineSpriteFlagDoubleWidth : 0)
-                | ((multiColor & (1 << spriteIndex)) != 0 ? LineSpriteFlagMultiColor : 0)
-                | ((priority & (1 << spriteIndex)) == 0 ? LineSpriteFlagPriority : 0));
             for (int run = 0; run < runs && run < SPRITE_RUNS; run++)
             {
                 _lineSpriteMask[pixelArrayY] |= (byte)(1 << spriteIndex);
@@ -790,22 +863,72 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 var vicX = _xCoordinateAtLineStart + startPixel;
                 if (vicX >= pixelsPerLine)
                     vicX -= pixelsPerLine;
+                var runFlags = spriteManager.LineSpriteRunFlags(_slRasterLine, spriteIndex, run);
+                var length = spriteManager.LineSpriteRunLength(_slRasterLine, spriteIndex, run);
+                var stretch = spriteManager.LineSpriteRunStretch(_slRasterLine, spriteIndex, run);
+                var decoded = (runFlags & Vic2SpriteManager.RunFlagDecoded) != 0;
+                var flags = (byte)(((runFlags & Vic2SpriteManager.RunFlagXExpand) != 0 ? LineSpriteFlagDoubleWidth : 0)
+                    | ((runFlags & Vic2SpriteManager.RunFlagMultiColor) != 0 ? LineSpriteFlagMultiColor : 0)
+                    | ((runFlags & Vic2SpriteManager.RunFlagBehindForeground) == 0 ? LineSpriteFlagPriority : 0)
+                    | (decoded ? LineSpriteFlagDecoded : 0));
                 var row = spriteManager.LineSpriteRunData(_slRasterLine, spriteIndex, run);
                 _lineSpriteRunPresent[index] = 1;
                 _lineSpriteData[index * SPRITE_ROW_BYTES] = (byte)(row >> 16);
                 _lineSpriteData[index * SPRITE_ROW_BYTES + 1] = (byte)(row >> 8);
                 _lineSpriteData[index * SPRITE_ROW_BYTES + 2] = (byte)row;
-                _lineSpriteRunLength[index] = (byte)spriteManager.LineSpriteRunLength(_slRasterLine, spriteIndex, run);
-                _lineSpriteRunStretch[index] = (byte)spriteManager.LineSpriteRunStretch(_slRasterLine, spriteIndex, run);
-                _lineSpriteX[index] = SpriteScreenX(vicX);
+                _lineSpriteRunLength[index] = (byte)length;
+                _lineSpriteRunStretch[index] = (byte)stretch;
+                if (decoded)
+                    spriteManager.LineSpriteRunPixels(_slRasterLine, spriteIndex, run).CopyTo(_lineSpriteRunCodes.AsSpan(index * RUN_PIXELS, length));
+                var screenX = SpriteScreenX(vicX);
+                _lineSpriteX[index] = screenX;
                 _lineSpriteFlags[index] = flags;
-                _lineSpriteColorFg[index] = _c64ToRenderColorMap[sprites[spriteIndex].Color];
-                _lineSpriteColorMc0[index] = mc0;
-                _lineSpriteColorMc1[index] = mc1;
+                // The colours as the run starts, and the changes that land while it is output.
+                var count = 0;
+                _lineSpriteColorFg[index] = RunStartColor(spriteIndex, 0, screenX, screenX + length + stretch, index, ref count);
+                _lineSpriteColorMc0[index] = RunStartColor(SPRITE_COLOR_SLOT_MC0, 1, screenX, screenX + length + stretch, index, ref count);
+                _lineSpriteColorMc1[index] = RunStartColor(SPRITE_COLOR_SLOT_MC1, 2, screenX, screenX + length + stretch, index, ref count);
+                _lineSpriteRunColorEventCount[index] = (byte)count;
                 _lineSpriteClipStartX[index] = clipStartX;
                 _lineSpriteClipEndX[index] = clipEndX;
             }
         }
+    }
+
+    // The colour of a slot as a run beginning at startX shows it, from the ended line's start
+    // value and the changes before startX; the changes that land within the run (before endX) are
+    // recorded on the run record as its runSlot, in x order among the slots' events.
+    private uint RunStartColor(int slot, byte runSlot, int startX, int endX, int index, ref int count)
+    {
+        var color = _prevSpriteColorAtLineStart[slot];
+        var events = _prevSpriteColorEventCount[slot];
+        for (var e = 0; e < events; e++)
+        {
+            var x = _prevSpriteColorEventX[slot * SPRITE_COLOR_EVENT_CAPACITY + e];
+            var eventColor = _prevSpriteColorEventColor[slot * SPRITE_COLOR_EVENT_CAPACITY + e];
+            if (x <= startX)
+            {
+                color = eventColor;
+                continue;
+            }
+            if (x >= endX || count == RUN_COLOR_EVENTS)
+                break;
+            // Keep the run's events sorted by x (a few at most).
+            var at = index * RUN_COLOR_EVENTS;
+            var i = count;
+            while (i > 0 && _lineSpriteRunColorEventX[at + i - 1] > x)
+            {
+                _lineSpriteRunColorEventX[at + i] = _lineSpriteRunColorEventX[at + i - 1];
+                _lineSpriteRunColorEventSlot[at + i] = _lineSpriteRunColorEventSlot[at + i - 1];
+                _lineSpriteRunColorEventColor[at + i] = _lineSpriteRunColorEventColor[at + i - 1];
+                i--;
+            }
+            _lineSpriteRunColorEventX[at + i] = x;
+            _lineSpriteRunColorEventSlot[at + i] = runSlot;
+            _lineSpriteRunColorEventColor[at + i] = _c64ToRenderColorMap[eventColor];
+            count++;
+        }
+        return _c64ToRenderColorMap[color];
     }
 
     /// <summary>
@@ -828,10 +951,15 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                     var index = (pixelArrayY * SPRITE_COUNT + spriteIndex) * SPRITE_RUNS + run;
                     if (_lineSpriteRunPresent[index] == 0)
                         continue;
+                    var flags = _lineSpriteFlags[index];
+                    if ((flags & LineSpriteFlagDecoded) != 0 || _lineSpriteRunColorEventCount[index] != 0)
+                    {
+                        WriteSpriteRunPixels(index, pixelArrayY);
+                        continue;
+                    }
                     var rowBytes = _lineSpriteData.AsSpan(index * SPRITE_ROW_BYTES, SPRITE_ROW_BYTES);
                     if (rowBytes[0] == 0 && rowBytes[1] == 0 && rowBytes[2] == 0)
                         continue;
-                    var flags = _lineSpriteFlags[index];
                     DecodeAndWriteSpriteRow(
                         rowBytes,
                         _lineSpriteX[index],
@@ -859,6 +987,75 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// difference between them is which producer supplies the position, shape and per-row colours.
     /// Handles single/multi colour and X expansion; the caller handles Y expansion (calls twice).
     /// </summary>
+    /// <summary>
+    /// Draws a run recorded pixel by pixel: one the VIC-II decoded because a mode or priority bit
+    /// changed while the sprite shifted, or one a sprite colour register changed under. Each
+    /// pixel takes its colour from the run's colours as they stand at its x and goes to the layer
+    /// its own priority bit selects.
+    /// </summary>
+    private void WriteSpriteRunPixels(int index, int destY)
+    {
+        if (destY < 0 || destY >= _height)
+            return;
+        Span<byte> codes = stackalloc byte[RUN_PIXELS];
+        int count;
+        if ((_lineSpriteFlags[index] & LineSpriteFlagDecoded) != 0)
+        {
+            count = _lineSpriteRunLength[index];
+            _lineSpriteRunCodes.AsSpan(index * RUN_PIXELS, count).CopyTo(codes);
+        }
+        else
+        {
+            var flags = _lineSpriteFlags[index];
+            var row = (uint)(_lineSpriteData[index * SPRITE_ROW_BYTES] << 16 | _lineSpriteData[index * SPRITE_ROW_BYTES + 1] << 8 | _lineSpriteData[index * SPRITE_ROW_BYTES + 2]);
+            var runFlags = (byte)(((flags & LineSpriteFlagDoubleWidth) != 0 ? Vic2SpriteManager.RunFlagXExpand : 0)
+                | ((flags & LineSpriteFlagMultiColor) != 0 ? Vic2SpriteManager.RunFlagMultiColor : 0)
+                | ((flags & LineSpriteFlagPriority) == 0 ? Vic2SpriteManager.RunFlagBehindForeground : 0));
+            count = Vic2SpriteManager.ExpandRunPixels(row, runFlags, _lineSpriteRunLength[index], _lineSpriteRunStretch[index], codes);
+        }
+        var destX = _lineSpriteX[index];
+        var from = Math.Max(Math.Max(0, _lineSpriteClipStartX[index]), destX);
+        var to = Math.Min(Math.Min(_width, _lineSpriteClipEndX[index]), destX + count);
+        if (from >= to)
+            return;
+        Span<uint> colors = stackalloc uint[4];
+        colors[0] = 0;
+        colors[1] = _lineSpriteColorMc0[index];
+        colors[2] = _lineSpriteColorFg[index];
+        colors[3] = _lineSpriteColorMc1[index];
+        var events = _lineSpriteRunColorEventCount[index];
+        var nextEvent = 0;
+        var eventBase = index * RUN_COLOR_EVENTS;
+        var pixels = _spriteRowPixels;
+        var layers = _spriteRunLayers;
+        for (var i = from - destX; i < to - destX; i++)
+        {
+            var x = destX + i;
+            while (nextEvent < events && _lineSpriteRunColorEventX[eventBase + nextEvent] <= x)
+            {
+                var slot = _lineSpriteRunColorEventSlot[eventBase + nextEvent];
+                colors[slot == 0 ? 2 : slot == 1 ? 1 : 3] = _lineSpriteRunColorEventColor[eventBase + nextEvent];
+                nextEvent++;
+            }
+            var code = codes[i];
+            pixels[i] = colors[code & Vic2SpriteManager.RunPixelValueMask];
+            layers[i] = (byte)(code & Vic2SpriteManager.RunPixelBehindForeground);
+        }
+        var ypos = FlipY ? _height - destY - 1 : destY;
+        var rowIndex = ypos * _width;
+        var i2 = from - destX;
+        var end = to - destX;
+        while (i2 < end)
+        {
+            if (pixels[i2] == 0) { i2++; continue; }
+            var runStart = i2;
+            var layer = layers[i2];
+            while (i2 < end && pixels[i2] != 0 && layers[i2] == layer) i2++;
+            var write = layer == 0 ? _setForegroundPixels : _setBackgroundPixels;
+            write(pixels, runStart, rowIndex + destX + runStart, i2 - runStart);
+        }
+    }
+
     // A decoded sprite row: the colour of each of its up to 48 pixels, 0 where transparent, plus
     // room for the repeated last pixel of a row cut short by the sprite's own fetch.
     private readonly uint[] _spriteRowPixels = new uint[Vic2Sprite.DEFAULT_WIDTH * 2 + SpriteRowStretchMax];

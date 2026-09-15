@@ -317,6 +317,85 @@ public class Vic2SpriteManagerTests
         Assert.Equal(expectedCollision, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
     }
 
+    // --- Register changes while a sprite shifts (VICE's spritesplit suite) ---
+
+    private static readonly int[] s_noHalt = Array.Empty<int>();
+
+    private static byte[] Decode(uint register, bool multiColor, bool xExpand, int[] eventPixels, byte[] eventKinds, int haltPixel = int.MaxValue, int stopPixel = int.MaxValue)
+    {
+        var pixels = new byte[Vic2SpriteManager.RunPixelCapacity];
+        var count = Vic2SpriteManager.DecodeSpriteRun(register, 0, haltPixel, stopPixel, multiColor, xExpand, false, eventPixels, eventKinds, pixels);
+        return pixels.AsSpan(0, count).ToArray();
+    }
+
+    private static byte Event(byte kind, bool set) => (byte)(kind | (set ? Vic2SpriteManager.RunEventBitSet : 0));
+
+    [Fact]
+    public void Multicolour_switched_on_while_shifting_takes_the_pairs_from_the_shapes_odd_bits()
+    {
+        // Row bits 0110...: single colour shows 0, 2, 2, 0. With multicolour from pixel 1 the pair
+        // flip-flop is cleared there, so the next pair is taken a pixel late, from bits 21-20
+        // instead of 22-21: the sprite split realignment.
+        var pixels = Decode(0x600000, multiColor: false, xExpand: false, new[] { 1 }, new[] { Event(Vic2SpriteManager.RunEventMultiColor, true) });
+        Assert.Equal(new byte[] { 0, 0, 2, 2, 0 }, pixels);
+    }
+
+    [Fact]
+    public void X_expand_set_while_shifting_repeats_the_pixel_being_shown()
+    {
+        // Row bits 1010...: 2, 0, 2, 0 unexpanded. Expanded from pixel 1, the expansion flip-flop
+        // starts toggling there: the pixel fetched at 1 is shown twice, and so is every later one.
+        var pixels = Decode(0xA00000, multiColor: false, xExpand: false, new[] { 1 }, new[] { Event(Vic2SpriteManager.RunEventXExpand, true) });
+        Assert.Equal(new byte[] { 2, 0, 0, 2, 2, 0 }, pixels);
+    }
+
+    [Fact]
+    public void X_expand_cleared_while_shifting_fetches_the_next_pixel_at_once()
+    {
+        // Expanded 1010... shows 2, 2, 0, 0, 2, 2, 0, 0. Cleared from pixel 2 the flip-flop is held
+        // set, so from there each bit shows once.
+        var pixels = Decode(0xA00000, multiColor: false, xExpand: true, new[] { 2 }, new[] { Event(Vic2SpriteManager.RunEventXExpand, false) });
+        Assert.Equal(new byte[] { 2, 2, 0, 2, 0 }, pixels);
+    }
+
+    [Fact]
+    public void Priority_is_read_at_every_pixel()
+    {
+        var pixels = Decode(0xF00000, multiColor: false, xExpand: false, new[] { 2 }, new[] { Event(Vic2SpriteManager.RunEventPriority, true) });
+        var behind = Vic2SpriteManager.RunPixelBehindForeground;
+        Assert.Equal(new byte[] { 2, 2, (byte)(2 | behind), (byte)(2 | behind), behind }, pixels);
+    }
+
+    [Fact]
+    public void Halted_sprite_repeats_its_last_pixel_until_it_is_switched_off()
+    {
+        var pixels = Decode(0xFFFFFF, multiColor: false, xExpand: false, s_noHalt, Array.Empty<byte>(), haltPixel: 2, stopPixel: 5);
+        Assert.Equal(new byte[] { 2, 2, 2, 2, 2 }, pixels);
+    }
+
+    [Fact]
+    public void Multicolour_written_while_a_sprite_shifts_is_seen_from_the_cycles_fourth_pixel()
+    {
+        // Sprite 0 at X 96 (the line's pixel 196), rows 01010101...: single colour shows the odd
+        // bits. Multicolour is switched on in cycle 25, seen from its pixel 3, the run's pixel 7:
+        // that pixel repeats the last one, then every pair comes from bits (8, 9), (10, 11), ...,
+        // each 01, the first shared colour, until the register is empty.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSprite(c64, spriteNumber: 0, x: 96, y: 49, spritePointer: 0xF8, Enumerable.Repeat((byte)0x55, 63).ToArray());
+
+        RunFrameWithWriteAt(c64, line: 49 + 1 + 6, cycle: 25, () => c64.Mem.Write(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, 1));
+
+        var sm = c64.Vic2.SpriteManager;
+        Assert.Equal(1, sm.LineSpriteRunCount(56, 0));
+        Assert.Equal(196, sm.LineSpriteRunStart(56, 0, 0));
+        Assert.NotEqual(0, sm.LineSpriteRunFlags(56, 0, 0) & Vic2SpriteManager.RunFlagDecoded);
+        var expected = new byte[] { 0, 2, 0, 2, 0, 2, 0, 0 }.Concat(Enumerable.Repeat((byte)1, 16)).Append((byte)0).ToArray();
+        Assert.Equal(expected, sm.LineSpriteRunPixels(56, 0, 0).ToArray());
+        // The line before the write is an ordinary single-colour run.
+        Assert.Equal(0, sm.LineSpriteRunFlags(55, 0, 0) & (Vic2SpriteManager.RunFlagDecoded | Vic2SpriteManager.RunFlagMultiColor));
+        Assert.Equal(24, sm.LineSpriteRunLength(55, 0, 0));
+    }
+
     // A sprite with only its row 6's first and last pixel set.
     private static byte[] SparseRow6()
     {

@@ -36,6 +36,7 @@ For advanced use, see [Useful tools](useful-tools.md) for how to extract PRG fil
 | For Your Sprites Only | <https://csdb.dk/release/download.php?id=245856> | `foryourspritesonly.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: the display is off and the vertical border opened, sprite rows are stretched by rewriting the Y-expand register every line, sprite pointers and colours change per line, raster bars in the border and background. |
 | Unfortunate Coincidence | <https://csdb.dk/release/download.php?id=245796> | `unf-coincidence.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: sprite multiplexing with per-line changes of the scroll/mode and memory setup registers. |
 | Smooth and Wonders | <https://csdb.dk/release/download.php?id=245318> | `Smooth_And_Wonders.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: full-frame pictures and text on a 384x273 hyperscreen with the display off and the borders opened, drawn with sprites stretched by rewriting the Y-expand register every line and shown as two alternating frames. |
+| Krestage 3 | <https://csdb.dk/release/download.php?id=58941> | `KRESTAGE3.D64` → first file | C64 PAL variant, per-line sprites switched on. Two pictures under a scroller, drawn with X-expanded sprites whose expand, multicolour and priority bits are switched while they shift (the sprite split effect), nine sprites on a line and 50-pixel-wide sprites among them; the demo checks the chip for these before it starts. |
 
 ## Online / modem-style software
 
