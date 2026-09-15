@@ -66,7 +66,14 @@ public interface IVic2SpriteManager
     public uint LineSpriteRunData(int rasterLine, int sprite, int run);
     public int LineSpriteRunLength(int rasterLine, int sprite, int run);
     public int LineSpriteRunStretch(int rasterLine, int sprite, int run);
-    public void AddLineSpriteRun(int rasterLine, int sprite, int run, int startPixel, uint rowBits, int length, int stretch);
+    /// <summary>
+    /// The run's flags (X-expand, multicolour and priority as it started; decoded) and, for a
+    /// decoded run, its pixels (see <see cref="Vic2SpriteManager.RunFlagDecoded"/>).
+    /// </summary>
+    public byte LineSpriteRunFlags(int rasterLine, int sprite, int run);
+    public ReadOnlySpan<byte> LineSpriteRunPixels(int rasterLine, int sprite, int run);
+    public void AddLineSpriteRun(int rasterLine, int sprite, int run, int startPixel, uint rowBits, int length, int stretch, byte flags);
+    public void AddLineSpriteDecodedRun(int rasterLine, int sprite, int run, int startPixel, ReadOnlySpan<byte> pixels);
     public void EndLineSpriteCollisions(int rasterLine);
 
     /// <summary>
