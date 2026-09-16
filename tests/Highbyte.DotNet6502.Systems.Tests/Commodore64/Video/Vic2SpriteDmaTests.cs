@@ -66,6 +66,8 @@ public class Vic2SpriteDmaTests
         Assert.Equal(1, c64.Vic2.SpriteDmaMask);   // row 20 was fetched at the line's start
         AdvanceTo(c64, 121, 16);                    // the check in the first phase of cycle 16
         Assert.Equal(0, c64.Vic2.SpriteDmaMask);
+        Assert.Equal(1, c64.Vic2.SpriteDisplayMask);   // still displayed on this line
+        AdvanceTo(c64, 121, 58);                    // the display decision finds the DMA off
         Assert.Equal(0, c64.Vic2.SpriteDisplayMask);
     }
 
@@ -115,6 +117,8 @@ public class Vic2SpriteDmaTests
         }
         AdvanceTo(c64, 72, 17);
         Assert.Equal(0, c64.Vic2.SpriteDmaMask);
+        Assert.Equal(1 << 4, c64.Vic2.SpriteDisplayMask);   // displayed until the decision in cycle 58
+        AdvanceTo(c64, 72, 58);
         Assert.Equal(0, c64.Vic2.SpriteDisplayMask);
     }
 

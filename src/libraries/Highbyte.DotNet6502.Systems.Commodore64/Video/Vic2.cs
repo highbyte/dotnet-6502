@@ -29,6 +29,11 @@ public class Vic2
             // The model's constants the raster advance needs on every call, cached: the properties
             // are abstract, and a virtual call per emulated instruction is a measurable share of it.
             _cyclesPerLine = (int)value.CyclesPerLine;
+            // Sprite 0's pointer access is in cycle 58 on the 63-cycle line and 59 on the 65-cycle one.
+            var spritePointerOffset0 = _cyclesPerLine == 63 ? 57 : 58;
+            SpriteEventOffsets[1] = spritePointerOffset0 - 3;
+            SpriteEventOffsets[2] = spritePointerOffset0 - 2;
+            SpriteEventOffsets[3] = spritePointerOffset0;
             _cyclesPerFrame = value.CyclesPerFrame;
             _totalHeight = value.TotalHeight;
         }
@@ -108,15 +113,23 @@ public class Vic2
     private readonly int[] _spriteXJournalPixel = new int[SpriteXJournalCapacity];   // the line pixel index the write is seen from
     private int _spriteXJournalCount;
     private const int SpriteWriteVisiblePixel = 4;
+    // Sprites whose DMA the second compare started: sprite 0's pointer access follows two cycles
+    // later, one cycle short of the three BA needs to stop the CPU, so its first data byte is read
+    // while the CPU still has the bus and comes back as $FF. Read and cleared by the next line's
+    // sprite snapshot.
+    public byte SpriteFirstDataByteUnavailable { get; private set; }
+    public void ClearSpriteFirstDataByteUnavailable() => SpriteFirstDataByteUnavailable = 0;
     private const int SpriteModeWriteVisiblePixel = 2;        // priority and X-expand
     private const int SpriteMultiColorWriteVisiblePixel = 3;
     private readonly bool[] _spriteExpandFlipFlop = { true, true, true, true, true, true, true, true };
     private const int SpriteCrunchCycleOffset = 14;        // cycle 15: a Y-expand write here crunches
     private const int SpriteEventMcBaseUpdateOffset = 15;  // cycle 16
-    private const int SpriteEventFirstCompareOffset = 54;  // cycle 55
-    private const int SpriteEventSecondCompareOffset = 55; // cycle 56
-    private const int SpriteEventLoadMcOffset = 57;        // cycle 58
-    private static readonly int[] SpriteEventOffsets = { SpriteEventMcBaseUpdateOffset, SpriteEventFirstCompareOffset, SpriteEventSecondCompareOffset, SpriteEventLoadMcOffset };
+    // The line's sprite events in order (0-based cycle offsets): the MCBASE update in cycle 16,
+    // the two compares that start a sprite's DMA, and the display decision. The compares and the
+    // decision sit at fixed distances from sprite 0's pointer access: cycles 55, 56 and 58 on the
+    // 6569, where that access is in cycle 58; one later on the 6567R8, whose 65-cycle line has it
+    // in cycle 59 (VICE's cycle tables for the two chips; the article gives the 6569's numbers).
+    private readonly int[] SpriteEventOffsets = { SpriteEventMcBaseUpdateOffset, 54, 55, 57 };
     // The events of the current line are applied in order as the raster advances: the index of
     // the next one and its offset (int.MaxValue once the line's events are all applied), so an
     // advance that reaches no event costs one compare.
@@ -816,6 +829,13 @@ public class Vic2
             var loaded = ((n < 3 ? displayAfter : displayBefore) & bit) != 0
                 ? SpriteRowBits(SpriteManager.LineSpriteData(loadLine, n))
                 : 0u;
+            // A sprite 3-7 whose DMA this line's compare started is displayed from cycle 58 on,
+            // and an X beyond that shows it on this line already, with what its fetch slot at the
+            // line's start read while the DMA was still off: the bus as the CPU left it ($FF) for
+            // the two accesses in the CPU's half of the cycle and the idle byte for the VIC's own
+            // (VICE's sb_sprite_fetch test programs).
+            if (n >= 3 && loaded == 0 && (displayBefore & bit) == 0 && (displayAfter & bit) != 0)
+                loaded = 0xFF00FFu | (uint)IdleGraphicsByte() << 8;
             var register = _spriteShiftRegister[n];
             if (register == 0 && loaded == 0)
                 continue;
@@ -921,6 +941,9 @@ public class Vic2
     }
 
     private static uint SpriteRowBits(ReadOnlySpan<byte> row) => (uint)(row[0] << 16 | row[1] << 8 | row[2]);
+
+    // The byte the VIC-II's idle accesses read: $3FFF of its bank, $39FF with ECM set.
+    private byte IdleGraphicsByte() => ReadMemory((ushort)((C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER) & 0x40) != 0 ? 0x39FF : 0x3FFF));
 
     /// <summary>
     /// The journalled writes from index <paramref name="from"/> that change sprite
@@ -1629,7 +1652,7 @@ public class Vic2
         // (rule 3) or leaves them set by rule 1.
         var enabled = _spriteEnableCache;
         var dma = SpriteDmaMask;
-        if ((enabled | dma) == 0)
+        if ((enabled | dma | SpriteDisplayMask) == 0)
             return;
         switch (eventIndex)
         {
@@ -1642,10 +1665,10 @@ public class Vic2
                 SpriteCompare(line);
                 break;
             case 2:
-                SpriteCompare(line);
+                SpriteFirstDataByteUnavailable |= (byte)(SpriteCompare(line) & 0x01);
                 break;
             default:
-                if (SpriteDmaMask != 0)
+                if ((SpriteDmaMask | SpriteDisplayMask) != 0)
                     SpriteLoadMc(line);
                 break;
         }
@@ -1733,10 +1756,7 @@ public class Vic2
             if (SpriteExpandFlipFlop(n, yExpand))
                 _spriteMcBase[n] = _spriteMcAfterFetch[n];
             if (_spriteMcBase[n] == 63)
-            {
-                SpriteDmaMask &= (byte)~(1 << n);
-                SpriteDisplayMask &= (byte)~(1 << n);
-            }
+                SpriteDmaMask &= (byte)~(1 << n);   // the display stays on until cycle 58 finds the DMA off
         }
     }
 
@@ -1757,11 +1777,12 @@ public class Vic2
     }
 
     // Cycles 55 and 56: an enabled sprite whose Y names this line starts fetching.
-    private void SpriteCompare(ushort line)
+    // Returns the sprites the compare switched on.
+    private byte SpriteCompare(ushort line)
     {
         var start = SpriteDmaStartMask(line);
         if (start == 0)
-            return;
+            return 0;
         var yExpand = _spriteYExpandCache;
         for (var n = 0; n < 8; n++)
         {
@@ -1772,20 +1793,32 @@ public class Vic2
             if ((yExpand & (1 << n)) != 0)
                 _spriteExpandFlipFlop[n] = false;
         }
+        return start;
     }
 
-    // Cycle 58: MC is loaded from MCBASE, and a fetching sprite whose Y names this line is displayed.
+    // Cycle 58: MC is loaded from MCBASE, and a fetching sprite that is enabled and whose Y names
+    // this line is displayed. The article's rule 4 asks for DMA and Y only; the chip asks for the
+    // enable bit as well, as it stands in this cycle (VICE's spriteenable test programs: a sprite
+    // switched on for the compares and off again before this cycle fetches but does not show).
+    // A sprite whose DMA is off here stops being displayed; one whose DMA is on keeps its display
+    // state unless the enable bit and Y switch it on. So a sprite restarted by the compare of the
+    // last line of its previous run (its DMA ended in cycle 16, the compare in cycle 55 started it
+    // again) is still displayed on the next line (VICE's spriterestart test program).
     private void SpriteLoadMc(ushort line)
     {
         var dma = SpriteDmaMask;
+        var enabled = _spriteEnableCache;
         var lineLow = (byte)line;
         for (var n = 0; n < 8; n++)
         {
             if ((dma & (1 << n)) == 0)
+            {
+                SpriteDisplayMask &= (byte)~(1 << n);
                 continue;   // MC only matters for a fetching sprite
+            }
             _spriteMc[n] = _spriteMcBase[n];
             _spriteMcAfterFetch[n] = (byte)((_spriteMcBase[n] + 3) & 0x3F);   // the three s-accesses
-            if (_spriteYCache[n] == lineLow)   // rule 4 asks for DMA and Y, not the enable bit
+            if ((enabled & (1 << n)) != 0 && _spriteYCache[n] == lineLow)
                 SpriteDisplayMask |= (byte)(1 << n);
         }
     }
