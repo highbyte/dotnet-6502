@@ -52,7 +52,7 @@ public class Cia2 : CiaBase
         MapRegisterMirrors(c64mem, CiaAddr.CIA2_SDR, DebugLoad, DebugStore);
 
         // CIA #2 Data Direction Registers (temporary debug implementation)
-        MapRegisterMirrors(c64mem, CiaAddr.CIA2_DDRA, DebugLoad, DebugStore);
+        MapRegisterMirrors(c64mem, CiaAddr.CIA2_DDRA, DebugLoad, DdrAStore);
         MapRegisterMirrors(c64mem, CiaAddr.CIA2_DDRB, DebugLoad, DebugStore);
     }
 
@@ -96,8 +96,8 @@ public class Cia2 : CiaBase
         _c64.WriteIOStorage(address, value);
 
         // Note: CIA 2 Data Port A has two lines (bits) that control functionality in another chip, VIC2.
-        //       Set VIC2 bank based on bits 0-1
-        _c64.Vic2.SetVIC2Bank(value);
+        //       Set VIC2 bank based on bits 0-1, as the port's pins carry them.
+        _c64.Vic2.SetVIC2Bank(PortAPins(value, _c64.ReadIOStorage(CiaAddr.CIA2_DDRA)));
 
         // Handle serial bus lines.
         // Bit #3: Serial bus ATN OUT; 0 = High; 1 = Low.
@@ -111,6 +111,20 @@ public class Cia2 : CiaBase
             setDATALine: (value & (1 << 5)) != 0 ? DeviceLineState.Holding : DeviceLineState.NotHolding
         );
     }
+
+    /// <summary>
+    /// Writing the data direction register of port A changes what the port's pins carry: a bit
+    /// switched to input floats up through the pull-up, whatever the output register holds, so the
+    /// VIC-II bank follows the pins (programs set $DD02 rather than $DD00 to select a bank).
+    /// </summary>
+    public void DdrAStore(ushort address, byte value)
+    {
+        _c64.WriteIOStorage(address, value);
+        _c64.Vic2.SetVIC2Bank(PortAPins(_c64.ReadIOStorage(CiaAddr.CIA2_DATAA), value));
+    }
+
+    // The levels on port A's pins: output bits as written, input bits high through the pull-ups.
+    private static byte PortAPins(byte port, byte ddr) => (byte)(port | (byte)~ddr);
 
     /// <summary>
     /// CIA #2 Data Port B handles user port and RS-232 functionality.

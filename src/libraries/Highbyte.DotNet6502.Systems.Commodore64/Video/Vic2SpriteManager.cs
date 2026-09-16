@@ -520,8 +520,12 @@ public class Vic2SpriteManager : IVic2SpriteManager
                 _lineSpriteData[dataIndex] = Vic2.ReadMemory((ushort)address);
                 _lineSpriteData[dataIndex + 1] = Vic2.ReadMemory((ushort)((address + 1) & 0x3FFF));
                 _lineSpriteData[dataIndex + 2] = Vic2.ReadMemory((ushort)((address + 2) & 0x3FFF));
+                // A DMA the second compare started leaves sprite 0's first data access to the CPU.
+                if ((Vic2.SpriteFirstDataByteUnavailable & (1 << i)) != 0)
+                    _lineSpriteData[dataIndex] = 0xFF;
             }
         }
+        Vic2.ClearSpriteFirstDataByteUnavailable();
 
         LineSpriteEnableMask = Vic2.C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
         if (LineSpriteEnableMask == 0)

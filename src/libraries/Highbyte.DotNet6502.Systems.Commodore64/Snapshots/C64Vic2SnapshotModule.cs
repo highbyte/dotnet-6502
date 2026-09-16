@@ -88,7 +88,7 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
         // Re-derive the cached VIC-II display state from the registers restored by c64-core.
         // Order matters: the VIC bank (CIA2 $DD00) selects the 16 KB window and refreshes the
         // charset address; then $D018 sets the screen/charset/bitmap base addresses within it.
-        vic2.SetVIC2Bank(c64.ReadIOStorage(CiaAddr.CIA2_DATAA));
+        vic2.SetVIC2Bank((byte)(c64.ReadIOStorage(CiaAddr.CIA2_DATAA) | (byte)~c64.ReadIOStorage(CiaAddr.CIA2_DDRA)));   // the port's pins: input bits float high
         vic2.MemorySetupStore(Vic2Addr.MEMORY_SETUP, c64.ReadIOStorage(Vic2Addr.MEMORY_SETUP));
 
         // Force the sprite manager to rebuild cached sprite state from the restored registers/RAM.

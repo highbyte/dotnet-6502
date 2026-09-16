@@ -954,6 +954,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.row_stretch.prg", "RowStretch"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.sprite_stretch.prg", "SpriteStretch"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.sprite_x.prg", "SpriteX"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.sprite_enable.prg", "SpriteEnable"));
         // Initialize basic examples
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));

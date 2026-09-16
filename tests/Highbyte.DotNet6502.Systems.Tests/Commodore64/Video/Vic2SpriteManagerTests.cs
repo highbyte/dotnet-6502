@@ -335,6 +335,115 @@ public class Vic2SpriteManagerTests
         Assert.True(c64.Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToSpriteCollision));
     }
 
+    // --- The enable register at the compares and the display decision (VICE's spriteenable suite) ---
+
+    [Fact]
+    public void Sprite_disabled_after_the_compares_and_before_the_display_decision_fetches_but_does_not_show()
+    {
+        // The compares in cycles 55 and 56 start the DMA; the display decision in cycle 58 asks
+        // for the enable bit again, so a sprite switched off in cycle 57 is fetched but not shown.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 72, y: 49, spritePointer: 0xF8);
+
+        RunFrameWithWriteAt(c64, line: 49, cycle: 56, () => c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0));
+
+        Assert.Equal(0, c64.Vic2.SpriteManager.LineSpriteDisplayMask(50) & 1);
+        Assert.Equal(0, c64.Vic2.SpriteManager.LineSpriteRunCount(50, 0));
+    }
+
+    [Fact]
+    public void Sprite_enabled_between_the_compares_starts_at_the_second_and_its_first_byte_is_ff()
+    {
+        // Enabled in cycle 55: the first compare (before the write) misses it, the second starts
+        // the DMA. Sprite 0's pointer access follows two cycles later, one short of the three BA
+        // takes to stop the CPU, so its first data byte comes back as $FF.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSprite(c64, spriteNumber: 0, x: 72, y: 49, spritePointer: 0xF8, Enumerable.Repeat((byte)0xAA, 63).ToArray());
+        c64.WriteIOStorage(Vic2Addr.SPRITE_ENABLE, 0);
+
+        RunFrameWithWriteAt(c64, line: 49, cycle: 54, () => c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 1));
+
+        var sm = c64.Vic2.SpriteManager;
+        Assert.Equal(1, sm.LineSpriteDisplayMask(50) & 1);
+        Assert.Equal(new byte[] { 0xFF, 0xAA, 0xAA }, sm.LineSpriteData(50, 0).ToArray());
+        Assert.Equal(new byte[] { 0xAA, 0xAA, 0xAA }, sm.LineSpriteData(51, 0).ToArray());
+    }
+
+    [Fact]
+    public void Sprite_enabled_after_the_second_compare_does_not_start()
+    {
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 72, y: 49, spritePointer: 0xF8);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_ENABLE, 0);
+
+        RunFrameWithWriteAt(c64, line: 49, cycle: 55, () => c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 1));
+
+        Assert.Equal(0, c64.Vic2.SpriteManager.LineSpriteDisplayMask(50) & 1);
+        Assert.Equal(0, c64.Vic2.SpriteManager.LineSpriteRunCount(51, 0));
+    }
+
+    [Fact]
+    public void Sprite_restarted_by_the_compare_on_its_last_line_stays_displayed()
+    {
+        // VICE's spriterestart test: on the last line of a run the DMA ended in cycle 16, so the
+        // compare in cycle 55 can start it again when Y names that line; the display decision in
+        // cycle 58 then finds the DMA on and leaves the display as it was, on, even though Y has
+        // been written back and no longer matches. The next line shows row 0 again.
+        var c64 = BuildC64(perLineSprites: true);
+        var shape = new byte[63];
+        shape[0] = 0xAA;   // row 0
+        shape[60] = 0x55;  // row 20
+        CreateVisibleSprite(c64, spriteNumber: 0, x: 72, y: 49, spritePointer: 0xF8, shape);
+
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        var lastLine = 49 + 21;   // rows 0-20 on lines 50-70
+        c64.Vic2.AdvanceRaster((ulong)lastLine * cyclesPerLine + 53);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_Y, (byte)lastLine);     // seen by the compare in cycle 55
+        c64.Vic2.AdvanceRaster(2);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_Y, 49);                  // back before the display decision
+        c64.Vic2.AdvanceRaster(200 * cyclesPerLine - (ulong)lastLine * cyclesPerLine - 55);
+
+        var sm = c64.Vic2.SpriteManager;
+        Assert.Equal(new byte[] { 0x55, 0, 0 }, sm.LineSpriteData(lastLine, 0).ToArray());
+        Assert.Equal(1, sm.LineSpriteDisplayMask(lastLine + 1) & 1);
+        Assert.Equal(new byte[] { 0xAA, 0, 0 }, sm.LineSpriteData(lastLine + 1, 0).ToArray());
+    }
+
+    [Fact]
+    public void Sprite_beyond_its_fetch_shown_on_its_first_line_carries_the_idle_bytes()
+    {
+        // VICE's sb_sprite_fetch tests: a sprite 3-7 with X at or beyond $164 is displayed on the
+        // line its compare starts the DMA, before its slot at the next line's start has fetched
+        // anything: it shows $FF, the idle byte and $FF, what the slot read while the DMA was off.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 6, x: (byte)(0x164 - 256), y: 49, spritePointer: 0xF8);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x40);
+        c64.Vic2.Vic2Mem[0x3FFF] = 0x33;
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        var sm = c64.Vic2.SpriteManager;
+        Assert.Equal(1, sm.LineSpriteRunCount(49, 6));
+        Assert.Equal(0xFF33FFu, sm.LineSpriteRunData(49, 6, 0));
+        Assert.Equal(0xFFFFFFu, sm.LineSpriteRunData(50, 6, 0));
+    }
+
+    [Theory]
+    [InlineData(0x3F, 0x00, 3)]   // both bank bits outputs, written 00: bank 3
+    [InlineData(0x3C, 0x00, 0)]   // both inputs: the pull-ups read 11, bank 0 whatever was written
+    [InlineData(0x3D, 0x00, 1)]   // bit 0 output 0, bit 1 input 1: %10, bank 1
+    public void Vic_bank_follows_the_pins_of_cia2_port_a(byte ddr, byte port, int expectedBank)
+    {
+        // VICE's banking test: a bit of $DD00 made an input by $DD02 floats up through its
+        // pull-up, so programs select the bank by writing the direction register as well.
+        var c64 = BuildC64();
+        c64.Mem.Write(0xDD02, ddr);
+        c64.Mem.Write(0xDD00, port);
+        Assert.Equal(expectedBank, c64.Vic2.CurrentVIC2Bank);
+        c64.Mem.Write(0xDD02, 0x3F);   // back to outputs: the written value counts again
+        Assert.Equal(3, c64.Vic2.CurrentVIC2Bank);
+    }
+
     // --- Register changes while a sprite shifts (VICE's spritesplit suite) ---
 
     private static readonly int[] s_noHalt = Array.Empty<int>();

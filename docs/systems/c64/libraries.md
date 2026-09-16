@@ -44,7 +44,7 @@ rasterizer does hold a character row's 40 screen codes and colour nibbles the wa
 the VIC-II does: fetched on the row's first line and shown for its remaining seven, so a screen
 write made after that fetch appears from the next row on. When a CPU read is stalled, the VIC-II
 and the renderer are brought through the stalled cycles before the CPU continues, so what the
-VIC-II fetched during the stall reflects memory before the stalled instruction's write.
+VIC-II fetched during the stall reflects memory before the stalled instruction's write. The VIC-II's bank follows the levels on CIA 2 port A's two bank pins, not the bytes written: a bit the direction register makes an input floats up through its pull-up, so a program selects a bank with `$DD02` as well as with `$DD00`.
 
 The VIC-II also takes the bus from the CPU as on hardware: 40 cycles on every bad line (BA low
 from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA on, BA
@@ -53,13 +53,22 @@ writes do not wait. Bad lines follow YSCROLL and the DEN bit as the VIC-II saw i
 line $30: clearing DEN before that line switches the display, and its bad lines, off for the whole
 frame, clearing it later has no effect until the next frame. Sprites follow the chip's data
 counters: the compare in cycles 55 and 56 of the line an enabled sprite's Y register names
-switches its DMA on and the display follows in cycle 58, the row it fetches for each line comes
+switches its DMA on (on the 6567R8's 65-cycle line, cycles 56 and 57) and the display follows in cycle 58 (59), the row it fetches for each line comes
 from a counter that takes the fetch's end position (three on) in cycle 16 of every line where the
 Y-expansion flip-flop is set (inverted in cycle 55 while the expand bit is set, held set while it
 is cleared), and the DMA ends once that counter has reached 63. So a Y-expanded sprite shows every
 row twice, a change of the expand bit mid-sprite changes the line count from there on, a Y written
 to a line the raster has already passed costs nothing until the raster comes round again, and a Y
-rewritten below a finished sprite shows it again there. Clearing the expand bit in cycle 15 of a
+rewritten below a finished sprite shows it again there. The display decision asks for the enable bit
+again, as it stands in that cycle, so a sprite switched on for the compares and off before cycle 58
+is fetched but not shown, and the display stays on until that decision finds the DMA off, so a
+sprite whose Y is rewritten to its last line restarts there and shows its first row again on the
+next line. A DMA the second compare starts leaves sprite 0's first data byte to the CPU (its fetch
+is only two cycles on), so that byte reads $FF; a sprite 3-7 shown on the line its DMA starts, with
+an X beyond cycle 58, carries what its slot read while the DMA was off: $FF, the idle byte, $FF.
+The SpriteEnable sample in the Avalonia and browser menus shows the enable timing, the $FF byte
+and the restart.
+Clearing the expand bit in cycle 15 of a
 line where the flip-flop is clear crunches the sprite: the fetch position becomes a bit-merge of
 the counter and itself, the counter leaves its stride of three, misses 63 and wraps, and the
 sprite's rows come out reordered and its DMA runs on for up to 63 rows, as the demos use it. With per-line sprites on, the rasterizer's
