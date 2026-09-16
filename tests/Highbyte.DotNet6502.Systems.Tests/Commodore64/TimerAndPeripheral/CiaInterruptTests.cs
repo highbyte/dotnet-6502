@@ -24,7 +24,7 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(2);
+        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
 
         Assert.True(c64.CPU.CPUInterrupts.NMIPending);
         Assert.Contains(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
@@ -34,7 +34,7 @@ public class CiaInterruptTests
 
         Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
 
-        c64.Cia2.ProcessTimers(2);
+        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
 
         Assert.True(c64.CPU.CPUInterrupts.NMIPending);
         Assert.Contains(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
@@ -55,7 +55,7 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(2);
+        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
 
         Assert.False(c64.CPU.CPUInterrupts.NMIPending);
         Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
@@ -76,7 +76,7 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(2);
+        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
 
         Assert.Equal(0x82, c64.Cia2.InterruptControlLoad(0));
         Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
@@ -96,7 +96,7 @@ public class CiaInterruptTests
         c64.Cia2.TimerBHIStore(0, 0);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(2);
+        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
 
         Assert.False(c64.CPU.CPUInterrupts.NMIPending);
         Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
@@ -118,7 +118,7 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(2);
+        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
         c64.Cia2.InterruptControlStore(0, 0x7f);
 
         Assert.Equal(0x82, c64.Cia2.InterruptControlLoad(0));

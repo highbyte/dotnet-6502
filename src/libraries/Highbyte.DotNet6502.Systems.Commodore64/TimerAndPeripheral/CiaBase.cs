@@ -30,7 +30,7 @@ public abstract class CiaBase
     private ulong _nextUnderflowBusCycle = ulong.MaxValue;
 
     internal void RecomputeNextUnderflow()
-        => _nextUnderflowBusCycle = Math.Min(_timerA.UnderflowBusCycleOrMax, _timerB.UnderflowBusCycleOrMax);
+        => _nextUnderflowBusCycle = Math.Min(_timerA.NextEventBusCycleOrMax, _timerB.NextEventBusCycleOrMax);
 
     protected CiaBase(C64 c64, CiaIRQ ciaIRQ)
     {
@@ -75,8 +75,8 @@ public abstract class CiaBase
 
     private void ProcessUnderflows(ulong busCycle)
     {
-        _timerA.ProcessUnderflows(busCycle);
-        _timerB.ProcessUnderflows(busCycle);
+        _timerA.ProcessEvents(busCycle);
+        _timerB.ProcessEvents(busCycle);
         RecomputeNextUnderflow();
     }
 

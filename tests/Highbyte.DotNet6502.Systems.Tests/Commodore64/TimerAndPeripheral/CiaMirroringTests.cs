@@ -16,7 +16,7 @@ public class CiaMirroringTests
         c64.Cia1.InterruptControlStore(0, 0x82);
         c64.Cia1.TimerBControlStore(0, 0x19);
 
-        c64.Cia1.ProcessTimers(2);
+        c64.Cia1.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
 
         Assert.Equal(0x82, c64.Mem.Read(0xDCFD));
         Assert.Equal(0x00, c64.Mem.Read(CiaAddr.CIA1_CIAICR));

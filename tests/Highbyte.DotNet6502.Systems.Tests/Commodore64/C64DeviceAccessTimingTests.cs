@@ -93,8 +93,8 @@ public class C64DeviceAccessTimingTests
     public void Cia_timer_force_load_restarts_the_count_at_the_cycle_of_the_write()
     {
         // STA $DC0E (force load + start) writes on its 4th cycle; two NOPs; LDA $DC04 reads on its
-        // 4th cycle, 8 cycles after the write. The counter was loaded with the latch at the write
-        // and has counted 8 cycles since.
+        // 4th cycle, 8 cycles after the write. The latch reaches the counter two cycles after the
+        // write, holds for one more, and the counter has then moved five times by the read.
         var c64 = Build([0x8D, 0x0E, 0xDC, 0xEA, 0xEA, 0xAD, 0x04, 0xDC]);
         c64.Mem.Write(CiaAddr.CIA1_TIMALO, 62);
         c64.Mem.Write(CiaAddr.CIA1_TIMAHI, 0);
@@ -102,7 +102,7 @@ public class C64DeviceAccessTimingTests
 
         Step(c64); Step(c64); Step(c64); Step(c64);
 
-        Assert.Equal(62 - 8, c64.CPU.A);
+        Assert.Equal(62 - 5, c64.CPU.A);
     }
 
     [Fact]
@@ -115,18 +115,18 @@ public class C64DeviceAccessTimingTests
         c64.Mem.Write(CiaAddr.CIA1_CIACRA, 0x01);   // start, continuous
 
         Step(c64);
-        Assert.Equal(0x1000 - 3 & 0xFF, c64.CPU.A);   // 3 cycles completed before the first read
+        Assert.Equal(0x1000 - 1 & 0xFF, c64.CPU.A);   // 3 cycles completed before the first read, the first two held by the start pipeline
 
         Step(c64);
-        Assert.Equal(0x1000 - 7 & 0xFF, c64.CPU.A);   // 7 cycles completed before the second read
+        Assert.Equal(0x1000 - 5 & 0xFF, c64.CPU.A);   // 7 cycles completed before the second read
     }
 
     [Fact]
     public void Cia_control_write_starts_the_timer_on_the_cycle_of_the_write()
     {
         // STA $DC0E writes on its 4th cycle; LDA $DC04 reads on its 4th cycle, four cycles later.
-        // The timer counts from the write's own cycle, so the read sees four counts. (The 6526's
-        // start-up pipeline delay is not modelled.)
+        // The counter holds through the two cycles after the write (the 6526's start pipeline),
+        // so the read sees two counts.
         var c64 = Build([0x8D, 0x0E, 0xDC, 0xAD, 0x04, 0xDC]);
         c64.Mem.Write(CiaAddr.CIA1_TIMALO, 0x00);
         c64.Mem.Write(CiaAddr.CIA1_TIMAHI, 0x10);
@@ -135,7 +135,7 @@ public class C64DeviceAccessTimingTests
         Step(c64);
         Step(c64);
 
-        Assert.Equal(0x1000 - 4 & 0xFF, c64.CPU.A);
+        Assert.Equal(0x1000 - 2 & 0xFF, c64.CPU.A);
     }
 
     [Theory]
@@ -178,9 +178,10 @@ public class C64DeviceAccessTimingTests
     [Fact]
     public void Cia_timer_interrupt_is_dated_to_the_underflow_cycle()
     {
-        // Timer A latch 5, started by a direct write: it underflows after 6 counted cycles, i.e.
-        // during cycle 6 of the program below. NOP NOP NOP = cycles 1-2, 3-4, 5-6: the underflow
-        // falls on the last cycle of the third NOP, so the IRQ is taken after the fourth.
+        // Timer A latch 5, started by a direct write: the counter holds for two cycles, then
+        // underflows after 6 counted cycles, i.e. during cycle 8 of the program below. Four NOPs =
+        // cycles 1-8: the underflow falls on the last cycle of the fourth NOP, so the IRQ is taken
+        // after the fifth.
         var c64 = Build([0xEA, 0xEA, 0xEA, 0xEA, 0xEA]);
         c64.Mem.Write(0x0001, 0x35);
         c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
@@ -190,14 +191,14 @@ public class C64DeviceAccessTimingTests
         c64.Mem.Write(CiaAddr.CIA1_CIAICR, 0x81);      // enable timer A interrupt
         c64.Mem.Write(CiaAddr.CIA1_CIACRA, 0x09);   // one-shot, start
 
-        Step(c64); Step(c64);
-        var third = Step(c64);
-        Assert.Equal(2UL, third.CyclesConsumed);
-        Assert.Equal(Start + 3, c64.CPU.PC);          // underflow on the last cycle: not yet
+        Step(c64); Step(c64); Step(c64);
+        var fourth = Step(c64);
+        Assert.Equal(2UL, fourth.CyclesConsumed);
+        Assert.Equal(Start + 4, c64.CPU.PC);          // underflow on the last cycle: not yet
         Assert.True(c64.CPU.IRQ);
 
-        var fourth = Step(c64);
-        Assert.Equal(2 + CPU.InterruptEntryCycles, fourth.CyclesConsumed);
+        var fifth = Step(c64);
+        Assert.Equal(2 + CPU.InterruptEntryCycles, fifth.CyclesConsumed);
         Assert.Equal(0x2000, c64.CPU.PC);
     }
 
