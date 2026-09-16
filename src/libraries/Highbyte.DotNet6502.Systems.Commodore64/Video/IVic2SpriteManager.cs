@@ -24,6 +24,19 @@ public interface IVic2SpriteManager
     /// </summary>
     public bool PerLineCollisionEnabled { get; set; }
 
+    /// <summary>
+    /// Set by a render provider that derives the sprite-to-background collisions from the pixels it
+    /// resolves (the sequencer generator with per-line sprites): the per-line collision pass then
+    /// leaves that register to <see cref="AddSpriteToBackgroundCollisions"/>.
+    /// </summary>
+    public bool BackgroundCollisionsFromRenderer { get; set; }
+
+    /// <summary>
+    /// Latches sprite-to-background collisions found on a line (bit n for sprite n) and raises the
+    /// collision interrupt when they are new.
+    /// </summary>
+    public void AddSpriteToBackgroundCollisions(byte mask);
+
     public void SetAllDirty();
     public void SetAllChanged(Vic2Sprite.Vic2SpriteChangeType spriteChangeType);
 

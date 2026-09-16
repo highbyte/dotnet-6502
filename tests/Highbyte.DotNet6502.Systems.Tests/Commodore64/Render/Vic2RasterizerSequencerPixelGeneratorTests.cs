@@ -504,6 +504,83 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
     }
 
     [Fact]
+    public void The_topmost_sprites_priority_bit_decides_against_the_graphics()
+    {
+        // VICE's spritepriorities test: sprite 0 behind the foreground graphics, sprite 1 in front
+        // of them, overlapping. Where sprite 0 has a pixel it is the topmost sprite, so the
+        // graphics show over both; sprite 1 shows in front only where sprite 0 is transparent.
+        var c64 = BuildC64();
+        SetupSolidCharScreen(c64, colorRam: 1, charData: 0xFF, d016: 0xC8);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, Enumerable.Repeat((byte)0xFF, 63).ToArray(), spritePointer: 192, x: 100);
+        CreateVisibleSprite(c64, spriteNumber: 1, doubleWidth: false, doubleHeight: false, Enumerable.Repeat((byte)0xFF, 63).ToArray(), spritePointer: 193, x: 112);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, 60);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_1_Y, 60);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_COLOR, 2);
+        c64.Mem.Write(Vic2Addr.SPRITE_1_COLOR, 3);
+        c64.Mem.Write(Vic2Addr.SPRITE_FOREGROUND_PRIO, 0x01);   // sprite 0 behind the graphics
+        var (background, foreground) = RenderPerLineSpriteFrame(c64);
+
+        var width = c64.Screen.VisibleWidth;
+        var line = 70 - c64.Vic2.Vic2Model.FirstVisibleRasterLine;
+        var sprite0X = c64.Vic2.Vic2Screen.VisibleLeftBorderWidth + 100 - 24;   // sprite 1 starts 12 pixels on
+        uint Pixel(uint[] layer, int x) => layer[line * width + x] & 0xFFFFFF;
+        var white = Rgb(c64, 1) & 0xFFFFFF;
+        Assert.Equal(white, Pixel(foreground, sprite0X + 6));            // sprite 0 alone: the graphics in front
+        Assert.Equal(Rgb(c64, 2) & 0xFFFFFF, Pixel(background, sprite0X + 6));
+        Assert.Equal(white, Pixel(foreground, sprite0X + 18));           // both: sprite 0 is topmost, so the graphics still win
+        Assert.Equal(Rgb(c64, 2) & 0xFFFFFF, Pixel(background, sprite0X + 18));
+        Assert.Equal(Rgb(c64, 3) & 0xFFFFFF, Pixel(foreground, sprite0X + 30));   // sprite 1 alone: in front
+    }
+
+    [Theory]
+    [InlineData(9, 0x55, 0)]    // multicolour cell, every pair 01: background priority, no collision
+    [InlineData(9, 0xAA, 1)]    // multicolour cell, every pair 10: foreground, collision
+    [InlineData(1, 0x55, 1)]    // a single-colour cell in multicolour mode: its set bits are foreground
+    public void Sprite_to_background_collisions_come_from_the_lines_foreground_pixels(byte colorRam, byte charData, byte expectedCollisions)
+    {
+        // VICE's spritecollisions sprite-gfx tests: a sprite collides where the graphics sequencer
+        // outputs a foreground pixel, which in multicolour is a 10 or 11 pair, never a 01 pair.
+        var c64 = BuildC64();
+        SetupSolidCharScreen(c64, colorRam, charData, d016: 0xD8);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, Enumerable.Repeat((byte)0xFF, 63).ToArray(), spritePointer: 192, x: 100);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, 60);
+        RenderPerLineSpriteFrame(c64);
+
+        Assert.Equal(expectedCollisions, c64.Vic2.SpriteManager.SpriteToBackgroundCollisionStore);
+    }
+
+    // Every cell of the text screen shows the same character data (each of its eight lines the
+    // given byte) with the given colour RAM value.
+    private static void SetupSolidCharScreen(C64 c64, byte colorRam, byte charData, byte d016)
+    {
+        c64.Mem.Write(0xD011, 0x1B);
+        c64.Mem.Write(0xD016, d016);
+        c64.Mem.Write(0xD018, 0x18);   // video matrix $0400, character set $2000
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 0;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), colorRam);
+        }
+        for (var i = 0; i < 8; i++)
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + i)] = charData;
+    }
+
+    // A frame with the per-line sprite pass, the raster advanced a line at a time.
+    private static (uint[] Background, uint[] Foreground) RenderPerLineSpriteFrame(C64 c64)
+    {
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = true;
+        var (generator, background, foreground) = CreateGenerator(c64, perLineSprites: true);
+        var vic2 = c64.Vic2;
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+            generator.OnAfterInstruction();
+        }
+        generator.OnEndFrame();
+        return (background, foreground);
+    }
+
+    [Fact]
     public void DrawText_keeps_a_character_rows_screen_codes_from_its_first_line_as_the_vic2_latches_them()
     {
         // The VIC-II fetches a character row's screen codes and colour nibbles once, on the row's

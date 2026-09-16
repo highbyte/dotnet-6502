@@ -291,6 +291,13 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private byte[] _lineSpriteRunColorEventSlot = default!;
     private uint[] _lineSpriteRunColorEventColor = default!;
     private readonly byte[] _spriteRunLayers = new byte[RUN_PIXELS];
+    // A line's sprites composited before they reach the layers: per pixel-array x the colour of
+    // the topmost sprite's pixel (0 none) and whether that sprite is behind the foreground
+    // graphics. The VIC-II takes the lowest-numbered sprite with a pixel at each position and
+    // lets its priority bit alone decide against the graphics, so a sprite in front of the
+    // graphics does not show through a higher-priority sprite that is behind them.
+    private uint[] _spriteLineColor = default!;
+    private byte[] _spriteLineLayer = default!;
 
     // The sprite colour registers as the sequencer sees them, through the register write journal
     // like the background colours: the eight sprite colours and the two shared multicolours by
@@ -357,6 +364,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         // per-line snapshot, so it can be turned off (saves the StoreRasterLineIORegisters copy).
         // The end-of-frame sprite path still depends on the snapshot for per-line sprite colors.
         _c64.RememberVic2RegistersPerRasterLine = !_perLineSprites;
+        if (_perLineSprites)
+            _c64.Vic2.SpriteManager.BackgroundCollisionsFromRenderer = true;   // from the lines' resolved pixels (DrawSpritesForLine)
 
         // Init class variables with C64 screen values that should'nt change
 
@@ -455,6 +464,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         _lineSpriteColorMc0 = new uint[_height * SPRITE_COUNT * SPRITE_RUNS];
         _lineSpriteColorMc1 = new uint[_height * SPRITE_COUNT * SPRITE_RUNS];
         _lineSpriteRunCodes = new byte[_height * SPRITE_COUNT * SPRITE_RUNS * RUN_PIXELS];
+        _spriteLineColor = new uint[_width];
+        _spriteLineLayer = new byte[_width];
         _lineSpriteRunColorEventCount = new byte[_height * SPRITE_COUNT * SPRITE_RUNS];
         _lineSpriteRunColorEventX = new int[_height * SPRITE_COUNT * SPRITE_RUNS * RUN_COLOR_EVENTS];
         _lineSpriteRunColorEventSlot = new byte[_height * SPRITE_COUNT * SPRITE_RUNS * RUN_COLOR_EVENTS];
@@ -847,6 +858,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         var clipStartX = _lineClearStartXs[pixelArrayY];
         var clipEndX = _lineClearEndXs[pixelArrayY];
         var pixelsPerLine = (int)_cyclesPerLine * 8;
+        byte backgroundCollisions = 0;
+        Span<byte> codes = stackalloc byte[RUN_PIXELS];
         for (int spriteIndex = 0; spriteIndex < SPRITE_COUNT; spriteIndex++)
         {
             if ((runMask & (1 << spriteIndex)) == 0)
@@ -891,8 +904,40 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 _lineSpriteRunColorEventCount[index] = (byte)count;
                 _lineSpriteClipStartX[index] = clipStartX;
                 _lineSpriteClipEndX[index] = clipEndX;
+
+                // Sprite-to-background collision: an opaque sprite pixel where the graphics
+                // sequencer output a foreground pixel on this line (a set bit, or a 10/11 pair in
+                // multicolour; nothing while the vertical border flip-flop is set, when the
+                // sequencer's output is off). The line's codes are still those of the line that
+                // has just ended, resolved where the border flip-flop was clear.
+                if ((backgroundCollisions & (1 << spriteIndex)) == 0)
+                {
+                    var pixelCount = decoded ? length : Math.Min(length + stretch, RUN_PIXELS);
+                    var from = Math.Max(Math.Max(0, clipStartX), screenX);
+                    var to = Math.Min(Math.Min(_width, clipEndX), screenX + pixelCount);
+                    // Most lines have no foreground under the sprite (a sprite-only demo, the
+                    // borders, blank cells): one vectorised search before any decoding.
+                    var firstForeground = to > from ? _lineFgCodes.AsSpan(from, to - from).IndexOfAnyExcept(CODE_NONE) : -1;
+                    if (firstForeground >= 0)
+                    {
+                        if (decoded)
+                            _lineSpriteRunCodes.AsSpan(index * RUN_PIXELS, length).CopyTo(codes);
+                        else
+                            Vic2SpriteManager.ExpandRunPixels(row, runFlags, length, stretch, codes);
+                        for (var x = from + firstForeground; x < to; x++)
+                        {
+                            if (_lineFgCodes[x] != CODE_NONE && (codes[x - screenX] & Vic2SpriteManager.RunPixelValueMask) != 0)
+                            {
+                                backgroundCollisions |= (byte)(1 << spriteIndex);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
+        if (backgroundCollisions != 0)
+            spriteManager.AddSpriteToBackgroundCollisions(backgroundCollisions);
     }
 
     // The colour of a slot as a run beginning at startX shows it, from the ended line's start
@@ -932,8 +977,9 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     }
 
     /// <summary>
-    /// Draws the recorded sprite lines. Sprite 7 first on each line so that sprite 0, the highest
-    /// priority, lands on top.
+    /// Draws the recorded sprite lines. Each line's sprites are composited first, sprite 7 to
+    /// sprite 0 so that sprite 0, the highest priority, lands on top, and the topmost pixel's own
+    /// priority bit then decides whether it goes in front of or behind the foreground graphics.
     /// </summary>
     private void DrawSpriteLines()
     {
@@ -942,6 +988,13 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             var mask = _lineSpriteMask[pixelArrayY];
             if (mask == 0)
                 continue;
+            // Where no two of the line's runs overlap, the topmost-sprite rule cannot bite and each
+            // run goes straight to its layer; the composite is only built for lines with overlap.
+            var overlapping = LineSpriteRunsOverlap(pixelArrayY, mask);
+            var ypos = FlipY ? _height - pixelArrayY - 1 : pixelArrayY;
+            var rowIndex = ypos * _width;
+            var minX = int.MaxValue;
+            var maxX = -1;
             for (int spriteIndex = SPRITE_COUNT - 1; spriteIndex >= 0; spriteIndex--)
             {
                 if ((mask & (1 << spriteIndex)) == 0)
@@ -952,33 +1005,114 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                     if (_lineSpriteRunPresent[index] == 0)
                         continue;
                     var flags = _lineSpriteFlags[index];
-                    if ((flags & LineSpriteFlagDecoded) != 0 || _lineSpriteRunColorEventCount[index] != 0)
+                    var destX = _lineSpriteX[index];
+                    int from, to;
+                    var perPixelLayers = (flags & LineSpriteFlagDecoded) != 0 || _lineSpriteRunColorEventCount[index] != 0;
+                    byte layer = 0;
+                    if (perPixelLayers)
                     {
-                        WriteSpriteRunPixels(index, pixelArrayY);
+                        if (!DecodeRunPixels(index, out from, out to))
+                            continue;
+                    }
+                    else
+                    {
+                        var rowBytes = _lineSpriteData.AsSpan(index * SPRITE_ROW_BYTES, SPRITE_ROW_BYTES);
+                        if (rowBytes[0] == 0 && rowBytes[1] == 0 && rowBytes[2] == 0)
+                            continue;
+                        var rowWidth = DecodeSpriteRowPixels(rowBytes, (flags & LineSpriteFlagDoubleWidth) != 0, (flags & LineSpriteFlagMultiColor) != 0,
+                            _lineSpriteColorFg[index], _lineSpriteColorMc0[index], _lineSpriteColorMc1[index], _lineSpriteRunLength[index], _lineSpriteRunStretch[index]);
+                        from = Math.Max(Math.Max(0, _lineSpriteClipStartX[index]), destX);
+                        to = Math.Min(Math.Min(_width, _lineSpriteClipEndX[index]), destX + rowWidth);
+                        if (from >= to)
+                            continue;
+                        layer = (flags & LineSpriteFlagPriority) != 0 ? (byte)0 : Vic2SpriteManager.RunPixelBehindForeground;
+                    }
+                    var pixels = _spriteRowPixels;
+                    var layers = _spriteRunLayers;
+                    if (!overlapping)
+                    {
+                        // Runs of set pixels bound for the same layer, straight from the row buffer.
+                        var i2 = from - destX;
+                        var end = to - destX;
+                        while (i2 < end)
+                        {
+                            if (pixels[i2] == 0) { i2++; continue; }
+                            var runStart = i2;
+                            var runLayer = perPixelLayers ? layers[i2] : layer;
+                            while (i2 < end && pixels[i2] != 0 && (!perPixelLayers || layers[i2] == runLayer)) i2++;
+                            var write = runLayer == 0 ? _setForegroundPixels : _setBackgroundPixels;
+                            write(pixels, runStart, rowIndex + destX + runStart, i2 - runStart);
+                        }
                         continue;
                     }
-                    var rowBytes = _lineSpriteData.AsSpan(index * SPRITE_ROW_BYTES, SPRITE_ROW_BYTES);
-                    if (rowBytes[0] == 0 && rowBytes[1] == 0 && rowBytes[2] == 0)
-                        continue;
-                    DecodeAndWriteSpriteRow(
-                        rowBytes,
-                        _lineSpriteX[index],
-                        pixelArrayY,
-                        (flags & LineSpriteFlagDoubleWidth) != 0,
-                        (flags & LineSpriteFlagMultiColor) != 0,
-                        (flags & LineSpriteFlagPriority) != 0,
-                        _lineSpriteColorFg[index],
-                        _lineSpriteColorMc0[index],
-                        _lineSpriteColorMc1[index],
-                        _lineSpriteClipStartX[index],
-                        _lineSpriteClipEndX[index],
-                        0,
-                        _height,
-                        _lineSpriteRunLength[index],
-                        _lineSpriteRunStretch[index]);
+                    for (var i = from - destX; i < to - destX; i++)
+                    {
+                        var color = pixels[i];
+                        if (color == 0)
+                            continue;
+                        var x = destX + i;
+                        _spriteLineColor[x] = color;
+                        _spriteLineLayer[x] = perPixelLayers ? layers[i] : layer;
+                    }
+                    if (from < minX)
+                        minX = from;
+                    if (to - 1 > maxX)
+                        maxX = to - 1;
                 }
             }
+            if (maxX < 0)
+                continue;
+            // The composited line to the layers, as runs of pixels bound for the same layer.
+            var lineColor = _spriteLineColor;
+            var lineLayer = _spriteLineLayer;
+            var x2 = minX;
+            while (x2 <= maxX)
+            {
+                if (lineColor[x2] == 0) { x2++; continue; }
+                var runStart = x2;
+                var runLayer = lineLayer[x2];
+                while (x2 <= maxX && lineColor[x2] != 0 && lineLayer[x2] == runLayer) x2++;
+                var write = runLayer == 0 ? _setForegroundPixels : _setBackgroundPixels;
+                write(lineColor, runStart, rowIndex + runStart, x2 - runStart);
+            }
+            Array.Clear(lineColor, minX, maxX - minX + 1);
         }
+    }
+
+    // Whether any two of a line's recorded runs (of different sprites, or the two runs of one)
+    // share a pixel-array x, from their x spans alone.
+    private bool LineSpriteRunsOverlap(int pixelArrayY, byte mask)
+    {
+        Span<int> starts = stackalloc int[SPRITE_COUNT * SPRITE_RUNS];
+        Span<int> ends = stackalloc int[SPRITE_COUNT * SPRITE_RUNS];
+        var n = 0;
+        for (int spriteIndex = 0; spriteIndex < SPRITE_COUNT; spriteIndex++)
+        {
+            if ((mask & (1 << spriteIndex)) == 0)
+                continue;
+            for (int run = 0; run < SPRITE_RUNS; run++)
+            {
+                var index = (pixelArrayY * SPRITE_COUNT + spriteIndex) * SPRITE_RUNS + run;
+                if (_lineSpriteRunPresent[index] == 0)
+                    continue;
+                var flags = _lineSpriteFlags[index];
+                var width = (flags & LineSpriteFlagDecoded) != 0
+                    ? _lineSpriteRunLength[index]
+                    : Math.Min(_lineSpriteRunLength[index] + _lineSpriteRunStretch[index], (flags & LineSpriteFlagDoubleWidth) != 0 ? Vic2Sprite.DEFAULT_WIDTH * 2 + SpriteRowStretchMax : Vic2Sprite.DEFAULT_WIDTH + SpriteRowStretchMax);
+                var start = Math.Max(_lineSpriteX[index], _lineSpriteClipStartX[index]);
+                var end = Math.Min(_lineSpriteX[index] + width, _lineSpriteClipEndX[index]);
+                if (start >= end)
+                    continue;
+                for (var j = 0; j < n; j++)
+                {
+                    if (start < ends[j] && starts[j] < end)
+                        return true;
+                }
+                starts[n] = start;
+                ends[n++] = end;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -988,15 +1122,15 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// Handles single/multi colour and X expansion; the caller handles Y expansion (calls twice).
     /// </summary>
     /// <summary>
-    /// Draws a run recorded pixel by pixel: one the VIC-II decoded because a mode or priority bit
-    /// changed while the sprite shifted, or one a sprite colour register changed under. Each
-    /// pixel takes its colour from the run's colours as they stand at its x and goes to the layer
-    /// its own priority bit selects.
+    /// Decodes a run recorded pixel by pixel into the row buffers: one the VIC-II decoded because
+    /// a mode or priority bit changed while the sprite shifted, or one a sprite colour register
+    /// changed under. Each pixel takes its colour from the run's colours as they stand at its x
+    /// and the layer its own priority bit selects. Returns false when nothing of it is visible;
+    /// otherwise the pixels from x <paramref name="from"/> to <paramref name="to"/> (exclusive) are
+    /// in the buffers, indexed relative to the run's x.
     /// </summary>
-    private void WriteSpriteRunPixels(int index, int destY)
+    private bool DecodeRunPixels(int index, out int from, out int to)
     {
-        if (destY < 0 || destY >= _height)
-            return;
         Span<byte> codes = stackalloc byte[RUN_PIXELS];
         int count;
         if ((_lineSpriteFlags[index] & LineSpriteFlagDecoded) != 0)
@@ -1014,10 +1148,10 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             count = Vic2SpriteManager.ExpandRunPixels(row, runFlags, _lineSpriteRunLength[index], _lineSpriteRunStretch[index], codes);
         }
         var destX = _lineSpriteX[index];
-        var from = Math.Max(Math.Max(0, _lineSpriteClipStartX[index]), destX);
-        var to = Math.Min(Math.Min(_width, _lineSpriteClipEndX[index]), destX + count);
+        from = Math.Max(Math.Max(0, _lineSpriteClipStartX[index]), destX);
+        to = Math.Min(Math.Min(_width, _lineSpriteClipEndX[index]), destX + count);
         if (from >= to)
-            return;
+            return false;
         Span<uint> colors = stackalloc uint[4];
         colors[0] = 0;
         colors[1] = _lineSpriteColorMc0[index];
@@ -1041,19 +1175,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             pixels[i] = colors[code & Vic2SpriteManager.RunPixelValueMask];
             layers[i] = (byte)(code & Vic2SpriteManager.RunPixelBehindForeground);
         }
-        var ypos = FlipY ? _height - destY - 1 : destY;
-        var rowIndex = ypos * _width;
-        var i2 = from - destX;
-        var end = to - destX;
-        while (i2 < end)
-        {
-            if (pixels[i2] == 0) { i2++; continue; }
-            var runStart = i2;
-            var layer = layers[i2];
-            while (i2 < end && pixels[i2] != 0 && layers[i2] == layer) i2++;
-            var write = layer == 0 ? _setForegroundPixels : _setBackgroundPixels;
-            write(pixels, runStart, rowIndex + destX + runStart, i2 - runStart);
-        }
+        return true;
     }
 
     // A decoded sprite row: the colour of each of its up to 48 pixels, 0 where transparent, plus
@@ -1074,6 +1196,35 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     {
         if (destY < 0 || destY > _height || destY < clipStartY || destY >= clipEndY)
             return;
+        var rowWidth = DecodeSpriteRowPixels(rowBytes, isDoubleWidth, isMultiColor, spriteForegroundPixelColor, spriteMultiColor0PixelColor, spriteMultiColor1PixelColor, shownPixels, stretchPixels);
+        var pixels = _spriteRowPixels;
+
+        // Runs of set pixels within the visible and unclipped span of the row.
+        var from = Math.Max(Math.Max(0, clipStartX), destX);
+        var to = Math.Min(Math.Min(_width, clipEndX), destX + rowWidth);
+        if (from >= to)
+            return;
+        var ypos = FlipY ? _height - destY - 1 : destY;
+        var rowIndex = ypos * _width;
+        var write = priorityOverForeground ? _setForegroundPixels : _setBackgroundPixels;
+        var i = from - destX;
+        var end = to - destX;
+        while (i < end)
+        {
+            if (pixels[i] == 0) { i++; continue; }
+            var runStart = i;
+            while (i < end && pixels[i] != 0) i++;
+            write(pixels, runStart, rowIndex + destX + runStart, i - runStart);
+        }
+    }
+
+    /// <summary>
+    /// Decodes one sprite shape row into the row buffer (the colour of each pixel, 0 where
+    /// transparent): single/multi colour, X expansion, only the first shownPixels and then
+    /// stretchPixels more repeating the last shown one. Returns the row's width in pixels.
+    /// </summary>
+    private int DecodeSpriteRowPixels(ReadOnlySpan<byte> rowBytes, bool isDoubleWidth, bool isMultiColor, uint spriteForegroundPixelColor, uint spriteMultiColor0PixelColor, uint spriteMultiColor1PixelColor, int shownPixels, int stretchPixels)
+    {
         var rowWidth = isDoubleWidth ? Vic2Sprite.DEFAULT_WIDTH * 2 : Vic2Sprite.DEFAULT_WIDTH;
         var pixels = _spriteRowPixels;
         var x = 0;
@@ -1122,24 +1273,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 pixels[shownPixels + s] = last;
             rowWidth = shownPixels + stretch;
         }
-
-        // Runs of set pixels within the visible and unclipped span of the row.
-        var from = Math.Max(Math.Max(0, clipStartX), destX);
-        var to = Math.Min(Math.Min(_width, clipEndX), destX + rowWidth);
-        if (from >= to)
-            return;
-        var ypos = FlipY ? _height - destY - 1 : destY;
-        var rowIndex = ypos * _width;
-        var write = priorityOverForeground ? _setForegroundPixels : _setBackgroundPixels;
-        var i = from - destX;
-        var end = to - destX;
-        while (i < end)
-        {
-            if (pixels[i] == 0) { i++; continue; }
-            var runStart = i;
-            while (i < end && pixels[i] != 0) i++;
-            write(pixels, runStart, rowIndex + destX + runStart, i - runStart);
-        }
+        return rowWidth;
     }
 
     private void InitBitmaps(C64 c64)

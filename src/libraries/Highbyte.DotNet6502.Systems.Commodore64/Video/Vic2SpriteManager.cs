@@ -33,6 +33,15 @@ public class Vic2SpriteManager : IVic2SpriteManager
     public bool SpriteToBackgroundCollisionIRQBlock { get; set; }
 
     public bool PerLineCollisionEnabled { get; set; }
+    public bool BackgroundCollisionsFromRenderer { get; set; }
+
+    public void AddSpriteToBackgroundCollisions(byte mask)
+    {
+        if ((SpriteToBackgroundCollisionStore | mask) == SpriteToBackgroundCollisionStore)
+            return;
+        SpriteToBackgroundCollisionStore |= mask;
+        RaiseCollisionIRQsIfNeeded();
+    }
 
     // Single per-line sprite trigger-input snapshot, shared by per-line rendering and per-line
     // collision (captured once per raster line in AdvanceRaster -> CaptureLineSpriteSnapshot).
@@ -463,8 +472,10 @@ public class Vic2SpriteManager : IVic2SpriteManager
     /// </summary>
     private void RaiseCollisionIRQsIfNeeded()
     {
+        // The interrupt flag is latched whether or not the source is enabled in $D01A (the mask
+        // only gates the CPU's interrupt line), so a program can poll $D019 for collisions; reading
+        // the collision register does not clear the flag, only a write to $D019 does.
         if (SpriteToSpriteCollisionStore != 0 && !SpriteToSpriteCollisionIRQBlock
-            && Vic2.Vic2IRQ.IsEnabled(IRQSource.SpriteToSpriteCollision)
             && !Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToSpriteCollision))
         {
             Vic2.Vic2IRQ.Trigger(IRQSource.SpriteToSpriteCollision, Vic2.C64.CPU);
@@ -472,7 +483,6 @@ public class Vic2SpriteManager : IVic2SpriteManager
         }
 
         if (SpriteToBackgroundCollisionStore != 0 && !SpriteToBackgroundCollisionIRQBlock
-            && Vic2.Vic2IRQ.IsEnabled(IRQSource.SpriteToBackgroundCollision)
             && !Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToBackgroundCollision))
         {
             Vic2.Vic2IRQ.Trigger(IRQSource.SpriteToBackgroundCollision, Vic2.C64.CPU);
@@ -561,9 +571,13 @@ public class Vic2SpriteManager : IVic2SpriteManager
 
         var collisionAddedThisLine = false;
 
-        // Sprite-to-background, per active sprite on this line.
+        // Sprite-to-background, per active sprite on this line, from the sprite's shape against the
+        // character data under its start-of-line position; a render provider that resolves the
+        // line's pixels supplies these collisions exactly instead (AddSpriteToBackgroundCollisions).
         for (int i = 0; i < NUMBERS_OF_SPRITES; i++)
         {
+            if (BackgroundCollisionsFromRenderer)
+                break;
             if ((activeMask & (1 << i)) == 0)
                 continue;
             // Once a sprite has flagged a background collision this frame, no need to re-check it

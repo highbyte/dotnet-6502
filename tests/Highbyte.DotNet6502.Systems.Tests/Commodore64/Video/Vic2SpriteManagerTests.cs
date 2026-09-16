@@ -52,8 +52,8 @@ public class Vic2SpriteManagerTests
         var c64 = BuildC64();
 
         // A game using raster splits has the raster IRQ enabled; enable the sprite-to-sprite
-        // collision IRQ too ($D01A bit 0 = raster-compare, bit 1 = sprite-to-sprite collision).
-        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0011);
+        // collision IRQ too ($D01A bit 0 = raster-compare, bit 2 = sprite-to-sprite collision).
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0101);   // raster compare and sprite-to-sprite collision
 
         CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192);
         CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 20, y: 15, spritePointer: 193);
@@ -138,7 +138,7 @@ public class Vic2SpriteManagerTests
     public void PerLine_sprite_collision_raises_collision_irq_and_not_raster_irq()
     {
         var c64 = BuildC64(perLineSprites: true);
-        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0011);
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0101);   // raster compare and sprite-to-sprite collision
 
         CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 10, y: 10, spritePointer: 192);
         CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 20, y: 15, spritePointer: 193);
@@ -157,7 +157,7 @@ public class Vic2SpriteManagerTests
         // at end-of-frame. Drive the raster lines directly and assert the IRQ becomes active WITHOUT
         // calling SetCollitionDetectionStatesAndIRQ.
         var c64 = BuildC64(perLineSprites: true);
-        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0010); // enable sprite-to-sprite collision IRQ only
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0b0000_0100); // enable sprite-to-sprite collision IRQ only (bit 2, IMMC)
 
         CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 20, y: 60, spritePointer: 192);
         CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 25, y: 60, spritePointer: 193);
@@ -315,6 +315,24 @@ public class Vic2SpriteManagerTests
         RunFrameWithWriteAt(c64, line: 49 + 1 + 6, cycle: 45, () => c64.Mem.Write(Vic2Addr.SPRITE_0_X, newXLow));
 
         Assert.Equal(expectedCollision, c64.Vic2.SpriteManager.SpriteToSpriteCollisionStore);
+    }
+
+    [Fact]
+    public void Collision_latches_the_interrupt_flag_without_the_source_enabled_and_reading_the_register_keeps_it()
+    {
+        // VICE's spritecollclear test (bug 2135): the flag in $D019 is set whether or not $D01A
+        // enables the source, and reading $D01E clears the collision bits but not the flag.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 0, x: 72, y: 49, spritePointer: 0xF8);
+        CreateVisibleSolidSprite(c64, spriteNumber: 1, x: 80, y: 49, spritePointer: 0xFC);
+
+        DrivePerLineCollisionsForFrame(c64);
+
+        Assert.False(c64.Vic2.Vic2IRQ.IsEnabled(IRQSource.SpriteToSpriteCollision));
+        Assert.True(c64.Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToSpriteCollision));
+        Assert.Equal(0x03, c64.Mem[Vic2Addr.SPRITE_TO_SPRITE_COLLISION]);
+        Assert.Equal(0x00, c64.Mem[Vic2Addr.SPRITE_TO_SPRITE_COLLISION]);   // cleared by the read
+        Assert.True(c64.Vic2.Vic2IRQ.IsTriggered(IRQSource.SpriteToSpriteCollision));
     }
 
     // --- Register changes while a sprite shifts (VICE's spritesplit suite) ---
