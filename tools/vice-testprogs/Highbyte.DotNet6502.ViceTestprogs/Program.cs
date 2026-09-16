@@ -74,7 +74,8 @@ public static class Program
                 var name = Path.GetFileNameWithoutExtension(prg);
                 if (name.EndsWith("_ntscold", StringComparison.Ordinal))
                     continue;   // the 6567R56A is not modelled
-                var model = name.EndsWith("_ntsc", StringComparison.Ordinal) ? "NTSC" : "PAL";
+                // The NTSC build of a test is named with an _ntsc or a -ntsc suffix, by suite.
+                var model = name.EndsWith("_ntsc", StringComparison.Ordinal) || name.EndsWith("-ntsc", StringComparison.Ordinal) ? "NTSC" : "PAL";
                 if (options.Model != "both" && !string.Equals(options.Model, model, StringComparison.OrdinalIgnoreCase))
                     continue;
                 if (options.Filter != null && !name.Contains(options.Filter, StringComparison.OrdinalIgnoreCase))
@@ -134,27 +135,16 @@ public static class Program
         if (Environment.GetEnvironmentVariable("VICETEST_TRACE") is string traceLines)
             TraceRegisterWrites(c64, traceLines.Split(',').Select(int.Parse).ToHashSet(), () => frame);
 
-        // Run until the exit code is written (the picture is then the frame completed before it)
-        // or the frame budget is spent.
-        var previous = Composite(rasterizer);
+        // Run until the exit code is written (the picture is then the frame the write fell in, run
+        // to its end, as VICE's exit screenshot shows that frame) or the frame budget is spent.
         var runFrames = 0;
-        uint[] captured;
         while (true)
         {
             c64.ExecuteOneFrame(); frame++; runFrames++;
-            var current = Composite(rasterizer);
-            if (exitCode != null)
-            {
-                captured = previous;
+            if (exitCode != null || runFrames >= options.MaxFrames)
                 break;
-            }
-            if (runFrames >= options.MaxFrames)
-            {
-                captured = current;
-                break;
-            }
-            previous = current;
         }
+        var captured = Composite(rasterizer);
 
         var ourWindow = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false).Screen.Start;
         var ourPalette = Enumerable.Range(0, 16).Select(i => ColorMaps.GetSystemColor((byte)i, c64.ColorMapName)).Select(c => ((byte)c.R, (byte)c.G, (byte)c.B)).ToArray();

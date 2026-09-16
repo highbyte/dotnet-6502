@@ -51,7 +51,9 @@ from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite w
 low three cycles ahead. A CPU read that falls inside such a window waits until the window ends;
 writes do not wait. Bad lines follow YSCROLL and the DEN bit as the VIC-II saw it during raster
 line $30: clearing DEN before that line switches the display, and its bad lines, off for the whole
-frame, clearing it later has no effect until the next frame. Sprites follow the chip's data
+frame, clearing it later has no effect until the next frame, and setting it partway through line
+$30 makes bad lines from the cycle after the write on (a write in the line's last cycle still
+counts, one in the next line's first cycle does not). Sprites follow the chip's data
 counters: the compare in cycles 55 and 56 of the line an enabled sprite's Y register names
 switches its DMA on (on the 6567R8's 65-cycle line, cycles 56 and 57) and the display follows in cycle 58 (59), the row it fetches for each line comes
 from a counter that takes the fetch's end position (three on) in cycle 16 of every line where the
@@ -104,11 +106,15 @@ into idle state until the next bad line, and in idle state the display area show
 `$3FFF` (`$39FF` with ECM) in black over the background colour. The VIC-II keeps that state per
 line for the legacy pixel generator and the bus stalls; the sequencer pixel generator runs the
 chip's counters cycle by cycle after the VIC-II article's rules: the bad line condition (raster
-line $30-$F7, its low three bits equal to YSCROLL as it is in that cycle, DEN seen during line $30)
-is evaluated every cycle, cycle 14 loads the video counter and resets the row counter on a
-condition, a condition in any cycle puts the sequencer in display state and one in cycles 12-54
-starts the video matrix fetches, whose first three read $FF while the CPU still holds the bus, and
-cycle 58 ends a row after its eighth line unless a condition keeps the display going. That is what
+line $30-$F7, its low three bits equal to YSCROLL as it is in that cycle, DEN seen in a cycle of
+line $30 up to the one the write lands in) is evaluated every cycle, cycle 14 loads the video
+counter and resets the row counter on a condition, a condition in any cycle puts the sequencer in
+display state from the cycle after it (the g-access of the cycle itself is still an idle one, and
+reads `$38FF` rather than `$3FFF`, as the 6569 and 6567R8 do) and one in cycles 12-54 starts the
+video matrix fetches, whose first three read $FF while the CPU still holds the bus, and cycle 58
+ends a row after its eighth line unless a condition keeps the display going. A DEN bit set
+partway through line $30 therefore decides between a normal row, a row whose counter reset was
+missed and a row shifted by a column, by the cycle the write lands in. That is what
 makes the DMA delay (a bad line condition created in the middle of a line shifts the screen right
 by a column per cycle), linecrunch, doubled rows and FLD come out as on hardware. Running every
 cycle of every line makes an opened border, where the whole line is output, about twice the work

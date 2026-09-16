@@ -107,7 +107,7 @@ dotnet run --project tools/vice-testprogs/Highbyte.DotNet6502.ViceTestprogs -c R
   --tests /path/to/testprogs/VICII --suite border,dentest --roms /path/to/c64-roms --out /tmp/vice-results --model both
 ```
 
-`--suite` names the directories to run, `--filter` selects programs by name, `--model` picks the PAL or NTSC machine (`_ntsc.prg` variants are run on the NTSC machine, plain ones on the PAL machine), `--frames` caps the run for programs that never write the exit code. Set `VICETEST_TRACE` to a comma separated list of raster lines to log the VIC-II register writes on those lines with their cycle, the quickest way to see what a program does on the line where its picture differs. `--measure <png>` prints the reference picture's layout, for adding a suite whose window differs.
+`--suite` names the directories to run, `--filter` selects programs by name, `--model` picks the PAL or NTSC machine (`_ntsc.prg` and `-ntsc.prg` variants are run on the NTSC machine, plain ones on the PAL machine), `--frames` caps the run for programs that never write the exit code. The picture compared is the frame in which the program writes its exit code, run to its end, which is the frame VICE's exit screenshot shows. Set `VICETEST_TRACE` to a comma separated list of raster lines to log the VIC-II register writes on those lines with their cycle, the quickest way to see what a program does on the line where its picture differs. `--measure <png>` prints the reference picture's layout, for adding a suite whose window differs.
 
 ### WASM AOT publish smoke tests
 
