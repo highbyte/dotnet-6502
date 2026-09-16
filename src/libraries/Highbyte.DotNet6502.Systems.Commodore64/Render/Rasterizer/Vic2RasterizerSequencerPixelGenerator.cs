@@ -47,6 +47,9 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private int _rc;              // row counter, 3 bits
     private int _vmli;            // video matrix line index
     private bool _displayState;   // display state, else idle state
+    // Whether DEN was seen set in a cycle of raster line $30 this frame, kept by the cycle walk
+    // from the journaled $D011; the core's latch seeds it for a walk that starts after that line.
+    private bool _displayEnabledThisFrame;
     private int _baLowSince = -1; // the cycle BA went low for this line's c-accesses, -1 if it has not
     private const int BadLineFirstRasterLine = 0x30;
     private const int BadLineLastRasterLine = 0xF7;
@@ -334,6 +337,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     {
         _c64 = c64;
         _perLineSprites = perLineSprites;
+        _displayEnabledThisFrame = c64.Vic2.DisplayEnabledThisFrame;
 
         // Use supplied pixel arrays or init new ones
         var width = c64.Vic2.Vic2Screen.VisibleWidth;
@@ -1635,8 +1639,19 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     {
         var chipCycle = cycle + 1;
         var previousSlot = fetchSlot == 0 ? 2 : fetchSlot - 1;   // the entry fetched the cycle before: (cycle - 1) mod 3
+        // DEN decides the frame's bad lines by being set in any cycle of line $30 (3.5), taken from
+        // this cycle's journaled $D011 rather than the live register, so a DEN set later in the line
+        // does not make the cycles before it bad ones (VICE's dmadelay test3). A write lands in the
+        // cycle after it, so the value at the next line's first cycle is line $30's last (dentest).
+        if (rasterLine == BadLineFirstRasterLine || (rasterLine == BadLineFirstRasterLine + 1 && cycle == 0))
+        {
+            if (cycle == 0 && rasterLine == BadLineFirstRasterLine)
+                _displayEnabledThisFrame = false;
+            if ((_d011 & 0x10) != 0)
+                _displayEnabledThisFrame = true;
+        }
         var badLineCondition = rasterLine >= BadLineFirstRasterLine && rasterLine <= BadLineLastRasterLine
-            && (rasterLine & 7) == (_d011 & 7) && _c64.Vic2.DisplayEnabledThisFrame;
+            && (rasterLine & 7) == (_d011 & 7) && _displayEnabledThisFrame;
         if (chipCycle == 14)
         {
             _vc = _vcBase;                                  // rule 2
@@ -1673,7 +1688,10 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             {
                 _fetchedMatrix[fetchSlot] = 0;
                 _fetchedColor[fetchSlot] = 0;
-                _fetchedData[fetchSlot] = _c64.Vic2.ReadMemory((ushort)((_d011 & 0x40) != 0 ? 0x39FF : 0x3FFF));
+                // The idle byte, from $38FF in the cycle a bad line condition arises mid-line (the
+                // 6569 and 6567R8 in the hardware table of VICE's vsp-tester readme).
+                var idleAddress = badLineCondition ? 0x38FF : (_d011 & 0x40) != 0 ? 0x39FF : 0x3FFF;
+                _fetchedData[fetchSlot] = _c64.Vic2.ReadMemory((ushort)idleAddress);
             }
         }
         else

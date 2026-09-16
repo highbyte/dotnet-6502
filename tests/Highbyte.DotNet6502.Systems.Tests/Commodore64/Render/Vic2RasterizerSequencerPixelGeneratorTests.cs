@@ -980,6 +980,169 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         Assert.Equal(white, Fg(6, 0));      // column 6: code 4, solid again
     }
 
+    [Theory]
+    [InlineData(12, 1)]   // DEN set in cycle 13, seen in 14: RC reset, a normal row from VC 0
+    [InlineData(13, 3)]   // seen in 15, after the VC update: RC stays 7, 40 g-accesses, VCBASE 40
+    [InlineData(14, 2)]   // seen in 16, whose own g-access is still idle: 39 g-accesses, VCBASE 39
+    public void Display_enabled_mid_line_48_starts_bad_lines_from_the_cycle_after_the_write(int writeCycle, int expectedFirstCode)
+    {
+        // VICE's dmadelay test3: DEN off through line 48 until a write inside it. Whether the
+        // cycle-14 RC reset saw the condition decides whether the row shown from line 51 (the
+        // next bad line, YSCROLL 3) restarts at VC 0 or continues from the g-accesses line 48
+        // made in display state with RC 7 (rule 5 then moves VC into VCBASE).
+        var c64 = BuildC64();
+        SetupScreenWithMarkerCodes(c64);
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        RenderDisplayedFrame(c64, generator);   // leaves RC at 7, as a frame of rows does
+        c64.Mem.Write(0xD011, 0x08);   // DEN off, YSCROLL 0
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            if (rasterLine == 48)
+            {
+                vic2.AdvanceRaster((ulong)writeCycle);
+                c64.Mem.Write(0xD011, 0x18);   // DEN on, YSCROLL 0: the bad line condition
+                vic2.AdvanceRaster(cyclesPerLine - (ulong)writeCycle);
+            }
+            else
+            {
+                if (rasterLine == 49)
+                    c64.Mem.Write(0xD011, 0x1B);   // YSCROLL 3: line 51 is the next bad line
+                vic2.AdvanceRaster(cyclesPerLine);
+            }
+            generator.OnAfterInstruction();
+        }
+
+        Assert.Equal(expectedFirstCode, FirstCellCodeOnLine(c64, foreground, 51));
+    }
+
+    [Theory]
+    [InlineData(62, true)]    // the write in line 48's last cycle lands in line 49's first: still counted
+    [InlineData(63, false)]   // a write in line 49's first cycle is too late: no bad line this frame
+    public void Display_enabled_at_the_edge_of_line_48_counts_only_up_to_its_last_cycle(int writeCycleFromLine48, bool expectDisplay)
+    {
+        // VICE's dentest den01-49-1 and den01-49-2.
+        var c64 = BuildC64();
+        SetupScreenWithMarkerCodes(c64);
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        RenderDisplayedFrame(c64, generator);
+        c64.Mem.Write(0xD011, 0x0B);   // DEN off, YSCROLL 3
+        var writeLine = 48 + writeCycleFromLine48 / (int)cyclesPerLine;
+        var writeCycle = (ulong)(writeCycleFromLine48 % (int)cyclesPerLine);
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            if (rasterLine == writeLine)
+            {
+                vic2.AdvanceRaster(writeCycle);
+                c64.Mem.Write(0xD011, 0x1B);
+                vic2.AdvanceRaster(cyclesPerLine - writeCycle);
+            }
+            else
+            {
+                vic2.AdvanceRaster(cyclesPerLine);
+            }
+            generator.OnAfterInstruction();
+        }
+
+        Assert.Equal(expectDisplay ? 1 : 0, FirstCellCodeOnLine(c64, foreground, 51));
+    }
+
+    // One whole frame with the display on, so the counters end as they do after a displayed frame.
+    private static void RenderDisplayedFrame(C64 c64, Vic2RasterizerSequencerPixelGenerator generator)
+    {
+        var vic2 = c64.Vic2;
+        c64.Mem.Write(0xD011, 0x1B);
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
+            generator.OnAfterInstruction();
+        }
+    }
+
+    [Fact]
+    public void The_g_access_of_the_cycle_a_dma_delay_starts_in_reads_38FF()
+    {
+        // The idle byte of the cycle in which a bad line condition arises mid-line comes from $38FF
+        // on the 6569 and 6567R8 (VICE's vsp-tester: its readme's hardware table), the cycles before
+        // it from $3FFF as usual, and the c-accesses start with the three $FF cells.
+        var c64 = BuildC64();
+        SetupScreenWithMarkerCodes(c64);
+        for (var i = 0; i < 8; i++)
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 255 * 8 + i)] = 0;   // code $FF blank, so only the idle bytes show
+        c64.Vic2.Vic2Mem[0x38FF] = 0xFF;
+        c64.Vic2.Vic2Mem[0x3FFF] = 0x00;
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        RenderDisplayedFrame(c64, generator);
+        // Rows 0 and 1 display (bad lines 51 and 59); YSCROLL 5 written as line 66 begins keeps 67
+        // from being row 2's bad line, so line 68 is idle until the write in it.
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            if (rasterLine == 66)
+                c64.Mem.Write(0xD011, 0x1D);
+            if (rasterLine == 68)
+            {
+                vic2.AdvanceRaster(19);
+                c64.Mem.Write(0xD011, 0x1C);   // YSCROLL 4 in cycle 20 (from 1), seen by the chip in 21
+                vic2.AdvanceRaster(cyclesPerLine - 19);
+            }
+            else
+            {
+                vic2.AdvanceRaster(cyclesPerLine);
+            }
+            generator.OnAfterInstruction();
+        }
+
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 68 - 51;
+        var x0 = normalizedLayout.Screen.Start.X;
+        uint Fg(int column, int pixel) => foreground[y * width + x0 + column * 8 + pixel];
+        Assert.Equal(0u, Fg(4, 0));                 // cycle 20's g-access: $3FFF, blank
+        Assert.NotEqual(0u, Fg(5, 0));              // cycle 21's, the condition's cycle: $38FF, all set
+        Assert.Equal(0u, Fg(5, 0) & 0x00FFFFFF);    // in black
+        Assert.NotEqual(0u, Fg(5, 7));
+        Assert.Equal(0u, Fg(6, 0));                 // the first $FF cell, a blank glyph
+    }
+
+    // A text screen whose cell 0 is code 1 (solid), cell 39 code 2 (left half) and cell 40 code
+    // 3 (right half), so the code the row shown on a line starts with tells where VC started.
+    private static void SetupScreenWithMarkerCodes(C64 c64)
+    {
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        for (var i = 0; i < 8; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 1 * 8 + i)] = 0xFF;
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 2 * 8 + i)] = 0xF0;
+            c64.Vic2.Vic2Mem[(ushort)(0x2000 + 3 * 8 + i)] = 0x0F;
+        }
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 0;
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), 1);
+        }
+        c64.Vic2.Vic2Mem[0x0400] = 1;
+        c64.Vic2.Vic2Mem[0x0400 + 39] = 2;
+        c64.Vic2.Vic2Mem[0x0400 + 40] = 3;
+    }
+
+    // The marker code cell 0 shows on a raster line: 1 solid, 2 left half, 3 right half, 0 blank.
+    private static int FirstCellCodeOnLine(C64 c64, uint[] foreground, int rasterLine)
+    {
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + rasterLine - 51;
+        var x0 = normalizedLayout.Screen.Start.X;
+        var left = foreground[y * width + x0] != 0;
+        var right = foreground[y * width + x0 + 7] != 0;
+        return left && right ? 1 : left ? 2 : right ? 3 : 0;
+    }
+
     [Fact]
     public void Multicolour_written_mid_line_takes_effect_four_pixels_into_the_next_cycle()
     {
