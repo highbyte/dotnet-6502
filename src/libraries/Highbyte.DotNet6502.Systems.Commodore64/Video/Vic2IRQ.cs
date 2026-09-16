@@ -102,11 +102,16 @@ public class Vic2IRQ
 /// The enum values represents the bit position of the flag in the register.
 /// Ref: https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt#L1202
 /// </summary>
+/// <summary>
+/// The VIC-II interrupt sources, valued by their bit in the interrupt and interrupt-enable
+/// registers ($D019 and $D01A): raster compare (IRST), sprite-to-background collision (IMBC),
+/// sprite-to-sprite collision (IMMC) and light pen (ILP); bit 7 is the interrupt output.
+/// </summary>
 public enum IRQSource
 {
     RasterCompare = 0,
-    SpriteToSpriteCollision = 1,
-    SpriteToBackgroundCollision = 2,
+    SpriteToBackgroundCollision = 1,
+    SpriteToSpriteCollision = 2,
     LightPenTrigger = 3,
     Any = 7
 }

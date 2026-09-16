@@ -78,8 +78,14 @@ change while a sprite shifts takes effect from that pixel: setting X-expand repe
 shown and clearing it fetches the next at once, switching multicolour on or off realigns the pixel
 pairs on the shape's odd bits (the sprite split effect), a sprite can be in front of the graphics on
 one part of a line and behind them on the rest, and a sprite colour written mid-line changes from
-that pixel like the background colours do. Sprite-to-sprite collisions come from these runs and are latched as the line ends;
-sprite-to-background collisions still use the sprite's position at the start of the line. The
+that pixel like the background colours do. Sprite-to-sprite collisions come from these runs and are latched as the line ends, and so are
+sprite-to-background collisions, from the runs' opaque pixels against the foreground pixels the
+graphics sequencer output on the line (a set bit, or a 10/11 pair in multicolour; nothing while
+the vertical border flip-flop is set). The collision interrupt flags latch whether or not the
+source is enabled, and reading a collision register clears the collisions, not the flag. Where
+sprites overlap, the lowest-numbered one with an opaque pixel is shown and its own priority bit
+alone decides against the foreground graphics, so a sprite in front of the graphics does not show
+through a higher-priority sprite that is behind them. The
 SpriteX sample in the Avalonia and browser menus shows each of these cases.
 
 Which character row a raster line shows, and which of its eight lines, is not arithmetic on the
