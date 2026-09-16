@@ -467,6 +467,43 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
     }
 
     [Fact]
+    public void Sprite_colour_written_while_the_sprite_shifts_changes_from_that_pixel()
+    {
+        // VICE's spritesplit ss-hires-color: the sprite colour registers are read at every pixel,
+        // through the same delayed colour path as the background colours, so a write while a
+        // sprite is output splits it: the old colour up to the change, the new one from there.
+        var c64 = BuildC64();
+        c64.Mem.Write(0xD011, 0x1B);   // display on: the border flip-flop opens, so sprites show
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, 0x18);
+        CreateVisibleSprite(c64, spriteNumber: 0, doubleWidth: false, doubleHeight: false, Enumerable.Repeat((byte)0xFF, 63).ToArray(), spritePointer: 192, x: 200);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_0_Y, 60);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_COLOR, 1);
+        c64.Vic2.SpriteManager.PerLineCollisionEnabled = true;
+        var (generator, _, foreground) = CreateGenerator(c64, perLineSprites: true);
+        var line = 70 - c64.Vic2.Vic2Model.FirstVisibleRasterLine;   // raster line 70, the sprite's tenth row
+        const int writeCycle = 38;
+        RenderFrameWithMidLineWrite(c64, generator, line, writeCycle, () => c64.Mem.Write(Vic2Addr.SPRITE_0_COLOR, 2));
+        generator.OnEndFrame();
+
+        var width = c64.Screen.VisibleWidth;
+        var startX = c64.Vic2.Vic2Screen.VisibleLeftBorderWidth + 200 - 24;
+        // The new colour shows from the pixel the colour path's delay puts after the write's cycle,
+        // the same point a background colour change would show at.
+        var changeX = (writeCycle + 1) * 8 + c64.Vic2.Vic2Model.ColorChangePixelDelay - c64.Vic2.Vic2Screen.VisibleAreaStartX;
+        Assert.InRange(changeX, startX + 1, startX + 23);
+        uint Pixel(int y, int x) => foreground[y * width + x] & 0xFFFFFF;
+        var white = Rgb(c64, 1) & 0xFFFFFF;
+        var red = Rgb(c64, 2) & 0xFFFFFF;
+        Assert.Equal(white, Pixel(line, startX));
+        Assert.Equal(white, Pixel(line, changeX - 1));
+        Assert.Equal(red, Pixel(line, changeX));
+        Assert.Equal(red, Pixel(line, startX + 23));
+        Assert.Equal(white, Pixel(line - 1, startX + 23));   // the line before: the old colour throughout
+        Assert.Equal(red, Pixel(line + 1, startX));          // the line after: the new one
+    }
+
+    [Fact]
     public void DrawText_keeps_a_character_rows_screen_codes_from_its_first_line_as_the_vic2_latches_them()
     {
         // The VIC-II fetches a character row's screen codes and colour nibbles once, on the row's

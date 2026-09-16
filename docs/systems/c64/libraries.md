@@ -73,7 +73,12 @@ being fetched (cycles 58 and 59 for sprite 0, two cycles on per sprite, so X 355
 6569); one still shifting when its fetch begins repeats its last pixel for seven pixels and stops;
 and the fetch loads the next row, which can start on the same line, so a sprite whose X lies beyond
 its fetch shows each row a line higher. An X the beam never reaches (504 to 511 on the 6569) is
-never shown. Sprite-to-sprite collisions come from these runs and are latched as the line ends;
+never shown. The sprite's multicolour, X-expand and priority bits are read at every pixel too, so a
+change while a sprite shifts takes effect from that pixel: setting X-expand repeats the pixel being
+shown and clearing it fetches the next at once, switching multicolour on or off realigns the pixel
+pairs on the shape's odd bits (the sprite split effect), a sprite can be in front of the graphics on
+one part of a line and behind them on the rest, and a sprite colour written mid-line changes from
+that pixel like the background colours do. Sprite-to-sprite collisions come from these runs and are latched as the line ends;
 sprite-to-background collisions still use the sprite's position at the start of the line. The
 SpriteX sample in the Avalonia and browser menus shows each of these cases.
 

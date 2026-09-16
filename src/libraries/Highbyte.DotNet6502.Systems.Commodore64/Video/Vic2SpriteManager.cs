@@ -56,12 +56,30 @@ public class Vic2SpriteManager : IVic2SpriteManager
     // more repeat the last shown one. A sprite can be output twice on a line: once before its
     // fetch and once, with the row the fetch loaded, after it.
     public const int MaxSpriteRunsPerLine = 2;
+    /// <summary>
+    /// The most pixels one run outputs: 48 when X-expanded, plus the seven a sprite still shifting
+    /// repeats while its own fetch halts it.
+    /// </summary>
+    public const int RunPixelCapacity = 56;
+    // Per run: the X-expand, multicolour and priority bits in force when it started, and whether
+    // it is stored decoded (one of those bits changed while the sprite was shifting, so the run
+    // is kept pixel by pixel: bits 0-1 the pixel value, 0 transparent, 1 the first shared colour,
+    // 2 the sprite's colour, 3 the second shared colour; bit 2 set where the sprite is behind the
+    // foreground graphics).
+    public const byte RunFlagXExpand = 1;
+    public const byte RunFlagMultiColor = 2;
+    public const byte RunFlagBehindForeground = 4;
+    public const byte RunFlagDecoded = 8;
+    public const byte RunPixelValueMask = 3;
+    public const byte RunPixelBehindForeground = 4;
     private readonly byte[] _lineSpriteRunMasks = new byte[MAX_RASTER_LINES];
     private readonly byte[] _lineSpriteRunCount = new byte[MAX_RASTER_LINES * NUMBERS_OF_SPRITES];
     private readonly short[] _lineSpriteRunStart = new short[MAX_RASTER_LINES * NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine];
     private readonly uint[] _lineSpriteRunData = new uint[MAX_RASTER_LINES * NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine];
     private readonly byte[] _lineSpriteRunLength = new byte[MAX_RASTER_LINES * NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine];
     private readonly byte[] _lineSpriteRunStretch = new byte[MAX_RASTER_LINES * NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine];
+    private readonly byte[] _lineSpriteRunFlags = new byte[MAX_RASTER_LINES * NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine];
+    private readonly byte[] _lineSpriteRunPixels = new byte[MAX_RASTER_LINES * NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine * RunPixelCapacity];
     private readonly byte[] _lineSpriteXExpand = new byte[MAX_RASTER_LINES];
     private readonly byte[] _lineSpriteMultiColor = new byte[MAX_RASTER_LINES];
     public byte LineSpriteRunMask(int rasterLine) => _lineSpriteRunMasks[rasterLine];
@@ -70,18 +88,154 @@ public class Vic2SpriteManager : IVic2SpriteManager
     public uint LineSpriteRunData(int rasterLine, int sprite, int run) => _lineSpriteRunData[(rasterLine * NUMBERS_OF_SPRITES + sprite) * MaxSpriteRunsPerLine + run];
     public int LineSpriteRunLength(int rasterLine, int sprite, int run) => _lineSpriteRunLength[(rasterLine * NUMBERS_OF_SPRITES + sprite) * MaxSpriteRunsPerLine + run];
     public int LineSpriteRunStretch(int rasterLine, int sprite, int run) => _lineSpriteRunStretch[(rasterLine * NUMBERS_OF_SPRITES + sprite) * MaxSpriteRunsPerLine + run];
+    public byte LineSpriteRunFlags(int rasterLine, int sprite, int run) => _lineSpriteRunFlags[(rasterLine * NUMBERS_OF_SPRITES + sprite) * MaxSpriteRunsPerLine + run];
+    public ReadOnlySpan<byte> LineSpriteRunPixels(int rasterLine, int sprite, int run)
+    {
+        var index = (rasterLine * NUMBERS_OF_SPRITES + sprite) * MaxSpriteRunsPerLine + run;
+        return _lineSpriteRunPixels.AsSpan(index * RunPixelCapacity, _lineSpriteRunLength[index]);
+    }
     public byte LineSpriteXExpand(int rasterLine) => _lineSpriteXExpand[rasterLine];
     public byte LineSpriteMultiColor(int rasterLine) => _lineSpriteMultiColor[rasterLine];
 
-    public void AddLineSpriteRun(int rasterLine, int sprite, int run, int startPixel, uint rowBits, int length, int stretch)
+    public void AddLineSpriteRun(int rasterLine, int sprite, int run, int startPixel, uint rowBits, int length, int stretch, byte flags)
     {
         var index = (rasterLine * NUMBERS_OF_SPRITES + sprite) * MaxSpriteRunsPerLine + run;
         _lineSpriteRunStart[index] = (short)startPixel;
         _lineSpriteRunData[index] = rowBits;
         _lineSpriteRunLength[index] = (byte)length;
         _lineSpriteRunStretch[index] = (byte)stretch;
+        _lineSpriteRunFlags[index] = (byte)(flags & ~RunFlagDecoded);
         _lineSpriteRunCount[rasterLine * NUMBERS_OF_SPRITES + sprite] = (byte)(run + 1);
         _lineSpriteRunMasks[rasterLine] |= (byte)(1 << sprite);
+    }
+
+    public void AddLineSpriteDecodedRun(int rasterLine, int sprite, int run, int startPixel, ReadOnlySpan<byte> pixels)
+    {
+        var index = (rasterLine * NUMBERS_OF_SPRITES + sprite) * MaxSpriteRunsPerLine + run;
+        var length = Math.Min(pixels.Length, RunPixelCapacity);
+        pixels.Slice(0, length).CopyTo(_lineSpriteRunPixels.AsSpan(index * RunPixelCapacity, length));
+        _lineSpriteRunStart[index] = (short)startPixel;
+        _lineSpriteRunData[index] = 0;
+        _lineSpriteRunLength[index] = (byte)length;
+        _lineSpriteRunStretch[index] = 0;
+        _lineSpriteRunFlags[index] = RunFlagDecoded;
+        _lineSpriteRunCount[rasterLine * NUMBERS_OF_SPRITES + sprite] = (byte)(run + 1);
+        _lineSpriteRunMasks[rasterLine] |= (byte)(1 << sprite);
+    }
+
+    // The kinds of register change a run's decoding follows, and the bit's new value.
+    public const byte RunEventMultiColor = 0;
+    public const byte RunEventXExpand = 1;
+    public const byte RunEventPriority = 2;
+    public const byte RunEventKindMask = 3;
+    public const byte RunEventBitSet = 4;
+
+    /// <summary>
+    /// The pixels a sprite outputs from an X match when its multicolour, X-expand or priority bit
+    /// changes while it shifts, followed pixel by pixel the way the chip's sprite data sequencer
+    /// works (as the VICE project's cycle-based VIC-II establishes it, verified by its spritesplit
+    /// test programs): the data register shifts one bit per pixel, or per two pixels when
+    /// X-expanded, under an expansion flip-flop that toggles every pixel while the bit is set and
+    /// is held set while it is clear, so setting the bit repeats the pixel being shown and clearing
+    /// it fetches the next at once. In multicolour a pair is taken from the register's top two bits
+    /// every other pixel under a second flip-flop; changing the multicolour bit clears that
+    /// flip-flop, which delays the next pair by a pixel and so realigns the pairs on the register's
+    /// odd bits. The priority bit is read at every pixel. From <paramref name="haltPixel"/> the
+    /// sprite's own fetch halts the shifting and the last pixel repeats, until
+    /// <paramref name="stopPixel"/>, where the sprite is switched off. A sprite whose register and
+    /// last pixel are both empty stops at once. The events are given in pixel order, each seen
+    /// from its pixel on. Returns the pixel count written to <paramref name="pixels"/>.
+    /// </summary>
+    public static int DecodeSpriteRun(uint register, int startPixel, int haltPixel, int stopPixel,
+        bool multiColor, bool xExpand, bool behindForeground,
+        ReadOnlySpan<int> eventPixels, ReadOnlySpan<byte> eventKinds, Span<byte> pixels)
+    {
+        var count = 0;
+        var pixelValue = 0;
+        var expandFlipFlop = true;
+        var multiColorFlipFlop = true;
+        var nextEvent = 0;
+        for (var p = startPixel; p < stopPixel && count < pixels.Length; p++)
+        {
+            while (nextEvent < eventPixels.Length && eventPixels[nextEvent] <= p)
+            {
+                var kind = eventKinds[nextEvent++];
+                var set = (kind & RunEventBitSet) != 0;
+                switch (kind & RunEventKindMask)
+                {
+                    case RunEventMultiColor:
+                        if (multiColor != set)
+                        {
+                            multiColor = set;
+                            multiColorFlipFlop = false;
+                        }
+                        break;
+                    case RunEventXExpand:
+                        xExpand = set;
+                        break;
+                    default:
+                        behindForeground = set;
+                        break;
+                }
+            }
+            if (register == 0 && pixelValue == 0)
+                break;
+            if (p < haltPixel)
+            {
+                if (expandFlipFlop)
+                {
+                    if (multiColor)
+                    {
+                        if (multiColorFlipFlop)
+                            pixelValue = (int)(register >> 22) & 3;
+                        multiColorFlipFlop = !multiColorFlipFlop;
+                    }
+                    else
+                    {
+                        pixelValue = (int)((register >> 23) & 1) << 1;
+                    }
+                    register = (register << 1) & 0xFFFFFF;
+                }
+                expandFlipFlop = !xExpand || !expandFlipFlop;
+            }
+            pixels[count++] = (byte)(pixelValue | (behindForeground ? RunPixelBehindForeground : 0));
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// A run stored as a row, its shown pixels and stretch, expanded to the same pixel values a
+    /// decoded run holds (see <see cref="RunFlagDecoded"/>). Returns the pixel count.
+    /// </summary>
+    public static int ExpandRunPixels(uint row, byte flags, int length, int stretch, Span<byte> pixels)
+    {
+        var behind = (flags & RunFlagBehindForeground) != 0 ? RunPixelBehindForeground : 0;
+        var multiColor = (flags & RunFlagMultiColor) != 0;
+        var width = (flags & RunFlagXExpand) != 0 ? 2 : 1;
+        var count = 0;
+        var shown = Math.Min(length, pixels.Length);
+        if (multiColor)
+        {
+            for (var pair = 0; pair < 12 && count < shown; pair++)
+            {
+                var value = (int)(row >> (22 - pair * 2)) & 3;
+                for (var k = 0; k < 2 * width && count < shown; k++)
+                    pixels[count++] = (byte)(value | behind);
+            }
+        }
+        else
+        {
+            for (var bit = 0; bit < 24 && count < shown; bit++)
+            {
+                var value = (int)((row >> (23 - bit)) & 1) << 1;
+                for (var k = 0; k < width && count < shown; k++)
+                    pixels[count++] = (byte)(value | behind);
+            }
+        }
+        var last = count > 0 ? pixels[count - 1] : (byte)behind;
+        for (var s = 0; s < stretch && count < pixels.Length; s++)
+            pixels[count++] = last;
+        return count;
     }
 
     /// <summary>
@@ -95,8 +249,6 @@ public class Vic2SpriteManager : IVic2SpriteManager
         var runMask = _lineSpriteRunMasks[rasterLine];
         if (runMask == 0 || (runMask & (runMask - 1)) == 0)
             return;   // fewer than two sprites output
-        var xExpand = _lineSpriteXExpand[rasterLine];
-        var multiColor = _lineSpriteMultiColor[rasterLine];
         Span<ulong> masks = stackalloc ulong[NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine];
         Span<int> starts = stackalloc int[NUMBERS_OF_SPRITES * MaxSpriteRunsPerLine];
         for (int n = 0; n < NUMBERS_OF_SPRITES; n++)
@@ -110,8 +262,11 @@ public class Vic2SpriteManager : IVic2SpriteManager
                     masks[i] = 0;
                     continue;
                 }
-                masks[i] = RunOpaqueMask(LineSpriteRunData(rasterLine, n, r), (xExpand & (1 << n)) != 0, (multiColor & (1 << n)) != 0,
-                    LineSpriteRunLength(rasterLine, n, r), LineSpriteRunStretch(rasterLine, n, r));
+                var flags = _lineSpriteRunFlags[(rasterLine * NUMBERS_OF_SPRITES + n) * MaxSpriteRunsPerLine + r];
+                masks[i] = (flags & RunFlagDecoded) != 0
+                    ? DecodedRunOpaqueMask(LineSpriteRunPixels(rasterLine, n, r))
+                    : RunOpaqueMask(LineSpriteRunData(rasterLine, n, r), (flags & RunFlagXExpand) != 0, (flags & RunFlagMultiColor) != 0,
+                        LineSpriteRunLength(rasterLine, n, r), LineSpriteRunStretch(rasterLine, n, r));
                 starts[i] = LineSpriteRunStart(rasterLine, n, r);
             }
         }
@@ -150,7 +305,19 @@ public class Vic2SpriteManager : IVic2SpriteManager
             RaiseCollisionIRQsIfNeeded();
     }
 
-    private const int RunMaskBits = 56;   // up to 48 shown pixels and 7 repeated
+    private const int RunMaskBits = RunPixelCapacity;   // up to 48 shown pixels and 7 repeated
+
+    // The opaque pixels of a decoded run as a mask, bit 0 its first pixel.
+    private static ulong DecodedRunOpaqueMask(ReadOnlySpan<byte> pixels)
+    {
+        ulong mask = 0;
+        for (var i = 0; i < pixels.Length && i < RunMaskBits; i++)
+        {
+            if ((pixels[i] & RunPixelValueMask) != 0)
+                mask |= 1ul << i;
+        }
+        return mask;
+    }
 
     // The opaque pixels of a run as a mask, bit 0 its first pixel: every set bit in standard mode,
     // both pixels of every non-zero pair in multicolour mode, each pixel doubled when X-expanded;

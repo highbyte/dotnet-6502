@@ -97,12 +97,19 @@ public class Vic2
     // matched, the sprite shifts its 24 (48) pixels out whatever later writes do; a match after
     // the register has been shifted out shows nothing until the sprite's own fetch has loaded the
     // next row, and a match while that fetch is under way is ignored.
+    // The priority, multicolour and X-expand registers go through the same journal: the sprite
+    // data sequencer reads them at every pixel, so a write while a sprite shifts changes its
+    // output from a pixel on. The priority and X-expand bits are read two pixels before an X
+    // write is seen, the multicolour bits one pixel before (the register-to-pixel timings of the
+    // chip as VICE's cycle-based VIC-II has them, verified by its spritesplit test programs).
     private const int SpriteXJournalCapacity = 64;
     private readonly ushort[] _spriteXJournalRegister = new ushort[SpriteXJournalCapacity];
     private readonly byte[] _spriteXJournalValue = new byte[SpriteXJournalCapacity];
     private readonly int[] _spriteXJournalPixel = new int[SpriteXJournalCapacity];   // the line pixel index the write is seen from
     private int _spriteXJournalCount;
     private const int SpriteWriteVisiblePixel = 4;
+    private const int SpriteModeWriteVisiblePixel = 2;        // priority and X-expand
+    private const int SpriteMultiColorWriteVisiblePixel = 3;
     private readonly bool[] _spriteExpandFlipFlop = { true, true, true, true, true, true, true, true };
     private const int SpriteCrunchCycleOffset = 14;        // cycle 15: a Y-expand write here crunches
     private const int SpriteEventMcBaseUpdateOffset = 15;  // cycle 16
@@ -515,13 +522,13 @@ public class Vic2
         MapRegisterMirrors(c64Mem, Vic2Addr.IRQ_MASK, IRQMASKLoad, IRQMASKStore);
 
         // Address 0xd01b: Sprite/background priority.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_FOREGROUND_PRIO, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_FOREGROUND_PRIO, C64.ReadIOStorage, SpritePriorityStore);
 
         // Address 0xd01c: "Sprite multi-color enable"
         MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableLoad, SpriteMultiColorEnableStore);
 
         // Address 0xd01d: Sprite X expansion.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_X_EXPAND, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_X_EXPAND, C64.ReadIOStorage, SpriteXExpandStore);
 
         // Address 0xd01e: "Sprite-to-sprite collision"
         MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_TO_SPRITE_COLLISION, SpriteToSpriteCollisionLoad, SpriteToSpriteCollisionStore);
@@ -746,14 +753,28 @@ public class Vic2
         JournalSpriteXWrite(address, value);
     }
 
-    private void JournalSpriteXWrite(ushort address, byte value)
+    public void SpritePriorityStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        JournalSpriteRegisterWrite(address, value, SpriteModeWriteVisiblePixel);
+    }
+
+    public void SpriteXExpandStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        JournalSpriteRegisterWrite(address, value, SpriteModeWriteVisiblePixel);
+    }
+
+    private void JournalSpriteXWrite(ushort address, byte value) => JournalSpriteRegisterWrite(address, value, SpriteWriteVisiblePixel);
+
+    private void JournalSpriteRegisterWrite(ushort address, byte value, int visiblePixel)
     {
         if (_spriteXJournalCount == SpriteXJournalCapacity || _currentRasterLineInternal == ushort.MaxValue)
-            return;   // more X writes on one line than any program makes: the last value wins from the next line
+            return;   // more sprite register writes on one line than any program makes: the last value wins from the next line
         var cycle = (int)(CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine);
         _spriteXJournalRegister[_spriteXJournalCount] = address;
         _spriteXJournalValue[_spriteXJournalCount] = value;
-        _spriteXJournalPixel[_spriteXJournalCount] = cycle * 8 + SpriteWriteVisiblePixel;
+        _spriteXJournalPixel[_spriteXJournalCount] = cycle * 8 + visiblePixel;
         _spriteXJournalCount++;
     }
 
@@ -779,11 +800,13 @@ public class Vic2
         }
         var pixelsPerLine = _cyclesPerLine * 8;
         var xAtLineStart = Vic2Model.XCoordinateAtLineStart;
-        var xExpand = SpriteManager.LineSpriteXExpand(line);
         // Cycle 58 (1-based): the display decision for the next line is taken.
         var displaySwitchPixel = (_cyclesPerLine - 6) * 8;
         var journalCount = _spriteXJournalCount;
         var registerMask = 0;
+        Span<int> eventPixels = stackalloc int[SpriteXJournalCapacity];
+        Span<byte> eventKinds = stackalloc byte[SpriteXJournalCapacity];
+        Span<byte> decoded = stackalloc byte[Vic2SpriteManager.RunPixelCapacity];
         for (var n = 0; n < 8; n++)
         {
             var bit = 1 << n;
@@ -803,15 +826,17 @@ public class Vic2
             var stopPixel = pointerPixel + 6;       // and stops here
             var loadPixel = pointerPixel + 8;       // the fetched row is in the register
             var resumePixel = pointerPixel + 11;    // and the sprite can start again
-            var width = (xExpand & bit) != 0 ? 48 : 24;
             var xRegister = (ushort)(Vic2Addr.SPRITE_0_X + n * 2);
             var isLoaded = false;
             var runCount = 0;
             var activeUntil = 0;   // the pixel the current run ends at (exclusive)
-            // The X register as it stood when the line began; the journal carries the writes
+            // The registers as they stood when the line began; the journal carries the writes
             // made during the line, in order, each seen from its pixel on.
             int xLow = (byte)(_spriteXLowAtLineStart >> (n * 8));
             int msb = _spriteMsbXAtLineStart;
+            var behind = (_spritePriorityAtLineStart & bit) != 0;
+            var multiColor = (_spriteMultiColorAtLineStart & bit) != 0;
+            var xExpand = (_spriteXExpandAtLineStart & bit) != 0;
             var pixel = 0;
             var next = 0;   // the next journalled write
             while (pixel < pixelsPerLine && runCount < Vic2SpriteManager.MaxSpriteRunsPerLine)
@@ -834,25 +859,52 @@ public class Vic2
                     var fetching = matchPixel >= freezePixel && matchPixel < resumePixel;
                     if (displayed && !fetching && matchPixel >= activeUntil && register != 0)
                     {
+                        var width = xExpand ? 48 : 24;
                         var length = width;
                         var stretch = 0;
-                        if (matchPixel < freezePixel && matchPixel + width > freezePixel)
+                        var halted = matchPixel < freezePixel && matchPixel + width > freezePixel;
+                        if (halted)
                         {
                             length = freezePixel - matchPixel;
                             stretch = stopPixel - freezePixel;
                         }
-                        SpriteManager.AddLineSpriteRun(line, n, runCount++, matchPixel, register, length, stretch);
-                        activeUntil = matchPixel + length + stretch;
+                        // The writes that change this sprite's mode or priority bits while the
+                        // run shifts: with any, the run is followed pixel by pixel.
+                        var eventCount = CollectSpriteRunEvents(n, next, journalCount, matchPixel + length + stretch,
+                            behind, multiColor, xExpand, eventPixels, eventKinds);
+                        if (eventCount > 0)
+                        {
+                            var count = Vic2SpriteManager.DecodeSpriteRun(register, matchPixel,
+                                matchPixel < freezePixel ? freezePixel : int.MaxValue, matchPixel < freezePixel ? stopPixel : int.MaxValue,
+                                multiColor, xExpand, behind, eventPixels.Slice(0, eventCount), eventKinds.Slice(0, eventCount), decoded);
+                            SpriteManager.AddLineSpriteDecodedRun(line, n, runCount++, matchPixel, decoded.Slice(0, count));
+                            activeUntil = matchPixel + count;
+                        }
+                        else
+                        {
+                            var flags = (byte)((xExpand ? Vic2SpriteManager.RunFlagXExpand : 0)
+                                | (multiColor ? Vic2SpriteManager.RunFlagMultiColor : 0)
+                                | (behind ? Vic2SpriteManager.RunFlagBehindForeground : 0));
+                            SpriteManager.AddLineSpriteRun(line, n, runCount++, matchPixel, register, length, stretch, flags);
+                            activeUntil = matchPixel + length + stretch;
+                        }
                         register = 0;
                     }
                 }
                 if (next < journalCount)
                 {
                     var written = _spriteXJournalRegister[next];
+                    var value = _spriteXJournalValue[next];
                     if (written == Vic2Addr.SPRITE_MSB_X)
-                        msb = _spriteXJournalValue[next];
+                        msb = value;
                     else if (written == xRegister)
-                        xLow = _spriteXJournalValue[next];
+                        xLow = value;
+                    else if (written == Vic2Addr.SPRITE_FOREGROUND_PRIO)
+                        behind = (value & bit) != 0;
+                    else if (written == Vic2Addr.SPRITE_MULTICOLOR_ENABLE)
+                        multiColor = (value & bit) != 0;
+                    else if (written == Vic2Addr.SPRITE_X_EXPAND)
+                        xExpand = (value & bit) != 0;
                     next++;
                 }
                 pixel = segmentEnd;
@@ -870,6 +922,46 @@ public class Vic2
 
     private static uint SpriteRowBits(ReadOnlySpan<byte> row) => (uint)(row[0] << 16 | row[1] << 8 | row[2]);
 
+    /// <summary>
+    /// The journalled writes from index <paramref name="from"/> that change sprite
+    /// <paramref name="n"/>'s priority, multicolour or X-expand bit before <paramref name="endPixel"/>,
+    /// as decoder events. Returns their count.
+    /// </summary>
+    private int CollectSpriteRunEvents(int n, int from, int journalCount, int endPixel,
+        bool behind, bool multiColor, bool xExpand, Span<int> eventPixels, Span<byte> eventKinds)
+    {
+        var bit = 1 << n;
+        var count = 0;
+        for (var i = from; i < journalCount && _spriteXJournalPixel[i] < endPixel; i++)
+        {
+            var written = _spriteXJournalRegister[i];
+            var set = (_spriteXJournalValue[i] & bit) != 0;
+            byte kind;
+            if (written == Vic2Addr.SPRITE_FOREGROUND_PRIO && set != behind)
+            {
+                behind = set;
+                kind = Vic2SpriteManager.RunEventPriority;
+            }
+            else if (written == Vic2Addr.SPRITE_MULTICOLOR_ENABLE && set != multiColor)
+            {
+                multiColor = set;
+                kind = Vic2SpriteManager.RunEventMultiColor;
+            }
+            else if (written == Vic2Addr.SPRITE_X_EXPAND && set != xExpand)
+            {
+                xExpand = set;
+                kind = Vic2SpriteManager.RunEventXExpand;
+            }
+            else
+            {
+                continue;
+            }
+            eventPixels[count] = _spriteXJournalPixel[i];
+            eventKinds[count++] = (byte)(kind | (set ? Vic2SpriteManager.RunEventBitSet : 0));
+        }
+        return count;
+    }
+
     // Each sprite's data register between lines: the row its fetch loaded, until an X match shifts
     // it out (0 once it has). A sprite that matches before its fetch on a line shows this row.
     private readonly uint[] _spriteShiftRegister = new uint[8];
@@ -879,6 +971,10 @@ public class Vic2
     // the eight low bytes packed, sprite 0 lowest, and the MSB register.
     private ulong _spriteXLowAtLineStart;
     private byte _spriteMsbXAtLineStart;
+    // And the priority, multicolour and X-expand registers as the line began.
+    private byte _spritePriorityAtLineStart;
+    private byte _spriteMultiColorAtLineStart;
+    private byte _spriteXExpandAtLineStart;
 
     private void CaptureSpriteXAtLineStart()
     {
@@ -887,6 +983,9 @@ public class Vic2
             packed = packed << 8 | C64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_X + n * 2));
         _spriteXLowAtLineStart = packed;
         _spriteMsbXAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_MSB_X);
+        _spritePriorityAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_FOREGROUND_PRIO);
+        _spriteMultiColorAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_MULTICOLOR_ENABLE);
+        _spriteXExpandAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_X_EXPAND);
         _spriteXJournalCount = 0;
     }
     public byte SpriteEnableLoad(ushort address)
@@ -898,6 +997,7 @@ public class Vic2
     {
         var originalValue = C64.ReadIOStorage(address);
         C64.WriteIOStorage(address, value);
+        JournalSpriteRegisterWrite(address, value, SpriteMultiColorWriteVisiblePixel);
         for (int spriteNumber = 0; spriteNumber < 8; spriteNumber++)
         {
             if (originalValue.IsBitSet(spriteNumber) != value.IsBitSet(spriteNumber))
