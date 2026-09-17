@@ -63,7 +63,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         for (var rasterLine = 0; rasterLine < c64.Vic2.Vic2Model.TotalHeight; rasterLine++)
         {
             c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
         generator.OnEndFrame();
 
@@ -243,7 +243,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             {
                 c64.Mem.Write(0xD011, openBorder && rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-                generator.OnAfterInstruction();
+                generator.CatchUpToVic2();
             }
             generator.OnEndFrame();
             return foreground;
@@ -294,7 +294,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             {
                 c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-                generator.OnAfterInstruction();
+                generator.CatchUpToVic2();
             }
             generator.OnEndFrame();
         }
@@ -337,11 +337,11 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
         {
             vic2.AdvanceRaster((ulong)(writeCycle - 1));
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
             if (rasterLine == spriteY + 3)
                 c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x00);
             vic2.AdvanceRaster((ulong)(cyclesPerLine - (writeCycle - 1)));
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
         generator.OnEndFrame();
 
@@ -389,7 +389,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             {
                 c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-                generator.OnAfterInstruction();
+                generator.CatchUpToVic2();
             }
             generator.OnEndFrame();
         }
@@ -574,7 +574,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
         {
             vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
         generator.OnEndFrame();
         return (background, foreground);
@@ -781,7 +781,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             vic2.AdvanceRaster((ulong)writeCycle);
             c64.Mem.Write(0xD020, (byte)(rasterLine % 16));
             vic2.AdvanceRaster(cyclesPerLine - (ulong)writeCycle);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
 
         // Every line of the top border must show its own two colours, split at the write.
@@ -963,7 +963,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             {
                 vic2.AdvanceRaster(cyclesPerLine);
             }
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
 
         var y = normalizedLayout.Screen.Start.Y + 68 - 51;   // the line the condition was created on
@@ -1011,7 +1011,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
                     c64.Mem.Write(0xD011, 0x1B);   // YSCROLL 3: line 51 is the next bad line
                 vic2.AdvanceRaster(cyclesPerLine);
             }
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
 
         Assert.Equal(expectedFirstCode, FirstCellCodeOnLine(c64, foreground, 51));
@@ -1044,7 +1044,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             {
                 vic2.AdvanceRaster(cyclesPerLine);
             }
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
 
         Assert.Equal(expectDisplay ? 1 : 0, FirstCellCodeOnLine(c64, foreground, 51));
@@ -1058,7 +1058,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
         {
             vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
     }
 
@@ -1094,7 +1094,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             {
                 vic2.AdvanceRaster(cyclesPerLine);
             }
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
 
         var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
@@ -1266,7 +1266,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
             {
                 vic2.AdvanceRaster(cyclesPerLine);
             }
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
     }
 
@@ -1391,7 +1391,7 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
                 c64.Mem.Write(0xD011, d011ForRasterLine(rasterLine));
             beforeRasterLine?.Invoke(rasterLine);
             vic2.AdvanceRaster(cyclesPerLine);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
         return (background, foreground);
     }

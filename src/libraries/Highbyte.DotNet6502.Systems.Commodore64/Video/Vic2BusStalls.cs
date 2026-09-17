@@ -74,7 +74,7 @@ internal sealed class Vic2BusStalls : IBusStallSource
                 // fetched (a bad line's video matrix row) reflects memory as it was, not as the
                 // stalled instruction is about to leave it.
                 _vic2.CatchUpTo(busCycle - 1 + stall);
-                _c64.RenderProvider?.OnAfterInstruction();
+                _c64.Vic2CycleRenderer?.CatchUpToVic2();
                 return stall;
             }
         }
