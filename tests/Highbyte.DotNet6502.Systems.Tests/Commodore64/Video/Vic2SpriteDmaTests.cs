@@ -155,6 +155,28 @@ public class Vic2SpriteDmaTests
     }
 
     [Theory]
+    [InlineData(55, 12)]   // still inverted: the flip-flop is clear in cycle 16 of line 105, so line 106 shows row 4 again
+    [InlineData(56, 15)]   // too late for the inversion: the flip-flop stays set, row 5
+    public void The_flip_flop_inversion_sees_a_y_expand_bit_set_in_cycle_55(int setCycle, int expectedMc)
+    {
+        // VICE's spritecrunch2 test programs clear and set the bit on every line, the second write
+        // a cycle later every eight lines: the row is held while the bit is set by cycle 55.
+        var c64 = Build();
+        c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0x01);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x00);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_Y, 100);
+        PositionAt(c64, 100, 1);
+        AdvanceTo(c64, 104, 48);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x00);
+        AdvanceTo(c64, 104, setCycle);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x01);
+        AdvanceTo(c64, 105, 20);
+        c64.Mem.Write(Vic2Addr.SPRITE_Y_EXPAND, 0x00);
+        AdvanceTo(c64, 106, 1);
+        Assert.Equal(expectedMc, c64.Vic2.SpriteMc(0));
+    }
+
+    [Theory]
     [InlineData(14, 6)]   // before the crunch cycle: the flip-flop is set by the write, cycle 16 takes MC (3 + 3)
     [InlineData(15, 7)]   // the crunch cycle: MC becomes the merge of MCBASE 3 and MC 6, and cycle 16 takes it
     [InlineData(16, 3)]   // after cycle 16's update, made with the flip-flop clear: MCBASE stays
