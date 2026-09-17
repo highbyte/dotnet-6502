@@ -167,7 +167,11 @@ the byte comes from `$3FFF` (`$39FF` with ECM) with no matrix data, and outside 
 pipeline is fed zeros. XSCROLL, the mode bits and the memory pointers reach the sequencer through
 the register write journal, from the cycle after the write: XSCROLL moves the next load within its
 cycle (the old byte's zeros show until then), MCM takes effect four pixels into the cycle, ECM and
-BMM four pixels in when set and six when cleared, and the pointers apply to the next g-access. Each
+BMM four pixels in when set and six when cleared, and the pointers apply to the next g-access. The
+g-access's address follows BMM as it is in that cycle or as it was in the cycle before, whichever
+is set, so switching bitmap mode off reaches the fetch a cycle after it reaches the sequencer; when
+that late fetch moves from RAM into the character ROM its address takes the low byte from the
+bitmap address and the rest from the character set's (the NMOS chips' behaviour). Each
 pixel's two bits select its colour source from the mode table (a background colour register, the
 matrix nibbles, the colour nibble, or black in the invalid modes) and its priority, and the line's
 pixels are resolved into the two layers when the line ends, with the background colour registers'

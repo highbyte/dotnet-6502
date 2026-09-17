@@ -1143,6 +1143,64 @@ public class Vic2RasterizerSequencerPixelGeneratorTests
         return left && right ? 1 : left ? 2 : right ? 3 : 0;
     }
 
+    [Theory]
+    [InlineData(0x1C, 0x2000, true)]    // character set in RAM at $3000, bitmap at $2000: the late fetch reads the bitmap
+    [InlineData(0x14, 0x0000, false)]   // character set in the ROM at $1000, bitmap at $0000: the late fetch lands in the ROM
+    public void Bitmap_mode_switched_off_mid_line_reaches_the_fetch_a_cycle_late(int d018, int bitmapBase, bool lateFetchShowsBitmapData)
+    {
+        // BMM on by a write in cycle 20 and off by one in cycle 25 of raster line 53 (row 0, RC 2),
+        // each seen by the chip from the cycle after. The sequencer leaves bitmap mode in cycle 26,
+        // but the g-access of cycle 26 still takes the bitmap address (BMM as it is now or as it was
+        // the cycle before), so columns 5-10 are fetched from the bitmap and column 11 is the first
+        // from the character set again. Columns 9 and 10 are shown after the sequencer is back in
+        // text mode: their set bits show in the cell's colour. When that last fetch moves from RAM
+        // into the character ROM, the address's low byte is the bitmap's and the rest the character
+        // set's: it reads the ROM (empty here), not the bitmap.
+        var c64 = BuildC64();
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD018, (byte)d018);
+        for (var i = 0; i < 1000; i++)
+        {
+            c64.Vic2.Vic2Mem[(ushort)(0x0400 + i)] = 0;   // code 0: a blank shape in either character set
+            c64.WriteIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + i), 1);
+        }
+        for (var column = 0; column < 40; column++)
+            c64.Vic2.Vic2Mem[(ushort)(bitmapBase + column * 8 + 2)] = 0xFF;   // the bitmap's line 2 of row 0
+        c64.Mem.Write(0xD011, 0x1B);
+        var (generator, _, foreground) = CreateGenerator(c64);
+        var vic2 = c64.Vic2;
+        var cyclesPerLine = vic2.Vic2Model.CyclesPerLine;
+        for (var rasterLine = 0; rasterLine < vic2.Vic2Model.TotalHeight; rasterLine++)
+        {
+            if (rasterLine == 53)
+            {
+                vic2.AdvanceRaster(19);
+                c64.Mem.Write(0xD011, 0x3B);   // BMM on, in cycle 20
+                vic2.AdvanceRaster(5);
+                c64.Mem.Write(0xD011, 0x1B);   // BMM off, in cycle 25
+                vic2.AdvanceRaster(cyclesPerLine - 24);
+            }
+            else
+            {
+                vic2.AdvanceRaster(cyclesPerLine);
+            }
+            generator.CatchUpToVic2();
+        }
+
+        var normalizedLayout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64.Screen.VisibleWidth;
+        var y = normalizedLayout.Screen.Start.Y + 53 - 51;
+        var x0 = normalizedLayout.Screen.Start.X;
+        uint Fg(int column, int pixel) => foreground[y * width + x0 + column * 8 + pixel];
+        Assert.Equal(0u, Fg(4, 7));          // fetched from the character set before the switch: blank
+        Assert.NotEqual(0u, Fg(9, 7));       // fetched from the bitmap, shown in text mode
+        if (lateFetchShowsBitmapData)
+            Assert.NotEqual(0u, Fg(10, 7));  // cycle 26's fetch: still the bitmap
+        else
+            Assert.Equal(0u, Fg(10, 7));     // cycle 26's fetch: the character ROM at the merged address
+        Assert.Equal(0u, Fg(11, 7));         // the character set again
+    }
+
     [Fact]
     public void Multicolour_written_mid_line_takes_effect_four_pixels_into_the_next_cycle()
     {
