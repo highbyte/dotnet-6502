@@ -151,7 +151,9 @@ public class Vic2SpriteManager : IVic2SpriteManager
     /// flip-flop, which delays the next pair by a pixel and so realigns the pairs on the register's
     /// odd bits. The priority bit is read at every pixel. From <paramref name="haltPixel"/> the
     /// sprite's own fetch halts the shifting and the last pixel repeats, until
-    /// <paramref name="stopPixel"/>, where the sprite is switched off. A sprite whose register and
+    /// <paramref name="stopPixel"/>, where the sprite is switched off; a multicolour pair taken in
+    /// the last pixel before the halt shows only its high bit, as a standard pixel, in that pixel
+    /// and its repeats (VICE's spritefetchbug test program). A sprite whose register and
     /// last pixel are both empty stops at once. The events are given in pixel order, each seen
     /// from its pixel on. Returns the pixel count written to <paramref name="pixels"/>.
     /// </summary>
@@ -164,6 +166,7 @@ public class Vic2SpriteManager : IVic2SpriteManager
         var expandFlipFlop = true;
         var multiColorFlipFlop = true;
         var nextEvent = 0;
+        var pairTakenAtPixel = int.MinValue;
         for (var p = startPixel; p < stopPixel && count < pixels.Length; p++)
         {
             while (nextEvent < eventPixels.Length && eventPixels[nextEvent] <= p)
@@ -196,7 +199,10 @@ public class Vic2SpriteManager : IVic2SpriteManager
                     if (multiColor)
                     {
                         if (multiColorFlipFlop)
+                        {
                             pixelValue = (int)(register >> 22) & 3;
+                            pairTakenAtPixel = p;
+                        }
                         multiColorFlipFlop = !multiColorFlipFlop;
                     }
                     else
@@ -206,6 +212,13 @@ public class Vic2SpriteManager : IVic2SpriteManager
                     register = (register << 1) & 0xFFFFFF;
                 }
                 expandFlipFlop = !xExpand || !expandFlipFlop;
+            }
+            else if (p == haltPixel && multiColor && pairTakenAtPixel == haltPixel - 1 && count > 0)
+            {
+                // The halt caught a pair in its first pixel: only its high bit shows, as a
+                // standard pixel would, in that pixel and its repeats.
+                pixelValue &= 2;
+                pixels[count - 1] = (byte)((pixels[count - 1] & ~RunPixelValueMask) | pixelValue);
             }
             pixels[count++] = (byte)(pixelValue | (behindForeground ? RunPixelBehindForeground : 0));
         }

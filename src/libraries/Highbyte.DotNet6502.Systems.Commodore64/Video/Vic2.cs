@@ -605,11 +605,14 @@ public class Vic2
         Memory.LoadByte timedReader = _ =>
         {
             CatchUpToCurrentAccess();
-            return reader(registerAddress);
+            var value = reader(registerAddress);
+            RecordSpriteSlotBusValue(value);
+            return value;
         };
         Memory.StoreByte timedWriter = (_, value) =>
         {
             CatchUpToCurrentAccess();
+            RecordSpriteSlotBusValue(value);
             writer(registerAddress, value);
             RegisterWriteObserver?.Invoke(CyclesConsumedCurrentVblank, registerAddress, value);
             // Register state decides bad lines and sprite DMA: re-evaluate CPU stalls.
@@ -897,11 +900,16 @@ public class Vic2
                 : 0u;
             // A sprite 3-7 whose DMA this line's compare started is displayed from cycle 58 on,
             // and an X beyond that shows it on this line already, with what its fetch slot at the
-            // line's start read while the DMA was still off: the bus as the CPU left it ($FF) for
-            // the two accesses in the CPU's half of the cycle and the idle byte for the VIC's own
+            // line's start read while the DMA was still off: for the two accesses in the CPU's half
+            // of the cycle the chip's bus as the CPU drives it, the byte of a VIC-II register
+            // access in that cycle and $FF otherwise, and for the VIC's own access the idle byte
             // (VICE's sb_sprite_fetch test programs).
             if (n >= 3 && loaded == 0 && (displayBefore & bit) == 0 && (displayAfter & bit) != 0)
-                loaded = 0xFF00FFu | (uint)IdleGraphicsByte() << 8;
+            {
+                var slotCycle = 2 * n - 6;
+                var idleByte = _idleByteAtLineStart >= 0 ? (byte)_idleByteAtLineStart : IdleGraphicsByte();
+                loaded = (uint)(_spriteSlotBusValue[slotCycle] << 16 | idleByte << 8 | _spriteSlotBusValue[slotCycle + 1]);
+            }
             var register = _spriteShiftRegister[n];
             if (register == 0 && loaded == 0)
                 continue;
@@ -958,7 +966,9 @@ public class Vic2
                         // run shifts: with any, the run is followed pixel by pixel.
                         var eventCount = CollectSpriteRunEvents(n, next, journalCount, matchPixel + length + stretch,
                             behind, multiColor, xExpand, eventPixels, eventKinds);
-                        if (eventCount > 0)
+                        // So is a multicolour run whose fetch halts it a pixel into a pair.
+                        var pairCutShort = halted && multiColor && length % (xExpand ? 4 : 2) == 1;
+                        if (eventCount > 0 || pairCutShort)
                         {
                             var count = Vic2SpriteManager.DecodeSpriteRun(register, matchPixel,
                                 matchPixel < freezePixel ? freezePixel : int.MaxValue, matchPixel < freezePixel ? stopPixel : int.MaxValue,
@@ -1067,6 +1077,45 @@ public class Vic2
     private byte _spritePriorityAtLineStart;
     private byte _spriteMultiColorAtLineStart;
     private byte _spriteXExpandAtLineStart;
+
+    // The first cycles of a line are the fetch slots of sprites 3-7. For a sprite whose DMA is
+    // still off there, the slot's accesses read whatever is on the chip's bus: the byte of a
+    // VIC-II register access the CPU makes in that cycle, $FF when it makes none. Recorded by
+    // cycle for the current line, with the idle byte as the line began when a sprite's Y names
+    // the line (the only case it is used for; -1 otherwise).
+    private const int SpriteSlotCycles = 10;
+    private readonly byte[] _spriteSlotBusValue = CreateSpriteSlotBus();
+    private bool _spriteSlotBusRecorded;
+    private int _idleByteAtLineStart = -1;
+
+    private static byte[] CreateSpriteSlotBus()
+    {
+        var bus = new byte[SpriteSlotCycles];
+        bus.AsSpan().Fill(0xFF);
+        return bus;
+    }
+
+    private void RecordSpriteSlotBusValue(byte value)
+    {
+        if (_currentRasterLineInternal == ushort.MaxValue)
+            return;
+        var cycle = CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine;
+        if (cycle >= SpriteSlotCycles)
+            return;
+        _spriteSlotBusValue[cycle] = value;
+        _spriteSlotBusRecorded = true;
+    }
+
+    private void CaptureSpriteSlotStateAtLineStart(ushort line)
+    {
+        if (_spriteSlotBusRecorded)
+        {
+            _spriteSlotBusValue.AsSpan().Fill(0xFF);
+            _spriteSlotBusRecorded = false;
+        }
+        var startable = (byte)(_spriteEnableCache & ~SpriteDmaMask & 0xF8);
+        _idleByteAtLineStart = startable != 0 && (SpriteYMatchMask(line) & startable) != 0 ? IdleGraphicsByte() : -1;
+    }
 
     private void CaptureSpriteXAtLineStart()
     {
@@ -1693,6 +1742,7 @@ public class Vic2
                 SpriteManager.AccumulatePerLineCollisions(line);
             }
             CaptureSpriteXAtLineStart();
+            CaptureSpriteSlotStateAtLineStart(line);
             // The line's sprite events up to the position the advance ends at.
             var upTo = line == newLine ? newOffset : cyclesPerLine - 1;
             if (upTo >= _nextSpriteEventOffset)

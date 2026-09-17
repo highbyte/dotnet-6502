@@ -78,7 +78,7 @@ is fetched but not shown, and the display stays on until that decision finds the
 sprite whose Y is rewritten to its last line restarts there and shows its first row again on the
 next line. A DMA the second compare starts leaves sprite 0's first data byte to the CPU (its fetch
 is only two cycles on), so that byte reads $FF; a sprite 3-7 shown on the line its DMA starts, with
-an X beyond cycle 58, carries what its slot read while the DMA was off: $FF, the idle byte, $FF.
+an X beyond cycle 58, carries what its slot read while the DMA was off: $FF, the idle byte, $FF, or in place of an $FF the byte of a VIC-II register access the CPU makes in that cycle of the slot.
 The SpriteEnable sample in the Avalonia and browser menus shows the enable timing, the $FF byte
 and the restart.
 Clearing the expand bit in cycle 15 of a
@@ -92,7 +92,7 @@ shifting its row out where its X register equals the beam position, an X written
 from that cycle's fifth pixel, and a sprite whose X is moved past the beam after it was shown
 starts again, so one sprite can appear twice on a line. It cannot start while its own data is
 being fetched (cycles 58 and 59 for sprite 0, two cycles on per sprite, so X 355 to 366 on the
-6569); one still shifting when its fetch begins repeats its last pixel for seven pixels and stops;
+6569); one still shifting when its fetch begins repeats its last pixel for seven pixels and stops (a multicolour pair caught in its first pixel shows only its high bit there, as a standard pixel);
 and the fetch loads the next row, which can start on the same line, so a sprite whose X lies beyond
 its fetch shows each row a line higher. An X the beam never reaches (504 to 511 on the 6569) is
 never shown. The sprite's multicolour, X-expand and priority bits are read at every pixel too, so a
