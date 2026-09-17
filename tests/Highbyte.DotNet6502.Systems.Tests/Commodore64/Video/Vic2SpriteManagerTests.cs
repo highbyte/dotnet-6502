@@ -428,6 +428,33 @@ public class Vic2SpriteManagerTests
         Assert.Equal(0xFFFFFFu, sm.LineSpriteRunData(50, 6, 0));
     }
 
+    [Fact]
+    public void Sprite_beyond_its_fetch_shown_on_its_first_line_carries_the_register_bytes_of_its_slot()
+    {
+        // The same tests place bytes of their own: sprite 6's slot is the line's cycles 7 and 8
+        // (offsets 6 and 7), and a VIC-II register access the CPU makes in one of them puts its
+        // byte on the chip's bus in place of $FF. The idle byte is the one of that time, not the
+        // one a later write leaves there.
+        var c64 = BuildC64(perLineSprites: true);
+        CreateVisibleSolidSprite(c64, spriteNumber: 6, x: (byte)(0x164 - 256), y: 49, spritePointer: 0xF8);
+        c64.WriteIOStorage(Vic2Addr.SPRITE_MSB_X, 0x40);
+        c64.Vic2.Vic2Mem[0x3FFF] = 0x4D;
+        c64.Mem.Write(Vic2Addr.SPRITE_0_X, 0xAC);
+
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        c64.Vic2.AdvanceRaster(49 * cyclesPerLine + 6);
+        Assert.Equal(0xAC, c64.Mem.Read(Vic2Addr.SPRITE_0_X));   // a read in the slot's first cycle
+        c64.Vic2.AdvanceRaster(1);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_X, 0x26);                // a write in its second
+        c64.Vic2.AdvanceRaster(10);
+        c64.Vic2.Vic2Mem[0x3FFF] = 0x33;
+        c64.Vic2.AdvanceRaster(3 * cyclesPerLine);
+
+        var sm = c64.Vic2.SpriteManager;
+        Assert.Equal(0xAC4D26u, sm.LineSpriteRunData(49, 6, 0));
+        Assert.Equal(0xFFFFFFu, sm.LineSpriteRunData(50, 6, 0));
+    }
+
     [Theory]
     [InlineData(0x3F, 0x00, 3)]   // both bank bits outputs, written 00: bank 3
     [InlineData(0x3C, 0x00, 0)]   // both inputs: the pull-ups read 11, bank 0 whatever was written
@@ -498,6 +525,24 @@ public class Vic2SpriteManagerTests
     {
         var pixels = Decode(0xFFFFFF, multiColor: false, xExpand: false, s_noHalt, Array.Empty<byte>(), haltPixel: 2, stopPixel: 5);
         Assert.Equal(new byte[] { 2, 2, 2, 2, 2 }, pixels);
+    }
+
+    [Theory]
+    [InlineData(5, new byte[] { 1, 1, 1, 1, 2, 2, 2, 2 })]   // pair 11 taken in the last pixel before the halt: its high bit, as a standard pixel
+    [InlineData(6, new byte[] { 1, 1, 1, 1, 3, 3, 3, 3 })]   // taken a pixel earlier: the pair as it is
+    public void Multicolour_pair_caught_by_the_halt_in_its_first_pixel_shows_as_a_standard_pixel(int haltPixel, byte[] expected)
+    {
+        // VICE's spritefetchbug test program: X-expanded multicolour, pairs 01 11 ..., four pixels
+        // each; the sprite's own fetch halts the shifting and the last pixel repeats.
+        var pixels = Decode(0x700000, multiColor: true, xExpand: true, s_noHalt, Array.Empty<byte>(), haltPixel: haltPixel, stopPixel: 8);
+        Assert.Equal(expected, pixels);
+    }
+
+    [Fact]
+    public void Multicolour_pair_01_caught_by_the_halt_in_its_first_pixel_shows_nothing()
+    {
+        var pixels = Decode(0x500000, multiColor: true, xExpand: true, s_noHalt, Array.Empty<byte>(), haltPixel: 5, stopPixel: 8);
+        Assert.Equal(new byte[] { 1, 1, 1, 1, 0, 0, 0, 0 }, pixels);
     }
 
     [Fact]
