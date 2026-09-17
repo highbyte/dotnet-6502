@@ -51,7 +51,7 @@ internal sealed class Vic2BusStalls : IBusStallSource
         var line = (int)(frameIndex / (ulong)_cyclesPerLine);
         var offset = (int)(frameIndex % (ulong)_cyclesPerLine);
 
-        BuildWindows(line);
+        BuildWindows(line, offset);
 
         for (var i = 0; i < _windowCount; i++)
         {
@@ -90,7 +90,7 @@ internal sealed class Vic2BusStalls : IBusStallSource
     /// the previous line's sprite 3-7 DMA that runs into this line. Windows beyond the line are
     /// kept (a stall may run past the line end); overlapping and adjacent windows are merged.
     /// </summary>
-    private void BuildWindows(int line)
+    private void BuildWindows(int line, int offset)
     {
         _windowCount = 0;
 
@@ -104,7 +104,12 @@ internal sealed class Vic2BusStalls : IBusStallSource
 
         // The compare in cycle 55 switches DMA on in the same cycle sprite 0's window begins, so
         // a sprite about to start counts here; the read that hits the window is re-evaluated there.
-        var active = (byte)(_vic2.SpriteDmaMask | _vic2.SpriteDmaStartMask(line));
+        // Only until the second compare has been made: a sprite enabled after it, or whose Y is
+        // written to the line after it, does not start on this line and takes no bus.
+        var secondCompareOffset = SpritePointerOffset(0) - 2;
+        var active = offset < secondCompareOffset
+            ? (byte)(_vic2.SpriteDmaMask | _vic2.SpriteDmaStartMask(line))
+            : _vic2.SpriteDmaMask;
         for (var n = 0; n < 8; n++)
             if ((active & (1 << n)) != 0)
                 AddWindow(SpritePointerOffset(n));
