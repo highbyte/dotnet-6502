@@ -9,8 +9,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 /// </summary>
 public interface IVic2RasterizerPixelGenerator
 {
-    /// <summary>Draw the pixels of the cycles the CPU has executed since the last call.</summary>
-    void OnAfterInstruction();
+    /// <summary>Draw the pixels of every cycle between where the generator last stopped and where the VIC-II is now.</summary>
+    void CatchUpToVic2();
 
     /// <summary>Finish the frame: the last line, the end-of-frame sprite pass, register resync.</summary>
     void OnEndFrame();

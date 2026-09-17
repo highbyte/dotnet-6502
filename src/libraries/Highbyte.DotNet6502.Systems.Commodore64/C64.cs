@@ -71,6 +71,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     private IRenderProvider? _renderProvider;
     public IRenderProvider? RenderProvider => _renderProvider;
+
+    /// <summary>
+    /// The current render provider if it draws cycle by cycle and can be caught up to the VIC-II in
+    /// the middle of an instruction (see <see cref="IVic2CycleRenderer"/>), otherwise null.
+    /// </summary>
+    internal IVic2CycleRenderer? Vic2CycleRenderer { get; private set; }
     public List<IRenderProvider> RenderProviders { get; } = new();
 
     private IAudioProvider? _audioProvider;
@@ -429,11 +435,13 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         if (renderProviderType == null)
         {
             _renderProvider = null;
+            Vic2CycleRenderer = null;
             return;
         }
         var renderProvider = RenderProviders.SingleOrDefault(rp => rp.GetType() == renderProviderType)
             ?? throw new ArgumentException("The specified render provider type is not available.");
         _renderProvider = renderProvider;
+        Vic2CycleRenderer = renderProvider as IVic2CycleRenderer;
     }
 
     private static void ConfigureRenderer(C64 c64, C64Config config)

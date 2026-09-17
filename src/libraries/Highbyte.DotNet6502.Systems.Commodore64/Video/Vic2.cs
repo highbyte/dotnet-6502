@@ -626,7 +626,13 @@ public class Vic2
 
     /// <summary>
     /// Method to be called before each write to memory by the CPU.
-    /// It's used for optimization to detect changes in VIC2 video memory.
+    /// For a write into the VIC-II's bank it first brings the VIC-II and the renderer through the
+    /// write's own cycle, so the fetches of the cycles before the write, and the fetch of the
+    /// write's cycle itself (the chip reads in the first clock phase, the CPU writes in the
+    /// second), see memory as it was: a byte the CPU rewrites in the middle of a line reaches the
+    /// screen from the column after the write on, as on hardware (an idle byte changed mid-line,
+    /// a sprite's data rewritten as it is fetched). It's also used for optimization to detect
+    /// changes in VIC2 video memory.
     /// </summary>
     /// <param name="c64Address"></param>
     /// <param name="value"></param>
@@ -635,6 +641,9 @@ public class Vic2
         var vic2Address = GetVic2FromC64Address(c64Address);
         if (vic2Address.HasValue)
         {
+            CatchUpTo(C64.CPU.BusCycles);
+            C64.Vic2CycleRenderer?.CatchUpToVic2();
+
             SpriteManager.DetectChangesToSpriteData(vic2Address.Value, value);
 
             if (DisplayMode == DispMode.Text)
@@ -660,9 +669,9 @@ public class Vic2
             case 0:
                 vic2Address = c64Address switch
                 {
-                    >= 0x0000 and < 0x0fff => c64Address,   // video ram
-                    >= 0x1000 and < 0x1fff => c64Address,   // chargen ROM
-                    >= 0x2000 and < 0x3fff => c64Address,   // video ram
+                    >= 0x0000 and <= 0x0fff => c64Address,   // video ram
+                    >= 0x1000 and <= 0x1fff => c64Address,   // chargen ROM
+                    >= 0x2000 and <= 0x3fff => c64Address,   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -670,7 +679,7 @@ public class Vic2
             case 1:
                 vic2Address = c64Address switch
                 {
-                    >= 0x4000 and < 0x7fff => (ushort)(c64Address - 0x4000),   // video ram
+                    >= 0x4000 and <= 0x7fff => (ushort)(c64Address - 0x4000),   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -678,9 +687,9 @@ public class Vic2
             case 2:
                 vic2Address = c64Address switch
                 {
-                    >= 0x8000 and < 0x8fff => (ushort)(c64Address - 0x8000),   // video ram
-                    >= 0x9000 and < 0x9fff => (ushort)(c64Address - 0x8000),   // chargen rom
-                    >= 0xa000 and < 0xbfff => (ushort)(c64Address - 0x8000),   // video ram
+                    >= 0x8000 and <= 0x8fff => (ushort)(c64Address - 0x8000),   // video ram
+                    >= 0x9000 and <= 0x9fff => (ushort)(c64Address - 0x8000),   // chargen rom
+                    >= 0xa000 and <= 0xbfff => (ushort)(c64Address - 0x8000),   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -688,7 +697,7 @@ public class Vic2
             case 3:
                 vic2Address = c64Address switch
                 {
-                    >= 0xc000 and < 0xffff => (ushort)(c64Address - 0xc000),   // video ram
+                    >= 0xc000 and <= 0xffff => (ushort)(c64Address - 0xc000),   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -1610,7 +1619,7 @@ public class Vic2
             // Per-line sprite processing (rendering + collision are gated by the same config flag).
             // Capture the shared start-of-line sprite snapshot once here; both the per-line collision
             // (below) and the rasterizer's per-line sprite pass (later this instruction, in its
-            // OnAfterInstruction) read it - so the registers are sampled once per line, not twice.
+            // CatchUpToVic2) read it - so the registers are sampled once per line, not twice.
             if (SpriteManager.PerLineCollisionEnabled)
             {
                 SpriteManager.CaptureLineSpriteSnapshot(line);

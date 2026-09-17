@@ -28,7 +28,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 /// - Fine scroll per raster line
 /// - Sprites (Standard, MultiColor). Multiplexing supported when perLineSprites is enabled.
 
-public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
+public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider, IVic2CycleRenderer
 {
     public string Name => "Vic2Rasterizer";
 
@@ -114,10 +114,14 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     //}
 
     // Called after each instruction
-    public void OnAfterInstruction()
+    public void OnAfterInstruction() => CatchUpToVic2();
+
+    // Called after each instruction, and by the C64 in the middle of one where the order of the
+    // chip's fetches and the CPU's accesses decides the picture (see IVic2CycleRenderer).
+    public void CatchUpToVic2()
     {
         // Write pixels of current x,y into _back at [y*StrideBytes + x*4 ..]
-        _pixelGenerator.OnAfterInstruction();
+        _pixelGenerator.CatchUpToVic2();
     }
 
     //public void OnEndScanline(int y)
@@ -125,7 +129,7 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     //    ScanlineCompleted?.Invoke(this, y);
     //}
 
-    // Called once per frame after all OnAfterInstruction calls are executed
+    // Called once per frame after all OnAfterInstruction and CatchUpToVic2 calls are executed
     public void OnEndFrame()
     {
         _pixelGenerator.OnEndFrame();

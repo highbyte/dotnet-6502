@@ -55,7 +55,7 @@ rasterizer does hold a character row's 40 screen codes and colour nibbles the wa
 the VIC-II does: fetched on the row's first line and shown for its remaining seven, so a screen
 write made after that fetch appears from the next row on. When a CPU read is stalled, the VIC-II
 and the renderer are brought through the stalled cycles before the CPU continues, so what the
-VIC-II fetched during the stall reflects memory before the stalled instruction's write. The VIC-II's bank follows the levels on CIA 2 port A's two bank pins, not the bytes written: a bit the direction register makes an input floats up through its pull-up, so a program selects a bank with `$DD02` as well as with `$DD00`.
+VIC-II fetched during the stall reflects memory before the stalled instruction's write. A CPU write into the VIC-II's bank is likewise seen by the chip's fetches from the cycle after the write on, not from the instruction's end: the chip reads in a cycle's first clock phase and the CPU writes in its second, so a byte rewritten in the middle of a line reaches the screen from the column after the write's cycle (an idle byte changed mid-line, graphics rewritten as they are fetched). The VIC-II's bank follows the levels on CIA 2 port A's two bank pins, not the bytes written: a bit the direction register makes an input floats up through its pull-up, so a program selects a bank with `$DD02` as well as with `$DD00`.
 
 The VIC-II also takes the bus from the CPU as on hardware: 40 cycles on every bad line (BA low
 from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA on, BA

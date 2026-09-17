@@ -179,7 +179,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private byte _backgroundColor3;
 
     // Journal of VIC-II register writes, filled by the VIC-II as the CPU writes (see
-    // Vic2.RegisterWriteObserver) and consumed cycle by cycle in OnAfterInstruction, which then
+    // Vic2.RegisterWriteObserver) and consumed cycle by cycle in CatchUpToVic2, which then
     // keeps only the entries it could not apply yet (a write on the very cycle it stopped at takes
     // effect on the next one). One instruction makes at most a few writes, so the capacity is only
     // reached when this generator is not the render provider being driven; then the journal is
@@ -235,7 +235,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private readonly Action<Span<uint>, int, int, int> _setForegroundPixels; // source, sourceIndex, destIndex, width
     private readonly Action<int, int> _clearForegroundPixels; // destIndex, width
 
-    // When true, sprites are rendered per raster line during OnAfterInstruction (enables
+    // When true, sprites are rendered per raster line during CatchUpToVic2 (enables
     // sprite multiplexing) instead of once at end-of-frame. See DrawSpritesForLine.
     private readonly bool _perLineSprites;
 
@@ -668,7 +668,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// Write screen data for all clock cycles since last time this method was called.
     /// Instructions can take different amount of cycles to execute, so this method is called after each instruction to update the screen data and will catch up on what's to do since last time it was called.
     /// </summary>
-    public void OnAfterInstruction()
+    public void CatchUpToVic2()
     {
         if (_registerWritesOverflowed)
             ResyncColorRegisters();
@@ -829,7 +829,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         FinishLineRuns();
         ResyncColorRegisters();
 
-        // Per-line mode draws sprites during OnAfterInstruction; skip the end-of-frame pass. A
+        // Per-line mode draws sprites during CatchUpToVic2; skip the end-of-frame pass. A
         // sprite the VIC-II never output this frame (its X never met the beam, or met it only
         // inside its own fetch) is not shown, as on the chip.
         if (!_perLineSprites)

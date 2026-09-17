@@ -63,7 +63,7 @@ public class Vic2RasterizerPixelGeneratorTests
         for (var rasterLine = 0; rasterLine < c64.Vic2.Vic2Model.TotalHeight; rasterLine++)
         {
             c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
         generator.OnEndFrame();
 
@@ -240,7 +240,7 @@ public class Vic2RasterizerPixelGeneratorTests
             {
                 c64.Mem.Write(0xD011, openBorder && rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-                generator.OnAfterInstruction();
+                generator.CatchUpToVic2();
             }
             generator.OnEndFrame();
             return foreground;
@@ -291,7 +291,7 @@ public class Vic2RasterizerPixelGeneratorTests
             {
                 c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-                generator.OnAfterInstruction();
+                generator.CatchUpToVic2();
             }
             generator.OnEndFrame();
         }
@@ -327,7 +327,7 @@ public class Vic2RasterizerPixelGeneratorTests
             {
                 c64.Mem.Write(0xD011, rasterLine is 250 or 251 ? (byte)0x13 : (byte)0x1B);
                 vic2.AdvanceRaster(vic2.Vic2Model.CyclesPerLine);
-                generator.OnAfterInstruction();
+                generator.CatchUpToVic2();
             }
             generator.OnEndFrame();
         }
@@ -605,7 +605,7 @@ public class Vic2RasterizerPixelGeneratorTests
             vic2.AdvanceRaster((ulong)writeCycle);
             c64.Mem.Write(0xD020, (byte)(rasterLine % 16));
             vic2.AdvanceRaster(cyclesPerLine - (ulong)writeCycle);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
 
         // Every line of the top border must show its own two colours, split at the write.
@@ -670,7 +670,7 @@ public class Vic2RasterizerPixelGeneratorTests
             {
                 vic2.AdvanceRaster(cyclesPerLine);
             }
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
     }
 
@@ -795,7 +795,7 @@ public class Vic2RasterizerPixelGeneratorTests
                 c64.Mem.Write(0xD011, d011ForRasterLine(rasterLine));
             beforeRasterLine?.Invoke(rasterLine);
             vic2.AdvanceRaster(cyclesPerLine);
-            generator.OnAfterInstruction();
+            generator.CatchUpToVic2();
         }
         return (background, foreground);
     }
