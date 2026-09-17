@@ -669,15 +669,26 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// Write screen data for all clock cycles since last time this method was called.
     /// Instructions can take different amount of cycles to execute, so this method is called after each instruction to update the screen data and will catch up on what's to do since last time it was called.
     /// </summary>
-    public void CatchUpToVic2()
+    public void CatchUpToVic2() => CatchUpTo(_c64.Vic2.CyclesConsumedCurrentVblank);
+
+    // Draws the cycles before endCycle (a cycle count into the frame).
+    private void CatchUpTo(ulong endCycle)
     {
+        // Already there, or one cycle beyond it (the cycle of a collision register read, drawn
+        // before it ended). Further behind means a new frame has begun: start over from there.
+        if (endCycle == _lastCyclesConsumedCurrentVblank || endCycle + 1 == _lastCyclesConsumedCurrentVblank)
+            return;
+        if (endCycle < _lastCyclesConsumedCurrentVblank)
+        {
+            _lastCyclesConsumedCurrentVblank = endCycle;
+            return;
+        }
         if (_registerWritesOverflowed)
             ResyncColorRegisters();
 
         // Loop cycles since last time we processed (each instruction). The line and the cycle
         // within it are derived once and then counted along: a division per cycle would be a
         // large share of the frame on its own.
-        var endCycle = _c64.Vic2.CyclesConsumedCurrentVblank;
         var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank;
         var rasterLine = (int)(cycleCurrentVblank / _cyclesPerLine);
         var cycleOnScreenLine = cycleCurrentVblank - (ulong)rasterLine * _cyclesPerLine;
@@ -820,7 +831,96 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             _registerWriteNext = 0;
         }
 
-        _lastCyclesConsumedCurrentVblank = _c64.Vic2.CyclesConsumedCurrentVblank;
+        _lastCyclesConsumedCurrentVblank = endCycle;
+    }
+
+    // The raster line whose sprite-to-background collisions reads of the register have latched
+    // or cleared up to a pixel; the line's end latches the rest.
+    private int _backgroundCollisionsLatchedLine = -1;
+    private int _backgroundCollisionsLatchedToPixel;
+
+    public void LatchSpriteBackgroundCollisions(int rasterLine, int upToPixel, int clearedToPixel)
+    {
+        if (!_perLineSprites)
+            return;
+        // First the cycles before the read's, which can end the previous line and latch what was
+        // left of its collisions.
+        CatchUpToVic2();
+        var spriteManager = _c64.Vic2.SpriteManager;
+        var fromPixel = _backgroundCollisionsLatchedLine == rasterLine ? _backgroundCollisionsLatchedToPixel : 0;
+        var hasPixels = upToPixel > fromPixel && spriteManager.LineSpriteRunMask(rasterLine) != 0;
+        if (hasPixels)
+        {
+            // The graphics under the last of those pixels are the ones the cycle of the read
+            // shows: a read changes nothing, so that cycle can be drawn before it has ended.
+            var cycles = _c64.Vic2.CyclesConsumedCurrentVblank;
+            if (cycles % _cyclesPerLine != 0 && cycles % _cyclesPerLine + 1 < _cyclesPerLine)
+                CatchUpTo(cycles + 1);
+        }
+        _backgroundCollisionsLatchedLine = rasterLine;
+        _backgroundCollisionsLatchedToPixel = Math.Max(fromPixel, clearedToPixel);
+        var screenLine = rasterLine < _rasterToScreenLine.Length ? _rasterToScreenLine[rasterLine] : rasterLine;
+        if (!hasPixels || screenLine != _lastScreenLineDataUpdate)
+            return;   // nothing output yet, or not a line that is drawn
+        byte backgroundCollisions = 0;
+        for (int spriteIndex = 0; spriteIndex < SPRITE_COUNT; spriteIndex++)
+        {
+            var runs = Math.Min(spriteManager.LineSpriteRunCount(rasterLine, spriteIndex), SPRITE_RUNS);
+            for (int run = 0; run < runs && (backgroundCollisions & (1 << spriteIndex)) == 0; run++)
+            {
+                var startPixel = spriteManager.LineSpriteRunStart(rasterLine, spriteIndex, run);
+                var vicX = _xCoordinateAtLineStart + startPixel;
+                if (vicX >= (int)_cyclesPerLine * 8)
+                    vicX -= (int)_cyclesPerLine * 8;
+                if (SpriteRunHitsForeground(rasterLine, spriteIndex, run, startPixel, SpriteScreenX(vicX),
+                    spriteManager.LineSpriteRunFlags(rasterLine, spriteIndex, run), spriteManager.LineSpriteRunLength(rasterLine, spriteIndex, run),
+                    spriteManager.LineSpriteRunStretch(rasterLine, spriteIndex, run), _lineClearStartX, _lineClearEndX, fromPixel, upToPixel))
+                {
+                    backgroundCollisions |= (byte)(1 << spriteIndex);
+                }
+            }
+        }
+        if (backgroundCollisions != 0)
+            spriteManager.AddSpriteToBackgroundCollisions(backgroundCollisions);
+    }
+
+    /// <summary>
+    /// Whether a sprite run of the line being drawn has an opaque pixel, among those of the line's
+    /// pixels fromPixel..toPixel-1, where the graphics sequencer output a foreground pixel (a set
+    /// bit, or a 10/11 pair in multicolour; nothing while the vertical border flip-flop is set,
+    /// when the sequencer's output is off), resolved where the border flip-flop was clear.
+    /// </summary>
+    private bool SpriteRunHitsForeground(int rasterLine, int spriteIndex, int run, int startPixel, int screenX, byte runFlags, int length, int stretch,
+        int clipStartX, int clipEndX, int fromPixel, int toPixel)
+    {
+        var decoded = (runFlags & Vic2SpriteManager.RunFlagDecoded) != 0;
+        var pixelCount = decoded ? length : Math.Min(length + stretch, RUN_PIXELS);
+        var first = Math.Max(0, fromPixel - startPixel);
+        var end = toPixel == int.MaxValue ? pixelCount : Math.Min(pixelCount, toPixel - startPixel);
+        var from = Math.Max(Math.Max(0, clipStartX), screenX + first);
+        var to = Math.Min(Math.Min(_width, clipEndX), screenX + end);
+        // Most lines have no foreground under the sprite (a sprite-only demo, the borders, blank
+        // cells): one vectorised search before any decoding.
+        var firstForeground = to > from ? _lineFgCodes.AsSpan(from, to - from).IndexOfAnyExcept(CODE_NONE) : -1;
+        if (firstForeground < 0)
+            return false;
+        return SpriteRunHitsForegroundFrom(rasterLine, spriteIndex, run, screenX, runFlags, length, stretch, from + firstForeground, to);
+    }
+
+    private bool SpriteRunHitsForegroundFrom(int rasterLine, int spriteIndex, int run, int screenX, byte runFlags, int length, int stretch, int from, int to)
+    {
+        var spriteManager = _c64.Vic2.SpriteManager;
+        Span<byte> codes = stackalloc byte[RUN_PIXELS];
+        if ((runFlags & Vic2SpriteManager.RunFlagDecoded) != 0)
+            spriteManager.LineSpriteRunPixels(rasterLine, spriteIndex, run).Slice(0, length).CopyTo(codes);
+        else
+            Vic2SpriteManager.ExpandRunPixels(spriteManager.LineSpriteRunData(rasterLine, spriteIndex, run), runFlags, length, stretch, codes);
+        for (var x = from; x < to; x++)
+        {
+            if (_lineFgCodes[x] != CODE_NONE && (codes[x - screenX] & Vic2SpriteManager.RunPixelValueMask) != 0)
+                return true;
+        }
+        return false;
     }
 
     public void OnEndFrame()
@@ -864,7 +964,9 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         var clipEndX = _lineClearEndXs[pixelArrayY];
         var pixelsPerLine = (int)_cyclesPerLine * 8;
         byte backgroundCollisions = 0;
-        Span<byte> codes = stackalloc byte[RUN_PIXELS];
+        // The line's pixels whose collisions a read of the register has latched or cleared already.
+        var collisionsFromPixel = _backgroundCollisionsLatchedLine == _slRasterLine ? _backgroundCollisionsLatchedToPixel : 0;
+        _backgroundCollisionsLatchedLine = -1;
         for (int spriteIndex = 0; spriteIndex < SPRITE_COUNT; spriteIndex++)
         {
             if ((runMask & (1 << spriteIndex)) == 0)
@@ -910,34 +1012,12 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 _lineSpriteClipStartX[index] = clipStartX;
                 _lineSpriteClipEndX[index] = clipEndX;
 
-                // Sprite-to-background collision: an opaque sprite pixel where the graphics
-                // sequencer output a foreground pixel on this line (a set bit, or a 10/11 pair in
-                // multicolour; nothing while the vertical border flip-flop is set, when the
-                // sequencer's output is off). The line's codes are still those of the line that
-                // has just ended, resolved where the border flip-flop was clear.
-                if ((backgroundCollisions & (1 << spriteIndex)) == 0)
+                // Sprite-to-background collision, from the line's codes, which are still those of
+                // the line that has just ended.
+                if ((backgroundCollisions & (1 << spriteIndex)) == 0
+                    && SpriteRunHitsForeground(_slRasterLine, spriteIndex, run, startPixel, screenX, runFlags, length, stretch, clipStartX, clipEndX, collisionsFromPixel, int.MaxValue))
                 {
-                    var pixelCount = decoded ? length : Math.Min(length + stretch, RUN_PIXELS);
-                    var from = Math.Max(Math.Max(0, clipStartX), screenX);
-                    var to = Math.Min(Math.Min(_width, clipEndX), screenX + pixelCount);
-                    // Most lines have no foreground under the sprite (a sprite-only demo, the
-                    // borders, blank cells): one vectorised search before any decoding.
-                    var firstForeground = to > from ? _lineFgCodes.AsSpan(from, to - from).IndexOfAnyExcept(CODE_NONE) : -1;
-                    if (firstForeground >= 0)
-                    {
-                        if (decoded)
-                            _lineSpriteRunCodes.AsSpan(index * RUN_PIXELS, length).CopyTo(codes);
-                        else
-                            Vic2SpriteManager.ExpandRunPixels(row, runFlags, length, stretch, codes);
-                        for (var x = from + firstForeground; x < to; x++)
-                        {
-                            if (_lineFgCodes[x] != CODE_NONE && (codes[x - screenX] & Vic2SpriteManager.RunPixelValueMask) != 0)
-                            {
-                                backgroundCollisions |= (byte)(1 << spriteIndex);
-                                break;
-                            }
-                        }
-                    }
+                    backgroundCollisions |= (byte)(1 << spriteIndex);
                 }
             }
         }

@@ -248,12 +248,14 @@ public class Vic2SpriteManager : IVic2SpriteManager
     }
 
     /// <summary>
-    /// The sprite-to-sprite collisions of a line that has just ended, from the runs the VIC-II
-    /// derived: two sprites collide where both output an opaque pixel. Evaluated at the line's
-    /// end, so the register shows the collision after the line's pixels, as on the chip, not
-    /// before the CPU has run the line's code.
+    /// The sprite-to-sprite collisions of a line's pixels from <paramref name="fromPixel"/> up to
+    /// <paramref name="toPixel"/> (exclusive, counted from the line's first cycle), from the runs
+    /// the VIC-II derived: two sprites collide where both output an opaque pixel. Evaluated when
+    /// the line ends, and up to the beam when the register is read during it, so the register
+    /// shows a collision after its pixels, as on the chip, not before the CPU has run the line's
+    /// code, and a read clears only what the beam has passed.
     /// </summary>
-    public void EndLineSpriteCollisions(int rasterLine)
+    public void LatchLineSpriteCollisions(int rasterLine, int fromPixel, int toPixel)
     {
         var runMask = _lineSpriteRunMasks[rasterLine];
         if (runMask == 0 || (runMask & (runMask - 1)) == 0)
@@ -277,6 +279,7 @@ public class Vic2SpriteManager : IVic2SpriteManager
                     : RunOpaqueMask(LineSpriteRunData(rasterLine, n, r), (flags & RunFlagXExpand) != 0, (flags & RunFlagMultiColor) != 0,
                         LineSpriteRunLength(rasterLine, n, r), LineSpriteRunStretch(rasterLine, n, r));
                 starts[i] = LineSpriteRunStart(rasterLine, n, r);
+                masks[i] &= PixelWindowMask(fromPixel - starts[i], toPixel - starts[i]);
             }
         }
         var collided = false;
@@ -315,6 +318,15 @@ public class Vic2SpriteManager : IVic2SpriteManager
     }
 
     private const int RunMaskBits = RunPixelCapacity;   // up to 48 shown pixels and 7 repeated
+
+    // The bits from..to-1 of a run mask (positions relative to the run's first pixel).
+    private static ulong PixelWindowMask(int from, int to)
+    {
+        if (to <= 0 || from >= 64 || to <= from)
+            return 0;
+        var upTo = to >= 64 ? ulong.MaxValue : (1ul << to) - 1;
+        return from <= 0 ? upTo : upTo & ~((1ul << from) - 1);
+    }
 
     // The opaque pixels of a decoded run as a mask, bit 0 its first pixel.
     private static ulong DecodedRunOpaqueMask(ReadOnlySpan<byte> pixels)
@@ -602,7 +614,7 @@ public class Vic2SpriteManager : IVic2SpriteManager
         }
 
         // Sprite-to-sprite collisions are evaluated when the line ends, from the output runs the
-        // VIC-II derives with the X compare per pixel (EndLineSpriteCollisions).
+        // VIC-II derives with the X compare per pixel (LatchLineSpriteCollisions).
 
         // Mid-frame collision IRQ: raise as soon as a new collision is latched on this raster line
         // (the CPU services it on the next instruction boundary, like the raster IRQ), instead of
