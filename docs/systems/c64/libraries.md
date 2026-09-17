@@ -68,7 +68,7 @@ counts, one in the next line's first cycle does not). Sprites follow the chip's 
 counters: the compare in cycles 55 and 56 of the line an enabled sprite's Y register names
 switches its DMA on (on the 6567R8's 65-cycle line, cycles 56 and 57) and the display follows in cycle 58 (59), the row it fetches for each line comes
 from a counter that takes the fetch's end position (three on) in cycle 16 of every line where the
-Y-expansion flip-flop is set (inverted in cycle 55 while the expand bit is set, held set while it
+Y-expansion flip-flop is set (inverted while the expand bit is set, which a write as late as cycle 55 still decides, held set while it
 is cleared), and the DMA ends once that counter has reached 63. So a Y-expanded sprite shows every
 row twice, a change of the expand bit mid-sprite changes the line count from there on, a Y written
 to a line the raster has already passed costs nothing until the raster comes round again, and a Y

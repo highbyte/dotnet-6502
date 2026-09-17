@@ -65,8 +65,10 @@ public class Vic2
 
     // --- Sprite DMA and display (VIC-II article, section 3.8.1) ---
     // Each sprite has a data counter MC, loaded from its base MCBASE in cycle 58, and an expansion
-    // flip-flop for the Y expansion. In the first phase of cycle 55 the flip-flop is inverted if the
-    // sprite's Y-expand bit is set; in cycles 55 and 56 a sprite that is enabled and whose Y equals
+    // flip-flop for the Y expansion. The flip-flop is inverted if the sprite's Y-expand bit is set,
+    // by the article in the first phase of cycle 55, on the chip a cycle later: a bit set by a
+    // write in cycle 55 is still inverted, one set in cycle 56 is not (VICE's spritecrunch2 test
+    // programs, whose writes move a cycle every eight lines). In cycles 55 and 56 a sprite that is enabled and whose Y equals
     // the raster line's low byte gets its DMA switched on, MCBASE cleared and (if Y-expanded) the
     // flip-flop cleared. In cycle 58 MC is loaded from MCBASE and the display is switched on for a
     // sprite whose DMA is on and whose Y matches. In cycles 15 and 16 MCBASE advances by 2 and 1
@@ -1730,10 +1732,13 @@ public class Vic2
                     SpriteMcBaseUpdate(dma);
                 break;
             case 1:
-                SpriteExpandFlipFlopToggle((byte)(enabled | dma));
-                SpriteCompare(line);
+                _spriteStartedInFirstCompare = SpriteCompare(line);
                 break;
             case 2:
+                // The inversion, with the Y-expand bits as a write in the cycle before left them.
+                // Not for a sprite the first compare has just started: its flip-flop was cleared
+                // there and its first row is shown twice.
+                SpriteExpandFlipFlopToggle((byte)((enabled | dma) & ~_spriteStartedInFirstCompare));
                 SpriteFirstDataByteUnavailable |= (byte)(SpriteCompare(line) & 0x01);
                 break;
             default:
@@ -1775,8 +1780,8 @@ public class Vic2
     /// <summary>
     /// Writing the Y-expand register: the expansion flip-flop of every sprite whose bit is cleared
     /// is set at once (rule 1). That is what makes the sprite stretcher work: clearing the bit after
-    /// cycle 16 and setting it again before cycle 55 leaves the flip-flop cleared by the inversion
-    /// in cycle 55, so the data counter does not advance and the row is shown again.
+    /// cycle 16 and setting it again by cycle 55 leaves the flip-flop cleared by the inversion
+    /// that follows, so the data counter does not advance and the row is shown again.
     /// </summary>
     public void SpriteYExpandStore(ushort address, byte value)
     {
@@ -1829,8 +1834,9 @@ public class Vic2
         }
     }
 
-    // Cycle 55: the flip-flop of a Y-expanded sprite is inverted (only sprites that are enabled or
+    // The first phase of cycle 56: the flip-flop of a Y-expanded sprite is inverted (only sprites that are enabled or
     // fetching are followed; the others' flip-flops are settled by the compare that starts them).
+    private byte _spriteStartedInFirstCompare;   // the sprites this line's first compare switched on
     private void SpriteExpandFlipFlopToggle(byte sprites)
     {
         // Sprites with the bit cleared have their flip-flop set already (the write did it, and
