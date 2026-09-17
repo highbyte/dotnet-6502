@@ -625,6 +625,13 @@ public class Vic2
     }
 
     /// <summary>
+    /// Whether a VIC-II address (14 bits) reads the character ROM in the current bank: $1000-$1FFF
+    /// of banks 0 and 2.
+    /// </summary>
+    public bool IsCharacterRomAddress(ushort vic2Address)
+        => (vic2Address & 0x3000) == 0x1000 && (CurrentVIC2Bank == 0 || CurrentVIC2Bank == 2);
+
+    /// <summary>
     /// Method to be called before each write to memory by the CPU.
     /// For a write into the VIC-II's bank it first brings the VIC-II and the renderer through the
     /// write's own cycle, so the fetches of the cycles before the write, and the fetch of the

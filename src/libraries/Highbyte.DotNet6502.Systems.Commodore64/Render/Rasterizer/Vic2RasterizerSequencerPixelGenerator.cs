@@ -50,6 +50,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     // Whether DEN was seen set in a cycle of raster line $30 this frame, kept by the cycle walk
     // from the journaled $D011; the core's latch seeds it for a walk that starts after that line.
     private bool _displayEnabledThisFrame;
+    private byte _d011PreviousCycle;   // $D011 as the fetch of the cycle before saw it
     private int _baLowSince = -1; // the cycle BA went low for this line's c-accesses, -1 if it has not
     private const int BadLineFirstRasterLine = 0x30;
     private const int BadLineLastRasterLine = 0xF7;
@@ -1734,6 +1735,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         if (!badLineCondition)
             _baLowSince = -1;                               // the condition taken away: BA high again
 
+        _d011PreviousCycle = _d011;
+
         if (chipCycle == 58)
         {
             // Rule 5: a row's eighth line ends it, unless a bad line condition keeps the display
@@ -1763,17 +1766,34 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         var screenCode = _matrixLine[index];
         _fetchedMatrix[slot] = screenCode;
         _fetchedColor[slot] = _colorLine[index];
-        if ((_d011 & 0x20) != 0)
+
+        // The address follows BMM as it is now or as it was in the cycle before, whichever is set:
+        // on the NMOS chips (6569, 6567R8) switching bitmap mode off reaches the fetch a cycle
+        // after it reaches the sequencer. ECM is taken as it is now.
+        var address = GraphicsAddress((byte)(_d011 | (_d011PreviousCycle & 0x20)), screenCode);
+        if (((_d011 ^ _d011PreviousCycle) & 0x20) != 0)
         {
-            var bitmapBase = (_d018 & 0x08) << 10;
-            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(bitmapBase + _vc * 8 + _rc));
+            // In the cycle BMM changes, a fetch that moves from RAM into the character ROM takes the
+            // address's low byte from the mode of the cycle before and the rest from the mode now
+            // (observed on the 6569; VICE's videomode test programs).
+            var addressBefore = GraphicsAddress(_d011PreviousCycle, screenCode);
+            var addressNow = GraphicsAddress(_d011, screenCode);
+            if (!_c64.Vic2.IsCharacterRomAddress(addressBefore) && _c64.Vic2.IsCharacterRomAddress(addressNow))
+                address = (ushort)((addressBefore & 0x00FF) | (addressNow & 0x3F00));
         }
-        else
-        {
-            var characterSetBase = (_d018 & 0x0E) << 10;
-            var shape = (_d011 & 0x40) != 0 ? screenCode & 0x3F : screenCode;
-            _fetchedData[slot] = _c64.Vic2.ReadMemory((ushort)(characterSetBase + shape * _vic2ScreenCharacterHeight + _rc));
-        }
+        _fetchedData[slot] = _c64.Vic2.ReadMemory(address);
+    }
+
+    // The g-access address for a $D011 value: the bitmap at VC and RC with BMM, otherwise the
+    // shape of the screen code at RC; with ECM bits 9 and 10 of the address are held low.
+    private ushort GraphicsAddress(byte d011, byte screenCode)
+    {
+        var address = (d011 & 0x20) != 0
+            ? ((_d018 & 0x08) << 10) | (_vc << 3) | _rc
+            : ((_d018 & 0x0E) << 10) | (screenCode << 3) | _rc;
+        if ((d011 & 0x40) != 0)
+            address &= 0x39FF;
+        return (ushort)address;
     }
 
     // The colour codes of the four pixel values, from the article's mode tables (3.7.3): what a bit

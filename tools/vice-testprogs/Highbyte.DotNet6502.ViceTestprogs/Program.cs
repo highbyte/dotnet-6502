@@ -304,7 +304,8 @@ public static class Program
         };
     }
 
-    // The address in the BASIC stub's SYS statement: link (2), line number (2), token $9E, digits.
+    // The address in the BASIC stub's SYS statement: link (2), line number (2), token $9E, digits,
+    // with or without an opening parenthesis (SYS2080 and SYS(2080) both occur).
     private static ushort? SysAddress(C64 c64, ushort basicStart)
     {
         var p = (ushort)(basicStart + 4);
@@ -316,7 +317,7 @@ public static class Program
         while (true)
         {
             var b = c64.Mem[p++];
-            if (b == ' ')
+            if (b == ' ' || (b == '(' && digits == 0))
                 continue;
             if (b < '0' || b > '9')
                 break;
