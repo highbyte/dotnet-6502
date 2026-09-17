@@ -104,7 +104,11 @@ that pixel like the background colours do. Sprite-to-sprite collisions come from
 sprite-to-background collisions, from the runs' opaque pixels against the foreground pixels the
 graphics sequencer output on the line (a set bit, or a 10/11 pair in multicolour; nothing while
 the vertical border flip-flop is set). The collision interrupt flags latch whether or not the
-source is enabled, and reading a collision register clears the collisions, not the flag. Where
+source is enabled, and reading a collision register clears the collisions, not the flag. A
+collision register read in the middle of a line reports the collisions of the sprite pixels the
+beam has passed, up to four pixels before the start of the read's cycle, and clears the register
+as that cycle ends, so the collisions of the twelve pixels in between are lost and those of the
+rest of the line show in the next read. Where
 sprites overlap, the lowest-numbered one with an opaque pixel is shown and its own priority bit
 alone decides against the foreground graphics, so a sprite in front of the graphics does not show
 through a higher-priority sprite that is behind them. The

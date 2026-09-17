@@ -819,14 +819,62 @@ public class Vic2
     /// </summary>
     private void EndLineSprites(ushort line)
     {
+        DeriveLineSprites(line, _cyclesPerLine * 8, endOfLine: true);
+        _spriteXJournalCount = 0;
+        _spriteCollisionsLatchedToPixel = 0;
+    }
+
+    // A read of the collision register reports the sprite pixels up to four before the start of
+    // its cycle (VICE's sprite-sprite-collision-cycle test program) and clears the register as the
+    // cycle ends: the collisions of the twelve pixels in between are lost (VICE's spritevssprite
+    // test program, which reads the register twice, four cycles apart).
+    private const int SpriteCollisionReadPixel = -4;
+    private const int SpriteCollisionClearPixel = 8;
+
+    // The pixel of the current line up to which its sprite-to-sprite collisions have been latched
+    // or cleared by reads of the register; the line's end latches the rest.
+    private int _spriteCollisionsLatchedToPixel;
+
+    /// <summary>
+    /// Latches the current line's collisions up to the beam position of the collision register
+    /// read in progress, so the read reports, and clears, the collisions of the pixels output so
+    /// far and no others: the sprite-to-sprite ones here, the sprite-to-background ones
+    /// (<paramref name="withBackground"/>) in the renderer that resolves the line's pixels.
+    /// </summary>
+    private void LatchSpriteCollisionsUpToCurrentAccess(bool withBackground)
+    {
+        if (!SpriteManager.PerLineCollisionEnabled || _currentRasterLineInternal == ushort.MaxValue)
+            return;
+        if (withBackground && (!SpriteManager.BackgroundCollisionsFromRenderer || C64.Vic2CycleRenderer == null))
+            return;
+        var cycle = (int)(CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine);
+        // Not beyond the display decision of cycle 58: what is output after it depends on the
+        // fetches for the next line, which are known when the line ends.
+        var lastPixel = (_cyclesPerLine - 6) * 8;
+        var upToPixel = Math.Min(cycle * 8 + SpriteCollisionReadPixel, lastPixel);
+        var clearedToPixel = Math.Min(cycle * 8 + SpriteCollisionClearPixel, lastPixel);
+        // The runs up to there, and with them the sprite-to-sprite collisions, which a read of the
+        // other register leaves in place.
+        if (upToPixel > _spriteCollisionsLatchedToPixel)
+            DeriveLineSprites(_currentRasterLineInternal, upToPixel, endOfLine: false);
+        if (withBackground)
+            C64.Vic2CycleRenderer!.LatchSpriteBackgroundCollisions(_currentRasterLineInternal, upToPixel, clearedToPixel);
+        else
+            _spriteCollisionsLatchedToPixel = Math.Max(_spriteCollisionsLatchedToPixel, clearedToPixel);
+    }
+
+    /// <summary>
+    /// The line's runs that start before <paramref name="upToPixel"/>, and its collisions up to
+    /// there. At the line's end the rows left in the data registers are kept for the next line;
+    /// during the line (a read of the collision register) nothing is kept but the collisions.
+    /// </summary>
+    private void DeriveLineSprites(ushort line, int upToPixel, bool endOfLine)
+    {
         var nextLine = line + 1 >= _totalHeight ? 0 : line + 1;
         var displayBefore = SpriteManager.LineSpriteDisplayMask(line);
         var displayAfter = SpriteManager.LineSpriteDisplayMask(nextLine);
         if ((displayBefore | displayAfter | _spriteShiftRegisterMask) == 0)
-        {
-            _spriteXJournalCount = 0;   // nothing could have been output: no runs, no collisions
-            return;
-        }
+            return;   // nothing could have been output: no runs, no collisions
         var pixelsPerLine = _cyclesPerLine * 8;
         var xAtLineStart = Vic2Model.XCoordinateAtLineStart;
         // Cycle 58 (1-based): the display decision for the next line is taken.
@@ -884,7 +932,7 @@ public class Vic2
                 var matchPixel = x - xAtLineStart;
                 if (matchPixel < 0)
                     matchPixel += pixelsPerLine;
-                if (x < pixelsPerLine && matchPixel >= pixel && matchPixel < segmentEnd)
+                if (x < pixelsPerLine && matchPixel >= pixel && matchPixel < segmentEnd && matchPixel < upToPixel)
                 {
                     if (matchPixel >= loadPixel && !isLoaded)
                     {
@@ -945,15 +993,18 @@ public class Vic2
                 }
                 pixel = segmentEnd;
             }
+            if (!endOfLine)
+                continue;
             if (!isLoaded)
                 register = loaded;
             _spriteShiftRegister[n] = register;
             if (register != 0)
                 registerMask |= bit;
         }
-        _spriteShiftRegisterMask = registerMask;
-        _spriteXJournalCount = 0;
-        SpriteManager.EndLineSpriteCollisions(line);
+        if (endOfLine)
+            _spriteShiftRegisterMask = registerMask;
+        SpriteManager.LatchLineSpriteCollisions(line, _spriteCollisionsLatchedToPixel, endOfLine ? int.MaxValue : upToPixel);
+        _spriteCollisionsLatchedToPixel = upToPixel;
     }
 
     private static uint SpriteRowBits(ReadOnlySpan<byte> row) => (uint)(row[0] << 16 | row[1] << 8 | row[2]);
@@ -1055,6 +1106,7 @@ public class Vic2
 
     public byte SpriteToSpriteCollisionLoad(ushort address)
     {
+        LatchSpriteCollisionsUpToCurrentAccess(withBackground: false);
         var val = SpriteManager.SpriteToSpriteCollisionStore;
         SpriteManager.SpriteToSpriteCollisionStore = 0; // Collision state is cleared after reading
         SpriteManager.SpriteToSpriteCollisionIRQBlock = false; // Enable IRQs to be able to triggered again
@@ -1067,6 +1119,7 @@ public class Vic2
     }
     public byte SpriteToBackgroundCollisionLoad(ushort address)
     {
+        LatchSpriteCollisionsUpToCurrentAccess(withBackground: true);
         var val = SpriteManager.SpriteToBackgroundCollisionStore;
         SpriteManager.SpriteToBackgroundCollisionStore = 0; // Collision state is cleared after reading
         SpriteManager.SpriteToBackgroundCollisionIRQBlock = false; // Enable IRQs to be able to triggered again

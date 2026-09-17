@@ -87,7 +87,7 @@ public interface IVic2SpriteManager
     public ReadOnlySpan<byte> LineSpriteRunPixels(int rasterLine, int sprite, int run);
     public void AddLineSpriteRun(int rasterLine, int sprite, int run, int startPixel, uint rowBits, int length, int stretch, byte flags);
     public void AddLineSpriteDecodedRun(int rasterLine, int sprite, int run, int startPixel, ReadOnlySpan<byte> pixels);
-    public void EndLineSpriteCollisions(int rasterLine);
+    public void LatchLineSpriteCollisions(int rasterLine, int fromPixel, int toPixel);
 
     /// <summary>
     /// Captures the per-line sprite trigger-input snapshot (enable mask + Y). Called once per raster
@@ -100,7 +100,7 @@ public interface IVic2SpriteManager
     /// Accumulates sprite-to-background collisions for a single raster line into the collision
     /// store, using the sprites' positions at the line's start. Called once per raster line from
     /// <see cref="Vic2.AdvanceRaster"/> when <see cref="PerLineCollisionEnabled"/>. Sprite-to-sprite
-    /// collisions come from the line's output runs instead (<see cref="EndLineSpriteCollisions"/>).
+    /// collisions come from the line's output runs instead (<see cref="LatchLineSpriteCollisions"/>).
     /// </summary>
     public void AccumulatePerLineCollisions(int rasterLine);
 

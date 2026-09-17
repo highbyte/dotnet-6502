@@ -124,6 +124,9 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider, 
         _pixelGenerator.CatchUpToVic2();
     }
 
+    public void LatchSpriteBackgroundCollisions(int rasterLine, int upToPixel, int clearedToPixel)
+        => _pixelGenerator.LatchSpriteBackgroundCollisions(rasterLine, upToPixel, clearedToPixel);
+
     //public void OnEndScanline(int y)
     //{
     //    ScanlineCompleted?.Invoke(this, y);
