@@ -52,6 +52,14 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public byte[] RAM { get; set; } = default!;
     public byte[] IO { get; set; } = default!;
     public byte CurrentBank { get; private set; }
+
+    /// <summary>
+    /// Whether the I/O area (the VIC-II, SID, colour RAM, CIAs and cartridge I/O at
+    /// $D000-$DFFF) is visible to the CPU in the current memory configuration, as the processor
+    /// port and the cartridge lines select it.
+    /// </summary>
+    public bool IsIOVisible => _configurationMapsIO[Mem.CurrentConfiguration];
+    private readonly bool[] _configurationMapsIO = new bool[32];
     public Vic2 Vic2 { get; set; } = default!;
     public Cia1 Cia1 { get; set; } = default!;
     public Cia2 Cia2 { get; set; } = default!;
@@ -487,6 +495,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)
     {
+        _configurationMapsIO[mem.CurrentConfiguration] = mapIO;
         // Address 0x00: 6510 CPU data direction register.
         mem.MapReader(0x00, IoPortDirectionLoad);
         mem.MapWriter(0x00, IoPortDirectionStore);

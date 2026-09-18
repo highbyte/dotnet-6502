@@ -420,6 +420,12 @@ public enum OpCodeId: byte
     // LAS — A = X = SP = memory & SP
     LAS_ABS_Y = 0xBB,
 
+    // LXA — A = X = (A | magic) & immediate
+    LXA_I = 0xAB,
+
+    // ANE — A = (A | magic) & X & immediate
+    ANE_I = 0x8B,
+
     // SBC duplicate (identical to SBC_I 0xE9)
     SBC_I_EB = 0xEB,
 }

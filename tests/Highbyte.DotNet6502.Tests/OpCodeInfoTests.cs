@@ -31,6 +31,8 @@ public class OpCodeInfoTests
         Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.NOP));
         Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.NOP_ILL_1A));
         Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.ARR_I));
+        Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.LXA_I));
+        Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.ANE_I));
     }
 
     [Fact]
@@ -42,6 +44,8 @@ public class OpCodeInfoTests
         Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.SBC_I_EB));
         Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.ARR_I));
         Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.LAS_ABS_Y));
+        Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.LXA_I));
+        Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.ANE_I));
     }
 
     [Fact]
@@ -51,6 +55,8 @@ public class OpCodeInfoTests
 
         Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.ARR_I));
         Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.LAS_ABS_Y));
+        Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.LXA_I));
+        Assert.True(cpu.IsOpCodeDefined((byte)OpCodeId.ANE_I));
         Assert.False(cpu.IsOpCodeDefined((byte)OpCodeId.JAM_02));
     }
 

@@ -101,14 +101,14 @@ public static class Program
         var frameHeight = rasterizer.NativeSize.Height;
 
         // The debug register: the test writes its exit code there when its picture is complete.
-        // Hooked in every bank configuration (the C64 has 32, for the processor port and the
-        // cartridge lines); the value also goes to RAM, as it would in a configuration without I/O.
+        // It is in the I/O area, so it is hooked in every bank configuration that shows I/O (the
+        // C64 has 32, for the processor port and the cartridge lines); in the others a write to
+        // $D7FF is a write to RAM, as a test that clears memory with I/O banked out makes.
         int? exitCode = null;
         var exitFrame = -1;
         var frame = 0;
         void OnDebugWrite(ushort address, byte value)
         {
-            c64.RAM[address] = value;
             if (exitCode == null)
             {
                 exitCode = value;
@@ -119,7 +119,8 @@ public static class Program
         for (var configuration = 0; configuration < c64.Mem.NumberOfConfigurations; configuration++)
         {
             c64.Mem.SetMemoryConfiguration(configuration);
-            c64.Mem.MapWriter(DebugRegister, OnDebugWrite);
+            if (c64.IsIOVisible)
+                c64.Mem.MapWriter(DebugRegister, OnDebugWrite);
         }
         c64.Mem.SetMemoryConfiguration(currentConfiguration);
 
@@ -264,6 +265,8 @@ public static class Program
             AudioEnabled = false,
             RenderProviderType = typeof(Vic2Rasterizer),
             Vic2RasterizerPerLineSprites = true,
+            // The test programs are written for the real chip: every opcode it executes.
+            CpuCompatibilityProfile = CpuCompatibilityProfile.FullUnofficial,
             ROMs =
             [
                 new ROM { Name = "kernal", File = "kernal.901227-03.bin" },

@@ -378,6 +378,31 @@ internal static class InstructionCores
         return 0;
     }
 
+    /// <summary>
+    /// The value the unstable immediate opcodes LXA and ANE OR into A before their AND. It
+    /// differs between chips (and with temperature); $EE is the common one, and the one every
+    /// LXA and ANE vector of the SingleStepTests 6502 corpus shows.
+    /// </summary>
+    public const byte UnstableImmediateMagic = 0xEE;
+
+    /// <summary>LXA (LAX #imm): A = X = (A OR magic) AND value.</summary>
+    public static ulong Lxa(CPU cpu, byte value)
+    {
+        byte result = (byte)((cpu.A | UnstableImmediateMagic) & value);
+        cpu.A = result;
+        cpu.X = result;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(result, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    /// <summary>ANE (XAA #imm): A = (A OR magic) AND X AND value.</summary>
+    public static ulong Ane(CPU cpu, byte value)
+    {
+        cpu.A = (byte)((cpu.A | UnstableImmediateMagic) & cpu.X & value);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
     /// <summary>LAS: A = X = SP = value AND SP.</summary>
     public static ulong Las(CPU cpu, byte value)
     {

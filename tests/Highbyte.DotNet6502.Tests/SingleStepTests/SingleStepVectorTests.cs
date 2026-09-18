@@ -34,7 +34,7 @@ public class SingleStepVectorTests : IClassFixture<SingleStepVectorTests.Harness
     }
 
     private const string UnstableNmos =
-        "unstable undocumented opcode (result depends on a chip-specific 'magic' value and bus timing); not implemented in any profile, the corpus encodes one silicon's behavior";
+        "unstable undocumented opcode (result depends on bus timing and the chip); not implemented in any profile, the corpus encodes one silicon's behavior";
     private const string RockwellBitOps =
         "Rockwell/WDC bit instruction (RMB/SMB/BBR/BBS); the emulated NCR 65C02 executes these bytes as 1-cycle NOPs";
 
@@ -44,13 +44,11 @@ public class SingleStepVectorTests : IClassFixture<SingleStepVectorTests.Harness
         {
             ["6502"] = new Dictionary<byte, string>
             {
-                [0x8B] = UnstableNmos,  // ANE
                 [0x93] = UnstableNmos,  // SHA (zp),Y
                 [0x9B] = UnstableNmos,  // TAS
                 [0x9C] = UnstableNmos,  // SHY
                 [0x9E] = UnstableNmos,  // SHX
                 [0x9F] = UnstableNmos,  // SHA abs,Y
-                [0xAB] = UnstableNmos,  // LXA
             },
             ["wdc65c02"] = BuildWdcDeviations(),
         };
