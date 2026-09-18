@@ -501,7 +501,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             Cia1.MapIOLocations(mem);
             Cia2.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
-            CartridgeSlot.MapIOLocations(mem, ReadIOStorage, WriteIOStorage);
+            // With no cartridge there the I/O 1 and I/O 2 areas are not connected: a read returns
+            // what the VIC-II left on the data bus.
+            CartridgeSlot.MapIOLocations(mem, _ => Vic2.FirstPhaseBusByte(), WriteIOStorage);
         }
     }
 
