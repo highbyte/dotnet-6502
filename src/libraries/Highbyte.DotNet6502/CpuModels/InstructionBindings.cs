@@ -301,6 +301,12 @@ internal static class InstructionBindings
             Read(table, 0x4B, "ALR", AddrMode.I, 2, 2, InstructionCores.Alr, false, indexedDummyReads, documented: false);
             Read(table, 0xCB, "AXS", AddrMode.I, 2, 2, InstructionCores.Axs, false, indexedDummyReads, documented: false);
 
+            // The two immediate opcodes whose result depends on a chip-specific value, with the
+            // common one: closer to any real chip than running them as one-byte instructions,
+            // which derails programs that use them (FLI displayers use LXA #0).
+            Read(table, 0xAB, "LXA", AddrMode.I, 2, 2, InstructionCores.Lxa, false, indexedDummyReads, documented: false);
+            Read(table, 0x8B, "ANE", AddrMode.I, 2, 2, InstructionCores.Ane, false, indexedDummyReads, documented: false);
+
             // $EB: undocumented alias of SBC #imm — same core as the official byte.
             Read(table, 0xEB, "SBC", AddrMode.I, 2, 2, InstructionCores.SbcNmos, false, indexedDummyReads, documented: false);
         }
