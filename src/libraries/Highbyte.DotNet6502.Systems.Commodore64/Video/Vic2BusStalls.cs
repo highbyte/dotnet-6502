@@ -121,8 +121,8 @@ internal sealed class Vic2BusStalls : IBusStallSource
     // on the 6569 and 59 on the 6567R8, the others two cycles apart, so sprites 0-2 fetch at the
     // end of the line and 3-7 at the start of the next (on the 6567R8 sprite 3's fetch is the
     // line's 65th cycle). The NTSC chip's two extra cycles are not spread over the line: its sprite
-    // fetches sit one cycle later than PAL's in absolute terms (VICE's vicii-chip-model.c cycle
-    // tables for the 6569 and 6567R8), so the CPU gets the bus back one cycle later, not two.
+    // fetches sit one cycle later than PAL's in absolute terms, so the CPU gets the bus back one cycle
+    // later, not two.
     private int SpritePointerOffset(int sprite)
         => (_cyclesPerLine == 63 ? 57 : 58) + 2 * sprite;
 

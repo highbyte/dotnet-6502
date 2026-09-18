@@ -239,8 +239,8 @@ public abstract class Vic2ModelBase
     /// the write is reported in. Two things are pinned: the reported cycle is the store's own bus
     /// write cycle in this emulator's cycle count (C64DeviceAccessTimingTests), and the display
     /// window anchor (<see cref="DisplayWindowStartX"/>, 124 pixels, X 24 in the second half of the
-    /// chip's cycle 16) agrees with VICE's cycle tables, so pixels are placed against the chip's
-    /// cycles as VICE places them. A change cannot precede its write, so the only consistent
+    /// chip's cycle 16) matches the VICE test programs' reference pictures, so pixels are placed
+    /// against the chip's cycles as those pictures show them. A change cannot precede its write, so the only consistent
     /// reading is that this emulator's cycle index runs about two cycles ahead of the chip's cycle
     /// as the pixel side sees it, and the chip's own register-to-pixel pipeline is the remaining
     /// five pixels. Five is plausible: the CPU's write lands in the second half of its cycle and the
@@ -255,8 +255,7 @@ public abstract class Vic2ModelBase
     /// X coordinate $194 (PAL) at the start of cycle 1; if the RASTER register on the chip
     /// increments at a different cycle than the one the pixel anchor was derived from, every CPU
     /// event is dated against a line origin that is shifted from the pixel origin by that
-    /// difference. Check: VICE's vicii-cycle.c, where raster_line is incremented against the cycle
-    /// at which its xpos table restarts.</description></item>
+    /// difference.</description></item>
     /// <item><description>The CPU's access phase. The 6510 reads and writes in the second half of a
     /// cycle (phi2); the VIC-II fetches in the first half. If the cycle engine dates an access to
     /// the cycle in which the instruction's bus cycle begins while the pixel side counts from

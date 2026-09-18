@@ -80,9 +80,8 @@ public class Vic2
     // so a register write lands before or after a cycle's check according to its own cycle.
     private readonly byte[] _spriteMcBase = new byte[8];
     private readonly byte[] _spriteMc = new byte[8];
-    // MC as the line's three s-accesses leave it: MCBASE + 3, unless a Y-expand write in the crunch
-    // cycle has merged it with MCBASE (the sprite crunch). Cycle 16 loads MCBASE from it.
-    private readonly byte[] _spriteMcAfterFetch = new byte[8];
+    // The count after the three data accesses, separate from MC's public row-start value.
+    private readonly byte[] _spriteFetchEnd = new byte[8];
     // The sprite registers the events read, cached: refreshed from the IO storage when a line is
     // entered and by the register writes in between, so the events do not go through the storage
     // for every sprite on every line.
@@ -107,8 +106,8 @@ public class Vic2
     // The priority, multicolour and X-expand registers go through the same journal: the sprite
     // data sequencer reads them at every pixel, so a write while a sprite shifts changes its
     // output from a pixel on. The priority and X-expand bits are read two pixels before an X
-    // write is seen, the multicolour bits one pixel before (the register-to-pixel timings of the
-    // chip as VICE's cycle-based VIC-II has them, verified by its spritesplit test programs).
+    // write is seen, the multicolour bits one pixel before (the register-to-pixel timings VICE's
+    // spritesplit test programs show).
     private const int SpriteXJournalCapacity = 64;
     private readonly ushort[] _spriteXJournalRegister = new ushort[SpriteXJournalCapacity];
     private readonly byte[] _spriteXJournalValue = new byte[SpriteXJournalCapacity];
@@ -130,7 +129,7 @@ public class Vic2
     // the two compares that start a sprite's DMA, and the display decision. The compares and the
     // decision sit at fixed distances from sprite 0's pointer access: cycles 55, 56 and 58 on the
     // 6569, where that access is in cycle 58; one later on the 6567R8, whose 65-cycle line has it
-    // in cycle 59 (VICE's cycle tables for the two chips; the article gives the 6569's numbers).
+    // in cycle 59 (the article gives the 6569's numbers).
     private readonly int[] SpriteEventOffsets = { SpriteEventMcBaseUpdateOffset, 54, 55, 57 };
     // The events of the current line are applied in order as the raster advances: the index of
     // the next one and its offset (int.MaxValue once the line's events are all applied), so an
@@ -229,11 +228,7 @@ public class Vic2
     private const int BorderDecisionCycle = 16;
     private bool _displayEnabledLatch;
     private bool _displayState;
-    private bool _verticalBorder = true;
-    // The bottom compare arms this latch; the flip-flop takes it over at a line's start and at the
-    // left compare (VICE's set_vborder).
-    private bool _verticalBorderLatch = true;
-    // Whether the raster compare currently matches (VICE's raster_irq_triggered): the interrupt is
+    // Whether the raster compare currently matches: the interrupt is
     // raised when the comparison goes from non-match to match, not while it stays matched.
     private bool _rasterIrqConditionMet;
     private ushort _videoCounterBase;
@@ -295,34 +290,57 @@ public class Vic2
 
         _displayStateAtLineStart = _displayState;
         _rowCounterAtLineStart = _rowCounter;
-        CheckVerticalBorderCompares(line, control);
-        _verticalBorder = _verticalBorderLatch;
+        VerticalBorderLineEntry(line, control);
         ApplyBadLineDecision(line);
     }
 
-    // The vertical border compares, as VICE models them: they are checked in every cycle with the
-    // registers as they are then. The top compare with DEN set clears the flip-flop and its latch
-    // at once; the bottom compare only arms the latch, which the flip-flop takes over as the raster
-    // enters a line and at the display window's left edge. So a DEN cleared after line 51 began
-    // does not close a border already opened (VICE's dentest den10-51-1 shows the text for exactly
-    // that), RSEL cleared for a few cycles anywhere in line 247 closes the border at that line's
-    // left edge or, after it, from the next line (VICE's border/vborder2 tests), and a program that
-    // keeps the raster from ever matching the bottom compare line by switching RSEL around it keeps
-    // the border open.
-    private void CheckVerticalBorderCompares(ushort line, byte control)
+    // --- The vertical border flip-flop: clean-room specification B5 ---
+    private bool _verticalBorderCurrent = true;
+    private bool _verticalBorderPending = true;
+
+    /// <summary>
+    /// The raster has entered <paramref name="line"/>, with $D011 as <paramref name="control"/>:
+    /// settle the line's vertical border state.
+    /// </summary>
+    private void VerticalBorderLineEntry(ushort line, byte control)
     {
-        var displayEnabled = (control & 0x10) != 0;
-        var rows25 = (control & 0x08) != 0;
-        var topCompare = rows25 ? 51 : 55;
-        var bottomCompare = rows25 ? 251 : 247;
-        if (line == topCompare && displayEnabled)
-        {
-            _verticalBorder = false;
-            _verticalBorderLatch = false;
-        }
-        if (line == bottomCompare)
-            _verticalBorderLatch = true;
+        CompareVerticalBorder(line, control);
+        _verticalBorderCurrent = _verticalBorderPending;
     }
+
+    /// <summary>
+    /// $D011 was written as <paramref name="control"/> in cycle <paramref name="cycleInLine"/>
+    /// (0-based) of <paramref name="line"/>, not its last cycle. Returns whether the line's
+    /// published state has to be refreshed.
+    /// </summary>
+    private bool VerticalBorderControlWritten(ushort line, byte control, int cycleInLine)
+    {
+        CompareVerticalBorder(line, control);
+        var leftCompare = BorderDecisionCycle + (Is38ColumnDisplayEnabled ? 1 : 0);
+        if (cycleInLine >= leftCompare)
+            return false;
+        _verticalBorderCurrent = _verticalBorderPending;
+        return true;
+    }
+
+    private void CompareVerticalBorder(ushort line, byte control)
+    {
+        var tall = (control & 8) != 0;
+        if (line == (tall ? 51 : 55) && (control & 0x10) != 0)
+        {
+            _verticalBorderCurrent = false;
+            _verticalBorderPending = false;
+        }
+        else if (line == (tall ? 251 : 247))
+        {
+            // A late RSEL write closes the next line; the published line stays as it was.
+            // This is the distinction exercised by VICE's vborder test programs.
+            _verticalBorderPending = true;
+        }
+    }
+
+    /// <summary>Whether the vertical border covers the current line: what is published for it.</summary>
+    private bool VerticalBorderClosed => _verticalBorderCurrent;
 
     // Decide the line's bad line condition from the registers as they are now, and record the
     // line's state. Called when the line is entered and again if $D011 is written before the
@@ -344,7 +362,7 @@ public class Vic2
     }
 
     private void StoreLineState(ushort line)
-        => _lineDisplayStates[line] = new Vic2LineDisplayState(_displayState, _verticalBorder, _videoCounterBase, _rowCounter);
+        => _lineDisplayStates[line] = new Vic2LineDisplayState(_displayState, VerticalBorderClosed, _videoCounterBase, _rowCounter);
 
     // A $D011 write: DEN during line $30 counts for the frame; the vertical border compares see the
     // new value at once, and a write before this line's decision cycles can still change the line's
@@ -365,15 +383,10 @@ public class Vic2
         var cyclesIntoLine = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine;
         if (cyclesIntoLine == Vic2Model.CyclesPerLine - 1)
             return;
-        CheckVerticalBorderCompares(line, control);
-
-        var leftCompareCycle = BorderDecisionCycle + (Is38ColumnDisplayEnabled ? 1 : 0);
-        if (cyclesIntoLine >= (ulong)leftCompareCycle)
-            return;
-        _verticalBorder = _verticalBorderLatch;
+        var republish = VerticalBorderControlWritten(line, control, (int)cyclesIntoLine);
         if (cyclesIntoLine < (ulong)BadLineDecisionCycle)
             ApplyBadLineDecision(line);
-        else
+        else if (republish)
             StoreLineState(line);
     }
 
@@ -1895,60 +1908,53 @@ public class Vic2
         return mask;
     }
 
-    /// <summary>
-    /// Writing the Y-expand register: the expansion flip-flop of every sprite whose bit is cleared
-    /// is set at once (rule 1). That is what makes the sprite stretcher work: clearing the bit after
-    /// cycle 16 and setting it again by cycle 55 leaves the flip-flop cleared by the inversion
-    /// that follows, so the data counter does not advance and the row is shown again.
-    /// </summary>
+    /// <summary>The $D017 store: rule 1 and the sprite crunch (clean-room specification B4).</summary>
     public void SpriteYExpandStore(ushort address, byte value)
     {
         C64.WriteIOStorage(address, value);
         _spriteYExpandCache = value;
-        // A bit cleared in cycle 15 while the sprite's flip-flop is clear crunches: MC, which the
-        // s-accesses left at MCBASE + 3, takes a bitwise merge of MCBASE and itself (the odd bits
-        // where both are set, the even bits where either is), and cycle 16 loads MCBASE from that.
-        // The counter is then off its stride of three, misses 63, and the sprite's DMA runs on
-        // through the wrap: the sprite crunch of the demos.
-        var crunchCycle = _currentRasterLineInternal != ushort.MaxValue
-            && (int)(CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine) == SpriteCrunchCycleOffset;
+        SpriteYExpandWritten(value);
+    }
+
+    /// <summary>
+    /// A $D017 write, after the register and its cache hold <paramref name="value"/>: rule 1 and
+    /// the sprite crunch (clean-room specification B4).
+    /// </summary>
+    private void SpriteYExpandWritten(byte value)
+    {
+        var crunchCycle = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine == SpriteCrunchCycleOffset;
         for (var n = 0; n < 8; n++)
         {
-            if ((value & (1 << n)) != 0)
+            var bit = 1 << n;
+            if ((value & bit) != 0)
                 continue;
-            if (crunchCycle && !_spriteExpandFlipFlop[n] && (SpriteDmaMask & (1 << n)) != 0)
+            if (crunchCycle && !_spriteExpandFlipFlop[n] && (SpriteDmaMask & bit) != 0)
             {
-                var mcBase = _spriteMcBase[n];
-                var mc = _spriteMcAfterFetch[n];
-                _spriteMcAfterFetch[n] = (byte)((0x2A & (mcBase & mc)) | (0x15 & (mcBase | mc)));
+                // The alternating AND/OR bits give the counter table documented by VICE's
+                // spritecrunch test programs, including the off-stride rows that prolong DMA.
+                var before = _spriteMcBase[n];
+                var after = _spriteFetchEnd[n];
+                _spriteFetchEnd[n] = (byte)(((before & after) & 0x2A) | ((before | after) & 0x15));
             }
             _spriteExpandFlipFlop[n] = true;
         }
     }
 
-    // The expansion flip-flop is set as long as the sprite's Y-expand bit is cleared (rule 1).
-    private bool SpriteExpandFlipFlop(int sprite, byte yExpand)
-    {
-        if ((yExpand & (1 << sprite)) == 0)
-            _spriteExpandFlipFlop[sprite] = true;
-        return _spriteExpandFlipFlop[sprite];
-    }
-
-    // Cycle 16: a fetching sprite whose flip-flop is set takes MC, as the line's s-accesses left
-    // it, into MCBASE (three on from the row just fetched, so the next fetch is the next row;
-    // unchanged with the flip-flop clear, so the row is fetched again), and one whose MCBASE has
-    // reached 63 has fetched its last row.
+    /// <summary>The update in cycle 16 for the fetching sprites in <paramref name="dma"/> (clean-room specification B4).</summary>
     private void SpriteMcBaseUpdate(byte dma)
     {
-        var yExpand = _spriteYExpandCache;
         for (var n = 0; n < 8; n++)
         {
-            if ((dma & (1 << n)) == 0)
+            var bit = 1 << n;
+            if ((dma & bit) == 0)
                 continue;
-            if (SpriteExpandFlipFlop(n, yExpand))
-                _spriteMcBase[n] = _spriteMcAfterFetch[n];
+            // Also honour registers restored directly into IO storage before line entry.
+            if ((_spriteYExpandCache & bit) == 0)
+                _spriteExpandFlipFlop[n] = true;
+            if (_spriteExpandFlipFlop[n])
+                _spriteMcBase[n] = _spriteFetchEnd[n];
             if (_spriteMcBase[n] == 63)
-                SpriteDmaMask &= (byte)~(1 << n);   // the display stays on until cycle 58 finds the DMA off
+                SpriteDmaMask &= (byte)~bit;
         }
     }
 
@@ -1989,30 +1995,18 @@ public class Vic2
         return start;
     }
 
-    // Cycle 58: MC is loaded from MCBASE, and a fetching sprite that is enabled and whose Y names
-    // this line is displayed. The article's rule 4 asks for DMA and Y only; the chip asks for the
-    // enable bit as well, as it stands in this cycle (VICE's spriteenable test programs: a sprite
-    // switched on for the compares and off again before this cycle fetches but does not show).
-    // A sprite whose DMA is off here stops being displayed; one whose DMA is on keeps its display
-    // state unless the enable bit and Y switch it on. So a sprite restarted by the compare of the
-    // last line of its previous run (its DMA ended in cycle 16, the compare in cycle 55 started it
-    // again) is still displayed on the next line (VICE's spriterestart test program).
+    /// <summary>The display decision and MC load of cycle 58 on <paramref name="line"/> (clean-room specification B4).</summary>
     private void SpriteLoadMc(ushort line)
     {
-        var dma = SpriteDmaMask;
-        var enabled = _spriteEnableCache;
-        var lineLow = (byte)line;
+        SpriteDisplayMask &= SpriteDmaMask;
+        SpriteDisplayMask |= (byte)(SpriteDmaMask & SpriteYMatchMask(line));
         for (var n = 0; n < 8; n++)
         {
-            if ((dma & (1 << n)) == 0)
-            {
-                SpriteDisplayMask &= (byte)~(1 << n);
-                continue;   // MC only matters for a fetching sprite
-            }
+            if ((SpriteDmaMask & (1 << n)) == 0)
+                continue;
             _spriteMc[n] = _spriteMcBase[n];
-            _spriteMcAfterFetch[n] = (byte)((_spriteMcBase[n] + 3) & 0x3F);   // the three s-accesses
-            if ((enabled & (1 << n)) != 0 && _spriteYCache[n] == lineLow)
-                SpriteDisplayMask |= (byte)(1 << n);
+            // Only the completed fetch count is needed by the next cycle 16 or a crunch.
+            _spriteFetchEnd[n] = (byte)((_spriteMc[n] + 3) & 63);
         }
     }
 
