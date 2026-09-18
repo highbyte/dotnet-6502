@@ -50,7 +50,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     // Whether DEN was seen set in a cycle of raster line $30 this frame, kept by the cycle walk
     // from the journaled $D011; the core's latch seeds it for a walk that starts after that line.
     private bool _displayEnabledThisFrame;
-    private byte _d011PreviousCycle;   // $D011 as the fetch of the cycle before saw it
     private int _baLowSince = -1; // the cycle BA went low for this line's c-accesses, -1 if it has not
     private const int BadLineFirstRasterLine = 0x30;
     private const int BadLineLastRasterLine = 0xF7;
@@ -102,11 +101,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     // decide what colour each bit or pair stands for and which of them are foreground, and in idle
     // state the byte comes from $3FFF ($39FF with ECM) with the matrix data read as zero. The output
     // shows a byte two cycles after its g-access. Where in a cycle a register change reaches the
-    // output is not in the article; those points (the mode bits four pixels in, or six when a bit is
-    // cleared; the multicolour decoding a cycle after its colour selection; the colour of a set bit in
-    // a multicolour cell during that gap) are the chip's observed behaviour as established by the
-    // VICE project's viciisc emulation (vicii-draw-cycle.c) and its VICII test programs, whose
-    // reference pictures this generator is checked against. VICE is the reference, not the source.
+    // output is not in the article; those points are the chip's observed behaviour as VICE's VICII
+    // test programs show it, whose reference pictures this generator is checked against.
 
     // The display registers as the sequencer sees them, through the register write journal: a
     // write is seen from the cycle after it lands.
@@ -122,20 +118,33 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private readonly byte[] _fetchedColor = new byte[3];
     private byte _loadPixel;   // the pixel within a cycle the shift register is loaded at (XSCROLL)
 
-    // The shift register and what it was loaded with.
-    private byte _shiftData;
-    private byte _shiftMatrix;
-    private byte _shiftColor;
-    private bool _pairSecondHalf;   // in multicolour the second pixel of a pair repeats the first
-    private byte _pixelValue;       // the value of the pixel being output: the bit twice, or the pair
-
-    // The modes as they stand at the output. ECM and BMM are held as a pair of bits that a change
-    // reaches four pixels into a cycle when set and six when cleared; the colour selection follows
-    // MCM four pixels in, the decoding into pairs a cycle later.
-    private const byte MODE_ECM = 0x04, MODE_BMM = 0x02, MODE_MCM = 0x01;
-    private byte _modeEcmBmm;      // MODE_ECM | MODE_BMM as they stand
-    private bool _colorMcm;        // MCM as the colour selection has it
-    private bool _decodeMcm;       // MCM as the decoding into pairs has it
+    // The shift register, the current cell and the modes at the output: clean-room specification B2.
+    private byte _graphicsShift;
+    private byte _cellMatrix;
+    private byte _cellColor;
+    private byte _pixelValue;
+    private bool _takeGraphicsPair = true;
+    private byte _outputMode; // ECM/BMM in bits 6/5, colour-choice MCM in bit 4
+    private bool _decodeGraphicsPairs;
+    private byte _previousFetchControl;
+    // One decoded block, reusable across cells and lines. Its key includes every colour input;
+    // background registers stay symbolic so later writes are still resolved per pixel.
+    private int _cachedBlockKey = -1;
+    private ulong _cachedBackgroundCodes;
+    private ulong _cachedForegroundCodes;
+    private const ulong RepeatCode = 0x0101010101010101;
+    // One byte-wide mask per pixel, in output order. Built once, never on a cycle's hot path.
+    private static readonly ulong[] s_graphicsBitMasks = CreateGraphicsBitMasks();
+    private int _previousBlockX = int.MinValue;
+    private int _previousBlockSerial;
+    private int _previousBlockKey = -1;
+    // A scrolled block includes the tail of the preceding cell. Both that starting state and
+    // the incoming cell belong in its cache key; identical fetched bytes alone are not enough.
+    private ulong _scrolledBlockKey = ulong.MaxValue;
+    private ulong _scrolledBackgroundCodes;
+    private ulong _scrolledForegroundCodes;
+    private int _scrolledBlockX = int.MinValue;
+    private int _scrolledBlockSerial;
     private const int FirstFetchCycle = 15;   // the g-access of column 0 (the chip's cycle 16)
 
     // The line's graphics, as colour codes, resolved into the two layers when the line ends: a
@@ -143,11 +152,10 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     // that pixel, CODE_NONE no foreground pixel.
     private const byte CODE_BG0 = 16;
     private const byte CODE_NONE = 255;
-    // The colour code for each of the four pixel values with the modes and the shift register's
-    // matrix byte and colour nibble as they are now.
+    // The colour code for each of the four pixel values as the modes and the current cell select
+    // them now: WritePixelCode records a pixel through it.
     private readonly byte[] _colorCodes = new byte[4];
-    private bool _colorCodesValid;
-    private int _colorCodesKey = -1;
+    private int _resolvedColorKey = -1;
     // Colour per code for a line without background colour writes (codes 0-15 and the four
     // registers), and per foreground code (CODE_NONE is transparent); rebuilt when a line is resolved.
     private readonly uint[] _bgCodeColor = new uint[CODE_BG0 + 4];
@@ -435,8 +443,8 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         // into the raster line (X 24, 4 pixels into the chip's cycle 16 = index 15); 38 columns move
         // the left edge 7 pixels right (X 31) and the right one 9 pixels left (X 335). The chip
         // evaluates each compare one cycle after the cycle its X coordinate falls in, with the
-        // registers as written up to the cycle before that (VICE's cycle tables: the 38 column
-        // right compare in cycle 56, the 40 column one in 57, counting from 1), which is why a 38
+        // registers as written up to the cycle before that (the 38 column right compare in cycle
+        // 56, the 40 column one in 57, counting from 1), which is why a 38
         // column write in cycle 56 opens the side border: the first compare does not see it yet and
         // the second does. The pixel positions the flip-flop changes at are the X coordinates.
         var displayWindowStartLineX = _c64.Vic2.Vic2Model.DisplayWindowStartX;
@@ -1539,177 +1547,228 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     /// </summary>
     private void DrawGraphicsCycle(int cycle, int rasterLine, int blockX, bool render)
     {
-        var clipStart = Math.Max(_lineClearStartX, 0);
-        var clipEnd = Math.Min(_lineClearEndX, _width);
-        var draw = render && blockX + 8 > clipStart && blockX < clipEnd;
-        var newEcmBmm = (byte)(((_d011 & 0x40) != 0 ? MODE_ECM : 0) | ((_d011 & 0x20) != 0 ? MODE_BMM : 0));
-        var newMcm = (_d016 & 0x10) != 0;
-        var modeStable = _modeEcmBmm == newEcmBmm && _colorMcm == newMcm && _decodeMcm == newMcm;
-        var fetchSlot = cycle % 3;                       // this cycle's entry in the fetch ring
-        var loadSlot = fetchSlot == 2 ? 0 : fetchSlot + 1;   // the entry fetched two cycles ago: (cycle - 2) mod 3
-        var wholeBlock = draw && modeStable && blockX >= clipStart && blockX + 8 <= clipEnd;
-        // The block's inputs and the pipeline state it starts from, as one key.
-        var blockKey = (ulong)_fetchedData[loadSlot] | ((ulong)_fetchedMatrix[loadSlot] << 8) | ((ulong)_fetchedColor[loadSlot] << 16)
-            | ((ulong)_shiftData << 24) | ((ulong)_shiftMatrix << 32) | ((ulong)_shiftColor << 40)
-            | ((ulong)_pixelValue << 48) | (_pairSecondHalf ? 1UL << 56 : 0) | ((ulong)_loadPixel << 57);
-        if (wholeBlock && blockX == _blockCacheX + 8 && blockKey == _blockCacheKey)
+        var fetchSlot = cycle % 3;
+        var loadSlot = fetchSlot == 2 ? 0 : fetchSlot + 1; // two cycles behind the fetch being made now
+        var nextMode = (byte)((_d011 & 0x60) | (_d016 & 0x10));
+        var clearStart = Math.Max(0, _lineClearStartX);
+        var clearEnd = Math.Min(_width, _lineClearEndX);
+        var visible = render && blockX < clearEnd && blockX + 8 > clearStart;
+        if (nextMode == _outputMode && !visible)
         {
-            // The same inputs as the block before, in the same state: the eight codes repeat (a run
-            // of identical cells, the idle byte across an opened border, blank cells under any
-            // XSCROLL), and the state after is the state the previous block left.
-            Unsafe.As<byte, ulong>(ref _lineFgCodes[blockX]) = Unsafe.As<byte, ulong>(ref _lineFgCodes[blockX - 8]);
-            Unsafe.As<byte, ulong>(ref _lineBgCodes[blockX]) = Unsafe.As<byte, ulong>(ref _lineBgCodes[blockX - 8]);
-            _lineRepeatMark[blockX] = _lineSerial;   // the resolve pass copies this block's colours from the one before
-            _shiftData = _blockCachePostShiftData;
-            _pixelValue = _blockCachePostPixelValue;
-            _pairSecondHalf = _blockCachePostPairSecondHalf;
-            _shiftMatrix = _fetchedMatrix[loadSlot];
-            _shiftColor = _fetchedColor[loadSlot];
-            _blockCacheX = blockX;
-            FetchCycle(cycle, rasterLine, fetchSlot);
-            return;
+            AdvanceHiddenGraphicsBlock(loadSlot, nextMode);
+            _previousBlockKey = -1;
         }
-        _blockCacheKey = blockKey;
-
-        if (!draw && modeStable && _fetchedData[loadSlot] == 0 && _shiftData == 0 && _pixelValue == 0)
+        else if (_loadPixel == 0 && nextMode == _outputMode
+            && visible && blockX >= clearStart && blockX + 8 <= clearEnd)
         {
-            // Nothing to show and nothing in the shift register (the border, or a line the vertical
-            // flip-flop covers): the cycle only takes the empty entry and settles the pair phase.
-            _shiftMatrix = _fetchedMatrix[loadSlot];
-            _shiftColor = _fetchedColor[loadSlot];
-            _pairSecondHalf = ((8 - _loadPixel) & 1) != 0;
+            DrawLoadedGraphicsBlock(loadSlot, blockX, nextMode);
         }
-        else if (draw && modeStable && _loadPixel == 0 && blockX >= clipStart && blockX + 8 <= clipEnd)
+        else if (nextMode == _outputMode && visible && blockX >= clearStart && blockX + 8 <= clearEnd)
         {
-            // The steady state: the byte is taken at pixel 0, the modes do not change and the whole
-            // block shows. Decoded without the per-pixel bookkeeping of the general case below.
-            _shiftMatrix = _fetchedMatrix[loadSlot];
-            _shiftColor = _fetchedColor[loadSlot];
-            var data = _fetchedData[loadSlot];
-            var multicolorCell = (_modeEcmBmm & MODE_BMM) != 0 || (_shiftColor & 0x08) != 0;
-            ResolveColorCodes();
-            byte value = 0;
-            if (data == 0)
-            {
-                // A blank byte (most of a text screen): every pixel is value 0, background priority.
-                Array.Fill(_lineFgCodes, CODE_NONE, blockX, 8);
-                Array.Fill(_lineBgCodes, _colorCodes[0], blockX, 8);
-            }
-            else if (_decodeMcm && multicolorCell)
-            {
-                for (var i = 0; i < 8; i += 2)
-                {
-                    value = (byte)((data >> (6 - i)) & 3);
-                    WritePixelCode(blockX + i, value);
-                    WritePixelCode(blockX + i + 1, value);
-                }
-            }
-            else
-            {
-                for (var i = 0; i < 8; i++)
-                {
-                    value = (data & (0x80 >> i)) != 0 ? (byte)3 : (byte)0;
-                    WritePixelCode(blockX + i, value);
-                }
-            }
-            _shiftData = 0;
-            _pixelValue = value;
-            _pairSecondHalf = false;
+            DrawScrolledGraphicsBlock(loadSlot, blockX, nextMode);
+            _previousBlockKey = -1;
         }
         else
         {
-            for (var i = 0; i < 8; i++)
-            {
-                // A register change reaches the output part way through the cycle: MCM's colour
-                // selection at pixel 4, ECM and BMM at pixel 4 when set and pixel 6 when cleared.
-                // The decoding into pairs follows MCM a cycle later, at pixel 7, and MCM switched on
-                // starts the pairs afresh from the next pixel.
-                if (i == 4)
-                {
-                    _colorMcm = newMcm;
-                    _modeEcmBmm |= newEcmBmm;
-                    _colorCodesValid = false;
-                }
-                else if (i == 6)
-                {
-                    _modeEcmBmm &= newEcmBmm;
-                    _colorCodesValid = false;
-                }
-                else if (i == 7)
-                {
-                    if (_colorMcm && !_decodeMcm)
-                        _pairSecondHalf = true;
-                    _decodeMcm = _colorMcm;
-                }
-
-                // The shift register is loaded at the pixel XSCROLL selects.
-                if (i == _loadPixel)
-                {
-                    _shiftData = _fetchedData[loadSlot];
-                    _shiftMatrix = _fetchedMatrix[loadSlot];
-                    _shiftColor = _fetchedColor[loadSlot];
-                    _pairSecondHalf = false;
-                    _colorCodesValid = false;
-                }
-
-                // The pixel's value: in a multicolour cell (BMM, or a colour nibble with bit 3 set)
-                // being decoded as pairs, the top two bits, held for the pair's second pixel; else
-                // the top bit as 3 or 0. A set bit in a multicolour cell while the colour selection
-                // is already multicolour but the decoding is not yet shows as value 2 (the chip's
-                // $D023 flash at an MCM switch).
-                var multicolorCell = (_modeEcmBmm & MODE_BMM) != 0 || (_shiftColor & 0x08) != 0;
-                if (_decodeMcm && multicolorCell)
-                {
-                    if (!_pairSecondHalf)
-                        _pixelValue = (byte)(_shiftData >> 6);
-                }
-                else if ((_shiftData & 0x80) == 0)
-                {
-                    _pixelValue = 0;
-                }
-                else
-                {
-                    _pixelValue = _colorMcm && multicolorCell ? (byte)2 : (byte)3;
-                }
-                _shiftData <<= 1;
-                _pairSecondHalf = !_pairSecondHalf;
-
-                if (!draw)
-                    continue;
-                var x = blockX + i;
-                if (x < clipStart || x >= clipEnd)
-                    continue;
-                if (!_colorCodesValid)
-                    ResolveColorCodes();
-                WritePixelCode(x, _pixelValue);
-            }
-        }
-
-        if (wholeBlock)
-        {
-            _blockCacheX = blockX;
-            _blockCachePostShiftData = _shiftData;
-            _blockCachePostPixelValue = _pixelValue;
-            _blockCachePostPairSecondHalf = _pairSecondHalf;
-        }
-        else
-        {
-            _blockCacheX = int.MinValue;
+            DrawChangingGraphicsBlock(loadSlot, blockX, render, clearStart, clearEnd, nextMode);
+            _previousBlockKey = -1;
         }
         FetchCycle(cycle, rasterLine, fetchSlot);
     }
 
-    // The block cache: the inputs and state of the last whole block drawn, so an identical block
-    // right after it repeats its codes without decoding.
-    private int _blockCacheX = int.MinValue;
-    private ulong _blockCacheKey;
+    private void DrawScrolledGraphicsBlock(int slot, int blockX, byte mode)
+    {
+        var key = (ulong)_graphicsShift | ((ulong)_cellMatrix << 8) | ((ulong)_cellColor << 16)
+            | ((ulong)_pixelValue << 20) | (_takeGraphicsPair ? 1UL << 22 : 0)
+            | ((ulong)_fetchedData[slot] << 24) | ((ulong)_fetchedMatrix[slot] << 32)
+            | ((ulong)_fetchedColor[slot] << 40) | ((ulong)_loadPixel << 44) | ((ulong)mode << 47);
+        if (key == _scrolledBlockKey)
+        {
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8), _scrolledBackgroundCodes);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8), _scrolledForegroundCodes);
+            if (_scrolledBlockSerial == _lineSerial && _scrolledBlockX == blockX - 8)
+                _lineRepeatMark[blockX] = _lineSerial;
+            AdvanceHiddenGraphicsBlock(slot, mode);
+        }
+        else
+        {
+            DrawChangingGraphicsBlock(slot, blockX, true, blockX, blockX + 8, mode);
+            _scrolledBlockKey = key;
+            _scrolledBackgroundCodes = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8));
+            _scrolledForegroundCodes = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8));
+        }
+        _scrolledBlockX = blockX;
+        _scrolledBlockSerial = _lineSerial;
+    }
+
+    private void AdvanceHiddenGraphicsBlock(int slot, byte mode)
+    {
+        // Every cycle loads once, so after its last pixel the old byte no longer contributes.
+        // With steady modes we can advance straight to that state even for a nonzero XSCROLL.
+        var data = _fetchedData[slot];
+        _cellMatrix = _fetchedMatrix[slot];
+        _cellColor = _fetchedColor[slot];
+        var shifted = 8 - _loadPixel;
+        var paired = (mode & 0x10) != 0 && ((mode & 0x20) != 0 || (_cellColor & 8) != 0);
+        _graphicsShift = (byte)(data << shifted);
+        _pixelValue = (byte)(paired ? (data >> (6 - ((shifted - 1) & ~1))) & 3
+            : ((data << (shifted - 1)) & 0x80) != 0 ? 3 : 0);
+        _takeGraphicsPair = !paired || (shifted & 1) == 0;
+    }
+
+    private void DrawLoadedGraphicsBlock(int slot, int blockX, byte mode)
+    {
+        var data = _fetchedData[slot];
+        _cellMatrix = _fetchedMatrix[slot];
+        _cellColor = _fetchedColor[slot];
+        var paired = (mode & 0x10) != 0 && ((mode & 0x20) != 0 || (_cellColor & 8) != 0);
+        var key = data | (_cellMatrix << 8) | (_cellColor << 16) | (mode << 20);
+        if (key != _cachedBlockKey)
+        {
+            ResolveColorCodes(mode);
+            if (paired)
+            {
+                // Replicate each pair's high and low bits across its two pixels. The high
+                // bit also selects the foreground layer, independently of the chosen colour.
+                var highBits = data & 0xAA;
+                var lowBits = data & 0x55;
+                var high = s_graphicsBitMasks[highBits | (highBits >> 1)];
+                var low = s_graphicsBitMasks[lowBits | (lowBits << 1)];
+                _cachedBackgroundCodes = (((RepeatCode * _colorCodes[0]) & ~low)
+                    | ((RepeatCode * _colorCodes[1]) & low)) & ~high
+                    | ((RepeatCode * CODE_BG0) & high);
+                _cachedForegroundCodes = (((RepeatCode * _colorCodes[2]) & ~low)
+                    | ((RepeatCode * _colorCodes[3]) & low)) & high | ~high;
+            }
+            else
+            {
+                var foreground = s_graphicsBitMasks[data];
+                _cachedBackgroundCodes = ((RepeatCode * _colorCodes[0]) & ~foreground)
+                    | ((RepeatCode * CODE_BG0) & foreground);
+                _cachedForegroundCodes = ((RepeatCode * _colorCodes[3]) & foreground) | ~foreground;
+            }
+            _cachedBlockKey = key;
+        }
+        // The packed codes put the first pixel in the low byte, independent of host endianness.
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8), _cachedBackgroundCodes);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8), _cachedForegroundCodes);
+        if (_previousBlockKey == key && _previousBlockSerial == _lineSerial && _previousBlockX == blockX - 8)
+            _lineRepeatMark[blockX] = _lineSerial;
+        _previousBlockKey = key;
+        _previousBlockSerial = _lineSerial;
+        _previousBlockX = blockX;
+
+        // Eight shifts, starting with a load: no bits remain, and the last pair is complete.
+        _graphicsShift = 0;
+        _pixelValue = (byte)(paired ? data & 3 : (data & 1) != 0 ? 3 : 0);
+        _takeGraphicsPair = true;
+        _decodeGraphicsPairs = (mode & 0x10) != 0;
+    }
+
+    private static ulong[] CreateGraphicsBitMasks()
+    {
+        var masks = new ulong[256];
+        for (var data = 0; data < masks.Length; data++)
+            for (var pixel = 0; pixel < 8; pixel++)
+                if ((data & (0x80 >> pixel)) != 0)
+                    masks[data] |= 0xFFUL << (pixel * 8);
+        return masks;
+    }
+
+    private void DrawChangingGraphicsBlock(int slot, int blockX, bool render, int clearStart, int clearEnd, byte nextMode)
+    {
+        var oldMode = _outputMode;
+        var startPairs = !_decodeGraphicsPairs && (nextMode & 0x10) != 0;
+        ResolveColorCodes(_outputMode);
+        for (var pixel = 0; pixel < 8; pixel++)
+        {
+            // VICE's videomode and vicii_timing test programs distinguish these output delays:
+            // setting ECM/BMM precedes clearing them; MCM's colour choice precedes its pairs.
+            if (pixel == 4)
+            {
+                _outputMode = (byte)(((oldMode | nextMode) & 0x60) | (nextMode & 0x10));
+                ResolveColorCodes(_outputMode);
+            }
+            else if (pixel == 6)
+            {
+                _outputMode = nextMode;
+                ResolveColorCodes(_outputMode);
+            }
+            else if (pixel == 7)
+            {
+                _decodeGraphicsPairs = (nextMode & 0x10) != 0;
+                if (startPairs)
+                    _takeGraphicsPair = false;
+            }
+
+            if (pixel == _loadPixel)
+            {
+                _graphicsShift = _fetchedData[slot];
+                _cellMatrix = _fetchedMatrix[slot];
+                _cellColor = _fetchedColor[slot];
+                _takeGraphicsPair = true;
+                ResolveColorCodes(_outputMode);
+            }
+
+            var multiColorCell = (_outputMode & 0x20) != 0 || (_cellColor & 8) != 0;
+            if (_decodeGraphicsPairs && multiColorCell)
+            {
+                if (_takeGraphicsPair)
+                    _pixelValue = (byte)(_graphicsShift >> 6);
+                _takeGraphicsPair = !_takeGraphicsPair;
+            }
+            else
+            {
+                var flash = multiColorCell && (_outputMode & 0x10) != 0;
+                _pixelValue = (_graphicsShift & 0x80) == 0 ? (byte)0 : flash ? (byte)2 : (byte)3;
+            }
+            _graphicsShift <<= 1;
+            var x = blockX + pixel;
+            if (render && x >= clearStart && x < clearEnd)
+                WritePixelCode(x, _pixelValue);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ResolveColorCodes(byte mode)
+    {
+        var key = (mode << 16) | (_cellMatrix << 8) | _cellColor;
+        if (key == _resolvedColorKey)
+            return;
+        _resolvedColorKey = key;
+        ResolveChangedColorCodes(mode);
+    }
+
+    private void ResolveChangedColorCodes(byte mode)
+    {
+        if ((mode & 0x40) != 0 && (mode & 0x30) != 0)
+        {
+            _colorCodes[0] = _colorCodes[1] = _colorCodes[2] = _colorCodes[3] = 0;
+            return;
+        }
+        var bitmap = (mode & 0x20) != 0;
+        var multiColor = (mode & 0x10) != 0;
+        if (multiColor && (bitmap || (_cellColor & 8) != 0))
+        {
+            _colorCodes[0] = CODE_BG0;
+            _colorCodes[1] = bitmap ? (byte)(_cellMatrix >> 4) : (byte)(CODE_BG0 + 1);
+            _colorCodes[2] = bitmap ? (byte)(_cellMatrix & 15) : (byte)(CODE_BG0 + 2);
+            _colorCodes[3] = bitmap ? _cellColor : (byte)(_cellColor & 7);
+            return;
+        }
+        var background = bitmap ? (byte)(_cellMatrix & 15)
+            : (mode & 0x40) != 0 ? (byte)(CODE_BG0 + (_cellMatrix >> 6)) : CODE_BG0;
+        var foreground = bitmap ? (byte)(_cellMatrix >> 4)
+            : multiColor ? (byte)(_cellColor & 7) : _cellColor;
+        _colorCodes[0] = _colorCodes[1] = background;
+        _colorCodes[2] = _colorCodes[3] = foreground;
+    }
+
     // Per pixel-array X: the serial of the line on which a block starting there repeated the block
     // before it, so the resolve pass copies its colours instead of looking them up. A serial per
     // line saves clearing the marks.
     private int[] _lineRepeatMark = Array.Empty<int>();
     private int _lineSerial = 1;
-    private byte _blockCachePostShiftData, _blockCachePostPixelValue;
-    private bool _blockCachePostPairSecondHalf;
 
     /// <summary>
     /// The cycle's accesses and counter work (3.7.2), then the fetched byte into the pipeline for
@@ -1815,8 +1874,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         if (!badLineCondition)
             _baLowSince = -1;                               // the condition taken away: BA high again
 
-        _d011PreviousCycle = _d011;
-
         if (chipCycle == 58)
         {
             // Rule 5: a row's eighth line ends it, unless a bad line condition keeps the display
@@ -1832,6 +1889,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
                 _displayState = true;
             }
         }
+        _previousFetchControl = _d011;
     }
 
     /// <summary>
@@ -1846,105 +1904,39 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         var screenCode = _matrixLine[index];
         _fetchedMatrix[slot] = screenCode;
         _fetchedColor[slot] = _colorLine[index];
-
-        // The address follows BMM as it is now or as it was in the cycle before, whichever is set:
-        // on the NMOS chips (6569, 6567R8) switching bitmap mode off reaches the fetch a cycle
-        // after it reaches the sequencer. ECM is taken as it is now.
-        var address = GraphicsAddress((byte)(_d011 | (_d011PreviousCycle & 0x20)), screenCode);
-        if (((_d011 ^ _d011PreviousCycle) & 0x20) != 0)
-        {
-            // In the cycle BMM changes, a fetch that moves from RAM into the character ROM takes the
-            // address's low byte from the mode of the cycle before and the rest from the mode now
-            // (observed on the 6569; VICE's videomode test programs).
-            var addressBefore = GraphicsAddress(_d011PreviousCycle, screenCode);
-            var addressNow = GraphicsAddress(_d011, screenCode);
-            if (!_c64.Vic2.IsCharacterRomAddress(addressBefore) && _c64.Vic2.IsCharacterRomAddress(addressNow))
-                address = (ushort)((addressBefore & 0x00FF) | (addressNow & 0x3F00));
-        }
-        _fetchedData[slot] = _c64.Vic2.ReadMemory(address);
+        _fetchedData[slot] = _c64.Vic2.ReadMemory(GraphicsFetchAddress(screenCode));
     }
 
-    // The g-access address for a $D011 value: the bitmap at VC and RC with BMM, otherwise the
-    // shape of the screen code at RC; with ECM bits 9 and 10 of the address are held low.
-    private ushort GraphicsAddress(byte d011, byte screenCode)
+    /// <summary>
+    /// The address of this cycle's g-access in display state for <paramref name="screenCode"/>
+    /// (clean-room specification B1).
+    /// </summary>
+    private ushort GraphicsFetchAddress(byte screenCode)
     {
-        var address = (d011 & 0x20) != 0
-            ? ((_d018 & 0x08) << 10) | (_vc << 3) | _rc
+        if (((_previousFetchControl ^ _d011) & 0x20) != 0)
+        {
+            var before = GraphicsAddress(screenCode, _previousFetchControl);
+            var after = GraphicsAddress(screenCode, _d011);
+            if (!_c64.Vic2.IsCharacterRomAddress(before) && _c64.Vic2.IsCharacterRomAddress(after))
+                return (ushort)((before & 0xFF) | (after & 0x3F00));
+        }
+        // BMM reaches the fetch immediately when set, one cycle later when cleared. ECM uses
+        // this cycle's setting even during the delayed bitmap fetch.
+        var fetchControl = (byte)(_d011 | (_previousFetchControl & 0x20));
+        return GraphicsAddress(screenCode, fetchControl);
+    }
+
+    private ushort GraphicsAddress(byte screenCode, byte control)
+    {
+        var address = (control & 0x20) != 0
+            ? ((_d018 & 8) << 10) | (_vc << 3) | _rc
             : ((_d018 & 0x0E) << 10) | (screenCode << 3) | _rc;
-        if ((d011 & 0x40) != 0)
-            address &= 0x39FF;
+        if ((control & 0x40) != 0)
+            address &= ~0x600;
         return (ushort)address;
     }
 
-    // The colour codes of the four pixel values, from the article's mode tables (3.7.3): what a bit
-    // or a pair stands for in each mode, with the matrix byte and colour nibble in the shift register.
-    // Values 2 and 3 are foreground pixels in every mode (3.8.5); value 2 only occurs as a pair, or
-    // as the flash at an MCM switch. The invalid modes (ECM with BMM or MCM) show black.
-    private void ResolveColorCodes()
-    {
-        var key = (_modeEcmBmm << 17) | (_colorMcm ? 1 << 16 : 0) | (_shiftMatrix << 8) | _shiftColor;
-        if (key == _colorCodesKey)
-        {
-            _colorCodesValid = true;
-            return;
-        }
-        _colorCodesKey = key;
-        var matrix = _shiftMatrix;
-        var color = _shiftColor;
-        byte c0, c1, c2, c3;
-        switch (_modeEcmBmm)
-        {
-            case 0:   // text
-                if (_colorMcm)
-                {
-                    // Multicolour text: pairs 00, 01, 10 the background colours 0-2, 11 the colour
-                    // nibble's low three bits; a hires cell (bit 3 clear) shows those bits for its
-                    // set bits. Value 2 is background colour 2 either way.
-                    c0 = CODE_BG0;
-                    c1 = CODE_BG0 + 1;
-                    c2 = CODE_BG0 + 2;
-                    c3 = (byte)(color & 0x07);
-                }
-                else
-                {
-                    // Standard text: a clear bit background colour 0, a set bit the colour nibble.
-                    c0 = c1 = CODE_BG0;
-                    c2 = c3 = color;
-                }
-                break;
-            case MODE_BMM:
-                if (_colorMcm)
-                {
-                    // Multicolour bitmap: 00 background colour 0, 01 the matrix byte's high nibble,
-                    // 10 its low nibble, 11 the colour nibble.
-                    c0 = CODE_BG0;
-                    c1 = (byte)(matrix >> 4);
-                    c2 = (byte)(matrix & 0x0F);
-                    c3 = color;
-                }
-                else
-                {
-                    // Standard bitmap: a clear bit the low nibble, a set bit the high nibble.
-                    c0 = c1 = (byte)(matrix & 0x0F);
-                    c2 = c3 = (byte)(matrix >> 4);
-                }
-                break;
-            case MODE_ECM when !_colorMcm:
-                // Extended colour text: a clear bit background colour 0-3 by the matrix byte's top
-                // two bits, a set bit the colour nibble.
-                c0 = c1 = (byte)(CODE_BG0 + (matrix >> 6));
-                c2 = c3 = color;
-                break;
-            default:
-                c0 = c1 = c2 = c3 = 0;
-                break;
-        }
-        _colorCodes[0] = c0;
-        _colorCodes[1] = c1;
-        _colorCodes[2] = c2;
-        _colorCodes[3] = c3;
-        _colorCodesValid = true;
-    }
+
 
     // Record a pixel on the line's code buffers. Values 2 and 3 are foreground pixels, which
     // sprites with the priority bit set go behind.

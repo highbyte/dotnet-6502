@@ -140,87 +140,70 @@ public class Vic2SpriteManager : IVic2SpriteManager
     public const byte RunEventBitSet = 4;
 
     /// <summary>
-    /// The pixels a sprite outputs from an X match when its multicolour, X-expand or priority bit
-    /// changes while it shifts, followed pixel by pixel the way the chip's sprite data sequencer
-    /// works (as the VICE project's cycle-based VIC-II establishes it, verified by its spritesplit
-    /// test programs): the data register shifts one bit per pixel, or per two pixels when
-    /// X-expanded, under an expansion flip-flop that toggles every pixel while the bit is set and
-    /// is held set while it is clear, so setting the bit repeats the pixel being shown and clearing
-    /// it fetches the next at once. In multicolour a pair is taken from the register's top two bits
-    /// every other pixel under a second flip-flop; changing the multicolour bit clears that
-    /// flip-flop, which delays the next pair by a pixel and so realigns the pairs on the register's
-    /// odd bits. The priority bit is read at every pixel. From <paramref name="haltPixel"/> the
-    /// sprite's own fetch halts the shifting and the last pixel repeats, until
-    /// <paramref name="stopPixel"/>, where the sprite is switched off; a multicolour pair taken in
-    /// the last pixel before the halt shows only its high bit, as a standard pixel, in that pixel
-    /// and its repeats (VICE's spritefetchbug test program). A sprite whose register and
-    /// last pixel are both empty stops at once. The events are given in pixel order, each seen
-    /// from its pixel on. Returns the pixel count written to <paramref name="pixels"/>.
+    /// The pixels a sprite outputs from an X match at <paramref name="startPixel"/> while its
+    /// multicolour, X-expand or priority bit changes, given as events in pixel order: one byte per
+    /// pixel, the value 0-3 plus <see cref="RunPixelBehindForeground"/>. <paramref name="haltPixel"/>
+    /// is where the sprite's own fetch halts it and <paramref name="stopPixel"/> where it is switched
+    /// off. Returns the pixel count written to <paramref name="pixels"/>. Clean-room specification B3.
     /// </summary>
     public static int DecodeSpriteRun(uint register, int startPixel, int haltPixel, int stopPixel,
         bool multiColor, bool xExpand, bool behindForeground,
         ReadOnlySpan<int> eventPixels, ReadOnlySpan<byte> eventKinds, Span<byte> pixels)
     {
-        var count = 0;
-        var pixelValue = 0;
-        var expandFlipFlop = true;
-        var multiColorFlipFlop = true;
+        register &= 0xFFFFFF;
+        byte value = 0;
+        var advance = true;
+        var takePair = true;
         var nextEvent = 0;
-        var pairTakenAtPixel = int.MinValue;
-        for (var p = startPixel; p < stopPixel && count < pixels.Length; p++)
+        var count = 0;
+        for (var pixel = startPixel; pixel < stopPixel && count < pixels.Length; pixel++)
         {
-            while (nextEvent < eventPixels.Length && eventPixels[nextEvent] <= p)
+            while (nextEvent < eventPixels.Length && eventPixels[nextEvent] <= pixel)
             {
-                var kind = eventKinds[nextEvent++];
-                var set = (kind & RunEventBitSet) != 0;
-                switch (kind & RunEventKindMask)
+                var change = eventKinds[nextEvent++];
+                var set = (change & RunEventBitSet) != 0;
+                switch (change & RunEventKindMask)
                 {
                     case RunEventMultiColor:
                         if (multiColor != set)
-                        {
-                            multiColor = set;
-                            multiColorFlipFlop = false;
-                        }
+                            takePair = false;
+                        multiColor = set;
                         break;
                     case RunEventXExpand:
                         xExpand = set;
                         break;
-                    default:
+                    case RunEventPriority:
                         behindForeground = set;
                         break;
                 }
             }
-            if (register == 0 && pixelValue == 0)
+            if (register == 0 && value == 0)
                 break;
-            if (p < haltPixel)
+
+            if (pixel < haltPixel)
             {
-                if (expandFlipFlop)
+                if (advance)
                 {
-                    if (multiColor)
-                    {
-                        if (multiColorFlipFlop)
-                        {
-                            pixelValue = (int)(register >> 22) & 3;
-                            pairTakenAtPixel = p;
-                        }
-                        multiColorFlipFlop = !multiColorFlipFlop;
-                    }
+                    if (!multiColor)
+                        value = (byte)((register >> 22) & 2);
                     else
                     {
-                        pixelValue = (int)((register >> 23) & 1) << 1;
+                        if (takePair)
+                        {
+                            value = (byte)((register >> 22) & 3);
+                            // VICE's spritefetchbug test programs catch a pair at the last
+                            // advancing pixel: only its high bit survives the sprite fetch.
+                            if (pixel == haltPixel - 1)
+                                value &= 2;
+                        }
+                        takePair = !takePair;
                     }
                     register = (register << 1) & 0xFFFFFF;
                 }
-                expandFlipFlop = !xExpand || !expandFlipFlop;
+                // The current phase is used before the new expansion setting selects the next.
+                advance = !xExpand || !advance;
             }
-            else if (p == haltPixel && multiColor && pairTakenAtPixel == haltPixel - 1 && count > 0)
-            {
-                // The halt caught a pair in its first pixel: only its high bit shows, as a
-                // standard pixel would, in that pixel and its repeats.
-                pixelValue &= 2;
-                pixels[count - 1] = (byte)((pixels[count - 1] & ~RunPixelValueMask) | pixelValue);
-            }
-            pixels[count++] = (byte)(pixelValue | (behindForeground ? RunPixelBehindForeground : 0));
+            pixels[count++] = (byte)(value | (behindForeground ? RunPixelBehindForeground : 0));
         }
         return count;
     }

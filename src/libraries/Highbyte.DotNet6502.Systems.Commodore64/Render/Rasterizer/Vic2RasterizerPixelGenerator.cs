@@ -346,8 +346,8 @@ public sealed class Vic2RasterizerUintPixelGenerator : IVic2RasterizerPixelGener
         // into the raster line (X 24, 4 pixels into the chip's cycle 16 = index 15); 38 columns move
         // the left edge 7 pixels right (X 31) and the right one 9 pixels left (X 335). The chip
         // evaluates each compare one cycle after the cycle its X coordinate falls in, with the
-        // registers as written up to the cycle before that (VICE's cycle tables: the 38 column
-        // right compare in cycle 56, the 40 column one in 57, counting from 1), which is why a 38
+        // registers as written up to the cycle before that (the 38 column right compare in cycle 56,
+        // the 40 column one in 57, counting from 1), which is why a 38
         // column write in cycle 56 opens the side border: the first compare does not see it yet and
         // the second does. The pixel positions the flip-flop changes at are the X coordinates.
         var displayWindowStartLineX = _c64.Vic2.Vic2Model.DisplayWindowStartX;
