@@ -1230,7 +1230,75 @@ public class Vic2
     }
     public byte ColorRAMLoad(ushort address)
     {
-        return C64.ReadIOStorage(address);
+        // The colour RAM drives only the data bus's low four bits; the high four still hold what
+        // the VIC-II read in the cycle's first phase.
+        return (byte)((FirstPhaseBusByte() & 0xF0) | (C64.ReadIOStorage(address) & 0x0F));
+    }
+
+    // --- The byte the VIC-II leaves on the data bus ---
+    // In the first phase of every cycle the VIC-II reads memory (the article's table of accesses
+    // per cycle), and the byte stays on the data bus into the second phase unless something else
+    // drives it. So a CPU read of an address nothing answers, the I/O 1 and I/O 2 areas without
+    // a cartridge there, returns it (VICE's phi1timing test programs). Per cycle, from sprite
+    // 0's pointer access on: each sprite's pointer access, then the middle byte of its data if its
+    // DMA is on or an idle access if not; the five refresh accesses in cycles 11-15; the graphics
+    // accesses in cycles 16-55, which read $3FFF ($39FF with ECM) in idle state; idle accesses
+    // elsewhere, which read $3FFF whatever ECM is.
+    private const int RefreshFirstOffset = 10;      // cycle 11
+    private const int GraphicsFirstOffset = 15;     // cycle 16
+    private const int GraphicsLastOffset = 54;      // cycle 55
+
+    /// <summary>
+    /// The byte the VIC-II read in the first phase of the cycle of the CPU access in progress:
+    /// what the data bus holds when nothing else drives it in the second phase.
+    /// </summary>
+    public byte FirstPhaseBusByte()
+    {
+        CatchUpToCurrentAccess();
+        if (_currentRasterLineInternal == ushort.MaxValue)
+            return 0xFF;
+        var line = _currentRasterLineInternal;
+        var offset = (int)(CyclesConsumedCurrentVblank - (ulong)line * (ulong)_cyclesPerLine);
+        var fromSprite0 = offset - SpriteEventOffsets[3];   // sprite 0's pointer access
+        if (fromSprite0 < 0)
+            fromSprite0 += _cyclesPerLine;
+        if (fromSprite0 < 16)
+        {
+            var n = fromSprite0 >> 1;
+            var pointer = ReadMemory((ushort)(VideoMatrixBaseAddress + 0x3F8 + n));
+            if ((fromSprite0 & 1) == 0)
+                return pointer;
+            return (SpriteDmaMask & (1 << n)) != 0
+                ? ReadMemory((ushort)(pointer * 64 + ((_spriteMc[n] + 1) & 0x3F)))
+                : ReadMemory(0x3FFF);
+        }
+        if (offset >= RefreshFirstOffset && offset < GraphicsFirstOffset)
+        {
+            // The refresh counter is reset to $FF in line 0 and counts down once per access.
+            var refresh = (0xFF - (line * 5 + offset - RefreshFirstOffset)) & 0xFF;
+            return ReadMemory((ushort)(0x3F00 | refresh));
+        }
+        if (offset >= GraphicsFirstOffset && offset <= GraphicsLastOffset)
+            return GraphicsAccessByte(offset - GraphicsFirstOffset);
+        return ReadMemory(0x3FFF);
+    }
+
+    // The g-access for a column of the current line. In display state the character pointer is
+    // read from the video matrix as it is now, where the chip takes it from the row it read on
+    // the bad line; the two differ only when the screen was rewritten since.
+    private byte GraphicsAccessByte(int column)
+    {
+        if (!_displayState)
+            return IdleGraphicsByte();
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+        var memorySetup = C64.ReadIOStorage(Vic2Addr.MEMORY_SETUP);
+        var videoCounter = (_videoCounterBase + column) & 0x3FF;
+        int address = (control & 0x20) != 0
+            ? (memorySetup & 0x08) << 10 | videoCounter << 3 | _rowCounter
+            : (memorySetup & 0x0E) << 10 | ReadMemory((ushort)(VideoMatrixBaseAddress + videoCounter)) << 3 | _rowCounter;
+        if ((control & 0x40) != 0)
+            address &= 0x39FF;
+        return ReadMemory((ushort)address);
     }
 
     public void ScrollXStore(ushort address, byte value)

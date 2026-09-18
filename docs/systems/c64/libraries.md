@@ -60,7 +60,11 @@ VIC-II fetched during the stall reflects memory before the stalled instruction's
 The VIC-II also takes the bus from the CPU as on hardware: 40 cycles on every bad line (BA low
 from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA on, BA
 low three cycles ahead (a sprite enabled, or moved onto the line, after the line's two DMA compares does not start there and takes no bus). A CPU read that falls inside such a window waits until the window ends;
-writes do not wait. Bad lines follow YSCROLL and the DEN bit as the VIC-II saw it during raster
+writes do not wait. A CPU read of an address nothing answers, the I/O 1 and I/O 2 areas ($DE00-$DFFF)
+with no cartridge there, returns the byte the VIC-II read in the first half of that cycle, which
+stays on the data bus: a sprite pointer, the middle byte of a fetching sprite's row, a refresh
+access, a graphics access or an idle access ($3FFF), depending on the cycle; the colour RAM
+supplies only the low four bits of a read and the high four come from that byte too. Bad lines follow YSCROLL and the DEN bit as the VIC-II saw it during raster
 line $30: clearing DEN before that line switches the display, and its bad lines, off for the whole
 frame, clearing it later has no effect until the next frame, and setting it partway through line
 $30 makes bad lines from the cycle after the write on (a write in the line's last cycle still

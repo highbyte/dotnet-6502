@@ -399,7 +399,8 @@ public class SwiftLinkDeviceTests
         c64.DetachCartridge();
 
         Assert.Null(c64.CartridgeSlot.AttachedCartridge);
-        Assert.Equal(0x5A, c64.Mem.Read(0xDE02));
+        // Nothing answers there any more: the read gets what the VIC-II left on the data bus.
+        Assert.Equal(c64.Vic2.FirstPhaseBusByte(), c64.Mem.Read(0xDE02));
     }
 
     [Fact]

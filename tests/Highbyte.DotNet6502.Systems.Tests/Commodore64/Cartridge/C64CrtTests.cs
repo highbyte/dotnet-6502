@@ -244,8 +244,9 @@ public class C64CrtTests
 
         Assert.Equal((ushort)C64CrtHardwareType.MagicDesk, result.HardwareType);
         Assert.Equal(0x10, c64.Mem.Read(0x8000));
+        // The cartridge's register is write-only: a read gets what the VIC-II left on the data bus.
         c64.IO[0x0E00] = 0x5A;
-        Assert.Equal(0x5A, c64.Mem.Read(0xDE00));
+        Assert.Equal(c64.Vic2.FirstPhaseBusByte(), c64.Mem.Read(0xDE00));
 
         c64.Mem.Write(0xDE00, 2);
 
@@ -360,8 +361,9 @@ public class C64CrtTests
         Assert.Equal((ushort)C64CrtHardwareType.Ocean, result.HardwareType);
         Assert.Equal(0x10, c64.Mem.Read(0x8000));
         Assert.Equal(0x10, c64.Mem.Read(0xA000));
+        // The cartridge's register is write-only: a read gets what the VIC-II left on the data bus.
         c64.IO[0x0E00] = 0x5A;
-        Assert.Equal(0x5A, c64.Mem.Read(0xDE00));
+        Assert.Equal(c64.Vic2.FirstPhaseBusByte(), c64.Mem.Read(0xDE00));
 
         c64.Mem.Write(0xDE00, 3);
 
@@ -1048,7 +1050,9 @@ public class C64CrtTests
 
         var ioValue = c64.Mem.Read(0xDE00);
 
-        Assert.Equal(0xA5, ioValue);
+        // The access is what counts; the cartridge does not drive the bus, so the read gets what
+        // the VIC-II left there.
+        Assert.Equal(c64.Vic2.FirstPhaseBusByte(), ioValue);
         Assert.False(cartridge.IsRamVisible);
         Assert.Equal(new C64CartridgeLines(GameHigh: false, ExromHigh: true), cartridge.Lines);
         Assert.Equal(23, c64.CurrentBank);
