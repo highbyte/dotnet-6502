@@ -256,6 +256,23 @@ public class Vic2BusStallTests
         Assert.Equal(0, c64.Vic2.SpriteDmaMask);
     }
 
+    [Theory]
+    [InlineData(55, 3)]   // enabled in time for the first compare: sprite 0 starts, a read in cycle 57 waits until 60
+    [InlineData(57, 0)]   // enabled after both compares: no DMA on this line, the bus stays free
+    public void A_sprite_enabled_after_the_compares_takes_no_bus_on_that_line(int enableCycle, int expectedStall)
+    {
+        // VICE's spriteenable4 test programs enable sprites 0-2 in cycle 57 of the line their Y
+        // names and time the code that follows: it is not held up.
+        var c64 = Build([0xEA]);
+        c64.Mem.Write(Vic2Addr.SPRITE_0_Y, 100);
+        PositionAt(c64, 100, enableCycle);
+        c64.Mem.Write(Vic2Addr.SPRITE_ENABLE, 0x01);
+        c64.Vic2.AdvanceRaster((ulong)(57 - enableCycle));   // the next bus cycle is cycle 57
+
+        Assert.Equal(2 + (ulong)expectedStall, Step(c64));
+        Assert.Equal(expectedStall == 0 ? 0 : 1, c64.Vic2.SpriteDmaMask);
+    }
+
     [Fact]
     public void Dma_switches_on_when_the_raster_reaches_the_sprite_y()
     {

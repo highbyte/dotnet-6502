@@ -59,7 +59,7 @@ VIC-II fetched during the stall reflects memory before the stalled instruction's
 
 The VIC-II also takes the bus from the CPU as on hardware: 40 cycles on every bad line (BA low
 from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA on, BA
-low three cycles ahead. A CPU read that falls inside such a window waits until the window ends;
+low three cycles ahead (a sprite enabled, or moved onto the line, after the line's two DMA compares does not start there and takes no bus). A CPU read that falls inside such a window waits until the window ends;
 writes do not wait. Bad lines follow YSCROLL and the DEN bit as the VIC-II saw it during raster
 line $30: clearing DEN before that line switches the display, and its bad lines, off for the whole
 frame, clearing it later has no effect until the next frame, and setting it partway through line
