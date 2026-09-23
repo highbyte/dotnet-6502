@@ -9,7 +9,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// the counter two cycles after the write and the first decrement from it shows two cycles later;
 /// a stop lets the counter move for two more cycles; a one-shot timer stops with the latch in the
 /// counter. Writing the latch's high byte while the timer is stopped loads the counter, writing the
-/// low byte alone does not. (VICE's cia-timer, reload0 and spritesteal test programs.)
+/// low byte alone does not. A counting timer never shows 0: the count from 1 is the underflow, and
+/// in that cycle the counter already holds the latch, which it keeps for one more cycle before
+/// counting on, so the period is the latch + 1 (a latch of 0 counts like 1). A one-shot timer
+/// stops in the underflow cycle, and a stop that lands on that cycle leaves the counter at 0.
+/// (VICE's cia-timer, reload0 and spritesteal test programs.)
 /// </summary>
 public class CiaTimer
 {
@@ -39,10 +43,11 @@ public class CiaTimer
     // The contents of the control register for the timer. It's contents is depending on which timer type (A/B) it represents.
     private byte _timerControl = 0;
 
-    // While the timer is counting, its state is the bus cycle at which it underflows; the counter
-    // value is derived from that and the CIA's current bus cycle on demand (InternalTimer). This
-    // keeps the per-instruction catch-up to a comparison. While not counting, and before the cycle
-    // the counting starts at (_countFrom), the counter is held in _counter.
+    // While the timer is counting, its state is the value it shows at a cycle (_counter at
+    // _countFrom, one less each cycle after) and the cycle it underflows at (the count from 1, or
+    // from 0); the counter value is derived from them and the CIA's current bus cycle on demand
+    // (InternalTimer). This keeps the per-instruction catch-up to a comparison. While not counting,
+    // and before _countFrom, the counter is _counter.
     private bool _armed;
     private ulong _countFrom;
     private ulong _underflowAtBusCycle;
@@ -54,6 +59,10 @@ public class CiaTimer
     private ulong _stopAt = ulong.MaxValue;
     // The cycle a pending underflow flag becomes visible (ulong.MaxValue when none).
     private ulong _flagAt = ulong.MaxValue;
+    // The cycle after an underflow, when the interrupt output follows it (ulong.MaxValue when none).
+    private ulong _irqAt = ulong.MaxValue;
+    // The cycle of the last underflow, which loaded the latch into the counter.
+    private ulong _reloadedAt = ulong.MaxValue;
 
     private ulong Now => _cia.AdvancedToBusCycle;
 
@@ -62,6 +71,7 @@ public class CiaTimer
     public void SetInternalTimer_Latch_HI(byte highbyte)
     {
         _internalTimer_Latch.SetHighbyte(highbyte);
+        ReloadWrittenLatch();
         // While the timer is stopped, the write loads the whole latch into the counter.
         if (!StartBitSet)
         {
@@ -77,6 +87,22 @@ public class CiaTimer
         // The low byte only reaches the counter through a load (force load, underflow, or the high
         // byte's write while stopped).
         _internalTimer_Latch.SetLowbyte(lowbyte);
+        ReloadWrittenLatch();
+    }
+
+    // An underflow in the cycle of a latch write reloads the value written in that cycle (the
+    // write lands before the reload; reload0's reference data).
+    private void ReloadWrittenLatch()
+    {
+        if (_reloadedAt != Now)
+            return;
+        _counter = _internalTimer_Latch;
+        if (_armed)
+        {
+            _underflowAtBusCycle = _countFrom + CyclesUntilUnderflow(_internalTimer_Latch);
+            ScheduleFlag(_reloadedAt + 2);
+        }
+        _cia.RecomputeNextUnderflow();
     }
 
     public byte TimerControl
@@ -101,16 +127,26 @@ public class CiaTimer
             _loadAt = ulong.MaxValue;
             _stopAt = ulong.MaxValue;
 
+            // A force load leaves the interrupt flag alone (reload0's reference data).
             if (forceLoad)
-            {
-                _ciaIRQ.ConditionClear(_iRQSource);
                 _loadAt = Now + LoadDelay;             // the load event starts the counting when running
-            }
             if (running && !wasRunning)
             {
                 _ciaIRQ.ConditionClear(_iRQSource);
-                if (!forceLoad)
+                if (valueNow == 0)
+                {
+                    // A counter of 0 underflows as soon as the start reaches it, before a force load
+                    // written with the start lands (reload0's reference data).
+                    _counter = 0;
+                    _countFrom = Now + StartDelay;
+                    _underflowAtBusCycle = Now + StartDelay;
+                    _armed = true;
+                    ScheduleFlag(Now + StartDelay);
+                }
+                else if (!forceLoad)
+                {
                     ArmFrom(Now + StartDelay, valueNow);
+                }
             }
             else if (!running && wasRunning && _armed)
             {
@@ -124,15 +160,24 @@ public class CiaTimer
     /// <summary>Current 16-bit value of the timer, decremented each cycle while it is counting.</summary>
     public ushort InternalTimer => ValueAt(Now);
 
+    // The counter at a cycle: counting down from _counter at _countFrom. At the underflow cycle
+    // itself it is 0; that is only seen when a stop lands on that cycle, since the underflow
+    // otherwise loads the latch there.
     private ushort ValueAt(ulong busCycle)
-        => _armed && busCycle >= _countFrom ? (ushort)(_underflowAtBusCycle - busCycle - 1) : _counter;
+    {
+        if (!_armed || busCycle < _countFrom)
+            return _counter;
+        if (busCycle >= _underflowAtBusCycle)
+            return 0;
+        return (ushort)(_counter - (busCycle - _countFrom));
+    }
 
     /// <summary>True while the timer is started, i.e. while elapsed cycles change it (after the start's pipeline).</summary>
     public bool IsCounting => StartBitSet;
 
     /// <summary>The bus cycle of the next thing this timer does (an underflow, a pending load or stop), otherwise <see cref="ulong.MaxValue"/>.</summary>
     internal ulong NextEventBusCycleOrMax
-        => Math.Min(Math.Min(_armed ? _underflowAtBusCycle : ulong.MaxValue, _flagAt), Math.Min(_loadAt, _stopAt));
+        => Math.Min(Math.Min(Math.Min(_armed ? _underflowAtBusCycle : ulong.MaxValue, _flagAt), Math.Min(_loadAt, _stopAt)), _irqAt);
 
     public CiaTimer(CiaTimerType ciaTimerType, IRQSource iRQSource, C64 c64, CiaIRQ ciaIRQ, CiaBase cia)
     {
@@ -170,6 +215,8 @@ public class CiaTimer
         _loadAt = ulong.MaxValue;
         _stopAt = ulong.MaxValue;
         _flagAt = ulong.MaxValue;
+        _irqAt = ulong.MaxValue;
+        _reloadedAt = ulong.MaxValue;
         Arm();
     }
 
@@ -196,16 +243,28 @@ public class CiaTimer
                 _flagAt = ulong.MaxValue;
                 _ciaIRQ.ConditionSet(_iRQSource);
             }
-            else if (_armed && _underflowAtBusCycle == next)
-                Underflow(next);
+            else if (_irqAt == next)
+            {
+                // The interrupt output follows the underflow a cycle later, if the source is enabled
+                // and its flag has not been read away in the meantime; the CPU sees the line from the
+                // cycle after that. So an interrupt control read in between still keeps an IRQ (a
+                // level, released by the read) from being taken, but not an NMI (an edge, latched
+                // when the output goes active). (VICE's irqdelay and timerbasics test programs.)
+                _irqAt = ulong.MaxValue;
+                if (_ciaIRQ.IsEnabled(_iRQSource) && _ciaIRQ.IsConditionSet(_iRQSource))
+                    _ciaIRQ.Trigger(_iRQSource, _c64.CPU, next + 1);
+            }
             else if (_stopAt == next)
             {
-                // The counter moved through the two cycles after the stop; it stays there now.
+                // The counter moved through the two cycles after the stop; it stays there now. A stop
+                // landing on the underflow cycle wins: no load, the counter stays at 0.
                 _counter = ValueAt(next);
                 _armed = false;
                 _stopAt = ulong.MaxValue;
                 _flagAt = ulong.MaxValue;
             }
+            else if (_armed && _underflowAtBusCycle == next)
+                Underflow(next);
             else
             {
                 // The force load reaches the counter; a running timer counts on from the latch
@@ -222,18 +281,18 @@ public class CiaTimer
 
     private void Underflow(ulong underflowBusCycle)
     {
-        // The interrupt output is asserted for the underflow cycle if the source is enabled and its
-        // flag, shown a cycle earlier, has not been read away in the meantime (the flag itself was
-        // scheduled ahead of this cycle when the counting was armed).
-        if (_ciaIRQ.IsEnabled(_iRQSource) && _ciaIRQ.IsConditionSet(_iRQSource))
-            _ciaIRQ.Trigger(_iRQSource, _c64.CPU, underflowBusCycle);
-
+        // The count from 1 (or 0): the latch is in the counter from this cycle, and the interrupt
+        // output follows a cycle later. The run mode is the one in force before any control write
+        // in this cycle.
+        _irqAt = underflowBusCycle + 1;
+        _reloadedAt = underflowBusCycle;
         if (!_timerControl.IsBitSet(_timerControlRunModeBit))
         {
-            // Continuous: the latch is in the counter at the underflow cycle and counts on.
-            _countFrom = underflowBusCycle;
-            _underflowAtBusCycle = underflowBusCycle + CyclesUntilUnderflow(_internalTimer_Latch);
-            ScheduleFlag(underflowBusCycle + 1);
+            // Continuous: the latch shows in this cycle and the next, then counts down.
+            _counter = _internalTimer_Latch;
+            _countFrom = underflowBusCycle + 1;
+            _underflowAtBusCycle = _countFrom + CyclesUntilUnderflow(_internalTimer_Latch);
+            ScheduleFlag(underflowBusCycle + 2);
         }
         else
         {
@@ -244,11 +303,10 @@ public class CiaTimer
         }
     }
 
-    // A counter of 0 wraps through 0x10000 cycles before it underflows.
+    // Cycles from the cycle a counter value shows to its underflow: the count from 1 underflows,
+    // and a counter of 0 counts like 1.
     private static ulong CyclesUntilUnderflow(ushort counter)
-        => counter == 0
-            ? 0x10000UL
-            : (ulong)counter + 1;
+        => counter == 0 ? 1UL : counter;
 
     // Count from the given cycle on, starting at the given value: the counter shows that value at
     // that cycle and one less at the next.
@@ -261,12 +319,12 @@ public class CiaTimer
         ScheduleFlag(fromBusCycle);
     }
 
-    // The flag shows in the interrupt control register a cycle or two before the underflow cycle
-    // (the cycle the counter reads 0, or 1), as the 6526's reads of it show; not before the cycle
-    // the counting starts from. Dated from that cycle, not from where the CIA has caught up to,
-    // since the catch-up may already be past it.
+    // The flag shows in the interrupt control register in the underflow cycle for timer A and a
+    // cycle earlier for timer B, as the 6526's reads of it show (the interrupt output follows a
+    // cycle after the underflow); not before the cycle the counting starts from. Dated from that
+    // cycle, not from where the CIA has caught up to, since the catch-up may already be past it.
     private void ScheduleFlag(ulong fromBusCycle)
-        => _flagAt = Math.Max(_underflowAtBusCycle - _flagLead, fromBusCycle);
+        => _flagAt = Math.Max(_underflowAtBusCycle + 1 - _flagLead, fromBusCycle);
 
     /// <summary>Switch a started timer to the deadline representation from its stored counter, counting from now.</summary>
     internal void Arm()
@@ -281,6 +339,8 @@ public class CiaTimer
     {
         _loadAt = ulong.MaxValue;
         _stopAt = ulong.MaxValue;
+        _irqAt = ulong.MaxValue;
+        _reloadedAt = ulong.MaxValue;
         if (!_armed)
             return;
         _counter = InternalTimer;

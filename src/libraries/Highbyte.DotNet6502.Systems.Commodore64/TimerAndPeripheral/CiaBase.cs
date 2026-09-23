@@ -224,6 +224,8 @@ public abstract class CiaBase
     /// <summary>
     /// Common interrupt control store functionality
     /// </summary>
+    private const ulong MaskEnableTriggerDelay = 2;
+
     protected void InterruptControlStore(byte value)
     {
         // Writing to this register enables or disables the different interrupt sources.
@@ -238,8 +240,14 @@ public abstract class CiaBase
             {
                 if (source == IRQSource.Any)
                     continue;
-                if (value.IsBitSet((int)source))
-                    _ciaIRQ.Enable(source);
+                if (!value.IsBitSet((int)source) || _ciaIRQ.IsEnabled(source))
+                    continue;
+                _ciaIRQ.Enable(source);
+                // A source whose flag is already set drives the interrupt output once it is enabled,
+                // as its underflow would have: the output a cycle after the write, seen by the CPU
+                // a cycle after that.
+                if (_ciaIRQ.IsConditionSet(source))
+                    _ciaIRQ.Trigger(source, _c64.CPU, _advancedToBusCycle + MaskEnableTriggerDelay);
             }
         }
         else
