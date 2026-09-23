@@ -24,7 +24,7 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
+        c64.Cia2.ProcessTimers(6);   // force load + start: the latch loads two cycles after the write, is held, then underflows
 
         Assert.True(c64.CPU.CPUInterrupts.NMIPending);
         Assert.Contains(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
@@ -34,14 +34,14 @@ public class CiaInterruptTests
 
         Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
 
-        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
+        c64.Cia2.ProcessTimers(6);   // force load + start: the latch loads two cycles after the write, is held, then underflows
 
         Assert.True(c64.CPU.CPUInterrupts.NMIPending);
         Assert.Contains(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
     }
 
     [Fact]
-    public void Cia2_TimerB_Latch_Zero_Does_Not_Immediately_Underflow()
+    public void Cia2_TimerB_Latch_Zero_Counts_Like_A_Latch_Of_One()
     {
         var c64 = C64.BuildC64(new C64Config
         {
@@ -55,10 +55,15 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
+        c64.Cia2.ProcessTimers(6);   // force load + start: the latch loads two cycles after the write, is held, then underflows
 
-        Assert.False(c64.CPU.CPUInterrupts.NMIPending);
-        Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
+        Assert.Contains(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
+        Assert.Equal(0x82, c64.Cia2.InterruptControlLoad(0));
+        Assert.Equal(0x00, c64.Cia2.InterruptControlLoad(0));
+
+        c64.Cia2.ProcessTimers(2);   // a continuous timer with latch 0 underflows every two cycles
+
+        Assert.Equal(0x02, c64.Cia2.InterruptControlLoad(0) & 0x02);
     }
 
     [Fact]
@@ -76,7 +81,7 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
+        c64.Cia2.ProcessTimers(6);   // force load + start: the latch loads two cycles after the write, is held, then underflows
 
         Assert.Equal(0x82, c64.Cia2.InterruptControlLoad(0));
         Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
@@ -96,11 +101,34 @@ public class CiaInterruptTests
         c64.Cia2.TimerBHIStore(0, 0);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
+        c64.Cia2.ProcessTimers(6);   // force load + start: the latch loads two cycles after the write, is held, then underflows
 
         Assert.False(c64.CPU.CPUInterrupts.NMIPending);
         Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
         Assert.Equal(0x02, c64.Cia2.InterruptControlLoad(0));
+    }
+
+    [Fact]
+    public void Cia2_Enabling_A_Source_Whose_Flag_Is_Set_Raises_The_Interrupt()
+    {
+        var c64 = C64.BuildC64(new C64Config
+        {
+            LoadROMs = false,
+            C64Model = "C64PAL",
+            Vic2Model = "PAL",
+        }, NullLoggerFactory.Instance);
+
+        c64.Cia2.TimerBLOStore(0, 1);
+        c64.Cia2.TimerBHIStore(0, 0);
+        c64.Cia2.TimerBControlStore(0, 0x19);   // one-shot: a single underflow, while the source is disabled
+
+        c64.Cia2.ProcessTimers(6);
+        Assert.DoesNotContain(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
+
+        c64.Cia2.InterruptControlStore(0, 0x82);   // enable it with its flag still set
+
+        Assert.Contains(TimerBNmiSource, c64.CPU.CPUInterrupts.ActiveNMISources);
+        Assert.Equal(0x82, c64.Cia2.InterruptControlLoad(0));
     }
 
     [Fact]
@@ -118,7 +146,7 @@ public class CiaInterruptTests
         c64.Cia2.InterruptControlStore(0, 0x82);
         c64.Cia2.TimerBControlStore(0, 0x11);
 
-        c64.Cia2.ProcessTimers(6);   // force load + start: two cycles to load, one held, then 1, 0, underflow
+        c64.Cia2.ProcessTimers(6);   // force load + start: the latch loads two cycles after the write, is held, then underflows
         c64.Cia2.InterruptControlStore(0, 0x7f);
 
         Assert.Equal(0x82, c64.Cia2.InterruptControlLoad(0));

@@ -21,14 +21,21 @@ counter: after a start the counter holds through the two cycles after the write 
 first decrement on the third; a force load shows the latch two cycles after the write and counts
 from it two cycles later; a stop lets the counter move for two more cycles; a one-shot timer
 stops with the latch in the counter; writing the latch's high byte while the timer is stopped
-loads the counter, the low byte alone does not. The underflow flag shows in the interrupt control
-register in the cycle the counter reads 0 for timer A and a cycle earlier for timer B (the
-6526's timing; the 6526A's is not modelled), and the interrupt output follows in the next cycle
-unless a read has taken the flag away. The CiaSyncedSplit sample in the Avalonia and browser menus
+loads the counter, the low byte alone does not. A running counter counts down to 1 and underflows
+in the next cycle, where it shows the latch again and holds it for a second cycle, so it never
+reads 0 and a continuous timer with latch N has a period of N + 1 cycles; a latch of 0 counts like
+a latch of 1, and a latch written in the underflow cycle is the one reloaded. A force load leaves
+the interrupt flag alone, a start clears it. The underflow flag shows in the interrupt control
+register in the underflow cycle for timer A and a cycle earlier for timer B (the 6526's timing;
+the 6526A's is not modelled). The interrupt output follows in the next cycle unless a read has
+taken the flag away, and the CPU sees it from the cycle after that: a read of the interrupt
+control register in that cycle still keeps an IRQ from being taken, while an NMI, latched on the
+output's edge, is taken. Enabling a source whose flag is already set drives the output the same
+way, a cycle after the write. The CiaSyncedSplit sample in the Avalonia and browser menus
 places a raster split with a CIA timer started in a known cycle, the classic timer stabiliser, and
 marks where the split's edge belongs with that pipeline. A raster or CIA timer interrupt is dated to the cycle on
-which the raster line began or the timer underflowed, and the CPU applies its sampling rule to
-that cycle: taken after
+which the raster line began or the CPU first sees the CIA's output, and the CPU applies its
+sampling rule to that cycle: taken after
 the current instruction if it fell at or before the second-to-last cycle, otherwise after the
 next one. The raster interrupt is raised when the raster compare goes from not matching to
 matching, checked as the raster enters a line (a cycle later for line 0) and in the cycle after a

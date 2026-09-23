@@ -50,7 +50,7 @@ public class C64CiaDummyReadTests
     /// <summary>
     /// Raises the CIA1 timer A interrupt flag through the public register interface:
     /// program a 1-tick one-shot timer, start it, and advance time past the underflow (the start
-    /// pipeline holds the counter for two cycles, then 1, 0, underflow). One-shot,
+    /// pipeline holds the counter for two cycles, then it underflows). One-shot,
     /// so the timer stops after setting the flag and cannot set it again during the test.
     /// (The interrupt MASK stays disabled, so only the flag is set — no IRQ fires.)
     /// </summary>

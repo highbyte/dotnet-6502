@@ -6,8 +6,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.TimerAndPeripheral;
 
 /// <summary>
-/// A CIA timer counts down once per cycle and underflows on the cycle after it reaches 0, so a
-/// continuous timer with latch N has a period of N + 1 cycles; a latch of 0 gives 65,536. The
+/// A CIA timer counts down once per cycle and underflows in the cycle after it shows 1, where it
+/// shows the latch again, so the counter never reads 0 while it runs; the latch shows for two
+/// cycles before the next decrement, so a continuous timer with latch N has a period of N + 1
+/// cycles, and a latch of 0 counts like a latch of 1. The
 /// chip's pipeline sits between a control write and the counter: after a start the counter holds
 /// through the two cycles after the write and shows its first decrement on the third; a force load
 /// shows the latch two cycles after the write and the first decrement from it two cycles later; a
@@ -39,12 +41,16 @@ public class CiaTimerCountingTests
         c64.Cia1.ProcessTimers(2);
         Assert.Equal(3, Counter(c64));           // held through the two cycles after the write
         Assert.Equal(0, Flags(c64));
-        c64.Cia1.ProcessTimers(3);
-        Assert.Equal(0, Counter(c64));           // then 2, 1, 0
-        Assert.Equal(1, Flags(c64));             // timer A's flag shows in the cycle the counter reads 0
+        c64.Cia1.ProcessTimers(2);
+        Assert.Equal(1, Counter(c64));           // then 2, 1
+        Assert.Equal(0, Flags(c64));
 
         c64.Cia1.ProcessTimers(1);
-        Assert.Equal(3, Counter(c64));           // the cycle after 0: reload
+        Assert.Equal(3, Counter(c64));           // the cycle after 1: underflow, the latch reloaded
+        Assert.Equal(1, Flags(c64));             // timer A's flag shows in the underflow cycle
+
+        c64.Cia1.ProcessTimers(1);
+        Assert.Equal(3, Counter(c64));           // the latch held a second cycle
         Assert.Equal(0, Flags(c64));             // the flag was read away above
 
         c64.Cia1.ProcessTimers(3);
@@ -61,7 +67,7 @@ public class CiaTimerCountingTests
         var c64 = Build();
         Program(c64, latch: 1, control: 0x09);   // one-shot, start
 
-        c64.Cia1.ProcessTimers(4);               // 1 held twice, 0 (the flag with it), underflow
+        c64.Cia1.ProcessTimers(4);               // 1 held twice, then the underflow (the flag with it)
         Assert.Equal(1, Flags(c64));
         Assert.Equal(0, c64.Cia1.TimerAControlLoad(0) & 0x01);   // start bit cleared
         Assert.Equal(1, Counter(c64));           // the latch, not a wrapped count
@@ -116,7 +122,7 @@ public class CiaTimerCountingTests
         c64.Cia1.ProcessTimers(0xFE);
         Assert.Equal(0, Flags(c64));
         c64.Cia1.ProcessTimers(1);
-        Assert.Equal(1, Flags(c64));             // the counter reads 0 0x100 cycles from the reload, the flag with it
+        Assert.Equal(1, Flags(c64));             // the underflow 0x100 cycles from the reload, the flag with it
     }
 
     [Fact]
