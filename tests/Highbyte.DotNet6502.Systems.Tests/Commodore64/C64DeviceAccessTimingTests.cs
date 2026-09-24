@@ -176,6 +176,31 @@ public class C64DeviceAccessTimingTests
     }
 
     [Fact]
+    public void Raster_interrupt_acknowledged_in_the_instructions_last_cycle_is_still_taken()
+    {
+        // The line is active and was polled at STA's second-to-last cycle; the write to $D019 in
+        // its last cycle releases the line too late to stop the interrupt. The handler is entered
+        // with the register already cleared.
+        var c64 = Build([0xA9, 0xFF, 0x8D, 0x19, 0xD0, 0xEA]);   // LDA #$FF ; STA $D019 ; NOP
+        c64.Mem.Write(0x0001, 0x35);
+        c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
+        c64.Mem.Write(Vic2Addr.CURRENT_RASTER_LINE, 1);
+        c64.Mem.Write(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, 0x1B);
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0x01);
+        c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
+        Assert.True(c64.CPU.IRQ);
+
+        Step(c64);                                    // LDA, with I set: nothing taken
+        c64.CPU.ProcessorStatus.InterruptDisable = false;
+        var store = Step(c64);                        // STA $D019
+
+        Assert.False(c64.CPU.IRQ);
+        Assert.Equal(0x2000, c64.CPU.PC);
+        Assert.Equal(4 + CPU.InterruptEntryCycles, store.CyclesConsumed);
+        Assert.Equal(0x00, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
+    }
+
+    [Fact]
     public void Cia_timer_interrupt_is_dated_to_the_underflow_cycle()
     {
         // Timer A latch 5, started by a direct write: the counter holds for two cycles, then

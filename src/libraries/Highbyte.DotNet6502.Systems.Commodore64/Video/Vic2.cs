@@ -1584,85 +1584,42 @@ public class Vic2
 
     public void VICIRQStore(ushort _, byte value)
     {
-        // "Any" flag does not have a separate latch. Setting this bit means clearing all latches.
-        if (value.IsBitSet((int)IRQSource.Any))
+        // Writing a 1 to a source's bit clears its latch; bit 7 ("Any") has no latch of its own
+        // and clears them all.
+        var clear = value.IsBitSet((int)IRQSource.Any) ? Vic2IRQ.SourceMask : (byte)(value & Vic2IRQ.SourceMask);
+        clear &= Vic2IRQ.LatchedMask;
+        for (var bit = 0; clear != 0; bit++, clear >>= 1)
         {
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-            {
-                // "Any" flag, does not have a separate latch.
-                if (source == IRQSource.Any)
-                    continue;
-                // Clear all individual latches.
-                if (Vic2IRQ.IsTriggered(source))
-                    Vic2IRQ.ClearTrigger(source, C64.CPU);
-            }
-        }
-        else
-        {
-            // Clear the individual latches that are specified.
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-            {
-                // "Any" flag, does not have a separate latch.
-                if (source == IRQSource.Any)
-                    continue;
-                // Clear individual latch.
-                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source))
-                    Vic2IRQ.ClearTrigger(source, C64.CPU);
-            }
+            if ((clear & 1) != 0)
+                Vic2IRQ.ClearTrigger((IRQSource)bit, C64.CPU);
         }
     }
 
     public byte VICIRQLoad(ushort _)
     {
-        byte value = 0b01110000;    // Bits 4-7 are unused and always set to 1.
-
-        bool irqLineAsserted = false;
-        // Set bit 0-3 based on which IRQ sources have been triggered
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-        {
-            // "Any" flag does not have a separate trigger.
-            if (source == IRQSource.Any)
-                continue;
-            if (Vic2IRQ.IsTriggered(source))
-            {
-                value.SetBit((int)source);
-                if (Vic2IRQ.IsEnabled(source))
-                    irqLineAsserted = true;
-            }
-        }
-        // Bit 7 reflects the IRQ output, so a latched source must also be enabled.
-        if (irqLineAsserted)
+        // Bits 0-3 are the latched sources; bits 4-6 are unused and read as 1; bit 7 reflects the
+        // IRQ output, so a latched source must also be enabled.
+        var value = (byte)(0b0111_0000 | Vic2IRQ.LatchedMask);
+        if (Vic2IRQ.OutputActive)
             value.SetBit((int)IRQSource.Any);
-        else
-            value.ClearBit((int)IRQSource.Any);
-
         return value;
     }
 
     public void IRQMASKStore(ushort _, byte value)
     {
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        for (var bit = 0; bit <= (int)IRQSource.LightPenTrigger; bit++)
         {
-            if (source == IRQSource.Any)
-                continue;
-            if (value.IsBitSet((int)source))
-                Vic2IRQ.Enable(source, C64.CPU);
+            if (value.IsBitSet(bit))
+                Vic2IRQ.Enable((IRQSource)bit, C64.CPU);
             else
-                Vic2IRQ.Disable(source, C64.CPU);
+                Vic2IRQ.Disable((IRQSource)bit, C64.CPU);
         }
     }
+
     public byte IRQMASKLoad(ushort _)
     {
-        byte value = 0b11110000; // Bits 4-7 are unused and always set to 1.
-
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-        {
-            if (source == IRQSource.Any)
-                continue;
-            if (Vic2IRQ.IsEnabled(source))
-                value.SetBit((int)source);
-        }
-        return value;
+        // Bits 4-7 are unused and read as 1.
+        return (byte)(0b1111_0000 | Vic2IRQ.EnabledMask);
     }
 
     /// <summary>
