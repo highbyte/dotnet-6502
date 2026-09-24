@@ -54,6 +54,9 @@ public class Vic2
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
+    /// <summary>Frames the raster has completed since power-on. For debuggers.</summary>
+    public ulong FrameCount { get; private set; }
+
     /// <summary>
     /// The CPU bus cycle (<see cref="CPU.BusCycles"/>) this VIC-II has been advanced to. The C64
     /// catches the VIC-II up to the current bus cycle at every instruction boundary and, through
@@ -1789,6 +1792,7 @@ public class Vic2
         if (CyclesConsumedCurrentVblank >= _cyclesPerFrame)
         {
             CyclesConsumedCurrentVblank -= _cyclesPerFrame;
+            FrameCount++;
             // The bus-cycle to frame-position mapping moved: re-evaluate CPU stalls.
             cpu.RequestBusStallCheck();
         }

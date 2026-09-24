@@ -15,7 +15,33 @@ public abstract class BaseTransport : IDebugAdapterTransport
     private readonly StreamWriter _log;
     private readonly string _transportName;
 
+    // Responses are sent from the message loop and events (stopped, output, continued) from the
+    // emulator's run loop; one message at a time on the wire, or their bytes interleave.
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
+
     public event EventHandler? Disconnected;
+
+    /// <summary>
+    /// Writes a line to the debug log. The log writer is shared with <see cref="DebugAdapterLogic"/>
+    /// and written from the message loop and the emulator's run loop, so writes are serialized on
+    /// the writer itself (as <see cref="DebugAdapterLogic"/> does); a StreamWriter used from two
+    /// threads at once throws or corrupts its output.
+    /// </summary>
+    protected void Log(string message)
+    {
+        try
+        {
+            lock (_log)
+            {
+                _log.WriteLine(message);
+                _log.Flush();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Writer is disposed, silently ignore
+        }
+    }
 
     protected BaseTransport(Stream readStream, Stream writeStream, StreamWriter log, string transportName)
     {
@@ -44,7 +70,7 @@ public abstract class BaseTransport : IDebugAdapterTransport
 
             if (!headers.ContainsKey("Content-Length"))
             {
-                await _log.WriteLineAsync($"[{_transportName} Transport] No Content-Length header, connection closed");
+                Log($"[{_transportName} Transport] No Content-Length header, connection closed");
                 Disconnected?.Invoke(this, EventArgs.Empty);
                 return null;
             }
@@ -59,7 +85,7 @@ public abstract class BaseTransport : IDebugAdapterTransport
                 var n = await _readStream.ReadAsync(buffer, bytesRead, contentLength - bytesRead);
                 if (n == 0)
                 {
-                    await _log.WriteLineAsync($"[{_transportName} Transport] Stream ended while reading body");
+                    Log($"[{_transportName} Transport] Stream ended while reading body");
                     Disconnected?.Invoke(this, EventArgs.Empty);
                     return null;
                 }
@@ -67,15 +93,13 @@ public abstract class BaseTransport : IDebugAdapterTransport
             }
 
             var json = Encoding.UTF8.GetString(buffer);
-            await _log.WriteLineAsync($"[{_transportName} Transport] Received: {json}");
-            await _log.FlushAsync();
+            Log($"[{_transportName} Transport] Received: {json}");
 
             return JsonSerializer.Deserialize<JsonObject>(json);
         }
         catch (Exception ex)
         {
-            await _log.WriteLineAsync($"[{_transportName} Transport] Error reading message: {ex.Message}");
-            await _log.FlushAsync();
+            Log($"[{_transportName} Transport] Error reading message: {ex.Message}");
             Disconnected?.Invoke(this, EventArgs.Empty);
             return null;
         }
@@ -83,6 +107,7 @@ public abstract class BaseTransport : IDebugAdapterTransport
 
     public async Task SendMessageAsync(JsonObject message)
     {
+        await _writeLock.WaitAsync();
         try
         {
             var json = message.ToJsonString();
@@ -95,14 +120,16 @@ public abstract class BaseTransport : IDebugAdapterTransport
             await _writeStream.WriteAsync(bytes, 0, bytes.Length);
             await _writeStream.FlushAsync();
 
-            await _log.WriteLineAsync($"[{_transportName} Transport] Sent: {json}");
-            await _log.FlushAsync();
+            Log($"[{_transportName} Transport] Sent: {json}");
         }
         catch (Exception ex)
         {
-            await _log.WriteLineAsync($"[{_transportName} Transport] Error sending message: {ex.Message}");
-            await _log.FlushAsync();
+            Log($"[{_transportName} Transport] Error sending message: {ex.Message}");
             Disconnected?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            _writeLock.Release();
         }
     }
 

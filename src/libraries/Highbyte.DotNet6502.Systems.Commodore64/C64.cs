@@ -18,6 +18,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Debugger;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
@@ -29,7 +30,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider
+public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider, IDebugValueSource
 {
     private const string CartridgeNmiSource = "CartridgeNmi";
     private const string CartridgeIrqSource = "CartridgeIrq";
@@ -809,8 +810,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     private List<string> BuildSystemInfo()
     {
-        var row1 = $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank}";
-        var row2 = $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
+        // The VIC-II position line is the one the monitor's 'r' command prints, with the same names.
+        var row1 = this.FormatDebugValuesLine()!;
+        var row2 = $"CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank} Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
         return new List<string>() { row1, row2 };
     }
 
@@ -999,6 +1001,103 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public ISystemMonitorCommands GetSystemMonitorCommands()
     {
         return _c64MonitorCommands;
+    }
+
+    // --- Debug values: the VIC-II's position, for breakpoint conditions and debugger displays.
+
+    private static readonly DebugValueInfo[] s_debugValues =
+    [
+        new("RASTER", "Raster line the VIC-II is on."),
+        new("CYCLE", "Cycle within the raster line, in the chip's numbering: 1 to 63 (PAL) or 65 (NTSC)."),
+        new("FRAMECYCLE", "Cycle within the frame, from 0."),
+        new("FRAME", "Frames completed since power-on."),
+    ];
+
+    public string DebugValueGroupName => "VIC-II";
+
+    public IReadOnlyList<DebugValueInfo> DebugValues => s_debugValues;
+
+    /// <summary>
+    /// The VIC-II's position at the current instruction boundary. The chip is brought up to the
+    /// CPU's bus cycle first, so the values are right after a CPU-only single step as well.
+    /// </summary>
+    public bool TryGetDebugValue(string name, out long value)
+    {
+        // A run-until condition reads these before every instruction: no allocation here.
+        Vic2.CatchUpTo(CPU.BusCycles);
+        var cyclesPerLine = (long)Vic2.Vic2Model.CyclesPerLine;
+        var frameCycle = (long)Vic2.CyclesConsumedCurrentVblank;
+        if (name.Equals("RASTER", StringComparison.OrdinalIgnoreCase))
+        {
+            value = frameCycle / cyclesPerLine;
+            return true;
+        }
+        if (name.Equals("CYCLE", StringComparison.OrdinalIgnoreCase))
+        {
+            value = frameCycle % cyclesPerLine + 1;
+            return true;
+        }
+        if (name.Equals("FRAMECYCLE", StringComparison.OrdinalIgnoreCase))
+        {
+            value = frameCycle;
+            return true;
+        }
+        if (name.Equals("FRAME", StringComparison.OrdinalIgnoreCase))
+        {
+            value = (long)Vic2.FrameCount;
+            return true;
+        }
+        value = 0;
+        return false;
+    }
+
+    private static readonly DebugValueInfo[] s_runUntilTargets =
+    [
+        new("raster", "<line> [cycle]: the VIC-II raster line, and the cycle within it in the chip's numbering (default 1)."),
+    ];
+
+    public IReadOnlyList<DebugValueInfo> RunUntilTargets => s_runUntilTargets;
+
+    public bool TryBuildRunUntilCondition(string target, IReadOnlyList<string> arguments, out string condition)
+    {
+        if (!target.Equals("raster", StringComparison.OrdinalIgnoreCase))
+        {
+            condition = "";
+            return false;
+        }
+        if (arguments.Count is < 1 or > 2)
+            throw new ArgumentException("Usage: raster <line> [cycle]");
+        if (!int.TryParse(arguments[0], out var line))
+            throw new ArgumentException($"Raster line '{arguments[0]}' is not a decimal number.");
+        var cycle = 1;
+        if (arguments.Count == 2 && !int.TryParse(arguments[1], out cycle))
+            throw new ArgumentException($"Cycle '{arguments[1]}' is not a decimal number.");
+        condition = BuildRunUntilRasterCondition(line, cycle);
+        return true;
+    }
+
+    /// <summary>
+    /// The run-until condition that stops at the first instruction boundary at or after the
+    /// VIC-II reaches <paramref name="line"/> and <paramref name="cycle"/> (the chip's 1-based
+    /// cycle numbering), in this frame if the position is still ahead and otherwise in the next.
+    /// </summary>
+    public string BuildRunUntilRasterCondition(int line, int cycle = 1)
+    {
+        var cyclesPerLine = (int)Vic2.Vic2Model.CyclesPerLine;
+        var totalLines = Vic2.Vic2Model.TotalHeight;
+        if (line < 0 || line >= totalLines)
+            throw new ArgumentException($"Raster line must be 0 to {totalLines - 1} on the {Vic2.Vic2Model.Name} VIC-II.", nameof(line));
+        if (cycle < 1 || cycle > cyclesPerLine)
+            throw new ArgumentException($"Cycle must be 1 to {cyclesPerLine} on the {Vic2.Vic2Model.Name} VIC-II.", nameof(cycle));
+
+        var target = (long)line * cyclesPerLine + (cycle - 1);
+        Vic2.CatchUpTo(CPU.BusCycles);
+        var frame = (long)Vic2.FrameCount;
+        var current = (long)Vic2.CyclesConsumedCurrentVblank;
+        // && binds tighter than || in the condition syntax.
+        return current < target
+            ? $"FRAME == {frame} && FRAMECYCLE >= {target} || FRAME > {frame}"
+            : $"FRAME > {frame} && FRAMECYCLE >= {target}";
     }
 
     /// <summary>
