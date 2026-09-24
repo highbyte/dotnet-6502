@@ -192,31 +192,39 @@ public abstract class CiaBase
     public byte TimerBControlLoad(ushort _) => TimerControlLoad(CiaTimerType.CiaB);
     public void TimerBControlStore(ushort _, byte value) => TimerControlStore(CiaTimerType.CiaB, value);
 
+    // The cycle of the last interrupt control read, and whether it returned the flag of an enabled
+    // source (ulong.MaxValue when none).
+    private ulong _lastInterruptControlReadBusCycle = ulong.MaxValue;
+    private bool _lastInterruptControlReadTookEnabledFlag;
+
     /// <summary>
-    /// Common interrupt control load functionality
+    /// Common interrupt control load functionality. Reading clears the flags and the interrupt bit
+    /// and releases the interrupt output. The 6526's interrupt bit follows its enabled flags a
+    /// cycle behind: a read in the cycle after a read that took an enabled source's flag still
+    /// shows the interrupt bit set, though the output is not driven (VICE's dd0dtest test program).
     /// </summary>
     protected byte InterruptControlLoad()
     {
-        // Bits 5-6 are not used, and always returns 0.
-        byte value = 0;
+        // Bits 0-4 are the sources' flags, bit 7 the interrupt bit (set only once the chip has
+        // driven its output: a flag set while its source is disabled shows without it); bits 5-6
+        // always read 0.
+        var value = _ciaIRQ.Flags;
+        var tookEnabledFlag = _ciaIRQ.AnyEnabledFlagSet;
 
-        // If timer A has counted down to zero, set bit 0.
-        if (_ciaIRQ.IsConditionSet(IRQSource.TimerA))
-            value.SetBit((int)IRQSource.TimerA);
-
-        // If timer B has counted down to zero, set bit 1.
-        if (_ciaIRQ.IsConditionSet(IRQSource.TimerB))
-            value.SetBit((int)IRQSource.TimerB);
-
-        // Bit 7 is the interrupt-request latch. A CIA source condition can be set
-        // while its mask is disabled; in that case the source bit is reported, but
-        // bit 7 must stay clear because the CIA did not actually drive IRQ/NMI.
-        if (_ciaIRQ.IsConditionSet(IRQSource.Any))
+        // The interrupt bit a cycle behind the flags (see above).
+        if (_lastInterruptControlReadTookEnabledFlag && _lastInterruptControlReadBusCycle + 1 == _advancedToBusCycle)
             value.SetBit((int)IRQSource.Any);
+
+        _lastInterruptControlReadBusCycle = _advancedToBusCycle;
+        _lastInterruptControlReadTookEnabledFlag = tookEnabledFlag;
 
         // If this address is read, it's contents is automatically cleared ( = all IRQ states are cleared).
         _ciaIRQ.ConditionClearAll();
-        _ciaIRQ.Acknowledge(_c64.CPU);
+        // The interrupt output is released in the cycle of the read; the CPU may already have
+        // sampled it for the instruction in progress.
+        _ciaIRQ.Acknowledge(_c64.CPU, _c64.CPU.BusCycles);
+        _timerA.InterruptControlRead();
+        _timerB.InterruptControlRead();
 
         return value;
     }
@@ -233,33 +241,25 @@ public abstract class CiaBase
         // If bit 7 is not set, then other bit also set means to disable that interrupt source.
         // If bits for the specific interrupt sources (0-4) are not set, it will not change state.
 
-        if ((value & 0b1000_0000) > 0)
+        var setMode = (value & 0b1000_0000) != 0;
+        for (var bit = (int)IRQSource.TimerA; bit <= (int)IRQSource.FlagLine; bit++)
         {
-            // Bit 7 is set, enable interrupt sources with bit set
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+            if (!value.IsBitSet(bit))
+                continue;
+            var source = (IRQSource)bit;
+            if (!setMode)
             {
-                if (source == IRQSource.Any)
-                    continue;
-                if (!value.IsBitSet((int)source) || _ciaIRQ.IsEnabled(source))
-                    continue;
-                _ciaIRQ.Enable(source);
-                // A source whose flag is already set drives the interrupt output once it is enabled,
-                // as its underflow would have: the output a cycle after the write, seen by the CPU
-                // a cycle after that.
-                if (_ciaIRQ.IsConditionSet(source))
-                    _ciaIRQ.Trigger(source, _c64.CPU, _advancedToBusCycle + MaskEnableTriggerDelay);
+                _ciaIRQ.Disable(source);
+                continue;
             }
-        }
-        else
-        {
-            // Bit 7 is not set, disable interrupt sources with bit set
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-            {
-                if (source == IRQSource.Any)
-                    continue;
-                if (value.IsBitSet((int)source))
-                    _ciaIRQ.Disable(source);
-            }
+            if (_ciaIRQ.IsEnabled(source))
+                continue;
+            _ciaIRQ.Enable(source);
+            // A source whose flag is already set drives the interrupt output once it is enabled,
+            // as its underflow would have: the output a cycle after the write, seen by the CPU
+            // a cycle after that.
+            if (_ciaIRQ.IsConditionSet(source))
+                _ciaIRQ.Trigger(source, _c64.CPU, _advancedToBusCycle + MaskEnableTriggerDelay);
         }
     }
 

@@ -1,5 +1,12 @@
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
+/// <summary>
+/// A CIA's interrupt sources: which are enabled (the mask written to the interrupt control
+/// register) and which have their flag set (what a read of it returns). Both are bitmasks with
+/// one bit per source, at the source's bit position in the register (<see cref="IRQSource"/>),
+/// the same representation as the CPU's <see cref="CPUInterrupts"/>, so the timers' checks are
+/// integer tests and the register read is the mask itself.
+/// </summary>
 public class CiaIRQ
 {
     // Indexed by IRQSource enum value, which is the corresponding bit position in the CIA interrupt control register.
@@ -16,19 +23,33 @@ public class CiaIRQ
         "CIA.Any",
     ];
 
+    /// <summary>The sources a device can raise: bits 0-4 of the register (bit 7 is the interrupt bit).</summary>
+    private const byte SourceMask = 0b0001_1111;
+
     private readonly bool _useNMI;
-    private readonly Dictionary<IRQSource, bool> _sourceEnableStatus = new();
-    private readonly Dictionary<IRQSource, bool> _sourceConditionStatus = new();
+    private byte _enabledMask;
+    private byte _conditionMask;
+
+    // The CPU's handles for the source names, looked up once per CPU instance so that raising
+    // and releasing the lines is a mask operation rather than a name lookup.
+    private CPUInterrupts? _handlesFor;
+    private readonly InterruptSource[] _handles = new InterruptSource[SourceMask + 1];
 
     public CiaIRQ(bool useNMI)
     {
         _useNMI = useNMI;
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-        {
-            _sourceEnableStatus.Add(source, false);
-            _sourceConditionStatus.Add(source, false);
-        }
     }
+
+    private static byte Bit(IRQSource source) => (byte)(1 << (int)source);
+
+    /// <summary>
+    /// The flags as a read of the interrupt control register returns them: bits 0-4 for the
+    /// sources whose condition is set, bit 7 when the chip has driven its interrupt output.
+    /// </summary>
+    public byte Flags => _conditionMask;
+
+    /// <summary>True if any enabled source has its flag set.</summary>
+    public bool AnyEnabledFlagSet => (_conditionMask & _enabledMask & SourceMask) != 0;
 
     /// <summary>
     /// Assert the chip's interrupt output for a source. Without a cycle the CPU takes the interrupt
@@ -42,71 +63,67 @@ public class CiaIRQ
     /// </summary>
     public void Trigger(IRQSource source, CPU cpu, ulong atBusCycle)
     {
-        _sourceConditionStatus[IRQSource.Any] = true;
-        var interruptSourceName = GetInterruptSourceName(source);
+        _conditionMask |= Bit(IRQSource.Any);
+        var handle = Handle(source, cpu.CPUInterrupts);
 
         if (_useNMI)
         {
             // Raise NMI (Non-Maskable Interrupt)
-            cpu.CPUInterrupts.SetNMISourceActive(interruptSourceName, atBusCycle);
+            cpu.CPUInterrupts.SetNMIActive(handle, atBusCycle);
         }
         else
         {
             // Raise IRQ (Interrupt Request)
-            cpu.CPUInterrupts.SetIRQSourceActive(interruptSourceName, autoAcknowledge: true, atBusCycle);
+            cpu.CPUInterrupts.SetIRQActive(handle, autoAcknowledge: true, atBusCycle);
         }
     }
 
     public static string GetInterruptSourceName(IRQSource source)
         => s_interruptSourceNames[(int)source];
 
-    public bool IsEnabled(IRQSource source)
-    {
-        return _sourceEnableStatus[source];
-    }
-    public void Enable(IRQSource source)
-    {
-        _sourceEnableStatus[source] = true;
-    }
-    public void Disable(IRQSource source)
-    {
-        _sourceEnableStatus[source] = false;
-    }
+    public bool IsEnabled(IRQSource source) => (_enabledMask & Bit(source)) != 0;
 
-    public bool IsConditionSet(IRQSource source)
-    {
-        return _sourceConditionStatus[source];
-    }
-    public void ConditionSet(IRQSource source)
-    {
-        _sourceConditionStatus[source] = true;
-    }
+    public void Enable(IRQSource source) => _enabledMask |= Bit(source);
 
-    public void ConditionClear(IRQSource source)
+    public void Disable(IRQSource source) => _enabledMask &= (byte)~Bit(source);
+
+    public bool IsConditionSet(IRQSource source) => (_conditionMask & Bit(source)) != 0;
+
+    public void ConditionSet(IRQSource source) => _conditionMask |= Bit(source);
+
+    public void ConditionClear(IRQSource source) => _conditionMask &= (byte)~Bit(source);
+
+    public void ConditionClearAll() => _conditionMask = 0;
+
+    /// <summary>Release the chip's interrupt output for every source.</summary>
+    public void Acknowledge(CPU cpu) => Acknowledge(cpu, releasedAtBusCycle: 0);
+
+    /// <summary>
+    /// Release the chip's interrupt output for every source, during the given bus cycle; the CPU
+    /// still takes an IRQ it sampled active before that cycle.
+    /// </summary>
+    public void Acknowledge(CPU cpu, ulong releasedAtBusCycle)
     {
-        _sourceConditionStatus[source] = false;
-    }
-    public void ConditionClearAll()
-    {
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        var interrupts = cpu.CPUInterrupts;
+        for (var bit = 0; bit <= (int)IRQSource.FlagLine; bit++)
         {
-            ConditionClear(source);
-        }
-    }
-
-    public void Acknowledge(CPU cpu)
-    {
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-        {
-            if (source == IRQSource.Any)
-                continue;
-
-            var interruptSourceName = GetInterruptSourceName(source);
+            var handle = Handle((IRQSource)bit, interrupts);
             if (_useNMI)
-                cpu.CPUInterrupts.SetNMISourceInactive(interruptSourceName);
+                interrupts.SetNMIInactive(handle);
             else
-                cpu.CPUInterrupts.SetIRQSourceInactive(interruptSourceName);
+                interrupts.SetIRQInactive(handle, releasedAtBusCycle);
         }
+    }
+
+    private InterruptSource Handle(IRQSource source, CPUInterrupts interrupts)
+    {
+        if (!ReferenceEquals(_handlesFor, interrupts))
+        {
+            for (var bit = 0; bit <= (int)IRQSource.FlagLine; bit++)
+                _handles[bit] = interrupts.GetSource(s_interruptSourceNames[bit]);
+            _handlesFor = interrupts;
+        }
+        return _handles[(int)source];
     }
 }
 
