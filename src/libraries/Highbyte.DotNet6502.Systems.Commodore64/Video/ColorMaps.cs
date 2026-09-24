@@ -38,7 +38,8 @@ public static class ColorMaps
     }
 
     /// <summary>
-    /// Same as Vice 64 emulator "C64HQ" palette option
+    /// Based on the "C64HQ" palette distributed with the VICE emulator (c64hq.vpl); 14 of the 16
+    /// entries are the same.
     /// </summary>
     private static Dictionary<byte, Color> C64ColorMap_C64HQ = new()
     {
@@ -61,7 +62,7 @@ public static class ColorMaps
     };
 
     /// <summary>
-    /// Same as Vice 64 emulator "Godot" palette option
+    /// The "Godot" palette distributed with the VICE emulator (godot.vpl), all 16 entries.
     /// </summary>
     private static Dictionary<byte, Color> C64ColorMap_Godot = new()
     {
@@ -84,9 +85,8 @@ public static class ColorMaps
     };
 
     /// <summary>
-    /// Map C64 color value 0-15 to system RGB colors
+    /// The emulator's original palette: the "Godot" values above with two entries differing.
     /// </summary>
-    /// <returns></returns>
     private static Dictionary<byte, Color> C64ColorMap_OLD = new()
     {
         { (byte)C64Colors.Black,        Color.FromArgb(0, 0, 0) },          // Black
