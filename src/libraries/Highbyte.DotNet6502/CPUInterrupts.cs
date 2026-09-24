@@ -55,6 +55,23 @@ public sealed class CPUInterrupts
     /// </summary>
     public ulong IRQAssertedAtBusCycle { get; private set; }
 
+    /// <summary>
+    /// The bus cycle during which the IRQ line went inactive again (its last source released), as
+    /// reported by the device. The line is sampled at an instruction's second-to-last cycle, so a
+    /// line seen active there and released during the last cycle is still taken; see
+    /// <see cref="IRQWasActiveAt"/>. 0 when the device gave no cycle, which counts as released
+    /// before any poll.
+    /// </summary>
+    public ulong IRQReleasedAtBusCycle { get; private set; }
+
+    /// <summary>
+    /// Whether the IRQ line was active during the given bus cycle: it is active now and was
+    /// asserted by then, or it has been released since but was asserted by then and released
+    /// only after.
+    /// </summary>
+    public bool IRQWasActiveAt(ulong busCycle)
+        => (IRQLineEnabled || IRQReleasedAtBusCycle > busCycle) && IRQAssertedAtBusCycle <= busCycle;
+
     /// <summary>The bus cycle during which the pending NMI edge was detected; 0 if not given.</summary>
     public ulong NMIPendingAtBusCycle { get; private set; }
 
@@ -135,17 +152,36 @@ public sealed class CPUInterrupts
     /// </summary>
     /// <param name="source">Unique name of source</param>
     public void SetIRQSourceInactive(string source)
+        => SetIRQSourceInactive(source, releasedAtBusCycle: 0);
+
+    /// <summary>
+    /// Removes an IRQ source and records the bus cycle during which the device released it, so
+    /// the CPU still takes an interrupt it sampled before the release (see
+    /// <see cref="IRQReleasedAtBusCycle"/>). Unknown names are ignored.
+    /// </summary>
+    /// <param name="releasedAtBusCycle">The <see cref="CPU.BusCycles"/> value during the access
+    /// on which the device released the line.</param>
+    public void SetIRQSourceInactive(string source, ulong releasedAtBusCycle)
     {
         if (TryGetSource(source, out var handle))
-            SetIRQInactive(handle);
+            SetIRQInactive(handle, releasedAtBusCycle);
     }
 
     /// <inheritdoc cref="SetIRQSourceInactive(string)"/>
     public void SetIRQInactive(InterruptSource source)
+        => SetIRQInactive(source, releasedAtBusCycle: 0);
+
+    /// <inheritdoc cref="SetIRQSourceInactive(string, ulong)"/>
+    public void SetIRQInactive(InterruptSource source, ulong releasedAtBusCycle)
     {
         var mask = source.Mask;
+        if ((_irqLines & mask) == 0)
+            return;
         _irqLines &= ~mask;
         _irqAutoAcknowledgeMask &= ~mask;
+        // The line goes inactive with its last source.
+        if (_irqLines == 0)
+            IRQReleasedAtBusCycle = releasedAtBusCycle;
     }
 
     /// <summary>Returns true if the specified IRQ source is currently active.</summary>
@@ -166,6 +202,9 @@ public sealed class CPUInterrupts
     {
         _irqLines &= ~_irqAutoAcknowledgeMask;
         _irqAutoAcknowledgeMask = 0;
+        // A line already released before the CPU got here has been serviced now.
+        if (_irqLines == 0)
+            IRQReleasedAtBusCycle = 0;
     }
 
     // ----- NMI -----
@@ -262,6 +301,7 @@ public sealed class CPUInterrupts
     {
         _irqLines = 0;
         _irqAutoAcknowledgeMask = 0;
+        IRQReleasedAtBusCycle = 0;
         _nmiLines = 0;
         NMIPending = false;
     }

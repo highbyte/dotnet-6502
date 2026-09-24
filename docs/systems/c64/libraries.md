@@ -24,14 +24,19 @@ stops with the latch in the counter; writing the latch's high byte while the tim
 loads the counter, the low byte alone does not. A running counter counts down to 1 and underflows
 in the next cycle, where it shows the latch again and holds it for a second cycle, so it never
 reads 0 and a continuous timer with latch N has a period of N + 1 cycles; a latch of 0 counts like
-a latch of 1, and a latch written in the underflow cycle is the one reloaded. A force load leaves
-the interrupt flag alone, a start clears it. The underflow flag shows in the interrupt control
-register in the underflow cycle for timer A and a cycle earlier for timer B (the 6526's timing;
-the 6526A's is not modelled). The interrupt output follows in the next cycle unless a read has
-taken the flag away, and the CPU sees it from the cycle after that: a read of the interrupt
-control register in that cycle still keeps an IRQ from being taken, while an NMI, latched on the
-output's edge, is taken. Enabling a source whose flag is already set drives the output the same
-way, a cycle after the write. The CiaSyncedSplit sample in the Avalonia and browser menus
+a latch of 1, and a latch written in the underflow cycle is the one reloaded. A force load or a
+start leaves the interrupt flag alone. The underflow flag shows in the interrupt control register
+in the underflow cycle, and the interrupt output follows in the next cycle unless a read has
+taken the flag away; the CPU sees the output from the cycle after that, so a read of the
+interrupt control register in the output's first cycle still keeps an IRQ from being taken, while
+an NMI, latched on the output's edge, is taken. A read that releases the output only in an
+instruction's last cycle is too late: the CPU sampled the line in the cycle before and takes the
+interrupt, and the handler then finds the register already cleared. Two quirks of the 6526 (the
+6526A's timing is not modelled): a read in the cycle before timer B's underflow loses that flag,
+which is never set, though the output still follows and the register then shows only the
+interrupt bit; and a read in the cycle after a read that took an enabled source's flag still
+shows the interrupt bit, without the output being driven. Enabling a source whose flag is
+already set drives the output the same way, a cycle after the write. The CiaSyncedSplit sample in the Avalonia and browser menus
 places a raster split with a CIA timer started in a known cycle, the classic timer stabiliser, and
 marks where the split's edge belongs with that pipeline. A raster or CIA timer interrupt is dated to the cycle on
 which the raster line began or the CPU first sees the CIA's output, and the CPU applies its

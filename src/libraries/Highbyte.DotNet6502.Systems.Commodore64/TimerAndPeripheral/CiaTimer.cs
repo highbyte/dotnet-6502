@@ -13,6 +13,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// in that cycle the counter already holds the latch, which it keeps for one more cycle before
 /// counting on, so the period is the latch + 1 (a latch of 0 counts like 1). A one-shot timer
 /// stops in the underflow cycle, and a stop that lands on that cycle leaves the counter at 0.
+/// The interrupt flag shows in the interrupt control register from the underflow cycle, and the
+/// interrupt output follows a cycle later. On the 6526, an interrupt control read in the cycle
+/// before timer B's underflow loses that flag: the read shows it clear and it is never set, while
+/// the interrupt output still follows, so a handler then finds only the interrupt bit set.
 /// (VICE's cia-timer, reload0 and spritesteal test programs.)
 /// </summary>
 public class CiaTimer
@@ -24,9 +28,9 @@ public class CiaTimer
     private const int LoadDelay = 2;
     // Cycles the counter still moves after a stop is written.
     private const int StopLag = 2;
-    // Cycles before the underflow cycle at which the interrupt flag shows in the interrupt control
-    // register: one for timer A, two for timer B on the 6526 (VICE's cia-timer test, old CIAs).
-    private readonly ulong _flagLead;
+    // Whether an interrupt control read in the cycle before the underflow loses the flag (timer B
+    // on the 6526).
+    private readonly bool _readBeforeUnderflowLosesFlag;
 
     private readonly CiaTimerType _ciaTimerType;
     private readonly IRQSource _iRQSource;
@@ -63,6 +67,8 @@ public class CiaTimer
     private ulong _irqAt = ulong.MaxValue;
     // The cycle of the last underflow, which loaded the latch into the counter.
     private ulong _reloadedAt = ulong.MaxValue;
+    // Set when a read lost the flag of the coming underflow; its interrupt output still follows.
+    private bool _flagLost;
 
     private ulong Now => _cia.AdvancedToBusCycle;
 
@@ -130,9 +136,9 @@ public class CiaTimer
             // A force load leaves the interrupt flag alone (reload0's reference data).
             if (forceLoad)
                 _loadAt = Now + LoadDelay;             // the load event starts the counting when running
+            // A start leaves the interrupt flag alone (ciavarious cia3's reference data).
             if (running && !wasRunning)
             {
-                _ciaIRQ.ConditionClear(_iRQSource);
                 if (valueNow == 0)
                 {
                     // A counter of 0 underflows as soon as the start reaches it, before a force load
@@ -190,7 +196,7 @@ public class CiaTimer
         _timerControlRunModeBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.TimerARunMode : (int)CiaTimerBControl.TimerBRunMode;
         _timerControlStartBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.StartTimerA : (int)CiaTimerBControl.StartTimerB;
         _timerControlForceLoadBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.ForceLoadTimerA : (int)CiaTimerBControl.ForceLoadTimerB;
-        _flagLead = ciaTimerType == CiaTimerType.CiaA ? 1UL : 2UL;
+        _readBeforeUnderflowLosesFlag = ciaTimerType == CiaTimerType.CiaB;
     }
 
     // --- Snapshot support ---
@@ -217,7 +223,22 @@ public class CiaTimer
         _flagAt = ulong.MaxValue;
         _irqAt = ulong.MaxValue;
         _reloadedAt = ulong.MaxValue;
+        _flagLost = false;
         Arm();
+    }
+
+    /// <summary>
+    /// The interrupt control register is being read in the CIA's current cycle. On the 6526, timer
+    /// B's flag is lost when that is the cycle before its underflow: the read shows it clear and
+    /// the underflow does not set it, but the interrupt output still follows the underflow.
+    /// </summary>
+    internal void InterruptControlRead()
+    {
+        if (!_readBeforeUnderflowLosesFlag || !_armed || _underflowAtBusCycle != Now + 1 || _flagAt == ulong.MaxValue)
+            return;
+        _flagAt = ulong.MaxValue;
+        _flagLost = true;
+        _cia.RecomputeNextUnderflow();
     }
 
     /// <summary>
@@ -246,13 +267,15 @@ public class CiaTimer
             else if (_irqAt == next)
             {
                 // The interrupt output follows the underflow a cycle later, if the source is enabled
-                // and its flag has not been read away in the meantime; the CPU sees the line from the
-                // cycle after that. So an interrupt control read in between still keeps an IRQ (a
-                // level, released by the read) from being taken, but not an NMI (an edge, latched
-                // when the output goes active). (VICE's irqdelay and timerbasics test programs.)
+                // and its flag has not been read away in the meantime (a flag lost to a read in the
+                // cycle before the underflow still drives it); the CPU sees the line from the cycle
+                // after that. So an interrupt control read in between still keeps an IRQ (a level,
+                // released by the read) from being taken, but not an NMI (an edge, latched when the
+                // output goes active). (VICE's irqdelay and timerbasics test programs.)
                 _irqAt = ulong.MaxValue;
-                if (_ciaIRQ.IsEnabled(_iRQSource) && _ciaIRQ.IsConditionSet(_iRQSource))
+                if (_ciaIRQ.IsEnabled(_iRQSource) && (_ciaIRQ.IsConditionSet(_iRQSource) || _flagLost))
                     _ciaIRQ.Trigger(_iRQSource, _c64.CPU, next + 1);
+                _flagLost = false;
             }
             else if (_stopAt == next)
             {
@@ -262,6 +285,7 @@ public class CiaTimer
                 _armed = false;
                 _stopAt = ulong.MaxValue;
                 _flagAt = ulong.MaxValue;
+                _flagLost = false;
             }
             else if (_armed && _underflowAtBusCycle == next)
                 Underflow(next);
@@ -273,6 +297,7 @@ public class CiaTimer
                 _armed = false;
                 _loadAt = ulong.MaxValue;
                 _flagAt = ulong.MaxValue;
+                _flagLost = false;
                 if (StartBitSet)
                     ArmFrom(next + 1, _internalTimer_Latch);
             }
@@ -319,12 +344,11 @@ public class CiaTimer
         ScheduleFlag(fromBusCycle);
     }
 
-    // The flag shows in the interrupt control register in the underflow cycle for timer A and a
-    // cycle earlier for timer B, as the 6526's reads of it show (the interrupt output follows a
-    // cycle after the underflow); not before the cycle the counting starts from. Dated from that
-    // cycle, not from where the CIA has caught up to, since the catch-up may already be past it.
+    // The flag shows in the interrupt control register from the underflow cycle (the interrupt
+    // output follows a cycle after it); not before the cycle the counting starts from. Dated from
+    // that cycle, not from where the CIA has caught up to, since the catch-up may already be past it.
     private void ScheduleFlag(ulong fromBusCycle)
-        => _flagAt = Math.Max(_underflowAtBusCycle + 1 - _flagLead, fromBusCycle);
+        => _flagAt = Math.Max(_underflowAtBusCycle, fromBusCycle);
 
     /// <summary>Switch a started timer to the deadline representation from its stored counter, counting from now.</summary>
     internal void Arm()
@@ -341,6 +365,7 @@ public class CiaTimer
         _stopAt = ulong.MaxValue;
         _irqAt = ulong.MaxValue;
         _reloadedAt = ulong.MaxValue;
+        _flagLost = false;
         if (!_armed)
             return;
         _counter = InternalTimer;

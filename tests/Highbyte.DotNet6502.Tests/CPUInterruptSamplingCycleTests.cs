@@ -81,6 +81,43 @@ public class CPUInterruptSamplingCycleTests
         }
     }
 
+    [Theory]
+    [InlineData(2, true)]    // released during the last cycle of the NOP: the poll already saw the line low
+    [InlineData(1, false)]   // released during the second-to-last cycle: the poll saw it high
+    public void IRQ_released_after_the_poll_is_still_taken(ulong releasedAtBusCycle, bool taken)
+    {
+        var (cpu, mem) = NewCpu(0xEA, 0xEA);   // NOP ; NOP
+
+        cpu.ExecuteOneInstructionMinimal(mem);                      // bus cycles 1-2
+        // The device asserted the line during cycle 1 and released it again during the instruction.
+        cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: true, assertedAtBusCycle: 1);
+        cpu.CPUInterrupts.SetIRQSourceInactive("device", releasedAtBusCycle);
+        Assert.False(cpu.CPUInterrupts.IRQLineEnabled);
+
+        var entry = cpu.ProcessPendingInterrupts(mem);
+
+        Assert.Equal(taken ? CPU.InterruptEntryCycles : 0UL, entry);
+        Assert.Equal(taken ? IrqHandler : (ushort)(Start + 1), cpu.PC);
+
+        // Once serviced (or missed), the released line is not taken again.
+        cpu.PC = Start + 1;
+        cpu.ExecuteOneInstructionMinimal(mem);
+        Assert.Equal(0UL, cpu.ProcessPendingInterrupts(mem));
+    }
+
+    [Fact]
+    public void IRQ_released_without_a_cycle_counts_as_released_before_the_poll()
+    {
+        var (cpu, mem) = NewCpu(0xEA);
+
+        cpu.ExecuteOneInstructionMinimal(mem);
+        cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: true, assertedAtBusCycle: 1);
+        cpu.CPUInterrupts.SetIRQSourceInactive("device");
+
+        Assert.Equal(0UL, cpu.ProcessPendingInterrupts(mem));
+        Assert.Equal((ushort)(Start + 1), cpu.PC);
+    }
+
     [Fact]
     public void The_assertion_cycle_is_that_of_the_first_source_to_pull_the_line_low()
     {
