@@ -93,9 +93,17 @@ Additional machine code monitor commands specific to the C64 system:
 
 ```
 Commands:
+  gr     C64 - Continue execution until the VIC-II reaches a raster line (and cycle).
   lb     C64 - Load a Commodore Basic 2.0 PRG file from file picker dialog.
   llb    C64 - Load a Commodore Basic 2.0 PRG file from host file system.
   sb     C64 - Save a Commodore Basic 2.0 PRG file to host file system.
 ```
+
+`gr <line> [cycle]` stops at the first instruction boundary at or after the position, in the current frame if
+it is still ahead and otherwise in the next; the cycle is in the chip's numbering (1–63 PAL, 1–65 NTSC) and
+defaults to 1. The `r` command shows the VIC-II's position on its second line, `VIC-II: RASTER=… CYCLE=…
+FRAMECYCLE=… FRAME=…`; the hosts' monitor status area shows the same line, and the same names can be used
+in `gu` conditions and in the VS Code debugger's breakpoint conditions (see
+[Debugging](../../tools/vscode-debugger/debugging.md)).
 
 For general monitor commands, see [Monitor library](../../libraries/core/dotnet6502-monitor.md).

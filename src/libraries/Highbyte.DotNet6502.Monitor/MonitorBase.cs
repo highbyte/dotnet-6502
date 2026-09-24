@@ -33,7 +33,10 @@ public abstract class MonitorBase
         // Init systemrunner with a shared pre-execution breakpoint evaluator.
         // No OnTriggered callback needed: the trigger result propagates through
         // RunEmulatorOneFrame() and is handled in OnAfterRunEmulatorOneFrame().
-        _evaluator = new DebuggerBreakpointEvaluator();
+        _evaluator = new DebuggerBreakpointEvaluator
+        {
+            DebugValues = systemRunner.System as IDebugValueSource,
+        };
         _systemRunner.SetCustomExecEvaluator(_evaluator);
 
         Options = options;
@@ -69,6 +72,9 @@ public abstract class MonitorBase
         // so a reassignment here would not be observed by them.
         _variables.ResetDisassemblyAnchor();
 
+        // A pending "run until" (gu, or a system's gr) does not survive entering the monitor again.
+        _evaluator.RunUntilCondition = null;
+
         // If there are system-specific monitor commands, issue reset there too
         if (SystemRunner.System is ISystemMonitor systemWithMonitor)
         {
@@ -76,6 +82,13 @@ public abstract class MonitorBase
             monitorCommands.Reset(this);
         }
     }
+
+    /// <summary>
+    /// The system's debug values (a C64's VIC-II position) on one line, "VIC-II: RASTER=51 CYCLE=12 ...",
+    /// or null when the system exposes none.
+    /// </summary>
+    public string? GetSystemDebugValuesLine()
+        => SystemRunner.System is IDebugValueSource source ? source.FormatDebugValuesLine() : null;
 
     public void ApplyOptionsOnBreakPointExecEvaluator()
     {
@@ -97,6 +110,9 @@ public abstract class MonitorBase
                 WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
                 break;
             case ExecEvaluatorTriggerReasonType.BRKInstruction:
+                WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
+                break;
+            case ExecEvaluatorTriggerReasonType.RunUntilCondition:
                 WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
                 break;
             case ExecEvaluatorTriggerReasonType.Other:

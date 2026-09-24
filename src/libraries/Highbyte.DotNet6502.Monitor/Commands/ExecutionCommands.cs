@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.Globalization;
+using Highbyte.DotNet6502.Systems.Debugger;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Monitor.Commands;
@@ -11,8 +12,35 @@ public static class ExecutionCommands
     public static Command ConfigureExecution(this Command rootCommand, MonitorBase monitor, MonitorVariables monitorVariables)
     {
         rootCommand.AddCommand(BuildGoCommand(monitor));
+        rootCommand.AddCommand(BuildGoUntilCommand(monitor));
         rootCommand.AddCommand(BuildSingleStepCommand(monitor));
         return rootCommand;
+    }
+
+    private static Command BuildGoUntilCommand(MonitorBase monitor)
+    {
+        var conditionArg = new Argument<string[]>()
+        {
+            Name = "condition",
+            Description = "Condition in breakpoint-condition syntax, e.g. A == $FF && X == 0, or RASTER == 100 on a C64.",
+            Arity = ArgumentArity.OneOrMore
+        };
+        var command = new Command("gu", "Continue execution until a condition is true, checked before each instruction regardless of address.")
+        {
+            conditionArg,
+        };
+        command.SetHandler((string[] conditionWords) =>
+        {
+            var condition = string.Join(' ', conditionWords);
+            if (!BreakpointConditionEvaluator.TryParse(condition, monitor.Cpu, monitor.Mem, monitor.Evaluator.DebugValues, out var error))
+            {
+                monitor.WriteOutput($"Invalid condition: {error}", MessageSeverity.Error);
+                return Task.FromResult((int)CommandResult.Error);
+            }
+            monitor.Evaluator.RunUntilCondition = condition;
+            return Task.FromResult((int)CommandResult.Continue);
+        }, conditionArg);
+        return command;
     }
 
     private static Command BuildGoCommand(MonitorBase monitor)

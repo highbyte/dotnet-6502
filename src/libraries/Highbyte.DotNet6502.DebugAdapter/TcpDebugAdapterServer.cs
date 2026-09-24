@@ -105,8 +105,11 @@ public class TcpDebugAdapterServer : IDisposable
         _logger?.Log(level, "{Message}", message);
         try
         {
-            _log.WriteLine(message);
-            _log.Flush();
+            lock (_log)   // shared with the transport and the adapter logic, which lock the same object
+            {
+                _log.WriteLine(message);
+                _log.Flush();
+            }
         }
         catch (ObjectDisposedException) { }
     }

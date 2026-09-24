@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Monitor.Tests.Helpers;
 /// monitor's disassembly ('d') and memory dump ('m') commands can be exercised. Members not used
 /// by those commands are left unimplemented.
 /// </summary>
-internal sealed class TestSystem : ISystem
+internal class TestSystem : ISystem
 {
     public string Name => "Test";
     public List<string> SystemInfo => new();

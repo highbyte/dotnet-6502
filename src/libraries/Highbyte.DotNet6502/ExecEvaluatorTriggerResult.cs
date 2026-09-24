@@ -24,5 +24,7 @@ public enum ExecEvaluatorTriggerReasonType
     DebugBreakPoint,
     UnknownInstruction,
     BRKInstruction,
+    /// <summary>A run-until condition set by a debugger ("run until RASTER == 100") became true.</summary>
+    RunUntilCondition,
     Other
 }

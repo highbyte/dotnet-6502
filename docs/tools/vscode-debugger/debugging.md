@@ -9,7 +9,7 @@ For internals of the debug adapter library, see [`Highbyte.DotNet6502.DebugAdapt
 Install the extension and learn how to use it from its documentation:
 
 - [README.md](https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension/README.md) — installation, quick start, features, launch configuration reference
-- [DEBUGGING.md](https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension/DEBUGGING.md) — conditional breakpoints, logpoints, hit counts, stepping, memory inspection, register editing, and more
+- [DEBUGGING.md](https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension/DEBUGGING.md) — conditional breakpoints, logpoints, hit counts, stepping, memory inspection, register editing, the C64's VIC-II raster position and `run until`, and more
 - [REMOTE_DEBUGGING.md](https://github.com/highbyte/dotnet-6502/blob/master/tools/vscode-extension/REMOTE_DEBUGGING.md) — cross-machine debugging with path mappings and remote source fallback
 
 ## Manual smoke test
