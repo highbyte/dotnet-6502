@@ -15,11 +15,11 @@ public record CpuCompatibilityProfileOption(CpuCompatibilityProfile Profile, str
         new CpuCompatibilityProfileOption(
             CpuCompatibilityProfile.StableUnofficial,
             "Stable unofficial",
-            "Also enables the predictable NMOS unofficial opcodes commonly used on real 6502/6510 hardware, and LXA/ANE with the common chip-specific value."),
+            "Also enables the predictable NMOS unofficial opcodes commonly used on real 6502/6510 hardware, including ARR, and LXA/ANE with the common chip-specific value."),
         new CpuCompatibilityProfileOption(
             CpuCompatibilityProfile.ExperimentalUnofficial,
             "Experimental unofficial",
-            "Also enables the remaining executable undocumented opcodes such as ARR and LAS for targeted compatibility testing."),
+            "Also enables the remaining executable undocumented opcodes, such as LAS, whose result depends on the bus, for targeted compatibility testing."),
         new CpuCompatibilityProfileOption(
             CpuCompatibilityProfile.FullUnofficial,
             "Full unofficial",

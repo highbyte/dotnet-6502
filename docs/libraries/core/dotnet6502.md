@@ -95,8 +95,8 @@ Higher profiles include everything from lower profiles.
 | Profile | Meaning |
 | ------- | ------- |
 | `OfficialOnly` | Only documented MOS 6502 opcodes are available. |
-| `StableUnofficial` | Also enables the more predictable undocumented NMOS opcodes commonly used on real 6502/6510 hardware, and `LXA` ($AB) and `ANE` ($8B), whose result depends on a chip-specific value ORed into A: the common `$EE` is used. |
-| `ExperimentalUnofficial` | Also enables the currently implemented but less reliable undocumented opcodes used for targeted compatibility testing. |
+| `StableUnofficial` | Also enables the more predictable undocumented NMOS opcodes commonly used on real 6502/6510 hardware, including `ARR` ($6B), and `LXA` ($AB) and `ANE` ($8B), whose result depends on a chip-specific value ORed into A: the common `$EE` is used. |
+| `ExperimentalUnofficial` | Also enables the currently implemented but less reliable undocumented opcodes, such as `LAS` ($BB), whose result depends on what is on the bus; for targeted compatibility testing. |
 | `FullUnofficial` | Also enables halt-style unofficial opcodes such as `JAM` / `KIL` that can intentionally jam the CPU until reset. |
 
 Notes:

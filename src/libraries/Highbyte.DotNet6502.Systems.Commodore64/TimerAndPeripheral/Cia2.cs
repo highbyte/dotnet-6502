@@ -97,7 +97,7 @@ public class Cia2 : CiaBase
 
         // Note: CIA 2 Data Port A has two lines (bits) that control functionality in another chip, VIC2.
         //       Set VIC2 bank based on bits 0-1, as the port's pins carry them.
-        _c64.Vic2.SetVIC2Bank(PortAPins(value, _c64.ReadIOStorage(CiaAddr.CIA2_DDRA)));
+        _c64.Vic2.SetVIC2BankFromPortWrite(PortAPins(value, _c64.ReadIOStorage(CiaAddr.CIA2_DDRA)));
 
         // Handle serial bus lines.
         // Bit #3: Serial bus ATN OUT; 0 = High; 1 = Low.
@@ -120,7 +120,7 @@ public class Cia2 : CiaBase
     public void DdrAStore(ushort address, byte value)
     {
         _c64.WriteIOStorage(address, value);
-        _c64.Vic2.SetVIC2Bank(PortAPins(_c64.ReadIOStorage(CiaAddr.CIA2_DATAA), value));
+        _c64.Vic2.SetVIC2BankFromPortWrite(PortAPins(_c64.ReadIOStorage(CiaAddr.CIA2_DATAA), value));
     }
 
     // The levels on port A's pins: output bits as written, input bits high through the pull-ups.
