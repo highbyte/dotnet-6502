@@ -20,6 +20,7 @@ public sealed class Via6522
     private readonly Action<byte> _writePortBOutput;
     private readonly Action<bool> _writeCa2;
     private readonly Action<bool> _writeCb2;
+    private readonly Action<bool, bool> _writeControlOutputs;
     private readonly Action<bool> _irqChanged;
 
     private byte _portA;
@@ -59,7 +60,8 @@ public sealed class Via6522
         Action<byte>? writePortBOutput = null,
         Action<bool>? writeCa2 = null,
         Action<bool>? writeCb2 = null,
-        Action<bool>? irqChanged = null)
+        Action<bool>? irqChanged = null,
+        Action<bool, bool>? writeControlOutputs = null)
     {
         _readPortAInput = readPortAInput ?? (() => 0xff);
         _writePortAOutput = writePortAOutput ?? (_ => { });
@@ -67,6 +69,7 @@ public sealed class Via6522
         _writePortBOutput = writePortBOutput ?? (_ => { });
         _writeCa2 = writeCa2 ?? (_ => { });
         _writeCb2 = writeCb2 ?? (_ => { });
+        _writeControlOutputs = writeControlOutputs ?? ((_, _) => { });
         _irqChanged = irqChanged ?? (_ => { });
         Reset();
     }
@@ -92,6 +95,7 @@ public sealed class Via6522
         _writePortBOutput(_portB);
         _writeCa2(_ca2);
         _writeCb2(_cb2);
+        _writeControlOutputs(_ca2, _cb2);
         _irqChanged(false);
     }
 
@@ -227,6 +231,9 @@ public sealed class Via6522
         _pcr = value;
         ApplyControlOutput((value >> 1) & 0x07, isCa2: true);
         ApplyControlOutput((value >> 5) & 0x07, isCa2: false);
+        // Devices decoding CA2/CB2 together must see one coherent bus state, not
+        // a fictitious intermediate mode while this single PCR write is applied.
+        _writeControlOutputs(_ca2, _cb2);
     }
 
     private void ApplyControlOutput(int mode, bool isCa2)
@@ -343,6 +350,7 @@ public sealed class Via6522
         // update its AY bus control lines and CPU IRQ source without mutating the restored VIA state.
         _writeCa2(_ca2);
         _writeCb2(_cb2);
+        _writeControlOutputs(_ca2, _cb2);
         _writePortAOutput(_portA);
         _writePortBOutput(_portB);
         _irqChanged(IrqActive);
