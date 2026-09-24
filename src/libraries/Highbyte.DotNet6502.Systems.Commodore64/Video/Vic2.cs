@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -1408,24 +1409,49 @@ public class Vic2
         // | 3          | 0xc000 - 0xffff | xxxx xx00           | No
         // |------------|-----------------|---------------------|-----------------------
 
-        int oldVIC2Bank = CurrentVIC2Bank;
-        int newBankValue = dd00Value & 0b00000011;
-        CurrentVIC2Bank = newBankValue switch
+        var newBank = BankFromPortBits(dd00Value);
+        while (_pendingBankCount > 0)
         {
-            0b11 => 0,
-            0b10 => 1,
-            0b01 => 2,
-            0b00 => 3,
-            _ => throw new NotImplementedException(),
-        };
-        if (CurrentVIC2Bank != oldVIC2Bank)
-        {
-            Vic2Mem.SetMemoryConfiguration(CurrentVIC2Bank);
-
-            CharsetManager.NotifyCharsetAddressChanged();
-            SpriteManager.SetAllChanged(Vic2SpriteChangeType.Data);
+            ApplyBank(_pendingBank[0]);
+            _pendingBankCount--;
+            _pendingBank[0] = _pendingBank[1];
+            _pendingBankFromBusCycle[0] = _pendingBankFromBusCycle[1];
         }
+        ApplyBank(newBank);
     }
+
+    /// <summary>
+    /// The bank as CIA 2's port pins select it, from a CPU write to the port or its direction
+    /// register. The port's new value reaches the VIC-II's address lines in the cycle after the
+    /// write's, as a register write does: the chip fetches in a cycle's first phase and the CPU
+    /// writes in its second, so the fetch of the write's own cycle and those of the instruction's
+    /// earlier cycles still read the old bank. (Party Elk 2 switches banks with a $DD02 write in
+    /// cycle 53 of each scroller line and shows column 36, fetched in that cycle, from the old
+    /// bank.) A write that is not a CPU access in progress (a test writing the register directly)
+    /// takes effect at once, as <see cref="SetVIC2Bank"/> does.
+    /// </summary>
+    internal void SetVIC2BankFromPortWrite(byte portPins)
+    {
+        var busCycles = C64.CPU.BusCycles;
+        if (busCycles <= _advancedToBusCycle)
+        {
+            SetVIC2Bank(portPins);
+            return;
+        }
+        if (_pendingBankCount == 2)
+            CatchUpTo(_pendingBankFromBusCycle[0]);   // three writes in as many cycles: land the first
+        _pendingBank[_pendingBankCount] = BankFromPortBits(portPins);
+        _pendingBankFromBusCycle[_pendingBankCount] = busCycles + 1;
+        _pendingBankCount++;
+    }
+
+    private static byte BankFromPortBits(byte portPins) => (byte)((portPins & 0b11) switch
+    {
+        0b11 => 0,
+        0b10 => 1,
+        0b01 => 2,
+        _ => 3,
+    });
 
     /// <summary>
     /// Reads memory as the VIC-II sees it on its video bus.
@@ -1627,13 +1653,61 @@ public class Vic2
     /// this with <see cref="CPU.BusCycles"/> at each instruction boundary; register accesses call
     /// <see cref="CatchUpToCurrentAccess"/>.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void CatchUpTo(ulong busCycle)
     {
+        if (busCycle <= _advancedToBusCycle)
+            return;
+        if (_pendingBankCount != 0)
+        {
+            CatchUpToWithPendingBank(busCycle);
+            return;
+        }
+        var cycles = busCycle - _advancedToBusCycle;
+        _advancedToBusCycle = busCycle;
+        AdvanceRaster(cycles, busCycle);
+    }
+
+    // The catch-up with a bank change in flight (kept out of CatchUpTo, which is on the
+    // per-instruction path): the change lands part way, and the cycles before it read the old bank.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void CatchUpToWithPendingBank(ulong busCycle)
+    {
+        while (_pendingBankCount > 0 && busCycle >= _pendingBankFromBusCycle[0])
+        {
+            var upTo = _pendingBankFromBusCycle[0] - 1;
+            if (upTo > _advancedToBusCycle)
+            {
+                var before = upTo - _advancedToBusCycle;
+                _advancedToBusCycle = upTo;
+                AdvanceRaster(before, upTo);
+            }
+            ApplyBank(_pendingBank[0]);
+            _pendingBankCount--;
+            _pendingBank[0] = _pendingBank[1];
+            _pendingBankFromBusCycle[0] = _pendingBankFromBusCycle[1];
+        }
         if (busCycle <= _advancedToBusCycle)
             return;
         var cycles = busCycle - _advancedToBusCycle;
         _advancedToBusCycle = busCycle;
         AdvanceRaster(cycles, busCycle);
+    }
+
+    // VIC-II bank changes from CIA 2's port, waiting for the cycle they reach the chip's address
+    // lines (see SetVIC2Bank). Two can be in flight: a read-modify-write's two writes.
+    private readonly byte[] _pendingBank = new byte[2];
+    private readonly ulong[] _pendingBankFromBusCycle = new ulong[2];
+    private int _pendingBankCount;
+
+    private void ApplyBank(byte bank)
+    {
+        if (bank == CurrentVIC2Bank)
+            return;
+        CurrentVIC2Bank = bank;
+        Vic2Mem.SetMemoryConfiguration(CurrentVIC2Bank);
+        CharsetManager.NotifyCharsetAddressChanged();
+        SpriteManager.SetAllChanged(Vic2SpriteChangeType.Data);
     }
 
     /// <summary>
@@ -1684,6 +1758,7 @@ public class Vic2
     /// </summary>
     internal void ResyncToBusCycle()
     {
+        _pendingBankCount = 0;
         _advancedToBusCycle = C64.CPU.BusCycles;
         C64.CPU.RequestBusStallCheck();
     }

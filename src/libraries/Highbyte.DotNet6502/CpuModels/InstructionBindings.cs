@@ -309,11 +309,15 @@ internal static class InstructionBindings
 
             // $EB: undocumented alias of SBC #imm — same core as the official byte.
             Read(table, 0xEB, "SBC", AddrMode.I, 2, 2, InstructionCores.SbcNmos, false, indexedDummyReads, documented: false);
+
+            // ARR: AND then ROR through the adder; deterministic on every NMOS chip (the corpus
+            // asserts it), and used as a two-cycle AND+ROR by demos (Party Elk 2's FPP tables).
+            Read(table, 0x6B, "ARR", AddrMode.I, 2, 2, InstructionCores.Arr, false, indexedDummyReads, documented: false);
         }
 
         if (profile >= CpuCompatibilityProfile.ExperimentalUnofficial)
         {
-            Read(table, 0x6B, "ARR", AddrMode.I, 2, 2, InstructionCores.Arr, false, indexedDummyReads, documented: false);
+            // LAS: the result depends on what is on the bus, so it stays out of the stable tier.
             Read(table, 0xBB, "LAS", AddrMode.ABS_Y, 3, 4, InstructionCores.Las, true, indexedDummyReads, documented: false);
         }
 

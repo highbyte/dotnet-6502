@@ -64,4 +64,53 @@ public class C64VideoMemoryWriteTimingTests
         Assert.NotEqual(0u, Fg(15, 0));      // from the cycle after the write: $FF, black
         Assert.NotEqual(0u, Fg(39, 7));
     }
+
+    [Theory]
+    [InlineData(0x03, 0x3F, 0xDD00, 0x02)]   // the port: %11 (bank 0) to %10 (bank 1)
+    [InlineData(0x02, 0x3E, 0xDD02, 0x3F)]   // the direction register: bit 0 from input (floating high, bank 0) to output (0, bank 1)
+    public void A_bank_change_from_cia_2s_port_shows_from_the_column_after_the_writes_cycle(int port, int ddr, int register, int value)
+    {
+        // The same timing with the VIC-II bank instead of the byte: the idle byte is $00 in bank 0
+        // and $FF in bank 1, and the program switches the bank with a CIA 2 port write whose write
+        // cycle is index 29 of line 52. The port's new value reaches the chip's address lines in
+        // the cycle after the write, so column 14 is fetched from bank 0 and column 15 from bank 1
+        // (Party Elk 2 switches banks in cycle 53 of each of its scroller's lines and shows column
+        // 36 from the old bank).
+        var c64 = C64.BuildC64(new C64Config
+        {
+            LoadROMs = false,
+            C64Model = "C64PAL",
+            Vic2Model = "PAL",
+            RenderProviderType = typeof(Vic2Rasterizer),
+            Vic2RasterizerPerLineSprites = true,
+        }, NullLoggerFactory.Instance);
+        c64.Mem.StoreData(Start, [0xA9, (byte)value, 0x8D, (byte)(register & 0xFF), (byte)(register >> 8), 0x4C, 0x05, 0x10]);
+        c64.CPU.PC = Start;
+        c64.Mem.Write(0xDD00, (byte)port);
+        c64.Mem.Write(0xDD02, (byte)ddr);
+        Assert.Equal(0, c64.Vic2.CurrentVIC2Bank);
+        c64.Mem.Write(0xD016, 0xC8);
+        c64.Mem.Write(0xD021, 6);
+        c64.Mem.Write(0xD011, 0x1F);
+        c64.RAM[0x3FFF] = 0x00;
+        c64.RAM[0x7FFF] = 0xFF;
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        c64.Vic2.AdvanceRaster(52 * cyclesPerLine + 24);
+
+        c64.ExecuteOneFrame();
+
+        Assert.Equal(1, c64.Vic2.CurrentVIC2Bank);
+        var rasterizer = (Vic2Rasterizer)c64.RenderProvider!;
+        var foreground = rasterizer.CurrentFrontLayerBuffers[1].ToArray();
+        var layout = c64.Vic2.ScreenLayouts.GetLayout(Vic2ScreenLayouts.LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var width = c64.Screen.VisibleWidth;
+        var y = layout.Screen.Start.Y + 52 - 51;
+        uint Fg(int column, int pixel) => foreground[y * width + layout.Screen.Start.X + column * 8 + pixel];
+
+        Assert.Equal(0u, Fg(0, 0));          // bank 0's idle byte, blank
+        Assert.Equal(0u, Fg(11, 0));         // the instruction's earlier cycles: still bank 0
+        Assert.Equal(0u, Fg(14, 0));         // the write's cycle: the fetch comes first
+        Assert.NotEqual(0u, Fg(15, 0));      // from the cycle after the write: bank 1's $FF
+        Assert.NotEqual(0u, Fg(39, 7));
+    }
 }

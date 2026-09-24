@@ -16,7 +16,8 @@ The CPU executes one instruction at a time, but every cycle of it is a bus acces
 every instruction boundary, and at every access to one of their registers, to the cycle of the
 access. A read of `$D012` therefore returns the raster line at the cycle the read happens, a CIA
 timer read returns the count at that cycle, a raster-compare or timer-control write takes effect
-on its own cycle. The CIA timers have the 6526's pipeline between a control write and the
+on its own cycle, and a VIC-II bank change through CIA 2's port reaches the chip's fetches from
+the cycle after the write (the fetch of the write's own cycle still reads the old bank). The CIA timers have the 6526's pipeline between a control write and the
 counter: after a start the counter holds through the two cycles after the write and shows its
 first decrement on the third; a force load shows the latch two cycles after the write and counts
 from it two cycles later; a stop lets the counter move for two more cycles; a one-shot timer
