@@ -581,10 +581,16 @@ public static class Program
             var directories = lines.Select(l => l.Directory).Distinct().ToList();
             if (directories.Count > 1)
             {
-                var matching = directories.Where(d => DirectoryMatches(d, suite)).ToList();
+                // The directory that matches the suite name most specifically (CPU/asap over
+                // CPU/Acid800 for suite CPU_asap: both share CPU, only one shares asap).
+                var ranked = directories.Select(d => (Directory: d, Depth: MatchDepth(d, suite))).Where(m => m.Depth >= 0).ToList();
+                if (ranked.Count == 0)
+                    return null;
+                var best = ranked.Max(m => m.Depth);
+                var matching = ranked.Where(m => m.Depth == best).ToList();
                 if (matching.Count != 1)
                     return null;
-                lines = lines.Where(l => l.Directory == matching[0]).ToList();
+                lines = lines.Where(l => l.Directory == matching[0].Directory).ToList();
             }
             var automated = lines.Any(l => l.Kind is "exitcode" or "screenshot");
             if (!automated)
@@ -598,10 +604,12 @@ public static class Program
             return new Entry(expect, lines.Max(l => l.Cycles), true, "");
         }
 
-        private static bool DirectoryMatches(string directory, string suite)
+        // The index of the deepest path component the suite name shares with the directory, -1 if none.
+        private static int MatchDepth(string directory, string suite)
         {
             var wanted = Normalise(suite);
-            return directory.Split('/').Select(Normalise).Any(part => part.Length > 0 && (wanted.Contains(part) || part.Contains(wanted)));
+            var parts = directory.Split('/').Select(Normalise).ToList();
+            return parts.FindLastIndex(part => part.Length > 0 && (wanted.Contains(part) || part.Contains(wanted)));
         }
 
         private static string Normalise(string s) => new(s.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());

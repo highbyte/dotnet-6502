@@ -313,6 +313,13 @@ internal static class InstructionCores
     /// <summary>SAX: store A AND X (no flags).</summary>
     public static byte Sax(CPU cpu) => (byte)(cpu.A & cpu.X);
 
+    /// <summary>TAS (SHS): SP = A AND X, which is also the value the store starts from.</summary>
+    public static byte Tas(CPU cpu)
+    {
+        cpu.SP = (byte)(cpu.A & cpu.X);
+        return cpu.SP;
+    }
+
     /// <summary>ANC: AND then copy the result's bit 7 into Carry.</summary>
     public static ulong Anc(CPU cpu, byte value)
     {

@@ -151,6 +151,13 @@ public class CPU
     private ulong _stallCycles;
 
     /// <summary>
+    /// The cycles the instruction in progress has so far waited for the bus (see
+    /// <see cref="BusStallSource"/>). An instruction handler compares it around a read to learn
+    /// whether RDY was low in that cycle, which the unstable NMOS stores depend on.
+    /// </summary>
+    internal ulong StallCyclesInProgress => _stallCycles;
+
+    /// <summary>
     /// Ask the stall source again on the next read. Systems call this when the state that decides
     /// stalls changes (a VIC-II register write, a frame wrap, a snapshot restore).
     /// </summary>

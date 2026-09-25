@@ -192,6 +192,35 @@ internal static class OpCodeDescriptorTableBuilder
         };
     }
 
+    /// <summary>
+    /// Composes one of the NMOS "unstable" indexed stores (SHA, SHX, SHY, TAS): the register
+    /// value ANDed with the high byte of the un-indexed address plus one, with the two things the
+    /// hardware does on top. When the index carries into the high byte, that ANDed value becomes
+    /// the high byte of the address written to. When RDY is low in the cycle before the write (the
+    /// dummy read is stalled: the C64's VIC-II taking the bus), the AND drops out of the stored
+    /// value, which is then the register value alone; the address is corrupted the same way
+    /// either way. Behaviour per the "NMOS 6510 Unintended Opcodes" document and VICE's
+    /// <c>testprogs/CPU/sha</c> readme; the SingleStepTests corpus asserts the RDY-high cases.
+    /// The register core supplies the value before the AND (TAS's core also sets SP to it).
+    /// </summary>
+    internal static ExecuteHandler ComposeUnstableStore(AddrMode addressingMode, ulong baseCycles, StoreOperation register)
+    {
+        var resolveAddress = GetAddressResolver(addressingMode);
+        return (cpu, mem) =>
+        {
+            var (address, crossedPageBoundary, uncarriedAddress) = resolveAddress(cpu, mem);
+            var stalledBefore = cpu.StallCyclesInProgress;
+            cpu.FetchByte(mem, uncarriedAddress);
+            var rdyLow = cpu.StallCyclesInProgress != stalledBefore;
+            var registerValue = register(cpu);
+            var anded = (byte)(registerValue & (byte)((uncarriedAddress >> 8) + 1));
+            if (crossedPageBoundary)
+                address = (ushort)((anded << 8) | (address & 0x00FF));
+            cpu.StoreByte(rdyLow ? registerValue : anded, mem, address);
+            return baseCycles;
+        };
+    }
+
     /// <summary>Composes an implied/accumulator instruction: registers and flags only.</summary>
     internal static ExecuteHandler ComposeImplied(ulong baseCycles, ImpliedOperation core)
         => (cpu, mem) =>
