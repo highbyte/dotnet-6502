@@ -6,13 +6,17 @@ namespace Highbyte.DotNet6502;
 /// register (1 = output) and the data register (output latch). Port lines P0–P5 exist
 /// as pins; bits 6–7 have no pins.
 ///
-/// Reading the port combines, per bit: output-configured implemented bits read the
-/// output latch; input-configured implemented bits read the externally supplied line
-/// levels; the unimplemented bits 6–7 read the latch (a simplification — the real chip
-/// reads floating/decaying values there, which nothing emulated depends on).
+/// Reading the port combines, per bit: output-configured bits read the output latch;
+/// input-configured bits that the board drives read the externally supplied line levels;
+/// input-configured bits that nothing drives — the unimplemented bits 6–7 always, and the
+/// pins the board reports as floating — read the charge left on them: the value the latch
+/// had when the bit was last an output. On the real chip that charge decays within a few
+/// hundred milliseconds; here it holds, which is what the test programs and the programs
+/// that rely on it (reading back a value through such a bit) observe within that time.
 ///
 /// Board wiring stays in the machine (e.g. C64): pull-ups/pull-downs and other input
-/// line levels are supplied via <see cref="ExternalInputLevels"/>, and derived board
+/// line levels are supplied via <see cref="ExternalInputLevels"/>, pins with nothing
+/// attached via <see cref="FloatingLinesMask"/>, and derived board
 /// state (memory banking, cassette motor) reacts to the synchronous
 /// <see cref="OutputsChanged"/> notification — raised before the triggering CPU write
 /// returns, so banking changes take effect for the very next memory access.
@@ -36,6 +40,18 @@ public sealed class Cpu6510Port : CpuModelState
     public byte ExternalInputLevels { get; set; }
 
     /// <summary>
+    /// Implemented pins that nothing on the board drives (the C64's cassette write line with
+    /// no datasette attached). Configured as inputs they read their held charge, not
+    /// <see cref="ExternalInputLevels"/>. Set by the machine at wiring time.
+    /// </summary>
+    public byte FloatingLinesMask { get; set; }
+
+    // The value held by the floating lines: the latch as it was while each bit was last an
+    // output. Bits configured as outputs are refreshed from the latch whenever the direction
+    // register is written, so the sample is taken at the moment a bit turns into an input.
+    private byte _floatingCharge;
+
+    /// <summary>
     /// Raised synchronously after every register write (<see cref="WriteDataDirectionRegister"/>,
     /// <see cref="WriteDataRegister"/>) and once after <see cref="SetState"/> — including
     /// writes that leave the values unchanged; the subscriber owns change detection.
@@ -48,6 +64,7 @@ public sealed class Cpu6510Port : CpuModelState
     /// <summary>Store to $00.</summary>
     public void WriteDataDirectionRegister(byte value)
     {
+        _floatingCharge = (byte)((_floatingCharge & ~DataDirectionRegister) | (DataRegister & DataDirectionRegister));
         DataDirectionRegister = value;
         OutputsChanged?.Invoke();
     }
@@ -65,34 +82,43 @@ public sealed class Cpu6510Port : CpuModelState
     /// <summary>Load from $01: the per-bit combination described on the class.</summary>
     public byte ReadPort()
     {
-        var outputBits = (byte)(DataRegister & DataDirectionRegister & ImplementedLinesMask);
-        var inputBits = (byte)(ExternalInputLevels & ~DataDirectionRegister & ImplementedLinesMask);
-        var unimplementedBits = (byte)(DataRegister & ~ImplementedLinesMask);
-        return (byte)(unimplementedBits | outputBits | inputBits);
+        var floatingLines = (byte)(FloatingLinesMask | ~ImplementedLinesMask);
+        var outputBits = (byte)(DataRegister & DataDirectionRegister);
+        var drivenInputBits = (byte)(ExternalInputLevels & ~DataDirectionRegister & ~floatingLines);
+        var floatingInputBits = (byte)(_floatingCharge & ~DataDirectionRegister & floatingLines);
+        return (byte)(outputBits | drivenInputBits | floatingInputBits);
     }
 
     /// <summary>
     /// Sets both registers together (machine reset, snapshot restore), then raises
     /// <see cref="OutputsChanged"/> exactly once with the final state — subscribers
-    /// never observe a half-applied combination.
+    /// never observe a half-applied combination. The floating lines take the data register's
+    /// value as their charge (the state a snapshot carries; see <see cref="SerializeState"/>).
     /// </summary>
     public void SetState(byte dataDirectionRegister, byte dataRegister)
     {
         DataDirectionRegister = dataDirectionRegister;
         DataRegister = dataRegister;
+        _floatingCharge = dataRegister;
         OutputsChanged?.Invoke();
     }
 
-    /// <summary>Register values and input levels copy; no event subscribers.</summary>
+    /// <summary>Register values, held charge and board wiring copy; no event subscribers.</summary>
     public override CpuModelState Clone()
         => new Cpu6510Port
         {
             DataDirectionRegister = DataDirectionRegister,
             DataRegister = DataRegister,
             ExternalInputLevels = ExternalInputLevels,
+            FloatingLinesMask = FloatingLinesMask,
+            _floatingCharge = _floatingCharge,
         };
 
-    /// <summary>The two raw registers; input levels are board wiring and stay out.</summary>
+    /// <summary>
+    /// The two raw registers; input levels are board wiring and stay out, and so does the
+    /// floating lines' charge (it decays on the real chip anyway): a restore seeds it from
+    /// the data register.
+    /// </summary>
     public override byte[] SerializeState()
         => new[] { DataDirectionRegister, DataRegister };
 

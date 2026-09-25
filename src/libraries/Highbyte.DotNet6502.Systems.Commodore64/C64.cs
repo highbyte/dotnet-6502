@@ -38,6 +38,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     private const byte CpuPortDataDirectionResetValue = 0x2F;
     private const byte CpuPortDataResetValue = 0x37;
     private const byte CpuPortInputPullupMask = 0x17;
+    // Bit 3 is the cassette write line; with no datasette attached nothing drives it.
+    private const byte CpuPortFloatingLinesMask = 0x08;
 
     public const string SystemName = "C64";
     public string Name => SystemName;
@@ -542,6 +544,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     {
         _cpuPort = (Cpu6510Port)CPU.ModelState!;
         _cpuPort.ExternalInputLevels = CpuPortInputPullupMask;
+        _cpuPort.FloatingLinesMask = CpuPortFloatingLinesMask;
         _cpuPort.OutputsChanged += ApplyCpuPortMemoryConfiguration;
     }
 

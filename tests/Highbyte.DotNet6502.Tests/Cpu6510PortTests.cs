@@ -20,9 +20,71 @@ public class Cpu6510PortTests
         Assert.Equal(0b0001_0111, port.ReadPort());
 
         // Mixed: P0-P2 outputs (latch 0b101), P3-P5 inputs (external levels contribute
-        // only P4). Unimplemented bits 6-7 always read the latch.
+        // only P4). Unimplemented bits 6-7 read their charge, which SetState takes from the latch.
         port.SetState(dataDirectionRegister: 0b0000_0111, dataRegister: 0b1100_0101);
         Assert.Equal(0b1101_0101, port.ReadPort());
+    }
+
+    [Fact]
+    public void A_floating_bit_switched_to_input_keeps_reading_what_it_was_last_driven_to()
+    {
+        // VICE's CPU/cpuport/test1, on bit 7: the charge left on the pin is what reads back,
+        // and writes to the latch while the bit is an input do not reach it.
+        var port = new Cpu6510Port();
+        port.WriteDataDirectionRegister(0xFF);
+        port.WriteDataRegister(0xFF);
+        Assert.Equal(0x80, port.ReadPort() & 0x80);
+
+        port.WriteDataDirectionRegister(0x00);
+        Assert.Equal(0x80, port.ReadPort() & 0x80);
+        port.WriteDataRegister(0x00);
+        Assert.Equal(0x80, port.ReadPort() & 0x80);
+
+        port.WriteDataDirectionRegister(0xFF);
+        port.WriteDataRegister(0x00);
+        Assert.Equal(0x00, port.ReadPort() & 0x80);
+
+        port.WriteDataDirectionRegister(0x00);
+        Assert.Equal(0x00, port.ReadPort() & 0x80);
+        port.WriteDataRegister(0xFF);
+        Assert.Equal(0x00, port.ReadPort() & 0x80);
+    }
+
+    [Fact]
+    public void A_board_floating_pin_reads_its_charge_and_a_driven_pin_reads_the_line()
+    {
+        // The Lorenz cpuport sequence with C64 wiring: bit 3 floats (no datasette), bit 5 is
+        // held low by the board, bits 0-2 and 4 are pulled up. $FF to both registers, then all
+        // inputs, then $FF to the latch: reads $DF.
+        var port = new Cpu6510Port { ExternalInputLevels = 0x17, FloatingLinesMask = 0x08 };
+        port.WriteDataDirectionRegister(0xFF);
+        port.WriteDataRegister(0xFF);
+        port.WriteDataDirectionRegister(0x00);
+        port.WriteDataRegister(0xFF);
+        Assert.Equal(0xDF, port.ReadPort());
+
+        // Driven low while an output, then released: the pin keeps the low charge and the
+        // driven bit 5 still reads the line.
+        port.WriteDataDirectionRegister(0xFF);
+        port.WriteDataRegister(0x00);
+        port.WriteDataDirectionRegister(0x00);
+        port.WriteDataRegister(0xFF);
+        Assert.Equal(0x17, port.ReadPort());
+    }
+
+    [Fact]
+    public void Clone_Copies_The_Floating_Charge()
+    {
+        var port = new Cpu6510Port { FloatingLinesMask = 0x08 };
+        port.WriteDataDirectionRegister(0xFF);
+        port.WriteDataRegister(0x88);
+        port.WriteDataDirectionRegister(0x00);
+        port.WriteDataRegister(0x00);
+
+        var clone = (Cpu6510Port)port.Clone();
+
+        Assert.Equal(port.FloatingLinesMask, clone.FloatingLinesMask);
+        Assert.Equal(0x88, clone.ReadPort());
     }
 
     [Fact]
