@@ -311,11 +311,11 @@ internal static class InstructionBindings
             // (and whose address that value corrupts on a page crossing): predictable when the bus
             // is the CPU's own, which the composition handles along with the RDY case. Y indexes
             // all of them but SHY, which X indexes.
-            UnstableStore(table, 0x93, "SHA", AddrMode.IND_IX, 2, 6, InstructionCores.Sax, setsStackPointer: false);
-            UnstableStore(table, 0x9F, "SHA", AddrMode.ABS_Y, 3, 5, InstructionCores.Sax, setsStackPointer: false);
-            UnstableStore(table, 0x9E, "SHX", AddrMode.ABS_Y, 3, 5, InstructionCores.Stx, setsStackPointer: false);
-            UnstableStore(table, 0x9C, "SHY", AddrMode.ABS_X, 3, 5, InstructionCores.Sty, setsStackPointer: false);
-            UnstableStore(table, 0x9B, "TAS", AddrMode.ABS_Y, 3, 5, InstructionCores.Sax, setsStackPointer: true);
+            UnstableStore(table, 0x93, "SHA", AddrMode.IND_IX, 2, 6, InstructionCores.Sax);
+            UnstableStore(table, 0x9F, "SHA", AddrMode.ABS_Y, 3, 5, InstructionCores.Sax);
+            UnstableStore(table, 0x9E, "SHX", AddrMode.ABS_Y, 3, 5, InstructionCores.Stx);
+            UnstableStore(table, 0x9C, "SHY", AddrMode.ABS_X, 3, 5, InstructionCores.Sty);
+            UnstableStore(table, 0x9B, "TAS", AddrMode.ABS_Y, 3, 5, InstructionCores.Tas);
 
             // $EB: undocumented alias of SBC #imm — same core as the official byte.
             Read(table, 0xEB, "SBC", AddrMode.I, 2, 2, InstructionCores.SbcNmos, false, indexedDummyReads, documented: false);
@@ -472,7 +472,7 @@ internal static class InstructionBindings
         };
 
     private static void UnstableStore(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
-        byte size, byte baseCycles, StoreOperation register, bool setsStackPointer)
+        byte size, byte baseCycles, StoreOperation register)
         => table[code] = new OpCodeDescriptor
         {
             Code = code,
@@ -481,7 +481,7 @@ internal static class InstructionBindings
             Size = size,
             BaseCycles = baseCycles,
             Documented = false,
-            Execute = ComposeUnstableStore(addressing, baseCycles, register, setsStackPointer),
+            Execute = ComposeUnstableStore(addressing, baseCycles, register),
         };
 
     private static void Store(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,

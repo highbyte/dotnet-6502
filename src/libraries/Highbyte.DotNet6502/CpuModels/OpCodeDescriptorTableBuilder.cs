@@ -201,9 +201,9 @@ internal static class OpCodeDescriptorTableBuilder
     /// value, which is then the register value alone; the address is corrupted the same way
     /// either way. Behaviour per the "NMOS 6510 Unintended Opcodes" document and VICE's
     /// <c>testprogs/CPU/sha</c> readme; the SingleStepTests corpus asserts the RDY-high cases.
-    /// TAS sets SP to A AND X before the AND, whatever happens to the value.
+    /// The register core supplies the value before the AND (TAS's core also sets SP to it).
     /// </summary>
-    internal static ExecuteHandler ComposeUnstableStore(AddrMode addressingMode, ulong baseCycles, StoreOperation register, bool setsStackPointer)
+    internal static ExecuteHandler ComposeUnstableStore(AddrMode addressingMode, ulong baseCycles, StoreOperation register)
     {
         var resolveAddress = GetAddressResolver(addressingMode);
         return (cpu, mem) =>
@@ -213,8 +213,6 @@ internal static class OpCodeDescriptorTableBuilder
             cpu.FetchByte(mem, uncarriedAddress);
             var rdyLow = cpu.StallCyclesInProgress != stalledBefore;
             var registerValue = register(cpu);
-            if (setsStackPointer)
-                cpu.SP = registerValue;
             var anded = (byte)(registerValue & (byte)((uncarriedAddress >> 8) + 1));
             if (crossedPageBoundary)
                 address = (ushort)((anded << 8) | (address & 0x00FF));
