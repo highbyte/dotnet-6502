@@ -57,20 +57,22 @@ public sealed class CPUInterrupts
 
     /// <summary>
     /// The bus cycle during which the IRQ line went inactive again (its last source released), as
-    /// reported by the device. The line is sampled at an instruction's second-to-last cycle, so a
-    /// line seen active there and released during the last cycle is still taken; see
-    /// <see cref="IRQWasActiveAt"/>. 0 when the device gave no cycle, which counts as released
-    /// before any poll.
+    /// reported by the device. A release is the effect of a register access, which the device
+    /// takes at the end of that cycle — after the CPU has sampled the line in it. The line is
+    /// sampled at an instruction's second-to-last cycle, so a line seen active there and released
+    /// during that cycle or the last one is still taken; see <see cref="IRQWasActiveAt"/>. 0 when
+    /// the device gave no cycle, which counts as released before any poll.
     /// </summary>
     public ulong IRQReleasedAtBusCycle { get; private set; }
 
     /// <summary>
-    /// Whether the IRQ line was active during the given bus cycle: it is active now and was
-    /// asserted by then, or it has been released since but was asserted by then and released
-    /// only after.
+    /// Whether the IRQ line was active when sampled during the given bus cycle: it is active now
+    /// and was asserted by then, or it has been released since but was asserted by then and
+    /// released no earlier than that cycle (a release in the sampling cycle lands after the
+    /// sample).
     /// </summary>
     public bool IRQWasActiveAt(ulong busCycle)
-        => (IRQLineEnabled || IRQReleasedAtBusCycle > busCycle) && IRQAssertedAtBusCycle <= busCycle;
+        => (IRQLineEnabled || (IRQReleasedAtBusCycle != 0 && IRQReleasedAtBusCycle >= busCycle)) && IRQAssertedAtBusCycle <= busCycle;
 
     /// <summary>The bus cycle during which the pending NMI edge was detected; 0 if not given.</summary>
     public ulong NMIPendingAtBusCycle { get; private set; }

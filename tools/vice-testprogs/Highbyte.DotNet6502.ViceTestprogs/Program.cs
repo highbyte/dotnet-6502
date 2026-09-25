@@ -174,6 +174,7 @@ public static class Program
 
         var suiteOut = Path.Combine(options.OutDir, suite);
         Directory.CreateDirectory(suiteOut);
+        File.WriteAllLines(Path.Combine(suiteOut, name + ".screen.txt"), ScreenText(c64));
         var result = new TestResult(suite, name, model, exitCode, exitFrame >= 0 ? runFrames : null, runFrames, entry?.Expect ?? Expectation.Pass);
 
         if (referencePath == null)
@@ -424,6 +425,30 @@ public static class Program
             while (c64.Mem[_p] is >= (byte)'0' and <= (byte)'9')
                 value = value * 10 + (c64.Mem[_p++] - '0');
             return value;
+        }
+    }
+
+    // The text screen at $0400 as 25 lines of 40 characters, screen codes mapped to ASCII where
+    // they have an obvious counterpart (letters, digits, punctuation), others shown as ~; a
+    // reversed character is shown as its plain one. For reading a test's report without a
+    // reference picture.
+    private static IEnumerable<string> ScreenText(C64 c64)
+    {
+        for (var row = 0; row < 25; row++)
+        {
+            var chars = new char[40];
+            for (var col = 0; col < 40; col++)
+            {
+                var code = (byte)(c64.Mem[(ushort)(0x0400 + row * 40 + col)] & 0x7F);
+                chars[col] = code switch
+                {
+                    0 => '@',
+                    >= 1 and <= 26 => (char)('a' + code - 1),
+                    >= 0x20 and <= 0x3F => (char)code,
+                    _ => '~',
+                };
+            }
+            yield return new string(chars);
         }
     }
 

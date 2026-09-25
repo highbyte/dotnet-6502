@@ -82,14 +82,16 @@ public class CPUInterruptSamplingCycleTests
     }
 
     [Theory]
-    [InlineData(2, true)]    // released during the last cycle of the NOP: the poll already saw the line low
-    [InlineData(1, false)]   // released during the second-to-last cycle: the poll saw it high
+    [InlineData(4, true)]    // released during the last cycle of the second NOP: the poll already saw the line low
+    [InlineData(3, true)]    // released during the poll cycle: the access releasing it lands after the sample
+    [InlineData(2, false)]   // released during the cycle before the poll: the poll saw it high
     public void IRQ_released_after_the_poll_is_still_taken(ulong releasedAtBusCycle, bool taken)
     {
-        var (cpu, mem) = NewCpu(0xEA, 0xEA);   // NOP ; NOP
+        var (cpu, mem) = NewCpu(0xEA, 0xEA, 0xEA);   // NOP ; NOP ; NOP
 
         cpu.ExecuteOneInstructionMinimal(mem);                      // bus cycles 1-2
-        // The device asserted the line during cycle 1 and released it again during the instruction.
+        cpu.ExecuteOneInstructionMinimal(mem);                      // bus cycles 3-4, the poll at 3
+        // The device asserted the line during cycle 1 and released it again during the instructions.
         cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: true, assertedAtBusCycle: 1);
         cpu.CPUInterrupts.SetIRQSourceInactive("device", releasedAtBusCycle);
         Assert.False(cpu.CPUInterrupts.IRQLineEnabled);
@@ -97,10 +99,10 @@ public class CPUInterruptSamplingCycleTests
         var entry = cpu.ProcessPendingInterrupts(mem);
 
         Assert.Equal(taken ? CPU.InterruptEntryCycles : 0UL, entry);
-        Assert.Equal(taken ? IrqHandler : (ushort)(Start + 1), cpu.PC);
+        Assert.Equal(taken ? IrqHandler : (ushort)(Start + 2), cpu.PC);
 
         // Once serviced (or missed), the released line is not taken again.
-        cpu.PC = Start + 1;
+        cpu.PC = Start + 2;
         cpu.ExecuteOneInstructionMinimal(mem);
         Assert.Equal(0UL, cpu.ProcessPendingInterrupts(mem));
     }

@@ -201,6 +201,30 @@ public class C64DeviceAccessTimingTests
     }
 
     [Fact]
+    public void Raster_interrupt_acknowledged_by_the_dummy_write_of_a_read_modify_write_is_still_taken()
+    {
+        // ASL $D019 (6 cycles): the read on cycle 4 sees the flag set, the dummy write on cycle 5
+        // writes that value back and acknowledges, the write on cycle 6 stores the shifted value
+        // (bit 0 clear, no acknowledge). Cycle 5 is also the poll: the CPU samples the line before
+        // the write lands, so the interrupt is taken (VICE's irq-ack-vicii, the asl column).
+        var c64 = Build([0x0E, 0x19, 0xD0, 0xEA]);   // ASL $D019 ; NOP
+        c64.Mem.Write(0x0001, 0x35);
+        c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
+        c64.Mem.Write(Vic2Addr.CURRENT_RASTER_LINE, 1);
+        c64.Mem.Write(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, 0x1B);
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 0x01);
+        c64.CPU.ProcessorStatus.InterruptDisable = false;
+        c64.Vic2.AdvanceRaster(c64.Vic2.Vic2Model.CyclesPerLine);
+        Assert.True(c64.CPU.IRQ);
+
+        var shift = Step(c64);                        // ASL $D019
+
+        Assert.False(c64.CPU.IRQ);                    // the dummy write acknowledged
+        Assert.Equal(0x2000, c64.CPU.PC);             // and the interrupt was taken anyway
+        Assert.Equal(6 + CPU.InterruptEntryCycles, shift.CyclesConsumed);
+    }
+
+    [Fact]
     public void Cia_timer_interrupt_is_dated_to_the_underflow_cycle()
     {
         // Timer A latch 5, started by a direct write: the counter holds for two cycles, then

@@ -505,8 +505,9 @@ public class CPU
             return InterruptEntryCycles + TakeStallCycles();
         }
 
-        // The line as sampled at the poll: a device releasing it during the instruction's last
-        // cycle (a CIA interrupt control read, say) is too late to stop the interrupt.
+        // The line as sampled at the poll: a device releasing it during the poll cycle or the
+        // instruction's last cycle (a CIA interrupt control read, the dummy write of an RMW
+        // acknowledge of the VIC-II's interrupt register) is too late to stop the interrupt.
         if (CPUInterrupts.IRQWasActiveAt(_interruptPollBusCycle)
             && !(_interruptDisableAtPoll ?? ProcessorStatus.InterruptDisable))
         {
