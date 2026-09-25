@@ -232,7 +232,9 @@ public abstract class CiaBase
     /// <summary>
     /// Common interrupt control store functionality
     /// </summary>
-    private const ulong MaskEnableTriggerDelay = 2;
+    // From the CIA's caught-up cycle (the cycle before the write): the output a cycle after the
+    // write, seen by the CPU a cycle after that.
+    private const ulong MaskEnableTriggerDelay = 3;
 
     protected void InterruptControlStore(byte value)
     {
@@ -240,6 +242,17 @@ public abstract class CiaBase
         // If bit 7 is set, then other bit also set means to enable that interrupt source.
         // If bit 7 is not set, then other bit also set means to disable that interrupt source.
         // If bits for the specific interrupt sources (0-4) are not set, it will not change state.
+
+        // Timer B's interrupt output due in the cycle of this write is driven with the mask as it
+        // was, so a disable written in that cycle does not stop it (VICE's cia-int, last column).
+        // Timer A's is not treated the same: dd0dtest's inc $dd0d,x case (read, dummy write, then
+        // the disabling write in the cycle the output is due) expects no interrupt, while
+        // cia-icr-test2 (a plain disabling store in that cycle) expects the interrupt bit set —
+        // the two disagree under any single rule tried, so timer A keeps the simpler behaviour.
+        // Timer B's events are brought to the write cycle before the mask changes; the chip's own
+        // position (the cycle before the write) is not moved.
+        _timerB.ProcessEvents(_c64.CPU.BusCycles);
+        RecomputeNextUnderflow();
 
         var setMode = (value & 0b1000_0000) != 0;
         for (var bit = (int)IRQSource.TimerA; bit <= (int)IRQSource.FlagLine; bit++)
@@ -257,7 +270,8 @@ public abstract class CiaBase
             _ciaIRQ.Enable(source);
             // A source whose flag is already set drives the interrupt output once it is enabled,
             // as its underflow would have: the output a cycle after the write, seen by the CPU
-            // a cycle after that.
+            // a cycle after that (Lorenz's imr: not by the poll of the instruction after the
+            // write, but by the poll of the one after).
             if (_ciaIRQ.IsConditionSet(source))
                 _ciaIRQ.Trigger(source, _c64.CPU, _advancedToBusCycle + MaskEnableTriggerDelay);
         }
