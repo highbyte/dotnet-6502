@@ -73,8 +73,12 @@ public class CiaIRQ
         }
         else
         {
-            // Raise IRQ (Interrupt Request)
-            cpu.CPUInterrupts.SetIRQActive(handle, autoAcknowledge: true, atBusCycle);
+            // Raise IRQ (Interrupt Request). The 6526 holds its interrupt output until the
+            // interrupt control register is read (Acknowledge): servicing the interrupt does
+            // not release it, so a handler that returns without reading the register is
+            // re-entered at once, and an interrupt whose entry sequence an NMI hijacked is
+            // still pending when the NMI handler returns.
+            cpu.CPUInterrupts.SetIRQActive(handle, autoAcknowledge: false, atBusCycle);
         }
     }
 

@@ -41,4 +41,11 @@ internal sealed class OpCodeDescriptor
     /// as it was before the instruction. RTI changes the flag before the poll and is not marked.
     /// </summary>
     public bool ChangesInterruptDisableAfterPoll { get; init; }
+
+    /// <summary>
+    /// True for BRK: the instruction is an interrupt-entry sequence, which an NMI arriving during
+    /// its first cycles hijacks (the NMI vector is taken with the BRK's stack frame) and which
+    /// does not poll the interrupt lines at its end.
+    /// </summary>
+    public bool IsInterruptEntry { get; init; }
 }
