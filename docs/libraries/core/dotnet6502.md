@@ -53,8 +53,8 @@ Verification, beyond the functional test programs:
 - A pinned subset of the SingleStepTests corpus, which records the exact bus cycles of the
   NMOS 6502 and the WDC 65C02, is run per opcode: final state, cycle-by-cycle bus trace and
   cycle count must all match. Bytes where the emulated part is documented to differ (the
-  Rockwell bit instructions and WDC-only `WAI`/`STP` that the NCR 65C02 executes as NOPs, and
-  the unstable NMOS opcodes no profile implements) are listed with their reason and skipped.
+  Rockwell bit instructions and WDC-only `WAI`/`STP` that the NCR 65C02 executes as NOPs) are
+  listed with their reason and skipped.
 - A structural test executes every defined opcode byte of every model and profile from random
   state and requires one bus access per reported cycle.
 
@@ -95,7 +95,7 @@ Higher profiles include everything from lower profiles.
 | Profile | Meaning |
 | ------- | ------- |
 | `OfficialOnly` | Only documented MOS 6502 opcodes are available. |
-| `StableUnofficial` | Also enables the more predictable undocumented NMOS opcodes commonly used on real 6502/6510 hardware, including `ARR` ($6B), and `LXA` ($AB) and `ANE` ($8B), whose result depends on a chip-specific value ORed into A: the common `$EE` is used. |
+| `StableUnofficial` | Also enables the more predictable undocumented NMOS opcodes commonly used on real 6502/6510 hardware, including `ARR` ($6B); `LXA` ($AB) and `ANE` ($8B), whose result depends on a chip-specific value ORed into A: the common `$EE` is used; and the indexed stores `SHA` ($93, $9F), `SHX` ($9E), `SHY` ($9C) and `TAS` ($9B), which store a register ANDed with the high byte of the address plus one, corrupt the address high byte with that value on a page crossing, and drop the AND when a bus master (the C64's VIC-II) holds RDY low in the cycle before the write. |
 | `ExperimentalUnofficial` | Also enables the currently implemented but less reliable undocumented opcodes, such as `LAS` ($BB), whose result depends on what is on the bus; for targeted compatibility testing. |
 | `FullUnofficial` | Also enables halt-style unofficial opcodes such as `JAM` / `KIL` that can intentionally jam the CPU until reset. |
 

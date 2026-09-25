@@ -426,6 +426,19 @@ public enum OpCodeId: byte
     // ANE — A = (A | magic) & X & immediate
     ANE_I = 0x8B,
 
+    // SHA (AHX) — store A & X & (high byte of the base address + 1)
+    SHA_IND_IX = 0x93,
+    SHA_ABS_Y  = 0x9F,
+
+    // SHX — store X & (high byte + 1)
+    SHX_ABS_Y  = 0x9E,
+
+    // SHY — store Y & (high byte + 1)
+    SHY_ABS_X  = 0x9C,
+
+    // TAS (SHS) — SP = A & X, store SP & (high byte + 1)
+    TAS_ABS_Y  = 0x9B,
+
     // SBC duplicate (identical to SBC_I 0xE9)
     SBC_I_EB = 0xEB,
 }
