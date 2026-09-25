@@ -148,8 +148,8 @@ public class Vic2BusStallTests
     public void Read_during_sprite_0_dma_on_ntsc_waits_one_cycle_later_than_on_pal(int cycle, int expectedStall)
     {
         // The 6567R8's two extra cycles per line are not spread over the sprite fetches: sprites
-        // 0-7 fetch at cycles 59, 61, 63, 65, 2, 4, 6, 8 (VICE's cycle tables), so the CPU gets the
-        // bus back at cycle 10 of the next line with all eight active, not 11 as on the 6569.
+        // 0-7 fetch at cycles 59, 61, 63, 65, 2, 4, 6, 8, so the CPU gets the bus back at cycle 10
+        // of the next line with all eight active, not 11 as on the 6569.
         var c64 = C64.BuildC64(new C64Config { LoadROMs = false, C64Model = "C64NTSC", Vic2Model = "NTSC" }, NullLoggerFactory.Instance);
         c64.Mem.StoreData(Start, [0xEA]);
         c64.CPU.PC = Start;
