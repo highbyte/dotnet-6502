@@ -87,6 +87,11 @@ For `.crt` image support, supported cartridge types, Freeze button behavior, and
 
 For the libraries used to render, accept input, and produce audio, see [Libraries](libraries.md).
 
+## Accuracy
+
+For a detailed account of how closely the emulation follows the real chips cycle by cycle, and of
+what is not modelled, see [Accuracy and limitations](accuracy.md).
+
 ## Monitor commands
 
 Additional machine code monitor commands specific to the C64 system:

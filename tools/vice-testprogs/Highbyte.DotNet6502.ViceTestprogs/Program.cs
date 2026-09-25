@@ -17,7 +17,7 @@
 //   dotnet run -c Release --project tools/vice-testprogs/Highbyte.DotNet6502.ViceTestprogs --
 //     --tests <path to testprogs/VICII> --suite dentest[,border,...] [--filter <substring>]
 //     [--exclude <substring>] [--roms <dir>] [--out <dir>] [--model pal|ntsc|both] [--frames <max frames>]
-//     [--testlist <path to c64-testlist.in>]
+//     [--testlist <path to c64-testlist.in>] [--pixel-generator sequencer|legacy]
 //
 // ROMs: --roms, else DOTNET6502_C64_ROM_DIR, else the app's default C64 ROM directory.
 
@@ -114,7 +114,7 @@ public static class Program
 
     private static TestResult RunOne(string suite, string name, string prgPath, string model, string? referencePath, Testlist.Entry? entry, Options options)
     {
-        var c64 = BuildC64(model, options.RomDir);
+        var c64 = BuildC64(model, options.RomDir, options.PixelGenerator);
         // The frame budget: the test list's cycle budget for the test when it has one, else --frames.
         var maxFrames = entry?.CycleBudget is ulong cycles ? (int)Math.Ceiling(cycles / (double)c64.Vic2.Vic2Model.CyclesPerFrame) : options.MaxFrames;
         var rasterizer = (Vic2Rasterizer)c64.RenderProvider!;
@@ -277,7 +277,7 @@ public static class Program
         Console.WriteLine($"{Path.GetFileName(path)}: {w}x{h}, background colour spans x {minX}-{maxX} ({maxX - minX + 1} px), y {minY}-{maxY} ({maxY - minY + 1} px); corner colour index {idx[0]}");
     }
 
-    private static C64 BuildC64(string model, string romDir)
+    private static C64 BuildC64(string model, string romDir, Vic2PixelGeneratorType pixelGenerator)
     {
         var config = new C64Config
         {
@@ -288,6 +288,7 @@ public static class Program
             AudioEnabled = false,
             RenderProviderType = typeof(Vic2Rasterizer),
             Vic2RasterizerPerLineSprites = true,
+            Vic2RasterizerPixelGeneratorType = pixelGenerator,
             // The test programs are written for the real chip: every opcode it executes.
             CpuCompatibilityProfile = CpuCompatibilityProfile.FullUnofficial,
             ROMs =
@@ -661,6 +662,7 @@ public static class Program
         public string Model { get; private set; } = "both";
         public int MaxFrames { get; private set; } = 600;
         public string? TestlistPath { get; private set; }
+        public Vic2PixelGeneratorType PixelGenerator { get; private set; } = Vic2PixelGeneratorType.Sequencer;
 
         public static Options? Parse(string[] args)
         {
@@ -679,6 +681,7 @@ public static class Program
                     case "--model": o.Model = Next().ToLowerInvariant() switch { "pal" => "PAL", "ntsc" => "NTSC", _ => "both" }; break;
                     case "--frames": o.MaxFrames = int.Parse(Next()); break;
                     case "--testlist": o.TestlistPath = Next(); break;
+                    case "--pixel-generator": o.PixelGenerator = Enum.Parse<Vic2PixelGeneratorType>(Next(), ignoreCase: true); break;
                     default:
                         Console.WriteLine($"Unknown argument {args[i]}");
                         return null;
@@ -686,7 +689,7 @@ public static class Program
             }
             if (o.TestsDir == "" || o.Suites.Count == 0)
             {
-                Console.WriteLine("Usage: --tests <path to testprogs/VICII> --suite <name>[,<name>...] [--filter <substring>] [--exclude <substring>] [--roms <dir>] [--out <dir>] [--model pal|ntsc|both] [--frames <max>] [--testlist <c64-testlist.in>]");
+                Console.WriteLine("Usage: --tests <path to testprogs/VICII> --suite <name>[,<name>...] [--filter <substring>] [--exclude <substring>] [--roms <dir>] [--out <dir>] [--model pal|ntsc|both] [--frames <max>] [--testlist <c64-testlist.in>] [--pixel-generator sequencer|legacy]");
                 return null;
             }
             if (o.RomDir == "")
