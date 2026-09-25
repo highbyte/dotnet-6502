@@ -45,8 +45,12 @@ following instruction. A device reports the bus cycle on which it asserted the l
 `CPUInterrupts` overloads that take a cycle, and the CPU takes the interrupt at a boundary only if
 that cycle is at or before the poll point. A source set active without a cycle is taken at the
 next boundary. `CLI`, `SEI` and `PLP` change the I flag after the poll, so their effect on
-interrupt recognition is one instruction late; `RTI` changes it in time. Not modelled: an NMI
-hijacking an interrupt sequence already in progress.
+interrupt recognition is one instruction late; `RTI` changes it in time. An interrupt-entry
+sequence (IRQ, NMI or `BRK`) does not poll at its end, so the handler's first instruction always
+runs before another interrupt is taken; and an NMI that arrives by the 4th cycle of an IRQ or
+`BRK` sequence hijacks it: the sequence completes with the NMI vector and the stack frame it
+already pushed (a `BRK`'s keeps B set), and the IRQ, if its device still asserts it, is taken when
+the NMI handler returns.
 
 Verification, beyond the functional test programs:
 

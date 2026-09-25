@@ -42,7 +42,9 @@ public class CiaTimer
     private readonly int _timerControlRunModeBit;
 
     // Latch contains the value was written to timer registers, and is used as start value when timer is started.
-    private ushort _internalTimer_Latch = 0;
+    // Reset leaves the timer latches at all ones (the one register the 6526 does not clear), which
+    // is what a high-byte write while stopped loads into the counter before the low byte is written.
+    private ushort _internalTimer_Latch = 0xFFFF;
 
     // The contents of the control register for the timer. It's contents is depending on which timer type (A/B) it represents.
     private byte _timerControl = 0;
@@ -55,7 +57,7 @@ public class CiaTimer
     private bool _armed;
     private ulong _countFrom;
     private ulong _underflowAtBusCycle;
-    private ushort _counter;
+    private ushort _counter = 0xFFFF;
 
     // Pending pipeline events, as bus cycles (ulong.MaxValue when none): a force load landing in
     // the counter, and a stop taking effect.

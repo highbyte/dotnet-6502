@@ -175,6 +175,7 @@ public static class Program
         var suiteOut = Path.Combine(options.OutDir, suite);
         Directory.CreateDirectory(suiteOut);
         File.WriteAllLines(Path.Combine(suiteOut, name + ".screen.txt"), ScreenText(c64));
+        File.WriteAllBytes(Path.Combine(suiteOut, name + ".screen.bin"), ScreenBytes(c64));
         var result = new TestResult(suite, name, model, exitCode, exitFrame >= 0 ? runFrames : null, runFrames, entry?.Expect ?? Expectation.Pass);
 
         if (referencePath == null)
@@ -450,6 +451,15 @@ public static class Program
             }
             yield return new string(chars);
         }
+    }
+
+    // The text screen's 1000 bytes as they are, for comparing with a reference dump byte by byte.
+    private static byte[] ScreenBytes(C64 c64)
+    {
+        var bytes = new byte[1000];
+        for (var i = 0; i < bytes.Length; i++)
+            bytes[i] = c64.Mem[(ushort)(0x0400 + i)];
+        return bytes;
     }
 
     private static uint[] Composite(Vic2Rasterizer rasterizer)

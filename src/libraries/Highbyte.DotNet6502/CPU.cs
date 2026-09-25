@@ -92,6 +92,19 @@ public class CPU
     private bool? _interruptDisableAtPoll;
 
     /// <summary>
+    /// True while the last thing executed was an IRQ or BRK entry sequence whose handler has not
+    /// started: an NMI that arrived by the sequence's vector-decision cycle (its 4th) hijacks it
+    /// — the NMI vector is taken with the stack frame the sequence pushed — instead of starting a
+    /// sequence of its own. An entry sequence does not poll the lines at its end, so an NMI
+    /// arriving later is taken after the handler's first instruction, and
+    /// <see cref="_interruptPollBusCycle"/> is left at the decision cycle.
+    /// </summary>
+    private bool _hijackableEntryPending;
+
+    /// <summary>The cycle of a 7-cycle interrupt-entry sequence (BRK included) on which the vector is decided.</summary>
+    private const ulong InterruptEntryVectorDecisionCycle = 4;
+
+    /// <summary>
     /// Is True when a IRQ (Interrupt Request) has been raised.
     /// Raising a NMI is done by setting a NMI source active, which is done by calling CPUInterrupts.SetNMISourceActive(source).
     /// 
@@ -464,14 +477,18 @@ public class CPU
         _interruptPollBusCycle = poll;
         // CLI, SEI and PLP (per the model's table) change the I flag after the poll.
         _interruptDisableAtPoll = descriptor?.ChangesInterruptDisableAfterPoll == true ? interruptDisableBefore : null;
+        _hijackableEntryPending = false;
+        if (descriptor?.IsInterruptEntry == true)
+            RecordInterruptPollPointAfterInterruptEntry(hijackable: true);
     }
 
-    private void RecordInterruptPollPointAfterInterruptEntry()
+    private void RecordInterruptPollPointAfterInterruptEntry(bool hijackable)
     {
-        // The entry sequence behaves like an instruction: lines are polled again at its end, and
-        // the I flag it set is what the next decision sees.
-        _interruptPollBusCycle = BusCycles > 0 ? BusCycles - 1 : 0;
+        // An entry sequence does not poll the lines at its end: only an NMI that arrived by its
+        // vector-decision cycle counts, and for an IRQ or BRK sequence that means a hijack.
+        _interruptPollBusCycle = BusCycles >= InterruptEntryCycles ? BusCycles - InterruptEntryCycles + InterruptEntryVectorDecisionCycle : 0;
         _interruptDisableAtPoll = null;
+        _hijackableEntryPending = hijackable;
     }
 
     /// <returns>Cycles consumed: <see cref="InterruptEntryCycles"/> if an interrupt was serviced, else 0.</returns>
@@ -483,6 +500,20 @@ public class CPU
         _stallCycles = 0;   // the entry sequence's reads can be stalled too; report those cycles with it
         if (CPUInterrupts.NMIPending && CPUInterrupts.NMIPendingAtBusCycle <= _interruptPollBusCycle)
         {
+            if (_hijackableEntryPending)
+            {
+                // The NMI arrived while the IRQ or BRK sequence was in progress, before it chose
+                // its vector: the sequence finishes as an NMI. The stack frame is the one already
+                // pushed (a BRK's keeps B set), only the vector differs. The device is caught up
+                // after the sequence, so the decision is made here, at its end.
+                OnNmiAcknowledging();
+                CPUInterrupts.ClearPendingNMI();
+                PC = mem.FetchWord(CPU.NonMaskableIRQHandlerVector);
+                _hijackableEntryPending = false;
+                if (_logger.IsEnabled(LogLevel.Debug))
+                    _logger.LogDebug("NMI hijacked an interrupt entry sequence. Vector={NmiVector:X4}", PC);
+                return 0;
+            }
             OnNmiAcknowledging();
             // The vector is read exactly once, inside ProcessHardwareNMI (as on real hardware,
             // where the reads can hit mapped handlers). After entry PC holds the vector target,
@@ -501,7 +532,7 @@ public class CPU
                     nmiVector,
                     nmiSources);
             }
-            RecordInterruptPollPointAfterInterruptEntry();
+            RecordInterruptPollPointAfterInterruptEntry(hijackable: false);
             return InterruptEntryCycles + TakeStallCycles();
         }
 
@@ -515,7 +546,7 @@ public class CPU
             // sources keep the line asserted until their device clears them.
             CPUInterrupts.AcknowledgeAutoAcknowledgingIRQSources();
             ProcessHardwareIRQ(mem);
-            RecordInterruptPollPointAfterInterruptEntry();
+            RecordInterruptPollPointAfterInterruptEntry(hijackable: true);
             return InterruptEntryCycles + TakeStallCycles();
         }
 
@@ -598,6 +629,7 @@ public class CPU
         PC = FetchWord(mem, CPU.ResetVector);
         _interruptPollBusCycle = BusCycles;
         _interruptDisableAtPoll = null;
+        _hijackableEntryPending = false;
         IsHalted = false;
     }
 

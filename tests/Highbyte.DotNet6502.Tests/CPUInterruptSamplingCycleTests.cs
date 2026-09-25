@@ -233,3 +233,120 @@ public class CPUInterruptSamplingCycleTests
         Assert.Equal(IrqHandler, cpu.PC);
     }
 }
+
+/// <summary>
+/// An IRQ or BRK entry sequence is hijacked by an NMI that arrives by its vector-decision cycle
+/// (the 4th of 7): the sequence completes with the NMI vector and the stack frame it pushed. A
+/// sequence does not poll at its end: an NMI arriving later is taken after the handler's first
+/// instruction.
+/// </summary>
+public class CPUInterruptHijackTests
+{
+    private const ushort Start = 0x1000;
+    private const ushort IrqHandler = 0x4000;
+    private const ushort NmiHandler = 0x5000;
+
+    private static (CPU cpu, Memory mem) NewCpu(params byte[] program)
+    {
+        var cpu = new CPU();
+        var mem = new Memory();
+        mem.StoreData(Start, program);
+        mem.StoreData(IrqHandler, [0xEA, 0xEA]);
+        mem.StoreData(NmiHandler, [0xEA, 0xEA]);
+        mem.WriteWord(CPU.BrkIRQHandlerVector, IrqHandler);
+        mem.WriteWord(CPU.NonMaskableIRQHandlerVector, NmiHandler);
+        cpu.PC = Start;
+        cpu.SP = 0xFF;
+        cpu.ProcessorStatus.InterruptDisable = false;
+        return (cpu, mem);
+    }
+
+    [Theory]
+    [InlineData(3, true)]    // NMI during the sequence's 1st cycle
+    [InlineData(6, true)]    // its 4th cycle, the last that decides the vector
+    [InlineData(7, false)]   // its 5th: too late, the IRQ handler starts
+    [InlineData(9, false)]   // its last cycle
+    public void An_NMI_by_the_4th_cycle_of_an_IRQ_sequence_hijacks_it(ulong nmiAtBusCycle, bool hijacked)
+    {
+        var (cpu, mem) = NewCpu(0xEA, 0xEA);   // NOP (cycles 1-2), then the IRQ sequence (3-9)
+        cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: false, assertedAtBusCycle: 1);
+
+        var nop = cpu.ExecuteOneInstructionMinimal(mem);
+        Assert.Equal(2 + CPU.InterruptEntryCycles, nop.CyclesConsumed);
+        Assert.Equal(IrqHandler, cpu.PC);
+
+        // The device reports the NMI edge (caught up after the sequence, as a system does).
+        cpu.CPUInterrupts.SetNMISourceActive("nmi-device", pendingAtBusCycle: nmiAtBusCycle);
+        var entry = cpu.ProcessPendingInterrupts(mem);
+
+        Assert.Equal(0UL, entry);   // never a second sequence right after the first
+        Assert.Equal(hijacked ? NmiHandler : IrqHandler, cpu.PC);
+        Assert.Equal(hijacked, !cpu.CPUInterrupts.NMIPending);
+        // The stack frame is the IRQ's: return address and status (B clear) as pushed.
+        Assert.Equal(Start + 1, mem.FetchWord(0x01FE));
+        Assert.Equal(0x00, mem[0x01FD] & 0x10);
+
+        if (!hijacked)
+        {
+            // Not hijacked: the handler's first instruction runs, then the NMI is taken.
+            var first = cpu.ExecuteOneInstructionMinimal(mem);
+            Assert.Equal(2 + CPU.InterruptEntryCycles, first.CyclesConsumed);
+            Assert.Equal(NmiHandler, cpu.PC);
+        }
+    }
+
+    [Theory]
+    [InlineData(1, true)]    // NMI during BRK's opcode fetch
+    [InlineData(4, true)]    // its 4th cycle
+    [InlineData(5, false)]   // its 5th: BRK completes as BRK
+    public void An_NMI_by_the_4th_cycle_of_BRK_finishes_it_as_an_NMI_with_B_set_on_the_stack(ulong nmiAtBusCycle, bool hijacked)
+    {
+        var (cpu, mem) = NewCpu(0x00, 0xEA);   // BRK (cycles 1-7)
+
+        var brk = cpu.ExecuteOneInstructionMinimal(mem);
+        Assert.Equal(7UL, brk.CyclesConsumed);
+        cpu.CPUInterrupts.SetNMISourceActive("nmi-device", pendingAtBusCycle: nmiAtBusCycle);
+        var entry = cpu.ProcessPendingInterrupts(mem);
+
+        Assert.Equal(0UL, entry);
+        Assert.Equal(hijacked ? NmiHandler : IrqHandler, cpu.PC);
+        Assert.Equal(Start + 2, mem.FetchWord(0x01FE));
+        Assert.Equal(0x10, mem[0x01FD] & 0x10);   // B stays set: it is BRK's frame
+    }
+
+    [Fact]
+    public void An_IRQ_whose_sequence_was_hijacked_is_taken_after_the_NMI_handler_returns()
+    {
+        var (cpu, mem) = NewCpu(0xEA, 0xEA);
+        mem.StoreData(NmiHandler, [0x40]);   // RTI
+        cpu.CPUInterrupts.SetIRQSourceActive("device", autoAcknowledge: false, assertedAtBusCycle: 1);
+        cpu.ExecuteOneInstructionMinimal(mem);                      // NOP + IRQ sequence
+        cpu.CPUInterrupts.SetNMISourceActive("nmi-device", pendingAtBusCycle: 4);
+        cpu.ProcessPendingInterrupts(mem);
+        Assert.Equal(NmiHandler, cpu.PC);
+
+        var rti = cpu.ExecuteOneInstructionMinimal(mem);            // back to the interrupted code, I clear again
+
+        Assert.Equal(6 + CPU.InterruptEntryCycles, rti.CyclesConsumed);   // the IRQ, still asserted, is taken
+        Assert.Equal(IrqHandler, cpu.PC);
+    }
+
+    [Fact]
+    public void An_NMI_sequence_does_not_poll_at_its_end()
+    {
+        // An IRQ asserted during the NMI sequence is masked by the I flag it set; what is
+        // observable is that the handler's first instruction always runs.
+        var (cpu, mem) = NewCpu(0xEA, 0xEA);
+        cpu.CPUInterrupts.SetNMISourceActive("nmi-device", pendingAtBusCycle: 1);
+        cpu.ExecuteOneInstructionMinimal(mem);
+        Assert.Equal(NmiHandler, cpu.PC);
+
+        cpu.CPUInterrupts.SetNMISourceInactive("nmi-device");
+        cpu.CPUInterrupts.SetNMISourceActive("nmi-device", pendingAtBusCycle: 8);   // during the sequence's 6th cycle
+        Assert.Equal(0UL, cpu.ProcessPendingInterrupts(mem));
+        Assert.Equal(NmiHandler, cpu.PC);
+
+        var first = cpu.ExecuteOneInstructionMinimal(mem);
+        Assert.Equal(2 + CPU.InterruptEntryCycles, first.CyclesConsumed);
+    }
+}

@@ -157,6 +157,7 @@ internal static class InstructionBindings
         Bespoke(table, 0x40, "RTI", AddrMode.Implied, 1, 6, SharedHandlers.Rti);
         Bespoke(table, 0xEA, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop);
         Bespoke(table, 0x00, "BRK", AddrMode.Implied, 1, 7, SharedHandlers.Brk);
+        MarkInterruptEntry(table, 0x00);
     }
 
     /// <summary>
@@ -406,6 +407,26 @@ internal static class InstructionBindings
             Documented = documented,
             Execute = handler,
         };
+
+    /// <summary>
+    /// Re-issue an already bound descriptor with <see cref="OpCodeDescriptor.IsInterruptEntry"/> set.
+    /// </summary>
+    private static void MarkInterruptEntry(OpCodeDescriptor?[] table, byte code)
+    {
+        var d = table[code] ?? throw new InvalidOperationException($"Opcode ${code:X2} is not bound.");
+        table[code] = new OpCodeDescriptor
+        {
+            Code = d.Code,
+            Mnemonic = d.Mnemonic,
+            Addressing = d.Addressing,
+            Size = d.Size,
+            BaseCycles = d.BaseCycles,
+            Documented = d.Documented,
+            Execute = d.Execute,
+            ChangesInterruptDisableAfterPoll = d.ChangesInterruptDisableAfterPoll,
+            IsInterruptEntry = true,
+        };
+    }
 
     /// <summary>
     /// Re-issue already bound descriptors with <see cref="OpCodeDescriptor.ChangesInterruptDisableAfterPoll"/> set.
