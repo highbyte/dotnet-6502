@@ -13,7 +13,6 @@
     <!-- WASM SIMD optimization - improves performance -->
     <WasmEnableSIMD>true</WasmEnableSIMD>
 
-    <!-- AOT compilation is not supported for Avalonia Browser WASM with SkiaSharp -->
     <RunAOTCompilation>true</RunAOTCompilation>
     
     <!-- Add additional LLVM optimization -->
