@@ -8,10 +8,16 @@
 // palette and CRT emulation off; the comparison maps both images to C64 colour indices and compares
 // the area both frames cover, aligned on the display window.
 //
+// A test passes when it exits with $00 (and its picture matches the reference when there is one),
+// fails when it exits with $FF, and times out when it never writes the exit code. VICE's test list
+// (testprogs/testbench/c64-testlist.in, --testlist) knows the exceptions: tests expected to hang or to
+// report failure, tests that need a person at the keyboard, and each test's cycle budget.
+//
 // Usage:
 //   dotnet run -c Release --project tools/vice-testprogs/Highbyte.DotNet6502.ViceTestprogs --
 //     --tests <path to testprogs/VICII> --suite dentest[,border,...] [--filter <substring>]
-//     [--roms <dir>] [--out <dir>] [--model pal|ntsc|both] [--frames <max frames>]
+//     [--exclude <substring>] [--roms <dir>] [--out <dir>] [--model pal|ntsc|both] [--frames <max frames>]
+//     [--testlist <path to c64-testlist.in>]
 //
 // ROMs: --roms, else DOTNET6502_C64_ROM_DIR, else the app's default C64 ROM directory.
 
@@ -60,7 +66,9 @@ public static class Program
             return 2;
 
         Directory.CreateDirectory(options.OutDir);
+        var testlist = options.TestlistPath == null ? null : Testlist.Load(options.TestlistPath);
         var results = new List<TestResult>();
+        var skipped = 0;
         foreach (var suite in options.Suites)
         {
             var suiteDir = Path.Combine(options.TestsDir, suite);
@@ -80,22 +88,35 @@ public static class Program
                     continue;
                 if (options.Filter != null && !name.Contains(options.Filter, StringComparison.OrdinalIgnoreCase))
                     continue;
+                if (options.Exclude != null && name.Contains(options.Exclude, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var entry = testlist?.Find(suite, Path.GetFileName(prg));
+                if (entry is { Automated: false })
+                {
+                    Console.WriteLine($"{suite}/{name} [{model}]: skipped, {entry.Note}");
+                    skipped++;
+                    continue;
+                }
                 var reference = Path.Combine(suiteDir, "references", Path.GetFileName(prg) + ".png");
-                var result = RunOne(suite, name, prg, model, File.Exists(reference) ? reference : null, options);
+                var result = RunOne(suite, name, prg, model, File.Exists(reference) ? reference : null, entry, options);
                 results.Add(result);
                 Console.WriteLine(result.Line());
             }
         }
 
         WriteSummary(results, Path.Combine(options.OutDir, "results.md"));
-        var failed = results.Count(r => !r.Passed);
-        Console.WriteLine($"\n{results.Count} tests, {results.Count - failed} match the reference, {failed} do not. Details in {options.OutDir}");
-        return failed == 0 ? 0 : 1;
+        var passed = results.Count(r => r.Passed);
+        var timedOut = results.Count(r => r.TimedOut && !r.Passed);
+        var failed = results.Count - passed - timedOut;
+        Console.WriteLine($"\n{results.Count} tests: {passed} passed, {failed} failed, {timedOut} timed out{(skipped > 0 ? $", {skipped} skipped" : "")}. Details in {options.OutDir}");
+        return passed == results.Count ? 0 : 1;
     }
 
-    private static TestResult RunOne(string suite, string name, string prgPath, string model, string? referencePath, Options options)
+    private static TestResult RunOne(string suite, string name, string prgPath, string model, string? referencePath, Testlist.Entry? entry, Options options)
     {
         var c64 = BuildC64(model, options.RomDir);
+        // The frame budget: the test list's cycle budget for the test when it has one, else --frames.
+        var maxFrames = entry?.CycleBudget is ulong cycles ? (int)Math.Ceiling(cycles / (double)c64.Vic2.Vic2Model.CyclesPerFrame) : options.MaxFrames;
         var rasterizer = (Vic2Rasterizer)c64.RenderProvider!;
         var frameWidth = rasterizer.NativeSize.Width;
         var frameHeight = rasterizer.NativeSize.Height;
@@ -142,7 +163,7 @@ public static class Program
         while (true)
         {
             c64.ExecuteOneFrame(); frame++; runFrames++;
-            if (exitCode != null || runFrames >= options.MaxFrames)
+            if (exitCode != null || runFrames >= maxFrames)
                 break;
         }
         var captured = Composite(rasterizer);
@@ -153,13 +174,13 @@ public static class Program
 
         var suiteOut = Path.Combine(options.OutDir, suite);
         Directory.CreateDirectory(suiteOut);
-        var result = new TestResult(suite, name, model, exitCode, exitFrame >= 0 ? runFrames : null, runFrames);
+        var result = new TestResult(suite, name, model, exitCode, exitFrame >= 0 ? runFrames : null, runFrames, entry?.Expect ?? Expectation.Pass);
 
         if (referencePath == null)
         {
             SaveIndexed(ours, frameWidth, frameHeight, ourPalette, Path.Combine(suiteOut, name + ".ours.png"));
             result.Note = "no reference screenshot";
-            result.Passed = exitCode != 0xFF;
+            result.Judge(pictureMatches: true);
             return result;
         }
 
@@ -211,7 +232,7 @@ public static class Program
         result.Compared = compared;
         result.Mismatches = mismatches;
         result.MismatchesInWindow = mismatchesInWindow;
-        result.Passed = mismatches == 0 && exitCode != 0xFF;
+        result.Judge(pictureMatches: mismatches == 0);
 
         // Side by side: reference, ours (cropped to the reference geometry), difference mask.
         var triptych = new Image<Rgba32>(refWidth * 3 + 8, refHeight);
@@ -307,27 +328,103 @@ public static class Program
         };
     }
 
-    // The address in the BASIC stub's SYS statement: link (2), line number (2), token $9E, digits,
-    // with or without an opening parenthesis (SYS2080 and SYS(2080) both occur).
+    // The address in the BASIC stub's SYS statement: link (2), line number (2), token $9E, then the
+    // argument, which is a number (SYS2080, SYS(2080), SYS 2064) or an expression computing it from
+    // the BASIC start pointer (SYS PEEK(43)+256*PEEK(44)+26 in the 64doc tests). The expression is
+    // evaluated on the machine's own memory, with the tokens BASIC V2 uses for PEEK and the operators.
     private static ushort? SysAddress(C64 c64, ushort basicStart)
     {
         var p = (ushort)(basicStart + 4);
-        if (c64.Mem[p] != 0x9E)
+        if (c64.Mem[p] != TokenSys)
             return null;
-        p++;
-        var value = 0;
-        var digits = 0;
-        while (true)
+        var value = new SysExpression(c64, (ushort)(p + 1)).Evaluate();
+        return value is >= 0 and <= 0xFFFF ? (ushort)value : null;
+    }
+
+    private const byte TokenSys = 0x9E;
+    private const byte TokenPeek = 0xC2;
+    private const byte TokenPlus = 0xAA;
+    private const byte TokenMinus = 0xAB;
+    private const byte TokenMultiply = 0xAC;
+
+    // A recursive-descent evaluator for the integer subset of a BASIC V2 expression as it sits
+    // tokenised in memory: unsigned numbers, PEEK(...), parentheses, + - *. Anything else (end of
+    // line, a colon, an unknown token) ends the expression; a malformed one yields null.
+    private sealed class SysExpression(C64 c64, ushort start)
+    {
+        private ushort _p = start;
+
+        public int? Evaluate() => Sum();
+
+        private byte Peek()
         {
-            var b = c64.Mem[p++];
-            if (b == ' ' || (b == '(' && digits == 0))
-                continue;
-            if (b < '0' || b > '9')
-                break;
-            value = value * 10 + (b - '0');
-            digits++;
+            while (c64.Mem[_p] == ' ')
+                _p++;
+            return c64.Mem[_p];
         }
-        return digits > 0 ? (ushort)value : null;
+
+        private int? Sum()
+        {
+            var value = Product();
+            while (value != null)
+            {
+                var op = Peek();
+                if (op != TokenPlus && op != TokenMinus)
+                    break;
+                _p++;
+                var rhs = Product();
+                if (rhs == null)
+                    return null;
+                value = op == TokenPlus ? value + rhs : value - rhs;
+            }
+            return value;
+        }
+
+        private int? Product()
+        {
+            var value = Factor();
+            while (value != null && Peek() == TokenMultiply)
+            {
+                _p++;
+                var rhs = Factor();
+                if (rhs == null)
+                    return null;
+                value *= rhs;
+            }
+            return value;
+        }
+
+        private int? Factor()
+        {
+            var b = Peek();
+            if (b == '(')
+            {
+                _p++;
+                var inner = Sum();
+                if (inner == null || Peek() != ')')
+                    return null;
+                _p++;
+                return inner;
+            }
+            if (b == TokenPeek)
+            {
+                _p++;
+                if (Peek() != '(')
+                    return null;
+                _p++;
+                var address = Sum();
+                if (address is null or < 0 or > 0xFFFF || Peek() != ')')
+                    return null;
+                _p++;
+                return c64.Mem[(ushort)address.Value];
+            }
+            if (b < '0' || b > '9')
+                return null;
+            var value = 0;
+            while (c64.Mem[_p] is >= (byte)'0' and <= (byte)'9')
+                value = value * 10 + (c64.Mem[_p++] - '0');
+            return value;
+        }
     }
 
     private static uint[] Composite(Vic2Rasterizer rasterizer)
@@ -405,22 +502,109 @@ public static class Program
         File.WriteAllLines(path, lines);
     }
 
-    private sealed class TestResult(string suite, string name, string model, int? exitCode, int? exitAfterFrames, int framesRun)
+    private enum Expectation { Pass, Timeout, Error }
+
+    private sealed class TestResult(string suite, string name, string model, int? exitCode, int? exitAfterFrames, int framesRun, Expectation expect)
     {
         public int Compared { get; set; }
         public int Mismatches { get; set; }
         public int MismatchesInWindow { get; set; }
-        public bool Passed { get; set; }
+        public bool Passed { get; private set; }
+        public string Verdict { get; private set; } = "";
         public string? Note { get; set; }
+        public bool TimedOut => exitCode == null;
 
         private string Exit => exitCode == null ? "none" : $"${exitCode:X2}";
         private string Frames => exitAfterFrames?.ToString() ?? $"{framesRun} (timeout)";
 
+        // The verdict: exit $00 with a matching picture passes, $FF fails, no exit code is a timeout;
+        // a test the list expects to hang or to report failure passes on that outcome instead.
+        public void Judge(bool pictureMatches)
+        {
+            (Passed, Verdict) = (exitCode, expect) switch
+            {
+                (null, Expectation.Timeout) => (true, "pass (expected timeout)"),
+                (null, _) => (false, "timeout"),
+                (0xFF, Expectation.Error) => (true, "pass (expected error)"),
+                (0xFF, _) => (false, "fail"),
+                (_, Expectation.Timeout) => (false, "fail (expected timeout)"),
+                (_, Expectation.Error) => (false, "fail (expected error)"),
+                _ when pictureMatches => (true, "pass"),
+                _ => (false, "fail (picture differs)"),
+            };
+        }
+
         public string Line()
-            => $"{suite}/{name} [{model}] exit {Exit} after {Frames} frames: {(Note ?? $"{Mismatches} of {Compared} pixels differ ({MismatchesInWindow} in the display window)")} -> {(Passed ? "MATCH" : "DIFF")}";
+            => $"{suite}/{name} [{model}] exit {Exit} after {Frames} frames: {(Note ?? $"{Mismatches} of {Compared} pixels differ ({MismatchesInWindow} in the display window)")} -> {Verdict.ToUpperInvariant()}";
 
         public string Row()
-            => $"| {suite} | {name} | {model} | {Exit} | {Frames} | {Compared} | {Mismatches} | {MismatchesInWindow} | {(Passed ? "match" : "differs")}{(Note == null ? "" : $" ({Note})")} |";
+            => $"| {suite} | {name} | {model} | {Exit} | {Frames} | {Compared} | {Mismatches} | {MismatchesInWindow} | {Verdict}{(Note == null ? "" : $" ({Note})")} |";
+    }
+
+    // VICE's test list (testprogs/testbench/c64-testlist.in): one line per run of a test, comma
+    // separated: directory, program, kind (exitcode, screenshot, interactive, analyzer), cycle budget,
+    // then options such as expect:timeout, expect:error and the chip revisions the run is for.
+    // A program listed several times (once per chip revision, or as both exitcode and screenshot)
+    // is one test here, with the largest budget.
+    private sealed class Testlist
+    {
+        public sealed record Entry(Expectation Expect, ulong? CycleBudget, bool Automated, string Note);
+
+        private sealed record Line(string Directory, string Kind, ulong Cycles, string[] Options);
+
+        private readonly Dictionary<string, List<Line>> _byProgram = new(StringComparer.OrdinalIgnoreCase);
+
+        public static Testlist Load(string path)
+        {
+            var list = new Testlist();
+            foreach (var line in File.ReadLines(path))
+            {
+                if (line.StartsWith('#') || string.IsNullOrWhiteSpace(line))
+                    continue;
+                var fields = line.Split(',');
+                if (fields.Length < 4 || fields[1] == "" || !ulong.TryParse(fields[3], out var cycles))
+                    continue;
+                if (!list._byProgram.TryGetValue(fields[1], out var lines))
+                    list._byProgram[fields[1]] = lines = [];
+                lines.Add(new Line(fields[0].Trim('.', '/'), fields[2], cycles, fields[4..]));
+            }
+            return list;
+        }
+
+        // The lines for a program, by file name; when the same file name occurs in several
+        // directories, the one whose directory matches the suite (a suite is named after its
+        // directory, possibly prefixed with the parent's, as CPU_64doc).
+        public Entry? Find(string suite, string program)
+        {
+            if (!_byProgram.TryGetValue(program, out var lines))
+                return null;
+            var directories = lines.Select(l => l.Directory).Distinct().ToList();
+            if (directories.Count > 1)
+            {
+                var matching = directories.Where(d => DirectoryMatches(d, suite)).ToList();
+                if (matching.Count != 1)
+                    return null;
+                lines = lines.Where(l => l.Directory == matching[0]).ToList();
+            }
+            var automated = lines.Any(l => l.Kind is "exitcode" or "screenshot");
+            if (!automated)
+                return new Entry(Expectation.Pass, null, false, $"listed as {lines[0].Kind}");
+            var options = lines.SelectMany(l => l.Options).ToHashSet();
+            var expect = Expectation.Pass;
+            if (options.Contains("expect:timeout"))
+                expect = Expectation.Timeout;
+            else if (options.Contains("expect:error"))
+                expect = Expectation.Error;
+            return new Entry(expect, lines.Max(l => l.Cycles), true, "");
+        }
+
+        private static bool DirectoryMatches(string directory, string suite)
+        {
+            var wanted = Normalise(suite);
+            return directory.Split('/').Select(Normalise).Any(part => part.Length > 0 && (wanted.Contains(part) || part.Contains(wanted)));
+        }
+
+        private static string Normalise(string s) => new(s.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
     }
 
     private sealed class Options
@@ -428,10 +612,12 @@ public static class Program
         public string TestsDir { get; private set; } = "";
         public List<string> Suites { get; } = [];
         public string? Filter { get; private set; }
+        public string? Exclude { get; private set; }
         public string RomDir { get; private set; } = "";
         public string OutDir { get; private set; } = "vice-testprogs-results";
         public string Model { get; private set; } = "both";
         public int MaxFrames { get; private set; } = 600;
+        public string? TestlistPath { get; private set; }
 
         public static Options? Parse(string[] args)
         {
@@ -444,10 +630,12 @@ public static class Program
                     case "--tests": o.TestsDir = Next(); break;
                     case "--suite": o.Suites.AddRange(Next().Split(',', StringSplitOptions.RemoveEmptyEntries)); break;
                     case "--filter": o.Filter = Next(); break;
+                    case "--exclude": o.Exclude = Next(); break;
                     case "--roms": o.RomDir = Next(); break;
                     case "--out": o.OutDir = Next(); break;
                     case "--model": o.Model = Next().ToLowerInvariant() switch { "pal" => "PAL", "ntsc" => "NTSC", _ => "both" }; break;
                     case "--frames": o.MaxFrames = int.Parse(Next()); break;
+                    case "--testlist": o.TestlistPath = Next(); break;
                     default:
                         Console.WriteLine($"Unknown argument {args[i]}");
                         return null;
@@ -455,7 +643,7 @@ public static class Program
             }
             if (o.TestsDir == "" || o.Suites.Count == 0)
             {
-                Console.WriteLine("Usage: --tests <path to testprogs/VICII> --suite <name>[,<name>...] [--filter <substring>] [--roms <dir>] [--out <dir>] [--model pal|ntsc|both] [--frames <max>]");
+                Console.WriteLine("Usage: --tests <path to testprogs/VICII> --suite <name>[,<name>...] [--filter <substring>] [--exclude <substring>] [--roms <dir>] [--out <dir>] [--model pal|ntsc|both] [--frames <max>] [--testlist <c64-testlist.in>]");
                 return null;
             }
             if (o.RomDir == "")
