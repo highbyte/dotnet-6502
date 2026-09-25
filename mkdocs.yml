@@ -133,6 +133,7 @@ nav:
       - C64:
           - Overview: systems/c64/overview.md
           - Libraries: systems/c64/libraries.md
+          - Accuracy and limitations: systems/c64/accuracy.md
           - Keyboard mapping: systems/c64/keyboard.md
           - ROMs: systems/c64/roms.md
           - Cartridge support: systems/c64/cartridges.md
