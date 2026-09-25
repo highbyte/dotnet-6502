@@ -252,6 +252,60 @@ public class C64DeviceAccessTimingTests
     }
 
     [Fact]
+    public void Enabling_a_cia_interrupt_whose_flag_is_set_is_seen_by_the_second_poll_after_the_write()
+    {
+        // Timer A latch 0 underflows as soon as it starts, so its flag is set by the time the mask
+        // is written. The output follows a cycle after the write and the CPU sees it a cycle after
+        // that: not at the poll of the instruction after the write (Lorenz's imr "clock 2"), but at
+        // the poll of the one after (imr "clock 3").
+        var c64 = Build([0xA9, 0x19, 0x8D, 0x0E, 0xDC, 0xA9, 0x81, 0x8D, 0x0D, 0xDC, 0xEA, 0xEA, 0xEA]);   // LDA #$19 ; STA $DC0E ; LDA #$81 ; STA $DC0D ; NOP ; NOP ; NOP
+        c64.Mem.Write(0x0001, 0x35);
+        c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
+        c64.CPU.ProcessorStatus.InterruptDisable = false;
+        c64.Mem.Write(CiaAddr.CIA1_TIMALO, 0x00);
+        c64.Mem.Write(CiaAddr.CIA1_TIMAHI, 0x00);
+        Step(c64); Step(c64);                         // start with force load: the timer underflows at once
+        Step(c64);                                    // LDA #$81
+
+        var store = Step(c64);                        // STA $DC0D: enables timer A
+        Assert.Equal(4UL, store.CyclesConsumed);
+        var first = Step(c64);                        // NOP: its poll is the cycle after the write
+        Assert.Equal(2UL, first.CyclesConsumed);
+        Assert.Equal(Start + 11, c64.CPU.PC);
+        var second = Step(c64);                       // NOP: the line is seen now
+        Assert.Equal(2 + CPU.InterruptEntryCycles, second.CyclesConsumed);
+        Assert.Equal(0x2000, c64.CPU.PC);
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0xEA, 0xA9, 0x02, 0x8D, 0x0D, 0xDC }, true)]    // NOP ; LDA #$02 ; STA $DC0D: the write is cycle 8, the cycle the output is due
+    [InlineData(new byte[] { 0x24, 0x01, 0x8D, 0x0D, 0xDC, 0xEA }, false)]   // BIT $01 ; STA $DC0D ; NOP: the write is cycle 7, a cycle before
+    public void Disabling_timer_B_interrupt_in_the_cycle_its_output_is_due_still_drives_the_output(byte[] program, bool interruptTaken)
+    {
+        // The write lands at the end of its cycle: the interrupt output due in that cycle is
+        // computed with the mask as it was (VICE's cia-int, last column, timer B). Timer B latch 5
+        // started by a direct write underflows during cycle 7 of the program; its output is due in
+        // cycle 8 and, enabled, is seen by the poll at cycle 9. A disable written on cycle 8 comes
+        // too late to stop it; one written on cycle 7 does.
+        var c64 = Build(program.Concat(new byte[] { 0xEA, 0xEA }).ToArray());
+        c64.Mem.Write(0x0001, 0x35);
+        c64.Mem.WriteWord(CPU.BrkIRQHandlerVector, 0x2000);
+        c64.CPU.ProcessorStatus.InterruptDisable = false;
+        c64.CPU.A = 0x02;                             // what the STA writes: clear the timer B mask bit
+        c64.Mem.Write(CiaAddr.CIA1_TIMBLO, 0x05);
+        c64.Mem.Write(CiaAddr.CIA1_TIMBHI, 0x00);
+        c64.Mem.Write(CiaAddr.CIA1_CIAICR, 0x82);
+        c64.Mem.Write(CiaAddr.CIA1_CIACRB, 0x09);
+        Step(c64); Step(c64);
+        Step(c64);                                    // cycles 1-8 in both programs: the STA's write cycle passed
+
+        var next = Step(c64);                         // NOP with its poll at cycle 9
+        Assert.Equal(interruptTaken, c64.CPU.IRQ);
+        Assert.Equal(interruptTaken ? 2 + CPU.InterruptEntryCycles : 2UL, next.CyclesConsumed);
+        Assert.Equal(interruptTaken ? 0x2000 : Start + program.Length + 1, c64.CPU.PC);
+    }
+
+    [Fact]
     public void An_instruction_running_past_the_frame_end_carries_its_remainder_into_the_next_frame()
     {
         // NOP (2 cycles) starting on the frame's last cycle: one cycle belongs to the new frame.

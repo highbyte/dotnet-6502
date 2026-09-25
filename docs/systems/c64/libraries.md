@@ -37,7 +37,9 @@ interrupt, and the handler then finds the register already cleared. Two quirks o
 which is never set, though the output still follows and the register then shows only the
 interrupt bit; and a read in the cycle after a read that took an enabled source's flag still
 shows the interrupt bit, without the output being driven. Enabling a source whose flag is
-already set drives the output the same way, a cycle after the write. The CiaSyncedSplit sample in the Avalonia and browser menus
+already set drives the output the same way, a cycle after the write, seen by the CPU a cycle
+after that; disabling a source stops its output from the cycle after the write, so timer B's
+output due in the write cycle is still driven. The CiaSyncedSplit sample in the Avalonia and browser menus
 places a raster split with a CIA timer started in a known cycle, the classic timer stabiliser, and
 marks where the split's edge belongs with that pipeline. A raster or CIA timer interrupt is dated to the cycle on
 which the raster line began or the CPU first sees the CIA's output, and the CPU applies its
