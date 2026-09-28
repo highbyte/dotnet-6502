@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
@@ -135,16 +136,11 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
     private const ulong RepeatCode = 0x0101010101010101;
     // One byte-wide mask per pixel, in output order. Built once, never on a cycle's hot path.
     private static readonly ulong[] s_graphicsBitMasks = CreateGraphicsBitMasks();
-    private int _previousBlockX = int.MinValue;
-    private int _previousBlockSerial;
-    private int _previousBlockKey = -1;
     // A scrolled block includes the tail of the preceding cell. Both that starting state and
     // the incoming cell belong in its cache key; identical fetched bytes alone are not enough.
     private ulong _scrolledBlockKey = ulong.MaxValue;
     private ulong _scrolledBackgroundCodes;
     private ulong _scrolledForegroundCodes;
-    private int _scrolledBlockX = int.MinValue;
-    private int _scrolledBlockSerial;
     private const int FirstFetchCycle = 15;   // the g-access of column 0 (the chip's cycle 16)
 
     // The line's graphics, as colour codes, resolved into the two layers when the line ends: a
@@ -462,7 +458,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         // sprite passes can then draw before any line has been processed (unit tests do).
         _lineClearStartXs = new int[_height];
         _lineClearEndXs = new int[_height];
-        _lineRepeatMark = new int[_width + 8];
         _rasterToScreenLine = new int[_c64.Vic2.Vic2Model.TotalHeight];
         for (var line = 0; line < _rasterToScreenLine.Length; line++)
             _rasterToScreenLine[line] = _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(line);
@@ -717,7 +712,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             {
                 FinishLineRuns();
                 _runLine = screenLine;
-                _lineSerial++;
                 _lineClearStartX = _mainBorder ? int.MaxValue : 0;
                 _lineClearEndX = _width;
                 _borderRunStartX = _mainBorder ? 0 : -1;
@@ -1556,7 +1550,7 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         if (nextMode == _outputMode && !visible)
         {
             AdvanceHiddenGraphicsBlock(loadSlot, nextMode);
-            _previousBlockKey = -1;
+            _shiftCodesValid = false;
         }
         else if (_loadPixel == 0 && nextMode == _outputMode
             && visible && blockX >= clearStart && blockX + 8 <= clearEnd)
@@ -1566,17 +1560,60 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         else if (nextMode == _outputMode && visible && blockX >= clearStart && blockX + 8 <= clearEnd)
         {
             DrawScrolledGraphicsBlock(loadSlot, blockX, nextMode);
-            _previousBlockKey = -1;
         }
         else
         {
             DrawChangingGraphicsBlock(loadSlot, blockX, render, clearStart, clearEnd, nextMode);
-            _previousBlockKey = -1;
+            _shiftCodesValid = false;
         }
         FetchCycle(cycle, rasterLine, fetchSlot);
     }
 
+    // The colour codes of the byte in the shift register, decoded as eight pixels from its load
+    // (as DrawLoadedGraphicsBlock lays a byte down), while the modes have not changed since.
+    private bool _shiftCodesValid;
+    private ulong _shiftBackgroundCodes;
+    private ulong _shiftForegroundCodes;
+    private byte _shiftLoadPixel;
+
     private void DrawScrolledGraphicsBlock(int slot, int blockX, byte mode)
+    {
+        var pairsSteady = _decodeGraphicsPairs == ((mode & 0x10) != 0);
+        if (_shiftCodesValid && _shiftLoadPixel == _loadPixel && pairsSteady)
+        {
+            // With the modes and XSCROLL as they were at the previous load, the block is the last
+            // XSCROLL pixels of the previous byte followed by the first pixels of this one.
+            var loadBits = _loadPixel * 8;
+            var oldBackground = _shiftBackgroundCodes;
+            var oldForeground = _shiftForegroundCodes;
+            _cellMatrix = _fetchedMatrix[slot];
+            _cellColor = _fetchedColor[slot];
+            DecodeGraphicsByte(_fetchedData[slot], mode);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8),
+                (oldBackground >> (64 - loadBits)) | (_cachedBackgroundCodes << loadBits));
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8),
+                (oldForeground >> (64 - loadBits)) | (_cachedForegroundCodes << loadBits));
+            AdvanceHiddenGraphicsBlock(slot, mode);
+            _shiftBackgroundCodes = _cachedBackgroundCodes;
+            _shiftForegroundCodes = _cachedForegroundCodes;
+            return;
+        }
+        DrawScrolledGraphicsBlockPerPixel(slot, blockX, mode);
+        if (pairsSteady)
+        {
+            DecodeGraphicsByte(_fetchedData[slot], mode);
+            _shiftBackgroundCodes = _cachedBackgroundCodes;
+            _shiftForegroundCodes = _cachedForegroundCodes;
+            _shiftLoadPixel = _loadPixel;
+            _shiftCodesValid = true;
+        }
+        else
+        {
+            _shiftCodesValid = false;
+        }
+    }
+
+    private void DrawScrolledGraphicsBlockPerPixel(int slot, int blockX, byte mode)
     {
         var key = (ulong)_graphicsShift | ((ulong)_cellMatrix << 8) | ((ulong)_cellColor << 16)
             | ((ulong)_pixelValue << 20) | (_takeGraphicsPair ? 1UL << 22 : 0)
@@ -1586,8 +1623,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         {
             System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8), _scrolledBackgroundCodes);
             System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8), _scrolledForegroundCodes);
-            if (_scrolledBlockSerial == _lineSerial && _scrolledBlockX == blockX - 8)
-                _lineRepeatMark[blockX] = _lineSerial;
             AdvanceHiddenGraphicsBlock(slot, mode);
         }
         else
@@ -1597,8 +1632,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             _scrolledBackgroundCodes = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8));
             _scrolledForegroundCodes = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8));
         }
-        _scrolledBlockX = blockX;
-        _scrolledBlockSerial = _lineSerial;
     }
 
     private void AdvanceHiddenGraphicsBlock(int slot, byte mode)
@@ -1621,6 +1654,27 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         var data = _fetchedData[slot];
         _cellMatrix = _fetchedMatrix[slot];
         _cellColor = _fetchedColor[slot];
+        var paired = (mode & 0x10) != 0 && ((mode & 0x20) != 0 || (_cellColor & 8) != 0);
+        DecodeGraphicsByte(data, mode);
+        // The packed codes put the first pixel in the low byte, independent of host endianness.
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8), _cachedBackgroundCodes);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8), _cachedForegroundCodes);
+        _shiftBackgroundCodes = _cachedBackgroundCodes;
+        _shiftForegroundCodes = _cachedForegroundCodes;
+        _shiftLoadPixel = 0;
+        _shiftCodesValid = true;
+
+        // Eight shifts, starting with a load: no bits remain, and the last pair is complete.
+        _graphicsShift = 0;
+        _pixelValue = (byte)(paired ? data & 3 : (data & 1) != 0 ? 3 : 0);
+        _takeGraphicsPair = true;
+        _decodeGraphicsPairs = (mode & 0x10) != 0;
+    }
+
+    // The colour codes of a graphics byte shown from its load in the given mode, with the cell's
+    // matrix byte and colour nibble, into _cachedBackgroundCodes/_cachedForegroundCodes.
+    private void DecodeGraphicsByte(byte data, byte mode)
+    {
         var paired = (mode & 0x10) != 0 && ((mode & 0x20) != 0 || (_cellColor & 8) != 0);
         var key = data | (_cellMatrix << 8) | (_cellColor << 16) | (mode << 20);
         if (key != _cachedBlockKey)
@@ -1649,20 +1703,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             }
             _cachedBlockKey = key;
         }
-        // The packed codes put the first pixel in the low byte, independent of host endianness.
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineBgCodes.AsSpan(blockX, 8), _cachedBackgroundCodes);
-        System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(_lineFgCodes.AsSpan(blockX, 8), _cachedForegroundCodes);
-        if (_previousBlockKey == key && _previousBlockSerial == _lineSerial && _previousBlockX == blockX - 8)
-            _lineRepeatMark[blockX] = _lineSerial;
-        _previousBlockKey = key;
-        _previousBlockSerial = _lineSerial;
-        _previousBlockX = blockX;
-
-        // Eight shifts, starting with a load: no bits remain, and the last pair is complete.
-        _graphicsShift = 0;
-        _pixelValue = (byte)(paired ? data & 3 : (data & 1) != 0 ? 3 : 0);
-        _takeGraphicsPair = true;
-        _decodeGraphicsPairs = (mode & 0x10) != 0;
     }
 
     private static ulong[] CreateGraphicsBitMasks()
@@ -1764,11 +1804,6 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
         _colorCodes[2] = _colorCodes[3] = foreground;
     }
 
-    // Per pixel-array X: the serial of the line on which a block starting there repeated the block
-    // before it, so the resolve pass copies its colours instead of looking them up. A serial per
-    // line saves clearing the marks.
-    private int[] _lineRepeatMark = Array.Empty<int>();
-    private int _lineSerial = 1;
 
     /// <summary>
     /// The cycle's accesses and counter work (3.7.2), then the fetched byte into the pipeline for
@@ -1981,25 +2016,36 @@ public sealed class Vic2RasterizerSequencerPixelGenerator : IVic2RasterizerPixel
             for (var c = 0; c < CODE_BG0 + 4; c++)
                 _fgCodeColor[c] = _bgCodeColor[c];
             _fgCodeColor[CODE_NONE] = transparent;
-            var serial = _lineSerial;
+            // Eight pixels at a time: a block whose codes are those of the eight pixels before it
+            // resolves to the same colours, so it is copied from them.
+            var bgCodes = _lineBgCodes;
+            var fgCodes = _lineFgCodes;
+            var bgPixels = _lineBgPixels;
+            var fgPixels = _lineFgPixels;
             var x = start;
-            while (x < end)
+            while (x + 8 <= end)
             {
-                if (_lineRepeatMark[x] == serial && x >= start + 8 && x + 8 <= end)
+                if (x >= start + 8
+                    && MemoryMarshal.Read<ulong>(bgCodes.AsSpan(x)) == MemoryMarshal.Read<ulong>(bgCodes.AsSpan(x - 8))
+                    && MemoryMarshal.Read<ulong>(fgCodes.AsSpan(x)) == MemoryMarshal.Read<ulong>(fgCodes.AsSpan(x - 8)))
                 {
-                    var bg = _lineBgPixels;
-                    var fg = _lineFgPixels;
-                    for (var k = 0; k < 8; k++)
-                    {
-                        bg[x + k] = bg[x - 8 + k];
-                        fg[x + k] = fg[x - 8 + k];
-                    }
-                    x += 8;
-                    continue;
+                    bgPixels.AsSpan(x - 8, 8).CopyTo(bgPixels.AsSpan(x, 8));
+                    fgPixels.AsSpan(x - 8, 8).CopyTo(fgPixels.AsSpan(x, 8));
                 }
-                _lineBgPixels[x] = _bgCodeColor[_lineBgCodes[x]];
-                _lineFgPixels[x] = _fgCodeColor[_lineFgCodes[x]];
-                x++;
+                else
+                {
+                    for (var k = x; k < x + 8; k++)
+                    {
+                        bgPixels[k] = _bgCodeColor[bgCodes[k]];
+                        fgPixels[k] = _fgCodeColor[fgCodes[k]];
+                    }
+                }
+                x += 8;
+            }
+            for (; x < end; x++)
+            {
+                bgPixels[x] = _bgCodeColor[bgCodes[x]];
+                fgPixels[x] = _fgCodeColor[fgCodes[x]];
             }
         }
         else
