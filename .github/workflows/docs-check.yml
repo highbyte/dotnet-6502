@@ -18,7 +18,6 @@ on:
   push:
     branches:
       - master
-      - feature/cpu-cycle-engine   # long-lived integration branch, gets master's checks
     paths:
       - 'docs/**'
       - 'includes/**'
