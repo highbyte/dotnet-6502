@@ -41,7 +41,6 @@ public class C64SpriteManagerBenchmark
             C64Model = "C64NTSC",   // C64NTSC, C64PAL
             Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
             LoadROMs = false,
-            TimerMode = TimerMode.UpdateEachRasterLine,
             AudioEnabled = true,
             InstrumentationEnabled = false
         };
@@ -156,7 +155,7 @@ public class C64SpriteManagerBenchmark
         var totalHeight = _c64.Vic2.Vic2Model.TotalHeight;
         for (int line = 0; line < totalHeight; line++)
         {
-            sm.CaptureLineSpriteSnapshot();
+            sm.CaptureLineSpriteSnapshot(line);
             sm.AccumulatePerLineCollisions(line);
         }
     }

@@ -75,6 +75,36 @@ public class CPU
     public CPUInterrupts CPUInterrupts { get; private set; } = new CPUInterrupts();
 
     /// <summary>
+    /// The bus cycle at which the last instruction polled its interrupt lines. The 6502 samples
+    /// IRQ and NMI at the end of an instruction's second-to-last cycle (for a taken branch that
+    /// does not cross a page, at the end of its first cycle), so a line that goes active during
+    /// the last cycle is only seen after the following instruction. A device reports the cycle it
+    /// asserted the line on (see <see cref="CPUInterrupts.SetIRQSourceActive(string, bool, ulong)"/>);
+    /// an interrupt is taken at a boundary only if that cycle is at or before this one.
+    /// </summary>
+    private ulong _interruptPollBusCycle;
+
+    /// <summary>
+    /// The I flag as seen by the last poll, when it differs from the live flag: CLI, SEI and PLP
+    /// change the flag after the poll, so the interrupt decision at their boundary uses the value
+    /// from before the instruction. Null means "use the live flag" (RTI changes it in time).
+    /// </summary>
+    private bool? _interruptDisableAtPoll;
+
+    /// <summary>
+    /// True while the last thing executed was an IRQ or BRK entry sequence whose handler has not
+    /// started: an NMI that arrived by the sequence's vector-decision cycle (its 4th) hijacks it
+    /// — the NMI vector is taken with the stack frame the sequence pushed — instead of starting a
+    /// sequence of its own. An entry sequence does not poll the lines at its end, so an NMI
+    /// arriving later is taken after the handler's first instruction, and
+    /// <see cref="_interruptPollBusCycle"/> is left at the decision cycle.
+    /// </summary>
+    private bool _hijackableEntryPending;
+
+    /// <summary>The cycle of a 7-cycle interrupt-entry sequence (BRK included) on which the vector is decided.</summary>
+    private const ulong InterruptEntryVectorDecisionCycle = 4;
+
+    /// <summary>
     /// Is True when a IRQ (Interrupt Request) has been raised.
     /// Raising a NMI is done by setting a NMI source active, which is done by calling CPUInterrupts.SetNMISourceActive(source).
     /// 
@@ -100,6 +130,55 @@ public class CPU
     /// <value></value>
     public ExecState ExecState { get; private set; }
     public bool IsHalted { get; private set; }
+
+    /// <summary>
+    /// Bus cycles performed by this CPU: one per byte read or written through the CPU's own
+    /// access helpers (<see cref="FetchByte"/>, <see cref="StoreByte"/>). On a 6502 every clock
+    /// cycle is a bus access, so once every instruction performs all of its accesses (dummy reads
+    /// included) the count advanced by an instruction equals its cycle count; the tests hold the
+    /// two together. Monotonic; not reset by <see cref="Reset"/>.
+    /// </summary>
+    public ulong BusCycles { get; private set; }
+
+    /// <summary>
+    /// Optional bus master that can stall reads (see <see cref="IBusStallSource"/>). While a read is
+    /// stalled <see cref="BusCycles"/> advances without an access, so the count is then the cycle
+    /// count, of which the accesses are a subset. Stall cycles are added to the instruction's
+    /// reported cycles.
+    /// </summary>
+    public IBusStallSource? BusStallSource
+    {
+        get => _busStallSource;
+        set
+        {
+            _busStallSource = value;
+            _readStallCheckFromBusCycle = value is null ? ulong.MaxValue : 0;
+        }
+    }
+    private IBusStallSource? _busStallSource;
+
+    // The earliest bus cycle at which a read must consult the stall source (ulong.MaxValue: none).
+    private ulong _readStallCheckFromBusCycle = ulong.MaxValue;
+
+    // Stall cycles accumulated since the current instruction (or interrupt entry) began.
+    private ulong _stallCycles;
+
+    /// <summary>
+    /// The cycles the instruction in progress has so far waited for the bus (see
+    /// <see cref="BusStallSource"/>). An instruction handler compares it around a read to learn
+    /// whether RDY was low in that cycle, which the unstable NMOS stores depend on.
+    /// </summary>
+    internal ulong StallCyclesInProgress => _stallCycles;
+
+    /// <summary>
+    /// Ask the stall source again on the next read. Systems call this when the state that decides
+    /// stalls changes (a VIC-II register write, a frame wrap, a snapshot restore).
+    /// </summary>
+    public void RequestBusStallCheck()
+    {
+        if (_busStallSource is not null)
+            _readStallCheckFromBusCycle = 0;
+    }
 
     public CpuCompatibilityProfile CompatibilityProfile { get; private set; }
 
@@ -263,17 +342,7 @@ public class CPU
         if (IsHalted)
             return InstructionExecResult.CpuAlreadyHaltedResult(PC);
 
-        var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
-
-        if (!instructionExecutionResult.HaltedCpu)
-        {
-            // Fold the hardware interrupt-entry cost (when one was serviced at this
-            // boundary) into this instruction's result, so cycle totals and the
-            // system loops that pace devices/frame budgets by it see real elapsed time.
-            var interruptCycles = ProcessInterrupts(mem);
-            if (interruptCycles > 0)
-                instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
-        }
+        var instructionExecutionResult = ExecuteInstructionAndServiceInterrupts(mem);
 
         ExecState.UpdateTotal(instructionExecutionResult);
 
@@ -283,6 +352,8 @@ public class CPU
     /// <summary>
     /// Services any pending hardware interrupts at the current instruction boundary.
     /// Intended for system-level device ticking that occurs after instruction execution.
+    /// An interrupt whose device reported an assertion cycle later than the instruction's poll
+    /// point (its last cycle) is left pending for the next boundary, as on hardware.
     /// </summary>
     /// <param name="mem"></param>
     /// <returns>
@@ -348,18 +419,8 @@ public class CPU
 
             RaiseInstructionToBeExecutedIfSubscribed(mem);
 
-            var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
-
-            // Service pending hardware interrupts at this boundary and fold the entry
-            // cost into the instruction's result, so both ExecStates, evaluators, the
-            // InstructionExecuted event, and callers pacing by cycles see real elapsed
-            // time. (NmiAcknowledging consequently fires before InstructionExecuted.)
-            if (!instructionExecutionResult.HaltedCpu)
-            {
-                var interruptCycles = ProcessInterrupts(mem);
-                if (interruptCycles > 0)
-                    instructionExecutionResult = instructionExecutionResult.WithAdditionalCycles(interruptCycles);
-            }
+            // (NmiAcknowledging consequently fires before InstructionExecuted.)
+            var instructionExecutionResult = ExecuteInstructionAndServiceInterrupts(mem);
 
             // Aggregate stats directly from the InstructionExecResult into both ExecStates;
             // the previous code path went via ExecStateAfterInstruction() which allocated
@@ -404,14 +465,55 @@ public class CPU
     /// </summary>
     public const ulong InterruptEntryCycles = 7;
 
+    private void RecordInterruptPollPoint(InstructionExecResult result, bool interruptDisableBefore)
+    {
+        var descriptor = Descriptors[result.OpCodeByte];
+        var poll = BusCycles > 0 ? BusCycles - 1 : 0;
+        // A relative branch taken without a page crossing (3 cycles: not taken is 2, taken across
+        // a page is 4) polls interrupts only at the end of its first cycle. The descriptor table
+        // decides what is a branch for this model ($80 is BRA on the 65C02, a NOP on the NMOS 6502).
+        if (result.CyclesConsumed == 3 && poll > 0 && descriptor?.Addressing == AddrMode.Relative)
+            poll--;
+        _interruptPollBusCycle = poll;
+        // CLI, SEI and PLP (per the model's table) change the I flag after the poll.
+        _interruptDisableAtPoll = descriptor?.ChangesInterruptDisableAfterPoll == true ? interruptDisableBefore : null;
+        _hijackableEntryPending = false;
+        if (descriptor?.IsInterruptEntry == true)
+            RecordInterruptPollPointAfterInterruptEntry(hijackable: true);
+    }
+
+    private void RecordInterruptPollPointAfterInterruptEntry(bool hijackable)
+    {
+        // An entry sequence does not poll the lines at its end: only an NMI that arrived by its
+        // vector-decision cycle counts, and for an IRQ or BRK sequence that means a hijack.
+        _interruptPollBusCycle = BusCycles >= InterruptEntryCycles ? BusCycles - InterruptEntryCycles + InterruptEntryVectorDecisionCycle : 0;
+        _interruptDisableAtPoll = null;
+        _hijackableEntryPending = hijackable;
+    }
+
     /// <returns>Cycles consumed: <see cref="InterruptEntryCycles"/> if an interrupt was serviced, else 0.</returns>
     private ulong ProcessInterrupts(Memory mem)
     {
         if (IsHalted)
             return 0;
 
-        if (CPUInterrupts.NMIPending)
+        _stallCycles = 0;   // the entry sequence's reads can be stalled too; report those cycles with it
+        if (CPUInterrupts.NMIPending && CPUInterrupts.NMIPendingAtBusCycle <= _interruptPollBusCycle)
         {
+            if (_hijackableEntryPending)
+            {
+                // The NMI arrived while the IRQ or BRK sequence was in progress, before it chose
+                // its vector: the sequence finishes as an NMI. The stack frame is the one already
+                // pushed (a BRK's keeps B set), only the vector differs. The device is caught up
+                // after the sequence, so the decision is made here, at its end.
+                OnNmiAcknowledging();
+                CPUInterrupts.ClearPendingNMI();
+                PC = mem.FetchWord(CPU.NonMaskableIRQHandlerVector);
+                _hijackableEntryPending = false;
+                if (_logger.IsEnabled(LogLevel.Debug))
+                    _logger.LogDebug("NMI hijacked an interrupt entry sequence. Vector={NmiVector:X4}", PC);
+                return 0;
+            }
             OnNmiAcknowledging();
             // The vector is read exactly once, inside ProcessHardwareNMI (as on real hardware,
             // where the reads can hit mapped handlers). After entry PC holds the vector target,
@@ -430,16 +532,22 @@ public class CPU
                     nmiVector,
                     nmiSources);
             }
-            return InterruptEntryCycles;
+            RecordInterruptPollPointAfterInterruptEntry(hijackable: false);
+            return InterruptEntryCycles + TakeStallCycles();
         }
 
-        if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
+        // The line as sampled at the poll: a device releasing it during the poll cycle or the
+        // instruction's last cycle (a CIA interrupt control read, the dummy write of an RMW
+        // acknowledge of the VIC-II's interrupt register) is too late to stop the interrupt.
+        if (CPUInterrupts.IRQWasActiveAt(_interruptPollBusCycle)
+            && !(_interruptDisableAtPoll ?? ProcessorStatus.InterruptDisable))
         {
             // Sources raised with autoAcknowledge are dropped now; manually acknowledged
             // sources keep the line asserted until their device clears them.
             CPUInterrupts.AcknowledgeAutoAcknowledgingIRQSources();
             ProcessHardwareIRQ(mem);
-            return InterruptEntryCycles;
+            RecordInterruptPollPointAfterInterruptEntry(hijackable: true);
+            return InterruptEntryCycles + TakeStallCycles();
         }
 
         return 0;
@@ -519,6 +627,9 @@ public class CPU
             ProcessorStatus.Decimal = false;
         // Change PC to address found at BRK/IRQ handler vector
         PC = FetchWord(mem, CPU.ResetVector);
+        _interruptPollBusCycle = BusCycles;
+        _interruptDisableAtPoll = null;
+        _hijackableEntryPending = false;
         IsHalted = false;
     }
 
@@ -652,8 +763,57 @@ public class CPU
     /// <returns></returns>
     public byte FetchByte(Memory mem, ushort address)
     {
-        byte data = mem.FetchByte(address);
-        return data;
+        BusCycles++;
+        if (BusCycles >= _readStallCheckFromBusCycle)
+            StallRead();
+        return mem.FetchByte(address);
+    }
+
+    /// <summary>
+    /// Runs one instruction, records its interrupt poll point and services a pending hardware
+    /// interrupt at the boundary. The entry sequence's cost is folded into the instruction's
+    /// result, so cycle totals and the system loops that pace devices and frame budgets by it see
+    /// real elapsed time.
+    /// </summary>
+    private InstructionExecResult ExecuteInstructionAndServiceInterrupts(Memory mem)
+    {
+        var interruptDisableBefore = ProcessorStatus.InterruptDisable;
+        var result = ExecuteInstructionWithStalls(mem);
+        if (result.HaltedCpu)
+            return result;
+
+        RecordInterruptPollPoint(result, interruptDisableBefore);
+        var interruptCycles = ProcessInterrupts(mem);
+        return interruptCycles > 0 ? result.WithAdditionalCycles(interruptCycles) : result;
+    }
+
+    // Runs one instruction and folds the cycles its reads were stalled by (accumulated by
+    // StallRead through the memory access helpers) into the reported cycle count.
+    private InstructionExecResult ExecuteInstructionWithStalls(Memory mem)
+    {
+        _stallCycles = 0;
+        var result = _instructionExecutor.Execute(this, mem);
+        var stalled = TakeStallCycles();
+        return stalled > 0 ? result.WithAdditionalCycles(stalled) : result;
+    }
+
+    // Returns the stall cycles accumulated since the last reset and clears them.
+    private ulong TakeStallCycles()
+    {
+        var stalled = _stallCycles;
+        _stallCycles = 0;
+        return stalled;
+    }
+
+    // A bus master holds the CPU: the read happens once the bus is released, and the cycles in
+    // between are time without accesses.
+    private void StallRead()
+    {
+        var stall = _busStallSource!.StallCyclesForRead(BusCycles, out _readStallCheckFromBusCycle);
+        if (stall == 0)
+            return;
+        BusCycles += stall;
+        _stallCycles += stall;
     }
 
     /// <summary>
@@ -665,8 +825,10 @@ public class CPU
     /// <returns></returns>
     public ushort FetchWord(Memory mem, ushort address)
     {
-        ushort data = mem.FetchWord(address);
-        return data;
+        // Two bus cycles, low byte first; the high byte address wraps at $FFFF like the helper did.
+        var lowByte = FetchByte(mem, address);
+        var highByte = FetchByte(mem, (ushort)(address + 1));
+        return ByteHelpers.ToLittleEndianWord(lowByte, highByte);
     }
 
     /// <summary>
@@ -776,6 +938,7 @@ public class CPU
     /// <param name="address"></param>
     public void StoreByte(byte byteData, Memory mem, ushort address)
     {
+        BusCycles++;
         mem.WriteByte(address, byteData);
     }
 
@@ -788,6 +951,7 @@ public class CPU
     /// <param name="address"></param>
     public void StoreWord(ushort word, Memory mem, ushort address)
     {
-        mem.WriteWord(address, word);
+        StoreByte(word.Lowbyte(), mem, address);
+        StoreByte(word.Highbyte(), mem, (ushort)(address + 1));
     }
 }

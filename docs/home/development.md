@@ -71,6 +71,19 @@ cd tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType=Integration
 ```
 
+### Bus-cycle vector tests (SingleStepTests corpus)
+
+`tests/Highbyte.DotNet6502.Tests/SingleStepTests/` runs a pinned subset of the [SingleStepTests 65x02](https://github.com/SingleStepTests/65x02) corpus (MIT). Every vector is one instruction with the full CPU and memory state before and after, plus every bus cycle the silicon performs: address, value and direction, one per clock cycle. The tests require the final state, the cycle-by-cycle bus trace, the reported cycle count and the advance of `CPU.BusCycles` to all agree. The `6502` set runs against the NMOS 6502 model with the full undocumented profile; the `wdc65c02` set against the NCR 65C02 model. Bytes where the emulated part is documented to differ from the corpus's part (the Rockwell bit instructions, WDC's `WAI`/`STP`) are listed with their reason in the test class and skipped, not asserted.
+
+The fixtures live in `tests/Highbyte.DotNet6502.Tests/Fixtures/SingleStepTests/` (20 vectors per opcode, gzip'd JSON lines, with the upstream LICENSE and a manifest recording the corpus commit and file hashes). They are regenerated deterministically with:
+
+```sh
+python3 tools/singlesteptests/extract.py            # all sets, 20 vectors per opcode
+python3 tools/singlesteptests/extract.py --sets wdc65c02 --per-opcode 50
+```
+
+The script downloads the per-opcode files (about 5 MB each) at the pinned commit and keeps the first N vectors of each, so the fixtures stay small enough to commit.
+
 ### C64 program-level tests with the real ROMs
 
 `tests/Highbyte.DotNet6502.Systems.Tests/Commodore64/C64RealRomBootTests.cs` boots the genuine KERNAL, BASIC and character ROMs to the `READY.` prompt. The ROMs are copyrighted and are not in the repository, so these tests are marked `[RequiresC64RomsFact]` and report as *skipped* (with the reason) when the ROMs are missing rather than passing without running. They are tagged `TestType=Integration`.
@@ -82,7 +95,22 @@ DOTNET6502_C64_ROM_DIR=/tmp/c64-roms DOTNET6502_DOWNLOAD_TEST_ROMS=1 \
   dotnet test tests/Highbyte.DotNet6502.Systems.Tests --filter TestType=Integration
 ```
 
-The `Build & run tests` workflow sets both variables (with the ROM directory cached between runs), so these tests run in CI. Use the same helper for any future C64 test that needs a booted machine, for example the VICE test programs planned for the cycle-exact work.
+The `Build & run tests` workflow sets both variables (with the ROM directory cached between runs), so these tests run in CI. Use the same helper for any future C64 test that needs a booted machine.
+
+### VIC-II tests from the VICE test programs
+
+`tools/vice-testprogs/Highbyte.DotNet6502.ViceTestprogs` runs the VIC-II test programs from the [VICE test programs](https://sourceforge.net/p/vice-emu/code/HEAD/tree/testprogs/) repository against the C64 emulation and compares the picture with the reference screenshots that ship with them. It is a console tool, not part of the test suite: the programs and their references are not in this repository (fetch a suite directory, for example `testprogs/VICII/border`, from the Subversion repository at `https://svn.code.sf.net/p/vice-emu/code/testprogs/VICII/`), and many of the pictures are not expected to match yet.
+
+The tool boots the real ROMs to the `READY.` prompt, loads a `.prg`, runs it from its BASIC `SYS` line (with the CPU's `FullUnofficial` opcode profile, as the programs are written for the real chip) and stops at the first write to `$D7FF` made with the I/O area banked in, which is how the programs report their result (`$00` passed, `$FF` failed) and end. The frame completed before that write is compared with the reference, colour index by colour index, over the part of the frame both pictures cover. For each program it writes a picture with the reference, the emulator's frame and the differing pixels side by side, and a `results.md` table with the exit code, the number of differing pixels and the verdict: `pass`, `fail` or `timeout` (the program never wrote its exit code).
+
+```sh
+dotnet run --project tools/vice-testprogs/Highbyte.DotNet6502.ViceTestprogs -c Release -- \
+  --tests /path/to/testprogs/VICII --suite border,dentest --roms /path/to/c64-roms --out /tmp/vice-results --model both
+```
+
+Programs are started at the address of their BASIC stub's `SYS` statement, which may be a number (with or without parentheses) or an expression computed from the BASIC start pointer, as `SYS PEEK(43)+256*PEEK(44)+26`; the tool evaluates `PEEK`, `+`, `-` and `*` on the machine's memory. `--tests` also takes the `testprogs/CIA`, `CPU`, `interrupts` and `general` directories, whose programs report through the exit code (their screens are compared by eye against the dumps and readmes in the suites). `--suite` names the directories to run, `--filter` and `--exclude` select programs by name, `--model` picks the PAL or NTSC machine (`_ntsc.prg` and `-ntsc.prg` variants are run on the NTSC machine, plain ones on the PAL machine), `--frames` caps the run for programs that never write the exit code. The picture compared is the frame in which the program writes its exit code, run to its end, which is the frame VICE's exit screenshot shows. Set `VICETEST_TRACE` to a comma separated list of raster lines to log the VIC-II register writes on those lines with their cycle, the quickest way to see what a program does on the line where its picture differs. `--measure <png>` prints the reference picture's layout, for adding a suite whose window differs. `--pixel-generator legacy` runs the programs with the rasterizer's legacy pixel generator instead of the default sequencer one, to see what the faster generator does not reproduce.
+
+`--testlist` takes VICE's own list of the C64 tests (`testprogs/testbench/c64-testlist.in` in the same repository), which makes the verdicts exact: programs the list expects to hang (the CPU jam tests) or to report failure pass on that outcome, programs listed as interactive or analyzer are skipped, and each program runs for its listed cycle budget instead of `--frames`. A program listed under several directories is matched to the one whose name occurs in the suite name (suites may be named `CPU_64doc` when the tests directory holds links to several source directories).
 
 ### WASM AOT publish smoke tests
 

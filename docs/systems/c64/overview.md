@@ -8,33 +8,56 @@ CPU: the MOS **6510** model (`mos6510`), as in the real machine — an NMOS 6502
 6510's on-chip I/O port at `$00`/`$01`, which drives the C64's memory banking. The
 undocumented-opcode compatibility profile is configurable.
 
+## Timing
+
+The emulation is cycle-exact: every CPU cycle is a real bus access, and the VIC-II, the two CIAs and
+the SID see each read and write on the cycle it happens. It is not stepped one cycle at a time. The
+CPU runs one instruction per call, with each of its bus accesses on its own cycle, and the chips
+are brought up to the exact cycle of every access to their registers (and of every CPU write to the
+VIC-II's memory) and to the end of every instruction. A program therefore sees the same timing as on
+the real machine: a raster or timer read returns the value of that cycle, a register write takes
+effect on its own cycle, the VIC-II holds the CPU off the bus on bad lines and for sprite fetches,
+and interrupts are taken at the cycle the 6510 checks for them.
+
+For how the device timing works, see [Libraries](libraries.md#device-timing); for what is checked
+against the VICE test programs and what is not modelled, see [Accuracy and limitations](accuracy.md).
+
 ## Current capabilities
 
 - Run Commodore Basic 2.0 from ROM (user-supplied Kernal, Basic, and Chargen ROM files).
-- Limited VIC2 video chip support (Render provider: Rasterizer)
+- VIC-II video chip, PAL (6569) and NTSC (6567R8) (Render provider: Rasterizer)
     - Standard, extended and multi-color character modes
     - Standard and multi-color bitmap mode
-    - Sprites (hi-res & multi-color)
-    - IRQ (raster, sprite collision)
-    - Background and border color possible to set per raster line
-    - Fine scrolling per raster line
+    - Sprites (hi-res & multi-color), with multiplexing, stretching and crunching when per-line
+      sprites are enabled (the `Vic2RasterizerPerLineSprites` option)
+    - IRQ (raster, sprite collision, light pen)
+    - Colour, mode, scroll and memory setup changes in the middle of a raster line, at the pixel
+      where they happen, and opened borders
+    - Bad lines and sprite fetches holding the CPU off the bus
+    - Two pixel generators: the default one follows the chip's graphics sequencer pixel by pixel;
+      the faster legacy one draws in 8-pixel blocks and takes mode, scroll and memory setup once
+      per raster line (the `Vic2RasterizerPixelGeneratorType` option)
 - Minimal VIC2 video chip support (Render provider: VideoCommands)
     - Standard character mode (normal case only), no custom character set.
-- Limited CIA chip support
+- CIA chips (6526)
     - Keyboard
     - Joystick
-    - Timers
-    - IRQ
+    - Timers A and B, exact to the cycle, including the chip's delays between a control write and
+      the counter
+    - IRQ and NMI
+    - Not modelled: time-of-day clock, serial shift register, timer B counting timer A, and the CNT
+      pin (see [Accuracy and limitations](accuracy.md))
 - SID 6581 audio chip support via two pluggable providers:
     - **Sample-based** (default, good but not perfect accuracy) — pure-managed sample-accurate
       emulation: all four waveforms (individual and combined), full ADSR with the real rate
       counters, hard sync, ring modulation, TEST-bit hold, OSC3/ENV3 readback, a generic
       resonant low-pass / band-pass / high-pass filter, and the `$D418` volume DAC's DC term
-      (so digi / sample-playback tunes are audible). Missing: chip-variant filter models
-      (6581 R1/R2/R3/R4 vs 8580), chip-measured combined-waveform tables, anti-aliased
-      downsampling, and per-instruction `$D418` cycle-offset (digi works, but writes land at
-      instruction boundaries so high-rate sample tunes are slightly noisier than on real
-      hardware).
+      (so digi / sample-playback tunes are audible). Register writes reach the chip on the
+      exact CPU cycle they happen, OSC3/ENV3 reads see the chip's state at the cycle of the
+      read, the volume DAC is averaged over each output sample, and reads of write-only
+      registers return the chip's decaying data-bus latch as on a 6581. Missing: chip-variant
+      filter models (6581 R1/R2/R3/R4 vs 8580), chip-measured combined-waveform tables, and
+      anti-aliased downsampling.
     - **Command stream** (legacy, low CPU but inaccurate) — decodes SID register changes into
       generic synthesizer commands driven by an oscillator graph. Many tunes sound wrong; no
       digi / sample-playback support.
@@ -55,7 +78,7 @@ undocumented-opcode compatibility profile is configurable.
 
 ## 1541 Disk Drive Support
 
-The C64 emulator now includes limited support for the Commodore 1541 disk drive. You can:
+The C64 emulator includes limited support for the Commodore 1541 disk drive. You can:
 
 - Attach `.d64` disk image files to the emulator.
 - Use the C64's Basic `LOAD` command to load the disk directory and files from the attached disk image.
@@ -93,9 +116,17 @@ Additional machine code monitor commands specific to the C64 system:
 
 ```
 Commands:
+  gr     C64 - Continue execution until the VIC-II reaches a raster line (and cycle).
   lb     C64 - Load a Commodore Basic 2.0 PRG file from file picker dialog.
   llb    C64 - Load a Commodore Basic 2.0 PRG file from host file system.
   sb     C64 - Save a Commodore Basic 2.0 PRG file to host file system.
 ```
+
+`gr <line> [cycle]` stops at the first instruction boundary at or after the position, in the current frame if
+it is still ahead and otherwise in the next; the cycle is in the chip's numbering (1–63 PAL, 1–65 NTSC) and
+defaults to 1. The `r` command shows the VIC-II's position on its second line, `VIC-II: RASTER=… CYCLE=…
+FRAMECYCLE=… FRAME=…`; the hosts' monitor status area shows the same line, and the same names can be used
+in `gu` conditions and in the VS Code debugger's breakpoint conditions (see
+[Debugging](../../tools/vscode-debugger/debugging.md)).
 
 For general monitor commands, see [Monitor library](../../libraries/core/dotnet6502-monitor.md).

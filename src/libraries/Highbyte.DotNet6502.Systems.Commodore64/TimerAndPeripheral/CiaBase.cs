@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -12,44 +13,93 @@ public abstract class CiaBase
     protected readonly C64 _c64;
 
     private readonly CiaIRQ _ciaIRQ;
-    private readonly Dictionary<CiaTimerType, CiaTimer> _ciaTimers;
+    private readonly CiaTimer _timerA;
+    private readonly CiaTimer _timerB;
+
+    /// <summary>
+    /// The CPU bus cycle (<see cref="CPU.BusCycles"/>) the timers have been advanced to. See
+    /// <see cref="CatchUpTo"/>. The timers derive their counter value from it.
+    /// </summary>
+    private ulong _advancedToBusCycle;
+    internal ulong AdvancedToBusCycle => _advancedToBusCycle;
+
+    /// <summary>
+    /// The earliest bus cycle at which a counting timer underflows; <see cref="ulong.MaxValue"/>
+    /// while no timer is counting. Lets the per-instruction catch-up be two comparisons.
+    /// </summary>
+    private ulong _nextUnderflowBusCycle = ulong.MaxValue;
+
+    internal void RecomputeNextUnderflow()
+        => _nextUnderflowBusCycle = Math.Min(_timerA.NextEventBusCycleOrMax, _timerB.NextEventBusCycleOrMax);
 
     protected CiaBase(C64 c64, CiaIRQ ciaIRQ)
     {
         _c64 = c64;
         _ciaIRQ = ciaIRQ;
-        _ciaTimers = new Dictionary<CiaTimerType, CiaTimer>();
-
-        // Initialize timers - this is common for both CIA1 and CIA2
-        InitializeTimers();
+        _timerA = new CiaTimer(CiaTimerType.CiaA, IRQSource.TimerA, _c64, _ciaIRQ, this);
+        _timerB = new CiaTimer(CiaTimerType.CiaB, IRQSource.TimerB, _c64, _ciaIRQ, this);
     }
 
-    /// <summary>
-    /// Initialize the timers for this CIA chip
-    /// </summary>
-    private void InitializeTimers()
-    {
-        _ciaTimers.Add(CiaTimerType.CiaA, new CiaTimer(CiaTimerType.CiaA, IRQSource.TimerA, _c64, _ciaIRQ));
-        _ciaTimers.Add(CiaTimerType.CiaB, new CiaTimer(CiaTimerType.CiaB, IRQSource.TimerB, _c64, _ciaIRQ));
-    }
+    private CiaTimer Timer(CiaTimerType timerType) => timerType == CiaTimerType.CiaA ? _timerA : _timerB;
 
     // --- Snapshot support ---
     // Exposes the live timer and IRQ state (not held in IO register storage) to the c64-cia
     // snapshot module, which lives in the same assembly.
-    internal CiaTimer SnapshotTimerA => _ciaTimers[CiaTimerType.CiaA];
-    internal CiaTimer SnapshotTimerB => _ciaTimers[CiaTimerType.CiaB];
+    internal CiaTimer SnapshotTimerA => _timerA;
+    internal CiaTimer SnapshotTimerB => _timerB;
     internal CiaIRQ SnapshotIrq => _ciaIRQ;
 
     /// <summary>
-    /// Process timers for this CIA chip
+    /// Advance the timers by a number of cycles from where they are, independent of the CPU
+    /// bus-cycle counter. The C64 drives the CIAs through <see cref="CatchUpTo"/>; this remains
+    /// for tests and tooling.
     /// </summary>
-    /// <param name="cyclesExecuted"></param>
-    public virtual void ProcessTimers(ulong cyclesExecuted)
+    public virtual void ProcessTimers(ulong cyclesExecuted) => CatchUpTo(_advancedToBusCycle + cyclesExecuted);
+
+    /// <summary>
+    /// Advance the timers to the given CPU bus cycle. No-op if they are already there. The C64
+    /// calls this at every instruction boundary, and every CIA register access calls it for the
+    /// cycle of the access, so a timer or interrupt-status read sees the count at its own cycle and
+    /// a control write takes effect on its own cycle. A counting timer costs one comparison per
+    /// call until it underflows (see <see cref="CiaTimer.CatchUpTo"/>).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void CatchUpTo(ulong busCycle)
     {
-        foreach (var ciaTimer in _ciaTimers.Values)
-        {
-            ciaTimer.ProcessTimer(cyclesExecuted);
-        }
+        if (busCycle <= _advancedToBusCycle)
+            return;
+        _advancedToBusCycle = busCycle;
+        if (busCycle >= _nextUnderflowBusCycle)
+            ProcessUnderflows(busCycle);
+    }
+
+    private void ProcessUnderflows(ulong busCycle)
+    {
+        _timerA.ProcessEvents(busCycle);
+        _timerB.ProcessEvents(busCycle);
+        RecomputeNextUnderflow();
+    }
+
+    /// <summary>State as of the cycle of the bus access the CPU is performing right now.</summary>
+    private void CatchUpToCurrentAccess()
+    {
+        var busCycles = _c64.CPU.BusCycles;
+        if (busCycles > 0)
+            CatchUpTo(busCycles - 1);
+    }
+
+    /// <summary>
+    /// Realign the bus-cycle bookkeeping with the CPU without advancing the timers. Used after a
+    /// snapshot restore.
+    /// </summary>
+    internal void ResyncToBusCycle()
+    {
+        // Freeze the counters at the old position, move, and re-arm at the new one.
+        _timerA.Freeze();
+        _timerB.Freeze();
+        _advancedToBusCycle = _c64.CPU.BusCycles;
+        _timerA.Arm();
+        _timerB.Arm();
     }
 
     /// <summary>
@@ -61,16 +111,25 @@ public abstract class CiaBase
     /// <summary>
     /// Map one CIA register and all of its mirrors across the chip's 256-byte I/O page.
     /// The MOS 6526 only decodes the low 4 address bits, so $DC0D is also visible at
-    /// $DC1D, $DC2D, ..., $DCFD (and likewise for CIA #2 at $DDxx).
+    /// $DC1D, $DC2D, ..., $DCFD (and likewise for CIA #2 at $DDxx). Every access first advances
+    /// the timers to the cycle of the access.
     /// </summary>
-    protected static void MapRegisterMirrors(
+    protected void MapRegisterMirrors(
         Memory c64mem,
         ushort registerAddress,
         Memory.LoadByte reader,
         Memory.StoreByte writer)
     {
-        c64mem.MapReader(registerAddress, reader);
-        c64mem.MapWriter(registerAddress, writer);
+        Memory.LoadByte timedReader = _ =>
+        {
+            CatchUpToCurrentAccess();
+            return reader(registerAddress);
+        };
+        Memory.StoreByte timedWriter = (_, value) =>
+        {
+            CatchUpToCurrentAccess();
+            writer(registerAddress, value);
+        };
 
         var pageStart = registerAddress & 0xFF00;
         var registerOffset = registerAddress & 0x000F;
@@ -78,43 +137,40 @@ public abstract class CiaBase
         for (var offset = registerOffset; offset <= 0x00FF; offset += 0x10)
         {
             var mirrorAddress = (ushort)(pageStart + offset);
-            if (mirrorAddress == registerAddress)
-                continue;
-
-            c64mem.MapReader(mirrorAddress, _ => reader(registerAddress));
-            c64mem.MapWriter(mirrorAddress, (_, value) => writer(registerAddress, value));
+            c64mem.MapReader(mirrorAddress, timedReader);
+            c64mem.MapWriter(mirrorAddress, timedWriter);
         }
     }
 
     /// <summary>
     /// Common timer high byte load functionality
     /// </summary>
-    protected byte TimerHILoad(CiaTimerType timerType) => _ciaTimers[timerType].InternalTimer.Highbyte();
+    protected byte TimerHILoad(CiaTimerType timerType) => Timer(timerType).InternalTimer.Highbyte();
 
     /// <summary>
     /// Common timer high byte store functionality
     /// </summary>
-    protected void TimerHIStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].SetInternalTimer_Latch_HI(value);
+    protected void TimerHIStore(CiaTimerType timerType, byte value) => Timer(timerType).SetInternalTimer_Latch_HI(value);
 
     /// <summary>
     /// Common timer low byte load functionality
     /// </summary>
-    protected byte TimerLOLoad(CiaTimerType timerType) => _ciaTimers[timerType].InternalTimer.Lowbyte();
+    protected byte TimerLOLoad(CiaTimerType timerType) => Timer(timerType).InternalTimer.Lowbyte();
 
     /// <summary>
     /// Common timer low byte store functionality
     /// </summary>
-    protected void TimerLOStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].SetInternalTimer_Latch_LO(value);
+    protected void TimerLOStore(CiaTimerType timerType, byte value) => Timer(timerType).SetInternalTimer_Latch_LO(value);
 
     /// <summary>
     /// Common timer control load functionality
     /// </summary>
-    protected byte TimerControlLoad(CiaTimerType timerType) => _ciaTimers[timerType].TimerControl;
+    protected byte TimerControlLoad(CiaTimerType timerType) => Timer(timerType).TimerControl;
 
     /// <summary>
     /// Common timer control store functionality
     /// </summary>
-    protected void TimerControlStore(CiaTimerType timerType, byte value) => _ciaTimers[timerType].TimerControl = value;
+    protected void TimerControlStore(CiaTimerType timerType, byte value) => Timer(timerType).TimerControl = value;
 
     /// <summary>
     /// Common timer A methods
@@ -136,31 +192,39 @@ public abstract class CiaBase
     public byte TimerBControlLoad(ushort _) => TimerControlLoad(CiaTimerType.CiaB);
     public void TimerBControlStore(ushort _, byte value) => TimerControlStore(CiaTimerType.CiaB, value);
 
+    // The cycle of the last interrupt control read, and whether it returned the flag of an enabled
+    // source (ulong.MaxValue when none).
+    private ulong _lastInterruptControlReadBusCycle = ulong.MaxValue;
+    private bool _lastInterruptControlReadTookEnabledFlag;
+
     /// <summary>
-    /// Common interrupt control load functionality
+    /// Common interrupt control load functionality. Reading clears the flags and the interrupt bit
+    /// and releases the interrupt output. The 6526's interrupt bit follows its enabled flags a
+    /// cycle behind: a read in the cycle after a read that took an enabled source's flag still
+    /// shows the interrupt bit set, though the output is not driven (VICE's dd0dtest test program).
     /// </summary>
     protected byte InterruptControlLoad()
     {
-        // Bits 5-6 are not used, and always returns 0.
-        byte value = 0;
+        // Bits 0-4 are the sources' flags, bit 7 the interrupt bit (set only once the chip has
+        // driven its output: a flag set while its source is disabled shows without it); bits 5-6
+        // always read 0.
+        var value = _ciaIRQ.Flags;
+        var tookEnabledFlag = _ciaIRQ.AnyEnabledFlagSet;
 
-        // If timer A has counted down to zero, set bit 0.
-        if (_ciaIRQ.IsConditionSet(IRQSource.TimerA))
-            value.SetBit((int)IRQSource.TimerA);
-
-        // If timer B has counted down to zero, set bit 1.
-        if (_ciaIRQ.IsConditionSet(IRQSource.TimerB))
-            value.SetBit((int)IRQSource.TimerB);
-
-        // Bit 7 is the interrupt-request latch. A CIA source condition can be set
-        // while its mask is disabled; in that case the source bit is reported, but
-        // bit 7 must stay clear because the CIA did not actually drive IRQ/NMI.
-        if (_ciaIRQ.IsConditionSet(IRQSource.Any))
+        // The interrupt bit a cycle behind the flags (see above).
+        if (_lastInterruptControlReadTookEnabledFlag && _lastInterruptControlReadBusCycle + 1 == _advancedToBusCycle)
             value.SetBit((int)IRQSource.Any);
+
+        _lastInterruptControlReadBusCycle = _advancedToBusCycle;
+        _lastInterruptControlReadTookEnabledFlag = tookEnabledFlag;
 
         // If this address is read, it's contents is automatically cleared ( = all IRQ states are cleared).
         _ciaIRQ.ConditionClearAll();
-        _ciaIRQ.Acknowledge(_c64.CPU);
+        // The interrupt output is released in the cycle of the read; the CPU may already have
+        // sampled it for the instruction in progress.
+        _ciaIRQ.Acknowledge(_c64.CPU, _c64.CPU.BusCycles);
+        _timerA.InterruptControlRead();
+        _timerB.InterruptControlRead();
 
         return value;
     }
@@ -168,6 +232,10 @@ public abstract class CiaBase
     /// <summary>
     /// Common interrupt control store functionality
     /// </summary>
+    // From the CIA's caught-up cycle (the cycle before the write): the output a cycle after the
+    // write, seen by the CPU a cycle after that.
+    private const ulong MaskEnableTriggerDelay = 3;
+
     protected void InterruptControlStore(byte value)
     {
         // Writing to this register enables or disables the different interrupt sources.
@@ -175,27 +243,37 @@ public abstract class CiaBase
         // If bit 7 is not set, then other bit also set means to disable that interrupt source.
         // If bits for the specific interrupt sources (0-4) are not set, it will not change state.
 
-        if ((value & 0b1000_0000) > 0)
+        // Timer B's interrupt output due in the cycle of this write is driven with the mask as it
+        // was, so a disable written in that cycle does not stop it (VICE's cia-int, last column).
+        // Timer A's is not treated the same: dd0dtest's inc $dd0d,x case (read, dummy write, then
+        // the disabling write in the cycle the output is due) expects no interrupt, while
+        // cia-icr-test2 (a plain disabling store in that cycle) expects the interrupt bit set —
+        // the two disagree under any single rule tried, so timer A keeps the simpler behaviour.
+        // Timer B's events are brought to the write cycle before the mask changes; the chip's own
+        // position (the cycle before the write) is not moved.
+        _timerB.ProcessEvents(_c64.CPU.BusCycles);
+        RecomputeNextUnderflow();
+
+        var setMode = (value & 0b1000_0000) != 0;
+        for (var bit = (int)IRQSource.TimerA; bit <= (int)IRQSource.FlagLine; bit++)
         {
-            // Bit 7 is set, enable interrupt sources with bit set
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+            if (!value.IsBitSet(bit))
+                continue;
+            var source = (IRQSource)bit;
+            if (!setMode)
             {
-                if (source == IRQSource.Any)
-                    continue;
-                if (value.IsBitSet((int)source))
-                    _ciaIRQ.Enable(source);
+                _ciaIRQ.Disable(source);
+                continue;
             }
-        }
-        else
-        {
-            // Bit 7 is not set, disable interrupt sources with bit set
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-            {
-                if (source == IRQSource.Any)
-                    continue;
-                if (value.IsBitSet((int)source))
-                    _ciaIRQ.Disable(source);
-            }
+            if (_ciaIRQ.IsEnabled(source))
+                continue;
+            _ciaIRQ.Enable(source);
+            // A source whose flag is already set drives the interrupt output once it is enabled,
+            // as its underflow would have: the output a cycle after the write, seen by the CPU
+            // a cycle after that (Lorenz's imr: not by the poll of the instruction after the
+            // write, but by the poll of the one after).
+            if (_ciaIRQ.IsConditionSet(source))
+                _ciaIRQ.Trigger(source, _c64.CPU, _advancedToBusCycle + MaskEnableTriggerDelay);
         }
     }
 

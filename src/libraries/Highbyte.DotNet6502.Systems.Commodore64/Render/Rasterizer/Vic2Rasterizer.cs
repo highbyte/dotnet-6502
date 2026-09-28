@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Utils;
@@ -23,11 +24,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 /// Supports:
 /// - Text mode (Standard, Extended, MultiColor)
 /// - Bitmap mode (Standard/HiRes, MultiColor)
-/// - Colors per raster line
+/// - Border and background colours applied at the cycle they are written (mid-line splits)
 /// - Fine scroll per raster line
 /// - Sprites (Standard, MultiColor). Multiplexing supported when perLineSprites is enabled.
 
-public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
+public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider, IVic2CycleRenderer
 {
     public string Name => "Vic2Rasterizer";
 
@@ -68,9 +69,12 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         }
     }
 
-    private readonly Vic2RasterizerUintPixelGenerator _pixelGenerator;
+    private readonly IVic2RasterizerPixelGenerator _pixelGenerator;
 
-    public Vic2Rasterizer(C64 c64, bool useDoubleBuffering = true, bool perLineSprites = false)
+    /// <summary>The pixel generator this rasterizer draws with (see <see cref="Vic2PixelGeneratorType"/>).</summary>
+    public Vic2PixelGeneratorType PixelGeneratorType { get; }
+
+    public Vic2Rasterizer(C64 c64, bool useDoubleBuffering = true, bool perLineSprites = false, Vic2PixelGeneratorType pixelGeneratorType = Vic2PixelGeneratorType.Sequencer)
     {
         var width = c64.Screen.VisibleWidth;
         var height = c64.Screen.VisibleHeight;
@@ -93,14 +97,12 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
             _frontForeground.AsMemory()
         };
 
-        _pixelGenerator = new Vic2RasterizerUintPixelGenerator(
-            _c64,
-            SetPixel,
-            SetBackgroundPixels,
-            ClearBackgroundPixels,
-            SetForegroundPixels,
-            ClearForegroundPixels,
-            perLineSprites);
+        // The sequencer follows the chip pixel by pixel; the legacy generator draws by 8-pixel
+        // blocks with the display registers sampled once per line, faster and kept as a fallback.
+        PixelGeneratorType = pixelGeneratorType;
+        _pixelGenerator = pixelGeneratorType == Vic2PixelGeneratorType.Legacy
+            ? new Vic2RasterizerUintPixelGenerator(_c64, SetPixel, SetBackgroundPixels, ClearBackgroundPixels, SetForegroundPixels, ClearForegroundPixels, perLineSprites)
+            : new Vic2RasterizerSequencerPixelGenerator(_c64, SetPixel, SetBackgroundPixels, ClearBackgroundPixels, SetForegroundPixels, ClearForegroundPixels, perLineSprites);
     }
 
     #region C64 emulator integration points
@@ -112,18 +114,25 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     //}
 
     // Called after each instruction
-    public void OnAfterInstruction()
+    public void OnAfterInstruction() => CatchUpToVic2();
+
+    // Called after each instruction, and by the C64 in the middle of one where the order of the
+    // chip's fetches and the CPU's accesses decides the picture (see IVic2CycleRenderer).
+    public void CatchUpToVic2()
     {
         // Write pixels of current x,y into _back at [y*StrideBytes + x*4 ..]
-        _pixelGenerator.OnAfterInstruction();
+        _pixelGenerator.CatchUpToVic2();
     }
+
+    public void LatchSpriteBackgroundCollisions(int rasterLine, int upToPixel, int clearedToPixel)
+        => _pixelGenerator.LatchSpriteBackgroundCollisions(rasterLine, upToPixel, clearedToPixel);
 
     //public void OnEndScanline(int y)
     //{
     //    ScanlineCompleted?.Invoke(this, y);
     //}
 
-    // Called once per frame after all OnAfterInstruction calls are executed
+    // Called once per frame after all OnAfterInstruction and CatchUpToVic2 calls are executed
     public void OnEndFrame()
     {
         _pixelGenerator.OnEndFrame();

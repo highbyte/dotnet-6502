@@ -33,9 +33,10 @@ public sealed class C64CoreSnapshotModule : ISnapshotModule
     {
         var c64 = (C64)context.System;
 
-        // Model / timer mode (validation/diagnostics only).
+        // Model (validation/diagnostics only), then a reserved int that carried the CIA timer
+        // mode before the CIAs were always advanced per instruction.
         writer.WriteString(c64.Model.Name);
-        writer.WriteInt32((int)c64.TimerMode);
+        writer.WriteInt32(0);
 
         // Backing memory arrays. (v1 wrote the two raw 6510 port bytes here; since v2
         // the port travels as CPU model state in the cpu-6502 module.)
@@ -52,10 +53,7 @@ public sealed class C64CoreSnapshotModule : ISnapshotModule
             context.AddWarning(
                 $"c64-core: snapshot model '{capturedModel}' differs from target model '{c64.Model.Name}'.");
 
-        var capturedTimerMode = (TimerMode)reader.ReadInt32();
-        if (capturedTimerMode != c64.TimerMode)
-            context.AddWarning(
-                $"c64-core: snapshot timer mode '{capturedTimerMode}' differs from target '{c64.TimerMode}'.");
+        _ = reader.ReadInt32(); // reserved (formerly the CIA timer mode; the CIAs are now always exact)
 
         // v1 carried the raw 6510 port registers in this position; since v2 the port is
         // CPU model state restored by the cpu-6502 module. For a v1 payload the legacy

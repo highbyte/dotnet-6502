@@ -47,6 +47,44 @@ public class InternalSidState
     public Func<byte>? Env3ReadbackProvider { get; set; }
 
     /// <summary>
+    /// Receives every SID register write together with the CPU bus cycle it happened on. A sink
+    /// that returns true has applied the write at that exact cycle, so it is not also recorded in
+    /// the changed-register set drained at instruction end; false keeps the batched path. The
+    /// sample-accurate audio provider installs itself here; the command-stream provider does not
+    /// need it. Null when no consumer wants exact timing.
+    /// </summary>
+    public ISidRegisterWriteSink? RegisterWriteSink { get; set; }
+
+    /// <summary>
+    /// Cycles the SID's internal data bus keeps the last transferred byte before it decays to 0,
+    /// as measured on the 6581 (the 8580 holds it far longer; a chip-model setting can make this
+    /// per model). A read of a write-only register returns this latch, which is how software
+    /// that does a read-modify-write on a SID register (a loader's <c>DEC $D418</c> noise) really
+    /// behaves: the operation works on the last byte the chip saw.
+    /// </summary>
+    public const int BusLatchDecayCycles = 0x1D00;
+
+    private byte _busLatchValue;
+    private ulong _busLatchCycle;
+    private bool _busLatchLoaded;
+
+    /// <summary>Loads the chip's data-bus latch: every write, and every read of a readable register, does this.</summary>
+    public void LatchBusValue(byte value)
+    {
+        _busLatchValue = value;
+        _busLatchCycle = _c64.CPU.BusCycles;
+        _busLatchLoaded = true;
+    }
+
+    /// <summary>What a read of a write-only register returns: the bus latch until it has decayed.</summary>
+    public byte ReadWriteOnlyRegister()
+    {
+        if (!_busLatchLoaded)
+            return 0;
+        return _c64.CPU.BusCycles - _busLatchCycle < (ulong)BusLatchDecayCycles ? _busLatchValue : (byte)0;
+    }
+
+    /// <summary>
     /// Get volume 0-15.
     /// Common for all voices.
     /// </summary>
@@ -230,20 +268,29 @@ public class InternalSidState
 
     public void SetSidRegValue(ushort address, byte value)
     {
-        if (_sidRegistersThatAlwaysAreConsideredChangeWhenWrittenTo.Contains(address))
-        {
-            _changedSidRegisters.Add(address);
-        }
-        else
-        {
-            // Log sid register has changed since _changedSidRegisters last has been cleared.
-            if (_c64.ReadIOStorage(address) != value)
-                _changedSidRegisters.Add(address);
-            //if (_sidRegValues.ContainsKey(address) && _sidRegValues[address] != value)
-            //    _changedSidRegisters.Add(address);
-        }
+        var changed = _sidRegistersThatAlwaysAreConsideredChangeWhenWrittenTo.Contains(address)
+            || _c64.ReadIOStorage(address) != value;
 
         _c64.WriteIOStorage(address, value);
-        //_sidRegValues[address] = value;
+        LatchBusValue(value);
+
+        // The write happens on the CPU's current bus cycle (the counter already includes it).
+        if (RegisterWriteSink is not null && RegisterWriteSink.OnRegisterWrite(address, value, _c64.CPU.BusCycles))
+            return;
+
+        // Batched path: remembered until a provider drains the changed set at instruction end.
+        if (changed)
+            _changedSidRegisters.Add(address);
     }
+}
+
+/// <summary>Consumer of SID register writes at their exact bus cycle; see <see cref="InternalSidState.RegisterWriteSink"/>.</summary>
+public interface ISidRegisterWriteSink
+{
+    /// <summary>
+    /// Called for a write of <paramref name="value"/> to <paramref name="address"/> on CPU bus
+    /// cycle <paramref name="busCycle"/>. Return true when the write has been applied at that
+    /// cycle; return false to let it fall back to the batched changed-register path.
+    /// </summary>
+    bool OnRegisterWrite(ushort address, byte value, ulong busCycle);
 }

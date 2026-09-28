@@ -1,0 +1,16 @@
+{
+  "commit": "2f6980a2d95757486c7bee24355c360e40e2a224",
+  "perOpcode": 20,
+  "sets": {
+    "6502": {
+      "file": "6502.jsonl.gz",
+      "vectors": 5120,
+      "sha256": "9f84e90b25aebe52f8eb114b42a35f50b6b29b4430ac9abb1106feab39c91aa0"
+    },
+    "wdc65c02": {
+      "file": "wdc65c02.jsonl.gz",
+      "vectors": 5080,
+      "sha256": "b3dd105c23c67e0882707db9c3ebb8687d3fd60250365983da2260f9566cd123"
+    }
+  }
+}

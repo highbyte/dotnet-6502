@@ -20,6 +20,12 @@ For the user-facing debugging guide, see [Tools / VSCode debugger / Debugging](.
 - `DebugAdapterLogic` — core DAP request/response logic.
 - `Ca65DbgParser` — debug symbol parser.
 
+Breakpoints, conditions and stepping are shared with the built-in monitor through
+`DebuggerBreakpointEvaluator` and `BreakpointConditionEvaluator` in `Highbyte.DotNet6502.Systems`. A
+system that implements `IDebugValueSource` (the C64 does, with its VIC-II position) has its values shown as
+a Variables scope, evaluated on hover, accepted in conditions, and offered as `run` targets in the Debug
+Console; the evaluator's `RunUntilCondition` backs the `run until` command and the monitor's `gu`.
+
 ### Console application
 
 `Highbyte.DotNet6502.DebugAdapter.ConsoleApp`:

@@ -191,12 +191,13 @@ public class D64DiskImage
     }
 
     /// <summary>
-    /// Calculate the number of free blocks by reading the BAM (Block Availability Map)
+    /// The number of free blocks as the directory listing shows it: the 664 blocks a standard
+    /// 35-track disk has for files (track 18 excluded) minus the blocks of the directory's files.
+    /// The BAM (Block Availability Map, held in <see cref="BamSector"/>) is not consulted, so a
+    /// disk whose BAM disagrees with its directory shows a different count than a real drive.
     /// </summary>
     private int CalculateFreeBlocks()
     {
-        // Use calculation that matches VICE: 664 total capacity minus used blocks
-        // Standard D64 has 664 blocks available for files (excluding directory track)
         return 664 - TotalBlocks;
     }
 

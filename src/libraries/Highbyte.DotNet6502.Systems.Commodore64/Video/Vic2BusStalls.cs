@@ -1,0 +1,171 @@
+namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
+
+/// <summary>
+/// The VIC-II's claim on the bus, as seen by the CPU. On a bad line the VIC-II fetches the 40
+/// video matrix bytes during cycles 15-54 and pulls BA low three cycles earlier (cycle 12); for
+/// every sprite with DMA on it fetches the sprite pointer and three data bytes in two cycles, BA
+/// low three cycles ahead. The 6510 stalls on its first read while BA is low and resumes when BA
+/// goes high, so a read that lands inside such a window waits until the window ends; writes are
+/// never stalled. Windows are derived from the raster position of the read and the current VIC-II
+/// registers.
+///
+/// <para>Sprite DMA comes from the VIC-II's per-sprite DMA state (<see cref="Vic2.SpriteDmaMask"/>),
+/// which switches on at the Y compare in cycle 55 and runs until the row counter has fetched the
+/// sprite's last row; the VIC-II is caught up to the read's cycle first so that state is current,
+/// and a sprite the compare is about to switch on (<see cref="Vic2.SpriteDmaStartMask"/>) counts
+/// for the windows that start with the compare. The bad line condition is the VIC-II's own
+/// (<see cref="Vic2.IsBadLine"/>): DEN as seen during line $30, not as it is at the read.</para>
+///
+/// <para>Cycle numbering follows the usual VIC-II documentation: cycle 1 is the first cycle of a
+/// line. Internally 0-based offsets within the line are used.</para>
+/// </summary>
+internal sealed class Vic2BusStalls : IBusStallSource
+{
+    private const int BadLineBaLowOffset = 11;    // cycle 12
+    private const int BadLineBaHighOffset = 54;   // cycle 55
+    private const int SpriteBaLeadCycles = 3;
+    private const int SpriteDmaCycles = 2;
+
+    private readonly Vic2 _vic2;
+    private readonly C64 _c64;
+    private readonly int _cyclesPerLine;
+
+    // Merged BA-low windows for one line, as 0-based offsets from the line start; ends exclusive.
+    private readonly (int Start, int End)[] _windows = new (int, int)[16];
+    private int _windowCount;
+
+    public Vic2BusStalls(Vic2 vic2)
+    {
+        _vic2 = vic2;
+        _c64 = vic2.C64;
+        _cyclesPerLine = (int)vic2.Vic2Model.CyclesPerLine;
+    }
+
+    public ulong StallCyclesForRead(ulong busCycle, out ulong nextCheckBusCycle)
+    {
+        // Bring the VIC-II to the cycle this read occupies (busCycle - 1 cycles have completed), so
+        // its raster line and sprite DMA state are those of the read.
+        _vic2.CatchUpTo(busCycle - 1);
+        var frameIndex = _vic2.CyclesConsumedCurrentVblank;
+
+        var line = (int)(frameIndex / (ulong)_cyclesPerLine);
+        var offset = (int)(frameIndex % (ulong)_cyclesPerLine);
+
+        BuildWindows(line, offset);
+
+        for (var i = 0; i < _windowCount; i++)
+        {
+            var (start, end) = _windows[i];
+            if (offset < start)
+            {
+                // Bus is free now; ask again when this window begins.
+                nextCheckBusCycle = busCycle + (ulong)(start - offset);
+                return 0;
+            }
+            if (offset < end)
+            {
+                var stall = (ulong)(end - offset);
+                // The read completes at `end`; the next window (if any) begins after it.
+                var nextStart = i + 1 < _windowCount ? _windows[i + 1].Start : _cyclesPerLine;
+                nextCheckBusCycle = busCycle + stall + (ulong)(nextStart - end);
+
+                // The VIC-II's own fetches happen while the CPU waits, before the CPU's next write.
+                // Bring the VIC-II and the renderer through the stalled cycles now, so what the VIC-II
+                // fetched (a bad line's video matrix row) reflects memory as it was, not as the
+                // stalled instruction is about to leave it.
+                _vic2.CatchUpTo(busCycle - 1 + stall);
+                _c64.Vic2CycleRenderer?.CatchUpToVic2();
+                return stall;
+            }
+        }
+
+        // No window left on this line: re-evaluate at the start of the next line.
+        nextCheckBusCycle = busCycle + (ulong)(_cyclesPerLine - offset);
+        return 0;
+    }
+
+    /// <summary>
+    /// The BA-low windows that can cover cycles of the given line: the line's own bad-line window
+    /// and sprite DMA (sprites 0-2 fetch at the end of the line, 3-7 at the start of the next), and
+    /// the previous line's sprite 3-7 DMA that runs into this line. Windows beyond the line are
+    /// kept (a stall may run past the line end); overlapping and adjacent windows are merged.
+    /// </summary>
+    private void BuildWindows(int line, int offset)
+    {
+        _windowCount = 0;
+
+        var activePrevious = _vic2.SpriteDmaMaskPreviousLine;
+        for (var n = 3; n < 8; n++)
+            if ((activePrevious & (1 << n)) != 0)
+                AddWindow(SpritePointerOffset(n) - _cyclesPerLine);
+
+        if (IsBadLine(line))
+            AddRange(BadLineBaLowOffset, BadLineBaHighOffset);
+
+        // The compare in cycle 55 switches DMA on in the same cycle sprite 0's window begins, so
+        // a sprite about to start counts here; the read that hits the window is re-evaluated there.
+        // Only until the second compare has been made: a sprite enabled after it, or whose Y is
+        // written to the line after it, does not start on this line and takes no bus.
+        var secondCompareOffset = SpritePointerOffset(0) - 2;
+        var active = offset < secondCompareOffset
+            ? (byte)(_vic2.SpriteDmaMask | _vic2.SpriteDmaStartMask(line))
+            : _vic2.SpriteDmaMask;
+        for (var n = 0; n < 8; n++)
+            if ((active & (1 << n)) != 0)
+                AddWindow(SpritePointerOffset(n));
+
+        SortAndMerge();
+    }
+
+    // 0-based offset (from the line start) of the sprite pointer fetch: sprite 0 in cycle 58 (1-based)
+    // on the 6569 and 59 on the 6567R8, the others two cycles apart, so sprites 0-2 fetch at the
+    // end of the line and 3-7 at the start of the next (on the 6567R8 sprite 3's fetch is the
+    // line's 65th cycle). The NTSC chip's two extra cycles are not spread over the line: its sprite
+    // fetches sit one cycle later than PAL's in absolute terms, so the CPU gets the bus back one cycle
+    // later, not two.
+    private int SpritePointerOffset(int sprite)
+        => (_cyclesPerLine == 63 ? 57 : 58) + 2 * sprite;
+
+    private void AddWindow(int pointerOffset)
+        => AddRange(pointerOffset - SpriteBaLeadCycles, pointerOffset + SpriteDmaCycles);
+
+    private void AddRange(int start, int end)
+    {
+        if (end <= 0 || _windowCount == _windows.Length)
+            return;
+        _windows[_windowCount++] = (start, end);
+    }
+
+    private void SortAndMerge()
+    {
+        for (var i = 1; i < _windowCount; i++)
+        {
+            var w = _windows[i];
+            var j = i - 1;
+            while (j >= 0 && _windows[j].Start > w.Start)
+            {
+                _windows[j + 1] = _windows[j];
+                j--;
+            }
+            _windows[j + 1] = w;
+        }
+
+        var merged = 0;
+        for (var i = 0; i < _windowCount; i++)
+        {
+            if (merged > 0 && _windows[i].Start <= _windows[merged - 1].End)
+            {
+                if (_windows[i].End > _windows[merged - 1].End)
+                    _windows[merged - 1].End = _windows[i].End;
+            }
+            else
+            {
+                _windows[merged++] = _windows[i];
+            }
+        }
+        _windowCount = merged;
+    }
+
+    // The VIC-II's own decision: DEN as seen during raster line $30, not as it is now.
+    private bool IsBadLine(int line) => _vic2.IsBadLine(line);
+}

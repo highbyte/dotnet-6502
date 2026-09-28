@@ -6,6 +6,8 @@ namespace Highbyte.DotNet6502.Systems.Debugger;
 /// Supported syntax:
 ///   Registers:   A, X, Y, SP, PC          (case-insensitive)
 ///   Flags:       C, Z, N, V, I, D, B      (Carry/Zero/Negative/Overflow/IRQ/Decimal/Break, as 0/1)
+///   System:      the names an <see cref="IDebugValueSource"/> exposes, such as a C64's
+///                RASTER and CYCLE (see the system's documentation)
 ///   Memory:      [$addr]  or  [$addr + reg]
 ///   Literals:    $hex, 0xhex, decimal
 ///   Operators:   ==  !=  &lt;  &lt;=  &gt;  &gt;=
@@ -18,6 +20,7 @@ namespace Highbyte.DotNet6502.Systems.Debugger;
 ///   [$D020] == $01
 ///   [$0300 + X] &gt; $7F
 ///   A == $FF &amp;&amp; X == 0
+///   RASTER == 100 &amp;&amp; CYCLE &gt;= 20
 ///
 /// On any parse or evaluation error the method returns <c>true</c> so the breakpoint
 /// is not accidentally suppressed.
@@ -30,18 +33,57 @@ public static class BreakpointConditionEvaluator
     /// Returns <c>true</c> on any parse / evaluation error (fail-safe).
     /// </summary>
     public static bool Evaluate(string condition, CPU cpu, Memory memory)
+        => Evaluate(condition, cpu, memory, debugValues: null);
+
+    /// <summary>
+    /// As <see cref="Evaluate(string, CPU, Memory)"/>, with the names of
+    /// <paramref name="debugValues"/> (when given) available as operands.
+    /// </summary>
+    public static bool Evaluate(string condition, CPU cpu, Memory memory, IDebugValueSource? debugValues)
     {
         if (string.IsNullOrWhiteSpace(condition))
             return true;
 
         try
         {
-            var evaluator = new Evaluator(condition.Trim(), cpu, memory);
+            var evaluator = new Evaluator(condition.Trim(), cpu, memory, debugValues);
             return evaluator.ParseOrExpr();
         }
         catch
         {
             return true;  // fail-safe: always stop on error
+        }
+    }
+
+    /// <summary>
+    /// Checks that <paramref name="condition"/> parses and evaluates against the current state,
+    /// for a debugger to reject a mistyped condition up front instead of stopping on it at once.
+    /// <paramref name="error"/> describes the first problem, or is null when the condition is fine.
+    /// </summary>
+    public static bool TryParse(string condition, CPU cpu, Memory memory, IDebugValueSource? debugValues, out string? error)
+    {
+        if (string.IsNullOrWhiteSpace(condition))
+        {
+            error = "The condition is empty.";
+            return false;
+        }
+
+        try
+        {
+            var evaluator = new Evaluator(condition.Trim(), cpu, memory, debugValues);
+            evaluator.ParseOrExpr();
+            if (!evaluator.AtEnd)
+            {
+                error = $"Unexpected text at position {evaluator.Position} in '{condition.Trim()}'";
+                return false;
+            }
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
         }
     }
 
@@ -55,12 +97,25 @@ public static class BreakpointConditionEvaluator
         private int _pos;
         private readonly CPU _cpu;
         private readonly Memory _memory;
+        private readonly IDebugValueSource? _debugValues;
 
-        public Evaluator(string input, CPU cpu, Memory memory)
+        public Evaluator(string input, CPU cpu, Memory memory, IDebugValueSource? debugValues)
         {
             _input = input;
             _cpu = cpu;
             _memory = memory;
+            _debugValues = debugValues;
+        }
+
+        public int Position => _pos;
+
+        public bool AtEnd
+        {
+            get
+            {
+                SkipWhitespace();
+                return _pos >= _input.Length;
+            }
         }
 
         // or-expr = and-expr ( '||' and-expr )*
@@ -108,7 +163,7 @@ public static class BreakpointConditionEvaluator
         }
 
         // operand = '[' address ('+' reg)? ']'  |  identifier  |  number
-        private int ParseOperand()
+        private long ParseOperand()
         {
             SkipWhitespace();
 
@@ -122,7 +177,7 @@ public static class BreakpointConditionEvaluator
         }
 
         // [$addr]  or  [$addr + reg]
-        private int ParseMemoryRef()
+        private long ParseMemoryRef()
         {
             Consume('[');
             SkipWhitespace();
@@ -145,7 +200,7 @@ public static class BreakpointConditionEvaluator
         }
 
         // Register or flag name
-        private int ParseIdentifier()
+        private long ParseIdentifier()
         {
             SkipWhitespace();
             int start = _pos;
@@ -155,14 +210,14 @@ public static class BreakpointConditionEvaluator
 
             return name switch
             {
-                // 16-bit register — widened to int
-                "PC" => (int)_cpu.PC,
+                // 16-bit register — widened to long
+                "PC" => _cpu.PC,
 
-                // 8-bit registers — widened to int (unsigned)
-                "A"  => (int)_cpu.A,
-                "X"  => (int)_cpu.X,
-                "Y"  => (int)_cpu.Y,
-                "SP" => (int)_cpu.SP,
+                // 8-bit registers — widened to long (unsigned)
+                "A"  => _cpu.A,
+                "X"  => _cpu.X,
+                "Y"  => _cpu.Y,
+                "SP" => _cpu.SP,
 
                 // Status flags — 0 or 1
                 "C"  => _cpu.ProcessorStatus.Carry           ? 1 : 0,
@@ -173,19 +228,27 @@ public static class BreakpointConditionEvaluator
                 "D"  => _cpu.ProcessorStatus.Decimal         ? 1 : 0,
                 "B"  => _cpu.ProcessorStatus.Break           ? 1 : 0,
 
-                _    => throw new FormatException($"Unknown register or flag '{name}'")
+                _    => LookupDebugValue(name)
             };
         }
 
+        // A name the system exposes (such as a C64's RASTER): the fallback for an unknown identifier.
+        private long LookupDebugValue(string name)
+        {
+            if (_debugValues != null && _debugValues.TryGetDebugValue(name, out var value))
+                return value;
+            throw new FormatException($"Unknown register, flag or value '{name}'");
+        }
+
         // Numeric literal: $hex, 0xhex, or decimal
-        private int ParseNumber()
+        private long ParseNumber()
         {
             SkipWhitespace();
 
             if (_pos < _input.Length && _input[_pos] == '$')
             {
                 _pos++; // consume '$'
-                return (int)ReadHexDigits();
+                return ReadHexDigits();
             }
 
             if (_pos + 1 < _input.Length
@@ -193,7 +256,7 @@ public static class BreakpointConditionEvaluator
                 && (_input[_pos + 1] == 'x' || _input[_pos + 1] == 'X'))
             {
                 _pos += 2; // consume '0x'
-                return (int)ReadHexDigits();
+                return ReadHexDigits();
             }
 
             // Decimal
@@ -203,7 +266,7 @@ public static class BreakpointConditionEvaluator
             if (_pos == start)
                 throw new FormatException($"Expected number at position {_pos} in '{_input}'");
 
-            return int.Parse(_input.Substring(start, _pos - start));
+            return long.Parse(_input.Substring(start, _pos - start));
         }
 
         private uint ReadHexDigits()

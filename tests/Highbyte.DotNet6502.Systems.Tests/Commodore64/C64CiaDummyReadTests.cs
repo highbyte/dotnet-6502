@@ -49,15 +49,17 @@ public class C64CiaDummyReadTests
 
     /// <summary>
     /// Raises the CIA1 timer A interrupt flag through the public register interface:
-    /// program a 1-tick timer, start it, and advance time past the underflow.
+    /// program a 1-tick one-shot timer, start it, and advance time past the underflow (the start
+    /// pipeline holds the counter for two cycles, then it underflows). One-shot,
+    /// so the timer stops after setting the flag and cannot set it again during the test.
     /// (The interrupt MASK stays disabled, so only the flag is set — no IRQ fires.)
     /// </summary>
     private static void RaiseTimerAInterruptFlag(C64 c64)
     {
         c64.Mem[CiaAddr.CIA1_TIMALO] = 0x01;
         c64.Mem[CiaAddr.CIA1_TIMAHI] = 0x00;
-        c64.Mem[CiaAddr.CIA1_CIACRA] = 0b0000_0001; // start timer A
-        c64.Cia1.ProcessTimers(cyclesExecuted: 3);
+        c64.Mem[CiaAddr.CIA1_CIACRA] = 0b0000_1001; // one-shot, start timer A
+        c64.Cia1.ProcessTimers(cyclesExecuted: 5);
     }
 
     private static C64 BuildC64()

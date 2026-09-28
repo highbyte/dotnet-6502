@@ -47,7 +47,6 @@ public class C64SpriteRenderBenchmark
             C64Model = "C64NTSC",
             Vic2Model = "NTSC",
             LoadROMs = false,
-            TimerMode = TimerMode.UpdateEachRasterLine,
             AudioEnabled = false,
             InstrumentationEnabled = false,
         };

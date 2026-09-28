@@ -85,7 +85,7 @@ public class D64Parser
         diskImage.DiskIdPetscii = diskIdBytes;
         diskImage.DiskId = PetsciiToAscii(diskIdBytes);
 
-        // Store BAM sector for free blocks calculation
+        // Keep the BAM sector; the free-block count does not use it (see D64DiskImage.CalculateFreeBlocks).
         diskImage.BamSector = bamSector;
 
         // Read directory entries

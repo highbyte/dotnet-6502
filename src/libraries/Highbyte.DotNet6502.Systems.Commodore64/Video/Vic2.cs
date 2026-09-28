@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -19,7 +20,28 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 public class Vic2
 {
     public C64 C64 { get; private set; } = default!;
-    public Vic2ModelBase Vic2Model { get; private set; } = default!;
+    private Vic2ModelBase _vic2Model = default!;
+    public Vic2ModelBase Vic2Model
+    {
+        get => _vic2Model;
+        private set
+        {
+            _vic2Model = value;
+            // The model's constants the raster advance needs on every call, cached: the properties
+            // are abstract, and a virtual call per emulated instruction is a measurable share of it.
+            _cyclesPerLine = (int)value.CyclesPerLine;
+            // Sprite 0's pointer access is in cycle 58 on the 63-cycle line and 59 on the 65-cycle one.
+            var spritePointerOffset0 = _cyclesPerLine == 63 ? 57 : 58;
+            SpriteEventOffsets[1] = spritePointerOffset0 - 3;
+            SpriteEventOffsets[2] = spritePointerOffset0 - 2;
+            SpriteEventOffsets[3] = spritePointerOffset0;
+            _cyclesPerFrame = value.CyclesPerFrame;
+            _totalHeight = value.TotalHeight;
+        }
+    }
+    private int _cyclesPerLine;
+    private ulong _cyclesPerFrame;
+    private int _totalHeight;
     public Vic2Screen Vic2Screen { get; private set; } = default!;
     /// <summary>
     /// Vic2 screem memory for text, graphics and sprites.
@@ -31,6 +53,106 @@ public class Vic2
     private ILogger _logger = default!;
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
+
+    /// <summary>Frames the raster has completed since power-on. For debuggers.</summary>
+    public ulong FrameCount { get; private set; }
+
+    /// <summary>
+    /// The CPU bus cycle (<see cref="CPU.BusCycles"/>) this VIC-II has been advanced to. The C64
+    /// catches the VIC-II up to the current bus cycle at every instruction boundary and, through
+    /// the register mappings, to the cycle of every VIC-II register access, so a raster read or a
+    /// raster-compare write sees the position at its own cycle instead of the previous
+    /// instruction boundary.
+    /// </summary>
+    private ulong _advancedToBusCycle;
+    internal ulong AdvancedToBusCycle => _advancedToBusCycle;
+
+    // --- Sprite DMA and display (VIC-II article, section 3.8.1) ---
+    // Each sprite has a data counter MC, loaded from its base MCBASE in cycle 58, and an expansion
+    // flip-flop for the Y expansion. The flip-flop is inverted if the sprite's Y-expand bit is set,
+    // by the article in the first phase of cycle 55, on the chip a cycle later: a bit set by a
+    // write in cycle 55 is still inverted, one set in cycle 56 is not (VICE's spritecrunch2 test
+    // programs, whose writes move a cycle every eight lines). In cycles 55 and 56 a sprite that is enabled and whose Y equals
+    // the raster line's low byte gets its DMA switched on, MCBASE cleared and (if Y-expanded) the
+    // flip-flop cleared. In cycle 58 MC is loaded from MCBASE and the display is switched on for a
+    // sprite whose DMA is on and whose Y matches. In cycles 15 and 16 MCBASE advances by 2 and 1
+    // if the flip-flop is set, and a sprite whose MCBASE has reached 63 has its DMA and display
+    // switched off. The flip-flop is set as long as the Y-expand bit is cleared. So a Y-expanded
+    // sprite fetches the same row on two lines, a mid-sprite change of the expand bit changes the
+    // count of lines from there on, and a Y written to a line the raster has already passed does
+    // nothing until the raster comes round again. The events are applied as the raster advances,
+    // so a register write lands before or after a cycle's check according to its own cycle.
+    private readonly byte[] _spriteMcBase = new byte[8];
+    private readonly byte[] _spriteMc = new byte[8];
+    // The count after the three data accesses, separate from MC's public row-start value.
+    private readonly byte[] _spriteFetchEnd = new byte[8];
+    // The sprite registers the events read, cached: refreshed from the IO storage when a line is
+    // entered and by the register writes in between, so the events do not go through the storage
+    // for every sprite on every line.
+    private readonly byte[] _spriteYCache = new byte[8];
+    private byte _spriteEnableCache;
+    private byte _spriteYExpandCache;
+    // The enabled sprites whose Y names a line, computed once per line and kept until a Y or
+    // enable write: the two compares of a line and the bus stall model's checks all ask for it.
+    private int _spriteYMatchLine = -1;
+    private byte _spriteYMatchMask;
+
+    // --- Sprite X compare per pixel ---
+    // The chip compares every sprite's X register with the beam's X coordinate at every pixel and
+    // starts shifting the sprite's data register out where they match. A program can write an X
+    // register in the middle of a line, so the writes of the current line are journalled with
+    // their cycle and the line's sprite output is derived when the line ends (EndLineSprites),
+    // from the X in force at each pixel: a write in a cycle is seen by the compare from that
+    // cycle's pixel 4 on (the CPU writes in the cycle's second phase). Once the compare has
+    // matched, the sprite shifts its 24 (48) pixels out whatever later writes do; a match after
+    // the register has been shifted out shows nothing until the sprite's own fetch has loaded the
+    // next row, and a match while that fetch is under way is ignored.
+    // The priority, multicolour and X-expand registers go through the same journal: the sprite
+    // data sequencer reads them at every pixel, so a write while a sprite shifts changes its
+    // output from a pixel on. The priority and X-expand bits are read two pixels before an X
+    // write is seen, the multicolour bits one pixel before (the register-to-pixel timings VICE's
+    // spritesplit test programs show).
+    private const int SpriteXJournalCapacity = 64;
+    private readonly ushort[] _spriteXJournalRegister = new ushort[SpriteXJournalCapacity];
+    private readonly byte[] _spriteXJournalValue = new byte[SpriteXJournalCapacity];
+    private readonly int[] _spriteXJournalPixel = new int[SpriteXJournalCapacity];   // the line pixel index the write is seen from
+    private int _spriteXJournalCount;
+    private const int SpriteWriteVisiblePixel = 4;
+    // Sprites whose DMA the second compare started: sprite 0's pointer access follows two cycles
+    // later, one cycle short of the three BA needs to stop the CPU, so its first data byte is read
+    // while the CPU still has the bus and comes back as $FF. Read and cleared by the next line's
+    // sprite snapshot.
+    public byte SpriteFirstDataByteUnavailable { get; private set; }
+    public void ClearSpriteFirstDataByteUnavailable() => SpriteFirstDataByteUnavailable = 0;
+    private const int SpriteModeWriteVisiblePixel = 2;        // priority and X-expand
+    private const int SpriteMultiColorWriteVisiblePixel = 3;
+    private readonly bool[] _spriteExpandFlipFlop = { true, true, true, true, true, true, true, true };
+    private const int SpriteCrunchCycleOffset = 14;        // cycle 15: a Y-expand write here crunches
+    private const int SpriteEventMcBaseUpdateOffset = 15;  // cycle 16
+    // The line's sprite events in order (0-based cycle offsets): the MCBASE update in cycle 16,
+    // the two compares that start a sprite's DMA, and the display decision. The compares and the
+    // decision sit at fixed distances from sprite 0's pointer access: cycles 55, 56 and 58 on the
+    // 6569, where that access is in cycle 58; one later on the 6567R8, whose 65-cycle line has it
+    // in cycle 59 (the article gives the 6569's numbers).
+    private readonly int[] SpriteEventOffsets = { SpriteEventMcBaseUpdateOffset, 54, 55, 57 };
+    // The events of the current line are applied in order as the raster advances: the index of
+    // the next one and its offset (int.MaxValue once the line's events are all applied), so an
+    // advance that reaches no event costs one compare.
+    private int _spriteEventIndex;
+    private int _nextSpriteEventOffset = SpriteEventMcBaseUpdateOffset;
+
+    /// <summary>
+    /// Sprites whose DMA is on (bit n = sprite n): switched on in cycle 55 or 56 of the line the
+    /// sprite's Y names, off in cycle 16 of the line after its last row. Consumed by the bus stall
+    /// model, which anticipates the switch-on with <see cref="SpriteDmaStartMask"/>.
+    /// </summary>
+    public byte SpriteDmaMask { get; private set; }
+    /// <summary>The DMA mask as it stood when the current line began: the sprites 3-7 fetching in its first cycles.</summary>
+    public byte SpriteDmaMaskPreviousLine { get; private set; }
+    /// <summary>Sprites whose display is on, as decided in cycle 58 of the previous line.</summary>
+    public byte SpriteDisplayMask { get; private set; }
+    /// <summary>The sprite's data counter as loaded in cycle 58 of the previous line: the offset of the row its next line shows.</summary>
+    public byte SpriteMc(int sprite) => _spriteMc[sprite];
 
     public byte CurrentVIC2Bank { get; private set; }
 
@@ -92,6 +214,199 @@ public class Vic2
 
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
+
+    // --- Vertical state: display enable latch, display/idle state, row counters, border flip-flop.
+    // The VIC-II decides once per frame whether it will fetch the video matrix at all: DEN has to be
+    // set during some cycle of raster line $30. Bad lines then occur on the lines whose low three
+    // bits equal YSCROLL, each starting a row (display state, RC = 0); after the row's eighth line
+    // the chip drops to idle state until the next bad line. The vertical border flip-flop is set
+    // when the raster is on the bottom compare line and reset on the top compare line only if DEN
+    // is set then, so a display that is switched off shows border colour everywhere, and a program
+    // that keeps the raster from ever matching the bottom compare line keeps the border open.
+    private const int BadLineFirstRasterLine = 0x30;
+    private const int BadLineLastRasterLine = 0xF7;
+    private const int RowLines = 8;
+    private const int BadLineDecisionCycle = 14;  // RC is reset if the condition holds at this cycle
+    // The border unit evaluates its left compare in the cycle after the one X 24 falls in (index 16,
+    // one later with 38 columns), with the registers as written before that cycle.
+    private const int BorderDecisionCycle = 16;
+    private bool _displayEnabledLatch;
+    private bool _displayState;
+    // Whether the raster compare currently matches: the interrupt is
+    // raised when the comparison goes from non-match to match, not while it stays matched.
+    private bool _rasterIrqConditionMet;
+    private ushort _videoCounterBase;
+    private byte _rowCounter;
+    // The state a line entered with, so a $D011 write early in the line can redo its bad line decision.
+    private bool _displayStateAtLineStart;
+    private byte _rowCounterAtLineStart;
+    private Vic2LineDisplayState[] _lineDisplayStates = default!;
+
+    /// <summary>The vertical state the VIC-II settled for a raster line when the raster entered it.</summary>
+    public Vic2LineDisplayState GetLineDisplayState(int rasterLine) => _lineDisplayStates[rasterLine];
+
+    /// <summary>
+    /// Whether DEN was seen set during raster line $30 of the current frame, which is what decides
+    /// whether any line of the frame can be a bad line.
+    /// </summary>
+    public bool DisplayEnabledThisFrame => _displayEnabledLatch;
+
+    /// <summary>
+    /// The bad line condition for a raster line: inside the display area's line range, low three
+    /// bits equal to YSCROLL, and the display enabled for this frame.
+    /// </summary>
+    public bool IsBadLine(int rasterLine)
+    {
+        if (rasterLine < BadLineFirstRasterLine || rasterLine > BadLineLastRasterLine)
+            return false;
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+        return _displayEnabledLatch && (rasterLine & 7) == (control & 7);
+    }
+
+    // Settle the vertical state for a line the raster has just entered. Called for every line
+    // crossed, in order, so the counters advance line by line as on the chip.
+    private void EnterLineVerticalState(ushort line)
+    {
+        // The previous line's cycle 58: in display state RC advances, and the row's eighth line
+        // ends it (idle state, VCBASE takes the row's advance of 40).
+        if (_displayState)
+        {
+            if (_rowCounter == RowLines - 1)
+            {
+                _displayState = false;
+                _videoCounterBase = (ushort)((_videoCounterBase + Vic2Screen.TextCols) & 0x3FF);
+            }
+            else
+            {
+                _rowCounter++;
+            }
+        }
+
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+
+        // VCBASE is reset once per frame, outside the bad line range; the chip does it in line 0.
+        if (line == 0)
+            _videoCounterBase = 0;
+
+        // DEN is sampled through raster line $30; a write during the line ORs in (see the store).
+        if (line == BadLineFirstRasterLine)
+            _displayEnabledLatch = (control & 0x10) != 0;
+
+        _displayStateAtLineStart = _displayState;
+        _rowCounterAtLineStart = _rowCounter;
+        VerticalBorderLineEntry(line, control);
+        ApplyBadLineDecision(line);
+    }
+
+    // --- The vertical border flip-flop: clean-room specification B5 ---
+    private bool _verticalBorderCurrent = true;
+    private bool _verticalBorderPending = true;
+
+    /// <summary>
+    /// The raster has entered <paramref name="line"/>, with $D011 as <paramref name="control"/>:
+    /// settle the line's vertical border state.
+    /// </summary>
+    private void VerticalBorderLineEntry(ushort line, byte control)
+    {
+        CompareVerticalBorder(line, control);
+        _verticalBorderCurrent = _verticalBorderPending;
+    }
+
+    /// <summary>
+    /// $D011 was written as <paramref name="control"/> in cycle <paramref name="cycleInLine"/>
+    /// (0-based) of <paramref name="line"/>, not its last cycle. Returns whether the line's
+    /// published state has to be refreshed.
+    /// </summary>
+    private bool VerticalBorderControlWritten(ushort line, byte control, int cycleInLine)
+    {
+        CompareVerticalBorder(line, control);
+        var leftCompare = BorderDecisionCycle + (Is38ColumnDisplayEnabled ? 1 : 0);
+        if (cycleInLine >= leftCompare)
+            return false;
+        _verticalBorderCurrent = _verticalBorderPending;
+        return true;
+    }
+
+    private void CompareVerticalBorder(ushort line, byte control)
+    {
+        var tall = (control & 8) != 0;
+        if (line == (tall ? 51 : 55) && (control & 0x10) != 0)
+        {
+            _verticalBorderCurrent = false;
+            _verticalBorderPending = false;
+        }
+        else if (line == (tall ? 251 : 247))
+        {
+            // A late RSEL write closes the next line; the published line stays as it was.
+            // This is the distinction exercised by VICE's vborder test programs.
+            _verticalBorderPending = true;
+        }
+    }
+
+    /// <summary>Whether the vertical border covers the current line: what is published for it.</summary>
+    private bool VerticalBorderClosed => _verticalBorderCurrent;
+
+    // Decide the line's bad line condition from the registers as they are now, and record the
+    // line's state. Called when the line is entered and again if $D011 is written before the
+    // chip's decision cycle, so a program that changes YSCROLL at the start of a line gets the
+    // line it asked for.
+    private void ApplyBadLineDecision(ushort line)
+    {
+        if (IsBadLine(line))
+        {
+            _displayState = true;
+            _rowCounter = 0;
+        }
+        else
+        {
+            _displayState = _displayStateAtLineStart;
+            _rowCounter = _rowCounterAtLineStart;
+        }
+        StoreLineState(line);
+    }
+
+    private void StoreLineState(ushort line)
+        => _lineDisplayStates[line] = new Vic2LineDisplayState(_displayState, VerticalBorderClosed, _videoCounterBase, _rowCounter);
+
+    // A $D011 write: DEN during line $30 counts for the frame; the vertical border compares see the
+    // new value at once, and a write before this line's decision cycles can still change the line's
+    // border flip-flop and bad line condition.
+    private void OnScreenControlWritten()
+    {
+        var line = _currentRasterLineInternal;
+        if (line == ushort.MaxValue)
+            return;
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+        var displayEnabled = (control & 0x10) != 0;
+        if (line == BadLineFirstRasterLine && displayEnabled)
+            _displayEnabledLatch = true;
+
+        // The chip compares in the cycle after the write. For a write in the line's last cycle that
+        // is the first cycle of the next line, whose entry evaluates the compares with this value
+        // (VICE's border/vborder tests: RSEL cleared in line 247's last cycle leaves the border open).
+        var cyclesIntoLine = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine;
+        if (cyclesIntoLine == Vic2Model.CyclesPerLine - 1)
+            return;
+        var republish = VerticalBorderControlWritten(line, control, (int)cyclesIntoLine);
+        if (cyclesIntoLine < (ulong)BadLineDecisionCycle)
+            ApplyBadLineDecision(line);
+        else if (republish)
+            StoreLineState(line);
+    }
+
+    // A $D011 or $D012 write changed the raster compare value: the chip compares again in the next
+    // cycle. When the write is in a line's last cycle that next cycle is the first of the following
+    // line, and the comparison there is the one made as the raster enters that line.
+    private void OnRasterCompareWritten()
+    {
+        if (_currentRasterLineInternal == ushort.MaxValue)
+            return;
+        var cyclesIntoLine = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine;
+        if (cyclesIntoLine == Vic2Model.CyclesPerLine - 1)
+            return;
+        // The write is in the bus cycle after the last one the VIC-II has been advanced through.
+        CheckRasterIrq(C64.CPU, _advancedToBusCycle + 2);
+    }
 
     public bool Is38ColumnDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
     public byte FineScrollXValue => (byte)(C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
@@ -164,8 +479,18 @@ public class Vic2
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineIORegisterValues = screenLineData,
+            _lineDisplayStates = new Vic2LineDisplayState[vic2Model.TotalHeight],
             _logger = loggerFactory.CreateLogger(nameof(Vic2)),
         };
+        // Until the raster has entered a line, the lines read as a plain 25-row frame with the
+        // display on: idle state, border open across the display area. Anything drawn before the
+        // raster has run a frame (a sprite test, a first partial frame) then lands where it would
+        // on such a frame instead of being covered by border everywhere.
+        for (var line = 0; line < vic2._lineDisplayStates.Length; line++)
+        {
+            var insideDisplayArea = line >= 51 && line <= 250;
+            vic2._lineDisplayStates[line] = new Vic2LineDisplayState(false, !insideDisplayArea, 0, 0);
+        }
 
         var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
         vic2.Vic2Screen = vic2Screen;
@@ -194,11 +519,11 @@ public class Vic2
         // Addresses 0xd000 - 0xd00f: Sprite X/Y coordinates.
         for (ushort address = Vic2Addr.SPRITE_0_X; address <= Vic2Addr.SPRITE_7_Y; address++)
         {
-            MapRegisterMirrors(c64Mem, address, C64.ReadIOStorage, C64.WriteIOStorage);
+            MapRegisterMirrors(c64Mem, address, C64.ReadIOStorage, SpritePositionStore);
         }
 
         // Address 0xd010: Sprite X position MSB.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MSB_X, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MSB_X, C64.ReadIOStorage, SpriteMsbXStore);
 
         // Address 0xd011: "Vertical Fine Scrollling and Screen Control Register"
         MapRegisterMirrors(c64Mem, Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Load, ScrCtrlReg1Store);
@@ -217,7 +542,7 @@ public class Vic2
         MapRegisterMirrors(c64Mem, Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXLoad, ScrollXStore);
 
         // Address 0xd017: Sprite Y expansion.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_Y_EXPAND, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_Y_EXPAND, C64.ReadIOStorage, SpriteYExpandStore);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
         MapRegisterMirrors(c64Mem, Vic2Addr.MEMORY_SETUP, MemorySetupLoad, MemorySetupStore);
@@ -229,13 +554,13 @@ public class Vic2
         MapRegisterMirrors(c64Mem, Vic2Addr.IRQ_MASK, IRQMASKLoad, IRQMASKStore);
 
         // Address 0xd01b: Sprite/background priority.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_FOREGROUND_PRIO, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_FOREGROUND_PRIO, C64.ReadIOStorage, SpritePriorityStore);
 
         // Address 0xd01c: "Sprite multi-color enable"
         MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableLoad, SpriteMultiColorEnableStore);
 
         // Address 0xd01d: Sprite X expansion.
-        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_X_EXPAND, C64.ReadIOStorage, C64.WriteIOStorage);
+        MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_X_EXPAND, C64.ReadIOStorage, SpriteXExpandStore);
 
         // Address 0xd01e: "Sprite-to-sprite collision"
         MapRegisterMirrors(c64Mem, Vic2Addr.SPRITE_TO_SPRITE_COLLISION, SpriteToSpriteCollisionLoad, SpriteToSpriteCollisionStore);
@@ -273,34 +598,70 @@ public class Vic2
         }
     }
 
+    /// <summary>
+    /// Told about every VIC-II register write made through the memory map, after the register has
+    /// been stored: the cycle into the current frame during which the write lands, the register's
+    /// canonical address ($D000-$D03F, mirrors folded) and the value as written (not as stored:
+    /// registers with unused bits keep only part of it). A render provider uses
+    /// this to apply the write at that cycle's pixel position instead of wherever it happens to
+    /// sample the registers. Not raised for direct <see cref="C64.WriteIOStorage"/> access.
+    /// </summary>
+    public Action<ulong, ushort, byte>? RegisterWriteObserver { get; set; }
+
+    /// <summary>
+    /// Map one VIC-II register and its mirrors across $D000-$D3FF. Every access first advances the
+    /// VIC-II to the cycle of the access, so reads and writes see and affect the raster state at
+    /// their own bus cycle.
+    /// </summary>
     private void MapRegisterMirrors(
         Memory c64Mem,
         ushort registerAddress,
         Memory.LoadByte reader,
         Memory.StoreByte writer)
     {
-        c64Mem.MapReader(registerAddress, reader);
-        c64Mem.MapWriter(registerAddress, writer);
+        Memory.LoadByte timedReader = _ =>
+        {
+            CatchUpToCurrentAccess();
+            var value = reader(registerAddress);
+            RecordSpriteSlotBusValue(value);
+            return value;
+        };
+        Memory.StoreByte timedWriter = (_, value) =>
+        {
+            CatchUpToCurrentAccess();
+            RecordSpriteSlotBusValue(value);
+            writer(registerAddress, value);
+            RegisterWriteObserver?.Invoke(CyclesConsumedCurrentVblank, registerAddress, value);
+            // Register state decides bad lines and sprite DMA: re-evaluate CPU stalls.
+            C64.CPU.RequestBusStallCheck();
+        };
 
         var registerOffset = registerAddress & 0x003F;
 
         for (var offset = registerOffset; offset <= 0x03FF; offset += 0x40)
         {
             var mirrorAddress = (ushort)(0xD000 + offset);
-            if (mirrorAddress == registerAddress)
-                continue;
-
-            c64Mem.MapReader(mirrorAddress, _ => reader(registerAddress));
-            c64Mem.MapWriter(mirrorAddress, (_, value) =>
-            {
-                writer(registerAddress, value);
-            });
+            c64Mem.MapReader(mirrorAddress, timedReader);
+            c64Mem.MapWriter(mirrorAddress, timedWriter);
         }
     }
 
     /// <summary>
+    /// Whether a VIC-II address (14 bits) reads the character ROM in the current bank: $1000-$1FFF
+    /// of banks 0 and 2.
+    /// </summary>
+    public bool IsCharacterRomAddress(ushort vic2Address)
+        => (vic2Address & 0x3000) == 0x1000 && (CurrentVIC2Bank == 0 || CurrentVIC2Bank == 2);
+
+    /// <summary>
     /// Method to be called before each write to memory by the CPU.
-    /// It's used for optimization to detect changes in VIC2 video memory.
+    /// For a write into the VIC-II's bank it first brings the VIC-II and the renderer through the
+    /// write's own cycle, so the fetches of the cycles before the write, and the fetch of the
+    /// write's cycle itself (the chip reads in the first clock phase, the CPU writes in the
+    /// second), see memory as it was: a byte the CPU rewrites in the middle of a line reaches the
+    /// screen from the column after the write on, as on hardware (an idle byte changed mid-line,
+    /// a sprite's data rewritten as it is fetched). It's also used for optimization to detect
+    /// changes in VIC2 video memory.
     /// </summary>
     /// <param name="c64Address"></param>
     /// <param name="value"></param>
@@ -309,6 +670,9 @@ public class Vic2
         var vic2Address = GetVic2FromC64Address(c64Address);
         if (vic2Address.HasValue)
         {
+            CatchUpTo(C64.CPU.BusCycles);
+            C64.Vic2CycleRenderer?.CatchUpToVic2();
+
             SpriteManager.DetectChangesToSpriteData(vic2Address.Value, value);
 
             if (DisplayMode == DispMode.Text)
@@ -334,9 +698,9 @@ public class Vic2
             case 0:
                 vic2Address = c64Address switch
                 {
-                    >= 0x0000 and < 0x0fff => c64Address,   // video ram
-                    >= 0x1000 and < 0x1fff => c64Address,   // chargen ROM
-                    >= 0x2000 and < 0x3fff => c64Address,   // video ram
+                    >= 0x0000 and <= 0x0fff => c64Address,   // video ram
+                    >= 0x1000 and <= 0x1fff => c64Address,   // chargen ROM
+                    >= 0x2000 and <= 0x3fff => c64Address,   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -344,7 +708,7 @@ public class Vic2
             case 1:
                 vic2Address = c64Address switch
                 {
-                    >= 0x4000 and < 0x7fff => (ushort)(c64Address - 0x4000),   // video ram
+                    >= 0x4000 and <= 0x7fff => (ushort)(c64Address - 0x4000),   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -352,9 +716,9 @@ public class Vic2
             case 2:
                 vic2Address = c64Address switch
                 {
-                    >= 0x8000 and < 0x8fff => (ushort)(c64Address - 0x8000),   // video ram
-                    >= 0x9000 and < 0x9fff => (ushort)(c64Address - 0x8000),   // chargen rom
-                    >= 0xa000 and < 0xbfff => (ushort)(c64Address - 0x8000),   // video ram
+                    >= 0x8000 and <= 0x8fff => (ushort)(c64Address - 0x8000),   // video ram
+                    >= 0x9000 and <= 0x9fff => (ushort)(c64Address - 0x8000),   // chargen rom
+                    >= 0xa000 and <= 0xbfff => (ushort)(c64Address - 0x8000),   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -362,7 +726,7 @@ public class Vic2
             case 3:
                 vic2Address = c64Address switch
                 {
-                    >= 0xc000 and < 0xffff => (ushort)(c64Address - 0xc000),   // video ram
+                    >= 0xc000 and <= 0xffff => (ushort)(c64Address - 0xc000),   // video ram
                     _ => null,  // not a address mapped by VIC2
                 };
                 break;
@@ -416,6 +780,371 @@ public class Vic2
     public void SpriteEnableStore(ushort address, byte value)
     {
         C64.WriteIOStorage(address, value);
+        _spriteEnableCache = value;
+        _spriteYMatchLine = -1;
+    }
+
+    public void SpritePositionStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        if ((address & 1) != 0)
+        {
+            _spriteYCache[(address - Vic2Addr.SPRITE_0_Y) >> 1] = value;
+            _spriteYMatchLine = -1;
+        }
+        else
+        {
+            JournalSpriteXWrite(address, value);
+        }
+    }
+
+    public void SpriteMsbXStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        JournalSpriteXWrite(address, value);
+    }
+
+    public void SpritePriorityStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        JournalSpriteRegisterWrite(address, value, SpriteModeWriteVisiblePixel);
+    }
+
+    public void SpriteXExpandStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        JournalSpriteRegisterWrite(address, value, SpriteModeWriteVisiblePixel);
+    }
+
+    private void JournalSpriteXWrite(ushort address, byte value) => JournalSpriteRegisterWrite(address, value, SpriteWriteVisiblePixel);
+
+    private void JournalSpriteRegisterWrite(ushort address, byte value, int visiblePixel)
+    {
+        if (_spriteXJournalCount == SpriteXJournalCapacity || _currentRasterLineInternal == ushort.MaxValue)
+            return;   // more sprite register writes on one line than any program makes: the last value wins from the next line
+        var cycle = (int)(CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine);
+        _spriteXJournalRegister[_spriteXJournalCount] = address;
+        _spriteXJournalValue[_spriteXJournalCount] = value;
+        _spriteXJournalPixel[_spriteXJournalCount] = cycle * 8 + visiblePixel;
+        _spriteXJournalCount++;
+    }
+
+    /// <summary>
+    /// Derives the output runs of the sprites on the line that has just ended and hands them, with
+    /// the line's sprite-to-sprite collisions, to the sprite manager. A sprite starts shifting its
+    /// data register out where its X register equals the beam position, provided it is displayed,
+    /// not still shifting, and its own data fetch is not under way: from the pixel before its
+    /// pointer access until the fetch has ended it cannot start, one that is shifting then repeats
+    /// its last pixel for seven pixels and stops, and the fetch loads the next row, which can start
+    /// later on the same line. Which sprites are displayed switches at the display decision of
+    /// cycle 58. A row that no match shifts out stays in the register for the next line.
+    /// </summary>
+    private void EndLineSprites(ushort line)
+    {
+        DeriveLineSprites(line, _cyclesPerLine * 8, endOfLine: true);
+        _spriteXJournalCount = 0;
+        _spriteCollisionsLatchedToPixel = 0;
+    }
+
+    // A read of the collision register reports the sprite pixels up to four before the start of
+    // its cycle (VICE's sprite-sprite-collision-cycle test program) and clears the register as the
+    // cycle ends: the collisions of the twelve pixels in between are lost (VICE's spritevssprite
+    // test program, which reads the register twice, four cycles apart).
+    private const int SpriteCollisionReadPixel = -4;
+    private const int SpriteCollisionClearPixel = 8;
+
+    // The pixel of the current line up to which its sprite-to-sprite collisions have been latched
+    // or cleared by reads of the register; the line's end latches the rest.
+    private int _spriteCollisionsLatchedToPixel;
+
+    /// <summary>
+    /// Latches the current line's collisions up to the beam position of the collision register
+    /// read in progress, so the read reports, and clears, the collisions of the pixels output so
+    /// far and no others: the sprite-to-sprite ones here, the sprite-to-background ones
+    /// (<paramref name="withBackground"/>) in the renderer that resolves the line's pixels.
+    /// </summary>
+    private void LatchSpriteCollisionsUpToCurrentAccess(bool withBackground)
+    {
+        if (!SpriteManager.PerLineCollisionEnabled || _currentRasterLineInternal == ushort.MaxValue)
+            return;
+        if (withBackground && (!SpriteManager.BackgroundCollisionsFromRenderer || C64.Vic2CycleRenderer == null))
+            return;
+        var cycle = (int)(CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine);
+        // Not beyond the display decision of cycle 58: what is output after it depends on the
+        // fetches for the next line, which are known when the line ends.
+        var lastPixel = (_cyclesPerLine - 6) * 8;
+        var upToPixel = Math.Min(cycle * 8 + SpriteCollisionReadPixel, lastPixel);
+        var clearedToPixel = Math.Min(cycle * 8 + SpriteCollisionClearPixel, lastPixel);
+        // The runs up to there, and with them the sprite-to-sprite collisions, which a read of the
+        // other register leaves in place.
+        if (upToPixel > _spriteCollisionsLatchedToPixel)
+            DeriveLineSprites(_currentRasterLineInternal, upToPixel, endOfLine: false);
+        if (withBackground)
+            C64.Vic2CycleRenderer!.LatchSpriteBackgroundCollisions(_currentRasterLineInternal, upToPixel, clearedToPixel);
+        else
+            _spriteCollisionsLatchedToPixel = Math.Max(_spriteCollisionsLatchedToPixel, clearedToPixel);
+    }
+
+    /// <summary>
+    /// The line's runs that start before <paramref name="upToPixel"/>, and its collisions up to
+    /// there. At the line's end the rows left in the data registers are kept for the next line;
+    /// during the line (a read of the collision register) nothing is kept but the collisions.
+    /// </summary>
+    private void DeriveLineSprites(ushort line, int upToPixel, bool endOfLine)
+    {
+        var nextLine = line + 1 >= _totalHeight ? 0 : line + 1;
+        var displayBefore = SpriteManager.LineSpriteDisplayMask(line);
+        var displayAfter = SpriteManager.LineSpriteDisplayMask(nextLine);
+        if ((displayBefore | displayAfter | _spriteShiftRegisterMask) == 0)
+            return;   // nothing could have been output: no runs, no collisions
+        var pixelsPerLine = _cyclesPerLine * 8;
+        var xAtLineStart = Vic2Model.XCoordinateAtLineStart;
+        // Cycle 58 (1-based): the display decision for the next line is taken.
+        var displaySwitchPixel = (_cyclesPerLine - 6) * 8;
+        var journalCount = _spriteXJournalCount;
+        var registerMask = 0;
+        Span<int> eventPixels = stackalloc int[SpriteXJournalCapacity];
+        Span<byte> eventKinds = stackalloc byte[SpriteXJournalCapacity];
+        Span<byte> decoded = stackalloc byte[Vic2SpriteManager.RunPixelCapacity];
+        for (var n = 0; n < 8; n++)
+        {
+            var bit = 1 << n;
+            // The row this line's fetch loads: the next line's for sprites 0-2, fetched at the
+            // line's end, this line's for sprites 3-7, fetched at its start.
+            var loadLine = n < 3 ? nextLine : line;
+            var loaded = ((n < 3 ? displayAfter : displayBefore) & bit) != 0
+                ? SpriteRowBits(SpriteManager.LineSpriteData(loadLine, n))
+                : 0u;
+            // A sprite 3-7 whose DMA this line's compare started is displayed from cycle 58 on,
+            // and an X beyond that shows it on this line already, with what its fetch slot at the
+            // line's start read while the DMA was still off: for the two accesses in the CPU's half
+            // of the cycle the chip's bus as the CPU drives it, the byte of a VIC-II register
+            // access in that cycle and $FF otherwise, and for the VIC's own access the idle byte
+            // (VICE's sb_sprite_fetch test programs).
+            if (n >= 3 && loaded == 0 && (displayBefore & bit) == 0 && (displayAfter & bit) != 0)
+            {
+                var slotCycle = 2 * n - 6;
+                var idleByte = _idleByteAtLineStart >= 0 ? (byte)_idleByteAtLineStart : IdleGraphicsByte();
+                loaded = (uint)(_spriteSlotBusValue[slotCycle] << 16 | idleByte << 8 | _spriteSlotBusValue[slotCycle + 1]);
+            }
+            var register = _spriteShiftRegister[n];
+            if (register == 0 && loaded == 0)
+                continue;
+            // The sprite's pointer access: cycle 58 (1-based) for sprite 0, two cycles on per
+            // sprite, wrapping into the next line for sprites 3-7.
+            var pointerPixel = (_cyclesPerLine - 6 + 2 * n) % _cyclesPerLine * 8;
+            var freezePixel = pointerPixel - 1;     // a shifting sprite repeats its last pixel from here
+            var stopPixel = pointerPixel + 6;       // and stops here
+            var loadPixel = pointerPixel + 8;       // the fetched row is in the register
+            var resumePixel = pointerPixel + 11;    // and the sprite can start again
+            var xRegister = (ushort)(Vic2Addr.SPRITE_0_X + n * 2);
+            var isLoaded = false;
+            var runCount = 0;
+            var activeUntil = 0;   // the pixel the current run ends at (exclusive)
+            // The registers as they stood when the line began; the journal carries the writes
+            // made during the line, in order, each seen from its pixel on.
+            int xLow = (byte)(_spriteXLowAtLineStart >> (n * 8));
+            int msb = _spriteMsbXAtLineStart;
+            var behind = (_spritePriorityAtLineStart & bit) != 0;
+            var multiColor = (_spriteMultiColorAtLineStart & bit) != 0;
+            var xExpand = (_spriteXExpandAtLineStart & bit) != 0;
+            var pixel = 0;
+            var next = 0;   // the next journalled write
+            while (pixel < pixelsPerLine && runCount < Vic2SpriteManager.MaxSpriteRunsPerLine)
+            {
+                // The X in force from this pixel until the next journalled write, and the beam
+                // pixel where it matches, if that lies in the segment.
+                var segmentEnd = next < journalCount ? _spriteXJournalPixel[next] : pixelsPerLine;
+                var x = xLow | ((msb >> n) & 1) << 8;
+                var matchPixel = x - xAtLineStart;
+                if (matchPixel < 0)
+                    matchPixel += pixelsPerLine;
+                if (x < pixelsPerLine && matchPixel >= pixel && matchPixel < segmentEnd && matchPixel < upToPixel)
+                {
+                    if (matchPixel >= loadPixel && !isLoaded)
+                    {
+                        register = loaded;
+                        isLoaded = true;
+                    }
+                    var displayed = ((matchPixel < displaySwitchPixel ? displayBefore : displayAfter) & bit) != 0;
+                    var fetching = matchPixel >= freezePixel && matchPixel < resumePixel;
+                    if (displayed && !fetching && matchPixel >= activeUntil && register != 0)
+                    {
+                        var width = xExpand ? 48 : 24;
+                        var length = width;
+                        var stretch = 0;
+                        var halted = matchPixel < freezePixel && matchPixel + width > freezePixel;
+                        if (halted)
+                        {
+                            length = freezePixel - matchPixel;
+                            stretch = stopPixel - freezePixel;
+                        }
+                        // The writes that change this sprite's mode or priority bits while the
+                        // run shifts: with any, the run is followed pixel by pixel.
+                        var eventCount = CollectSpriteRunEvents(n, next, journalCount, matchPixel + length + stretch,
+                            behind, multiColor, xExpand, eventPixels, eventKinds);
+                        // So is a multicolour run whose fetch halts it a pixel into a pair.
+                        var pairCutShort = halted && multiColor && length % (xExpand ? 4 : 2) == 1;
+                        if (eventCount > 0 || pairCutShort)
+                        {
+                            var count = Vic2SpriteManager.DecodeSpriteRun(register, matchPixel,
+                                matchPixel < freezePixel ? freezePixel : int.MaxValue, matchPixel < freezePixel ? stopPixel : int.MaxValue,
+                                multiColor, xExpand, behind, eventPixels.Slice(0, eventCount), eventKinds.Slice(0, eventCount), decoded);
+                            SpriteManager.AddLineSpriteDecodedRun(line, n, runCount++, matchPixel, decoded.Slice(0, count));
+                            activeUntil = matchPixel + count;
+                        }
+                        else
+                        {
+                            var flags = (byte)((xExpand ? Vic2SpriteManager.RunFlagXExpand : 0)
+                                | (multiColor ? Vic2SpriteManager.RunFlagMultiColor : 0)
+                                | (behind ? Vic2SpriteManager.RunFlagBehindForeground : 0));
+                            SpriteManager.AddLineSpriteRun(line, n, runCount++, matchPixel, register, length, stretch, flags);
+                            activeUntil = matchPixel + length + stretch;
+                        }
+                        register = 0;
+                    }
+                }
+                if (next < journalCount)
+                {
+                    var written = _spriteXJournalRegister[next];
+                    var value = _spriteXJournalValue[next];
+                    if (written == Vic2Addr.SPRITE_MSB_X)
+                        msb = value;
+                    else if (written == xRegister)
+                        xLow = value;
+                    else if (written == Vic2Addr.SPRITE_FOREGROUND_PRIO)
+                        behind = (value & bit) != 0;
+                    else if (written == Vic2Addr.SPRITE_MULTICOLOR_ENABLE)
+                        multiColor = (value & bit) != 0;
+                    else if (written == Vic2Addr.SPRITE_X_EXPAND)
+                        xExpand = (value & bit) != 0;
+                    next++;
+                }
+                pixel = segmentEnd;
+            }
+            if (!endOfLine)
+                continue;
+            if (!isLoaded)
+                register = loaded;
+            _spriteShiftRegister[n] = register;
+            if (register != 0)
+                registerMask |= bit;
+        }
+        if (endOfLine)
+            _spriteShiftRegisterMask = registerMask;
+        SpriteManager.LatchLineSpriteCollisions(line, _spriteCollisionsLatchedToPixel, endOfLine ? int.MaxValue : upToPixel);
+        _spriteCollisionsLatchedToPixel = upToPixel;
+    }
+
+    private static uint SpriteRowBits(ReadOnlySpan<byte> row) => (uint)(row[0] << 16 | row[1] << 8 | row[2]);
+
+    // The byte the VIC-II's idle accesses read: $3FFF of its bank, $39FF with ECM set.
+    private byte IdleGraphicsByte() => ReadMemory((ushort)((C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER) & 0x40) != 0 ? 0x39FF : 0x3FFF));
+
+    /// <summary>
+    /// The journalled writes from index <paramref name="from"/> that change sprite
+    /// <paramref name="n"/>'s priority, multicolour or X-expand bit before <paramref name="endPixel"/>,
+    /// as decoder events. Returns their count.
+    /// </summary>
+    private int CollectSpriteRunEvents(int n, int from, int journalCount, int endPixel,
+        bool behind, bool multiColor, bool xExpand, Span<int> eventPixels, Span<byte> eventKinds)
+    {
+        var bit = 1 << n;
+        var count = 0;
+        for (var i = from; i < journalCount && _spriteXJournalPixel[i] < endPixel; i++)
+        {
+            var written = _spriteXJournalRegister[i];
+            var set = (_spriteXJournalValue[i] & bit) != 0;
+            byte kind;
+            if (written == Vic2Addr.SPRITE_FOREGROUND_PRIO && set != behind)
+            {
+                behind = set;
+                kind = Vic2SpriteManager.RunEventPriority;
+            }
+            else if (written == Vic2Addr.SPRITE_MULTICOLOR_ENABLE && set != multiColor)
+            {
+                multiColor = set;
+                kind = Vic2SpriteManager.RunEventMultiColor;
+            }
+            else if (written == Vic2Addr.SPRITE_X_EXPAND && set != xExpand)
+            {
+                xExpand = set;
+                kind = Vic2SpriteManager.RunEventXExpand;
+            }
+            else
+            {
+                continue;
+            }
+            eventPixels[count] = _spriteXJournalPixel[i];
+            eventKinds[count++] = (byte)(kind | (set ? Vic2SpriteManager.RunEventBitSet : 0));
+        }
+        return count;
+    }
+
+    // Each sprite's data register between lines: the row its fetch loaded, until an X match shifts
+    // it out (0 once it has). A sprite that matches before its fetch on a line shows this row.
+    private readonly uint[] _spriteShiftRegister = new uint[8];
+    private int _spriteShiftRegisterMask;   // the sprites whose register holds a row
+
+    // The X registers as the line began (the journal only records the writes made during it):
+    // the eight low bytes packed, sprite 0 lowest, and the MSB register.
+    private ulong _spriteXLowAtLineStart;
+    private byte _spriteMsbXAtLineStart;
+    // And the priority, multicolour and X-expand registers as the line began.
+    private byte _spritePriorityAtLineStart;
+    private byte _spriteMultiColorAtLineStart;
+    private byte _spriteXExpandAtLineStart;
+
+    // The first cycles of a line are the fetch slots of sprites 3-7. For a sprite whose DMA is
+    // still off there, the slot's accesses read whatever is on the chip's bus: the byte of a
+    // VIC-II register access the CPU makes in that cycle, $FF when it makes none. Recorded by
+    // cycle for the current line, with the idle byte as the line began when a sprite's Y names
+    // the line (the only case it is used for; -1 otherwise).
+    private const int SpriteSlotCycles = 10;
+    private readonly byte[] _spriteSlotBusValue = CreateSpriteSlotBus();
+    private bool _spriteSlotBusRecorded;
+    private int _idleByteAtLineStart = -1;
+
+    private static byte[] CreateSpriteSlotBus()
+    {
+        var bus = new byte[SpriteSlotCycles];
+        bus.AsSpan().Fill(0xFF);
+        return bus;
+    }
+
+    private void RecordSpriteSlotBusValue(byte value)
+    {
+        if (_currentRasterLineInternal == ushort.MaxValue)
+            return;
+        var cycle = CyclesConsumedCurrentVblank - (ulong)_currentRasterLineInternal * (ulong)_cyclesPerLine;
+        if (cycle >= SpriteSlotCycles)
+            return;
+        _spriteSlotBusValue[cycle] = value;
+        _spriteSlotBusRecorded = true;
+    }
+
+    private void CaptureSpriteSlotStateAtLineStart(ushort line)
+    {
+        if (_spriteSlotBusRecorded)
+        {
+            _spriteSlotBusValue.AsSpan().Fill(0xFF);
+            _spriteSlotBusRecorded = false;
+        }
+        var startable = (byte)(_spriteEnableCache & ~SpriteDmaMask & 0xF8);
+        _idleByteAtLineStart = startable != 0 && (SpriteYMatchMask(line) & startable) != 0 ? IdleGraphicsByte() : -1;
+    }
+
+    private void CaptureSpriteXAtLineStart()
+    {
+        ulong packed = 0;
+        for (var n = 7; n >= 0; n--)
+            packed = packed << 8 | C64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_X + n * 2));
+        _spriteXLowAtLineStart = packed;
+        _spriteMsbXAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_MSB_X);
+        _spritePriorityAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_FOREGROUND_PRIO);
+        _spriteMultiColorAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_MULTICOLOR_ENABLE);
+        _spriteXExpandAtLineStart = C64.ReadIOStorage(Vic2Addr.SPRITE_X_EXPAND);
+        _spriteXJournalCount = 0;
     }
     public byte SpriteEnableLoad(ushort address)
     {
@@ -426,6 +1155,7 @@ public class Vic2
     {
         var originalValue = C64.ReadIOStorage(address);
         C64.WriteIOStorage(address, value);
+        JournalSpriteRegisterWrite(address, value, SpriteMultiColorWriteVisiblePixel);
         for (int spriteNumber = 0; spriteNumber < 8; spriteNumber++)
         {
             if (originalValue.IsBitSet(spriteNumber) != value.IsBitSet(spriteNumber))
@@ -444,6 +1174,7 @@ public class Vic2
 
     public byte SpriteToSpriteCollisionLoad(ushort address)
     {
+        LatchSpriteCollisionsUpToCurrentAccess(withBackground: false);
         var val = SpriteManager.SpriteToSpriteCollisionStore;
         SpriteManager.SpriteToSpriteCollisionStore = 0; // Collision state is cleared after reading
         SpriteManager.SpriteToSpriteCollisionIRQBlock = false; // Enable IRQs to be able to triggered again
@@ -456,6 +1187,7 @@ public class Vic2
     }
     public byte SpriteToBackgroundCollisionLoad(ushort address)
     {
+        LatchSpriteCollisionsUpToCurrentAccess(withBackground: true);
         var val = SpriteManager.SpriteToBackgroundCollisionStore;
         SpriteManager.SpriteToBackgroundCollisionStore = 0; // Collision state is cleared after reading
         SpriteManager.SpriteToBackgroundCollisionIRQBlock = false; // Enable IRQs to be able to triggered again
@@ -515,7 +1247,75 @@ public class Vic2
     }
     public byte ColorRAMLoad(ushort address)
     {
-        return C64.ReadIOStorage(address);
+        // The colour RAM drives only the data bus's low four bits; the high four still hold what
+        // the VIC-II read in the cycle's first phase.
+        return (byte)((FirstPhaseBusByte() & 0xF0) | (C64.ReadIOStorage(address) & 0x0F));
+    }
+
+    // --- The byte the VIC-II leaves on the data bus ---
+    // In the first phase of every cycle the VIC-II reads memory (the article's table of accesses
+    // per cycle), and the byte stays on the data bus into the second phase unless something else
+    // drives it. So a CPU read of an address nothing answers, the I/O 1 and I/O 2 areas without
+    // a cartridge there, returns it (VICE's phi1timing test programs). Per cycle, from sprite
+    // 0's pointer access on: each sprite's pointer access, then the middle byte of its data if its
+    // DMA is on or an idle access if not; the five refresh accesses in cycles 11-15; the graphics
+    // accesses in cycles 16-55, which read $3FFF ($39FF with ECM) in idle state; idle accesses
+    // elsewhere, which read $3FFF whatever ECM is.
+    private const int RefreshFirstOffset = 10;      // cycle 11
+    private const int GraphicsFirstOffset = 15;     // cycle 16
+    private const int GraphicsLastOffset = 54;      // cycle 55
+
+    /// <summary>
+    /// The byte the VIC-II read in the first phase of the cycle of the CPU access in progress:
+    /// what the data bus holds when nothing else drives it in the second phase.
+    /// </summary>
+    public byte FirstPhaseBusByte()
+    {
+        CatchUpToCurrentAccess();
+        if (_currentRasterLineInternal == ushort.MaxValue)
+            return 0xFF;
+        var line = _currentRasterLineInternal;
+        var offset = (int)(CyclesConsumedCurrentVblank - (ulong)line * (ulong)_cyclesPerLine);
+        var fromSprite0 = offset - SpriteEventOffsets[3];   // sprite 0's pointer access
+        if (fromSprite0 < 0)
+            fromSprite0 += _cyclesPerLine;
+        if (fromSprite0 < 16)
+        {
+            var n = fromSprite0 >> 1;
+            var pointer = ReadMemory((ushort)(VideoMatrixBaseAddress + 0x3F8 + n));
+            if ((fromSprite0 & 1) == 0)
+                return pointer;
+            return (SpriteDmaMask & (1 << n)) != 0
+                ? ReadMemory((ushort)(pointer * 64 + ((_spriteMc[n] + 1) & 0x3F)))
+                : ReadMemory(0x3FFF);
+        }
+        if (offset >= RefreshFirstOffset && offset < GraphicsFirstOffset)
+        {
+            // The refresh counter is reset to $FF in line 0 and counts down once per access.
+            var refresh = (0xFF - (line * 5 + offset - RefreshFirstOffset)) & 0xFF;
+            return ReadMemory((ushort)(0x3F00 | refresh));
+        }
+        if (offset >= GraphicsFirstOffset && offset <= GraphicsLastOffset)
+            return GraphicsAccessByte(offset - GraphicsFirstOffset);
+        return ReadMemory(0x3FFF);
+    }
+
+    // The g-access for a column of the current line. In display state the character pointer is
+    // read from the video matrix as it is now, where the chip takes it from the row it read on
+    // the bad line; the two differ only when the screen was rewritten since.
+    private byte GraphicsAccessByte(int column)
+    {
+        if (!_displayState)
+            return IdleGraphicsByte();
+        var control = C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER);
+        var memorySetup = C64.ReadIOStorage(Vic2Addr.MEMORY_SETUP);
+        var videoCounter = (_videoCounterBase + column) & 0x3FF;
+        int address = (control & 0x20) != 0
+            ? (memorySetup & 0x08) << 10 | videoCounter << 3 | _rowCounter
+            : (memorySetup & 0x0E) << 10 | ReadMemory((ushort)(VideoMatrixBaseAddress + videoCounter)) << 3 | _rowCounter;
+        if ((control & 0x40) != 0)
+            address &= 0x39FF;
+        return ReadMemory((ushort)address);
     }
 
     public void ScrollXStore(ushort address, byte value)
@@ -612,24 +1412,49 @@ public class Vic2
         // | 3          | 0xc000 - 0xffff | xxxx xx00           | No
         // |------------|-----------------|---------------------|-----------------------
 
-        int oldVIC2Bank = CurrentVIC2Bank;
-        int newBankValue = dd00Value & 0b00000011;
-        CurrentVIC2Bank = newBankValue switch
+        var newBank = BankFromPortBits(dd00Value);
+        while (_pendingBankCount > 0)
         {
-            0b11 => 0,
-            0b10 => 1,
-            0b01 => 2,
-            0b00 => 3,
-            _ => throw new NotImplementedException(),
-        };
-        if (CurrentVIC2Bank != oldVIC2Bank)
-        {
-            Vic2Mem.SetMemoryConfiguration(CurrentVIC2Bank);
-
-            CharsetManager.NotifyCharsetAddressChanged();
-            SpriteManager.SetAllChanged(Vic2SpriteChangeType.Data);
+            ApplyBank(_pendingBank[0]);
+            _pendingBankCount--;
+            _pendingBank[0] = _pendingBank[1];
+            _pendingBankFromBusCycle[0] = _pendingBankFromBusCycle[1];
         }
+        ApplyBank(newBank);
     }
+
+    /// <summary>
+    /// The bank as CIA 2's port pins select it, from a CPU write to the port or its direction
+    /// register. The port's new value reaches the VIC-II's address lines in the cycle after the
+    /// write's, as a register write does: the chip fetches in a cycle's first phase and the CPU
+    /// writes in its second, so the fetch of the write's own cycle and those of the instruction's
+    /// earlier cycles still read the old bank. (Party Elk 2 switches banks with a $DD02 write in
+    /// cycle 53 of each scroller line and shows column 36, fetched in that cycle, from the old
+    /// bank.) A write that is not a CPU access in progress (a test writing the register directly)
+    /// takes effect at once, as <see cref="SetVIC2Bank"/> does.
+    /// </summary>
+    internal void SetVIC2BankFromPortWrite(byte portPins)
+    {
+        var busCycles = C64.CPU.BusCycles;
+        if (busCycles <= _advancedToBusCycle)
+        {
+            SetVIC2Bank(portPins);
+            return;
+        }
+        if (_pendingBankCount == 2)
+            CatchUpTo(_pendingBankFromBusCycle[0]);   // three writes in as many cycles: land the first
+        _pendingBank[_pendingBankCount] = BankFromPortBits(portPins);
+        _pendingBankFromBusCycle[_pendingBankCount] = busCycles + 1;
+        _pendingBankCount++;
+    }
+
+    private static byte BankFromPortBits(byte portPins) => (byte)((portPins & 0b11) switch
+    {
+        0b11 => 0,
+        0b10 => 1,
+        0b01 => 2,
+        _ => 3,
+    });
 
     /// <summary>
     /// Reads memory as the VIC-II sees it on its video bus.
@@ -731,6 +1556,7 @@ public class Vic2
     public void ScrCtrlReg1Store(ushort address, byte value)
     {
         C64.WriteIOStorage(address, (byte)(value & 0b0111_1111));
+        OnScreenControlWritten();
 
         // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
         // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
@@ -754,6 +1580,8 @@ public class Vic2
         // that combines to more lines than the model has. Just log it instead of treating it as an error.
         if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.TotalHeight)
             _logger.LogDebug("Raster IRQ compare line {IRQLine} is beyond the {Model} model's total height ({TotalHeight}); IRQ will not fire for this line until reprogrammed.", Vic2IRQ.ConfiguredIRQRasterLine, Vic2Model.Name, Vic2Model.TotalHeight);
+
+        OnRasterCompareWritten();
     }
 
     public byte ScrCtrlReg1Load(ushort address)
@@ -774,6 +1602,7 @@ public class Vic2
             newIRQRasterLine = (ushort)(Vic2IRQ.ConfiguredIRQRasterLine & 0b0000_0001_0000_0000);
         }
         Vic2IRQ.ConfiguredIRQRasterLine = newIRQRasterLine |= value;
+        OnRasterCompareWritten();
     }
 
     public byte RasterLoad(ushort _)
@@ -784,140 +1613,449 @@ public class Vic2
 
     public void VICIRQStore(ushort _, byte value)
     {
-        // "Any" flag does not have a separate latch. Setting this bit means clearing all latches.
-        if (value.IsBitSet((int)IRQSource.Any))
+        // Writing a 1 to a source's bit clears its latch; bit 7 ("Any") has no latch of its own
+        // and clears them all.
+        var clear = value.IsBitSet((int)IRQSource.Any) ? Vic2IRQ.SourceMask : (byte)(value & Vic2IRQ.SourceMask);
+        clear &= Vic2IRQ.LatchedMask;
+        for (var bit = 0; clear != 0; bit++, clear >>= 1)
         {
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-            {
-                // "Any" flag, does not have a separate latch.
-                if (source == IRQSource.Any)
-                    continue;
-                // Clear all individual latches.
-                if (Vic2IRQ.IsTriggered(source))
-                    Vic2IRQ.ClearTrigger(source, C64.CPU);
-            }
-        }
-        else
-        {
-            // Clear the individual latches that are specified.
-            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-            {
-                // "Any" flag, does not have a separate latch.
-                if (source == IRQSource.Any)
-                    continue;
-                // Clear individual latch.
-                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source))
-                    Vic2IRQ.ClearTrigger(source, C64.CPU);
-            }
+            if ((clear & 1) != 0)
+                Vic2IRQ.ClearTrigger((IRQSource)bit, C64.CPU);
         }
     }
 
     public byte VICIRQLoad(ushort _)
     {
-        byte value = 0b01110000;    // Bits 4-7 are unused and always set to 1.
-
-        bool irqLineAsserted = false;
-        // Set bit 0-3 based on which IRQ sources have been triggered
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-        {
-            // "Any" flag does not have a separate trigger.
-            if (source == IRQSource.Any)
-                continue;
-            if (Vic2IRQ.IsTriggered(source))
-            {
-                value.SetBit((int)source);
-                if (Vic2IRQ.IsEnabled(source))
-                    irqLineAsserted = true;
-            }
-        }
-        // Bit 7 reflects the IRQ output, so a latched source must also be enabled.
-        if (irqLineAsserted)
+        // Bits 0-3 are the latched sources; bits 4-6 are unused and read as 1; bit 7 reflects the
+        // IRQ output, so a latched source must also be enabled.
+        var value = (byte)(0b0111_0000 | Vic2IRQ.LatchedMask);
+        if (Vic2IRQ.OutputActive)
             value.SetBit((int)IRQSource.Any);
-        else
-            value.ClearBit((int)IRQSource.Any);
-
         return value;
     }
 
     public void IRQMASKStore(ushort _, byte value)
     {
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        for (var bit = 0; bit <= (int)IRQSource.LightPenTrigger; bit++)
         {
-            if (source == IRQSource.Any)
-                continue;
-            if (value.IsBitSet((int)source))
-                Vic2IRQ.Enable(source, C64.CPU);
+            if (value.IsBitSet(bit))
+                Vic2IRQ.Enable((IRQSource)bit, C64.CPU);
             else
-                Vic2IRQ.Disable(source, C64.CPU);
+                Vic2IRQ.Disable((IRQSource)bit, C64.CPU);
         }
     }
+
     public byte IRQMASKLoad(ushort _)
     {
-        byte value = 0b11110000; // Bits 4-7 are unused and always set to 1.
-
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
-        {
-            if (source == IRQSource.Any)
-                continue;
-            if (Vic2IRQ.IsEnabled(source))
-                value.SetBit((int)source);
-        }
-        return value;
+        // Bits 4-7 are unused and read as 1.
+        return (byte)(0b1111_0000 | Vic2IRQ.EnabledMask);
     }
 
-    public void AdvanceRaster(ulong cyclesConsumed)
+    /// <summary>
+    /// Advance the VIC-II to the given CPU bus cycle. No-op if it is already there. The C64 calls
+    /// this with <see cref="CPU.BusCycles"/> at each instruction boundary; register accesses call
+    /// <see cref="CatchUpToCurrentAccess"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void CatchUpTo(ulong busCycle)
+    {
+        if (busCycle <= _advancedToBusCycle)
+            return;
+        if (_pendingBankCount != 0)
+        {
+            CatchUpToWithPendingBank(busCycle);
+            return;
+        }
+        var cycles = busCycle - _advancedToBusCycle;
+        _advancedToBusCycle = busCycle;
+        AdvanceRaster(cycles, busCycle);
+    }
+
+    // The catch-up with a bank change in flight (kept out of CatchUpTo, which is on the
+    // per-instruction path): the change lands part way, and the cycles before it read the old bank.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void CatchUpToWithPendingBank(ulong busCycle)
+    {
+        while (_pendingBankCount > 0 && busCycle >= _pendingBankFromBusCycle[0])
+        {
+            var upTo = _pendingBankFromBusCycle[0] - 1;
+            if (upTo > _advancedToBusCycle)
+            {
+                var before = upTo - _advancedToBusCycle;
+                _advancedToBusCycle = upTo;
+                AdvanceRaster(before, upTo);
+            }
+            ApplyBank(_pendingBank[0]);
+            _pendingBankCount--;
+            _pendingBank[0] = _pendingBank[1];
+            _pendingBankFromBusCycle[0] = _pendingBankFromBusCycle[1];
+        }
+        if (busCycle <= _advancedToBusCycle)
+            return;
+        var cycles = busCycle - _advancedToBusCycle;
+        _advancedToBusCycle = busCycle;
+        AdvanceRaster(cycles, busCycle);
+    }
+
+    // VIC-II bank changes from CIA 2's port, waiting for the cycle they reach the chip's address
+    // lines (see SetVIC2Bank). Two can be in flight: a read-modify-write's two writes.
+    private readonly byte[] _pendingBank = new byte[2];
+    private readonly ulong[] _pendingBankFromBusCycle = new ulong[2];
+    private int _pendingBankCount;
+
+    private void ApplyBank(byte bank)
+    {
+        if (bank == CurrentVIC2Bank)
+            return;
+        CurrentVIC2Bank = bank;
+        Vic2Mem.SetMemoryConfiguration(CurrentVIC2Bank);
+        CharsetManager.NotifyCharsetAddressChanged();
+        SpriteManager.SetAllChanged(Vic2SpriteChangeType.Data);
+    }
+
+    /// <summary>
+    /// Advance the VIC-II to the cycle of the bus access the CPU is performing right now: every
+    /// cycle before the current access has completed, the current one is in progress.
+    /// </summary>
+    // --- Light pen (VIC-II article, 3.11). A negative edge on the LP input, which CIA 1's port B
+    // bit 4 drives, latches the raster beam's position: LPX the X coordinate at the end of the
+    // cycle the edge is in, halved (8 of the 9 bits), LPY the raster line's low 8 bits. Only the
+    // first edge in a frame counts; the trigger is released in the vertical blank. The edge can
+    // also raise the light pen interrupt, likewise once per frame.
+    private bool _lightPenTriggeredThisFrame;
+
+    /// <summary>
+    /// A negative edge on the LP input, from CIA 1 port B bit 4: latch the beam position of the
+    /// cycle of the access that caused it and raise the light pen interrupt, unless the frame has
+    /// already had its edge.
+    /// </summary>
+    internal void TriggerLightPen()
+    {
+        CatchUpToCurrentAccess();
+        if (_lightPenTriggeredThisFrame || _currentRasterLineInternal == ushort.MaxValue)
+            return;
+        _lightPenTriggeredThisFrame = true;
+
+        var cyclesIntoLine = (int)(CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine);   // the access's cycle
+        var linePixels = (int)Vic2Model.CyclesPerLine * 8;
+        var xAtCycleEnd = (Vic2Model.XCoordinateAtLineStart + (cyclesIntoLine + 1) * 8) % linePixels;
+        C64.WriteIOStorage(Vic2Addr.LIGHT_PEN_X, (byte)(xAtCycleEnd >> 1));
+        C64.WriteIOStorage(Vic2Addr.LIGHT_PEN_Y, (byte)_currentRasterLineInternal);
+
+        var source = IRQSource.LightPenTrigger;
+        if (!Vic2IRQ.IsTriggered(source))
+            Vic2IRQ.Trigger(source, C64.CPU, _advancedToBusCycle + 1);
+    }
+
+    private void CatchUpToCurrentAccess()
+    {
+        var busCycles = C64.CPU.BusCycles;
+        if (busCycles > 0)
+            CatchUpTo(busCycles - 1);
+    }
+
+    /// <summary>
+    /// Realign the bus-cycle bookkeeping with the CPU without advancing the raster. Used after a
+    /// snapshot restore, where the raster position comes from the snapshot but the bus-cycle
+    /// counter belongs to the machine being restored into.
+    /// </summary>
+    internal void ResyncToBusCycle()
+    {
+        _pendingBankCount = 0;
+        _advancedToBusCycle = C64.CPU.BusCycles;
+        C64.CPU.RequestBusStallCheck();
+    }
+
+    /// <summary>
+    /// Advance the raster by a number of cycles, independent of the CPU bus-cycle counter. The C64
+    /// drives the VIC-II through <see cref="CatchUpTo"/>; this remains for tests and tooling that
+    /// position the raster directly.
+    /// </summary>
+    public void AdvanceRaster(ulong cyclesConsumed) => AdvanceRaster(cyclesConsumed, C64.CPU.BusCycles);
+
+    /// <param name="cyclesConsumed">Cycles to advance.</param>
+    /// <param name="endBusCycle">The CPU bus cycle the advance ends at; used to date the cycle on
+    /// which a raster line began, so a raster interrupt is stamped with its real cycle.</param>
+    private void AdvanceRaster(ulong cyclesConsumed, ulong endBusCycle)
     {
         var cpu = C64.CPU;
         var mem = C64.Mem;
+        var cyclesPerLine = _cyclesPerLine;
+        var startLine = _currentRasterLineInternal;
 
         CyclesConsumedCurrentVblank += cyclesConsumed;
 
-        // Raster line housekeeping.
-        // Calculate the raster line based on how man CPU cycles has been executed this frame
-        var newLine = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
-        //if (newLine >= Vic2Model.TotalHeight)
-        //    Debugger.Break(); // Rasterline overflow
-        newLine = (ushort)Math.Clamp(newLine, 0, Vic2Model.TotalHeight - 1);
-
-        if (newLine != _currentRasterLineInternal)
+        // Frame end. Keep the cycles that ran past it: they belong to the new frame, and dropping
+        // them would put the CPU ahead of the raster by up to an instruction's length (which, with
+        // bus stalls, can be most of a raster line). Wrapping before the line is derived below makes
+        // line 0 current, and its raster interrupt due, in this same advance.
+        if (CyclesConsumedCurrentVblank >= _cyclesPerFrame)
         {
-#if DEBUG
-            if (newLine > Vic2Model.TotalHeight)
-                throw new DotNet6502Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
-#endif
+            CyclesConsumedCurrentVblank -= _cyclesPerFrame;
+            FrameCount++;
+            // The bus-cycle to frame-position mapping moved: re-evaluate CPU stalls.
+            cpu.RequestBusStallCheck();
+        }
 
-            _currentRasterLineInternal = newLine;
+        // Raster line housekeeping. The line is derived from the cycle count; every line crossed
+        // since the last advance gets its per-line work, not just the line we land on: a CPU read
+        // stalled by a bad line with sprite DMA can span a whole line, and a raster interrupt or a
+        // per-line sprite snapshot for a line jumped over must not be lost.
+        var newLine = (ushort)Math.Min(CyclesConsumedCurrentVblank / (ulong)cyclesPerLine, (ulong)_totalHeight - 1);
+        var newOffset = (int)(CyclesConsumedCurrentVblank - (ulong)newLine * (ulong)cyclesPerLine);   // the frame's cycle count never reaches a line past the last
+        if (newLine == _currentRasterLineInternal)
+        {
+            if (newOffset >= _nextSpriteEventOffset)
+                ApplySpriteEventsUpTo(startLine, newOffset);
+            return;
+        }
+        // The rest of the line the advance started in.
+        if (startLine != ushort.MaxValue && _nextSpriteEventOffset != int.MaxValue)
+            ApplySpriteEventsUpTo(startLine, cyclesPerLine - 1);
 
-            // Process timers
-            if (C64.TimerMode == TimerMode.UpdateEachRasterLine)
-            {
-                C64.Cia1.ProcessTimers(Vic2Model.CyclesPerLine);
-                C64.Cia2.ProcessTimers(Vic2Model.CyclesPerLine);
-            }
+        var totalLines = (ushort)Vic2Model.TotalHeight;
+        var line = _currentRasterLineInternal;
+        var remaining = totalLines;   // never loop more than one frame's worth of lines
+        do
+        {
+            line = line >= totalLines - 1 ? (ushort)0 : (ushort)(line + 1);   // MaxValue (unset) wraps to 0 too
+            if (line == 0)
+                _lightPenTriggeredThisFrame = false;   // the light pen trigger is released in the vertical blank
+            _currentRasterLineInternal = line;
 
-            // Check if a IRQ should be issued for current raster line, and issue it.
-            RaiseRasterIRQ(cpu);
+            // Date the line's start: it began `cyclesIntoLine` completed cycles ago, counted from the
+            // current position (adding a frame for lines before the wrap).
+            var lineStart = (ulong)line * Vic2Model.CyclesPerLine;
+            var cyclesIntoLine = CyclesConsumedCurrentVblank >= lineStart
+                ? CyclesConsumedCurrentVblank - lineStart
+                : CyclesConsumedCurrentVblank + Vic2Model.CyclesPerFrame - lineStart;
+            var lineStartBusCycle = endBusCycle + 1 > cyclesIntoLine ? endBusCycle + 1 - cyclesIntoLine : 0;
+            // The raster counter takes its new value in the line's first cycle, except that line 0
+            // is entered a cycle later; the comparison is made in the same cycle.
+            CheckRasterIrq(cpu, line == 0 ? lineStartBusCycle + 1 : lineStartBusCycle);
+
+            EnterLineVerticalState(line);
+            SpriteDmaMaskPreviousLine = SpriteDmaMask;
+            RefreshSpriteRegisterCache();
+            _spriteEventIndex = 0;
+            _nextSpriteEventOffset = SpriteEventOffsets[0];
 
             // Remember colors and other IO registers for each raster line
             if (C64.RememberVic2RegistersPerRasterLine)
-                StoreRasterLineIORegisters(_currentRasterLineInternal);
+                StoreRasterLineIORegisters(line);
 
             // Per-line sprite processing (rendering + collision are gated by the same config flag).
             // Capture the shared start-of-line sprite snapshot once here; both the per-line collision
             // (below) and the rasterizer's per-line sprite pass (later this instruction, in its
-            // OnAfterInstruction) read it - so the registers are sampled once per line, not twice.
+            // CatchUpToVic2) read it - so the registers are sampled once per line, not twice.
             if (SpriteManager.PerLineCollisionEnabled)
             {
-                SpriteManager.CaptureLineSpriteSnapshot();
-                SpriteManager.AccumulatePerLineCollisions(_currentRasterLineInternal);
+                SpriteManager.CaptureLineSpriteSnapshot(line);
+                // The line that has just ended: its sprites' output runs and collisions, from the X
+                // writes journalled while it ran. After this line's snapshot, since the rows the
+                // ended line's fetches loaded are the ones displayed on this line.
+                if (_currentRasterLineInternal != ushort.MaxValue)
+                    EndLineSprites((ushort)(line == 0 ? totalLines - 1 : line - 1));
+                SpriteManager.AccumulatePerLineCollisions(line);
             }
+            CaptureSpriteXAtLineStart();
+            CaptureSpriteSlotStateAtLineStart(line);
+            // The line's sprite events up to the position the advance ends at.
+            var upTo = line == newLine ? newOffset : cyclesPerLine - 1;
+            if (upTo >= _nextSpriteEventOffset)
+                ApplySpriteEventsUpTo(line, upTo);
         }
+        while (line != newLine && --remaining > 0);
+    }
 
-        // Check if we have reached the end of the frame.
-        if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
+    /// <summary>
+    /// Applies the current line's sprite events whose cycle offsets (0-based) are at or before the
+    /// given one, in order. The first phase of a cycle precedes the CPU's access in it, so an
+    /// advance that ends in a cycle applies that cycle's event before the access is performed.
+    /// </summary>
+    private void ApplySpriteEventsUpTo(ushort line, int offsetInclusive)
+    {
+        while (_nextSpriteEventOffset <= offsetInclusive)
         {
-            CyclesConsumedCurrentVblank = 0;
+            ApplySpriteEvent(line, _spriteEventIndex);
+            _spriteEventIndex++;
+            _nextSpriteEventOffset = _spriteEventIndex < SpriteEventOffsets.Length ? SpriteEventOffsets[_spriteEventIndex] : int.MaxValue;
         }
+    }
+
+    private void ApplySpriteEvent(ushort line, int eventIndex)
+    {
+        // Nothing to do while no sprite is enabled and none is fetching: the flip-flops of sprites
+        // that are off only matter from the compare that switches them on, which sets them itself
+        // (rule 3) or leaves them set by rule 1.
+        var enabled = _spriteEnableCache;
+        var dma = SpriteDmaMask;
+        if ((enabled | dma | SpriteDisplayMask) == 0)
+            return;
+        switch (eventIndex)
+        {
+            case 0:
+                if (dma != 0)
+                    SpriteMcBaseUpdate(dma);
+                break;
+            case 1:
+                _spriteStartedInFirstCompare = SpriteCompare(line);
+                break;
+            case 2:
+                // The inversion, with the Y-expand bits as a write in the cycle before left them.
+                // Not for a sprite the first compare has just started: its flip-flop was cleared
+                // there and its first row is shown twice.
+                SpriteExpandFlipFlopToggle((byte)((enabled | dma) & ~_spriteStartedInFirstCompare));
+                SpriteFirstDataByteUnavailable |= (byte)(SpriteCompare(line) & 0x01);
+                break;
+            default:
+                if ((SpriteDmaMask | SpriteDisplayMask) != 0)
+                    SpriteLoadMc(line);
+                break;
+        }
+    }
+
+    // Take the sprite registers as they stand (a line entry; also covers values set without going
+    // through the memory map, e.g. a snapshot or a test).
+    private void RefreshSpriteRegisterCache()
+    {
+        _spriteEnableCache = C64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE);
+        _spriteYExpandCache = C64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND);
+        for (var n = 0; n < 8; n++)
+            _spriteYCache[n] = C64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + n * 2));
+        _spriteYMatchLine = -1;
+    }
+
+    // The enabled sprites whose Y equals the line's low byte.
+    private byte SpriteYMatchMask(int line)
+    {
+        if (_spriteYMatchLine == line)
+            return _spriteYMatchMask;
+        var enabled = _spriteEnableCache;
+        var lineLow = (byte)line;
+        byte mask = 0;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((enabled & (1 << n)) != 0 && _spriteYCache[n] == lineLow)
+                mask |= (byte)(1 << n);
+        }
+        _spriteYMatchLine = line;
+        _spriteYMatchMask = mask;
+        return mask;
+    }
+
+    /// <summary>The $D017 store: rule 1 and the sprite crunch (clean-room specification B4).</summary>
+    public void SpriteYExpandStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, value);
+        _spriteYExpandCache = value;
+        SpriteYExpandWritten(value);
+    }
+
+    /// <summary>
+    /// A $D017 write, after the register and its cache hold <paramref name="value"/>: rule 1 and
+    /// the sprite crunch (clean-room specification B4).
+    /// </summary>
+    private void SpriteYExpandWritten(byte value)
+    {
+        var crunchCycle = CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine == SpriteCrunchCycleOffset;
+        for (var n = 0; n < 8; n++)
+        {
+            var bit = 1 << n;
+            if ((value & bit) != 0)
+                continue;
+            if (crunchCycle && !_spriteExpandFlipFlop[n] && (SpriteDmaMask & bit) != 0)
+            {
+                // The alternating AND/OR bits give the counter table documented by VICE's
+                // spritecrunch test programs, including the off-stride rows that prolong DMA.
+                var before = _spriteMcBase[n];
+                var after = _spriteFetchEnd[n];
+                _spriteFetchEnd[n] = (byte)(((before & after) & 0x2A) | ((before | after) & 0x15));
+            }
+            _spriteExpandFlipFlop[n] = true;
+        }
+    }
+
+    /// <summary>The update in cycle 16 for the fetching sprites in <paramref name="dma"/> (clean-room specification B4).</summary>
+    private void SpriteMcBaseUpdate(byte dma)
+    {
+        for (var n = 0; n < 8; n++)
+        {
+            var bit = 1 << n;
+            if ((dma & bit) == 0)
+                continue;
+            // Also honour registers restored directly into IO storage before line entry.
+            if ((_spriteYExpandCache & bit) == 0)
+                _spriteExpandFlipFlop[n] = true;
+            if (_spriteExpandFlipFlop[n])
+                _spriteMcBase[n] = _spriteFetchEnd[n];
+            if (_spriteMcBase[n] == 63)
+                SpriteDmaMask &= (byte)~bit;
+        }
+    }
+
+    // The first phase of cycle 56: the flip-flop of a Y-expanded sprite is inverted (only sprites that are enabled or
+    // fetching are followed; the others' flip-flops are settled by the compare that starts them).
+    private byte _spriteStartedInFirstCompare;   // the sprites this line's first compare switched on
+    private void SpriteExpandFlipFlopToggle(byte sprites)
+    {
+        // Sprites with the bit cleared have their flip-flop set already (the write did it, and
+        // the MCBASE step applies rule 1 before it reads the flip-flop), so only set bits matter.
+        var expanded = (byte)(sprites & _spriteYExpandCache);
+        if (expanded == 0)
+            return;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((expanded & (1 << n)) != 0)
+                _spriteExpandFlipFlop[n] = !_spriteExpandFlipFlop[n];
+        }
+    }
+
+    // Cycles 55 and 56: an enabled sprite whose Y names this line starts fetching.
+    // Returns the sprites the compare switched on.
+    private byte SpriteCompare(ushort line)
+    {
+        var start = SpriteDmaStartMask(line);
+        if (start == 0)
+            return 0;
+        var yExpand = _spriteYExpandCache;
+        for (var n = 0; n < 8; n++)
+        {
+            if ((start & (1 << n)) == 0)
+                continue;
+            SpriteDmaMask |= (byte)(1 << n);
+            _spriteMcBase[n] = 0;
+            if ((yExpand & (1 << n)) != 0)
+                _spriteExpandFlipFlop[n] = false;
+        }
+        return start;
+    }
+
+    /// <summary>The display decision and MC load of cycle 58 on <paramref name="line"/> (clean-room specification B4).</summary>
+    private void SpriteLoadMc(ushort line)
+    {
+        SpriteDisplayMask &= SpriteDmaMask;
+        SpriteDisplayMask |= (byte)(SpriteDmaMask & SpriteYMatchMask(line));
+        for (var n = 0; n < 8; n++)
+        {
+            if ((SpriteDmaMask & (1 << n)) == 0)
+                continue;
+            _spriteMc[n] = _spriteMcBase[n];
+            // Only the completed fetch count is needed by the next cycle 16 or a crunch.
+            _spriteFetchEnd[n] = (byte)((_spriteMc[n] + 3) & 63);
+        }
+    }
+
+    /// <summary>
+    /// The sprites the compare in cycles 55 and 56 of the given line switches on: enabled, DMA off,
+    /// Y equal to the line's low byte. The bus stall model uses it to see the BA-low window of a
+    /// sprite before the compare that starts it.
+    /// </summary>
+    public byte SpriteDmaStartMask(int line)
+    {
+        if ((_spriteEnableCache & ~SpriteDmaMask) == 0)
+            return 0;
+        return (byte)(SpriteYMatchMask(line) & ~SpriteDmaMask);
     }
 
     // --- Snapshot support (consumed by the c64-vic2 snapshot module in the same assembly) ---
@@ -941,18 +2079,33 @@ public class Vic2
 
         var line = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
         _currentRasterLineInternal = (ushort)Math.Clamp(line, 0, Vic2Model.TotalHeight - 1);
+        var offset = (int)(CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine);
+        _spriteEventIndex = 0;
+        while (_spriteEventIndex < SpriteEventOffsets.Length && SpriteEventOffsets[_spriteEventIndex] <= offset)
+            _spriteEventIndex++;
+        _nextSpriteEventOffset = _spriteEventIndex < SpriteEventOffsets.Length ? SpriteEventOffsets[_spriteEventIndex] : int.MaxValue;
+        RefreshSpriteRegisterCache();
+        ResyncToBusCycle();
     }
 
-    private void RaiseRasterIRQ(CPU cpu)
+    // Compare the raster counter with the raster compare value, as the chip does in every cycle;
+    // called whenever either can have changed. The interrupt is raised only when the comparison
+    // goes from non-match to match, so a program that moves the compare value to the next line in
+    // the last cycle of every line keeps it matched and gets no further interrupt (VICE's
+    // rasterirq/rasterirq_hold test), while writing the current line's number raises one at once.
+    private void CheckRasterIrq(CPU cpu, ulong atBusCycle)
     {
-        // Check if a IRQ should be issued
-        var source = IRQSource.RasterCompare;
-        if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
-            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.TotalHeight))
-            && !Vic2IRQ.IsTriggered(source))
+        if (_currentRasterLineInternal != Vic2IRQ.ConfiguredIRQRasterLine)
         {
-            Vic2IRQ.Trigger(source, cpu);
+            _rasterIrqConditionMet = false;
+            return;
         }
+        if (_rasterIrqConditionMet)
+            return;
+        _rasterIrqConditionMet = true;
+        var source = IRQSource.RasterCompare;
+        if (!Vic2IRQ.IsTriggered(source))
+            Vic2IRQ.Trigger(source, cpu, atBusCycle);
     }
 
     private static Dictionary<int, ScreenLineData> BuildScreenLineDataLookup(Vic2ModelBase vic2Model)

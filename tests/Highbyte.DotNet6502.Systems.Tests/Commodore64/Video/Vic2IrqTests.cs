@@ -39,6 +39,45 @@ public class Vic2IrqTests
         Assert.Equal(0x01, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
     }
 
+    [Fact]
+    public void Writing_the_current_line_as_the_compare_value_raises_the_interrupt_at_once()
+    {
+        var c64 = BuildC64();
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 1);
+        c64.Vic2.AdvanceRaster(10 * c64.Vic2.Vic2Model.CyclesPerLine + 8);
+
+        c64.Mem.Write(Vic2Addr.CURRENT_RASTER_LINE, 10);
+
+        Assert.Equal(0x81, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
+    }
+
+    [Fact]
+    public void Keeping_the_compare_matched_across_lines_raises_no_further_interrupt()
+    {
+        // The interrupt is raised when the comparison goes from non-match to match. A program that
+        // moves the compare value to the next line in every line's last cycle keeps it matched, so
+        // no interrupt follows (VICE's rasterirq/rasterirq_hold); once the comparison has failed,
+        // the next match raises one again.
+        var c64 = BuildC64();
+        var cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        c64.Mem.Write(Vic2Addr.IRQ_MASK, 1);
+        c64.Vic2.AdvanceRaster(10 * cyclesPerLine + 8);
+        c64.Mem.Write(Vic2Addr.CURRENT_RASTER_LINE, 10);
+        c64.Mem.Write(Vic2Addr.VIC_IRQ, 1);   // acknowledge the interrupt this raised
+
+        for (var line = 10; line < 20; line++)
+        {
+            c64.Vic2.AdvanceRaster(cyclesPerLine - 9);   // the line's last cycle
+            c64.Mem.Write(Vic2Addr.CURRENT_RASTER_LINE, (byte)(line + 1));
+            c64.Vic2.AdvanceRaster(9);
+            Assert.Equal(0x00, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
+        }
+
+        c64.Mem.Write(Vic2Addr.CURRENT_RASTER_LINE, 22);   // no match on line 20
+        c64.Vic2.AdvanceRaster(2 * cyclesPerLine);
+        Assert.Equal(0x81, c64.Mem.Read(Vic2Addr.VIC_IRQ) & 0x81);
+    }
+
     private static C64 BuildC64()
     {
         return C64.BuildC64(new C64Config

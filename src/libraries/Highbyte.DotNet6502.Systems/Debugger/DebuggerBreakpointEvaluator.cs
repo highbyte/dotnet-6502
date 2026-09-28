@@ -85,6 +85,20 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
     public ushort? TemporaryBreakpoint { get; set; }
 
     /// <summary>
+    /// A condition (same syntax as a breakpoint condition) checked before every instruction,
+    /// independent of PC: execution stops at the first instruction boundary where it is true, and
+    /// the condition is cleared. Set by "run until" debugger commands, such as running to a VIC-II
+    /// raster position. A condition that fails to parse stops at once, as a breakpoint condition would.
+    /// </summary>
+    public string? RunUntilCondition { get; set; }
+
+    /// <summary>
+    /// The system's named debug values (a C64's RASTER, CYCLE, ...), available as operands in
+    /// breakpoint conditions and in <see cref="RunUntilCondition"/>. Null when the system has none.
+    /// </summary>
+    public IDebugValueSource? DebugValues { get; set; }
+
+    /// <summary>
     /// When true, pause execution at the next RTS instruction (step-out).
     /// Cleared when the RTS is detected.
     /// </summary>
@@ -192,6 +206,18 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
 
         var pc = cpu.PC;
         byte opcode = mem[pc];
+
+        // --- Run-until condition: stop at the first instruction boundary where it holds ---
+        if (RunUntilCondition != null && BreakpointConditionEvaluator.Evaluate(RunUntilCondition, cpu, mem, DebugValues))
+        {
+            var result = ExecEvaluatorTriggerResult.CreateTrigger(
+                ExecEvaluatorTriggerReasonType.RunUntilCondition,
+                $"Condition '{RunUntilCondition}' met at ${pc:X4}");
+            // Invoke callback BEFORE clearing so it can see which condition completed.
+            OnTriggered?.Invoke(result, cpu, mem);
+            RunUntilCondition = null;
+            return result;
+        }
 
         // --- Step-out: stop at the RTS before executing it ---
         // Caller (DAP) is responsible for executing the RTS inside OnTriggered.
@@ -339,7 +365,7 @@ public class DebuggerBreakpointEvaluator : IExecEvaluator
     private bool ConditionIsFalse(ushort pc, CPU cpu, Memory mem)
         => BreakpointConditions.TryGetValue(pc, out var cond)
            && !string.IsNullOrEmpty(cond)
-           && !BreakpointConditionEvaluator.Evaluate(cond, cpu, mem);
+           && !BreakpointConditionEvaluator.Evaluate(cond, cpu, mem, DebugValues);
 
     /// <summary>
     /// Increments the hit count for <paramref name="pc"/> and returns true when a

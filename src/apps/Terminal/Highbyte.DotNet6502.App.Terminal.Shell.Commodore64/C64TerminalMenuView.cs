@@ -371,6 +371,8 @@ public sealed class C64TerminalMenuView : View, ITerminalMenuContribution
 
         systemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
         systemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+        if (programInfo.RequiresPerLineSprites)
+            systemConfig.Vic2RasterizerPerLineSprites = true;
         systemConfig.AudioEnabled = false; // Terminal host has no audio output.
         systemConfig.SwiftLink.Enabled = programInfo.SwiftLinkEnabled;
 

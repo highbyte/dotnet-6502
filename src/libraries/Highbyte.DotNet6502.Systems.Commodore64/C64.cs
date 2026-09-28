@@ -18,6 +18,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Debugger;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
@@ -29,7 +30,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider
+public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider, IDebugValueSource
 {
     private const string CartridgeNmiSource = "CartridgeNmi";
     private const string CartridgeIrqSource = "CartridgeIrq";
@@ -37,6 +38,8 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     private const byte CpuPortDataDirectionResetValue = 0x2F;
     private const byte CpuPortDataResetValue = 0x37;
     private const byte CpuPortInputPullupMask = 0x17;
+    // Bit 3 is the cassette write line; with no datasette attached nothing drives it.
+    private const byte CpuPortFloatingLinesMask = 0x08;
 
     public const string SystemName = "C64";
     public string Name => SystemName;
@@ -52,6 +55,14 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public byte[] RAM { get; set; } = default!;
     public byte[] IO { get; set; } = default!;
     public byte CurrentBank { get; private set; }
+
+    /// <summary>
+    /// Whether the I/O area (the VIC-II, SID, colour RAM, CIAs and cartridge I/O at
+    /// $D000-$DFFF) is visible to the CPU in the current memory configuration, as the processor
+    /// port and the cartridge lines select it.
+    /// </summary>
+    public bool IsIOVisible => _configurationMapsIO[Mem.CurrentConfiguration];
+    private readonly bool[] _configurationMapsIO = new bool[32];
     public Vic2 Vic2 { get; set; } = default!;
     public Cia1 Cia1 { get; set; } = default!;
     public Cia2 Cia2 { get; set; } = default!;
@@ -62,7 +73,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public C64CartridgeImageAttachResult? AttachedCartridgeImage { get; private set; }
 
     public bool AudioEnabled { get; private set; }
-    public TimerMode TimerMode { get; private set; }
 
     public string ColorMapName { get; private set; } = default!;
 
@@ -72,6 +82,12 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     private IRenderProvider? _renderProvider;
     public IRenderProvider? RenderProvider => _renderProvider;
+
+    /// <summary>
+    /// The current render provider if it draws cycle by cycle and can be caught up to the VIC-II in
+    /// the middle of an instruction (see <see cref="IVic2CycleRenderer"/>), otherwise null.
+    /// </summary>
+    internal IVic2CycleRenderer? Vic2CycleRenderer { get; private set; }
     public List<IRenderProvider> RenderProviders { get; } = new();
 
     private IAudioProvider? _audioProvider;
@@ -181,6 +197,30 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     }
 
     /// <summary>
+    /// Bring the VIC-II and the CIAs up to the current CPU bus cycle. The CIAs are stepped from
+    /// here only (and by their own register accesses).
+    /// </summary>
+    private void AdvanceDevicesToCurrentBusCycle()
+    {
+        var busCycles = CPU.BusCycles;
+        Vic2.CatchUpTo(busCycles);
+        Cia1.CatchUpTo(busCycles);
+        Cia2.CatchUpTo(busCycles);
+    }
+
+    /// <summary>
+    /// Align the VIC-II and CIA bus-cycle bookkeeping with the CPU without advancing them. The
+    /// CPU reset sequence performs bus accesses of its own (the reset vector fetch) that are not
+    /// machine time the devices should see.
+    /// </summary>
+    private void SyncDevicesToBusCycle()
+    {
+        Vic2.ResyncToBusCycle();
+        Cia1.ResyncToBusCycle();
+        Cia2.ResyncToBusCycle();
+    }
+
+    /// <summary>
     /// Executes on instruction, and all the processing needed after each instruction.
     /// </summary>
     /// <param name="systemRunner"></param>
@@ -212,41 +252,32 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             }
         }
 
-        // Execute one CPU instruction
+        // Execute one CPU instruction. Accesses to VIC-II, CIA and SID registers during the
+        // instruction catch the device up to the cycle of the access (see the register mappings),
+        // so a device interrupt raised that way is serviced by the CPU right after this instruction.
         instructionExecResult = CPU.ExecuteOneInstructionMinimal(Mem);
 
-        // Update CIA timers
-        if (TimerMode == TimerMode.UpdateEachInstruction)
-        {
-            Cia1.ProcessTimers(instructionExecResult.CyclesConsumed);
-            Cia2.ProcessTimers(instructionExecResult.CyclesConsumed);
-        }
+        // Bring the VIC-II and the CIA timers up to the end of the instruction. CPU.BusCycles
+        // counts one bus access per cycle, so its delta equals the instruction's cycle count.
+        AdvanceDevicesToCurrentBusCycle();
 
         // Update IEC bus devices
         IECBus.TickDevices();
         CartridgeSlot.Tick(instructionExecResult.CyclesConsumed);
 
-        // General emulator timing fix: devices tick after the CPU instruction has already
-        // completed, so newly raised hardware IRQ/NMI lines must be serviced here to land
-        // on the next instruction boundary instead of one instruction late.
+        // Devices caught up above may have asserted an interrupt line, dated to the cycle within
+        // the instruction on which the condition arose. The CPU services it now if that cycle is
+        // at or before the instruction's interrupt poll point (its second-to-last cycle), and
+        // otherwise at the next boundary, as on hardware.
         var interruptCycles = CPU.ProcessPendingInterrupts(Mem);
         if (interruptCycles > 0)
         {
-            // The interrupt-entry sequence consumed real time: tick the same devices
-            // with it and fold it into this iteration's cycle count so the raster
-            // advance below and the caller's frame budget include it.
-            if (TimerMode == TimerMode.UpdateEachInstruction)
-            {
-                Cia1.ProcessTimers(interruptCycles);
-                Cia2.ProcessTimers(interruptCycles);
-            }
+            // The interrupt-entry sequence consumed real time: bring the devices up to its end
+            // and fold it into this iteration's cycle count so the caller's frame budget includes it.
+            AdvanceDevicesToCurrentBusCycle();
             CartridgeSlot.Tick(interruptCycles);
             instructionExecResult = instructionExecResult.WithAdditionalCycles(interruptCycles);
         }
-
-        // Advance video raster
-        var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
-        Vic2.AdvanceRaster(instructionExecResult.CyclesConsumed);
 
         // Audio generation after each instruction (SID register writes happen between instructions).
         // _audioProvider is only set when audio is enabled (see ConfigureAudio).
@@ -340,7 +371,6 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             IO = io,
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
-            TimerMode = c64Config.TimerMode,
             ColorMapName = c64Config.ColorMapName,
             InstrumentationEnabled = c64Config.InstrumentationEnabled
         };
@@ -403,6 +433,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
         // Set program counter on startup to the address specified at the 6502 reset vector.
         c64.CPU.Reset(c64.Mem);
+        c64.SyncDevicesToBusCycle();
+        // The VIC-II stalls CPU reads during bad lines and sprite DMA.
+        c64.CPU.BusStallSource = new Vic2BusStalls(c64.Vic2);
 
         logger.LogInformation("C64 created.");
         return c64;
@@ -413,16 +446,18 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         if (renderProviderType == null)
         {
             _renderProvider = null;
+            Vic2CycleRenderer = null;
             return;
         }
         var renderProvider = RenderProviders.SingleOrDefault(rp => rp.GetType() == renderProviderType)
             ?? throw new ArgumentException("The specified render provider type is not available.");
         _renderProvider = renderProvider;
+        Vic2CycleRenderer = renderProvider as IVic2CycleRenderer;
     }
 
     private static void ConfigureRenderer(C64 c64, C64Config config)
     {
-        c64.RenderProviders.Add(new Vic2Rasterizer(c64, perLineSprites: config.Vic2RasterizerPerLineSprites));
+        c64.RenderProviders.Add(new Vic2Rasterizer(c64, perLineSprites: config.Vic2RasterizerPerLineSprites, pixelGeneratorType: config.Vic2RasterizerPixelGeneratorType));
 
         // Multiplex sprites also need per-line collision accumulation to stay correct. Gate it on the
         // same config flag (collision lives in the system layer, independent of the render provider).
@@ -463,6 +498,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)
     {
+        _configurationMapsIO[mem.CurrentConfiguration] = mapIO;
         // Address 0x00: 6510 CPU data direction register.
         mem.MapReader(0x00, IoPortDirectionLoad);
         mem.MapWriter(0x00, IoPortDirectionStore);
@@ -477,7 +513,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
             Cia1.MapIOLocations(mem);
             Cia2.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
-            CartridgeSlot.MapIOLocations(mem, ReadIOStorage, WriteIOStorage);
+            // With no cartridge there the I/O 1 and I/O 2 areas are not connected: a read returns
+            // what the VIC-II left on the data bus.
+            CartridgeSlot.MapIOLocations(mem, _ => Vic2.FirstPhaseBusByte(), WriteIOStorage);
         }
     }
 
@@ -506,6 +544,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     {
         _cpuPort = (Cpu6510Port)CPU.ModelState!;
         _cpuPort.ExternalInputLevels = CpuPortInputPullupMask;
+        _cpuPort.FloatingLinesMask = CpuPortFloatingLinesMask;
         _cpuPort.OutputsChanged += ApplyCpuPortMemoryConfiguration;
     }
 
@@ -774,8 +813,9 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
 
     private List<string> BuildSystemInfo()
     {
-        var row1 = $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank}";
-        var row2 = $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
+        // The VIC-II position line is the one the monitor's 'r' command prints, with the same names.
+        var row1 = this.FormatDebugValuesLine()!;
+        var row2 = $"CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank} Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
         return new List<string>() { row1, row2 };
     }
 
@@ -894,6 +934,7 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
         Array.Clear(IO);
         SetStartupBank(this);
         CPU.Reset(Mem);
+        SyncDevicesToBusCycle();
         _logger.LogDebug(
             "C64 hard reset complete. Cartridge={Cartridge}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, ResetPC={PC:X4}",
             CartridgeSlot.AttachedCartridge?.Name ?? "none",
@@ -963,6 +1004,103 @@ public class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISyste
     public ISystemMonitorCommands GetSystemMonitorCommands()
     {
         return _c64MonitorCommands;
+    }
+
+    // --- Debug values: the VIC-II's position, for breakpoint conditions and debugger displays.
+
+    private static readonly DebugValueInfo[] s_debugValues =
+    [
+        new("RASTER", "Raster line the VIC-II is on."),
+        new("CYCLE", "Cycle within the raster line, in the chip's numbering: 1 to 63 (PAL) or 65 (NTSC)."),
+        new("FRAMECYCLE", "Cycle within the frame, from 0."),
+        new("FRAME", "Frames completed since power-on."),
+    ];
+
+    public string DebugValueGroupName => "VIC-II";
+
+    public IReadOnlyList<DebugValueInfo> DebugValues => s_debugValues;
+
+    /// <summary>
+    /// The VIC-II's position at the current instruction boundary. The chip is brought up to the
+    /// CPU's bus cycle first, so the values are right after a CPU-only single step as well.
+    /// </summary>
+    public bool TryGetDebugValue(string name, out long value)
+    {
+        // A run-until condition reads these before every instruction: no allocation here.
+        Vic2.CatchUpTo(CPU.BusCycles);
+        var cyclesPerLine = (long)Vic2.Vic2Model.CyclesPerLine;
+        var frameCycle = (long)Vic2.CyclesConsumedCurrentVblank;
+        if (name.Equals("RASTER", StringComparison.OrdinalIgnoreCase))
+        {
+            value = frameCycle / cyclesPerLine;
+            return true;
+        }
+        if (name.Equals("CYCLE", StringComparison.OrdinalIgnoreCase))
+        {
+            value = frameCycle % cyclesPerLine + 1;
+            return true;
+        }
+        if (name.Equals("FRAMECYCLE", StringComparison.OrdinalIgnoreCase))
+        {
+            value = frameCycle;
+            return true;
+        }
+        if (name.Equals("FRAME", StringComparison.OrdinalIgnoreCase))
+        {
+            value = (long)Vic2.FrameCount;
+            return true;
+        }
+        value = 0;
+        return false;
+    }
+
+    private static readonly DebugValueInfo[] s_runUntilTargets =
+    [
+        new("raster", "<line> [cycle]: the VIC-II raster line, and the cycle within it in the chip's numbering (default 1)."),
+    ];
+
+    public IReadOnlyList<DebugValueInfo> RunUntilTargets => s_runUntilTargets;
+
+    public bool TryBuildRunUntilCondition(string target, IReadOnlyList<string> arguments, out string condition)
+    {
+        if (!target.Equals("raster", StringComparison.OrdinalIgnoreCase))
+        {
+            condition = "";
+            return false;
+        }
+        if (arguments.Count is < 1 or > 2)
+            throw new ArgumentException("Usage: raster <line> [cycle]");
+        if (!int.TryParse(arguments[0], out var line))
+            throw new ArgumentException($"Raster line '{arguments[0]}' is not a decimal number.");
+        var cycle = 1;
+        if (arguments.Count == 2 && !int.TryParse(arguments[1], out cycle))
+            throw new ArgumentException($"Cycle '{arguments[1]}' is not a decimal number.");
+        condition = BuildRunUntilRasterCondition(line, cycle);
+        return true;
+    }
+
+    /// <summary>
+    /// The run-until condition that stops at the first instruction boundary at or after the
+    /// VIC-II reaches <paramref name="line"/> and <paramref name="cycle"/> (the chip's 1-based
+    /// cycle numbering), in this frame if the position is still ahead and otherwise in the next.
+    /// </summary>
+    public string BuildRunUntilRasterCondition(int line, int cycle = 1)
+    {
+        var cyclesPerLine = (int)Vic2.Vic2Model.CyclesPerLine;
+        var totalLines = Vic2.Vic2Model.TotalHeight;
+        if (line < 0 || line >= totalLines)
+            throw new ArgumentException($"Raster line must be 0 to {totalLines - 1} on the {Vic2.Vic2Model.Name} VIC-II.", nameof(line));
+        if (cycle < 1 || cycle > cyclesPerLine)
+            throw new ArgumentException($"Cycle must be 1 to {cyclesPerLine} on the {Vic2.Vic2Model.Name} VIC-II.", nameof(cycle));
+
+        var target = (long)line * cyclesPerLine + (cycle - 1);
+        Vic2.CatchUpTo(CPU.BusCycles);
+        var frame = (long)Vic2.FrameCount;
+        var current = (long)Vic2.CyclesConsumedCurrentVblank;
+        // && binds tighter than || in the condition syntax.
+        return current < target
+            ? $"FRAME == {frame} && FRAMECYCLE >= {target} || FRAME > {frame}"
+            : $"FRAME > {frame} && FRAMECYCLE >= {target}";
     }
 
     /// <summary>

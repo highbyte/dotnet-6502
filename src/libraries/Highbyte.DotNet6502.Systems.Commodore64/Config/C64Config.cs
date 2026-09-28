@@ -15,7 +15,6 @@ public class C64Config
 
     public string Vic2Model { get; set; }
 
-    public TimerMode TimerMode { get; set; }
 
     public bool InstrumentationEnabled { get; set; }
 
@@ -34,6 +33,13 @@ public class C64Config
     /// multiplexing) instead of once at end-of-frame. Only affects the Vic2Rasterizer provider.
     /// </summary>
     public bool Vic2RasterizerPerLineSprites { get; set; }
+
+    /// <summary>
+    /// Which pixel generator the Vic2Rasterizer render provider draws with: the graphics sequencer
+    /// followed pixel by pixel (the default, exact for mid-line register changes) or the legacy
+    /// block-based generator, which is faster and kept unchanged as a fallback.
+    /// </summary>
+    public Vic2PixelGeneratorType Vic2RasterizerPixelGeneratorType { get; set; } = Vic2PixelGeneratorType.Sequencer;
 
     public Type? AudioProviderType { get; set; }
     public SidEmulationMode SidEmulationMode { get; set; } = SidEmulationMode.Auto;
@@ -57,8 +63,6 @@ public class C64Config
         SwiftLink = new C64SwiftLinkConfig();
 
         // Settings not currently changeable by user
-        TimerMode = TimerMode.UpdateEachRasterLine;
-        //TimerMode = TimerMode.UpdateEachInstruction;
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
 
         InstrumentationEnabled = false;
@@ -73,8 +77,3 @@ public class C64Config
     }
 }
 
-public enum TimerMode
-{
-    UpdateEachInstruction,
-    UpdateEachRasterLine
-}

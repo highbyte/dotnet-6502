@@ -79,7 +79,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **Window**: `C64ConfigDialog`
 - **ROMs (dynamic per ROM)**: `RomFileTextBox.Kernal`, `RomFileTextBox.Basic`, `RomFileTextBox.Chargen`
 - **ROM actions**: `RomDirectoryTextBox`, `ClearRomsButton`, `LoadRomsButton`, `DownloadRomsButton`, `DownloadRomFilesButton`
-- **Video**: `RenderProviderComboBox`, `RenderTargetComboBox`
+- **Video**: `RenderProviderComboBox`, `RenderTargetComboBox`, `PerLineSpritesCheckBox`, `LegacyPixelGeneratorCheckBox`
 - **Audio**: `SidAudioCheckBox`
 - **Input**: `HostJoystickComboBox`, `KeyboardJoystickEnableCheckBox`, `KeyboardJoystickPortComboBox`, `KeyboardMappingsExpander`
 - **Network**: `CorsProxyTextBox`, `CorsProxyResetButton`

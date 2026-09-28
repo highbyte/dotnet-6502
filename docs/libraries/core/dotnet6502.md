@@ -11,6 +11,60 @@ Library: `Highbyte.DotNet6502`
 - Supports a compatibility-profile based subset of undocumented NMOS 6502 opcodes.
 - Can load an assembled 6502 program binary and execute it.
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests).
+- Every instruction performs exactly the bus accesses the silicon performs, one per clock cycle, verified against the [SingleStepTests 65x02](https://github.com/SingleStepTests/65x02) corpus (see below).
+
+## Cycle and bus accuracy
+
+An instruction executes atomically (one call runs it to completion), but every clock cycle of
+it is a real memory access in hardware order, dummy reads and write-backs included: the
+next-byte read of implied instructions, the un-indexed read of zero-page indexed modes, the
+un-carried-address read of NMOS indexed modes on a page crossing, the branch fix-up reads, the
+stack reads of pulls and returns, the NMOS read/write-back/write and 65C02 read/read/write of
+read-modify-write instructions, and the 65C02's operand re-reads on its extra cycles. Memory-
+mapped I/O therefore sees exactly the accesses a real device would, at the same points in the
+sequence.
+
+`CPU.BusCycles` counts those accesses. Because the count advanced by an instruction equals its
+cycle count, systems can derive elapsed cycles from bus activity, and the tests hold the two
+together for every opcode byte of every model and profile. A system can therefore keep its
+devices exact to the cycle without stepping them every cycle: a memory-mapped register handler
+reads the counter, advances the device to the cycle of the access, and then applies the access.
+The C64 does this for the VIC-II, the CIAs and the SID.
+
+A system can also stall the CPU the way a bus master holding RDY does, through
+`CPU.BusStallSource`: before a read the CPU asks how many cycles the bus is busy, the read then
+happens at the cycle the bus is released, and the waiting cycles count as instruction cycles
+without accesses (so `BusCycles` is then the cycle count, of which the accesses are a subset).
+Writes are never stalled, as on the 6510. The source names the next cycle at which it wants to be
+asked again, so the check costs one comparison per read in between.
+
+Interrupts follow the hardware sampling rule. The 6502 polls its IRQ and NMI inputs at the end
+of an instruction's second-to-last cycle (a taken branch that does not cross a page polls at the
+end of its first cycle), so a line that goes active during the last cycle is only seen after the
+following instruction. A device reports the bus cycle on which it asserted the line, through the
+`CPUInterrupts` overloads that take a cycle, and the CPU takes the interrupt at a boundary only if
+that cycle is at or before the poll point. A source set active without a cycle is taken at the
+next boundary. `CLI`, `SEI` and `PLP` change the I flag after the poll, so their effect on
+interrupt recognition is one instruction late; `RTI` changes it in time. An interrupt-entry
+sequence (IRQ, NMI or `BRK`) does not poll at its end, so the handler's first instruction always
+runs before another interrupt is taken; and an NMI that arrives by the 4th cycle of an IRQ or
+`BRK` sequence hijacks it: the sequence completes with the NMI vector and the stack frame it
+already pushed (a `BRK`'s keeps B set), and the IRQ, if its device still asserts it, is taken when
+the NMI handler returns.
+
+Verification, beyond the functional test programs:
+
+- A pinned subset of the SingleStepTests corpus, which records the exact bus cycles of the
+  NMOS 6502 and the WDC 65C02, is run per opcode: final state, cycle-by-cycle bus trace and
+  cycle count must all match. Bytes where the emulated part is documented to differ (the
+  Rockwell bit instructions and WDC-only `WAI`/`STP` that the NCR 65C02 executes as NOPs) are
+  listed with their reason and skipped.
+- A structural test executes every defined opcode byte of every model and profile from random
+  state and requires one bus access per reported cycle.
+
+What this does not claim: the CPU cannot be stopped inside an instruction, so a device that
+needs to stall the CPU (the C64's VIC-II via BA/RDY) or sample a line on a specific cycle must
+do so at the bus access for that cycle; and interrupts are recognized at instruction boundaries.
 
 ## CPU models
 
@@ -45,8 +99,8 @@ Higher profiles include everything from lower profiles.
 | Profile | Meaning |
 | ------- | ------- |
 | `OfficialOnly` | Only documented MOS 6502 opcodes are available. |
-| `StableUnofficial` | Also enables the more predictable undocumented NMOS opcodes commonly used on real 6502/6510 hardware. |
-| `ExperimentalUnofficial` | Also enables the currently implemented but less reliable undocumented opcodes used for targeted compatibility testing. |
+| `StableUnofficial` | Also enables the more predictable undocumented NMOS opcodes commonly used on real 6502/6510 hardware, including `ARR` ($6B); `LXA` ($AB) and `ANE` ($8B), whose result depends on a chip-specific value ORed into A: the common `$EE` is used; and the indexed stores `SHA` ($93, $9F), `SHX` ($9E), `SHY` ($9C) and `TAS` ($9B), which store a register ANDed with the high byte of the address plus one, corrupt the address high byte with that value on a page crossing, and drop the AND when a bus master (the C64's VIC-II) holds RDY low in the cycle before the write. |
+| `ExperimentalUnofficial` | Also enables the currently implemented but less reliable undocumented opcodes, such as `LAS` ($BB), whose result depends on what is on the bus; for targeted compatibility testing. |
 | `FullUnofficial` | Also enables halt-style unofficial opcodes such as `JAM` / `KIL` that can intentionally jam the CPU until reset. |
 
 Notes:

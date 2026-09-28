@@ -128,13 +128,14 @@ The generated files look like this:
 - **Logpoints**: Log messages to the debug console without stopping execution
 - **Step through instructions**: Step, step in, step out, and continue execution
 - **Register inspection**: View CPU registers (PC, SP, A, X, Y) and flags in Variables panel
+- **System values**: The C64's VIC-II raster position (`RASTER`, `CYCLE`, `FRAMECYCLE`, `FRAME`) in the Variables panel, in conditions and on hover
 - **Register and flag editing**: Double-click registers or flags in the Variables panel to modify values
 - **Jump to Line (Set PC)**: Right-click a line number or gutter to set the Program Counter to that line
 - **Inline address decorations**: Source lines show their mapped 6502 address (`$XXXX`) as dim inline text
 - **Hover evaluation**: Hover over addresses, registers, or ca65 symbols in source code to see values
 - **Memory viewing**: Inspect memory via Watch panel and Debug Console (e.g., `$c000`, `PC`, `A`)
 - **Memory viewer**: View memory ranges in hex dump format with toolbar button or command palette
-- **Debug Console commands**: `dump`/`md` for memory dumps, `set` for modifying registers/memory
+- **Debug Console commands**: `dump`/`md` for memory dumps, `set` for modifying registers/memory, `run until <condition>` and `run raster <line> [cycle]` (C64) to continue to a condition or raster position
 - **Disassembly view**: See the disassembled instruction at the current PC
 - **Problem matcher**: Compiler errors appear in Problems panel with inline squiggles
 

@@ -27,11 +27,12 @@ Commands:
   f      Fill memory at specified address with a list of bytes.
          Example: f 1000 20 ff ab 30
   g      Change the PC (Program Counter) to the specified address continue execution.
+  gu     Continue execution until a condition is true, checked before each instruction regardless of address.
   l      Load 6502 binary file from file pick dialog into emulator memory.
   ll     Load specified 6502 binary file into emulator memory.
   m      Show contents of emulator memory in bytes.
   q      Quit monitor.
-  r      Show processor status and registers. CY = #cycles executed.
+  r      Show processor status and registers. CY = #cycles executed. A system's own values (a C64's VIC-II position) follow on a second line.
   reset  Resets the computer (soft, memory intact).
   s      Save a binary from 6502 emulator memory to host file system.
   z      Single step through instructions. Optionally execute a specified number of instructions.
@@ -115,6 +116,19 @@ Example how to show contents of bytes in memory with `m` command:
 ```
 > m d000 d002
 d000  12 30 21
+```
+
+### Run until a condition
+
+`gu` takes a condition in the breakpoint-condition syntax the VS Code debugger uses — registers (`A`, `X`,
+`Y`, `SP`, `PC`), flags (`C`, `Z`, `N`, `V`, `I`, `D`, `B`), memory (`[$D020]`, `[$0300 + X]`), the
+comparison operators and `&&`/`||` — plus the values the system exposes, such as a C64's `RASTER` and
+`CYCLE`. Execution stops at the first instruction boundary where the condition is true, and the condition is
+dropped when the monitor is entered for any other reason.
+
+```
+> gu A == $FF && X == 0
+> gu RASTER == 100
 ```
 
 ## Additional system-specific commands

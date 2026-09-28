@@ -148,12 +148,16 @@ internal static class InstructionBindings
         Bespoke(table, 0x68, "PLA", AddrMode.Implied, 1, 4, SharedHandlers.Pla);
         Bespoke(table, 0x08, "PHP", AddrMode.Implied, 1, 3, SharedHandlers.Php);
         Bespoke(table, 0x28, "PLP", AddrMode.Implied, 1, 4, SharedHandlers.Plp);
+
+        // CLI, SEI and PLP change the I flag in their last cycle, after the interrupt poll.
+        MarkChangesInterruptDisableAfterPoll(table, 0x58, 0x78, 0x28);
         Bespoke(table, 0x4C, "JMP", AddrMode.ABS, 3, 3, SharedHandlers.Jmp_Absolute);
         Bespoke(table, 0x20, "JSR", AddrMode.ABS, 3, 6, SharedHandlers.Jsr);
         Bespoke(table, 0x60, "RTS", AddrMode.Implied, 1, 6, SharedHandlers.Rts);
         Bespoke(table, 0x40, "RTI", AddrMode.Implied, 1, 6, SharedHandlers.Rti);
         Bespoke(table, 0xEA, "NOP", AddrMode.Implied, 1, 2, SharedHandlers.Nop);
         Bespoke(table, 0x00, "BRK", AddrMode.Implied, 1, 7, SharedHandlers.Brk);
+        MarkInterruptEntry(table, 0x00);
     }
 
     /// <summary>
@@ -298,13 +302,33 @@ internal static class InstructionBindings
             Read(table, 0x4B, "ALR", AddrMode.I, 2, 2, InstructionCores.Alr, false, indexedDummyReads, documented: false);
             Read(table, 0xCB, "AXS", AddrMode.I, 2, 2, InstructionCores.Axs, false, indexedDummyReads, documented: false);
 
+            // The two immediate opcodes whose result depends on a chip-specific value, with the
+            // common one: closer to any real chip than running them as one-byte instructions,
+            // which derails programs that use them (FLI displayers use LXA #0).
+            Read(table, 0xAB, "LXA", AddrMode.I, 2, 2, InstructionCores.Lxa, false, indexedDummyReads, documented: false);
+            Read(table, 0x8B, "ANE", AddrMode.I, 2, 2, InstructionCores.Ane, false, indexedDummyReads, documented: false);
+
+            // The indexed stores whose value is ANDed with the high byte of the address plus one
+            // (and whose address that value corrupts on a page crossing): predictable when the bus
+            // is the CPU's own, which the composition handles along with the RDY case. Y indexes
+            // all of them but SHY, which X indexes.
+            UnstableStore(table, 0x93, "SHA", AddrMode.IND_IX, 2, 6, InstructionCores.Sax);
+            UnstableStore(table, 0x9F, "SHA", AddrMode.ABS_Y, 3, 5, InstructionCores.Sax);
+            UnstableStore(table, 0x9E, "SHX", AddrMode.ABS_Y, 3, 5, InstructionCores.Stx);
+            UnstableStore(table, 0x9C, "SHY", AddrMode.ABS_X, 3, 5, InstructionCores.Sty);
+            UnstableStore(table, 0x9B, "TAS", AddrMode.ABS_Y, 3, 5, InstructionCores.Tas);
+
             // $EB: undocumented alias of SBC #imm — same core as the official byte.
             Read(table, 0xEB, "SBC", AddrMode.I, 2, 2, InstructionCores.SbcNmos, false, indexedDummyReads, documented: false);
+
+            // ARR: AND then ROR through the adder; deterministic on every NMOS chip (the corpus
+            // asserts it), and used as a two-cycle AND+ROR by demos (Party Elk 2's FPP tables).
+            Read(table, 0x6B, "ARR", AddrMode.I, 2, 2, InstructionCores.Arr, false, indexedDummyReads, documented: false);
         }
 
         if (profile >= CpuCompatibilityProfile.ExperimentalUnofficial)
         {
-            Read(table, 0x6B, "ARR", AddrMode.I, 2, 2, InstructionCores.Arr, false, indexedDummyReads, documented: false);
+            // LAS: the result depends on what is on the bus, so it stays out of the stable tier.
             Read(table, 0xBB, "LAS", AddrMode.ABS_Y, 3, 4, InstructionCores.Las, true, indexedDummyReads, documented: false);
         }
 
@@ -384,6 +408,48 @@ internal static class InstructionBindings
             Execute = handler,
         };
 
+    /// <summary>
+    /// Re-issue an already bound descriptor with <see cref="OpCodeDescriptor.IsInterruptEntry"/> set.
+    /// </summary>
+    private static void MarkInterruptEntry(OpCodeDescriptor?[] table, byte code)
+    {
+        var d = table[code] ?? throw new InvalidOperationException($"Opcode ${code:X2} is not bound.");
+        table[code] = new OpCodeDescriptor
+        {
+            Code = d.Code,
+            Mnemonic = d.Mnemonic,
+            Addressing = d.Addressing,
+            Size = d.Size,
+            BaseCycles = d.BaseCycles,
+            Documented = d.Documented,
+            Execute = d.Execute,
+            ChangesInterruptDisableAfterPoll = d.ChangesInterruptDisableAfterPoll,
+            IsInterruptEntry = true,
+        };
+    }
+
+    /// <summary>
+    /// Re-issue already bound descriptors with <see cref="OpCodeDescriptor.ChangesInterruptDisableAfterPoll"/> set.
+    /// </summary>
+    private static void MarkChangesInterruptDisableAfterPoll(OpCodeDescriptor?[] table, params byte[] codes)
+    {
+        foreach (var code in codes)
+        {
+            var d = table[code] ?? throw new InvalidOperationException($"Opcode ${code:X2} is not bound.");
+            table[code] = new OpCodeDescriptor
+            {
+                Code = d.Code,
+                Mnemonic = d.Mnemonic,
+                Addressing = d.Addressing,
+                Size = d.Size,
+                BaseCycles = d.BaseCycles,
+                Documented = d.Documented,
+                Execute = d.Execute,
+                ChangesInterruptDisableAfterPoll = true,
+            };
+        }
+    }
+
     private static void Rmw(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
         byte size, byte baseCycles, RmwOperation core, bool cmosSequence, bool indexedDummyReads, bool addPageCrossCycle = false, bool documented = true)
         => table[code] = new OpCodeDescriptor
@@ -424,6 +490,19 @@ internal static class InstructionBindings
             BaseCycles = baseCycles,
             Documented = documented,
             Execute = ComposeRead(addressing, baseCycles, core, addPageCrossCycle, indexedDummyReads),
+        };
+
+    private static void UnstableStore(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,
+        byte size, byte baseCycles, StoreOperation register)
+        => table[code] = new OpCodeDescriptor
+        {
+            Code = code,
+            Mnemonic = mnemonic,
+            Addressing = addressing,
+            Size = size,
+            BaseCycles = baseCycles,
+            Documented = false,
+            Execute = ComposeUnstableStore(addressing, baseCycles, register),
         };
 
     private static void Store(OpCodeDescriptor?[] table, byte code, string mnemonic, AddrMode addressing,

@@ -28,6 +28,19 @@ A list of applications that seem to work decently with the [C64 emulator](overvi
 
 For advanced use, see [Useful tools](useful-tools.md) for how to extract PRG files from D64 disk images.
 
+## Demos and intros
+
+| Program | D/L URL | File | Comment |
+|---------|---------|------|---------|
+| Fairlight Intro (Golden Collection) | <https://csdb.dk/release/download.php?id=221432> | `flt-25.prg` | C64 PAL variant. Character mode with multicolour register changes every second line, per-line background colour bars, a mid-frame charset switch and a hires scroller, all timed by polling the raster register. |
+| For Your Sprites Only | <https://csdb.dk/release/download.php?id=245856> | `foryourspritesonly.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: the display is off and the vertical border opened, sprite rows are stretched by rewriting the Y-expand register every line, sprite pointers and colours change per line, raster bars in the border and background. |
+| Unfortunate Coincidence | <https://csdb.dk/release/download.php?id=245796> | `unf-coincidence.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: sprite multiplexing with per-line changes of the scroll/mode and memory setup registers. |
+| Smooth and Wonders | <https://csdb.dk/release/download.php?id=245318> | `Smooth_And_Wonders.prg` | C64 PAL variant, per-line sprites switched on. Sprites only: full-frame pictures and text on a 384x273 hyperscreen with the display off and the borders opened, drawn with sprites stretched by rewriting the Y-expand register every line and shown as two alternating frames. |
+| Krestage 3 | <https://csdb.dk/release/download.php?id=58941> | `KRESTAGE3.D64` → first file | C64 PAL variant, per-line sprites switched on. Two pictures under a scroller, drawn with X-expanded sprites whose expand, multicolour and priority bits are switched while they shift (the sprite split effect), nine sprites on a line and 50-pixel-wide sprites among them; the demo checks the chip for these before it starts. |
+| Chars Sucks | <https://csdb.dk/release/download.php?id=244748> | `TRIAD_Charssucks.d64` → first file | C64 PAL variant, per-line sprites switched on. No characters at all: the display is off for the whole frame and the vertical border left open, the logo and the scroller are sprites behind the idle graphics, and the blocks' shading on the two X-expanded sprites is the idle byte of the VIC-II's bank, rewritten twice per line for a few cycles at a time. |
+| Robot - Not Human | <https://csdb.dk/release/download.php?id=322645> | `robot - not human.prg` | C64 PAL variant, per-line sprites switched on. A music-synced robot animation with sprites in the side borders and sampled sound. Starts a one-shot CIA timer from a counter of 0 and enables its NMI only afterwards, so it needs the interrupt to be raised when a source is enabled with its flag already set. |
+| Party Elk 2 | <https://csdb.dk/release/download.php?id=283419> | `FppScroller.prg` | C64 PAL variant, per-line sprites switched on. A PETSCII logo over an FPP scroller (character rows re-addressed every raster line) that bends through the side borders. Its FPP tables are computed with the undocumented `ARR` opcode, so it needs the `StableUnofficial` CPU profile or higher (the default), and it switches the VIC-II bank in the middle of every scroller line, so the bank change must reach the chip's fetches on the cycle after the write. |
+
 ## Online / modem-style software
 
 | Program | Media | SwiftLink requirement | Comment |

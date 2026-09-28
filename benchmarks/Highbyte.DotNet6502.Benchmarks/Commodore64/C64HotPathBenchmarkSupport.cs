@@ -54,7 +54,6 @@ internal static class C64HotPathBenchmarkSupport
             C64Model = "C64NTSC",
             Vic2Model = "NTSC",
             LoadROMs = false,
-            TimerMode = TimerMode.UpdateEachRasterLine,
             AudioEnabled = UsesSampleAudioProvider(scenario),
             AudioProviderType = UsesSampleAudioProvider(scenario) ? typeof(C64SidSampleProvider) : null,
             RenderProviderType = UsesRasterizer(scenario) ? typeof(Vic2Rasterizer) : null,
@@ -62,11 +61,24 @@ internal static class C64HotPathBenchmarkSupport
         };
 
         var c64 = C64.BuildC64(c64Config, new NullLoggerFactory());
+        SeedJiffyTimer(c64);
         SeedVisibleScreen(c64);
         SeedSprites(c64, spriteScenario);
         LoadProgram(c64.Mem, StartAddress);
         ConfigureSampleAudio(c64);
         return c64;
+    }
+
+    /// <summary>
+    /// The KERNAL keeps CIA1 timer A counting continuously (latch $4025, the 60 Hz jiffy clock),
+    /// so a realistic machine always has one CIA timer to advance. Started without its interrupt
+    /// so the benchmark program is not diverted into an IRQ handler.
+    /// </summary>
+    private static void SeedJiffyTimer(C64 c64)
+    {
+        c64.Cia1.TimerALOStore(0, 0x25);
+        c64.Cia1.TimerAHIStore(0, 0x40);
+        c64.Cia1.TimerAControlStore(0, 0x01);
     }
 
     private static bool UsesRasterizer(C64HotPathScenario scenario)

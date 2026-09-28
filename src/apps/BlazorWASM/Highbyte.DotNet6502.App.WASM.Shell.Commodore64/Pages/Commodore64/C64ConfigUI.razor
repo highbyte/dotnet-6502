@@ -117,6 +117,10 @@
                     </div>
                 </div>
                 <div class="table-row">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">Legacy pixel generator (faster):</div>
+                    <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="LegacyPixelGenerator" @bind:event="oninput" type="checkbox" id="legacyPixelGenerator" title="Draw with the previous block-based pixel generator instead of following the VIC-II's graphics sequencer pixel by pixel. Faster; mid-line register changes are less exact." /></div>
+                </div>
+                <div class="table-row">
                     <div class="table-cell table-cell-fixed-width-medium twocol">Audio enabled (experimental):</div>
                     <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64SystemConfig.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
                 </div>
@@ -405,6 +409,13 @@
 
     public C64HostConfig C64HostConfig => (C64HostConfig)HostSystemConfig;
     public C64SystemConfig C64SystemConfig => C64HostConfig.SystemConfig;
+
+    // The legacy block-based pixel generator instead of the sequencer (see Vic2PixelGeneratorType).
+    private bool LegacyPixelGenerator
+    {
+        get => C64SystemConfig.Vic2RasterizerPixelGeneratorType == Vic2PixelGeneratorType.Legacy;
+        set => C64SystemConfig.Vic2RasterizerPixelGeneratorType = value ? Vic2PixelGeneratorType.Legacy : Vic2PixelGeneratorType.Sequencer;
+    }
 
     private List<Type> RenderProviderTypes => AvailableRendererProviderAndRenderTargetTypeCombinations.Select(t => t.renderProviderType).Distinct().ToList();
     private Type? SelectedRenderProviderType => C64SystemConfig.RenderProviderType;

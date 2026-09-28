@@ -313,6 +313,13 @@ internal static class InstructionCores
     /// <summary>SAX: store A AND X (no flags).</summary>
     public static byte Sax(CPU cpu) => (byte)(cpu.A & cpu.X);
 
+    /// <summary>TAS (SHS): SP = A AND X, which is also the value the store starts from.</summary>
+    public static byte Tas(CPU cpu)
+    {
+        cpu.SP = (byte)(cpu.A & cpu.X);
+        return cpu.SP;
+    }
+
     /// <summary>ANC: AND then copy the result's bit 7 into Carry.</summary>
     public static ulong Anc(CPU cpu, byte value)
     {
@@ -333,12 +340,39 @@ internal static class InstructionCores
     /// <summary>ARR: AND then ROR A with non-standard C (bit 6) and V (bit 6 XOR bit 5).</summary>
     public static ulong Arr(CPU cpu, byte value)
     {
-        cpu.A &= value;
-        bool oldCarry = cpu.ProcessorStatus.Carry;
-        cpu.A = (byte)((cpu.A >> 1) | (oldCarry ? 0x80 : 0x00));
-        cpu.ProcessorStatus.Carry = cpu.A.IsBitSet(6);
-        cpu.ProcessorStatus.Overflow = cpu.A.IsBitSet(6) ^ cpu.A.IsBitSet(5);
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+        // AND, then a rotate whose flag and result rules come from the ADC circuitry the
+        // instruction shares: in binary mode C and V come from bits 6 and 5 of the result; in
+        // decimal mode N is the old carry, V is whether bit 6 changed, and each nibble gets the
+        // BCD fix-up (with C from the high nibble) as the adder would apply it.
+        var anded = (byte)(cpu.A & value);
+        var oldCarry = cpu.ProcessorStatus.Carry;
+        var rotated = (byte)((anded >> 1) | (oldCarry ? 0x80 : 0x00));
+
+        if (!cpu.ProcessorStatus.Decimal)
+        {
+            cpu.A = rotated;
+            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
+            cpu.ProcessorStatus.Carry = cpu.A.IsBitSet(6);
+            cpu.ProcessorStatus.Overflow = cpu.A.IsBitSet(6) ^ cpu.A.IsBitSet(5);
+            return 0;
+        }
+
+        cpu.ProcessorStatus.Negative = oldCarry;
+        cpu.ProcessorStatus.Zero = rotated == 0;
+        cpu.ProcessorStatus.Overflow = ((rotated ^ anded) & 0x40) != 0;
+        var result = (int)rotated;
+        if (((anded & 0x0F) + (anded & 0x01)) > 0x05)
+            result = (result & 0xF0) | ((result + 0x06) & 0x0F);
+        if (((anded & 0xF0) + (anded & 0x10)) > 0x50)
+        {
+            result = (result & 0x0F) | ((result + 0x60) & 0xF0);
+            cpu.ProcessorStatus.Carry = true;
+        }
+        else
+        {
+            cpu.ProcessorStatus.Carry = false;
+        }
+        cpu.A = (byte)result;
         return 0;
     }
 
@@ -348,6 +382,31 @@ internal static class InstructionCores
         byte andVal = (byte)(cpu.A & cpu.X);
         BinaryArithmeticHelpers.SetFlagsAfterCompare(andVal, value, ref cpu.ProcessorStatus);
         cpu.X = (byte)(andVal - value);
+        return 0;
+    }
+
+    /// <summary>
+    /// The value the unstable immediate opcodes LXA and ANE OR into A before their AND. It
+    /// differs between chips (and with temperature); $EE is the common one, and the one every
+    /// LXA and ANE vector of the SingleStepTests 6502 corpus shows.
+    /// </summary>
+    public const byte UnstableImmediateMagic = 0xEE;
+
+    /// <summary>LXA (LAX #imm): A = X = (A OR magic) AND value.</summary>
+    public static ulong Lxa(CPU cpu, byte value)
+    {
+        byte result = (byte)((cpu.A | UnstableImmediateMagic) & value);
+        cpu.A = result;
+        cpu.X = result;
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(result, ref cpu.ProcessorStatus);
+        return 0;
+    }
+
+    /// <summary>ANE (XAA #imm): A = (A OR magic) AND X AND value.</summary>
+    public static ulong Ane(CPU cpu, byte value)
+    {
+        cpu.A = (byte)((cpu.A | UnstableImmediateMagic) & cpu.X & value);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
         return 0;
     }
 
@@ -392,8 +451,9 @@ internal static class InstructionCores
     /// <summary>RRA: ROR memory, then ADC the result (binary, as the NMOS class did).</summary>
     public static byte Rra(CPU cpu, byte value)
     {
+        // ROR then ADC; the add honors the Decimal flag exactly like the documented ADC.
         value = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(value, ref cpu.ProcessorStatus);
-        cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        AdcNmos(cpu, value);
         return value;
     }
 
@@ -408,8 +468,9 @@ internal static class InstructionCores
     /// <summary>ISC: INC memory, then SBC the result (binary, as the NMOS class did).</summary>
     public static byte Isc(CPU cpu, byte value)
     {
+        // INC then SBC; the subtract honors the Decimal flag exactly like the documented SBC.
         value++;
-        cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
+        SbcNmos(cpu, value);
         return value;
     }
 }

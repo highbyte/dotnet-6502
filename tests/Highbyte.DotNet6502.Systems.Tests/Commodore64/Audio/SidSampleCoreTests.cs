@@ -247,10 +247,14 @@ public class SidSampleCoreTests
         Assert.True(highSample > midSample,
             $"Volume 15 should produce a larger output than volume 8 (mid={midSample}, high={highSample}).");
 
-        // Volume 0: silent (early return in MixOutput, and the DAC contribution is zero).
+        // Volume 0: silent (early return in MixOutput, and the DAC contribution is zero). The
+        // first sample after the write straddles it — the master volume is averaged over each
+        // sample window — so it carries a fraction of the old level; every sample after that is 0.
         core.WriteRegister(SIGVOL, 0x00);
         written = core.AdvanceCycles(2000, scratch);
-        for (int i = 0; i < written; i++)
+        Assert.True(written > 1);
+        Assert.InRange(scratch[0], 0f, highSample);
+        for (int i = 1; i < written; i++)
             Assert.Equal(0f, scratch[i]);
     }
 

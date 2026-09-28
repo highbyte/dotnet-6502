@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Nodes;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems;
@@ -111,11 +112,18 @@ public class DebugAdapterLogic
             OnTriggered = HandleEvaluatorTrigger,
             AdditionalBreakAtAddress = CheckSourceBreakpointsAtAddress,
             IsLogpoint = addr => _logMessages.ContainsKey(addr),
-            OnLogpointHit = HandleLogpointHit
+            OnLogpointHit = HandleLogpointHit,
+            DebugValues = system as IDebugValueSource
         };
         if (system != null)
             _systemBoundTcs.TrySetResult();
     }
+
+    /// <summary>The system's named debug values (a C64's VIC-II position), when it exposes any.</summary>
+    private IDebugValueSource? SystemDebugValues => _system as IDebugValueSource;
+
+    /// <summary>The variablesReference of the scope that shows the system's debug values.</summary>
+    private const int SystemValuesVariablesReference = 5;
 
     /// <summary>
     /// Binds a system to the adapter after construction.
@@ -125,6 +133,7 @@ public class DebugAdapterLogic
     public void SetSystem(ISystem system)
     {
         _system = system;
+        _evaluator.DebugValues = system as IDebugValueSource;
         _systemBoundTcs.TrySetResult();
         LogSafe($"[SetSystem] System bound, PC=${system.CPU?.PC:X4}", LogLevel.Information);
     }
@@ -186,10 +195,15 @@ public class DebugAdapterLogic
         _logger?.Log(level, "{Message}", message);
         try
         {
-            if (_log.BaseStream != null && _log.BaseStream.CanWrite)
+            // The writer is shared with the transport and written from the message loop and the
+            // emulator's run loop: serialize on it (the transport locks the same object).
+            lock (_log)
             {
-                _log.WriteLine(message);
-                _log.Flush();
+                if (_log.BaseStream != null && _log.BaseStream.CanWrite)
+                {
+                    _log.WriteLine(message);
+                    _log.Flush();
+                }
             }
         }
         catch (ObjectDisposedException)
@@ -310,7 +324,15 @@ public class DebugAdapterLogic
         string reason;
         int[]? hitIds = null;
 
-        if (_evaluator.StepOutMode)
+        if (result.TriggerType == ExecEvaluatorTriggerReasonType.RunUntilCondition)
+        {
+            // The evaluator checks the run-until condition before its step flags, so it is
+            // reported first here too.
+            LogSafe($"[RunUntil] {result.TriggerDescription}", LogLevel.Information);
+            reason = "step";
+            _ = SendOutputAsync(result.TriggerDescription + "\n");
+        }
+        else if (_evaluator.StepOutMode)
         {
             // Step-out: the evaluator detected RTS but has not yet cleared StepOutMode.
             // Execute the RTS now so PC advances to the caller before we send the stopped event.
@@ -340,6 +362,9 @@ public class DebugAdapterLogic
             hitIds = _breakpointIdsByAddress.TryGetValue(cpu.PC, out var bpId) ? new[] { bpId } : null;
         }
 
+        // A pending "run until" does not survive a stop for another reason.
+        if (result.TriggerType != ExecEvaluatorTriggerReasonType.RunUntilCondition)
+            _evaluator.RunUntilCondition = null;
         IsStopped = true;
         OnDebuggerPaused?.Invoke();
         _ = SendStoppedEventAsync(reason, hitBreakpointIds: hitIds);
@@ -1566,6 +1591,16 @@ public class DebugAdapterLogic
             }
         };
 
+        if (SystemDebugValues is { DebugValues.Count: > 0 } systemValues)
+        {
+            scopes.Add(new JsonObject
+            {
+                ["name"] = systemValues.DebugValueGroupName,
+                ["variablesReference"] = SystemValuesVariablesReference,
+                ["expensive"] = false
+            });
+        }
+
         if (_dbgParser?.Symbols.Count > 0)
         {
             // Group labels by segment name. If all labels are in the same segment (common for
@@ -1666,6 +1701,25 @@ public class DebugAdapterLogic
                         });
                     }
                     LogSafe($"[HandleVariables] Returning {variables.Count} label variables (segment={filterSegment ?? "all"})");
+                }
+            }
+            else if (variablesReference == SystemValuesVariablesReference) // The system's own values (a C64's VIC-II position)
+            {
+                if (SystemDebugValues is { } systemValues)
+                {
+                    foreach (var info in systemValues.DebugValues)
+                    {
+                        if (!systemValues.TryGetDebugValue(info.Name, out var value))
+                            continue;
+                        variables.Add(new JsonObject
+                        {
+                            ["name"] = info.Name,
+                            ["value"] = value.ToString(),
+                            ["type"] = info.Description,
+                            ["variablesReference"] = 0
+                        });
+                    }
+                    LogSafe($"[HandleVariables] Returning {variables.Count} {systemValues.DebugValueGroupName} variables");
                 }
             }
             else if (variablesReference == 4) // Constants
@@ -2040,6 +2094,11 @@ public class DebugAdapterLogic
                 await _protocol.SendErrorResponseAsync(seq, "setVariable", "Constants cannot be modified");
                 return;
             }
+            else if (variablesReference == SystemValuesVariablesReference) // read-only
+            {
+                await _protocol.SendErrorResponseAsync(seq, "setVariable", $"{SystemDebugValues?.DebugValueGroupName ?? "System"} values cannot be modified");
+                return;
+            }
             else
             {
                 await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Unknown variablesReference: {variablesReference}");
@@ -2314,6 +2373,61 @@ public class DebugAdapterLogic
         return addrs.Count > 1 ? addrs : null;
     }
 
+    /// <summary>
+    /// Debug Console "run" command: resumes execution until a condition holds, checked before
+    /// every instruction regardless of address.
+    ///   run until &lt;condition&gt;      — breakpoint-condition syntax, e.g. run until RASTER == 100
+    ///   run &lt;target&gt; &lt;args&gt;        — a target the system offers, e.g. run raster 100 20 on a C64
+    /// </summary>
+    private string HandleRunCommand(string args, CPU? cpu, Memory? memory)
+    {
+        if (cpu == null || memory == null)
+            return "Error: No system available";
+
+        var usage = new StringBuilder("Usage: run until <condition>");
+        var systemValues = SystemDebugValues;
+        if (systemValues != null)
+        {
+            foreach (var target in systemValues.RunUntilTargets)
+                usage.Append('\n').Append("       run ").Append(target.Name).Append(' ').Append(target.Description);
+        }
+
+        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+            return usage.ToString();
+
+        string condition;
+        if (parts[0].Equals("until", StringComparison.OrdinalIgnoreCase))
+        {
+            condition = string.Join(' ', parts.Skip(1));
+            if (!BreakpointConditionEvaluator.TryParse(condition, cpu, memory, systemValues, out var error))
+                return $"Invalid condition: {error}";
+        }
+        else
+        {
+            try
+            {
+                if (systemValues == null || !systemValues.TryBuildRunUntilCondition(parts[0], parts.Skip(1).ToArray(), out condition))
+                    return $"Unknown run target '{parts[0]}'.\n{usage}";
+            }
+            catch (ArgumentException ex)
+            {
+                return ex.Message.Split(" (Parameter")[0];
+            }
+        }
+
+        LogSafe($"[Run] Resuming until '{condition}' from PC=${cpu.PC:X4}", LogLevel.Information);
+        _evaluator.RunUntilCondition = condition;
+        _evaluator.SourceLineStepAddresses = null;
+        _evaluator.SourceLineStepIsOver = false;
+        _evaluator.SkipNextBreakpointCheck = true;
+        IsStopped = false;
+        OnDebuggerResumed?.Invoke();
+        StartExecutionLoop();
+        _ = _protocol.SendEventAsync("continued", new JsonObject { ["threadId"] = THREAD_ID, ["allThreadsContinued"] = true });
+        return $"Running until {condition}";
+    }
+
     private string HandleSetCommand(string args, CPU? cpu, Memory? memory)
     {
         // Parse: "<target> <value>" where target is a register name (A, X, Y, SP, PC) or address ($c000, 0xc000, decimal)
@@ -2426,7 +2540,7 @@ public class DebugAdapterLogic
         if (memory == null)
             return "Memory not available";
 
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         const int bytesPerRow = 16;
 
         for (int offset = 0; offset < length; offset += bytesPerRow)
@@ -2622,6 +2736,10 @@ public class DebugAdapterLogic
             {
                 result = HandleSetCommand(expression.Substring(4).Trim(), cpu, memory);
             }
+            else if (context == "repl" && (expression.Equals("run", StringComparison.OrdinalIgnoreCase) || expression.StartsWith("run ", StringComparison.OrdinalIgnoreCase)))
+            {
+                result = HandleRunCommand(expression.Substring(3).Trim(), cpu, memory);
+            }
             // Check for memory address / immediate-value expressions: $c000, 0xc000, or decimal
             else if (expression.StartsWith("$") || expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || int.TryParse(expression, out _))
             {
@@ -2670,6 +2788,11 @@ public class DebugAdapterLogic
             else if (expression.Equals("SP", StringComparison.OrdinalIgnoreCase))
             {
                 result = $"${cpu.SP:X2}";
+            }
+            // The system's own values (a C64's RASTER, CYCLE, ...)
+            else if (SystemDebugValues?.TryGetDebugValue(expression, out var systemValue) == true)
+            {
+                result = systemValue.ToString();
             }
             // Check for symbol name in .dbg symbols
             else if (_dbgParser?.Symbols.TryGetValue(expression, out var symbol) == true)
@@ -3050,6 +3173,7 @@ public class DebugAdapterLogic
     {
         LogSafe("[HandlePause] Pause requested", LogLevel.Information);
 
+        _evaluator.RunUntilCondition = null; // a pending "run until" does not survive a pause
         IsStopped = true; // Pause the emulator's run loop
         OnDebuggerPaused?.Invoke();
         StopExecutionLoop();

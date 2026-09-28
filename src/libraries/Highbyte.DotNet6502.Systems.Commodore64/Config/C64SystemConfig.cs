@@ -308,6 +308,21 @@ public partial class C64SystemConfig : ISystemConfig, ISnapshotableConfig
         }
     }
 
+    private Vic2PixelGeneratorType _vic2RasterizerPixelGeneratorType = Vic2PixelGeneratorType.Sequencer;
+    /// <summary>
+    /// Which pixel generator the Vic2Rasterizer render provider draws with: the graphics sequencer
+    /// followed pixel by pixel (default) or the legacy block-based generator, faster and unchanged.
+    /// </summary>
+    public Vic2PixelGeneratorType Vic2RasterizerPixelGeneratorType
+    {
+        get => _vic2RasterizerPixelGeneratorType;
+        set
+        {
+            _vic2RasterizerPixelGeneratorType = value;
+            _isDirty = true;
+        }
+    }
+
     private string _colorMapName;
 
     public string ColorMapName

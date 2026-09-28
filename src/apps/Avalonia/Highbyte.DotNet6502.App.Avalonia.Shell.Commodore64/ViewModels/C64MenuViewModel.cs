@@ -48,8 +48,16 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         {"compunetreborn", new C64DownloadProgramInfo("Compunet Reborn", "https://compunet.live/static/compunet-reborn-live.prg", downloadType: C64DownloadProgramType.Prg, availableInBrowser: true, c64Variant: "C64PAL", swiftLinkEnabled: true)},
         {"digiloi", new C64DownloadProgramInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
         {"elite", new C64DownloadProgramInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,directLoadPRGName: "*", c64Variant: "C64PAL")},
+        {"fairlightintro", new C64DownloadProgramInfo("Fairlight Intro (Golden Collection)", "https://csdb.dk/release/download.php?id=221432", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true)},
+        {"foryourspritesonly", new C64DownloadProgramInfo("For Your Sprites Only", "https://csdb.dk/release/download.php?id=245856", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true)},
+        {"unfortunatecoincidence", new C64DownloadProgramInfo("Unfortunate Coincidence", "https://csdb.dk/release/download.php?id=245796", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true)},
+        {"smoothandwonders", new C64DownloadProgramInfo("Smooth and Wonders", "https://csdb.dk/release/download.php?id=245318", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true)},
+        {"krestage3", new C64DownloadProgramInfo("Krestage 3", "https://csdb.dk/release/download.php?id=58941", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true, directLoadPRGName: "*")},
+        {"charssucks", new C64DownloadProgramInfo("Chars Sucks", "https://csdb.dk/release/download.php?id=244748", downloadType: C64DownloadProgramType.D64, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true, directLoadPRGName: "*")},
+        {"robotnothuman", new C64DownloadProgramInfo("Robot - Not Human", "https://csdb.dk/release/download.php?id=322645", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true)},
+        {"partyelk2", new C64DownloadProgramInfo("Party Elk 2", "https://csdb.dk/release/download.php?id=283419", downloadType: C64DownloadProgramType.Prg, c64Variant: "C64PAL", audioEnabled: true, requiresPerLineSprites: true)},
         {"ghostngoblins", new C64DownloadProgramInfo("Ghosts 'n Goblins", "https://csdb.dk/release/download.php?id=120333", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true,  directLoadPRGName: "*")},
-        {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
+        {"gianasisters", new C64DownloadProgramInfo("Giana Sisters", "https://csdb.dk/release/download.php?id=161456", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
         {"greenberet", new C64DownloadProgramInfo("Green Beret", "https://csdb.dk/release/download.php?id=157678", downloadType: C64DownloadProgramType.D64Zip, c64Variant: "C64PAL", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true)},
         {"lastninja", new C64DownloadProgramInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: C64DownloadProgramType.D64Zip, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true, directLoadPRGName: "*")},
         {"minizork", new C64DownloadProgramInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
@@ -939,6 +947,18 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         AssemblyExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.smooth_scroller_and_raster.prg", "SmoothScroller"));
         AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.scroller_and_raster.prg", "Scroller"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.row_latch.prg", "RowLatch"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.raster_columns.prg", "RasterColumns"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.screen_columns.prg", "ScreenColumns"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.idle_graphics.prg", "IdleGraphics"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.side_border.prg", "SideBorder"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.line_splits.prg", "LineSplits"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.dma_delay.prg", "DmaDelay"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.row_stretch.prg", "RowStretch"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.sprite_stretch.prg", "SpriteStretch"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.sprite_x.prg", "SpriteX"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.sprite_enable.prg", "SpriteEnable"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.cia_synced_split.prg", "CiaSyncedSplit"));
         // Initialize basic examples
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
@@ -1373,6 +1393,8 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                     // Apply keyboard joystick settings to config object while emulator is stopped
                     c64SystemConfig.KeyboardJoystickEnabled = programInfo.KeyboardJoystickEnabled;
                     c64SystemConfig.KeyboardJoystick = programInfo.KeyboardJoystickNumber;
+                    if (programInfo.RequiresPerLineSprites)
+                        c64SystemConfig.Vic2RasterizerPerLineSprites = true;
 
                     // Apply keyboard settings to config object while emulator is stopped (assume joystick should use same as keyboard joystick number)
                     c64HostConfig.InputConfig.CurrentJoystick = programInfo.KeyboardJoystickNumber;

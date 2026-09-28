@@ -137,6 +137,7 @@ public class C64SystemConfigurerCore : ISystemConfigurer
             SidEmulationMode = c64SystemConfig.SidEmulationMode,
             CpuCompatibilityProfile = c64SystemConfig.CpuCompatibilityProfile,
             Vic2RasterizerPerLineSprites = c64SystemConfig.Vic2RasterizerPerLineSprites,
+            Vic2RasterizerPixelGeneratorType = c64SystemConfig.Vic2RasterizerPixelGeneratorType,
         };
 
         var c64 = C64.BuildC64(c64Config, LoggerFactory);

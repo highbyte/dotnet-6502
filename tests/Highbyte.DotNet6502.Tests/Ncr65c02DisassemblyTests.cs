@@ -16,7 +16,8 @@ public class Ncr65c02DisassemblyTests
     [Fact]
     public void The_Same_Byte_Disassembles_Differently_Per_Model()
     {
-        // $9C: STZ abs on the 65C02; not an implemented instruction on NMOS profiles.
+        // $9C: STZ abs on the 65C02; the undocumented SHY abs,X on NMOS profiles that expose
+        // it, and not an instruction on the official-only NMOS profile.
         var mem = new Memory();
         mem[0x1000] = 0x9C;
         mem[0x1001] = 0x34;
@@ -26,7 +27,10 @@ public class Ncr65c02DisassemblyTests
         Assert.Equal("STZ $1234", OutputGen.BuildInstructionString(cmosCpu, mem, 0x1000));
 
         var nmosCpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
-        Assert.Equal("???", OutputGen.BuildInstructionString(nmosCpu, mem, 0x1000));
+        Assert.Equal("SHY $1234,X", OutputGen.BuildInstructionString(nmosCpu, mem, 0x1000));
+
+        var officialNmosCpu = new CPU(CpuCompatibilityProfile.OfficialOnly);
+        Assert.Equal("???", OutputGen.BuildInstructionString(officialNmosCpu, mem, 0x1000));
     }
 
     [Fact]
@@ -65,14 +69,14 @@ public class Ncr65c02DisassemblyTests
     {
         // A disassembly listing must not desync after a 65C02-only 3-byte instruction.
         var mem = new Memory();
-        mem[0x1000] = 0x9C; // STZ abs: 3 bytes on 65C02; undefined (1 byte) on NMOS
+        mem[0x1000] = 0x9C; // STZ abs: 3 bytes on 65C02; undefined (1 byte) on official-only NMOS
 
         var cmosCpu = New65c02Cpu();
         Assert.Equal((ushort)0x1003, cmosCpu.GetNextInstructionAddress(mem, 0x1000));
         Assert.Equal(3, cmosCpu.GetOpCodeSize(0x9C));
         Assert.True(cmosCpu.IsOpCodeDefined(0x9C));
 
-        var nmosCpu = new CPU(CpuCompatibilityProfile.FullUnofficial);
+        var nmosCpu = new CPU(CpuCompatibilityProfile.OfficialOnly);
         Assert.Equal((ushort)0x1001, nmosCpu.GetNextInstructionAddress(mem, 0x1000));
         Assert.Equal(1, nmosCpu.GetOpCodeSize(0x9C));
         Assert.False(nmosCpu.IsOpCodeDefined(0x9C));

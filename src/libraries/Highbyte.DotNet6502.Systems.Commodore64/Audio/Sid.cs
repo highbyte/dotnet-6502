@@ -23,103 +23,112 @@ public class Sid
 
     public void MapIOLocations(Memory c64Mem)
     {
-        // Note: Most SID registers are write-only.
+        // Note: Most SID registers are write-only. Reading one returns the chip's data-bus
+        // latch (the last byte written to or read from the SID) until it decays; see
+        // InternalSidState.ReadWriteOnlyRegister.
 
         // Voice 1 registers
-        c64Mem.MapReader(SidAddr.FRELO1, (_) => 0);
+        c64Mem.MapReader(SidAddr.FRELO1, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.FRELO1, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.FREHI1, (_) => 0);
+        c64Mem.MapReader(SidAddr.FREHI1, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.FREHI1, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.PWLO1, (_) => 0);
+        c64Mem.MapReader(SidAddr.PWLO1, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.PWLO1, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.PWHI1, (_) => 0);
+        c64Mem.MapReader(SidAddr.PWHI1, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.PWHI1, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.VCREG1, (_) => 0);
+        c64Mem.MapReader(SidAddr.VCREG1, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.VCREG1, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.ATDCY1, (_) => 0);
+        c64Mem.MapReader(SidAddr.ATDCY1, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.ATDCY1, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.SUREL1, (_) => 0);
+        c64Mem.MapReader(SidAddr.SUREL1, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.SUREL1, InternalSidState.SetSidRegValue);
 
 
         // Voice 2 registers
-        c64Mem.MapReader(SidAddr.FRELO2, (_) => 0);
+        c64Mem.MapReader(SidAddr.FRELO2, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.FRELO2, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.FREHI2, (_) => 0);
+        c64Mem.MapReader(SidAddr.FREHI2, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.FREHI2, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.PWLO2, (_) => 0);
+        c64Mem.MapReader(SidAddr.PWLO2, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.PWLO2, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.PWHI2, (_) => 0);
+        c64Mem.MapReader(SidAddr.PWHI2, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.PWHI2, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.VCREG2, (_) => 0);
+        c64Mem.MapReader(SidAddr.VCREG2, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.VCREG2, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.ATDCY2, (_) => 0);
+        c64Mem.MapReader(SidAddr.ATDCY2, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.ATDCY2, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.SUREL2, (_) => 0);
+        c64Mem.MapReader(SidAddr.SUREL2, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.SUREL2, InternalSidState.SetSidRegValue);
 
 
         // Voice 3 registers
-        c64Mem.MapReader(SidAddr.FRELO3, (_) => 0);
+        c64Mem.MapReader(SidAddr.FRELO3, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.FRELO3, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.FREHI3, (_) => 0);
+        c64Mem.MapReader(SidAddr.FREHI3, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.FREHI3, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.PWLO3, (_) => 0);
+        c64Mem.MapReader(SidAddr.PWLO3, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.PWLO3, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.PWHI3, (_) => 0);
+        c64Mem.MapReader(SidAddr.PWHI3, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.PWHI3, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.VCREG3, (_) => 0);
+        c64Mem.MapReader(SidAddr.VCREG3, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.VCREG3, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.ATDCY3, (_) => 0);
+        c64Mem.MapReader(SidAddr.ATDCY3, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.ATDCY3, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.SUREL3, (_) => 0);
+        c64Mem.MapReader(SidAddr.SUREL3, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.SUREL3, InternalSidState.SetSidRegValue);
 
 
         // Common audio registers
-        c64Mem.MapReader(SidAddr.CUTLO, (_) => 0);
+        c64Mem.MapReader(SidAddr.CUTLO, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.CUTLO, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.CUTHI, (_) => 0);
+        c64Mem.MapReader(SidAddr.CUTHI, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.CUTHI, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.RESON, (_) => 0);
+        c64Mem.MapReader(SidAddr.RESON, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.RESON, InternalSidState.SetSidRegValue);
 
-        c64Mem.MapReader(SidAddr.SIGVOL, (_) => 0);
+        c64Mem.MapReader(SidAddr.SIGVOL, _ => _internalSidState.ReadWriteOnlyRegister());
         c64Mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
 
         // Paddle/mouse analog inputs. With no paddle/mouse emulation connected, return the
         // idle/open value instead of the zero-filled backing IO RAM. Some software probes
         // POTX/POTY before deciding whether to use mouse-style or joystick-style pointer input.
-        c64Mem.MapReader(SidAddr.POTX, (_) => 0xff);
-        c64Mem.MapReader(SidAddr.POTY, (_) => 0xff);
+        c64Mem.MapReader(SidAddr.POTX, _ => ReadAndLatch(0xff));
+        c64Mem.MapReader(SidAddr.POTY, _ => ReadAndLatch(0xff));
 
         // Voice 3 read-only registers. Tunes that read $D41B/$D41C for waveform- or
         // envelope-driven effects (vibrato, sweeps, etc.) depend on these. The active audio
         // provider installs a lazy getter so the value is computed only on read (currently only
         // the SID sample provider does this; the command-stream path leaves the getter null →
         // reads return 0).
-        c64Mem.MapReader(SidAddr.OSC3, (_) => _internalSidState.Osc3ReadbackProvider?.Invoke() ?? 0);
-        c64Mem.MapReader(SidAddr.ENV3, (_) => _internalSidState.Env3ReadbackProvider?.Invoke() ?? 0);
+        c64Mem.MapReader(SidAddr.OSC3, _ => ReadAndLatch(_internalSidState.Osc3ReadbackProvider?.Invoke() ?? 0));
+        c64Mem.MapReader(SidAddr.ENV3, _ => ReadAndLatch(_internalSidState.Env3ReadbackProvider?.Invoke() ?? 0));
+    }
+
+    /// <summary>A read of a readable register also loads the chip's data-bus latch with the value read.</summary>
+    private byte ReadAndLatch(byte value)
+    {
+        _internalSidState.LatchBusValue(value);
+        return value;
     }
 
     /// <summary>

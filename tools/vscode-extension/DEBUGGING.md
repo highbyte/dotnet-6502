@@ -36,12 +36,13 @@ The breakpoint dot turns **orange** to indicate a conditional breakpoint.
 | Status flag | `C`, `Z`, `N`, `V`, `I`, `D`, `B` (0 = clear, 1 = set) | `Z == 1` |
 | Memory byte | `[$addr]` | `[$D020] == $01` |
 | Indexed memory | `[$addr + reg]` | `[$0300 + X] > $7F` |
+| System value | a name the emulated system exposes (see [System values](#system-values)) | `RASTER == 100` |
 | Hex literal | `$hex` or `0xhex` | `$FF`, `0xFF` |
 | Decimal literal | digits | `10`, `255` |
 
 Comparison operators: `==`, `!=`, `<`, `<=`, `>`, `>=`
 
-Logical operators: `&&` (and), `||` (or) — evaluated left-to-right, short-circuit
+Logical operators: `&&` (and), `||` (or) — `&&` binds tighter than `||`, short-circuit
 
 **Examples:**
 
@@ -55,6 +56,7 @@ C == 0                  ; Stop when Carry flag is clear
 A == $FF && X == 0      ; Both conditions must be true
 A == $00 || A == $FF    ; Stop when A is either 0 or 255
 PC == $C080             ; Stop when PC reaches a specific address
+RASTER == 100 && CYCLE >= 20 ; C64: stop at this line only when the VIC-II is at raster line 100, cycle 20 or later
 ```
 
 **Notes:**
@@ -63,6 +65,27 @@ PC == $C080             ; Stop when PC reaches a specific address
 - Flags are treated as integers: `1` = set, `0` = clear
 - Memory addresses wrap at the 64 KB boundary
 - If the expression cannot be parsed, the debugger always stops (fail-safe)
+
+### System values
+
+Besides the CPU's registers and flags, the emulated system can expose values of its own. They can be used in
+conditions, appear as a scope of their own in the Variables panel, and can be hovered or typed in the Debug
+Console like a register.
+
+The **C64** exposes its VIC-II position, under a **VIC-II** scope:
+
+| Name | Value |
+|------|-------|
+| `RASTER` | Raster line the VIC-II is on (0–311 PAL, 0–262 NTSC) |
+| `CYCLE` | Cycle within the raster line, in the chip's numbering: 1–63 (PAL) or 1–65 (NTSC) |
+| `FRAMECYCLE` | Cycle within the frame, from 0 |
+| `FRAME` | Frames completed since power-on |
+
+The values are those at the instruction boundary the debugger stopped at: the cycle is where the instruction
+about to execute starts. A condition that names a value is evaluated when its breakpoint's address is reached,
+so `RASTER == 100 && CYCLE >= 20` on the line that writes `$D011` stops there only on the pass where the write
+lands in that part of the line. To stop at a raster position regardless of the address, see the
+[Debug Console run command](#debug-console-run-command).
 
 ## Logpoints
 
@@ -313,6 +336,30 @@ set X 10            # Set X register to 10 (decimal)
 set $C000 $FF       # Set memory at $C000 to $FF
 ```
 
+### Debug Console run Command
+
+Continue execution until a condition holds, checked before every instruction regardless of its address, and
+stop at the first instruction boundary where it does. The condition is in breakpoint-condition syntax and can
+use the system's values:
+
+```
+run until A == $FF          # Continue until the accumulator is $FF
+run until RASTER == 100     # C64: continue until the VIC-II is on raster line 100
+```
+
+The **C64** also offers a `raster` target, which takes a line and optionally a cycle (the chip's numbering,
+default 1) and stops at the first instruction boundary at or after that position — in the current frame if
+the position is still ahead, otherwise in the next frame:
+
+```
+run raster 100              # Continue until raster line 100 begins
+run raster 100 20           # Continue until raster line 100, cycle 20
+```
+
+The stop is instruction-granular: the position shown in the VIC-II scope is where the next instruction starts,
+up to one instruction's cycles past the requested position. A pending `run` is dropped by Pause or by a
+breakpoint hit before it completes. `run` alone lists the targets the system offers.
+
 ### Debug Console Expressions
 
 Type expressions directly in the Debug Console to evaluate them:
@@ -321,6 +368,7 @@ Type expressions directly in the Debug Console to evaluate them:
 $C000               # Read memory at $C000
 PC                  # Show current program counter
 A                   # Show accumulator value
+RASTER              # C64: the VIC-II's raster line (see System values)
 screenptr           # Resolve ca65 symbol (if .dbg loaded)
 ```
 
@@ -373,6 +421,7 @@ Hover over values in your source code to see their current state:
 - **Memory addresses**: Hover `$C000` or `0xC000` → shows the byte value at that address
 - **Immediate values**: Hover `#$42` → shows the literal value (not memory contents)
 - **Registers**: Hover `A`, `X`, `Y`, `PC`, `SP` → shows current register value
+- **System values**: Hover `RASTER`, `CYCLE` (C64) → shows the VIC-II position (see [System values](#system-values))
 - **ca65 symbols**: Hover a label name (e.g., `screenptr`) → shows the symbol's address and memory contents
 
 ## Symbol Resolution

@@ -19,13 +19,17 @@ public class Vic2ModelNTSC_old : Vic2ModelBase
 
     public override int FirstRasterLineOfMainScreen => 51; // TODO: Verify
 
+    // DisplayWindowStartX is left at the base class default: the 6567R56A's X coordinate for the
+    // start of its first cycle has not been established here, and this variant is unfinished anyway
+    // (ConvertRasterLineToScreenLine throws).
+
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
-    public override int ConvertRasterLineToScreenLine(int rasterLine)
-    {
-        throw new NotImplementedException();
-    }
+    // The 6567R56A's vertical blanking covers lines 13-40 and its first visible pixel is at X $1e8
+    // (VIC-II article, section 3.4).
+    public override int FirstVisibleRasterLine => 41;
+    public override int FirstVisibleX => 488;
 }
 
 /// <summary>
@@ -46,8 +50,25 @@ public class Vic2ModelNTSC : Vic2ModelBase
 
     public override int FirstRasterLineOfMainScreen => 51;
 
+    // The 6567R8's first cycle starts at X coordinate $19c (412), and its X counter wraps to 0 after
+    // 511, not after the line's 520 pixels: the 8 extra pixels of line come from one X value being
+    // held later in the line, past the display window. So X 0 is 100 pixels after the start of the
+    // first cycle, as on PAL, and the display window's first pixel is at 124, four pixels into the
+    // line's 16th cycle. (Taking the line length as the wrap point instead gives 132, which is
+    // wrong by a cycle.)
+    public override int DisplayWindowStartX => 124;
+
+    // The 6567R8's first cycle starts at X $19c; its X counter wraps at 512, not at the line's 520.
+    public override int XCoordinateAtLineStart => 412;
+
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
+
+    // The 6567R8's vertical blanking covers lines 13-40, so its 235 visible lines are 41-262 and
+    // 0-12, ten above the display window and 25 below it; its first visible pixel is at X $1e9
+    // (VIC-II article, section 3.4).
+    public override int FirstVisibleRasterLine => 41;
+    public override int FirstVisibleX => 489;
 
     // NTSC (new) RSEL 1 (25 text lines/200 pixels = default) raster lines
     //
@@ -77,19 +98,6 @@ public class Vic2ModelNTSC : Vic2ModelBase
     //   246       | Last line of screen
     //   247       | Fist line of bottom border
 
-    public override int ConvertRasterLineToScreenLine(int rasterLine)
-    {
-        // TODO: Is there difference in conversion between RSEL 0 (24 rows) and RSEL 1 (25 rows) mode ?
-
-        const int rasterLineForTopmostScreenLine = 20;
-        if (rasterLine < rasterLineForTopmostScreenLine)
-            //return (ushort)(rasterLine + 243);
-            return (rasterLine + (TotalHeight - rasterLineForTopmostScreenLine));
-        else
-            //return (ushort)(rasterLine - 20);
-            return (rasterLine - rasterLineForTopmostScreenLine);
-    }
-
     // Raster x coord where CSEL 1 (40 characters, 320 pixels) screen starts: 24
     // Raster x coord where CSEL 0 (38 characters, 304 pixels) screen starts: 31
 }
@@ -113,20 +121,20 @@ public class Vic2ModelPAL : Vic2ModelBase
 
     public override int FirstRasterLineOfMainScreen => 51;
 
+    // The 6569's first cycle starts at X coordinate $194 (404) of the line's 504, and the 40 column
+    // display window is at X 24-343, so its first pixel is (24 - 404) mod 504 = 124 pixels into the
+    // line: four pixels into the line's 16th cycle.
+    public override int DisplayWindowStartX => 124;
+
     public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     // Should be 312 - 284 = 28  (or "around" 30 as stated in some docs)
     public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
-    public override int ConvertRasterLineToScreenLine(int rasterLine)
-    {
-        var screenLine = rasterLine + (GetVisibleScreenStartLine() - FirstRasterLineOfMainScreen);
-        if (screenLine < 0)
-            screenLine += TotalHeight;
-        else if (screenLine >= TotalHeight)
-            screenLine -= TotalHeight;
-
-        return screenLine;
-    }
+    // The 6569's vertical blanking covers lines 300-15, so its 284 visible lines are 16-299, 35
+    // above the display window and 49 below it; its first visible pixel is at X $1e0 (VIC-II
+    // article, section 3.4).
+    public override int FirstVisibleRasterLine => 16;
+    public override int FirstVisibleX => 480;
 
 
     // PAL (new) RSEL 1 (25 text lines/200 pixels = default) raster lines
@@ -191,6 +199,99 @@ public abstract class Vic2ModelBase
     public abstract int TotalWidth { get; }           // CyclesPerLine * PixelsPerCPUCycle;
     public abstract int TotalHeight { get; }
 
+    /// <summary>
+    /// Pixels from the start of a raster line's first cycle to the first pixel of the 40 column
+    /// display window.
+    ///
+    /// <para>On hardware this follows from the VIC-II's own (sprite) X coordinate system, whose
+    /// origin lies in the middle of a raster line rather than at its start. The display window is
+    /// at X 24-343 in 40 column mode on every chip variant, and X 0 falls 100 pixels after the
+    /// start of the line's first cycle on both the 6569 and the 6567R8, so the display window
+    /// starts 124 pixels into the line on both: four pixels into the line's 16th cycle. The two
+    /// chips differ in where their X counter wraps (after 504 on the 6569, which is its whole line;
+    /// after 512 on the 6567R8, whose 520 pixel line holds one X value for an extra 8 pixels later
+    /// in the line), which is why the naive "(24 - X at cycle 1) mod line length" gives the right
+    /// answer for PAL and 8 too many for NTSC.</para>
+    ///
+    /// <para>Everything the rasterizer derives from a cycle is placed relative to this, so a value
+    /// that does not match the chip shifts every raster timed effect sideways compared to hardware,
+    /// while leaving the picture itself looking the same. The default places the display window in
+    /// the middle of the line, which is what this emulator did before the per variant figures were
+    /// established, and which variants without a documented figure keep.</para>
+    /// </summary>
+    public virtual int DisplayWindowStartX => (int)Math.Floor((TotalWidth - DrawableAreaWidth) / 2.0d);
+
+    /// <summary>
+    /// Pixels between the cycle boundary after a colour register write and the pixel that first
+    /// shows the new colour: the rasterizer applies a write reported in frame cycle c from pixel
+    /// 8 * (c + 1) of the raster line plus this value.
+    ///
+    /// <para><b>How it was measured.</b> Against VICE (x64sc, CRT emulation off) with the screen
+    /// column sample, after that sample had been made to start on the same cycle on every run (its
+    /// earlier first-arrival calibration made the picture depend on the start cycle, and the first
+    /// per-model values of -11 and +4 had compared screenshots taken at different phases). With
+    /// -11 every colour edge lands within a pixel of VICE's on the 6569 and the 8565 (PAL) and on
+    /// the 6567R8 (NTSC). One value for every chip, as a pipeline delay has to be. The 6567R56A is
+    /// not modelled and was not measured.</para>
+    ///
+    /// <para><b>What the value means.</b> Split it into whole cycles and pixels:
+    /// 8 * (c + 1) - 11 = 8 * (c - 1) + 5, that is five pixels into the cycle <i>before</i> the one
+    /// the write is reported in. Two things are pinned: the reported cycle is the store's own bus
+    /// write cycle in this emulator's cycle count (C64DeviceAccessTimingTests), and the display
+    /// window anchor (<see cref="DisplayWindowStartX"/>, 124 pixels, X 24 in the second half of the
+    /// chip's cycle 16) matches the VICE test programs' reference pictures, so pixels are placed
+    /// against the chip's cycles as those pictures show them. A change cannot precede its write, so the only consistent
+    /// reading is that this emulator's cycle index runs about two cycles ahead of the chip's cycle
+    /// as the pixel side sees it, and the chip's own register-to-pixel pipeline is the remaining
+    /// five pixels. Five is plausible: the CPU's write lands in the second half of its cycle and the
+    /// VIC-II's output stage delays register changes by a few pixels; hardware measurements of the
+    /// border colour changing part way through a character cell are in that range.</para>
+    ///
+    /// <para><b>Where the two cycles could come from</b>, none of it established:</para>
+    /// <list type="bullet">
+    /// <item><description>The raster line's cycle origin. This emulator's line cycle 0 is where
+    /// <c>CyclesConsumedCurrentVblank</c> is a multiple of the line length, and the raster line
+    /// register changes there. Bauer's timing diagrams number the chip's cycles from 1 and put the
+    /// X coordinate $194 (PAL) at the start of cycle 1; if the RASTER register on the chip
+    /// increments at a different cycle than the one the pixel anchor was derived from, every CPU
+    /// event is dated against a line origin that is shifted from the pixel origin by that
+    /// difference.</description></item>
+    /// <item><description>The CPU's access phase. The 6510 reads and writes in the second half of a
+    /// cycle (phi2); the VIC-II fetches in the first half. If the cycle engine dates an access to
+    /// the cycle in which the instruction's bus cycle begins while the pixel side counts from
+    /// where the VIC-II's cycle begins, there is a half-cycle, four pixels, in the difference, which
+    /// with rounding to a cycle boundary can look like a whole cycle.</description></item>
+    /// <item><description>Interrupt and stall bookkeeping. A raster interrupt is dated to the cycle
+    /// the line began and a bad line release to cycle 55; if either is placed a cycle off, every
+    /// program timed from them is off by that cycle, and the two column samples are timed from
+    /// exactly those. The border column sample, which never meets a bad line, gave the same value,
+    /// which argues against the release being the culprit but not against the line origin.
+    /// </description></item>
+    /// </list>
+    ///
+    /// <para><b>How to pin it down.</b> Use an event whose bus cycle is fixed by the chip rather than
+    /// by the CPU's count: a store issued immediately after a bad line release lands on chip cycle
+    /// 55 + 3 by construction (the release cycle, then the store's three cycles before its write),
+    /// whatever this emulator's cycle index says. Where VICE shows that edge, measured from the
+    /// display window's left edge, gives the chip's pipeline alone; the part of the eleven pixels
+    /// it does not explain is this emulator's alignment, and then belongs in the timing model (the
+    /// line origin or the access phase), not here. A second, independent check: the cycle at which
+    /// a program first sees the raster line register change, compared with VICE's, gives the line
+    /// origin directly. Once the alignment is fixed this constant becomes the pipeline alone, about
+    /// +5, and must be re-measured; until then it absorbs both, and every cycle-derived effect
+    /// (colour edges, border opening, sprite positions against colour changes) is offset by the
+    /// same amount, which is why nothing visible depends on the split.</para>
+    /// </summary>
+    public virtual int ColorChangePixelDelay => -11;
+
+    /// <summary>
+    /// The VIC-II X coordinate at the start of the raster line's first cycle: $194 (404) on the
+    /// 6569, $19c (412) on the 6567R8. Sprite X positions are compared against this coordinate,
+    /// which counts up to 511 and wraps, so a sprite at an X of 404 or more on PAL (412 on NTSC)
+    /// appears from the line's start, in the left border, rather than off the right edge.
+    /// </summary>
+    public virtual int XCoordinateAtLineStart => 404;
+
     // Default to the shared TV model dimensions; chip variants with non-standard pixel timing
     // (e.g., Vic2ModelNTSC_old) can override to provide chip-specific values.
     public virtual int MaxVisibleWidth => TvModel.MaxVisibleWidth;
@@ -201,13 +302,49 @@ public abstract class Vic2ModelBase
     public abstract int HBlankWidth { get; }
     public abstract int VBlankHeight { get; }
 
-    public abstract int ConvertRasterLineToScreenLine(int rasterLine);
+    /// <summary>
+    /// The first raster line a display shows: the line after the chip's vertical blanking. The
+    /// visible lines are this and the <see cref="MaxVisibleHeight"/> - 1 that follow, wrapping at the
+    /// frame's end (VIC-II article, section 3.4).
+    /// </summary>
+    public abstract int FirstVisibleRasterLine { get; }
 
+    /// <summary>
+    /// The VIC-II X coordinate of the first visible pixel of a line: the pixel after the chip's
+    /// horizontal blanking. The visible pixels are this and the <see cref="MaxVisibleWidth"/> - 1 that
+    /// follow (VIC-II article, section 3.4).
+    /// </summary>
+    public abstract int FirstVisibleX { get; }
+
+    /// <summary>
+    /// Pixels from the start of a raster line's first cycle to the first visible pixel.
+    /// </summary>
+    public int VisibleAreaStartX => FirstVisibleX - XCoordinateAtLineStart;
+
+    /// <summary>
+    /// The frame's screen line of a raster line. Screen lines number the frame's lines in display
+    /// order from the top invisible lines, so that the visible frame is a contiguous block of them:
+    /// the first visible raster line lands on the screen line where the visible frame begins, and
+    /// the lines before it in raster order wrap to the end.
+    /// </summary>
+    public int ConvertRasterLineToScreenLine(int rasterLine)
+    {
+        var screenLine = rasterLine + (GetVisibleScreenStartLine() - FirstRasterLineOfMainScreen);
+        if (screenLine < 0)
+            screenLine += TotalHeight;
+        else if (screenLine >= TotalHeight)
+            screenLine -= TotalHeight;
+        return screenLine;
+    }
+
+    /// <summary>
+    /// The screen line of the display window's first raster line, in the frame's unnormalized
+    /// screen coordinates (the visible frame begins after the top invisible lines).
+    /// </summary>
     protected int GetVisibleScreenStartLine()
     {
         var topInvisibleLines = (int)Math.Floor((TotalHeight - MaxVisibleHeight) / 2.0d);
-        var visibleTopBorderHeight = (int)Math.Floor((MaxVisibleHeight - DrawableAreaHeight) / 2.0d);
-        return topInvisibleLines + visibleTopBorderHeight;
+        return topInvisibleLines + (FirstRasterLineOfMainScreen - FirstVisibleRasterLine);
     }
 
     public bool IsRasterLineInMainScreen(int rasterLine)

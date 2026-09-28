@@ -41,8 +41,10 @@ public class C64D64ContentLoader : IC64AutoLoadContentLoader
         {
             try
             {
+                // "*" picks the file the drive's own wildcard would: the first program file, past any
+                // decorative or deleted directory entries a disk may start with.
                 string directLoadFileName = programInfo.DirectLoadPRGName == "*"
-                    ? d64DiskImage.Files.First().FileName
+                    ? d64DiskImage.GetFirstFileName() ?? throw new InvalidOperationException("The disk image has no file to load.")
                     : programInfo.DirectLoadPRGName;
                 var prgData = d64DiskImage.ReadFileContent(directLoadFileName);
 

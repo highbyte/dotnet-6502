@@ -15,6 +15,45 @@ public class C64MonitorCommands : ISystemMonitorCommands
         rootCommand.AddCommand(BuildLoadBasicCommand(monitor));
         rootCommand.AddCommand(BuildLoadBasicManualCommand(monitor));
         rootCommand.AddCommand(BuildSaveBasicCommand(monitor));
+        rootCommand.AddCommand(BuildGoRasterCommand(monitor));
+    }
+
+    private static Command BuildGoRasterCommand(MonitorBase monitor)
+    {
+        var lineArg = new Argument<int>()
+        {
+            Name = "line",
+            Description = "Raster line (decimal).",
+            Arity = ArgumentArity.ExactlyOne
+        };
+        var cycleArg = new Argument<int>(() => 1)
+        {
+            Name = "cycle",
+            Description = "Cycle within the line in the chip's numbering, 1 to 63 (PAL) or 65 (NTSC). Defaults to 1.",
+            Arity = ArgumentArity.ZeroOrOne
+        };
+        var command = new Command("gr", "C64 - Continue execution until the VIC-II reaches a raster line (and cycle): stops at the first instruction boundary at or after it, in this frame if it is still ahead and otherwise in the next.")
+        {
+            lineArg,
+            cycleArg
+        };
+        command.SetHandler((int line, int cycle) =>
+        {
+            var c64 = (C64)monitor.System;
+            string condition;
+            try
+            {
+                condition = c64.BuildRunUntilRasterCondition(line, cycle);
+            }
+            catch (ArgumentException ex)
+            {
+                monitor.WriteOutput(ex.Message.Split(" (Parameter")[0], MessageSeverity.Error);
+                return Task.FromResult((int)CommandResult.Error);
+            }
+            monitor.Evaluator.RunUntilCondition = condition;
+            return Task.FromResult((int)CommandResult.Continue);
+        }, lineArg, cycleArg);
+        return command;
     }
 
     private static Command BuildLoadBasicCommand(MonitorBase monitor)

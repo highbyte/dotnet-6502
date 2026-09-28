@@ -9,6 +9,8 @@ public class C64DownloadProgramInfo
     public bool KeyboardJoystickEnabled { get; set; }
     public int KeyboardJoystickNumber { get; set; }
     public bool RequiresBitmap { get; set; }
+    /// <summary>The program draws sprites per raster line (multiplexing, stretching): the rasterizer's per-line sprites setting is switched on for it.</summary>
+    public bool RequiresPerLineSprites { get; set; }
     public bool AudioEnabled { get; set; }
     public bool SwiftLinkEnabled { get; set; }
     public string? DirectLoadPRGName { get; set; }
@@ -23,6 +25,7 @@ public class C64DownloadProgramInfo
         bool keyboardJoystickEnabled = false,
         int keyboardJoystickNumber = 2,
         bool requiresBitmap = false,
+        bool requiresPerLineSprites = false,
         bool audioEnabled = false,
         bool swiftLinkEnabled = false,
         string? directLoadPRGName = null,
@@ -35,6 +38,7 @@ public class C64DownloadProgramInfo
         KeyboardJoystickEnabled = keyboardJoystickEnabled;
         KeyboardJoystickNumber = keyboardJoystickNumber;
         RequiresBitmap = requiresBitmap;
+        RequiresPerLineSprites = requiresPerLineSprites;
         AudioEnabled = audioEnabled;
         SwiftLinkEnabled = swiftLinkEnabled;
         DirectLoadPRGName = directLoadPRGName;

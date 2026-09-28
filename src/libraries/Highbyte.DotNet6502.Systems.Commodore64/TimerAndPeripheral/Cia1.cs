@@ -127,9 +127,17 @@ public class Cia1 : CiaBase
 
     public void DataBStore(ushort address, byte value)
     {
+        var lightPenWasHigh = LightPenLineHigh;
         _portB = value;
         _c64.WriteIOStorage(address, value);
+        if (lightPenWasHigh && !LightPenLineHigh)
+            _c64.Vic2.TriggerLightPen();
     }
+
+    // The VIC-II's LP input is port B bit 4 (the keyboard connector shares it with the joystick 1
+    // fire button): low when the bit is an output driven low, high otherwise. A program triggers the
+    // light pen latch by pulling it low, which tells it the raster beam's position.
+    private bool LightPenLineHigh => (_ddrb & 0x10) == 0 || (_portB & 0x10) != 0;
 
     public byte DDRARead(ushort _) => _ddra;
     public void DDRAWrite(ushort address, byte value)
@@ -141,8 +149,11 @@ public class Cia1 : CiaBase
     public byte DDRBRead(ushort _) => _ddrb;
     public void DDRBWrite(ushort address, byte value)
     {
+        var lightPenWasHigh = LightPenLineHigh;
         _ddrb = value;
         _c64.WriteIOStorage(address, value);
+        if (lightPenWasHigh && !LightPenLineHigh)
+            _c64.Vic2.TriggerLightPen();
     }
 
     private static byte ComposePortReadValue(byte outputRegister, byte dataDirectionRegister, byte inputValue)

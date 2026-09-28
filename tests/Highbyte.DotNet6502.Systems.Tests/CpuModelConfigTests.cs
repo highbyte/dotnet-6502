@@ -11,8 +11,8 @@ namespace Highbyte.DotNet6502.Systems.Tests;
 /// <summary>
 /// CPU model selection through system configuration: the Apple II and the Generic
 /// computer can be configured with the 65C02;
-/// defaults stay NMOS. $9C (STZ abs, 3 bytes on a 65C02; undefined on NMOS profiles)
-/// is used as the observable model probe.
+/// defaults stay NMOS. $9C (STZ abs, 3 bytes on a 65C02; the undocumented SHY abs,X or
+/// undefined on NMOS) is used as the observable model probe.
 /// </summary>
 public class CpuModelConfigTests
 {
@@ -25,7 +25,7 @@ public class CpuModelConfigTests
     {
         var apple2 = new Apple2System(new Apple2Config(), NullLoggerFactory.Instance);
 
-        Assert.False(apple2.CPU.IsOpCodeDefined(StzAbsOpCode));
+        Assert.NotEqual("STZ", apple2.CPU.GetOpCodeInfo(StzAbsOpCode)?.Mnemonic);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class CpuModelConfigTests
     {
         var genericComputer = new GenericComputer();
 
-        Assert.False(genericComputer.CPU.IsOpCodeDefined(StzAbsOpCode));
+        Assert.NotEqual("STZ", genericComputer.CPU.GetOpCodeInfo(StzAbsOpCode)?.Mnemonic);
     }
 
     [Fact]

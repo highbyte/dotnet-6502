@@ -369,6 +369,186 @@ Observations that matter for the cycle work:
 
 ## History
 
+### 2026-09-28 — sequencer: scrolled blocks and repeated blocks without per-pixel work
+
+Profiling the Giana Sisters run below showed two parts of the sequencer pixel generator doing work
+per pixel that the steady case does not need. With XSCROLL set, each 8-pixel block was drawn pixel
+by pixel (1,600-1,800 blocks a frame in Giana, which scrolls); the block is now composed from the
+previous byte's decoded codes and the new byte's when the modes and XSCROLL have not changed since
+that byte was loaded, and drawn pixel by pixel otherwise. The line's colour resolve looked up every
+pixel except where a block had been marked as a repeat; it now copies any 8-pixel block whose codes
+equal the block before it. The output is unchanged: all 4,000 frames of the Giana run hash the same
+with both pixel generators, and the VICE VICII suite gives the same verdict for every program with
+byte-identical pictures. Same method and machine as the entry below; ms per frame, "Render and
+audio", sequencer.
+
+| Build | Title | Game |
+|-------|------:|-----:|
+| master `3b440193` | 1.035 | 1.033 |
+| before | 1.437 | 1.373 |
+| after | 1.339 (−7%) | 1.322 (−4%) |
+
+What remains of the sequencer's cost is mostly its per-cycle loop, spread over many small field
+reads, bounds checks and branches with no single hot spot.
+
+### 2026-09-28 — cycle-exact C64 against master, measured on Giana Sisters
+
+The `C64ExecuteFrameBenchmark` scenario runs a small loop with the display off, so it has no bad
+lines, raster interrupts, mid-line register writes or sprite multiplexing, and the per-step entries
+below measured each change against the one before it. To get the total cost a real program pays,
+Giana Sisters (the Download & Run D64, PAL, real ROMs) was run headless with the same source built
+against master `3b440193` and this branch `e9a7cd62`: boot, direct-load the disk's first file,
+`RUN`, then 4,000 timed `ExecuteOneFrame` calls with scripted joystick input (the title screen's
+scroller from frame 1,000 to 2,000, a started game from 2,100 to 4,000: walking right, jumping,
+losing lives). `CoreOnly` has no render or audio provider; "Render and audio" adds the rasterizer
+and the sample SID provider, as the apps run it. Mean frame time in ms, each figure the mean of
+five processes run alternately (the second of two passes per process, after JIT warm-up). Apple M1,
+.NET SDK 10.0.401, Release; run-to-run spread about ±2%.
+
+| Configuration | Title, master | Title, branch | Δ | Game, master | Game, branch | Δ |
+|---------------|--------------:|--------------:|--:|-------------:|-------------:|--:|
+| `CoreOnly` | 0.264 | 0.331 | +25% | 0.273 | 0.344 | +26% |
+| Render and audio, legacy pixel generator | 1.032 | 1.093 | +6% | 1.030 | 1.107 | +7% |
+| Render and audio, sequencer (default) | 1.032 | 1.403 | +36% | 1.030 | 1.348 | +31% |
+
+The cycle-exact CPU, bus and chips cost about 0.07 ms a frame; the rest of the difference,
+0.24-0.31 ms, is the sequencer pixel generator. That is several times the 30-40 µs the synthetic
+benchmark showed for it (2026-09-05 below); which of the game's differences from that scenario (a
+multicolour character screen, scrolling, sprites, raster interrupts) accounts for the gap has not
+been investigated. In total a frame costs about 0.32-0.37 ms more than on master, under 2% of
+a PAL frame's 20 ms on this machine; the legacy generator keeps the increase at 6-7%.
+
+### 2026-09-05 — VIC-II graphics sequencer per pixel
+
+The rasterizer's per-column block drawing (precomputed 8-pixel arrays, XSCROLL, mode bits and
+`$D018` sampled once per line) is replaced by the chip's graphics sequencer followed pixel by
+pixel, after the VIC-II article with VICE's VICII test programs as the reference: a two-stage data pipeline fed by each cycle's g-access, a shift register
+loaded at the XSCROLL pixel, the mode bits taking effect part way through a cycle, and the pixels
+recorded as colour codes that are resolved into the two layers when the line ends. The cost is per
+cycle rather than per column, so it is measured with the display off (the benchmark's own scenario,
+border only) and on (`$D011 = $1B`, the KERNAL's value, applied with a temporary edit to the
+scenario). A first version ran the eight-pixel loop on every cycle and took `RenderOnly` to 587 µs
+with the display off; a constant-time path for cycles with nothing to show and an empty shift
+register, and a branch-free path for the steady-state block, brought it to the numbers below.
+Apple M1, .NET 10.0.7, same session, integration branch `e4c6525d` as baseline.
+
+| Benchmark | Display off, before | Display off, after | Δ | Display on, before | Display on, after | Δ |
+|-----------|--------------------:|-------------------:|--:|-------------------:|------------------:|--:|
+| C64 frame `CoreOnly` / `None` | 264.9 µs | 262.2 µs | 0% | 259.4 µs | 260.3 µs | 0% |
+| C64 frame `RenderOnly` / `None` | 360.3 µs | 392.6 µs | +9% | 353.7 µs | 393.7 µs | +11% |
+| C64 frame `RenderOnly` / `MixedVisibleSprites` | 362.5 µs | 390.9 µs | +8% | 372.6 µs | 402.6 µs | +8% |
+| C64 frame `AudioOnly` / `None` | 409.5 µs | 403.8 µs | −1% | 409.5 µs | 404.2 µs | −1% |
+| C64 frame `RenderAndAudio` / `None` | 540.3 µs | 586.3 µs | +9% | 550.1 µs | 587.2 µs | +7% |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 542.6 µs | 590.1 µs | +9% | 570.9 µs | 593.9 µs | +4% |
+
+Accepted: about 35-40 µs per frame for pixel-exact mid-line mode, scroll and pointer changes
+(VICE's border, colorsplit and dentest suites now match in full, videomode within a few pixels),
+with the frame still well under a PAL frame's 20 ms. Because the difference is felt more in the
+browser, the previous generator is kept unchanged as the legacy pixel generator
+(`C64Config.Vic2RasterizerPixelGeneratorType = Legacy`, "before" in the table); the sequencer is the
+default. The remaining overhead with the display off is the per-cycle call and the per-line
+resolve; both are candidates if the budget ever tightens.
+
+After the table was recorded, three more reductions went in (colour codes reused across blocks
+with the same matrix byte and nibble, blank bytes filled without the per-pixel loop, lines without
+background colour writes resolved through a lookup table). Their re-measurement on the same day
+was inconclusive: the machine had been under load (a debugger-run instance of the app, then
+indexing) and the CPU-only rows drifted from 262 to 331 µs between runs, more than the effect
+being measured. The table above therefore stands as the branch's recorded numbers; re-measure on
+an idle machine before relying on a finer comparison. In a Debug build on the same laptop, booted
+to BASIC, the app's own stats panel showed the render provider's per-instruction time at 1.51 ms
+per frame with the legacy generator and 2.27 ms with the sequencer before these reductions.
+
+### 2026-09-03 — VIC-II bus stalls (bad lines and sprite DMA)
+
+The CPU can now be stalled by a bus master through `CPU.BusStallSource`: before a read it asks
+how long the bus is busy, the read happens at the release cycle and the waiting cycles count as
+instruction cycles without accesses. The C64 wires the VIC-II in: 40 cycles on every bad line
+(BA low from cycle 12, video matrix fetches in cycles 15-54) and two cycles per sprite with DMA
+on, BA low three cycles ahead, derived from the read's raster position and the live registers.
+The mechanism costs one comparison per read plus one window evaluation per raster line. The
+benchmark machine has the display off, so its frames contain no stalls and the comparison below
+measures overhead only; the last column shows the same branch with `$D011 = $1B` (display on,
+as the KERNAL leaves it): the CPU then loses its cycles to the VIC-II as on hardware and the
+frame has less CPU work in it. Apple M1, .NET 10.0.7, same session.
+
+| Benchmark | Baseline | After | Δ | After, display on |
+|-----------|---------:|------:|--:|------------------:|
+| `InstructionExecutor_OneStep` | 20.1 ns | 20.8 ns | +3% | — |
+| `CPU_Run_1000Instructions` | 15.13 µs | 16.20 µs | +7% | — |
+| `CPU_Execute_NoSubscribers_1000Instructions` | 16.66 µs | 17.00 µs | +2% | — |
+| `Memory_Read_TightLoop` / `Memory_Write_TightLoop` | 1.71 / 1.57 µs | 1.67 / 1.57 µs | 0% | — |
+| C64 frame `CoreOnly` / `None` | 231.0 µs | 231.2 µs | 0% | 218.3 µs |
+| C64 frame `RenderOnly` / `None` | 399.9 µs | 401.2 µs | 0% | 388.1 µs |
+| C64 frame `AudioOnly` / `None` | 374.4 µs | 373.7 µs | 0% | 362.2 µs |
+| C64 frame `RenderAndAudio` / `None` | 590.0 µs | 604.4 µs | +2% | 585.3 µs |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 598.9 µs | 609.3 µs | +2% | 594.5 µs |
+
+Accepted: the per-read comparison is the whole overhead (a NOP is two reads, hence the CPU loop
+rows), frames move within noise, and with the display on the stalls take about 6% of the
+CPU's frame time, which is the hardware's share for 25 bad lines.
+
+### 2026-09-03 — CIAs exact at every instruction, timer mode retired
+
+The CIAs used to be advanced either after every instruction or, in the default mode, once per
+raster line (a timer interrupt could arrive up to 63 cycles late). They are now advanced from
+one place, the C64 instruction loop, to the current bus cycle after every instruction, and by
+every CIA register access to the cycle of the access; `TimerMode` is gone. To make that cheap a
+counting timer is held as the bus cycle at which it underflows (the counter is derived on read),
+and the CIA keeps the earliest such cycle, so the per-instruction catch-up is two comparisons
+and a store in an inlined method. The benchmark machine now seeds CIA1 timer A the way the
+KERNAL does (counting, interrupt masked), so the frame numbers below include a counting CIA and
+the "before" column is this branch's own raster-line mode measured with the same seed. Apple M1,
+.NET 10.0.7, same session.
+
+| Benchmark | Raster-line mode | Per-instruction (old) | Exact (now) | Δ vs raster-line |
+|-----------|-----------------:|----------------------:|------------:|-----------------:|
+| C64 frame `CoreOnly` / `None` | 224.8 µs | 285.0 µs | 226.9 µs | +1% |
+| C64 frame `CoreOnly` / `MixedVisibleSprites` | 233.1 µs | 267.2 µs | 235.0 µs | +1% |
+| C64 frame `RenderOnly` / `None` | 394.9 µs | 444.0 µs | 408.5 µs | +3% |
+| C64 frame `AudioOnly` / `None` | 370.6 µs | 408.9 µs | 376.8 µs | +2% |
+| C64 frame `RenderAndAudio` / `None` | 588.2 µs | 622.8 µs | 593.3 µs | +1% |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 603.3 µs | 634.2 µs | 607.2 µs | +1% |
+| `ProcessAllCiaTimers_Stopped` (both CIAs, per call) | — | 7.8 ns | 2.2 ns | −72% |
+| `ProcessAllCiaTimers_Running_NoUnderflow` | — | 8.2 ns | 2.1 ns | −74% |
+| `ProcessAllCiaTimers_Running_FrequentUnderflow` | — | 27.3 ns | 20.2 ns | −26% |
+
+Accepted: exact CIA timing in the shipped configuration for about 1% of a frame. A first
+version of the deadline timer that kept per-timer positions and called into each timer every
+instruction measured no better than the old per-instruction mode (+9-22%): the cost was six
+small method calls per instruction, not arithmetic.
+
+### 2026-09-02 — every cycle is a bus access
+
+Every instruction now performs exactly the bus accesses the silicon performs, one per clock
+cycle: the next-byte dummy read of implied instructions, the un-indexed read of zero-page
+indexed modes, the branch fix-up reads, the stack reads of pulls and returns, JSR's stack read
+and reordered fetches, and the 65C02's operand re-reads on its extra cycles. Verified per
+opcode against the SingleStepTests corpus. Each added access is one more delegate call through
+`Memory`, so the CPU-only benchmarks pay for it in proportion to how many dummy cycles their
+instruction mix has (the step benchmark runs NOPs, which doubled their accesses). The
+integrated C64 benchmarks move within ShortRun noise. Same machine as the cycle-timing baseline
+above (Apple M1, .NET 10.0.7).
+
+| Benchmark | Baseline | After | Δ |
+|-----------|---------:|------:|--:|
+| `InstructionExecutor_OneStep` | 17.44 ns | 19.25 ns | +10% |
+| `CPU_Run_1000Instructions` | 13.02 µs | 14.22 µs | +9% |
+| `CPU_Execute_NoSubscribers_1000Instructions` | 14.28 µs | 16.30 µs | +14% |
+| `CPU_Execute_WithSubscribers_1000Instructions` | 35.16 µs | 36.94 µs | +5% |
+| `Memory_Read_TightLoop` / `Memory_Write_TightLoop` | 1.69 / 1.58 µs | 1.67 / 1.57 µs | 0% |
+| C64 frame `CoreOnly` / `None` | 226.8 µs | 219.5 µs | −3% |
+| C64 frame `RenderAndAudio` / `None` | 577.3 µs | 584.9 µs | +1% |
+| C64 frame `RenderAndAudio` / `MixedVisibleSprites` | 591.7 µs | 594.8 µs | +1% |
+| C64 1,000 instructions `CoreOnly` | 24.66 µs | 24.43 µs | −1% |
+
+Accepted: the cycle-timing work's budget is 1.3× on the CPU loop and 5% per C64 frame, and
+the added work is semantic (accesses that memory-mapped I/O must see), not overhead. The
+`ExecEvaluator_Check_*` benchmarks touch no changed code; `OneConditionConfigured` read 8.05 ns on
+this branch against the 5.67 ns recorded in the baseline section, but re-measured on the base
+commit in the same session it read 9.26 ns, so that row moves with JIT layout between sessions,
+not with this change. Compare same-session pairs for sub-10 ns benchmarks.
+
 Add a new section per merged PR that intentionally changes any number above by
 ≥ 5% or introduces/removes an allocation, in reverse chronological order:
 

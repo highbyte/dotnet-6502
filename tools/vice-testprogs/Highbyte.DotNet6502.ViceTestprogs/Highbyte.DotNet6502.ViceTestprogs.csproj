@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Highbyte.DotNet6502.ViceTestprogs</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
+    <ProjectReference Include="..\..\..\src\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\..\..\src\libraries\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+  </ItemGroup>
+
+</Project>

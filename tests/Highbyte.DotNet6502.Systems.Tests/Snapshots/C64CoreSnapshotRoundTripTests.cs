@@ -106,6 +106,7 @@ public class C64CoreSnapshotRoundTripTests
         // then snapshot. These drive cached VIC-II state that is re-derived on restore.
         var source = BuildC64();
         source.Mem.Write(0xD018, 0x14); // video matrix base $0400, char base $1000
+        source.Mem.Write(0xDD02, 0x3F); // CIA2 DDRA as the KERNAL sets it: the bank bits are outputs
         source.Mem.Write(0xDD00, 0x02); // CIA2 PRA bits 0-1 = %10 -> VIC bank 1
         var sourceVideoMatrix = source.Vic2.VideoMatrixBaseAddress;
         var sourceBank = source.Vic2.CurrentVIC2Bank;

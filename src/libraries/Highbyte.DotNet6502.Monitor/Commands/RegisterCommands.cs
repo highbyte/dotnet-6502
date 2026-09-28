@@ -133,7 +133,7 @@ public static class RegisterCommands
         }, regPCArg);
 
         // r
-        var command = new Command("r", "Show processor status and registers. CY = #cycles executed.")
+        var command = new Command("r", "Show processor status and registers. CY = #cycles executed. A system's own values (a C64's VIC-II position) follow on a second line.")
         {
             setRegACommand,
             setRegXCommand,
@@ -146,6 +146,9 @@ public static class RegisterCommands
         command.SetHandler(() =>
         {
             monitor.WriteOutput(OutputGen.GetProcessorState(monitor.Cpu, includeCycles: true));
+            var systemValues = monitor.GetSystemDebugValuesLine();
+            if (systemValues != null)
+                monitor.WriteOutput(systemValues);
         });
 
         return command;
