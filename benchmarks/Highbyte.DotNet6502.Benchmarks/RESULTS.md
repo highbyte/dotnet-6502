@@ -369,6 +369,33 @@ Observations that matter for the cycle work:
 
 ## History
 
+### 2026-09-28 — cycle-exact C64 against master, measured on Giana Sisters
+
+The `C64ExecuteFrameBenchmark` scenario runs a small loop with the display off, so it has no bad
+lines, raster interrupts, mid-line register writes or sprite multiplexing, and the per-step entries
+below measured each change against the one before it. To get the total cost a real program pays,
+Giana Sisters (the Download & Run D64, PAL, real ROMs) was run headless with the same source built
+against master `3b440193` and this branch `e9a7cd62`: boot, direct-load the disk's first file,
+`RUN`, then 4,000 timed `ExecuteOneFrame` calls with scripted joystick input (the title screen's
+scroller from frame 1,000 to 2,000, a started game from 2,100 to 4,000: walking right, jumping,
+losing lives). `CoreOnly` has no render or audio provider; "Render and audio" adds the rasterizer
+and the sample SID provider, as the apps run it. Mean frame time in ms, each figure the mean of
+five processes run alternately (the second of two passes per process, after JIT warm-up). Apple M1,
+.NET SDK 10.0.401, Release; run-to-run spread about ±2%.
+
+| Configuration | Title, master | Title, branch | Δ | Game, master | Game, branch | Δ |
+|---------------|--------------:|--------------:|--:|-------------:|-------------:|--:|
+| `CoreOnly` | 0.264 | 0.331 | +25% | 0.273 | 0.344 | +26% |
+| Render and audio, legacy pixel generator | 1.032 | 1.093 | +6% | 1.030 | 1.107 | +7% |
+| Render and audio, sequencer (default) | 1.032 | 1.403 | +36% | 1.030 | 1.348 | +31% |
+
+The cycle-exact CPU, bus and chips cost about 0.07 ms a frame; the rest of the difference,
+0.24-0.31 ms, is the sequencer pixel generator. That is several times the 30-40 µs the synthetic
+benchmark showed for it (2026-09-05 below); which of the game's differences from that scenario (a
+multicolour character screen, scrolling, sprites, raster interrupts) accounts for the gap has not
+been investigated. In total a frame costs about 0.32-0.37 ms more than on master, under 2% of
+a PAL frame's 20 ms on this machine; the legacy generator keeps the increase at 6-7%.
+
 ### 2026-09-05 — VIC-II graphics sequencer per pixel
 
 The rasterizer's per-column block drawing (precomputed 8-pixel arrays, XSCROLL, mode bits and
