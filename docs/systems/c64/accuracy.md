@@ -51,10 +51,6 @@ sprite multiplexing, sprite crunching and sprite stretching come out as on hardw
 
 Known limits:
 
-- **Graphics memory changed in the cycles it is fetched.** The picture is drawn after each CPU
-  instruction, so a program that writes graphics memory in the very cycles the chip reads it sees
-  the change a few cycles early. Register changes are not affected: they are applied at the cycle of
-  the write.
 - **Sprite collisions** are latched as the raster line ends rather than at the pixel where the
   sprites meet. A collision register read in the middle of a line still sees the collisions up to
   where the beam is (see [Libraries](libraries.md)), but the collision *interrupt* is raised at the

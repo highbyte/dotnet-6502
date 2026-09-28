@@ -56,8 +56,9 @@ The SID does the same through its audio provider (see below). The rasterizer app
 write to the border or background colour registers (`$D020`-`$D024`) from the cycle after the
 write lands, so a colour change in the middle of a line splits that line at the write's pixel
 position, as on hardware; the VIC-II reports each register write with its frame cycle for this.
-The other display registers (mode, scroll, 38/24-column, memory setup) are still sampled once per
-raster line, so a mid-line change to one of those becomes visible on the next line. Where a cycle's
+The other display registers (mode, scroll, 38/24-column, memory setup) reach the picture at the
+pixel the graphics data sequencer takes them at (see below); only the legacy pixel generator samples
+them once per raster line, so that with it a mid-line change becomes visible on the next line. Where a cycle's
 pixels land follows the chip: the display window's first pixel is 124 pixels into the raster line
 on both PAL and NTSC, taken from the VIC-II's display window at X 24 and where X 0 falls relative to
 the line's first cycle. The visible frame is the chip's own: the lines and pixels outside its
@@ -65,7 +66,7 @@ vertical and horizontal blanking, raster lines 16-299 and X 480-378 on the 6569,
 X 489-394 on the 6567R8. So the border above the display window is smaller than the one below it
 (35 and 49 lines on PAL, 10 and 25 on NTSC), and nothing from the blanking, where a sprite or an
 opened border can still produce pixels, is shown. A colour register write is shown a few pixels away from the
-cycle boundary it lands on, by an amount measured against VICE that is the same on PAL and NTSC. The
+cycle boundary it lands on, by an amount taken from VICE's VICII test programs that is the same on PAL and NTSC. The
 rasterizer does hold a character row's 40 screen codes and colour nibbles the way
 the VIC-II does: fetched on the row's first line and shown for its remaining seven, so a screen
 write made after that fetch appears from the next row on. When a CPU read is stalled, the VIC-II
@@ -199,10 +200,10 @@ pixel's two bits select its colour source from the mode table (a background colo
 matrix nibbles, the colour nibble, or black in the invalid modes) and its priority, and the line's
 pixels are resolved into the two layers when the line ends, with the background colour registers'
 values at each pixel. That is what makes mid-line mode, scroll and character set switches, and the
-opened-border and idle pictures of VICE's border and videomode tests, come out as on hardware. One
-limit remains: the rasterizer runs after each instruction, so a program that changes graphics
-memory in the very cycles the chip fetches it sees the change a few cycles early. The sequencer
-costs about a tenth more render time per frame than the generator it replaced, so that generator
+opened-border and idle pictures of VICE's border and videomode tests, come out as on hardware. The
+sequencer costs more render time than the generator it replaced (in a scrolling game, Giana
+Sisters, about a quarter of a millisecond more per frame on an Apple M1; see the benchmark results
+in `benchmarks/Highbyte.DotNet6502.Benchmarks/RESULTS.md`), so that generator
 (8-pixel blocks, the display registers sampled once per line) is kept as the legacy pixel
 generator, selectable with the `Vic2RasterizerPixelGeneratorType` configuration option and in the
 hosts' C64 settings, for browsers and other hosts where that matters. It receives no new features. Sprite X positions wrap at 512 as on the chip, so a sprite at X 496 sits in the left
