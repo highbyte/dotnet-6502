@@ -369,6 +369,28 @@ Observations that matter for the cycle work:
 
 ## History
 
+### 2026-09-28 — sequencer: scrolled blocks and repeated blocks without per-pixel work
+
+Profiling the Giana Sisters run below showed two parts of the sequencer pixel generator doing work
+per pixel that the steady case does not need. With XSCROLL set, each 8-pixel block was drawn pixel
+by pixel (1,600-1,800 blocks a frame in Giana, which scrolls); the block is now composed from the
+previous byte's decoded codes and the new byte's when the modes and XSCROLL have not changed since
+that byte was loaded, and drawn pixel by pixel otherwise. The line's colour resolve looked up every
+pixel except where a block had been marked as a repeat; it now copies any 8-pixel block whose codes
+equal the block before it. The output is unchanged: all 4,000 frames of the Giana run hash the same
+with both pixel generators, and the VICE VICII suite gives the same verdict for every program with
+byte-identical pictures. Same method and machine as the entry below; ms per frame, "Render and
+audio", sequencer.
+
+| Build | Title | Game |
+|-------|------:|-----:|
+| master `3b440193` | 1.035 | 1.033 |
+| before | 1.437 | 1.373 |
+| after | 1.339 (−7%) | 1.322 (−4%) |
+
+What remains of the sequencer's cost is mostly its per-cycle loop, spread over many small field
+reads, bounds checks and branches with no single hot spot.
+
 ### 2026-09-28 — cycle-exact C64 against master, measured on Giana Sisters
 
 The `C64ExecuteFrameBenchmark` scenario runs a small loop with the display off, so it has no bad
