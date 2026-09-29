@@ -7,7 +7,7 @@ A list of applications that seem to work decently with the [C64 emulator](overvi
 
 !!! note "Limitations"
     - The C64 emulator now has **limited support for the 1541 disk drive**. You can attach `.d64` disk images and use the Basic `LOAD` command to load the directory and files. However, only basic directory and file loading is supported. Advanced disk operations, file writing, and copy protection schemes are not supported.
-    - The video emulation is not cycle-exact, and does not cover all tricks possible with the C64 VIC2 video chip. Any advanced app/game/demo may not work as expected.
+    - The default rasterizer follows VIC-II timing cycle by cycle and draws graphics pixel by pixel, but some chip behaviours still differ. Advanced programs may not work as expected; see [C64 accuracy and limitations](accuracy.md#vic-ii).
     - There are currently different video renderer implementations that can be selected in the C64 config UI. All renderers support `Character` mode, most support `sprites`, but only some support `Bitmap` mode (which makes them a bit slower). Bitmap mode may be required by some apps, so the correct renderer must be selected before starting certain apps (see Renderer column in table below).
     - The default sample-based SID audio provider reproduces most C64 music well, but is not
       fully chip-accurate. The legacy command-stream provider is also selectable (low CPU but
