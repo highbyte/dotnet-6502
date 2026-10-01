@@ -103,27 +103,28 @@ if ! gh run watch "$RUN_ID" --exit-status >/dev/null; then
 fi
 
 # Server-side processing finishes a moment after the workflow. Poll briefly.
-if [[ -z "$PR_NUMBER" ]]; then
-  # An issues query for a nonexistent branch can return an empty result. Require
-  # an analysis of this revision on this branch before interpreting that as clean.
-  analysis_id=""
-  for _ in $(seq 1 12); do
-    analysis_json=$(curl -fsS --get "$SONAR_HOST/api/project_analyses/search" \
-      --data-urlencode "project=$PROJECT_KEY" --data-urlencode "branch=$BRANCH" \
-      --data-urlencode "ps=1" 2>/dev/null || true)
-    analysis_id=$(jq -r --arg sha "$SHA" \
-      '.analyses[]? | select(.revision == $sha) | .key' <<< "$analysis_json" 2>/dev/null || true)
-    [[ -n "$analysis_id" ]] && break
-    sleep 5
-  done
-  if [[ -z "$analysis_id" ]]; then
-    echo "No Sonar analysis of ${SHA:0:12} found on branch '$BRANCH'." >&2
-    exit 2
-  fi
-  gate_query="analysisId=$analysis_id"
-else
-  gate_query="projectKey=$PROJECT_KEY&$ANALYSIS_PARAMETER"
+# The analyses API only supports long-lived branches. Instead, verify that the
+# SonarCloud app reported a completed check on this exact commit and analysis
+# target. An empty issues response alone cannot prove the branch was analyzed.
+REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+ENCODED_PARAMETER=$(jq -rn --arg parameter "$ANALYSIS_PARAMETER" \
+  '$parameter | split("=") | .[0] + "=" + (.[1] | @uri)')
+sonar_check=""
+for _ in $(seq 1 12); do
+  sonar_check=$(gh api "repos/$REPO/commits/$SHA/check-runs" \
+    | jq -r --arg target "$ANALYSIS_PARAMETER" --arg encoded "$ENCODED_PARAMETER" '
+      .check_runs[]
+      | select(.app.id == 12526 and .name == "SonarCloud Code Analysis" and .status == "completed")
+      | select(.details_url | split("?")[1] | split("&") | any(. == $target or . == $encoded))
+      | .conclusion')
+  [[ -n "$sonar_check" ]] && break
+  sleep 5
+done
+if [[ -z "$sonar_check" ]]; then
+  echo "No completed SonarCloud check for ${SHA:0:12} and $ANALYSIS_PARAMETER." >&2
+  exit 2
 fi
+gate_query="projectKey=$PROJECT_KEY&$ENCODED_PARAMETER"
 
 gate_json=$(curl -fsS "$SONAR_HOST/api/qualitygates/project_status?$gate_query")
 if ! jq -e '.projectStatus.status == "OK"' <<< "$gate_json" >/dev/null; then

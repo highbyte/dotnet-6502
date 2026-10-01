@@ -30,6 +30,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+    - name: Setup Node for browser behavior tests
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version: '24'
+    - name: Test browser zoom and orientation
+      run: node --test "tests/Highbyte.DotNet6502.Tests/Browser/*.test.cjs"
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:

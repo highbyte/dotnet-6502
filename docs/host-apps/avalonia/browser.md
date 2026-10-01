@@ -43,6 +43,21 @@ orientation lock. While an orientation lock is active, the toolbar remains avail
 if the app now fits, so Rotate and Reset stay reachable. Normal device rotation continues to
 update the layout; Fit adjusts automatically while Fit mode is active.
 
+## Browser script checks
+
+From the repository root with Node.js 24, run:
+
+```sh
+node --test "tests/Highbyte.DotNet6502.Tests/Browser/*.test.cjs"
+```
+
+These checks execute the production zoom script with a deterministic DOM and browser API
+model. They cover Fit/Reset, window and content resizing, visible dialog coordinates, modal
+wheel routing, toolbar state, and orientation/fullscreen success and failure paths. They run
+in both the independent build/test workflow and Sonar; the latter also imports JavaScript
+coverage. Canvas rendering, pointer hit-testing, and physical screen rotation still require
+verification in a real browser/device.
+
 ## Overview
 
 Cross-platform browser app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Desktop app](../../host-apps/avalonia/desktop.md).
