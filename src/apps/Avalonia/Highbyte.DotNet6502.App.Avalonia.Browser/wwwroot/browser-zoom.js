@@ -35,6 +35,7 @@
     const manualRotationHint = 'Screen rotation is unavailable in this browser. Turn your device to portrait or landscape. If the screen stays fixed, turn off the device rotation lock.';
     let enteredFullscreenForOrientation = false;
     let orientationMessageTimer;
+    let orientationMessagePinned = false;
 
     function oppositeOrientation() {
         const type = window.screen?.orientation?.type;
@@ -63,22 +64,28 @@
         orientationButton.setAttribute('title', label);
     }
 
-    function showManualRotationHelp() {
-        if (!orientationButton.hidden && (orientationUnavailable || !orientationSupported)) {
+    function showManualRotationHelp(persistent = false) {
+        if (!orientationButton.hidden && (orientationUnavailable || !orientationSupported)
+            && !orientationMessagePinned) {
             const emulationHint = orientationUnavailable
-                ? " In desktop device emulation, use the device toolbar's rotate icon. Reset dismisses this message." : '';
-            showOrientationMessage(manualRotationHint + emulationHint, orientationUnavailable);
+                ? " In desktop device emulation, use the device toolbar's rotate icon." : '';
+            showOrientationMessage(manualRotationHint + emulationHint, persistent);
         }
+    }
+
+    function dismissOrientationMessage() {
+        window.clearTimeout(orientationMessageTimer);
+        orientationMessagePinned = false;
+        orientationStatus.hidden = true;
     }
 
     function showOrientationMessage(message, persistent = false) {
         window.clearTimeout(orientationMessageTimer);
+        orientationMessagePinned = persistent;
         orientationStatus.textContent = message;
         orientationStatus.hidden = false;
         if (!persistent) {
-            orientationMessageTimer = window.setTimeout(() => {
-                orientationStatus.hidden = true;
-            }, 10000);
+            orientationMessageTimer = window.setTimeout(dismissOrientationMessage, 10000);
         }
     }
 
@@ -99,7 +106,13 @@
             return;
         }
         if (orientationUnavailable || !orientationSupported) {
-            showManualRotationHelp();
+            // Hover/focus may precede the first click. Only a second explicit
+            // activation dismisses pinned help; the first keeps it open to read.
+            if (orientationMessagePinned) {
+                dismissOrientationMessage();
+            } else {
+                showManualRotationHelp(true);
+            }
             return;
         }
         const target = oppositeOrientation();
@@ -141,7 +154,7 @@
             }
             if (requestStage === 'orientation-lock' && error?.name === 'NotSupportedError') {
                 orientationUnavailable = true;
-                showOrientationMessage('Screen rotation is unavailable in this browser. Rotate your device; in desktop device emulation, use the device toolbar\'s rotate icon. Reset dismisses this message.' + exitHint, true);
+                showOrientationMessage('Screen rotation is unavailable in this browser. Rotate your device; in desktop device emulation, use the device toolbar\'s rotate icon.' + exitHint, true);
             } else if (requestStage === 'fullscreen') {
                 showOrientationMessage('Fullscreen was not allowed. Try Rotate again and allow fullscreen, or rotate your device.' + exitHint);
             } else {
@@ -323,8 +336,7 @@
     });
 
     resetButton.addEventListener('click', () => {
-        window.clearTimeout(orientationMessageTimer);
-        orientationStatus.hidden = true;
+        dismissOrientationMessage();
         if (orientationLocked) {
             showOrientationMessage('Automatic rotation restored.');
         }
@@ -341,9 +353,28 @@
     });
 
     orientationButton.setAttribute('aria-describedby', 'browser-orientation-status');
-    orientationButton.addEventListener('pointerenter', showManualRotationHelp);
-    orientationButton.addEventListener('focus', showManualRotationHelp);
+    orientationButton.addEventListener('pointerenter', event => {
+        // Touch emits pointerenter before click, but isn't a hover interaction.
+        if (event.pointerType === 'mouse') {
+            showManualRotationHelp();
+        }
+    });
+    orientationButton.addEventListener('focus', () => showManualRotationHelp());
     orientationButton.addEventListener('click', rotateOrientation);
+    document.addEventListener('pointerdown', event => {
+        if (!orientationStatus.hidden && !orientationButton.contains(event.target)
+            && !orientationStatus.contains(event.target)) {
+            dismissOrientationMessage();
+        }
+    }, { capture: true, passive: true });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !orientationStatus.hidden) {
+            dismissOrientationMessage();
+            // Dismiss this foreground message before Escape reaches an emulator dialog.
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, { capture: true });
     touchPointer?.addEventListener('change', updateOrientationButton);
     window.screen?.orientation?.addEventListener('change', updateOrientationButton);
     document.addEventListener('fullscreenchange', () => {

@@ -120,7 +120,7 @@ function isDesktopSafari() {
 
 if (isDesktopSafari()) {
     // Show a warning but allow user to continue
-    if (confirm('⚠️ Safari Desktop Compatibility Notice\n\nThis emulator may not work correctly in Safari on macOS due to WebAssembly AOT limitations. Please use Chrome/Edge (or other Chromium-based browsers), or Firefox.\n\nNote: Safari on iOS/iPhone works fine.\n\nContinue anyway?')) {
+    if (confirm('⚠️ Safari Desktop Compatibility Notice\n\nOlder Safari versions have had compatibility problems with this emulator. Recent versions may work, but a minimum supported version has not been established.\n\nIf you encounter problems, try a current Chromium-based browser or Firefox.\n\nContinue anyway?')) {
         // User chose to continue - load the app
     } else {
         // User chose not to continue - redirect to notice page

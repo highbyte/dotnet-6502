@@ -34,8 +34,11 @@ On touch devices where these APIs are unavailable, including Safari and Brave on
 Rotate appears disabled. Hover, focus, or tap it for guidance to turn the device and disable
 its rotation lock if needed. Availability is based on browser capabilities rather than its name.
 The disabled button remains focusable and tappable to show its explanation; it cannot request rotation.
+Tap Rotate again, tap outside the explanation, or press Escape to dismiss it. Tapping inside
+keeps it open for reading. Help opened by tapping stays until dismissed; hover/focus help
+also disappears after ten seconds.
 If the API exists but reports that rotation is unsupported, Rotate stays visible but disabled
-and the explanation stays until Reset. Desktop Chromium device emulation exposes the API
+and its explanation uses the same dismissal controls, including Reset. Desktop Chromium device emulation exposes the API
 without supporting orientation locking; use the device toolbar's rotate icon to test the
 landscape layout. An iPhone device preset simulates its viewport, not Safari's capabilities.
 Failed requests log `[DotNet6502] Orientation request failed.` in the browser console with
@@ -46,6 +49,17 @@ exits fullscreen if Rotate entered it. Exiting fullscreen through the browser re
 orientation lock. While an orientation lock is active, the toolbar remains available even
 if the app now fits, so Rotate and Reset stay reachable. Normal device rotation continues to
 update the layout; Fit adjusts automatically while Fit mode is active.
+
+## Safari compatibility
+
+Older Safari releases have had compatibility problems. The macOS startup notice remains
+as a precaution because a minimum supported Safari version has not been established;
+it does not test browser capabilities or indicate that startup has failed. Successful
+BASIC startup does not verify every game, audio mode, or file operation.
+
+Download & Run uses the same CORS proxy as ROM downloads in the browser. It leaves
+User-Agent selection to the browser; the custom download header is used only by the
+native app when contacting sources directly.
 
 ## Browser script checks
 

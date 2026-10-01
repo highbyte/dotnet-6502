@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 // Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET
@@ -7,9 +5,20 @@ public class PerSecondTimedStat : IStat
 {
     private const int SampleCount = 60;
 
-    private readonly Stopwatch _sw = new();
+    private readonly TimeProvider _timeProvider;
+    private long? _previousTimestamp;
     private double? _emaElapsedMs;
     private double? _fakeValue;
+
+    public PerSecondTimedStat() : this(TimeProvider.System)
+    {
+    }
+
+    public PerSecondTimedStat(TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        _timeProvider = timeProvider;
+    }
 
     // Compute FPS as 1 / E[T], not E[1/T]. The latter is upward-biased when intervals vary
     // (Jensen's inequality), which on browsers - where Task.Delay clamping causes 30%+ jitter
@@ -29,19 +38,21 @@ public class PerSecondTimedStat : IStat
 
     public void Update()
     {
-        if (_sw.IsRunning)
+        var timestamp = _timeProvider.GetTimestamp();
+        if (_previousTimestamp.HasValue)
         {
-            var elapsedMs = _sw.Elapsed.TotalMilliseconds;
-#if DEBUG
-            if (elapsedMs == 0)
-                throw new NotImplementedException("Elapsed 0.0 milliseconds, cannot handle division by 0");
-#endif
-            if (_emaElapsedMs == null)
-                _emaElapsedMs = elapsedMs;
-            else
-                _emaElapsedMs = (_emaElapsedMs.Value * (SampleCount - 1) + elapsedMs) / SampleCount;
+            var elapsedMs = _timeProvider.GetElapsedTime(_previousTimestamp.Value, timestamp).TotalMilliseconds;
+            // Browser timer precision can give successive callbacks the same timestamp.
+            // An unavailable timing sample must not interrupt rendering or audio playback.
+            if (elapsedMs > 0)
+            {
+                if (_emaElapsedMs == null)
+                    _emaElapsedMs = elapsedMs;
+                else
+                    _emaElapsedMs = (_emaElapsedMs.Value * (SampleCount - 1) + elapsedMs) / SampleCount;
+            }
         }
-        _sw.Restart();
+        _previousTimestamp = timestamp;
     }
 
     public string GetDescription()
@@ -59,7 +70,7 @@ public class PerSecondTimedStat : IStat
     public void ResetAverage()
     {
         _emaElapsedMs = null;
-        _sw.Reset();
+        _previousTimestamp = null;
     }
 
     // For unit testing

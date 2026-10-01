@@ -13,6 +13,7 @@ function createElement() {
         style: {}, textContent: '', hidden: false, attributes: {},
         classes: new Set(), handlers: {}, options: {},
         setAttribute(name, value) { this.attributes[name] = value; },
+        contains(target) { return target === this || target?.parentElement === this; },
         addEventListener(event, callback, options) {
             this.handlers[event] = callback;
             this.options[event] = options;

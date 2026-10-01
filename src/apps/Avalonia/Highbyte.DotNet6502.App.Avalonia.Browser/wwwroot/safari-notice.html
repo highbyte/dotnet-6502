@@ -52,13 +52,13 @@
 <body>
     <h1>DotNet 6502 Emulator</h1>
     
-    <div class="notice error">
-        <h3>⚠️ Safari Desktop Compatibility Issue</h3>
-        <p>You're using Safari on macOS. Unfortunately, due to current limitations in Safari Desktop's WebAssembly implementation, this app may not work correctly.</p>
+    <div class="notice">
+        <h3>⚠️ Safari Desktop Compatibility Notice</h3>
+        <p>Older Safari versions have had compatibility problems with this emulator. Recent versions may work, but a minimum supported version has not been established.</p>
         
-        <p><strong>Technical Details:</strong> The emulator requires AOT (Ahead-of-Time) compiled .NET WebAssembly for 60fps performance. Safari Desktop's WebAssembly engine currently has compatibility issues with .NET AOT-compiled applications.</p>
+        <p><strong>Compatibility:</strong> Startup, rendering, audio, and downloads can behave differently across browser versions. Use a current Safari version and try the app; if you encounter problems, try a current Chromium-based browser or Firefox.</p>
         
-        <p><strong>Note:</strong> Safari on iOS/iPhone works fine! This issue is specific to Safari on macOS.</p>
+        <p><strong>Mobile Safari:</strong> Compatibility also depends on the device and browser version. This desktop notice does not establish support for every iPhone or iPad.</p>
     </div>
 
     <div class="notice">
@@ -75,19 +75,19 @@
             <div class="browser-item recommended">
                 <strong>🦊 Firefox</strong><br>
             </div>
-            <div class="browser-item unsupported">
+            <div class="browser-item">
                 <strong>🧭 Safari (macOS only)</strong><br>
-                <small>Desktop version unsupported</small>
+                <small>Minimum supported version not established</small>
             </div>
         </div>
         
         <div class="notice success" style="margin-top: 20px;">
-            <p><strong>✅ iOS/iPhone Users:</strong> Safari works fine on iOS! This issue only affects Safari on macOS.</p>
+            <p><strong>Safari users:</strong> You can continue and try the emulator. This notice reflects compatibility uncertainty, rather than a detected failure.</p>
         </div>
     </div>
 
     <div style="margin-top: 40px;">
-        <p><a href="./" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">🔙 Try Anyway (May Not Work)</a></p>
+        <p><a href="./" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">🔙 Try the Emulator</a></p>
         <p><small>If you're using a different browser or Safari on iOS, you can ignore this notice.</small></p>
     </div>
 
