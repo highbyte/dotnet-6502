@@ -31,6 +31,8 @@
     let orientationLocked = false;
     let changingOrientation = false;
     let orientationUnavailable = false;
+    let orientationSupported = false;
+    const manualRotationHint = 'Screen rotation is unavailable in this browser. Turn your device to portrait or landscape. If the screen stays fixed, turn off the device rotation lock.';
     let enteredFullscreenForOrientation = false;
     let orientationMessageTimer;
 
@@ -42,19 +44,31 @@
     }
 
     function updateOrientationButton() {
-        const supported = touchPointer?.matches
+        orientationSupported = touchPointer?.matches
             && typeof window.screen?.orientation?.lock === 'function'
             && typeof window.screen?.orientation?.unlock === 'function'
             && typeof document.documentElement.requestFullscreen === 'function'
             && document.fullscreenEnabled;
-        orientationButton.hidden = !supported;
-        orientationButton.disabled = changingOrientation || orientationUnavailable;
+        orientationButton.hidden = !touchPointer?.matches;
+        // ARIA-disabled keeps unavailable rotation focusable/tappable for its help.
+        // Native disabled would prevent touch users from opening the explanation.
+        orientationButton.disabled = changingOrientation;
+        orientationButton.setAttribute('aria-disabled',
+            String(changingOrientation || orientationUnavailable || !orientationSupported));
         resetButton.disabled = changingOrientation;
         const fullscreenHint = document.fullscreenElement ? '' : ' (opens fullscreen)';
-        const label = orientationUnavailable ? 'Screen rotation is unavailable in this browser'
+        const label = orientationUnavailable || !orientationSupported ? manualRotationHint
             : `Switch to ${oppositeOrientation()} orientation${fullscreenHint}`;
         orientationButton.setAttribute('aria-label', label);
         orientationButton.setAttribute('title', label);
+    }
+
+    function showManualRotationHelp() {
+        if (!orientationButton.hidden && (orientationUnavailable || !orientationSupported)) {
+            const emulationHint = orientationUnavailable
+                ? " In desktop device emulation, use the device toolbar's rotate icon. Reset dismisses this message." : '';
+            showOrientationMessage(manualRotationHint + emulationHint, orientationUnavailable);
+        }
     }
 
     function showOrientationMessage(message, persistent = false) {
@@ -81,7 +95,11 @@
     }
 
     async function rotateOrientation() {
-        if (changingOrientation || orientationUnavailable || orientationButton.hidden) {
+        if (changingOrientation || orientationButton.hidden) {
+            return;
+        }
+        if (orientationUnavailable || !orientationSupported) {
+            showManualRotationHelp();
             return;
         }
         const target = oppositeOrientation();
@@ -322,6 +340,9 @@
         applyZoom(1, true);
     });
 
+    orientationButton.setAttribute('aria-describedby', 'browser-orientation-status');
+    orientationButton.addEventListener('pointerenter', showManualRotationHelp);
+    orientationButton.addEventListener('focus', showManualRotationHelp);
     orientationButton.addEventListener('click', rotateOrientation);
     touchPointer?.addEventListener('change', updateOrientationButton);
     window.screen?.orientation?.addEventListener('change', updateOrientationButton);

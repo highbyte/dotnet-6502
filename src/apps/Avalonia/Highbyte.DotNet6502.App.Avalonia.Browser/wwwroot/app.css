@@ -28,6 +28,13 @@ body {
     height: 100vh;
 }
 
+/* Keep WebKit text autosizing from changing the floating controls. */
+#browser-zoom-controls,
+#browser-orientation-status {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 #browser-zoom-controls {
     position: fixed;
     left: max(0px, env(safe-area-inset-left));
@@ -143,7 +150,8 @@ body {
     outline-offset: 2px;
 }
 
-#browser-zoom-controls button:disabled {
+#browser-zoom-controls button:disabled,
+#browser-zoom-controls button[aria-disabled="true"] {
     opacity: 0.45;
     cursor: default;
 }

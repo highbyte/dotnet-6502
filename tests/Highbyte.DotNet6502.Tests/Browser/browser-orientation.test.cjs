@@ -26,6 +26,8 @@ function phone(settings={}) {
    document.fullscreenElement=null;document.handlers.fullscreenchange();
   };
   if(settings.alreadyFullscreen)document.fullscreenElement=document.documentElement;
+  if(settings.noOrientation)delete window.screen;
+  if(settings.noFullscreenApi)delete document.documentElement.requestFullscreen;
  });
  return {...f,calls,orientation,rotate:()=>f.elements.get('browser-orientation-toggle').handlers.click(),
   button:()=>f.elements.get('browser-orientation-toggle'),status:()=>f.elements.get('browser-orientation-status'),dismiss:()=>timeout()};
@@ -70,7 +72,7 @@ test('Orientation requests, fullscreen ownership, Reset and rejected requests', 
     await exiting.document.exitFullscreen();
     assert.ok(exiting.calls.some(c=>c[0]==='unlock'),'browser fullscreen exit restores auto orientation');
     assert.equal(exiting.elements.get('browser-zoom-controls').hidden,true,'when unlocked app fits controls hide again');
- for(const setup of [{touch:false},{fullscreen:false},{noLock:true}]) {
+ for(const setup of [{touch:false}]) {
   const absent=phone(setup);absent.size(1258,764);
     assert.equal(absent.button().hidden,true);
     await absent.rotate();
@@ -92,7 +94,8 @@ test('Orientation requests, fullscreen ownership, Reset and rejected requests', 
     assert.ok(unsupported.calls.some(c=>c[0]==='exit'),'failed orientation rolls back fullscreen it entered');
     assert.equal(unsupported.document.fullscreenElement,null);
     assert.equal(unsupported.button().hidden,false);
-    assert.equal(unsupported.button().disabled,true);
+    assert.equal(unsupported.button().disabled,false,'unavailable button can still receive a help tap');
+    assert.equal(unsupported.button().attributes['aria-disabled'],'true');
     assert.match(unsupported.status().textContent,/device toolbar/);
     assert.equal(warnings.at(-1)[1].stage,'orientation-lock');
     assert.equal(warnings.at(-1)[1].error,'NotSupportedError');
@@ -111,4 +114,36 @@ test('Orientation requests, fullscreen ownership, Reset and rejected requests', 
     await blockedExit.rotate();
     assert.match(blockedExit.status().textContent,/browser controls to exit fullscreen/);
  console.warn=savedWarn;
+});
+
+test('Unavailable touch rotation explains device rotation without requesting browser APIs', async () => {
+ for (const setup of [{fullscreen:false}, {noLock:true}, {noOrientation:true}, {noFullscreenApi:true}]) {
+  const f=phone(setup);
+  assert.equal(f.elements.get('browser-zoom-controls').hidden,true,'toolbar remains hidden during startup');
+  f.size(1258,764);
+  assert.equal(f.button().hidden,false,'Rotate remains visible on touch devices without the API');
+  assert.equal(f.button().disabled,false,'help remains tappable and keyboard focusable');
+  assert.equal(f.button().attributes['aria-disabled'],'true');
+  assert.equal(f.button().attributes['aria-describedby'],'browser-orientation-status');
+  assert.match(f.button().attributes.title,/Turn your device/);
+  for (const event of ['pointerenter','focus','click']) {
+   await f.button().handlers[event]();
+   assert.equal(f.status().hidden,false,event+' opens the explanation');
+   assert.match(f.status().textContent,/Turn your device.*rotation lock/);
+   assert.deepEqual(f.calls,[],'help never calls fullscreen or orientation APIs');
+   f.dismiss();
+   assert.equal(f.status().hidden,true,'help dismisses after its timeout');
+  }
+  f.click('reset');
+  assert.equal(f.button().attributes['aria-disabled'],'true','Reset cannot enable an absent API');
+  assert.equal(f.status().hidden,true);
+  f.size(300,300);
+  assert.equal(f.elements.get('browser-zoom-controls').hidden,true,'guidance does not force a toolbar onto an app that fits');
+ }
+ const supported=phone();
+ supported.size(1258,764);
+ assert.equal(supported.button().attributes['aria-disabled'],'false');
+ supported.button().handlers.pointerenter();
+ supported.button().handlers.focus();
+ assert.equal(supported.status().hidden,true,'supported rotation does not display manual help on hover/focus');
 });

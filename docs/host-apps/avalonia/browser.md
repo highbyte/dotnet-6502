@@ -11,6 +11,7 @@ buttons disappear unless an orientation lock is active. The controls stay hidden
 content size. This adapts to the browser window dimensions on any device. The contrasting
 handle stays fixed at the bottom-left in both states, pointing left to collapse the toolbar
 and right to expand it.
+App zoom leaves the HTML toolbar at its normal size; native browser pinch zoom remains available.
 Click or tap it without changing the zoom or scroll position. The loading logo centers in the browser window.
 When the scaled app overflows the window, scroll over the canvas with a mouse wheel or
 trackpad, or drag on a touchscreen to pan. The Avalonia **Scale** slider
@@ -29,7 +30,10 @@ The app keeps the device's orientation on startup. On touch devices with the ori
 and fullscreen APIs, **Rotate** switches between portrait and landscape. It enters fullscreen
 when needed; the button's tooltip and accessible label describe the next orientation.
 Browsers can still reject the request, in which case a message explains the limitation.
-The button is hidden when these APIs are unavailable, including Safari on iPhone/iPad.
+On touch devices where these APIs are unavailable, including Safari and Brave on iPhone/iPad,
+Rotate appears disabled. Hover, focus, or tap it for guidance to turn the device and disable
+its rotation lock if needed. Availability is based on browser capabilities rather than its name.
+The disabled button remains focusable and tappable to show its explanation; it cannot request rotation.
 If the API exists but reports that rotation is unsupported, Rotate stays visible but disabled
 and the explanation stays until Reset. Desktop Chromium device emulation exposes the API
 without supporting orientation locking; use the device toolbar's rotate icon to test the
