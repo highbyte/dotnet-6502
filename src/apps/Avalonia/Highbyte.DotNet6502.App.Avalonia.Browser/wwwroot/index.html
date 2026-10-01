@@ -10,13 +10,28 @@
     <link rel="stylesheet" href="./app.css?v={{APP_VERSION}}" />
 </head>
 
-<body style="margin: 0; overflow: hidden">
+<body>
+<div id="browser-app-viewport">
 <div id="out">
     <div class="avalonia-splash">
         <img src="./images/logo.png" alt="DotNet 6502 Emulator" style="max-width: 256px; width: 100%; height: auto;" />
         <h4>Loading...</h4>
     </div>
 </div>
+</div>
+<div id="browser-zoom-controls" role="group" aria-label="Browser app zoom and orientation" hidden>
+    <button id="browser-zoom-toggle" type="button" aria-label="Hide zoom controls" title="Hide zoom controls" aria-expanded="true" aria-controls="browser-zoom-options"></button>
+    <div id="browser-zoom-options">
+        <button id="browser-zoom-out" type="button" aria-label="Zoom out">−</button>
+        <output id="browser-zoom-level" aria-live="polite">100%</output>
+        <button id="browser-zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="browser-zoom-fit" type="button" aria-label="Fit app to browser window">Fit</button>
+        <button id="browser-zoom-reset" type="button" aria-label="Reset app zoom, position, and automatic orientation">Reset</button>
+        <button id="browser-orientation-toggle" type="button" aria-label="Switch screen orientation" hidden>Rotate</button>
+    </div>
+</div>
+<div id="browser-orientation-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+<script src="./browser-zoom.js?v={{APP_VERSION}}"></script>
 <script>
 // Version check and cache management
 window.APP_VERSION = '{{APP_VERSION}}';

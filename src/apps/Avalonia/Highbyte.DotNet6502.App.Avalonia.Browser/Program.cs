@@ -1292,6 +1292,20 @@ internal sealed partial class Program
         [JSImport("globalThis.localStorage.getItem")]
         public static partial string? GetLocalStorage(string key);
 
+        [JSImport("globalThis.dotnet6502BrowserZoom.setContentSize")]
+        public static partial void SetBrowserContentSize(double width, double height);
+
+        [JSImport("globalThis.dotnet6502BrowserZoom.setModalOpen")]
+        public static partial void SetModalOpen(bool value);
+
+        [JSImport("globalThis.dotnet6502BrowserZoom.setViewportChangedCallback")]
+        public static partial void SetViewportChangedCallback(
+            [JSMarshalAs<JSType.Function<JSType.String>>]
+            Action<string> callback);
+
+        [JSImport("globalThis.dotnet6502BrowserZoom.clearViewportChangedCallback")]
+        public static partial void ClearViewportChangedCallback();
+
         [JSImport("globalThis.localStorage.setItem")]
         public static partial void SetLocalStorage(string key, string? value);
 
@@ -1587,6 +1601,17 @@ internal sealed partial class Program
         {
             // Set up the Avalonia logger bridge to route logs via Avalonia Logger through ILogger
             global::Avalonia.Logging.Logger.Sink = avaloniaLoggerBridge;
+            // Run after framework initialization has assigned the browser's MainView.
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (global::Avalonia.Application.Current?.ApplicationLifetime
+                    is global::Avalonia.Controls.ApplicationLifetimes.ISingleViewApplicationLifetime lifetime
+                    && lifetime.MainView is { } mainView)
+                {
+                    lifetime.MainView = null;
+                    lifetime.MainView = new BrowserViewport { Child = mainView };
+                }
+            });
         });
     }
 }

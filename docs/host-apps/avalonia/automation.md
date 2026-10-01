@@ -86,6 +86,13 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **AI assistant**: `AiHelpButton`, `AiBackendComboBox`, `OpenAiApiKeyTextBox`, `OllamaEndpointTextBox`, `OllamaModelNameTextBox`, `OllamaApiKeyTextBox`, `CustomEndpointApiKeyTextBox`, `TestAiBackendButton`
 - **Footer**: `CancelButton`, `OkButton`
 
+### C64 acknowledgment and ROM download overlays
+
+- **Acknowledgment root**: `C64AcknowledgmentDialog`
+- **Consent controls**: `C64AcknowledgmentLicenseCheckBox`, `C64AcknowledgmentConfirmButton`, `C64AcknowledgmentCancelButton`, `C64AcknowledgmentRomUrlButton`
+- **Download root**: `C64RomDownloadDialog`
+- **Download actions**: `C64RomDownloadCancelButton`, `C64RomDownloadOpenConfigButton`
+
 ### Apple2MenuView (sidebar)
 
 - **Root**: `Apple2MenuView`
@@ -444,7 +451,7 @@ only while the emulator view keeps focus for the whole down/up pair.
 
 3. **Dynamic row ids change with data**. `ScriptRow.Reload.<FileName>` depends on the loaded script set. An agent must first query the Scripts tab to discover current rows.
 
-4. **Browser/WebAssembly target**. Automation there goes through the DOM, not Avalonia's AX bridge. Accessibility attributes in `.axaml` propagate only where the Avalonia runtime has a peer — the browser story is not covered in this document.
+4. **Browser/WebAssembly target**. Automation there goes through the DOM, not Avalonia's AX bridge. Accessibility attributes in `.axaml` propagate only where the Avalonia runtime has a peer — the browser story is not covered in this document. The HTML zoom controls have stable DOM ids: `browser-zoom-out`, `browser-zoom-level`, `browser-zoom-in`, `browser-zoom-fit`, `browser-zoom-reset`, `browser-zoom-toggle`, and `browser-orientation-toggle`. Orientation feedback uses `browser-orientation-status` (`role="status"`). Rotate appears only on touch devices exposing both orientation lock/unlock and fullscreen APIs; it requests the opposite orientation on click. Its accessible label describes the target and fullscreen requirement. If locking reports unsupported, Rotate stays visible but disabled, its label explains the limitation, and a persistent status message directs device-emulation testers to the browser device toolbar. Reset dismisses the message. Reset also unlocks orientation; exiting fullscreen unlocks it too. No orientation change is requested at startup. The toggle exposes `aria-expanded` and an accessible Hide/Show zoom controls label; it appears as a text-free bottom-left handle with a 44-pixel-wide touch target when collapsed. When expanded, the target narrows to avoid overlapping the nearby zoom buttons. The same button and icon stay at identical viewport coordinates in both states; only the chevron reverses (left when expanded, right when collapsed). It collapses/reopens `browser-zoom-options` without changing zoom or scroll position. Fit scales both dimensions and scrolls to the top-left; Reset restores 100% and the top-left. The controls stay hidden until the first Avalonia content measurement, then appear when the unscaled app exceeds the browser window or an orientation lock is active. Wheel/trackpad scrolling and native touch panning over the canvas are enabled when the scaled page overflows. Browser overlays use the visible canvas rectangle supplied by JavaScript (after zoom and scroll conversion), including nested dialogs; desktop overlays retain their window/container layout.
 
 ## Automating on macOS via peekaboo
 
