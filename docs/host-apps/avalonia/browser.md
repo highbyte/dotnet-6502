@@ -4,11 +4,14 @@
 
 The browser app keeps its desktop-sized Avalonia layout on narrow screens. The page can be
 scrolled in both directions to reach the emulator display and controls. When the unscaled
-app exceeds the browser window, floating **−**, **+**, **Fit**, and **Reset** buttons appear.
+app exceeds the browser window on a touch-first device, floating **−**, **+**, **Fit**, and **Reset** buttons appear.
 **Fit** scales the full app to the available width and height; **Reset** returns to 100%
 and the top-left corner. If the app fits without scaling, it returns to 100% and the
 buttons disappear unless an orientation lock is active. The controls stay hidden during startup until Avalonia reports its
-content size. This adapts to the browser window dimensions on any device. The contrasting
+content size. Desktop browsers keep the app at 100% with no zoom toolbar, including
+when resized smaller than the app; mouse wheel and trackpad scrolling remain available.
+The toolbar is enabled by a coarse primary pointer, so mouse-first desktops with a
+touchscreen also keep the desktop behavior. The contrasting
 handle stays fixed at the bottom-left in both states, pointing left to collapse the toolbar
 and right to expand it.
 App zoom leaves the HTML toolbar at its normal size; native browser pinch zoom remains available.
