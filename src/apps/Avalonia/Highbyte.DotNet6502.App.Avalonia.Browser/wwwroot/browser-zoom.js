@@ -102,18 +102,22 @@
         orientationLocked = false;
     }
 
+    function toggleManualRotationHelp() {
+        // Hover/focus may precede the first click. Only a second explicit
+        // activation dismisses pinned help; the first keeps it open to read.
+        if (orientationMessagePinned) {
+            dismissOrientationMessage();
+        } else {
+            showManualRotationHelp(true);
+        }
+    }
+
     async function rotateOrientation() {
         if (changingOrientation || orientationButton.hidden) {
             return;
         }
         if (orientationUnavailable || !orientationSupported) {
-            // Hover/focus may precede the first click. Only a second explicit
-            // activation dismisses pinned help; the first keeps it open to read.
-            if (orientationMessagePinned) {
-                dismissOrientationMessage();
-            } else {
-                showManualRotationHelp(true);
-            }
+            toggleManualRotationHelp();
             return;
         }
         const target = oppositeOrientation();
