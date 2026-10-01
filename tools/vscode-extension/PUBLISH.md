@@ -106,13 +106,14 @@ Useful flags:
 
 | Flag | Effect |
 |---|---|
-| `--dry-run` | Walk through the whole flow without modifying files, committing, pushing, or calling `gh`. Prints what each step would do. Recommended for the first run. |
+| `--check-tools` | Run the same automatic preflight as a normal release, then exit without changing release files. It checks GitHub access and may download/install pre-commit hook dependencies into its cache. |
+| `--dry-run` | Walk through the flow and query GitHub, but print planned changes instead of committing, pushing, or publishing. Recommended for the first run. |
 | `--force` | Skip the safety pre-checks (must be on `master`, clean working tree, in sync with `origin/master`). Use only when you know what you're doing. |
 | `--help` / `-h` | Print usage. |
 
 ### What it does, in order
 
-1. **Pre-checks.** Verifies you are on `master`, the working tree is clean, and local `master` matches `origin/master`. Bails out otherwise (override with `--force`).
+1. **Pre-checks.** Reports Bash, Git, GitHub CLI, and Python versions; verifies required utilities, GitHub CLI JSON support, GitHub authentication and repository write access, and Python interpreters configured for an installed pre-commit hook. It prepares the hook environment so dependency installation fails before any changelog edit. These checks run automatically before any fetch or prompt and cannot be skipped with `--force`. Then it verifies you are on `master`, the working tree is clean, and local `master` matches `origin/master` (override those branch/tree checks with `--force`).
 2. **Suggests a new version.** Looks at the most recent `vscode-v*` GitHub release, bumps the patch number by 1, and preserves any pre-release suffix. For example, latest `vscode-v0.2.4-alpha` → suggested `vscode-v0.2.5-alpha`.
 3. **Prompts for the tag.** Shows the suggested tag and lets you press Enter to accept it, type a different tag to override, or Ctrl-C to cancel.
 4. **Validates the tag.** Checks the format, confirms no GitHub release / local tag / remote tag of the same name already exists, and refuses if the new version is not strictly greater than the highest existing `vscode-v*` version.
@@ -133,9 +134,14 @@ You can cancel at any prompt with **Ctrl-C** or by answering `n` to the final co
 
 ### Requirements
 
-- `gh` CLI installed and authenticated (`gh auth status`).
-- `git` and `python3` on `PATH` (Python is used by the script for portable file rewriting; macOS bash 3.2 lacks the built-in `read -e -i` for prefilled input editing).
+- Bash 3.2 or newer.
+- `gh` CLI installed and authenticated (`gh auth status`), with support for `gh release list --json` and `--jq`.
+- `git` and `python3` on `PATH`, with Python 3.6 or newer for changelog rewriting.
+- Standard system utilities on `PATH`: `awk`, `sed`, `dirname`, `cut`, `grep`, `date`, `mktemp`, `cp`, `diff`, and `rm`.
+- If the generated pre-commit Git hook is installed, its Python interpreter must be able to load pre-commit, and the Python versions configured in `.pre-commit-config.yaml` must be available. Currently the docs hook requires `python3.14` (macOS: `brew install python@3.14`). The script checks the hook's own Python, which may differ from `python3` on `PATH`, and installs any missing hook environment before proceeding. Custom commit hooks are reported but not inspected.
 - Push access to `origin master` for the changelog commit (only if you accept the migration).
+
+The preflight runs automatically for every normal release. Run `tools/vscode-extension/release.sh --check-tools` to verify it separately without starting a release. A failure exits with a non-zero status and leaves the changelog untouched. The script prepares hook dependencies in pre-commit's cache, but does not upgrade system tools. A later network or branch-protection failure can still interrupt a release.
 
 ---
 
