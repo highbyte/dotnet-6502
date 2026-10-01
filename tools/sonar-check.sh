@@ -103,6 +103,35 @@ if ! gh run watch "$RUN_ID" --exit-status >/dev/null; then
 fi
 
 # Server-side processing finishes a moment after the workflow. Poll briefly.
+if [[ -z "$PR_NUMBER" ]]; then
+  # An issues query for a nonexistent branch can return an empty result. Require
+  # an analysis of this revision on this branch before interpreting that as clean.
+  analysis_id=""
+  for _ in $(seq 1 12); do
+    analysis_json=$(curl -fsS --get "$SONAR_HOST/api/project_analyses/search" \
+      --data-urlencode "project=$PROJECT_KEY" --data-urlencode "branch=$BRANCH" \
+      --data-urlencode "ps=1" 2>/dev/null || true)
+    analysis_id=$(jq -r --arg sha "$SHA" \
+      '.analyses[]? | select(.revision == $sha) | .key' <<< "$analysis_json" 2>/dev/null || true)
+    [[ -n "$analysis_id" ]] && break
+    sleep 5
+  done
+  if [[ -z "$analysis_id" ]]; then
+    echo "No Sonar analysis of ${SHA:0:12} found on branch '$BRANCH'." >&2
+    exit 2
+  fi
+  gate_query="analysisId=$analysis_id"
+else
+  gate_query="projectKey=$PROJECT_KEY&$ANALYSIS_PARAMETER"
+fi
+
+gate_json=$(curl -fsS "$SONAR_HOST/api/qualitygates/project_status?$gate_query")
+if ! jq -e '.projectStatus.status == "OK"' <<< "$gate_json" >/dev/null; then
+  echo "Sonar quality gate did not pass:" >&2
+  jq '.projectStatus | {status, failedConditions: [.conditions[]? | select(.status != "OK")]}' <<< "$gate_json" >&2
+  exit 1
+fi
+echo "==> Sonar quality gate: OK."
 
 # inNewCodePeriod=true restricts the query to issues introduced on this branch
 # since it diverged from master — i.e., what *this branch* added. Pre-existing
