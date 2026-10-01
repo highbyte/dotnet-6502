@@ -31,6 +31,34 @@ scrolling, zooming, or resizing. Their size is limited to that area, above the z
 While an overlay is open, wheel, trackpad, and touch scrolling stay inside Avalonia;
 the background page does not pan. Page panning resumes after the last overlay closes.
 
+## Native virtual keyboard
+
+On touch-first browsers, start C64, VIC-20, Oric, or Apple II, then tap **Keyboard** in the
+sidebar. A text field appears below the emulator display and receives focus. Avalonia connects this field to a
+real HTML input, allowing a phone's native keyboard to enter text into the canvas UI.
+If the keyboard does not appear, tap the field directly. **Hide keyboard** closes the field
+and returns focus to the emulator display.
+
+Committed text is translated to the emulated machine's key presses, with a short hold and
+release gap between characters. It reaches the keyboard matrix or encoder, so it also works
+in programs that read the keyboard directly. Enter sends Return, Backspace sends Delete
+(on Commodore machines) or Backspace, and Escape sends RUN/STOP on Commodore machines or
+Escape otherwise. Pending text is cancelled on focus loss, Pause, Stop, or opening the monitor.
+
+This is for ordinary typing, rather than held game controls or a complete machine-specific
+keyboard. Supported characters depend on the machine; unsupported chunks, including emoji,
+are rejected with a status message. The field clears after each commit, so it is not a text
+editor with correction history. On C64 and VIC-20, letters use the machine's current character
+set; on Apple II Plus, letters are uppercase. Browser/OS keyboards may provide different
+editing events; a bridge scoped to this field handles native text commits, composition,
+Return, Backspace, and paste through browser events. Other Avalonia input fields keep their
+normal behavior. Keyboard appearance and dismissal remain controlled by the browser and OS.
+The button stays hidden on mouse-first desktops, including desktop devices with a secondary
+touchscreen. Availability follows the browser's primary pointer capability (`pointer: coarse`),
+not the window size or operating system. Switching to a mouse-first primary pointer closes
+the field and cancels pending input. Desktop physical and OS accessibility keyboards use the
+existing emulator input directly.
+
 ## Screen orientation
 
 The app keeps the device's orientation on startup. On touch devices with the orientation-lock
@@ -78,7 +106,8 @@ node --test "tests/Highbyte.DotNet6502.Tests/Browser/*.test.cjs"
 
 These checks execute the production zoom script with a deterministic DOM and browser API
 model. They cover Fit/Reset, window and content resizing, visible dialog coordinates, modal
-wheel routing, toolbar state, and orientation/fullscreen success and failure paths. They run
+wheel routing, toolbar state, orientation/fullscreen success and failure paths, and native
+keyboard text, editing, composition, paste, and focus routing. They run
 in both the independent build/test workflow and Sonar; the latter also imports JavaScript
 coverage. Canvas rendering, pointer hit-testing, and physical screen rotation still require
 verification in a real browser/device.

@@ -1608,6 +1608,12 @@ internal sealed partial class Program
                     is global::Avalonia.Controls.ApplicationLifetimes.ISingleViewApplicationLifetime lifetime
                     && lifetime.MainView is { } mainView)
                 {
+                    if (mainView is Core.Views.MainView emulatorMainView)
+                    {
+                        var keyboardBridge = new BrowserNativeKeyboardInputBridge();
+                        emulatorMainView.NativeKeyboardInputBridge = keyboardBridge;
+                        keyboardBridge.ObserveAvailability(emulatorMainView.SetNativeKeyboardAvailable);
+                    }
                     lifetime.MainView = null;
                     lifetime.MainView = new BrowserViewport { Child = mainView };
                 }

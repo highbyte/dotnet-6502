@@ -410,6 +410,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         var m0 = GC.GetTotalMemory(forceFullCollection: true);
         _logger.LogInformation("Allocated memory before starting emulator: " + m0);
 
+        KeyboardTextInput.Clear();
         _inputHandlerContext.ClearKeysDown();
 
         return true;
@@ -952,6 +953,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     internal void OnEmulatorInputFocusLost()
     {
         _inputHandlerContext.ClearKeysDown();
+        KeyboardTextInput.Clear();
     }
 
     internal async Task PersistEmulatorConfigAsync()

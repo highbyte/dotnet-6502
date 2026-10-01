@@ -32,6 +32,7 @@ public class Apple2InputHandler : IInputConsumer
 
     private IHostInputState _inputState = default!;
 
+    private readonly Apple2HostKeyboard _textKeyboard = new(HostKeyboardLayout.US);
     private Apple2HostKeyboard _hostKeyboard = new(HostKeyboardLayout.US);
     private bool _swapBackquoteAndIntlBackslash;
     // Reused so the macOS ISO swap does not allocate a set every frame.
@@ -162,6 +163,12 @@ public class Apple2InputHandler : IInputConsumer
             keysDown = SwapBackquoteAndIntlBackslash(keysDown);
 
         keysDown = ApplyJoystick(keysDown);
+        if (_apple2.InputInjector.TextKeys.Count > 0)
+        {
+            var merged = new HashSet<HostKey>(keysDown);
+            merged.UnionWith(_apple2.InputInjector.TextKeys);
+            keysDown = merged;
+        }
 
         var shift = keysDown.Contains(HostKey.ShiftLeft) || keysDown.Contains(HostKey.ShiftRight);
         var control = keysDown.Contains(HostKey.ControlLeft) || keysDown.Contains(HostKey.ControlRight);
@@ -177,7 +184,8 @@ public class Apple2InputHandler : IInputConsumer
         }
 
         var key = ResolveKeyToLatch(keysDown);
-        if (key != HostKey.None && _hostKeyboard.TryGetAscii(key, shift, control, out var ascii, alt))
+        var keyboard = _apple2.InputInjector.TextKeys.Contains(key) ? _textKeyboard : _hostKeyboard;
+        if (key != HostKey.None && keyboard.TryGetAscii(key, shift, control, out var ascii, alt))
         {
             _apple2.Keyboard.KeyPressed(ascii);
             _logger.LogTrace("Apple II input: host={HostKey} ascii=${Ascii:X2}", key, ascii);

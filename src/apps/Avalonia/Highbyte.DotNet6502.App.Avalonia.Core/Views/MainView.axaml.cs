@@ -31,6 +31,8 @@ public partial class MainView : UserControl
     private ILogger Logger => _logger ??= AppLogger.CreateLogger(nameof(MainView));
 
     private bool _isInitialized;
+    private bool _nativeKeyboardBridgeActive;
+    public INativeKeyboardInputBridge? NativeKeyboardInputBridge { get; set; }
 
     private MainViewModel? _subscribedViewModel;
     private MonitorDialog? _monitorWindow;
@@ -70,6 +72,111 @@ public partial class MainView : UserControl
         this.Loaded += OnViewLoaded;
 
         KeyDown += OnKeyDown;
+        NativeKeyboardTextBox.AddHandler(KeyDownEvent, OnNativeKeyboardKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    // The browser host enables this only for a touch-first primary pointer.
+    // Desktop hosts leave it hidden and use normal emulator keyboard input.
+    public void SetNativeKeyboardAvailable(bool available)
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => SetNativeKeyboardAvailable(available));
+            return;
+        }
+        NativeKeyboardButton.IsVisible = available;
+        if (!available)
+        {
+            var wasOpen = NativeKeyboardPanel.IsVisible;
+            HideNativeKeyboard();
+            if (wasOpen)
+                EmulatorView.Focus();
+        }
+    }
+
+    private void OnNativeKeyboardClick(object? sender, RoutedEventArgs e)
+    {
+        if (NativeKeyboardPanel.IsVisible)
+        {
+            HideNativeKeyboard();
+            EmulatorView.Focus();
+            return;
+        }
+        if (!NativeKeyboardButton.IsVisible
+            || DataContext is not MainViewModel viewModel || !viewModel.CanUseNativeKeyboard)
+            return;
+        NativeKeyboardPanel.IsVisible = true;
+        NativeKeyboardButton.Content = "Hide keyboard";
+        global::Avalonia.Automation.AutomationProperties.SetName(NativeKeyboardButton, "Hide keyboard");
+        NativeKeyboardTextBox.Focus(); // Keep this synchronous with the user's tap on mobile.
+    }
+
+    private void HideNativeKeyboard()
+    {
+        NativeKeyboardInputBridge?.Stop();
+        _nativeKeyboardBridgeActive = false;
+        if (DataContext is MainViewModel viewModel)
+            viewModel.HostApp.KeyboardTextInput.Clear();
+        NativeKeyboardPanel.IsVisible = false;
+        NativeKeyboardTextBox.Clear();
+        NativeKeyboardButton.Content = "Keyboard";
+        global::Avalonia.Automation.AutomationProperties.SetName(NativeKeyboardButton, "Keyboard");
+    }
+
+    private void OnNativeKeyboardTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        var text = NativeKeyboardTextBox.Text;
+        if (_nativeKeyboardBridgeActive || !NativeKeyboardPanel.IsVisible || string.IsNullOrEmpty(text))
+            return;
+        // TextBox changes only committed text; its IME preedit remains internal.
+        // Clearing after each commit keeps autocorrection from rewriting earlier emulator input.
+        NativeKeyboardTextBox.Clear();
+        SendNativeKeyboardText(text);
+    }
+
+    private void OnNativeKeyboardKeyDown(object? sender, KeyEventArgs e)
+    {
+        var text = e.Key switch
+        {
+            Key.Enter => "\r",
+            Key.Back => "\b",
+            Key.Escape => "\x1b",
+            _ => null,
+        };
+        if (text != null)
+        {
+            SendNativeKeyboardText(text);
+            e.Handled = true; // Prevent editing commands from also producing text input.
+        }
+    }
+
+    private void SendNativeKeyboardText(string text)
+    {
+        if (DataContext is not MainViewModel viewModel || !viewModel.HostApp.TryQueueKeyboardText(text))
+        {
+            NativeKeyboardStatus.Text = "Input was not sent: this machine cannot type those characters, or the input queue is full.";
+            return;
+        }
+        NativeKeyboardStatus.Text = "Keys are sent as you type. Open your OS keyboard manually if needed.";
+    }
+
+    private void OnNativeKeyboardFocusGained(object? sender, RoutedEventArgs e)
+    {
+        if (NativeKeyboardPanel.IsVisible && NativeKeyboardInputBridge != null)
+            _nativeKeyboardBridgeActive = NativeKeyboardInputBridge.Start(SendNativeKeyboardText, CancelNativeKeyboardText);
+    }
+
+    private void CancelNativeKeyboardText()
+    {
+        if (DataContext is MainViewModel viewModel)
+            viewModel.HostApp.KeyboardTextInput.Clear();
+    }
+
+    private void OnNativeKeyboardFocusLost(object? sender, RoutedEventArgs e)
+    {
+        NativeKeyboardInputBridge?.Stop();
+        _nativeKeyboardBridgeActive = false;
+        CancelNativeKeyboardText();
     }
 
     private void OnViewLoaded(object? sender, RoutedEventArgs e)
@@ -151,6 +258,10 @@ public partial class MainView : UserControl
     // If scale can change at runtime, listen for property changes
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MainViewModel.CanUseNativeKeyboard)
+            && _subscribedViewModel?.CanUseNativeKeyboard != true)
+            Dispatcher.UIThread.Post(HideNativeKeyboard);
+
         // Listen for changes to ValidationErrors property
         if (e.PropertyName == nameof(MainViewModel.ValidationErrors))
         {
@@ -169,7 +280,11 @@ public partial class MainView : UserControl
                 // Dispatch to UI thread to ensure all ReactiveUI property updates are complete
                 // before showing the monitor UI. This is needed when EnableMonitor is called
                 // from non-UI contexts like OnAfterRunEmulatorOneFrame (breakpoint triggers).
-                Dispatcher.UIThread.Post(() => ShowMonitorUI(), DispatcherPriority.Loaded);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    HideNativeKeyboard();
+                    ShowMonitorUI();
+                }, DispatcherPriority.Loaded);
             }
             else
             {
@@ -442,6 +557,7 @@ public partial class MainView : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        HideNativeKeyboard();
         base.OnDetachedFromVisualTree(e);
 
         // Tear down any menu + keybindings we contributed while attached.

@@ -108,6 +108,9 @@ public sealed class OricInputHandler : IInputConsumer
         }
 
         _hostKeyboard.Translate(_hostKeysBuffer, _oricKeysBuffer);
+        // Committed text already uses the machine's US matrix positions. Do not
+        // reinterpret it through the physical host's locale or keyboard joystick map.
+        _oricKeysBuffer.UnionWith(_oric.InputInjector.TextKeys);
         _oric.Keyboard.SetKeysPressed(_oricKeysBuffer);
     }
 

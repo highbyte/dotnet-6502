@@ -67,6 +67,8 @@ public class Vic20 : ISystem, ITextMode, IScreen, ISystemState, ISystemSnapshotP
     public List<IRenderProvider> RenderProviders { get; } = new();
 
     public IInputConsumer? InputConsumer { get; set; }
+    public Input.Vic20InputInjector InputInjector { get; }
+    IInputInjector? ISystem.InputInjector => InputInjector;
 
     // Instrumentations
     public bool InstrumentationEnabled { get; set; } = false;
@@ -132,6 +134,7 @@ public class Vic20 : ISystem, ITextMode, IScreen, ISystemState, ISystemSnapshotP
         Via1.MapIOLocations(Mem);
         Via2.MapIOLocations(Mem);
 
+        InputInjector = new Input.Vic20InputInjector(this);
         InitScreenMemory();
 
         if (romData != null)

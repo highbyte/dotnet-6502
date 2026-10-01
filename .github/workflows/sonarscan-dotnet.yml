@@ -50,11 +50,12 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Test browser zoom and orientation with coverage
+      - name: Test browser controls and native keyboard with coverage
         run: |
           mkdir -p TestResults
           node --test --experimental-test-coverage \
             '--test-coverage-include=**/wwwroot/browser-zoom.js' \
+            '--test-coverage-include=**/wwwroot/native-keyboard.js' \
             --test-coverage-lines=90 --test-coverage-branches=85 \
             --test-reporter=spec --test-reporter-destination=stdout \
             --test-reporter=lcov --test-reporter-destination=TestResults/browser-zoom.lcov \

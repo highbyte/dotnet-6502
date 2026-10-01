@@ -80,6 +80,12 @@ public class HostApp : IHostApp, IManualRenderingProvider
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
+    public TimedKeyboardInput KeyboardTextInput { get; } = new();
+    public bool CanUseNativeKeyboard => EmulatorState == EmulatorState.Running
+        && CurrentRunningSystem?.InputInjector is IKeyboardTextInput;
+
+    public bool TryQueueKeyboardText(string text) => CanUseNativeKeyboard
+        && KeyboardTextInput.TryEnqueue((IKeyboardTextInput)CurrentRunningSystem!.InputInjector!, text);
     public IScreen? CurrentSystemScreenInfo => _systemRunner != null
         ? _systemRunner.System.Screen
         : _selectedSystemTemporary?.Screen
@@ -606,6 +612,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
             return;
 
+        KeyboardTextInput.Clear();
         _audioCoordinator?.PausePlaying();
 
         OnAfterPause();
@@ -624,6 +631,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         if (EmulatorState == EmulatorState.Running)
             Pause();
 
+        KeyboardTextInput.Clear();
         OnBeforeStop();
 
         _audioCoordinator?.StopPlaying();
@@ -875,6 +883,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         // Handle remote control action
         CurrentRunningSystem?.InputInjector?.BeginFrame();
         DrainPendingRemoteActions();
+        KeyboardTextInput.BeforeFrame(CurrentRunningSystem?.InputInjector as IKeyboardTextInput);
 
         // Invoke scripting before-frame hook
         _scriptTime!.Start();
