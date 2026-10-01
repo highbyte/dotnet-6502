@@ -123,13 +123,7 @@ public partial class MainView : UserControl
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        // Unsubscribe from previous ViewModel's property changes
-        if (_subscribedViewModel != null)
-        {
-            _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
-            _subscribedViewModel.EmulatorOptionsRequested -= OnEmulatorOptionsRequested;
-            _subscribedViewModel.AboutRequested -= OnAboutRequested;
-        }
+        UnsubscribeFromViewModel();
 
         // Subscribe to new ViewModel's property changes
         _subscribedViewModel = DataContext as MainViewModel;
@@ -461,6 +455,16 @@ public partial class MainView : UserControl
         }
         _generalKeyBindings.Clear();
 
+        if (_logScrollViewer != null)
+            _logScrollViewer.ScrollChanged -= LogScrollViewer_ScrollChanged;
+        if (this.FindControl<TabControl>("InformationTabControl") is { } tabControl)
+            tabControl.SelectionChanged -= OnTabSelectionChanged;
+
+        UnsubscribeFromViewModel();
+    }
+
+    private void UnsubscribeFromViewModel()
+    {
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -597,6 +601,11 @@ public partial class MainView : UserControl
     }
     private void MainView_AttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        // Browser zoom reparents this view without changing its DataContext.
+        // Restore subscriptions removed on detach before handling UI actions.
+        if (_subscribedViewModel != DataContext)
+            OnDataContextChanged(this, EventArgs.Empty);
+
         // Directly find the LogScrollViewer by name
         _logScrollViewer = this.FindControl<ScrollViewer>("LogScrollViewer");
         _logScrollViewer?.ScrollChanged += LogScrollViewer_ScrollChanged;
@@ -730,7 +739,8 @@ public partial class MainView : UserControl
         var tabControl = this.FindControl<TabControl>("InformationTabControl");
         if (tabControl != null)
         {
-            // Subscribe to tab selection changes
+            // DataContext changes and reattachment can both request tracking.
+            tabControl.SelectionChanged -= OnTabSelectionChanged;
             tabControl.SelectionChanged += OnTabSelectionChanged;
             // Initialize current tab name
             if (_subscribedViewModel != null && tabControl.SelectedItem is TabItem selectedTab)

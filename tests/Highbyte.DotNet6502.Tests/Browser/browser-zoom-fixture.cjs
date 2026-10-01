@@ -48,6 +48,7 @@ function fixture(width, height, setup = () => {}) {
     };
     const window = {
         innerHeight: height, handlers: {},
+        matchMedia: () => ({ matches: true, addEventListener() {} }),
         clearTimeout() {}, setTimeout() { return 1; },
         requestAnimationFrame: callback => callback(),
         getComputedStyle: () => ({ bottom: '12px' }),

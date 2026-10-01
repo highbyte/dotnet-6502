@@ -19,6 +19,8 @@
     const orientationButton = document.getElementById('browser-orientation-toggle');
     const orientationStatus = document.getElementById('browser-orientation-status');
     const touchPointer = window.matchMedia?.('(any-pointer: coarse)');
+    // A touchscreen on a mouse-first desktop should not enable the mobile toolbar.
+    const mobilePointer = window.matchMedia?.('(pointer: coarse)');
 
     let collapsed = false;
     let hasContentSize = false;
@@ -222,7 +224,8 @@
         const needsZoom = hasContentSize
             && (contentWidth > windowWidth || contentHeight > windowHeight);
         // Keep Reset/Rotate reachable if the rotated app now fits without zoom.
-        const showControls = needsZoom || orientationLocked;
+        const allowAppZoom = mobilePointer?.matches === true;
+        const showControls = allowAppZoom && (needsZoom || orientationLocked);
         controls.hidden = !showControls;
 
         const clearance = showControls
@@ -236,7 +239,7 @@
         const fittedZoom = Math.min(1, windowWidth / Math.max(contentWidth, windowWidth),
             availableHeight / Math.max(contentHeight, windowHeight));
         const requestedZoom = fitToWindow ? fittedZoom : value;
-        zoom = needsZoom ? clampZoom(requestedZoom) : 1;
+        zoom = allowAppZoom && needsZoom ? clampZoom(requestedZoom) : 1;
         // Keep the rendering surface stable across zoom changes. Center the
         // scaled canvas when it fits so its visible area shares the window center.
         const width = Math.max(contentWidth, windowWidth);
@@ -381,6 +384,7 @@
         }
     }, { capture: true });
     touchPointer?.addEventListener('change', updateOrientationButton);
+    mobilePointer?.addEventListener('change', () => applyZoom(zoom, fitToWindow));
     window.screen?.orientation?.addEventListener('change', updateOrientationButton);
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement) {

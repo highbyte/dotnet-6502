@@ -91,14 +91,17 @@ test('Fit, Reset, viewport resize, modal wheel routing and toolbar state', () =>
     const before=phone.elements.get('out').style.width;
     phone.size(NaN,100);
     assert.equal(phone.elements.get('out').style.width,before);
-    const desktop=fixture(1920,824);
+    const desktop=fixture(1920,824,({window})=>{
+        window.matchMedia=()=>({matches:false,addEventListener(){}});
+    });
     desktop.size(1258,764);
     assert.equal(desktop.elements.get('browser-zoom-controls').hidden,true);
     assert.equal(desktop.zoom(),1);
     assert.equal(desktop.scroller.style.paddingBottom,'0px');
     desktop.size(2094,1232);
-    assert.equal(desktop.elements.get('browser-zoom-controls').hidden,false);
-    assert.ok(parseFloat(desktop.elements.get('browser-app-viewport').style.height)+64<=824);
+    assert.equal(desktop.elements.get('browser-zoom-controls').hidden,true);
+    assert.equal(desktop.zoom(),1);
+    assert.equal(desktop.elements.get('out').classList.contains('browser-can-pan'),true);
     desktop.click('reset');
     desktop.size(1258,764);
     assert.equal(desktop.elements.get('browser-zoom-controls').hidden,true);
@@ -154,4 +157,39 @@ test('Phone zoom crosses 100% with canvas growth and scroll coordinates inside a
     assert.equal(phone.zoom(), 1);
     assert.equal(phone.scroller.scrollLeft, 0);
     assert.equal(phone.scroller.scrollTop, 0);
+});
+
+
+test('Mouse-first desktop stays unscaled on resize, including with a touchscreen', () => {
+    const primaryPointer = { matches: false, addEventListener(event, handler) { this.changed = handler; } };
+    const desktop = fixture(1920, 1080, ({window}) => {
+        window.matchMedia = query => query === '(pointer: coarse)'
+            ? primaryPointer : { matches: true, addEventListener() {} };
+    });
+    desktop.size(1258, 764);
+    desktop.document.documentElement.clientWidth = 800;
+    desktop.window.innerHeight = 600;
+    desktop.document.documentElement.clientHeight = 600;
+    desktop.window.handlers.resize();
+    assert.equal(desktop.elements.get('browser-zoom-controls').hidden, true);
+    assert.equal(desktop.zoom(), 1);
+    assert.equal(desktop.scroller.style.paddingBottom, '0px');
+    assert.equal(desktop.elements.get('out').classList.contains('browser-can-pan'), true);
+    desktop.scroller.scrollTo(100, 120);
+    let area;
+    desktop.register(json => { area = JSON.parse(json); });
+    assert.deepEqual(area, [100, 120, 800, 600]);
+    let stopped = false;
+    desktop.elements.get('browser-app-viewport').handlers.wheel({
+        stopPropagation() { stopped = true; }
+    });
+    assert.equal(stopped, true, 'overflow scrolling remains native');
+    primaryPointer.matches = true;
+    primaryPointer.changed();
+    assert.equal(desktop.elements.get('browser-zoom-controls').hidden, false);
+    assert.ok(desktop.zoom() < 1);
+    primaryPointer.matches = false;
+    primaryPointer.changed();
+    assert.equal(desktop.elements.get('browser-zoom-controls').hidden, true);
+    assert.equal(desktop.zoom(), 1);
 });
