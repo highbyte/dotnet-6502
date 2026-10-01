@@ -1,5 +1,6 @@
 #!/bin/bash
 # Interactive helper to cut a GitHub release for the VSCode extension.
+# - Checks release access and prepares the commit hook before changing files.
 # - Suggests next patch version (bumps the patch digit of the latest vscode-v* tag,
 #   preserving any pre-release suffix).
 # - Validates the new version is unique and strictly higher than any existing.
@@ -11,36 +12,198 @@
 #   or when the version has a pre-release suffix (e.g. -alpha).
 #
 # Usage:
-#   tools/vscode-extension/release.sh [--dry-run] [--force]
+#   tools/vscode-extension/release.sh [--check-tools] [--dry-run] [--force]
 #
-#   --dry-run  Print every state change without modifying anything or calling gh.
+#   --check-tools  Run the full preflight and exit without changing release files.
+#   --dry-run  Print planned changes without committing, pushing, or publishing.
 #   --force    Skip the pre-release safety checks (on-master / clean tree /
 #              in-sync-with-origin). Use with care.
 
 set -euo pipefail
 
-for tool in gh git python3 awk sed; do
-    command -v "$tool" >/dev/null || { echo "Required tool missing: $tool" >&2; exit 2; }
+CHECK_TOOLS_ONLY=false
+DRY_RUN=false
+FORCE=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --check-tools) CHECK_TOOLS_ONLY=true; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --force)   FORCE=true; shift ;;
+        -h|--help)
+            while IFS= read -r line; do
+                [[ "$line" == '#!'* ]] && continue
+                [[ "$line" == '#'* ]] || break
+                line="${line#\#}"; printf '%s\n' "${line# }"
+            done < "${BASH_SOURCE[0]}"
+            exit 0
+            ;;
+        *) echo "Unknown arg: $1" >&2; exit 2 ;;
+    esac
 done
+
+# Check tools before fetching, prompting, or rewriting the changelog. Keep
+# preflight independent of --force and --dry-run.
+echo "==> Checking release tools:"
+if (( BASH_VERSINFO[0] < 3 || (BASH_VERSINFO[0] == 3 && BASH_VERSINFO[1] < 2) )); then
+    echo "Bash 3.2 or newer is required; found $BASH_VERSION. Upgrade Bash." >&2
+    exit 2
+fi
+echo "    Bash $BASH_VERSION"
+
+MISSING_TOOLS=false
+for tool in gh git python3 awk sed dirname cut grep date mktemp cp diff rm; do
+    if ! command -v "$tool" >/dev/null; then
+        MISSING_TOOLS=true
+        case "$tool" in
+            gh) hint="Install GitHub CLI (macOS: brew install gh)." ;;
+            git) hint="Install Git (macOS: brew install git)." ;;
+            python3) hint="Install Python 3 (macOS: brew install python@3.14)." ;;
+            *) hint="Install the system utility and ensure it is on PATH." ;;
+        esac
+        echo "Required tool missing: $tool. $hint" >&2
+    fi
+done
+if $MISSING_TOOLS; then exit 2; fi
+
+if ! GIT_VERSION="$(git --version)"; then
+    echo "Git cannot run. Repair your Git installation (macOS: brew install git)." >&2
+    exit 2
+fi
+echo "    $GIT_VERSION"
+if ! GH_VERSION="$(gh --version)"; then
+    echo "GitHub CLI cannot run. Repair gh (macOS: brew install gh)." >&2
+    exit 2
+fi
+echo "    ${GH_VERSION%%$'\n'*}"
+if ! GH_LIST_HELP="$(gh release list --help)" ||
+    [[ "$GH_LIST_HELP" != *'--json'* || "$GH_LIST_HELP" != *'--jq'* ]]; then
+    echo "GitHub CLI must support gh release list --json and --jq. Upgrade gh (macOS: brew upgrade gh)." >&2
+    exit 2
+fi
+if ! python3 - <<'PY'
+import sys
+version = '.'.join(map(str, sys.version_info[:3]))
+if sys.version_info < (3, 6):
+    sys.exit('Python 3.6 or newer is required; found ' + version + '. Upgrade Python 3.')
+print('    Python ' + version)
+PY
+then
+    exit 2
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHANGELOG="$SCRIPT_DIR/CHANGELOG.md"
 REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-DRY_RUN=false
-FORCE=false
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --dry-run) DRY_RUN=true; shift ;;
-        --force)   FORCE=true; shift ;;
-        -h|--help)
-            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
-            exit 0
-            ;;
-        *) echo "Unknown arg: $1" >&2; exit 2 ;;
-    esac
-done
+# Check authentication and repository access before a release can edit the
+# changelog. These checks cannot guarantee a later network request or push.
+if ! gh auth status >/dev/null 2>&1; then
+    echo "GitHub CLI authentication failed. Run gh auth login, then retry." >&2
+    exit 2
+fi
+if ! REPO_PERMISSION="$(gh repo view --json viewerPermission --jq .viewerPermission)"; then
+    echo "Could not verify GitHub repository access. Check gh authentication and the origin remote." >&2
+    exit 2
+fi
+case "$REPO_PERMISSION" in
+    ADMIN|MAINTAIN|WRITE) echo "    GitHub repository access: $REPO_PERMISSION" ;;
+    *) echo "GitHub repository write access is required; current permission: $REPO_PERMISSION." >&2; exit 2 ;;
+esac
+
+# A generated pre-commit hook can use a different Python than python3 on PATH.
+# Inspect its interpreter and configuration, then install hook environments
+# before touching the changelog so their setup cannot fail at commit time.
+COMMIT_HOOK="$(git rev-parse --git-path hooks/pre-commit)"
+if ! python3 - "$COMMIT_HOOK" "$REPO_ROOT/.pre-commit-config.yaml" <<'PY'
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+
+hook = Path(sys.argv[1])
+if not hook.is_file() or not os.access(str(hook), os.X_OK):
+    print('    pre-commit: no executable Git hook installed')
+    sys.exit(0)
+text = hook.read_text(errors='replace')
+if '# File generated by pre-commit:' not in text:
+    print('    Custom commit hook: Python requirements not inspected')
+    sys.exit(0)
+
+match = re.search(r'^INSTALL_PYTHON=(.*)$', text, re.MULTILINE)
+runner = shlex.split(match.group(1)) if match else []
+if len(runner) != 1 or not os.access(runner[0], os.X_OK):
+    # Match the generated hook's fallback to the pre-commit CLI on PATH.
+    cli = shutil.which('pre-commit')
+    if not cli:
+        sys.exit('The installed Git hook cannot find pre-commit. Install it and run pre-commit install.')
+    with open(cli) as source:
+        shebang = source.readline().strip()
+    runner = shlex.split(shebang[2:]) if shebang.startswith('#!') else []
+    if not runner or not any('python' in part for part in runner):
+        sys.exit('Cannot determine the Git hook Python. Run pre-commit install to refresh the hook.')
+
+check = r'''
+import re
+import subprocess
+import sys
+try:
+    from importlib.metadata import version
+    from pre_commit.clientlib import load_config
+    from pre_commit.languages.python import norm_version
+    config = load_config(sys.argv[1])
+    print('    pre-commit ' + version('pre_commit'), flush=True)
+except Exception as error:
+    sys.exit('Cannot load the installed pre-commit configuration: ' + str(error))
+
+default = config.get('default_language_version', {}).get('python', 'default')
+requirements = set()
+for repo in config['repos']:
+    for hook in repo['hooks']:
+        if hook.get('language') not in (None, 'python'):
+            continue
+        required = hook.get('language_version', 'default')
+        if required == 'default':
+            required = default
+        if required.startswith('python') or hook.get('language') == 'python':
+            requirements.add(required)
+
+for required in sorted(requirements):
+    interpreter = norm_version(required) or sys.executable
+    try:
+        actual = subprocess.check_output(
+            [interpreter, '-c', 'import sys; print(".".join(map(str, sys.version_info[:3])))'],
+            stderr=subprocess.STDOUT, universal_newlines=True,
+        ).strip()
+        expected = re.fullmatch(r'python(\d+(?:\.\d+)*)', required)
+        if expected:
+            parts = tuple(map(int, expected.group(1).split('.')))
+            if tuple(map(int, actual.split('.')))[:len(parts)] != parts:
+                raise ValueError('found Python ' + actual)
+    except (OSError, subprocess.CalledProcessError, ValueError) as error:
+        hint = 'Install ' + required + ' and ensure it is on PATH.'
+        if re.fullmatch(r'python\d+\.\d+', required):
+            hint += ' On macOS: brew install python@' + required[len('python'):]
+        sys.exit('Commit hook requires ' + required + ': ' + str(error) + '\n' + hint)
+    print('    Commit hook ' + required + ': Python ' + actual, flush=True)
+'''
+result = subprocess.run(runner + ['-', sys.argv[2]], input=check, universal_newlines=True)
+if result.returncode:
+    sys.exit(result.returncode)
+print('==> Preparing commit hook environment:', flush=True)
+result = subprocess.run(runner + ['-m', 'pre_commit', 'install-hooks'])
+if result.returncode:
+    sys.exit('Commit hook setup failed before release changes. Fix the error above and retry.')
+PY
+then
+    echo "Release tool checks failed; no release files have been changed." >&2
+    exit 2
+fi
+echo "==> Release tool checks passed."
+if $CHECK_TOOLS_ONLY; then exit 0; fi
 
 dry() {
     if $DRY_RUN; then
