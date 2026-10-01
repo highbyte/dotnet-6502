@@ -45,10 +45,11 @@ public class Vic20InputHandler : IInputConsumer
         _inputState.UpdatePerFrame();
         var hostKeysDown = _inputState.KeysDown;
         var vic20Keys = ResolveVic20Keys(hostKeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+        _vic20.InputInjector.ApplyInjectedKeysTo(vic20Keys);
         _vic20.Via1.Keyboard.SetKeysPressed(vic20Keys, restoreKeyPressed, capsLockOn);
     }
 
-    public void Cleanup() { }
+    public void Cleanup() => _vic20.InputInjector.Clear();
 
     public List<string> GetDebugInfo() => new();
 

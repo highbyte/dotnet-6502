@@ -151,6 +151,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     // Computed properties for control enabled states based on EmulatorState
     public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
+    public bool CanUseNativeKeyboard => _hostApp.CanUseNativeKeyboard;
     public bool IsEmulatorPaused => EmulatorState == EmulatorState.Paused;
     public bool IsEmulatorUninitialized => EmulatorState == EmulatorState.Uninitialized;
 
@@ -753,6 +754,7 @@ public class MainViewModel : ViewModelBase, IDisposable
               {
                   // Notify all computed properties that depend on EmulatorState
                   this.RaisePropertyChanged(nameof(IsEmulatorRunning));
+                  this.RaisePropertyChanged(nameof(CanUseNativeKeyboard));
                   this.RaisePropertyChanged(nameof(IsEmulatorPaused));
                   this.RaisePropertyChanged(nameof(IsEmulatorUninitialized));
                   this.RaisePropertyChanged(nameof(AudioSettingsEnabled));

@@ -89,6 +89,43 @@ public class InputInjectionLifecycleTests
         Assert.True(observedState.FreshKeyDown);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeTextRunsAfterBeginFrameAndPauseOrStopCancelsIt(bool stop)
+    {
+        var systemList = new SystemList();
+        var configurer = new FrameLifecycleSystemConfigurer();
+        systemList.AddSystem(configurer);
+        var app = new FrameLifecycleHostApp(systemList);
+        app.SetContexts(() => new NullInputHandlerContext());
+        app.InitInputHandlerContext();
+        Assert.False(app.CanUseNativeKeyboard);
+        Assert.False(app.TryQueueKeyboardText("a"));
+        await app.SelectSystem(FrameLifecycleSystem.SystemName);
+        await app.Start();
+        Assert.True(app.CanUseNativeKeyboard);
+        Assert.True(app.TryQueueKeyboardText("ab"));
+        app.RunEmulatorOneFrame();
+        Assert.True(configurer.System.Injector.IsKeyDown("a"));
+        Assert.Equal(1, configurer.System.Injector.BeginFrameCallCount);
+
+        if (stop)
+            app.Stop();
+        else
+            app.Pause();
+        Assert.False(app.CanUseNativeKeyboard);
+        Assert.False(app.TryQueueKeyboardText("c"));
+        await app.Start();
+        for (var frame = 0; frame < 8; frame++)
+        {
+            app.RunEmulatorOneFrame();
+            Assert.False(configurer.System.Injector.IsKeyDown("a"));
+            Assert.False(configurer.System.Injector.IsKeyDown("b"));
+        }
+        app.Stop();
+    }
+
     private static C64 BuildC64()
     {
         var c64Config = new C64Config
@@ -231,7 +268,7 @@ public class InputInjectionLifecycleTests
         }
     }
 
-    private sealed class RecordingInputInjector : IInputInjector
+    private sealed class RecordingInputInjector : IInputInjector, IKeyboardTextInput
     {
         private readonly HashSet<string> _frameKeys = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _heldKeys = new(StringComparer.OrdinalIgnoreCase);
@@ -261,6 +298,10 @@ public class InputInjectionLifecycleTests
             _frameJoystickActions[1].Clear();
             _frameJoystickActions[2].Clear();
         }
+
+        public bool CanPressCharacter(char character) => char.IsAsciiLetter(character);
+
+        public void PressCharacter(char character) => KeyPress(character.ToString());
 
         public void KeyPress(string keyName) => _frameKeys.Add(keyName);
 

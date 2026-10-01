@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64InputInjector : IInputInjector
+public class C64InputInjector : IInputInjector, IKeyboardTextInput
 {
     private readonly C64 _c64;
 
@@ -120,6 +120,14 @@ public class C64InputInjector : IInputInjector
         _frameInjectedKeys.Clear();
         _frameInjectedJoystickActions[1].Clear();
         _frameInjectedJoystickActions[2].Clear();
+    }
+
+    public bool CanPressCharacter(char character) => KeyboardTextMapping.CommodoreKeys(character) != null;
+
+    public void PressCharacter(char character)
+    {
+        foreach (var key in KeyboardTextMapping.CommodoreKeys(character) ?? [])
+            KeyPress(key);
     }
 
     public void KeyPress(string keyName)

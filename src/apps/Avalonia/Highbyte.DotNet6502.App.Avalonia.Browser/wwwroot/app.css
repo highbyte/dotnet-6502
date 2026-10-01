@@ -300,3 +300,8 @@ body.browser-modal-open {
     display: none;
     opacity: 0;
 }
+
+/* Prevent iOS text-field focus from magnifying the page and its zoom toolbar. */
+#out .avalonia-input-element {
+    font-size: 16px;
+}

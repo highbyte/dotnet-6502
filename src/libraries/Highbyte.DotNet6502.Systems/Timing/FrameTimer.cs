@@ -145,10 +145,12 @@ public class FrameTimer : IScriptingTickTimer, IAsyncDisposable
 
                 nextDeadlineTicks += intervalTicks;
                 await FireElapsedAsync().ConfigureAwait(true);
-                // Browser hosts are single-threaded. If emulation work overruns the target interval,
-                // FireElapsedAsync can complete synchronously and the loop would otherwise spin
-                // without yielding, starving input/render processing.
-                await Task.Yield();
+                // Task.Yield only posts another job to the UI synchronization context.
+                // When frames overrun, that queue can stay non-empty indefinitely, preventing
+                // Avalonia's dispatcher from returning to the browser for input and painting.
+                // A timer delay schedules a later browser turn even when Elapsed completes
+                // synchronously. Absolute deadlines above still compensate for its delay.
+                await Task.Delay(1).ConfigureAwait(true);
             }
         }
         catch (OperationCanceledException)

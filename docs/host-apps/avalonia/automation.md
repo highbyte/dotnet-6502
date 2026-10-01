@@ -57,6 +57,7 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 
 - **System selection**: `SystemSelectionComboBox`, `SystemVariantSelectionComboBox`
 - **Emulator control**: `StartButton`, `PauseButton`, `ResetButton`, `StopButton`, `MonitorButton`, `StatsButton`
+- **Native keyboard**: `NativeKeyboardButton` (browser touch-first primary pointer only; hidden by default and in the native desktop app; caption/name toggles Keyboard / Hide keyboard; enabled only while a supported machine is running), `NativeKeyboardPanel`, `NativeKeyboardTextBox`, `NativeKeyboardStatus` (input rejection status). The field is hidden until the button is clicked and clears after each committed text chunk. Pause, Stop, monitor opening, and focus loss cancel pending input.
 - **Display/audio/settings**: `ScaleSlider`, `AudioCheckBox`, `AudioVolumeSlider`, settings button `OptionsButton`
 - **Snapshot section (collapsible, common)**: header `SnapshotSectionHeader`, content `SnapshotSectionContent`; buttons `SaveSnapshotButton`, `LoadSnapshotButton`, directory link `SnapshotFolderLink` (visible only when the section is expanded — collapsed by default; toggle it with the `Emulator` menu / `⌘⌥⇧S` shortcut)
 - **Status**: `EmulatorStateText`

@@ -21,11 +21,14 @@ namespace Highbyte.DotNet6502.Systems.Apple2.Input;
 /// so the port argument is accepted and ignored rather than rejected — scripts written against
 /// the C64's two ports keep working.
 /// </summary>
-public class Apple2InputInjector : IInputInjector
+public class Apple2InputInjector : IInputInjector, IKeyboardTextInput
 {
     private readonly Apple2System _apple2;
 
     private readonly HashSet<HostKey> _frameInjectedKeys = new();
+    private readonly HashSet<HostKey> _textKeys = [];
+    public IReadOnlySet<HostKey> TextKeys => _textKeys;
+
     private readonly HashSet<HostKey> _heldKeys = new();
 
     private readonly HashSet<JoystickAction> _frameInjectedJoystickActions = new();
@@ -131,6 +134,15 @@ public class Apple2InputInjector : IInputInjector
     public void BeginFrame()
     {
         _frameInjectedKeys.Clear();
+        _textKeys.Clear();
+    }
+
+    public bool CanPressCharacter(char character) => KeyboardTextMapping.AsciiKeys(character) != null;
+
+    public void PressCharacter(char character)
+    {
+        foreach (var key in KeyboardTextMapping.AsciiKeys(character, uppercaseOnly: true) ?? [])
+            _textKeys.Add(key);
     }
 
     public void KeyPress(string keyName)
@@ -171,7 +183,7 @@ public class Apple2InputInjector : IInputInjector
     {
         if (!StringToHostKey.TryGetValue(keyName, out var hostKey))
             return false;
-        return _heldKeys.Contains(hostKey) || _frameInjectedKeys.Contains(hostKey);
+        return _heldKeys.Contains(hostKey) || _frameInjectedKeys.Contains(hostKey) || _textKeys.Contains(hostKey);
     }
 
     public void SetJoystickAction(int port, string actionName, bool pressed)

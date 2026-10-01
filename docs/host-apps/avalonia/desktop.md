@@ -45,6 +45,14 @@ with desktop-specific differences called out inline:
 - [Oric Atmos in the Avalonia apps](oric.md)
 - [Generic computer in the Avalonia apps](generic.md)
 
+### Native virtual keyboard
+
+The desktop app uses its existing emulator keyboard input for physical keyboards and OS
+accessibility keyboards. Focus the emulator display, then type or click keys on your OS
+on-screen keyboard. The **Keyboard** button and text-entry panel are hidden in the desktop
+app; they are offered by the [browser app](browser.md) on touch-first devices to open the
+phone or tablet keyboard.
+
 ### Lua scripting
 
 The Avalonia Desktop app supports Lua scripting via MoonSharp. See [Tools / Scripting](../../tools/scripting/overview.md) for the full guide.

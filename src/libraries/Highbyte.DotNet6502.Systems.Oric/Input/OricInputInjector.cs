@@ -4,10 +4,13 @@ using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
 namespace Highbyte.DotNet6502.Systems.Oric.Input;
 
 /// <summary>Bridges remote-control input commands to the Oric keyboard and joystick state.</summary>
-public sealed class OricInputInjector : IInputInjector
+public sealed class OricInputInjector : IInputInjector, IKeyboardTextInput
 {
     private readonly OricMachine _oric;
     private readonly HashSet<HostKey> _frameInjectedKeys = [];
+    private readonly HashSet<HostKey> _textKeys = [];
+    public IReadOnlySet<HostKey> TextKeys => _textKeys;
+
     private readonly HashSet<HostKey> _heldKeys = [];
     private readonly Dictionary<int, HashSet<JoystickAction>> _heldJoystickActions = new()
     {
@@ -110,8 +113,21 @@ public sealed class OricInputInjector : IInputInjector
     public void BeginFrame()
     {
         _frameInjectedKeys.Clear();
+        _textKeys.Clear();
         _frameInjectedJoystickActions[1].Clear();
         _frameInjectedJoystickActions[2].Clear();
+    }
+
+    public bool CanPressCharacter(char character) =>
+        KeyboardTextMapping.AsciiKeys(character) is { } keys
+        && !keys.Contains(HostKey.Tab) && !keys.Contains(HostKey.Backquote);
+
+    public void PressCharacter(char character)
+    {
+        if (!CanPressCharacter(character))
+            return;
+        foreach (var key in KeyboardTextMapping.AsciiKeys(character) ?? [])
+            _textKeys.Add(key);
     }
 
     public void KeyPress(string keyName)
@@ -144,7 +160,7 @@ public sealed class OricInputInjector : IInputInjector
 
     public bool IsKeyDown(string keyName)
         => s_stringToHostKey.TryGetValue(keyName, out var key)
-           && (_oric.Keyboard.IsKeyPressed(key) || _heldKeys.Contains(key) || _frameInjectedKeys.Contains(key));
+           && (_oric.Keyboard.IsKeyPressed(key) || _heldKeys.Contains(key) || _frameInjectedKeys.Contains(key) || _textKeys.Contains(key));
 
     public void SetJoystickAction(int port, string actionName, bool pressed)
     {

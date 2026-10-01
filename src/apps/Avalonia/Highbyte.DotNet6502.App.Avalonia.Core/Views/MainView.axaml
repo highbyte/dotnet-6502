@@ -219,6 +219,16 @@
                             Classes="small"/>
                     </Grid>
 
+                    <Button Name="NativeKeyboardButton"
+                            Content="Keyboard"
+                            IsVisible="False"
+                            AutomationProperties.AutomationId="NativeKeyboardButton"
+                            AutomationProperties.Name="Keyboard"
+                            IsEnabled="{Binding CanUseNativeKeyboard}"
+                            Click="OnNativeKeyboardClick"
+                            Classes="small"
+                            ToolTip.Tip="Use your device's onscreen keyboard to type in the emulator"/>
+
                     <!-- Other general functions -->
                     <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
@@ -352,6 +362,7 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
@@ -378,8 +389,25 @@
                         IsVisible="{Binding $parent[UserControl].DataContext.IsEmulatorUninitialized}"/>
                 </Grid>
 
+                <StackPanel Grid.Row="1" Name="NativeKeyboardPanel" IsVisible="False"
+                            AutomationProperties.AutomationId="NativeKeyboardPanel"
+                            Width="{Binding #EmulatorDisplayGrid.Bounds.Width}" Margin="0,8">
+                    <TextBox Name="NativeKeyboardTextBox"
+                             AutomationProperties.AutomationId="NativeKeyboardTextBox"
+                             AutomationProperties.Name="Type keys into the emulator"
+                             PlaceholderText="Type here to send keys" FontSize="16"
+                             TextInputOptions.AutoCapitalization="False"
+                             TextInputOptions.ShowSuggestions="False"
+                             TextChanged="OnNativeKeyboardTextChanged"
+                             GotFocus="OnNativeKeyboardFocusGained"
+                             LostFocus="OnNativeKeyboardFocusLost"/>
+                    <TextBlock Name="NativeKeyboardStatus" TextWrapping="Wrap"
+                               AutomationProperties.AutomationId="NativeKeyboardStatus"
+                               Text="Keys are sent as you type. Open your OS keyboard manually if needed."/>
+                </StackPanel>
+
                 <!-- Information Area - Tabbed Interface -->
-                <Border Grid.Row="1"
+                <Border Grid.Row="2"
                     Classes="panel-container v-top h-left"
                     Height="230"
                     Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
