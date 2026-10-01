@@ -4,19 +4,36 @@
 <head>
     <title>DotNet 6502 Emulator</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <meta name="app-version" content="{{APP_VERSION}}">
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <link rel="stylesheet" href="./app.css?v={{APP_VERSION}}" />
 </head>
 
-<body style="margin: 0; overflow: hidden">
+<body>
+<div id="browser-app-scroll">
+<div id="browser-app-viewport">
 <div id="out">
     <div class="avalonia-splash">
         <img src="./images/logo.png" alt="DotNet 6502 Emulator" style="max-width: 256px; width: 100%; height: auto;" />
         <h4>Loading...</h4>
     </div>
 </div>
+</div>
+</div>
+<div id="browser-zoom-controls" role="group" aria-label="Browser app zoom and orientation" hidden>
+    <button id="browser-zoom-toggle" type="button" aria-label="Hide zoom controls" title="Hide zoom controls" aria-expanded="true" aria-controls="browser-zoom-options"></button>
+    <div id="browser-zoom-options">
+        <button id="browser-zoom-out" type="button" aria-label="Zoom out">−</button>
+        <output id="browser-zoom-level" aria-live="polite">100%</output>
+        <button id="browser-zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="browser-zoom-fit" type="button" aria-label="Fit app to browser window">Fit</button>
+        <button id="browser-zoom-reset" type="button" aria-label="Reset app zoom, position, and automatic orientation">Reset</button>
+        <button id="browser-orientation-toggle" type="button" aria-label="Switch screen orientation" hidden>Rotate</button>
+    </div>
+</div>
+<div id="browser-orientation-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+<script src="./browser-zoom.js?v={{APP_VERSION}}"></script>
 <script>
 // Version check and cache management
 window.APP_VERSION = '{{APP_VERSION}}';
@@ -105,7 +122,7 @@ function isDesktopSafari() {
 
 if (isDesktopSafari()) {
     // Show a warning but allow user to continue
-    if (confirm('⚠️ Safari Desktop Compatibility Notice\n\nThis emulator may not work correctly in Safari on macOS due to WebAssembly AOT limitations. Please use Chrome/Edge (or other Chromium-based browsers), or Firefox.\n\nNote: Safari on iOS/iPhone works fine.\n\nContinue anyway?')) {
+    if (confirm('⚠️ Safari Desktop Compatibility Notice\n\nOlder Safari versions have had compatibility problems with this emulator. Recent versions may work, but a minimum supported version has not been established.\n\nIf you encounter problems, try a current Chromium-based browser or Firefox.\n\nContinue anyway?')) {
         // User chose to continue - load the app
     } else {
         // User chose not to continue - redirect to notice page

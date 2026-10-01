@@ -103,6 +103,36 @@ if ! gh run watch "$RUN_ID" --exit-status >/dev/null; then
 fi
 
 # Server-side processing finishes a moment after the workflow. Poll briefly.
+# The analyses API only supports long-lived branches. Instead, verify that the
+# SonarCloud app reported a completed check on this exact commit and analysis
+# target. An empty issues response alone cannot prove the branch was analyzed.
+REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+ENCODED_PARAMETER=$(jq -rn --arg parameter "$ANALYSIS_PARAMETER" \
+  '$parameter | split("=") | .[0] + "=" + (.[1] | @uri)')
+sonar_check=""
+for _ in $(seq 1 12); do
+  sonar_check=$(gh api "repos/$REPO/commits/$SHA/check-runs" \
+    | jq -r --arg target "$ANALYSIS_PARAMETER" --arg encoded "$ENCODED_PARAMETER" '
+      .check_runs[]
+      | select(.app.id == 12526 and .name == "SonarCloud Code Analysis" and .status == "completed")
+      | select(.details_url | split("?")[1] | split("&") | any(. == $target or . == $encoded))
+      | .conclusion')
+  [[ -n "$sonar_check" ]] && break
+  sleep 5
+done
+if [[ -z "$sonar_check" ]]; then
+  echo "No completed SonarCloud check for ${SHA:0:12} and $ANALYSIS_PARAMETER." >&2
+  exit 2
+fi
+gate_query="projectKey=$PROJECT_KEY&$ENCODED_PARAMETER"
+
+gate_json=$(curl -fsS "$SONAR_HOST/api/qualitygates/project_status?$gate_query")
+if ! jq -e '.projectStatus.status == "OK"' <<< "$gate_json" >/dev/null; then
+  echo "Sonar quality gate did not pass:" >&2
+  jq '.projectStatus | {status, failedConditions: [.conditions[]? | select(.status != "OK")]}' <<< "$gate_json" >&2
+  exit 1
+fi
+echo "==> Sonar quality gate: OK."
 
 # inNewCodePeriod=true restricts the query to issues introduced on this branch
 # since it diverged from master — i.e., what *this branch* added. Pre-existing

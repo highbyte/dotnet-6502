@@ -1368,7 +1368,12 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             // Initialize C64AutoLoadAndRun if not already done
             if (_c64AutoLoadAndRun == null)
             {
-                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                // Desktop downloads contact the source directly. Browser downloads use
+                // fetch through the CORS proxy; a custom User-Agent triggers a preflight.
+                if (!OperatingSystem.IsBrowser())
+                {
+                    _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                }
 
                 if (hostApp.CurrentHostSystemConfig is not C64HostConfig _)
                     return;

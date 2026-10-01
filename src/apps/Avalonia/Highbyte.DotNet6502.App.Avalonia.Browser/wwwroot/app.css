@@ -1,4 +1,212 @@
-﻿/* HTML styles for the splash screen */
+﻿html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    background: #1A202C;
+}
+
+/* Contain the wide canvas in a viewport-sized scroll panel. Document overflow
+   can trigger WebKit's whole-page shrink-to-fit and shrink the toolbar too. */
+#browser-app-scroll {
+    position: fixed;
+    inset: 0;
+    overflow: auto;
+    box-sizing: border-box;
+    overscroll-behavior: contain;
+}
+
+/* The wrapper reserves the scaled scroll area; the host keeps its logical size. */
+#browser-app-viewport {
+    position: relative;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    margin-inline: auto;
+}
+
+#out {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
+    /* Center the splash in the window before JavaScript/Avalonia initializes. */
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Keep WebKit text autosizing from changing the floating controls. */
+#browser-zoom-controls,
+#browser-orientation-status {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+#browser-zoom-controls {
+    position: fixed;
+    left: max(0px, env(safe-area-inset-left));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    /* Reserve the fixed toggle target and expand the options to its right. */
+    padding: 5px 5px 5px 24px;
+    border: 1px solid #718096;
+    border-radius: 8px;
+    background: #1A202C;
+    color: white;
+    font: 14px Arial, sans-serif;
+    box-shadow: 0 2px 8px #0008;
+}
+
+#browser-zoom-controls[hidden] {
+    display: none;
+}
+
+#browser-zoom-options {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#browser-zoom-options[hidden] {
+    display: none;
+}
+
+/* Keep the same height as the toolbar so collapsing does not change Fit. */
+#browser-zoom-controls.is-collapsed {
+    left: max(0px, env(safe-area-inset-left));
+    width: 44px;
+    height: 48px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Keep the grip anchored; avoid overlapping the nearby buttons when expanded. */
+#browser-zoom-controls #browser-zoom-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    position: fixed;
+    left: max(0px, env(safe-area-inset-left));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: 24px;
+    min-width: 24px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    border-radius: 4px;
+    background: transparent;
+}
+
+/* Retain a wider touch target when the neighboring controls are hidden. */
+#browser-zoom-controls.is-collapsed #browser-zoom-toggle {
+    width: 44px;
+    min-width: 44px;
+}
+
+#browser-zoom-toggle::after {
+    content: "";
+    box-sizing: border-box;
+    width: 16px;
+    height: 36px;
+    border: 1px solid #BEE3F8;
+    border-radius: 0 5px 5px 0;
+    background: #90CDF4;
+    box-shadow: 0 1px 4px #0008;
+}
+
+#browser-zoom-toggle::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    width: 5px;
+    height: 5px;
+    border-top: 2px solid #1A202C;
+    border-right: 2px solid #1A202C;
+    transform: rotate(-135deg);
+    pointer-events: none;
+}
+
+#browser-zoom-controls.is-collapsed #browser-zoom-toggle::before {
+    transform: rotate(45deg);
+}
+
+#browser-zoom-toggle:hover::after,
+#browser-zoom-toggle:focus-visible::after {
+    background: #BEE3F8;
+}
+
+#browser-zoom-controls button {
+    min-width: 36px;
+    min-height: 36px;
+    border: 0;
+    border-radius: 4px;
+    background: #2D3748;
+    color: white;
+    font: inherit;
+    cursor: pointer;
+    /* Repeated button taps must not trigger native double-tap page zoom. */
+    touch-action: manipulation;
+}
+
+#browser-zoom-controls button:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+#browser-zoom-controls button:disabled,
+#browser-zoom-controls button[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: default;
+}
+
+#browser-zoom-controls output {
+    min-width: 45px;
+    text-align: center;
+}
+
+#browser-orientation-toggle[hidden],
+#browser-orientation-status[hidden] {
+    display: none;
+}
+
+#browser-orientation-status {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left));
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 64px));
+    z-index: 10002;
+    max-width: min(360px, calc(100vw - 48px));
+    padding: 10px;
+    border: 1px solid #718096;
+    border-radius: 6px;
+    background: #2D3748;
+    color: white;
+    font: 14px/1.4 Arial, sans-serif;
+}
+
+/* Allow native touch panning wherever the scaled page has overflow. */
+#out.browser-can-pan:not(.browser-modal-open),
+#out.browser-can-pan:not(.browser-modal-open) * {
+    touch-action: pan-x pan-y pinch-zoom !important;
+}
+
+/* Keep touch scrolling inside Avalonia while a modal dialog is open. */
+body.browser-modal-open {
+    touch-action: pinch-zoom;
+    overscroll-behavior: none;
+}
+
+#out.browser-modal-open, #out.browser-modal-open * {
+    touch-action: pinch-zoom !important;
+}
+
+/* HTML styles for the splash screen */
 .avalonia-splash {
     position: absolute;
     height: 100%;

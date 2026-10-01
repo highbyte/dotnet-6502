@@ -12,6 +12,17 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
 public class OverlayDialogHelper
 {
+    // Hosts may supply the visible area in Avalonia coordinates. With no override,
+    // desktop dialogs retain their normal window-relative layout.
+    public static readonly AttachedProperty<Rect?> VisibleViewportProperty =
+        AvaloniaProperty.RegisterAttached<OverlayDialogHelper, TopLevel, Rect?>("VisibleViewport");
+
+    public static readonly AttachedProperty<int> ModalOverlayCountProperty =
+        AvaloniaProperty.RegisterAttached<OverlayDialogHelper, TopLevel, int>("ModalOverlayCount");
+
+    private static readonly AttachedProperty<bool> HasModalTrackingProperty =
+        AvaloniaProperty.RegisterAttached<OverlayDialogHelper, Panel, bool>("HasModalTracking");
+
     private readonly IApplicationLifetime? _applicationLifetime;
 
     public OverlayDialogHelper(IApplicationLifetime? applicationLifetime)
@@ -22,13 +33,6 @@ public class OverlayDialogHelper
     public Panel BuildOverlayDialogPanel(UserControl userControl)
     {
         const double dialogMargin = 20.0;
-
-        // Create a custom overlay with better modal behavior
-        var overlay = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
-            ZIndex = 1000
-        };
 
         // Create a dialog container that looks like a proper modal
         var dialogContainer = new Border
@@ -50,21 +54,41 @@ public class OverlayDialogHelper
             Child = userControl // Direct child, no ScrollViewer wrapper
         };
 
-        overlay.Children.Add(dialogContainer);
+        return BuildOverlayDialogPanel(dialogContainer);
+    }
+
+    /// <summary>
+    /// Hosts an already styled dialog using the same viewport-aware layout as
+    /// standard dialogs, preserving its own size limits and appearance.
+    /// </summary>
+    public Panel BuildOverlayDialogPanel(Border dialogContainer)
+    {
+        var overlay = new ViewportOverlayPanel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+            ZIndex = 1000,
+            Children = { dialogContainer }
+        };
+        var maximumWidth = dialogContainer.MaxWidth;
+        var maximumHeight = dialogContainer.MaxHeight;
 
         // Cap dialog size to the visual root's client size so a tall/wide dialog cannot
         // grow past the viewport. This lets the dialog's inner ScrollViewer engage and
         // show a vertical scrollbar instead of pushing the OK/Cancel buttons off-screen.
         TopLevel? attachedTopLevel = null;
         EventHandler<SizeChangedEventArgs>? sizeHandler = null;
+        EventHandler<AvaloniaPropertyChangedEventArgs>? viewportHandler = null;
 
         void ApplyTopLevelBounds()
         {
             if (attachedTopLevel == null)
                 return;
-            var size = attachedTopLevel.ClientSize;
-            dialogContainer.MaxWidth = Math.Max(0, size.Width - dialogMargin * 2);
-            dialogContainer.MaxHeight = Math.Max(0, size.Height - dialogMargin * 2);
+            overlay.VisibleViewport = attachedTopLevel.GetValue(VisibleViewportProperty);
+            var size = overlay.VisibleViewport?.Size ?? attachedTopLevel.ClientSize;
+            dialogContainer.MaxWidth = Math.Min(maximumWidth,
+                Math.Max(0, size.Width - dialogContainer.Margin.Left - dialogContainer.Margin.Right));
+            dialogContainer.MaxHeight = Math.Min(maximumHeight,
+                Math.Max(0, size.Height - dialogContainer.Margin.Top - dialogContainer.Margin.Bottom));
         }
 
         overlay.AttachedToVisualTree += (_, _) =>
@@ -74,6 +98,12 @@ public class OverlayDialogHelper
                 return;
             sizeHandler = (_, _) => ApplyTopLevelBounds();
             attachedTopLevel.SizeChanged += sizeHandler;
+            viewportHandler = (_, e) =>
+            {
+                if (e.Property == VisibleViewportProperty)
+                    ApplyTopLevelBounds();
+            };
+            attachedTopLevel.PropertyChanged += viewportHandler;
             ApplyTopLevelBounds();
         };
 
@@ -81,11 +111,57 @@ public class OverlayDialogHelper
         {
             if (attachedTopLevel != null && sizeHandler != null)
                 attachedTopLevel.SizeChanged -= sizeHandler;
+            if (attachedTopLevel != null && viewportHandler != null)
+                attachedTopLevel.PropertyChanged -= viewportHandler;
             attachedTopLevel = null;
             sizeHandler = null;
+            viewportHandler = null;
         };
 
         return overlay;
+    }
+
+    private sealed class ViewportOverlayPanel : Panel
+    {
+        private Rect? _visibleViewport;
+
+        public Rect? VisibleViewport
+        {
+            get => _visibleViewport;
+            set
+            {
+                if (_visibleViewport == value)
+                    return;
+                _visibleViewport = value;
+                InvalidateMeasure();
+                InvalidateArrange();
+            }
+        }
+
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            if (_visibleViewport is not { } viewport)
+                return base.MeasureOverride(availableSize);
+
+            base.MeasureOverride(viewport.Size);
+            // Browser overlays must not enlarge the natural app measurement and
+            // feed back into automatic Fit sizing.
+            return default;
+        }
+
+        protected override Size ArrangeOverride(Size finalSize)
+        {
+            if (_visibleViewport is not { } viewport)
+                return base.ArrangeOverride(finalSize);
+
+            var root = TopLevel.GetTopLevel(this);
+            var origin = root == null ? default : this.TranslatePoint(default, root) ?? default;
+            var area = new Rect(viewport.X - origin.X, viewport.Y - origin.Y,
+                viewport.Width, viewport.Height);
+            foreach (var child in Children)
+                child.Arrange(area);
+            return finalSize;
+        }
     }
 
     public Grid ShowOverlayDialogOnMainView(Panel overlayPanel)
@@ -116,9 +192,33 @@ public class OverlayDialogHelper
     /// <param name="displayOnGrid"></param>
     private void ShowOverlayDialog(Panel overlayPanel, Grid displayOnGrid)
     {
+        TrackModalOverlay(overlayPanel);
         Grid.SetRowSpan(overlayPanel, displayOnGrid.RowDefinitions.Count > 0 ? displayOnGrid.RowDefinitions.Count : 1);
         Grid.SetColumnSpan(overlayPanel, displayOnGrid.ColumnDefinitions.Count > 0 ? displayOnGrid.ColumnDefinitions.Count : 1);
         displayOnGrid.Children.Add(overlayPanel);
+    }
+
+    private static void TrackModalOverlay(Panel overlayPanel)
+    {
+        // Install once so a panel can be closed and reopened without counting it twice.
+        if (overlayPanel.GetValue(HasModalTrackingProperty))
+            return;
+        overlayPanel.SetValue(HasModalTrackingProperty, true);
+        TopLevel? modalRoot = null;
+        overlayPanel.AttachedToVisualTree += (_, _) =>
+        {
+            modalRoot = TopLevel.GetTopLevel(overlayPanel);
+            if (modalRoot != null)
+                modalRoot.SetValue(ModalOverlayCountProperty,
+                    modalRoot.GetValue(ModalOverlayCountProperty) + 1);
+        };
+        overlayPanel.DetachedFromVisualTree += (_, _) =>
+        {
+            if (modalRoot != null)
+                modalRoot.SetValue(ModalOverlayCountProperty,
+                    Math.Max(0, modalRoot.GetValue(ModalOverlayCountProperty) - 1));
+            modalRoot = null;
+        };
     }
 
     /// <summary>
@@ -137,9 +237,15 @@ public class OverlayDialogHelper
         if (root is Window window && window.Content is MainView mainView && mainView.Content is Grid grid)
             return grid;
 
-        // When running in browser (WebAssembly) root is always EmbeddableControlRoot regardless if opened nested (overlay on overlay)
-        if (root is EmbeddableControlRoot ecr && ecr.Content is MainView mv && mv.Content is Grid mvGrid)
-            return mvGrid;
+        // Browser content can wrap MainView (for example, to measure the zoomable
+        // viewport). Nested dialogs still belong on MainView's outer grid.
+        if (root is EmbeddableControlRoot ecr)
+        {
+            var browserMainView = ecr.Content as MainView
+                ?? ecr.FindDescendantOfType<MainView>();
+            if (browserMainView?.Content is Grid browserGrid)
+                return browserGrid;
+        }
 
         // Fallback:
         // When running in desktop but not on MainWindow, find the UserControl's own content Grid

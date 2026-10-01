@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -108,6 +109,7 @@ public sealed class C64AcknowledgmentService
             // When the ROM section is shown, require the license checkbox first.
             IsEnabled = !showRomSection
         };
+        AutomationProperties.SetAutomationId(confirmButton, "C64AcknowledgmentConfirmButton");
         confirmButton.Click += (_, _) => SafeAsyncHelper.Execute(async () =>
         {
             if (unlockAudio != null)
@@ -123,6 +125,7 @@ public sealed class C64AcknowledgmentService
             Content = "Cancel",
             Classes = { "small", "cancel" }
         };
+        AutomationProperties.SetAutomationId(cancelButton, "C64AcknowledgmentCancelButton");
         cancelButton.Click += (_, _) => CloseOverlay(false);
 
         var bodyChildren = new StackPanel
@@ -217,10 +220,17 @@ public sealed class C64AcknowledgmentService
 
             licenseCheckBox = new CheckBox
             {
-                Content = "I have a license from Commodore/Cloanto, or own a Commodore 64",
+                Content = new TextBlock
+                {
+                    Text = "I have a license from Commodore/Cloanto, or own a Commodore 64",
+                    TextWrapping = TextWrapping.Wrap
+                },
                 FontSize = 10,
                 Margin = new Thickness(0, 8, 0, 0)
             };
+            AutomationProperties.SetAutomationId(licenseCheckBox, "C64AcknowledgmentLicenseCheckBox");
+            AutomationProperties.SetName(licenseCheckBox,
+                "I have a license from Commodore/Cloanto, or own a Commodore 64");
             licenseCheckBox.IsCheckedChanged += (_, _) =>
                 confirmButton.IsEnabled = licenseCheckBox.IsChecked == true;
             bodyChildren.Children.Add(licenseCheckBox);
@@ -237,12 +247,7 @@ public sealed class C64AcknowledgmentService
 
         var dialogContent = BuildDialogShell(title, bodyChildren);
 
-        overlayPanel = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
-            ZIndex = 1000,
-            Children = { dialogContent }
-        };
+        overlayPanel = _overlayDialogHelper.BuildOverlayDialogPanel(dialogContent);
 
         try
         {
@@ -408,61 +413,31 @@ public sealed class C64AcknowledgmentService
         openConfigButton.Click += (_, _) => SafeAsyncHelper.Execute(OpenConfigAsync);
         cancelButton.Click += (_, _) => CloseOverlay(false);
 
-        var dialogContent = new Border
+        var dialogContent = BuildDialogShell(titleText, new StackPanel
         {
-            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(74, 85, 104)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(0),
-            MaxWidth = 560,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = new StackPanel
+            Margin = new Thickness(12),
+            Spacing = 8,
+            Children =
             {
-                Children =
+                leadTextBlock,
+                progressBar,
+                statusTextBlock,
+                errorBorder,
+                new StackPanel
                 {
-                    new Border
-                    {
-                        Background = new SolidColorBrush(Color.FromRgb(45, 55, 72)),
-                        Padding = new Thickness(8, 6),
-                        CornerRadius = new CornerRadius(4, 4, 0, 0),
-                        Child = titleText
-                    },
-                    new StackPanel
-                    {
-                        Margin = new Thickness(12),
-                        Spacing = 8,
-                        Children =
-                        {
-                            leadTextBlock,
-                            progressBar,
-                            statusTextBlock,
-                            errorBorder,
-                            new StackPanel
-                            {
-                                Orientation = Orientation.Horizontal,
-                                HorizontalAlignment = HorizontalAlignment.Right,
-                                Spacing = 10,
-                                Margin = new Thickness(0, 8, 0, 0),
-                                Children =
-                                {
-                                    cancelButton,
-                                    openConfigButton
-                                }
-                            }
-                        }
-                    }
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Spacing = 10,
+                    Margin = new Thickness(0, 8, 0, 0),
+                    Children = { cancelButton, openConfigButton }
                 }
             }
-        };
+        });
+        AutomationProperties.SetAutomationId(dialogContent, "C64RomDownloadDialog");
+        AutomationProperties.SetAutomationId(cancelButton, "C64RomDownloadCancelButton");
+        AutomationProperties.SetAutomationId(openConfigButton, "C64RomDownloadOpenConfigButton");
 
-        overlayPanel = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
-            ZIndex = 1000,
-            Children = { dialogContent }
-        };
+        overlayPanel = _overlayDialogHelper.BuildOverlayDialogPanel(dialogContent);
 
         try
         {
@@ -481,7 +456,25 @@ public sealed class C64AcknowledgmentService
     }
 
     private Border BuildDialogShell(string title, Control body)
-        => new()
+        => BuildDialogShell(new TextBlock
+        {
+            Text = title,
+            FontSize = 14,
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap
+        }, body);
+
+    private Border BuildDialogShell(Control title, Control body)
+    {
+        var scrollViewer = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = body
+        };
+        Grid.SetRow(scrollViewer, 1);
+        var dialog = new Border
         {
             Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(74, 85, 104)),
@@ -489,10 +482,12 @@ public sealed class C64AcknowledgmentService
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(0),
             MaxWidth = 560,
+            Margin = new Thickness(20),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            Child = new StackPanel
+            Child = new Grid
             {
+                RowDefinitions = new RowDefinitions("Auto,*"),
                 Children =
                 {
                     new Border
@@ -500,24 +495,25 @@ public sealed class C64AcknowledgmentService
                         Background = new SolidColorBrush(Color.FromRgb(45, 55, 72)),
                         Padding = new Thickness(8, 6),
                         CornerRadius = new CornerRadius(4, 4, 0, 0),
-                        Child = new TextBlock
-                        {
-                            Text = title,
-                            FontSize = 14,
-                            FontWeight = FontWeight.Bold,
-                            HorizontalAlignment = HorizontalAlignment.Center
-                        }
+                        Child = title
                     },
-                    body
+                    scrollViewer
                 }
             }
         };
+        AutomationProperties.SetAutomationId(dialog, "C64AcknowledgmentDialog");
+        return dialog;
+    }
 
     private Button BuildRomUrlButton(UserControl? owner)
     {
         var urlButton = new Button
         {
-            Content = C64SystemConfig.DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL,
+            Content = new TextBlock
+            {
+                Text = C64SystemConfig.DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL,
+                TextWrapping = TextWrapping.Wrap
+            },
             Classes = { "link" },
             FontSize = 10,
             HorizontalAlignment = HorizontalAlignment.Left,
@@ -527,6 +523,8 @@ public sealed class C64AcknowledgmentService
             BorderThickness = new Thickness(0),
             Cursor = new Cursor(StandardCursorType.Hand)
         };
+        AutomationProperties.SetAutomationId(urlButton, "C64AcknowledgmentRomUrlButton");
+        AutomationProperties.SetName(urlButton, C64SystemConfig.DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL);
         urlButton.Click += (_, _) => SafeAsyncHelper.Execute(
             () => LaunchUriIfAvailableAsync(owner, C64SystemConfig.DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL));
         return urlButton;

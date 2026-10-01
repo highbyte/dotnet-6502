@@ -395,15 +395,14 @@ public partial class MainView : UserControl
         if (viewModel.MonitorViewModel == null)
             return;
 
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+            return;
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+
         var monitorControl = new MonitorUserControl(viewModel.MonitorViewModel)
         {
             MaxHeight = 600  // Limit height in Browser mode to prevent unbounded expansion
-        };
-
-        _monitorOverlay = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
-            ZIndex = 1000
         };
 
         var dialogContainer = new Border
@@ -418,14 +417,8 @@ public partial class MainView : UserControl
             Child = monitorControl
         };
 
-        _monitorOverlay.Children.Add(dialogContainer);
-
-        if (Content is Grid mainGrid)
-        {
-            Grid.SetRowSpan(_monitorOverlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
-            Grid.SetColumnSpan(_monitorOverlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
-            mainGrid.Children.Add(_monitorOverlay);
-        }
+        _monitorOverlay = overlayDialogHelper.BuildOverlayDialogPanel(dialogContainer);
+        overlayDialogHelper.ShowOverlayDialog(_monitorOverlay, this);
     }
 
     private void CloseMonitorOverlay()

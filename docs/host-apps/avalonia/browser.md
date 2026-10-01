@@ -1,5 +1,85 @@
 # Avalonia Browser app
 
+## Small screens and zoom
+
+The browser app keeps its desktop-sized Avalonia layout on narrow screens. The page can be
+scrolled in both directions to reach the emulator display and controls. When the unscaled
+app exceeds the browser window, floating **−**, **+**, **Fit**, and **Reset** buttons appear.
+**Fit** scales the full app to the available width and height; **Reset** returns to 100%
+and the top-left corner. If the app fits without scaling, it returns to 100% and the
+buttons disappear unless an orientation lock is active. The controls stay hidden during startup until Avalonia reports its
+content size. This adapts to the browser window dimensions on any device. The contrasting
+handle stays fixed at the bottom-left in both states, pointing left to collapse the toolbar
+and right to expand it.
+App zoom leaves the HTML toolbar at its normal size; native browser pinch zoom remains available.
+Click or tap it without changing the zoom or scroll position. The loading logo centers in the browser window.
+When the scaled app overflows the window, scroll over the canvas with a mouse wheel or
+trackpad, or drag on a touchscreen to pan. The Avalonia **Scale** slider
+changes only the emulated display size, while the browser zoom buttons scale the whole app.
+The canvas scrolls inside a panel sized to the browser window, keeping wide content from
+triggering whole-page shrinking on iOS. The floating toolbar sits outside that panel;
+the app's zoom buttons scale the canvas while the toolbar retains its size. Native browser
+pinch zoom remains available, and repeated toolbar taps do not trigger double-tap page zoom.
+The canvas grows with the Avalonia content, including larger **Scale** settings. Browser zoom
+ranges from 10% to 200%; very wide content may still need horizontal scrolling at 10%.
+When the scaled canvas fits, it centers in the available window area. Overlay dialogs,
+including nested acknowledgments, center within the visible canvas area and update when
+scrolling, zooming, or resizing. Their size is limited to that area, above the zoom toolbar.
+While an overlay is open, wheel, trackpad, and touch scrolling stay inside Avalonia;
+the background page does not pan. Page panning resumes after the last overlay closes.
+
+## Screen orientation
+
+The app keeps the device's orientation on startup. On touch devices with the orientation-lock
+and fullscreen APIs, **Rotate** switches between portrait and landscape. It enters fullscreen
+when needed; the button's tooltip and accessible label describe the next orientation.
+Browsers can still reject the request, in which case a message explains the limitation.
+On touch devices where these APIs are unavailable, including Safari and Brave on iPhone/iPad,
+Rotate appears disabled. Hover, focus, or tap it for guidance to turn the device and disable
+its rotation lock if needed. Availability is based on browser capabilities rather than its name.
+The disabled button remains focusable and tappable to show its explanation; it cannot request rotation.
+Tap Rotate again, tap outside the explanation, or press Escape to dismiss it. Tapping inside
+keeps it open for reading. Help opened by tapping stays until dismissed; hover/focus help
+also disappears after ten seconds.
+If the API exists but reports that rotation is unsupported, Rotate stays visible but disabled
+and its explanation uses the same dismissal controls, including Reset. Desktop Chromium device emulation exposes the API
+without supporting orientation locking; use the device toolbar's rotate icon to test the
+landscape layout. An iPhone device preset simulates its viewport, not Safari's capabilities.
+Failed requests log `[DotNet6502] Orientation request failed.` in the browser console with
+the request stage, browser error name, target orientation, viewport size, and fullscreen state.
+
+**Reset** restores automatic rotation along with 100% zoom and the top-left position. It also
+exits fullscreen if Rotate entered it. Exiting fullscreen through the browser releases the
+orientation lock. While an orientation lock is active, the toolbar remains available even
+if the app now fits, so Rotate and Reset stay reachable. Normal device rotation continues to
+update the layout; Fit adjusts automatically while Fit mode is active.
+
+## Safari compatibility
+
+Older Safari releases have had compatibility problems. The macOS startup notice remains
+as a precaution because a minimum supported Safari version has not been established;
+it does not test browser capabilities or indicate that startup has failed. Successful
+BASIC startup does not verify every game, audio mode, or file operation.
+
+Download & Run uses the same CORS proxy as ROM downloads in the browser. It leaves
+User-Agent selection to the browser; the custom download header is used only by the
+native app when contacting sources directly.
+
+## Browser script checks
+
+From the repository root with Node.js 24, run:
+
+```sh
+node --test "tests/Highbyte.DotNet6502.Tests/Browser/*.test.cjs"
+```
+
+These checks execute the production zoom script with a deterministic DOM and browser API
+model. They cover Fit/Reset, window and content resizing, visible dialog coordinates, modal
+wheel routing, toolbar state, and orientation/fullscreen success and failure paths. They run
+in both the independent build/test workflow and Sonar; the latter also imports JavaScript
+coverage. Canvas rendering, pointer hit-testing, and physical screen rotation still require
+verification in a real browser/device.
+
 ## Overview
 
 Cross-platform browser app written with [Avalonia UI](https://avaloniaui.net/). Shares almost all code (including UI) with the [Avalonia Desktop app](../../host-apps/avalonia/desktop.md).
