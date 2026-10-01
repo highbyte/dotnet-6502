@@ -50,9 +50,9 @@
         orientationButton.hidden = !supported;
         orientationButton.disabled = changingOrientation || orientationUnavailable;
         resetButton.disabled = changingOrientation;
+        const fullscreenHint = document.fullscreenElement ? '' : ' (opens fullscreen)';
         const label = orientationUnavailable ? 'Screen rotation is unavailable in this browser'
-            : `Switch to ${oppositeOrientation()} orientation`
-                + (document.fullscreenElement ? '' : ' (opens fullscreen)');
+            : `Switch to ${oppositeOrientation()} orientation${fullscreenHint}`;
         orientationButton.setAttribute('aria-label', label);
         orientationButton.setAttribute('title', label);
     }
@@ -199,7 +199,8 @@
         const availableHeight = Math.max(1, windowHeight - clearance);
         const fittedZoom = Math.min(1, windowWidth / Math.max(contentWidth, windowWidth),
             availableHeight / Math.max(contentHeight, windowHeight));
-        zoom = needsZoom ? clampZoom(fitToWindow ? fittedZoom : value) : 1;
+        const requestedZoom = fitToWindow ? fittedZoom : value;
+        zoom = needsZoom ? clampZoom(requestedZoom) : 1;
         // Keep the rendering surface stable across zoom changes. Center the
         // scaled canvas when it fits so its visible area shares the window center.
         const width = Math.max(contentWidth, windowWidth);
