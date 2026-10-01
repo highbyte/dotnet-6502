@@ -16,6 +16,10 @@ Click or tap it without changing the zoom or scroll position. The loading logo c
 When the scaled app overflows the window, scroll over the canvas with a mouse wheel or
 trackpad, or drag on a touchscreen to pan. The Avalonia **Scale** slider
 changes only the emulated display size, while the browser zoom buttons scale the whole app.
+The canvas scrolls inside a panel sized to the browser window, keeping wide content from
+triggering whole-page shrinking on iOS. The floating toolbar sits outside that panel;
+the app's zoom buttons scale the canvas while the toolbar retains its size. Native browser
+pinch zoom remains available, and repeated toolbar taps do not trigger double-tap page zoom.
 The canvas grows with the Avalonia content, including larger **Scale** settings. Browser zoom
 ranges from 10% to 200%; very wide content may still need horizontal scrolling at 10%.
 When the scaled canvas fits, it centers in the available window area. Overlay dialogs,

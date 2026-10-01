@@ -33,7 +33,7 @@ function createElement() {
 function fixture(width, height, setup = () => {}) {
     const elements = new Map();
     for (const id of [
-        'out', 'browser-app-viewport', 'browser-zoom-controls', 'browser-zoom-out',
+        'out', 'browser-app-viewport', 'browser-app-scroll', 'browser-zoom-controls', 'browser-zoom-out',
         'browser-zoom-in', 'browser-zoom-fit', 'browser-zoom-reset', 'browser-zoom-level',
         'browser-zoom-toggle', 'browser-zoom-options', 'browser-orientation-toggle',
         'browser-orientation-status'
@@ -47,20 +47,27 @@ function fixture(width, height, setup = () => {}) {
         addEventListener(event, callback) { this.handlers[event] = callback; }
     };
     const window = {
-        innerHeight: height, scrollX: 0, scrollY: 0, handlers: {},
+        innerHeight: height, handlers: {},
         clearTimeout() {}, setTimeout() { return 1; },
         requestAnimationFrame: callback => callback(),
         getComputedStyle: () => ({ bottom: '12px' }),
-        addEventListener(event, callback) { this.handlers[event] = callback; },
-        scrollTo(x, y) { this.scrollX = x; this.scrollY = y; }
+        addEventListener(event, callback) { this.handlers[event] = callback; }
     };
     const app = elements.get('out');
     const viewport = elements.get('browser-app-viewport');
+    const scroller = elements.get('browser-app-scroll');
+    scroller.scrollLeft = 0;
+    scroller.scrollTop = 0;
+    scroller.scrollTo = (x, y) => { scroller.scrollLeft = x; scroller.scrollTop = y; };
+    Object.defineProperties(scroller, {
+        clientWidth: { get: () => document.documentElement.clientWidth },
+        clientHeight: { get: () => document.documentElement.clientHeight }
+    });
     app.getBoundingClientRect = () => {
         const scale = Number(app.style.transform.match(/[\d.]+/)[0]);
         const left = Math.max(0, (document.documentElement.clientWidth
-            - parseFloat(viewport.style.width)) / 2) - window.scrollX;
-        const top = parseFloat(document.body.style.paddingTop) - window.scrollY;
+            - parseFloat(viewport.style.width)) / 2) - scroller.scrollLeft;
+        const top = parseFloat(scroller.style.paddingTop) - scroller.scrollTop;
         return {
             left, top,
             right: parseFloat(app.style.width) * scale + left,
@@ -72,7 +79,7 @@ function fixture(width, height, setup = () => {}) {
     vm.runInNewContext(source, context, { filename: sourcePath });
     const zoomApi = context.dotnet6502BrowserZoom;
     return {
-        elements, document, window,
+        elements, document, window, scroller,
         size: (w, h) => zoomApi.setContentSize(w, h),
         click: id => elements.get('browser-zoom-' + id).handlers.click(),
         register: callback => zoomApi.setViewportChangedCallback(callback),

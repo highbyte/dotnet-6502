@@ -7,6 +7,7 @@
 
     const app = document.getElementById('out');
     const viewport = document.getElementById('browser-app-viewport');
+    const scroller = document.getElementById('browser-app-scroll');
     const controls = document.getElementById('browser-zoom-controls');
     const zoomOutButton = document.getElementById('browser-zoom-out');
     const zoomInButton = document.getElementById('browser-zoom-in');
@@ -175,9 +176,9 @@
         const visible = window.visualViewport;
         const left = visible?.offsetLeft ?? 0;
         const top = visible?.offsetTop ?? 0;
-        const width = visible?.width ?? document.documentElement.clientWidth;
+        const width = Math.min(visible?.width ?? scroller.clientWidth, scroller.clientWidth);
         const height = Math.max(1, (visible?.height
-            ?? (document.documentElement.clientHeight || window.innerHeight)) - controlsClearance);
+            ?? scroller.clientHeight) - controlsClearance);
         const x = Math.max(left, bounds.left);
         const y = Math.max(top, bounds.top);
         const area = [(x - bounds.left) / zoom, (y - bounds.top) / zoom,
@@ -210,10 +211,10 @@
     function applyZoom(value, resetPosition = false) {
         // Preserve the top-left content position, so zooming from the page origin
         // never moves the top of the app above the visible area.
-        const left = window.scrollX / zoom;
-        const top = window.scrollY / zoom;
-        const windowWidth = document.documentElement.clientWidth;
-        const windowHeight = document.documentElement.clientHeight || window.innerHeight;
+        const left = scroller.scrollLeft / zoom;
+        const top = scroller.scrollTop / zoom;
+        const windowWidth = scroller.clientWidth;
+        const windowHeight = scroller.clientHeight;
         const needsZoom = hasContentSize
             && (contentWidth > windowWidth || contentHeight > windowHeight);
         // Keep Reset/Rotate reachable if the rotated app now fits without zoom.
@@ -247,8 +248,8 @@
         viewport.style.width = `${scaledWidth}px`;
         viewport.style.height = `${scaledHeight}px`;
         const verticalOffset = Math.max(0, (availableHeight - scaledHeight) / 2);
-        document.body.style.paddingTop = `${verticalOffset}px`;
-        document.body.style.paddingBottom = `${clearance + verticalOffset}px`;
+        scroller.style.paddingTop = `${verticalOffset}px`;
+        scroller.style.paddingBottom = `${clearance + verticalOffset}px`;
         const canPan = needsZoom && (scaledWidth > windowWidth
             || scaledHeight + clearance > windowHeight);
         app.classList.toggle('browser-can-pan', canPan);
@@ -260,7 +261,7 @@
 
         // Update scroll immediately after the scroll area changes. Delayed frame
         // callbacks can restore stale positions after a rapid Fit/zoom sequence.
-        window.scrollTo(resetPosition || !needsZoom ? 0 : left * zoom,
+        scroller.scrollTo(resetPosition || !needsZoom ? 0 : left * zoom,
             resetPosition || !needsZoom ? 0 : top * zoom);
         reportViewport();
     }
@@ -394,6 +395,7 @@
     });
 
     window.addEventListener('scroll', queueViewportReport, { passive: true });
+    scroller.addEventListener('scroll', queueViewportReport, { passive: true });
     window.visualViewport?.addEventListener('resize', queueViewportReport);
     window.visualViewport?.addEventListener('scroll', queueViewportReport);
 

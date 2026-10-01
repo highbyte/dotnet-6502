@@ -48,25 +48,25 @@ test('Fit, Reset, viewport resize, modal wheel routing and toolbar state', () =>
     assert.equal(phone.document.body.classes.has('browser-modal-open'),false);
     phone.click('fit');
     phone.click('in');
-    phone.window.scrollTo(50,80);
+    phone.scroller.scrollTo(50,80);
     phone.click('fit');
-    assert.equal(phone.window.scrollX,0);
-    assert.equal(phone.window.scrollY,0);
+    assert.equal(phone.scroller.scrollLeft,0);
+    assert.equal(phone.scroller.scrollTop,0);
     while(phone.zoom()<1) phone.click('in');
     assert.equal(phone.zoom(),1);
-    assert.equal(phone.window.scrollY,0);
+    assert.equal(phone.scroller.scrollTop,0);
     assert.equal(phone.elements.get('out').style.width,'1258px');
     assert.equal(phone.elements.get('out').style.height,'844px');
     phone.click('fit');
     assert.equal(phone.elements.get('out').style.width,stableWidth);
     assert.equal(phone.elements.get('out').style.height,stableHeight);
     phone.click('reset');
-    phone.window.scrollTo(120,250);
+    phone.scroller.scrollTo(120,250);
     phone.click('reset');
     assert.equal(phone.zoom(),1);
-    assert.equal(phone.window.scrollX,0);
-    assert.equal(phone.window.scrollY,0);
-    phone.window.scrollTo(70,90);
+    assert.equal(phone.scroller.scrollLeft,0);
+    assert.equal(phone.scroller.scrollTop,0);
+    phone.scroller.scrollTo(70,90);
     const zoomBeforeCollapse=phone.zoom();
     phone.click('toggle');
     assert.equal(phone.elements.get('browser-zoom-options').hidden,true);
@@ -76,14 +76,14 @@ test('Fit, Reset, viewport resize, modal wheel routing and toolbar state', () =>
     assert.equal(phone.elements.get('browser-zoom-toggle').attributes.title,'Show zoom controls');
     assert.equal(phone.elements.get('browser-zoom-controls').classList.contains('is-collapsed'),true);
     assert.equal(phone.zoom(),zoomBeforeCollapse);
-    assert.equal(phone.window.scrollX,70);
-    assert.equal(phone.window.scrollY,90);
+    assert.equal(phone.scroller.scrollLeft,70);
+    assert.equal(phone.scroller.scrollTop,90);
     phone.click('toggle');
     assert.equal(phone.elements.get('browser-zoom-options').hidden,false);
     assert.equal(phone.elements.get('browser-zoom-toggle').attributes['aria-expanded'],'true');
     assert.equal(phone.zoom(),zoomBeforeCollapse);
-    assert.equal(phone.window.scrollX,70);
-    assert.equal(phone.window.scrollY,90);
+    assert.equal(phone.scroller.scrollLeft,70);
+    assert.equal(phone.scroller.scrollTop,90);
     phone.click('fit');
     phone.size(2094,1232);
     assert.ok(parseFloat(phone.elements.get('browser-app-viewport').style.width)<=390);
@@ -95,7 +95,7 @@ test('Fit, Reset, viewport resize, modal wheel routing and toolbar state', () =>
     desktop.size(1258,764);
     assert.equal(desktop.elements.get('browser-zoom-controls').hidden,true);
     assert.equal(desktop.zoom(),1);
-    assert.equal(desktop.document.body.style.paddingBottom,'0px');
+    assert.equal(desktop.scroller.style.paddingBottom,'0px');
     desktop.size(2094,1232);
     assert.equal(desktop.elements.get('browser-zoom-controls').hidden,false);
     assert.ok(parseFloat(desktop.elements.get('browser-app-viewport').style.height)+64<=824);
@@ -111,12 +111,47 @@ test('Fit, Reset, viewport resize, modal wheel routing and toolbar state', () =>
     assert.ok(Math.abs((lastArea[1]+lastArea[3]/2)*fitted+bounds.top-390)<0.51);
     assert.ok(Math.abs((lastArea[0]+lastArea[2]/2)*fitted+bounds.left-195)<0.51);
     phone.click('reset');
-    phone.window.scrollTo(100,200);
-    phone.window.handlers.scroll();
+    phone.scroller.scrollTo(100,200);
+    phone.scroller.handlers.scroll();
     assert.deepEqual(lastArea,[100,200,390,780]);
     phone.window.visualViewport={offsetLeft:20,offsetTop:30,width:195,height:422};
-    phone.window.handlers.scroll();
+    phone.scroller.handlers.scroll();
     assert.deepEqual(lastArea,[120,230,195,358]);
     phone.clear();
-    phone.window.handlers.scroll();
+    phone.scroller.handlers.scroll();
+});
+
+test('Phone zoom crosses 100% with canvas growth and scroll coordinates inside a fixed viewport', () => {
+    const phone = fixture(393, 852);
+    phone.size(1200, 900);
+    assert.ok(Math.abs(phone.zoom() - 0.3275) < 0.000001, 'initial width Fit is about 32%');
+    let visibleArea;
+    phone.register(area => { visibleArea = JSON.parse(area); });
+    for (const expected of [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]) {
+        phone.click('in');
+        assert.equal(phone.zoom(), expected);
+        const app = phone.elements.get('out');
+        const bounds = app.getBoundingClientRect();
+        assert.equal(bounds.right - bounds.left, 1200 * expected, 'rendered width increases by 300px per step');
+        assert.equal(phone.scroller.clientWidth, 393, 'scroll panel width stays at the phone viewport');
+        assert.equal(phone.scroller.clientHeight, 852);
+        assert.equal(phone.document.body.style.paddingTop, undefined, 'zoom must not expand the document');
+        if (expected === 1) {
+            phone.scroller.scrollTo(100, 160);
+            phone.scroller.handlers.scroll();
+        }
+        if (expected >= 1) {
+            assert.deepEqual(visibleArea, [100, 160, 393 / expected, Math.min(740, 788 / expected)],
+                'overlay coordinates track the scroll panel while zoom preserves the content position');
+        }
+    }
+    phone.click('out');
+    assert.equal(phone.zoom(), 1.75);
+    phone.click('fit');
+    assert.equal(phone.scroller.scrollLeft, 0);
+    assert.equal(phone.scroller.scrollTop, 0);
+    phone.click('reset');
+    assert.equal(phone.zoom(), 1);
+    assert.equal(phone.scroller.scrollLeft, 0);
+    assert.equal(phone.scroller.scrollTop, 0);
 });
