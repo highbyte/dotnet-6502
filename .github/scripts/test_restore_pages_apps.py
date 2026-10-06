@@ -118,7 +118,9 @@ class DeploymentSelectionTests(unittest.TestCase):
         mock = patch.object(pages, "github_json", side_effect=self.responses.__getitem__)
         self.github = mock.start()
         self.addCleanup(mock.stop)
-        server = patch.dict("os.environ", {"GITHUB_SERVER_URL": "https://github.com"})
+        server = patch.dict("os.environ", {
+            "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": self.repository
+        })
         server.start()
         self.addCleanup(server.stop)
 
@@ -200,7 +202,7 @@ class DeploymentSelectionTests(unittest.TestCase):
     def test_cli_downloads_and_restores_only_the_deployed_apps(self):
         with tempfile.TemporaryDirectory() as temporary:
             site = Path(temporary) / "site"
-            arguments = ["restore_pages_apps.py", "--repository", self.repository, "--site", str(site)]
+            arguments = ["restore_pages_apps.py", "--site", str(site)]
             downloaded = self.artifact_zip(pages.ARCHIVE_NAME)
             with patch("sys.argv", arguments), patch.object(pages.subprocess, "run") as command:
                 command.side_effect = lambda *args, **kwargs: kwargs["stdout"].write(downloaded)
@@ -218,7 +220,7 @@ class DeploymentSelectionTests(unittest.TestCase):
     def test_cli_rejects_unexpected_zip_contents_before_staging(self):
         with tempfile.TemporaryDirectory() as temporary:
             site = Path(temporary) / "site"
-            arguments = ["restore_pages_apps.py", "--repository", self.repository, "--site", str(site)]
+            arguments = ["restore_pages_apps.py", "--site", str(site)]
             downloaded = self.artifact_zip("unexpected.tar")
             with patch("sys.argv", arguments), patch.object(pages.subprocess, "run") as command:
                 command.side_effect = lambda *args, **kwargs: kwargs["stdout"].write(downloaded)
@@ -229,8 +231,10 @@ class DeploymentSelectionTests(unittest.TestCase):
     def test_cli_rejects_invalid_repository_without_downloading(self):
         for repository in ("owner/repo?other=1", "owner/repo/extra", "", "--hostname=example.com"):
             with self.subTest(repository=repository):
-                arguments = ["restore_pages_apps.py", f"--repository={repository}", "--site", "site"]
-                with patch("sys.argv", arguments), redirect_stderr(io.StringIO()):
+                arguments = ["restore_pages_apps.py", "--site", "site"]
+                with patch("sys.argv", arguments), patch.dict(
+                    "os.environ", {"GITHUB_REPOSITORY": repository}
+                ), redirect_stderr(io.StringIO()):
                     with self.assertRaises(SystemExit) as error:
                         pages.main()
                     self.assertEqual(error.exception.code, 2)

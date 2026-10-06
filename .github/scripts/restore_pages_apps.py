@@ -119,12 +119,11 @@ def restore_apps(archive_path, destination):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY"))
     parser.add_argument("--site", required=True)
     args = parser.parse_args()
-    repository = args.repository
+    repository = os.environ.get("GITHUB_REPOSITORY")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository or ""):
-        parser.error("--repository or GITHUB_REPOSITORY must be an owner/repository name")
+        parser.error("GITHUB_REPOSITORY must be an owner/repository name")
     artifact_id, run_id = latest_deployed_artifact(repository)
     # The download command uses only numeric IDs returned by GitHub.
     repository_id = int(github_json(f"repos/{repository}")["id"])
