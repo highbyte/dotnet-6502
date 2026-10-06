@@ -16,12 +16,12 @@ ARCHIVE_NAME = "artifact.tar"
 STATE_NAME = ".publish-state.json"
 APP_PATHS = (
     "src/", "Directory.Packages.props", "Directory.Build.props", "Directory.Build.targets",
-    "global.json", "NuGet.Config", ".github/workflows/pages-publish.yml",
+    "global.json", "NuGet.Config", WORKFLOW_PATH,
     ".github/scripts/restore_pages_apps.py",
 )
 DOCS_PATHS = (
     "docs/", "includes/", "mkdocs.yml", "requirements-docs.in", "requirements-docs.txt",
-    ".pip-tools.toml", ".github/workflows/pages-publish.yml",
+    ".pip-tools.toml", WORKFLOW_PATH,
     ".github/scripts/restore_pages_apps.py",
 )
 
