@@ -134,6 +134,36 @@ The same flow runs automatically on pull requests (paths-filtered to WASM-releva
 
 The same workflow also runs `blazor-speed.spec.ts` against the published Blazor build: it starts the ROM-free Generic system, enables the in-app stats panel and records the host frame rate and emulator time per frame into the job summary and a `wasm-speed-readout` artifact. It is informational only (shared runners are noisy) and never fails the PR. The Avalonia Browser app has no headless stats channel yet, so it has no readout.
 
+## Publishing documentation and browser apps
+
+Run **Publish apps and docs to GitHub Pages** from GitHub Actions. Documentation uses
+`master`, so merge documentation changes before publishing them. The `production`,
+`test`, and `all` targets control which app paths can be rebuilt.
+
+Publishing automatically compares inputs with the source commits recorded in the last
+successfully deployed site. App inputs are `src/`, root dependency/build configuration,
+and the selected production version. Documentation inputs are `docs/`, `includes/`,
+MkDocs configuration, and documentation dependencies. Changes to the Pages workflow or
+its helper rebuild both sections.
+
+Only changed sections are rebuilt. Unchanged app and documentation files are retained
+byte-for-byte, including unselected test apps. Recorded source commits are updated only
+for sections actually rebuilt. A docs-only update preserves existing app versions. An
+apps-only update preserves the published docs. If neither section changed, deployment
+is skipped. Successful runs that skipped deployment are not used as the published baseline.
+The first deployment, or a site without recorded source commits, rebuilds both sections.
+Release-tag runs always rebuild production apps with the tag's version.
+
+**Force publish** defaults to disabled. Enable it to rebuild apps and docs regardless of
+change detection, without needing the previous deployed artifact or its recorded commits.
+A forced `production` run publishes production apps and docs; choose `all` to include
+test app paths as well.
+
+Pages artifacts are retained for 90 days. If the latest deployed artifact is missing,
+expired, or cannot be validated, automatic publishing stops without deploying. Use
+**Force publish** to create a fresh baseline. The workflow never substitutes an older
+deployed artifact. All Pages runs share the same deployment queue.
+
 ## Benchmarks
 
 `benchmarks/Highbyte.DotNet6502.Benchmarks/` is a [BenchmarkDotNet](https://benchmarkdotnet.org/) project covering the CPU hot path (`HotPathBenchmarks`), the integrated C64 instruction and frame loops with and without render/audio providers, and focused CIA, sprite, rasterizer and SID benchmarks. Recorded baselines and their history live in `benchmarks/Highbyte.DotNet6502.Benchmarks/RESULTS.md`.

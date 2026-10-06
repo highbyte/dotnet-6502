@@ -1,0 +1,8 @@
+[run]
+relative_files = true
+timid = true
+include = .github/scripts/restore_pages_apps.py
+data_file = TestResults/pages.coverage
+
+[xml]
+output = TestResults/pages-coverage.xml

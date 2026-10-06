@@ -26,13 +26,17 @@ on:
       - 'requirements-docs.txt'
       - '.pip-tools.toml'
       - '.github/workflows/docs-check.yml'
+      - '.github/workflows/pages-publish.yml'
+      - '.github/scripts/*pages*.py'
+      - '.github/scripts/pages.coveragerc'
+      - '.github/scripts/requirements-pages-tests.txt'
 
 jobs:
   build:
     name: CI / Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           # Needed to diff against the PR base.
           fetch-depth: 0
@@ -50,7 +54,7 @@ jobs:
           echo "Changed files:"
           echo "$changed"
 
-          if echo "$changed" | grep -qE '^(docs/|includes/|mkdocs\.yml|requirements-docs\.(in|txt)|\.pip-tools\.toml|\.github/workflows/docs-check\.yml)'; then
+          if echo "$changed" | grep -qE '^(docs/|includes/|mkdocs\.yml|requirements-docs\.(in|txt)|\.pip-tools\.toml|\.github/workflows/(docs-check|pages-publish)\.yml|\.github/scripts/(.*pages.*\.py|pages\.coveragerc|requirements-pages-tests\.txt))'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -59,7 +63,7 @@ jobs:
 
       - name: Setup Python
         if: steps.changes.outputs.relevant == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -68,6 +72,10 @@ jobs:
       - name: Install MkDocs and dependencies
         if: steps.changes.outputs.relevant == 'true'
         run: "pip install --require-hashes --only-binary :all: -r requirements-docs.txt"
+
+      - name: Test preservation of published apps
+        if: steps.changes.outputs.relevant == 'true'
+        run: python -m unittest discover -s .github/scripts -p 'test_*pages*.py' -v
 
       - name: Build static site with MkDocs (strict)
         if: steps.changes.outputs.relevant == 'true'
