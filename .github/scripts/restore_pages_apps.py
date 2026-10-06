@@ -13,11 +13,12 @@ from pathlib import Path, PurePosixPath
 
 
 WORKFLOW_PATH = ".github/workflows/pages-publish.yml"
+ARCHIVE_NAME = "artifact.tar"
 
 
 def github_json(endpoint):
     result = subprocess.run(
-        ["gh", "api", endpoint], check=True, capture_output=True, text=True
+        ["gh", "api", "--", endpoint], check=True, capture_output=True, text=True
     )
     return json.loads(result.stdout)
 
@@ -72,7 +73,7 @@ def pages_artifact(repository, run_id):
 
 def latest_deployed_artifact(repository):
     """Use the deployed site, never an older artifact or an un-deployed build."""
-    if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository):
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise ValueError("Invalid GitHub repository name")
     page = 1
     while True:
@@ -121,21 +122,22 @@ def main():
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY"))
     parser.add_argument("--site", required=True)
     args = parser.parse_args()
-    if not args.repository:
-        parser.error("--repository or GITHUB_REPOSITORY is required")
-    artifact_id, run_id = latest_deployed_artifact(args.repository)
+    repository = args.repository
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository or ""):
+        parser.error("--repository or GITHUB_REPOSITORY must be an owner/repository name")
+    artifact_id, run_id = latest_deployed_artifact(repository)
     with tempfile.TemporaryDirectory() as temporary:
         downloaded = Path(temporary) / "pages.zip"
         with downloaded.open("wb") as output:
             subprocess.run(
-                ["gh", "api", f"repos/{args.repository}/actions/artifacts/{artifact_id}/zip"],
+                ["gh", "api", "--", f"repos/{repository}/actions/artifacts/{artifact_id}/zip"],
                 stdout=output, check=True,
             )
-        archive_path = Path(temporary) / "artifact.tar"
+        archive_path = Path(temporary) / ARCHIVE_NAME
         with zipfile.ZipFile(downloaded) as artifact:
-            if artifact.namelist() != ["artifact.tar"]:
+            if artifact.namelist() != [ARCHIVE_NAME]:
                 raise ValueError("Unexpected Pages artifact format")
-            with artifact.open("artifact.tar") as source, archive_path.open("wb") as target:
+            with artifact.open(ARCHIVE_NAME) as source, archive_path.open("wb") as target:
                 shutil.copyfileobj(source, target)
         restore_apps(archive_path, args.site)
     print(f"Preserved app files from Pages workflow run {run_id}")

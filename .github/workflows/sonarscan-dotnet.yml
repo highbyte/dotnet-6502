@@ -50,6 +50,18 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Setup Python for Pages publishing tests
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Test Pages app preservation with coverage
+        run: |
+          pip install --require-hashes --only-binary :all: -r .github/scripts/requirements-pages-tests.txt
+          mkdir -p TestResults
+          python -m coverage run --rcfile=.github/scripts/pages.coveragerc -m unittest discover -s .github/scripts -p 'test_*pages*.py' -v
+          python -m coverage xml --rcfile=.github/scripts/pages.coveragerc --fail-under=80
+
       - name: Test browser controls and native keyboard with coverage
         run: |
           mkdir -p TestResults
@@ -106,6 +118,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml"
             -d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx"
             -d:sonar.javascript.lcov.reportPaths="TestResults/browser-zoom.lcov"
+            -d:sonar.python.coverage.reportPaths="TestResults/pages-coverage.xml"
             -d:sonar.coverage.inclusions="src/libraries/Highbyte.DotNet6502/**/*.*"
             -d:sonar.cpd.exclusions="tools/**"
             -d:sonar.coverage.exclusions="tools/**"

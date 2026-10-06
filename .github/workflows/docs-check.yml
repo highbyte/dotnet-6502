@@ -28,6 +28,8 @@ on:
       - '.github/workflows/docs-check.yml'
       - '.github/workflows/pages-publish.yml'
       - '.github/scripts/*pages*.py'
+      - '.github/scripts/pages.coveragerc'
+      - '.github/scripts/requirements-pages-tests.txt'
 
 jobs:
   build:
@@ -52,7 +54,7 @@ jobs:
           echo "Changed files:"
           echo "$changed"
 
-          if echo "$changed" | grep -qE '^(docs/|includes/|mkdocs\.yml|requirements-docs\.(in|txt)|\.pip-tools\.toml|\.github/workflows/(docs-check|pages-publish)\.yml|\.github/scripts/.*pages.*\.py)'; then
+          if echo "$changed" | grep -qE '^(docs/|includes/|mkdocs\.yml|requirements-docs\.(in|txt)|\.pip-tools\.toml|\.github/workflows/(docs-check|pages-publish)\.yml|\.github/scripts/(.*pages.*\.py|pages\.coveragerc|requirements-pages-tests\.txt))'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
