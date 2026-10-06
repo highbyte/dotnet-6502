@@ -134,6 +134,25 @@ The same flow runs automatically on pull requests (paths-filtered to WASM-releva
 
 The same workflow also runs `blazor-speed.spec.ts` against the published Blazor build: it starts the ROM-free Generic system, enables the in-app stats panel and records the host frame rate and emulator time per frame into the job summary and a `wasm-speed-readout` artifact. It is informational only (shared runners are noisy) and never fails the PR. The Avalonia Browser app has no headless stats channel yet, so it has no readout.
 
+## Publishing documentation and browser apps
+
+Run **Publish apps and docs to GitHub Pages** from GitHub Actions. Documentation always
+builds from `master`, so merge documentation changes before publishing them.
+
+**Publish apps** defaults to enabled. The `production`, `test`, and `all` targets keep
+controlling which apps are built. Release tags always publish production apps.
+
+For a documentation-only update, disable **Publish apps**. The workflow skips app
+checkouts, version changes, .NET setup, and app builds. It restores the exact app files
+from the latest successful Pages deployment, including any published test apps and
+other site files, and replaces only the documentation. The app target is ignored in
+this mode, and existing app versions are preserved.
+
+Pages artifacts are retained for 90 days. If the latest deployed artifact is missing,
+expired, or cannot be validated, documentation-only publishing stops without deploying.
+Run with **Publish apps** enabled to create a fresh baseline; it does not fall back to an
+older deployment. All Pages runs share the same deployment queue.
+
 ## Benchmarks
 
 `benchmarks/Highbyte.DotNet6502.Benchmarks/` is a [BenchmarkDotNet](https://benchmarkdotnet.org/) project covering the CPU hot path (`HotPathBenchmarks`), the integrated C64 instruction and frame loops with and without render/audio providers, and focused CIA, sprite, rasterizer and SID benchmarks. Recorded baselines and their history live in `benchmarks/Highbyte.DotNet6502.Benchmarks/RESULTS.md`.
