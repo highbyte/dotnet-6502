@@ -111,8 +111,8 @@ class DeploymentSelectionTests(unittest.TestCase):
                 "event": "workflow_dispatch", "status": "completed",
                 "conclusion": "success", "head_repository": {"full_name": self.repository},
             },
-            f"{self.prefix}/actions/runs/80/jobs?per_page=100": {
-                "jobs": [{"steps": [{"name": "Deploy to GitHub Pages", "conclusion": "success"}]}]
+            f"{self.prefix}/actions/jobs/800": {
+                "run_id": 80, "steps": [{"name": "Deploy to GitHub Pages", "conclusion": "success"}]
             },
             f"{self.prefix}/actions/runs/80/artifacts?per_page=100&page=1": {
                 "artifacts": [{"id": 8000, "name": "github-pages", "expired": False}]
@@ -173,7 +173,7 @@ class DeploymentSelectionTests(unittest.TestCase):
             self.assertFalse(site.exists())
 
     def test_unchanged_runs_do_not_replace_the_actual_deployed_baseline(self):
-        self.responses[f"{self.prefix}/actions/runs/80/jobs?per_page=100"]["jobs"][0]["steps"][0]["conclusion"] = "skipped"
+        self.responses[f"{self.prefix}/actions/jobs/800"]["steps"][0]["conclusion"] = "skipped"
         endpoint = f"{self.prefix}/deployments?environment=github-pages&per_page=100&page=1"
         self.responses[endpoint].append({"id": 7, "sha": "baseline"})
         self.responses[f"{self.prefix}/deployments/7/statuses?per_page=100"] = [{
@@ -182,8 +182,8 @@ class DeploymentSelectionTests(unittest.TestCase):
         self.responses[f"{self.prefix}/actions/runs/70"] = (
             self.responses[f"{self.prefix}/actions/runs/80"] | {"head_sha": "baseline"}
         )
-        self.responses[f"{self.prefix}/actions/runs/70/jobs?per_page=100"] = {
-            "jobs": [{"steps": [{"name": "Deploy to GitHub Pages", "conclusion": "success"}]}]
+        self.responses[f"{self.prefix}/actions/jobs/700"] = {
+            "run_id": 70, "steps": [{"name": "Deploy to GitHub Pages", "conclusion": "success"}]
         }
         self.responses[f"{self.prefix}/actions/runs/70/artifacts?per_page=100&page=1"] = {
             "artifacts": [{"id": 7000, "name": "github-pages", "expired": False}]
@@ -191,12 +191,32 @@ class DeploymentSelectionTests(unittest.TestCase):
         self.assertEqual(pages.latest_deployed_artifact(self.repository), (7000, 70))
 
     def test_ambiguous_or_failed_deploy_step_is_never_an_unchanged_run(self):
-        endpoint = f"{self.prefix}/actions/runs/80/jobs?per_page=100"
+        endpoint = f"{self.prefix}/actions/jobs/800"
         for steps in ([], [{"name": "Deploy to GitHub Pages", "conclusion": "failure"}]):
             with self.subTest(steps=steps):
-                self.responses[endpoint] = {"jobs": [{"steps": steps}]}
+                self.responses[endpoint] = {"run_id": 80, "steps": steps}
                 with self.assertRaises(ValueError):
                     pages.latest_deployed_artifact(self.repository)
+
+    def test_no_change_rerun_keeps_the_artifact_deployed_by_the_earlier_attempt(self):
+        # Same run ID, different job IDs: only the earlier attempt actually deployed.
+        endpoint = f"{self.prefix}/deployments?environment=github-pages&per_page=100&page=1"
+        self.responses[endpoint].append({"id": 7, "sha": "deployed"})
+        self.responses[f"{self.prefix}/deployments/8/statuses?per_page=100"][0]["log_url"] = (
+            "https://github.com/owner/repo/actions/runs/80/job/801"
+        )
+        self.responses[f"{self.prefix}/actions/jobs/801"] = {
+            "run_id": 80, "steps": [{"name": "Deploy to GitHub Pages", "conclusion": "skipped"}]
+        }
+        self.responses[f"{self.prefix}/deployments/7/statuses?per_page=100"] = [{
+            "state": "success", "log_url": "https://github.com/owner/repo/actions/runs/80/job/800"
+        }]
+        self.assertEqual(pages.latest_deployed_artifact(self.repository), (8000, 80))
+
+    def test_deployment_job_must_belong_to_the_recorded_run(self):
+        self.responses[f"{self.prefix}/actions/jobs/800"]["run_id"] = 70
+        with self.assertRaisesRegex(ValueError, "different workflow run"):
+            pages.latest_deployed_artifact(self.repository)
 
     def test_rejects_invalid_repository_before_any_api_call(self):
         for repository in ("owner/repo?other=1", "owner/repo/extra", "--hostname=example.com"):

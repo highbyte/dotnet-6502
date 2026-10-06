@@ -43,7 +43,7 @@ def deployed_run(repository, deployment):
         return None
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     match = re.fullmatch(
-        re.escape(f"{server}/{repository}/actions/runs/") + r"(\d+)/job/\d+",
+        re.escape(f"{server}/{repository}/actions/runs/") + r"(\d+)/job/(\d+)",
         success.get("log_url", ""),
     )
     if match is None:
@@ -59,9 +59,10 @@ def deployed_run(repository, deployment):
         or run["head_repository"]["full_name"] != repository
     ):
         raise ValueError("Latest deployment is not from a successful Pages publish run")
-    jobs = github_json(f"{prefix}/actions/runs/{run_id}/jobs?per_page=100")["jobs"]
-    steps = [step for job in jobs for step in job["steps"]
-             if step["name"] == "Deploy to GitHub Pages"]
+    job = github_json(f"{prefix}/actions/jobs/{int(match[2])}")
+    if job["run_id"] != run_id:
+        raise ValueError("Deployment job belongs to a different workflow run")
+    steps = [step for step in job["steps"] if step["name"] == "Deploy to GitHub Pages"]
     if len(steps) != 1:
         raise ValueError("Cannot verify the Pages deployment step")
     if steps[0]["conclusion"] == "skipped":

@@ -146,8 +146,9 @@ and the selected production version. Documentation inputs are `docs/`, `includes
 MkDocs configuration, and documentation dependencies. Changes to the Pages workflow or
 its helper rebuild both sections.
 
-Only changed sections are rebuilt; every other published file is retained byte-for-byte,
-including unselected test apps. A docs-only update preserves existing app versions. An
+Only changed sections are rebuilt. Unchanged app and documentation files are retained
+byte-for-byte, including unselected test apps. Recorded source commits are updated only
+for sections actually rebuilt. A docs-only update preserves existing app versions. An
 apps-only update preserves the published docs. If neither section changed, deployment
 is skipped. Successful runs that skipped deployment are not used as the published baseline.
 The first deployment, or a site without recorded source commits, rebuilds both sections.
