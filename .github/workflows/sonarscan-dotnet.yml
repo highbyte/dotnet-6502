@@ -119,6 +119,7 @@ jobs:
             -d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx"
             -d:sonar.javascript.lcov.reportPaths="TestResults/browser-zoom.lcov"
             -d:sonar.python.coverage.reportPaths="TestResults/pages-coverage.xml"
+            -d:sonar.test.inclusions="tests/**,.github/scripts/test_*pages*.py"
             -d:sonar.coverage.inclusions="src/libraries/Highbyte.DotNet6502/**/*.*"
             -d:sonar.cpd.exclusions="tools/**"
             -d:sonar.coverage.exclusions="tools/**"

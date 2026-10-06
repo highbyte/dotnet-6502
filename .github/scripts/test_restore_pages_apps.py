@@ -96,6 +96,7 @@ class DeploymentSelectionTests(unittest.TestCase):
         self.repository = "owner/repo"
         self.prefix = "repos/owner/repo"
         self.responses = {
+            self.prefix: {"id": 123},
             f"{self.prefix}/deployments?environment=github-pages&per_page=100&page=1": [
                 {"id": 9, "sha": "failed"},
                 {"id": 8, "sha": "deployed"},
@@ -165,9 +166,10 @@ class DeploymentSelectionTests(unittest.TestCase):
 
     def test_rejects_invalid_repository_before_any_api_call(self):
         for repository in ("owner/repo?other=1", "owner/repo/extra", "--hostname=example.com"):
-            with self.subTest(repository=repository):
-                with self.assertRaisesRegex(ValueError, "Invalid GitHub repository"):
-                    pages.latest_deployed_artifact(repository)
+            with self.subTest(repository=repository), self.assertRaisesRegex(
+                ValueError, "Invalid GitHub repository"
+            ):
+                pages.latest_deployed_artifact(repository)
         self.github.assert_not_called()
 
     def test_reads_next_artifact_page_and_rejects_duplicates(self):
@@ -210,7 +212,7 @@ class DeploymentSelectionTests(unittest.TestCase):
                 self.assertFalse((site / "docs").exists())
                 self.assertIn("workflow run 80", output.getvalue())
                 self.assertEqual(command.call_args.args[0], [
-                    "gh", "api", "--", "repos/owner/repo/actions/artifacts/8000/zip"
+                    "gh", "api", "--", "repositories/123/actions/artifacts/8000/zip"
                 ])
 
     def test_cli_rejects_unexpected_zip_contents_before_staging(self):

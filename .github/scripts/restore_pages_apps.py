@@ -126,11 +126,13 @@ def main():
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository or ""):
         parser.error("--repository or GITHUB_REPOSITORY must be an owner/repository name")
     artifact_id, run_id = latest_deployed_artifact(repository)
+    # The download command uses only numeric IDs returned by GitHub.
+    repository_id = int(github_json(f"repos/{repository}")["id"])
     with tempfile.TemporaryDirectory() as temporary:
         downloaded = Path(temporary) / "pages.zip"
         with downloaded.open("wb") as output:
             subprocess.run(
-                ["gh", "api", "--", f"repos/{repository}/actions/artifacts/{artifact_id}/zip"],
+                ["gh", "api", "--", f"repositories/{repository_id}/actions/artifacts/{artifact_id}/zip"],
                 stdout=output, check=True,
             )
         archive_path = Path(temporary) / ARCHIVE_NAME
