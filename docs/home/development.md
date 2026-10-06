@@ -136,22 +136,32 @@ The same workflow also runs `blazor-speed.spec.ts` against the published Blazor 
 
 ## Publishing documentation and browser apps
 
-Run **Publish apps and docs to GitHub Pages** from GitHub Actions. Documentation always
-builds from `master`, so merge documentation changes before publishing them.
+Run **Publish apps and docs to GitHub Pages** from GitHub Actions. Documentation uses
+`master`, so merge documentation changes before publishing them. The `production`,
+`test`, and `all` targets control which app paths can be rebuilt.
 
-**Publish apps** defaults to enabled. The `production`, `test`, and `all` targets keep
-controlling which apps are built. Release tags always publish production apps.
+Publishing automatically compares inputs with the source commits recorded in the last
+successfully deployed site. App inputs are `src/`, root dependency/build configuration,
+and the selected production version. Documentation inputs are `docs/`, `includes/`,
+MkDocs configuration, and documentation dependencies. Changes to the Pages workflow or
+its helper rebuild both sections.
 
-For a documentation-only update, disable **Publish apps**. The workflow skips app
-checkouts, version changes, .NET setup, and app builds. It restores the exact app files
-from the latest successful Pages deployment, including any published test apps and
-other site files, and replaces only the documentation. The app target is ignored in
-this mode, and existing app versions are preserved.
+Only changed sections are rebuilt; every other published file is retained byte-for-byte,
+including unselected test apps. A docs-only update preserves existing app versions. An
+apps-only update preserves the published docs. If neither section changed, deployment
+is skipped. Successful runs that skipped deployment are not used as the published baseline.
+The first deployment, or a site without recorded source commits, rebuilds both sections.
+Release-tag runs always rebuild production apps with the tag's version.
+
+**Force publish** defaults to disabled. Enable it to rebuild apps and docs regardless of
+change detection, without needing the previous deployed artifact or its recorded commits.
+A forced `production` run publishes production apps and docs; choose `all` to include
+test app paths as well.
 
 Pages artifacts are retained for 90 days. If the latest deployed artifact is missing,
-expired, or cannot be validated, documentation-only publishing stops without deploying.
-Run with **Publish apps** enabled to create a fresh baseline; it does not fall back to an
-older deployment. All Pages runs share the same deployment queue.
+expired, or cannot be validated, automatic publishing stops without deploying. Use
+**Force publish** to create a fresh baseline. The workflow never substitutes an older
+deployed artifact. All Pages runs share the same deployment queue.
 
 ## Benchmarks
 
