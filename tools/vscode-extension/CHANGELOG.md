@@ -3,6 +3,7 @@
 All notable changes to the **6502 Debugger for dotnet-6502** VSCode extension will be documented here.
 
 ## [Unreleased]
+Bump Node module dependencies to fix security advisories.
 
 ## [0.4.0] - 2026-09-28
 Show the emulated system's own values next to the CPU registers: on a C64 the VIC-II raster position (`RASTER`, `CYCLE`, `FRAMECYCLE`, `FRAME`) in a Variables scope, on hover and in breakpoint conditions. New Debug Console commands `run until <condition>` and, on a C64, `run raster <line> [cycle]` continue execution to a condition or raster position regardless of address.
