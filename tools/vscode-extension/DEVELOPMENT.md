@@ -48,7 +48,7 @@ code --uninstall-extension highbyte.dotnet-6502-debugger
 
 Use this approach if you want to develop or debug the extension itself.
 
-1. **Install [Node.js](https://nodejs.org/)** v20 or later.
+1. **Install [Node.js](https://nodejs.org/)** v22 or later (required by the extension packaging dependencies).
 
 2. **Install extension dependencies** (first time only):
    ```sh
