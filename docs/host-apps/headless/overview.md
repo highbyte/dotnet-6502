@@ -9,10 +9,13 @@ Technologies:
 - Input: none (null input handler).
 - Audio: none (null audio handler).
 - Scripting: Lua via [MoonSharp](https://www.moonsharp.org/).
+- Screenshots: CPU-based PNG and JPEG encoding via SkiaSharp; no display or GPU is required.
 
 ## Installation
 
 See [Desktop apps installation](../installation.md#install-via-package-manager) for package manager and manual download instructions.
+
+For manual installations, keep the included native Skia library beside the executable: `libSkiaSharp.dll` on Windows, `libSkiaSharp.so` on Linux, or `libSkiaSharp.dylib` on macOS. It is required for screenshot encoding. Homebrew and Scoop retain these files automatically.
 
 ## Features
 

@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.DebugAdapter;
@@ -1014,7 +1015,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         var renderTarget = GetRenderTarget<AvaloniaBitmapTwoLayerRenderTarget>();
         if (renderTarget == null) return null;
         using var ms = new MemoryStream();
-        renderTarget.Bitmap.Save(ms);
+        renderTarget.Bitmap.Save(ms, PngBitmapEncoderOptions.Default);
         return ms.ToArray();
     }
 }

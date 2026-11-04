@@ -28,8 +28,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging.Abstractions;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace Highbyte.DotNet6502.ViceTestprogs;
 
@@ -186,19 +185,18 @@ public static class Program
             return result;
         }
 
-        using var referenceImage = Image.Load<Rgba32>(referencePath);
+        using var referenceImage = LoadPng(referencePath);
         var refWidth = referenceImage.Width;
         var refHeight = referenceImage.Height;
         var refPixels = new uint[refWidth * refHeight];
-        referenceImage.ProcessPixelRows(accessor =>
+        for (var y = 0; y < refHeight; y++)
         {
-            for (var y = 0; y < accessor.Height; y++)
+            for (var x = 0; x < refWidth; x++)
             {
-                var row = accessor.GetRowSpan(y);
-                for (var x = 0; x < row.Length; x++)
-                    refPixels[y * refWidth + x] = (uint)(row[x].R << 16 | row[x].G << 8 | row[x].B);
+                var pixel = referenceImage.GetPixel(x, y);
+                refPixels[y * refWidth + x] = (uint)(pixel.Red << 16 | pixel.Green << 8 | pixel.Blue);
             }
-        });
+        }
         var reference = ToIndices(refPixels, refWidth, refHeight, PeptoPalette, exact: false);
         var viceWindow = ViceDisplayWindow[model];
 
@@ -237,26 +235,27 @@ public static class Program
         result.Judge(pictureMatches: mismatches == 0);
 
         // Side by side: reference, ours (cropped to the reference geometry), difference mask.
-        var triptych = new Image<Rgba32>(refWidth * 3 + 8, refHeight);
+        using var triptych = new SKBitmap(new SKImageInfo(refWidth * 3 + 8, refHeight, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        triptych.Erase(new SKColor(0, 0, 0, 0));
         for (var ry = 0; ry < refHeight; ry++)
         {
             for (var rx = 0; rx < refWidth; rx++)
             {
                 var i = ry * refWidth + rx;
-                triptych[rx, ry] = ToRgba(reference[i], PeptoPalette);
+                triptych.SetPixel(rx, ry, ToColor(reference[i], PeptoPalette));
                 var ox = rx - viceWindow.Left + ourWindow.X;
                 var oy = ry - viceWindow.Top + ourWindow.Y;
                 var oursIndex = ox < 0 || oy < 0 || ox >= frameWidth || oy >= frameHeight ? UnknownColour : ours[oy * frameWidth + ox];
-                triptych[refWidth + 4 + rx, ry] = ToRgba(oursIndex, PeptoPalette);
-                triptych[2 * refWidth + 8 + rx, ry] = diff[i] switch
+                triptych.SetPixel(refWidth + 4 + rx, ry, ToColor(oursIndex, PeptoPalette));
+                triptych.SetPixel(2 * refWidth + 8 + rx, ry, diff[i] switch
                 {
-                    1 => new Rgba32(255, 0, 0),
-                    0 => new Rgba32(0, 0, 0),
-                    _ => new Rgba32(40, 40, 40),
-                };
+                    1 => new SKColor(255, 0, 0),
+                    0 => new SKColor(0, 0, 0),
+                    _ => new SKColor(40, 40, 40),
+                });
             }
         }
-        triptych.SaveAsPng(Path.Combine(suiteOut, name + ".png"));
+        SavePng(triptych, Path.Combine(suiteOut, name + ".png"));
         return result;
     }
 
@@ -265,10 +264,15 @@ public static class Program
     // background colour (index 6) give the window's top-left and its size.
     private static void MeasureReference(string path)
     {
-        using var image = Image.Load<Rgba32>(path);
+        using var image = LoadPng(path);
         var w = image.Width; var h = image.Height;
         var pixels = new uint[w * h];
-        image.ProcessPixelRows(a => { for (var y = 0; y < a.Height; y++) { var row = a.GetRowSpan(y); for (var x = 0; x < row.Length; x++) pixels[y * w + x] = (uint)(row[x].R << 16 | row[x].G << 8 | row[x].B); } });
+        for (var y = 0; y < h; y++)
+            for (var x = 0; x < w; x++)
+            {
+                var pixel = image.GetPixel(x, y);
+                pixels[y * w + x] = (uint)(pixel.Red << 16 | pixel.Green << 8 | pixel.Blue);
+            }
         var idx = ToIndices(pixels, w, h, PeptoPalette, exact: false);
         int minX = w, minY = h, maxX = -1, maxY = -1;
         for (var y = 0; y < h; y++)
@@ -515,16 +519,31 @@ public static class Program
         return exact && bestDistance != 0 ? UnknownColour : best;
     }
 
-    private static Rgba32 ToRgba(int index, (byte R, byte G, byte B)[] palette)
-        => index < 0 ? new Rgba32(255, 0, 255) : new Rgba32(palette[index].R, palette[index].G, palette[index].B);
+    private static SKColor ToColor(int index, (byte R, byte G, byte B)[] palette)
+        => index < 0 ? new SKColor(255, 0, 255) : new SKColor(palette[index].R, palette[index].G, palette[index].B);
+
+    private static SKBitmap LoadPng(string path)
+    {
+        using var codec = SKCodec.Create(path) ?? throw new InvalidDataException($"Cannot decode image: {path}");
+        var info = new SKImageInfo(codec.Info.Width, codec.Info.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+        return SKBitmap.Decode(codec, info) ?? throw new InvalidDataException($"Cannot decode image: {path}");
+    }
+
+    private static void SavePng(SKBitmap image, string path)
+    {
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100)
+            ?? throw new InvalidOperationException("Cannot encode PNG image.");
+        using var output = File.Create(path);
+        encoded.SaveTo(output);
+    }
 
     private static void SaveIndexed(int[] indices, int width, int height, (byte R, byte G, byte B)[] palette, string path)
     {
-        using var image = new Image<Rgba32>(width, height);
+        using var image = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul));
         for (var y = 0; y < height; y++)
             for (var x = 0; x < width; x++)
-                image[x, y] = ToRgba(indices[y * width + x], palette);
-        image.SaveAsPng(path);
+                image.SetPixel(x, y, ToColor(indices[y * width + x], palette));
+        SavePng(image, path);
     }
 
     private static void WriteSummary(List<TestResult> results, string path)
