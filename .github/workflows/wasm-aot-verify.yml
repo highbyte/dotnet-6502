@@ -22,7 +22,8 @@ concurrency:
 jobs:
   smoke:
     name: CI / WASM AOT / ${{ matrix.app.name }}
-    runs-on: ubuntu-latest
+    # Keep the runner on an OS supported by the locked Playwright release.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -38,7 +39,7 @@ jobs:
             needs_version_placeholder_replace: true
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           # Needed to diff against the PR base.
           fetch-depth: 0
@@ -67,7 +68,7 @@ jobs:
 
       - name: Setup .NET
         if: steps.changes.outputs.relevant == 'true'
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: 10.0.x
 
@@ -101,7 +102,7 @@ jobs:
 
       - name: Setup Node
         if: steps.changes.outputs.relevant == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
 
@@ -142,7 +143,7 @@ jobs:
 
       - name: Upload speed readout
         if: steps.changes.outputs.relevant == 'true' && matrix.app.name == 'blazor'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wasm-speed-readout-${{ github.run_number }}
           path: |
@@ -153,7 +154,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: failure() && steps.changes.outputs.relevant == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-report-${{ matrix.app.name }}
           path: tests/wasm-smoke/playwright-report

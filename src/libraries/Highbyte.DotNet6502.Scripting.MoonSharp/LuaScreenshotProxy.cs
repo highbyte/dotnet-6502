@@ -1,9 +1,7 @@
 using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 
@@ -69,17 +67,15 @@ internal class LuaScreenshotProxy
             Directory.CreateDirectory(dir);
 
         // FlattenRgba32 output layout: [B, G, R, A] per pixel (BGRA32)
-        using var image = Image.LoadPixelData<Bgra32>(dst, width, height);
+        // Preserve the existing stored RGB values even for partially transparent pixels.
+        using var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        Marshal.Copy(dst, 0, bitmap.GetPixels(), dst.Length);
 
         var ext = Path.GetExtension(filename).ToLowerInvariant();
-        if (ext is ".jpg" or ".jpeg")
-        {
-            var encoder = new JpegEncoder { Quality = Math.Clamp(jpegQuality, 1, 100) };
-            image.SaveAsJpeg(safePath, encoder);
-        }
-        else
-        {
-            image.SaveAsPng(safePath);
-        }
+        var format = ext is ".jpg" or ".jpeg" ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png;
+        using var encoded = bitmap.Encode(format, Math.Clamp(jpegQuality, 1, 100))
+            ?? throw new InvalidOperationException("emu.screenshot(): could not encode the image.");
+        using var output = File.Create(safePath);
+        encoded.SaveTo(output);
     }
 }

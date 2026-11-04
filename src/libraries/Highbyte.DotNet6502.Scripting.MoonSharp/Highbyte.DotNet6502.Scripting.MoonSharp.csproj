@@ -12,7 +12,11 @@
     <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Oric\Highbyte.DotNet6502.Systems.Oric.csproj" />
     <PackageReference Include="MoonSharp" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="SixLabors.ImageSharp" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Highbyte.DotNet6502.Systems.Tests" />
   </ItemGroup>
 
 </Project>

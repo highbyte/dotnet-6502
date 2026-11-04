@@ -1,0 +1,13 @@
+<Project>
+  <!-- SkiaSharp 4 packages its Windows PDB as a native runtime asset, so the SDK's
+       normal debug-symbol settings do not exclude it. Honor the publish scripts'
+       existing DebugSymbols=false option without removing the native library. -->
+  <Target Name="ExcludeSkiaSharpNativeSymbolsFromPublish"
+          AfterTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(DebugSymbols)' == 'false'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(ResolvedFileToPublish.Filename)' == 'libSkiaSharp' and '%(ResolvedFileToPublish.Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+</Project>

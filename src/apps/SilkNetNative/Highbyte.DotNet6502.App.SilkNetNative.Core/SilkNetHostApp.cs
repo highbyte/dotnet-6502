@@ -1090,7 +1090,7 @@ public class SilkNetHostApp : HostApp
         var skiaGlCanvasProvider = GetSkiaGlCanvasProviderOrThrow();
         var canvas = skiaGlCanvasProvider.Canvas;
         canvas.Clear();
-        canvas.DrawImage(GetLogoImageOrThrow(), _logoImageDest);
+        canvas.DrawImage(GetLogoImageOrThrow(), _logoImageDest, SKSamplingOptions.Default);
 
         // Flush the SkiaSharp Context.
         skiaGlCanvasProvider.GRContext.Flush();

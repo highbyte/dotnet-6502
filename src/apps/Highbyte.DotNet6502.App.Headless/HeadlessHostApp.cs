@@ -7,8 +7,7 @@ using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Timing;
 using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace Highbyte.DotNet6502.App.Headless;
 
@@ -227,7 +226,7 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
     // IRemotableHostApp — screenshot capture.
     // Headless has no bitmap render target, so composite the current frame's layers directly
     // (same technique as LuaScreenshotProxy's emu.screenshot(), duplicated here to avoid pulling
-    // an ImageSharp dependency into the shared Systems library).
+    // an image-encoding dependency into the shared Systems library).
     public byte[]? CaptureScreenshotPng()
     {
         var layerProvider = CurrentSystemRunner?.System.RenderProvider as IVideoFrameLayerProvider;
@@ -253,9 +252,12 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
         SoftwareLayerCompositor.FlattenRgba32(dst, dstStride, size, layers, byteSrcs);
 
         // FlattenRgba32 output layout: [B, G, R, A] per pixel (BGRA32)
-        using var image = Image.LoadPixelData<Bgra32>(dst, width, height);
-        using var ms = new MemoryStream();
-        image.SaveAsPng(ms);
-        return ms.ToArray();
+        // Match the previous encoder's interpretation of these bytes; do not let Skia
+        // unpremultiply the compositor's RGB values when writing the PNG.
+        using var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        Marshal.Copy(dst, 0, bitmap.GetPixels(), dst.Length);
+        using var encoded = bitmap.Encode(SKEncodedImageFormat.Png, 100)
+            ?? throw new InvalidOperationException("Could not encode the screenshot as PNG.");
+        return encoded.ToArray();
     }
 }
