@@ -26,18 +26,30 @@ public sealed class SnapshotModuleReader
     public byte[]? ReadBytes()
     {
         int length = _reader.ReadInt32();
-        if (length < 0)
+        if (length == -1)
             return null;
-        return _reader.ReadBytes(length);
+        return ReadExactPayload(length);
     }
 
     /// <summary>Reads a length-prefixed UTF-8 string, or null if the stored length was -1.</summary>
     public string? ReadString()
     {
         int length = _reader.ReadInt32();
-        if (length < 0)
+        if (length == -1)
             return null;
-        var bytes = _reader.ReadBytes(length);
+        var bytes = ReadExactPayload(length);
         return Encoding.UTF8.GetString(bytes);
+    }
+
+    private byte[] ReadExactPayload(int length)
+    {
+        var stream = _reader.BaseStream;
+        if (length < 0 || length > 64 * 1024 * 1024
+            || (stream.CanSeek && length > stream.Length - stream.Position))
+            throw new SnapshotException("Snapshot module contains an invalid or excessive payload length.");
+        var bytes = _reader.ReadBytes(length);
+        if (bytes.Length != length)
+            throw new SnapshotException("Snapshot module payload is truncated.");
+        return bytes;
     }
 }

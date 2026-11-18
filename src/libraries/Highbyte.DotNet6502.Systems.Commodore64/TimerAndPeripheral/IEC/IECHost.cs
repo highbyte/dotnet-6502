@@ -1,5 +1,5 @@
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
-public class IECHost
+public partial class IECHost
 {
     private IECBus? _iecBus;
 

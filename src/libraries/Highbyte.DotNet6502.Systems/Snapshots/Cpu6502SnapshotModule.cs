@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Systems.Snapshots;
 /// machines pair with system-specific RAM/ROM/I-O wiring.
 ///
 /// <para>
-/// Capture (v3): CPU model id, then the v1 payload: PC, SP, A, X, Y, processor-status byte,
+/// Capture (v4): CPU model id, then the v1 payload: PC, SP, A, X, Y, processor-status byte,
 /// compatibility profile, halted flag, <see cref="ExecState"/> totals, and
 /// <see cref="CPUInterrupts"/> (pending-NMI flag plus active IRQ/NMI sources) — followed by
 /// the model-state payload (v3: e.g. the 6510's port registers, serialized by
@@ -15,8 +15,8 @@ namespace Highbyte.DotNet6502.Systems.Snapshots;
 /// registers, flags, interrupt sources and the <see cref="ExecState"/> totals through the
 /// CPU's public API. A CPU MODEL mismatch is a hard error (the saved execution state of one
 /// chip is not meaningful on another) and is checked first, before any state is applied;
-/// a compatibility-PROFILE mismatch stays a warning. The halted flag is captured for
-/// diagnostics only. v1 payloads (no model id) restore as nmos6502 — the only model that
+/// a compatibility-PROFILE mismatch stays a warning. v4 also restores bus-cycle timing,
+/// interrupt polling/edge timestamps, and halted state. v1 payloads (no model id) restore as nmos6502 — the only model that
 /// existed when v1 was written; v2 payloads have no model state here (a 6510 port captured
 /// by v2-era code lives in the machine's own module).
 /// </para>
@@ -36,7 +36,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
     public const string ModuleName = "cpu-6502";
 
     public string Name => ModuleName;
-    public int Version => 3;
+    public int Version => 4;
     public bool Required => true;
 
     /// <summary>
@@ -62,12 +62,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         // v2: model id first, so restore can reject a model mismatch before applying anything.
         writer.WriteString(cpu.CpuModelId);
 
-        writer.WriteUInt16(cpu.PC);
-        writer.WriteByte(cpu.SP);
-        writer.WriteByte(cpu.A);
-        writer.WriteByte(cpu.X);
-        writer.WriteByte(cpu.Y);
-        writer.WriteByte(cpu.ProcessorStatus.Value);
+        WriteRegisters(writer, cpu);
 
         writer.WriteInt32((int)cpu.CompatibilityProfile);
         writer.WriteBool(cpu.IsHalted);
@@ -100,6 +95,30 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         // 6510's port registers). Null for models without state. CHIP state only — board
         // wiring is re-established by the target machine.
         writer.WriteBytes(cpu.ModelState?.SerializeState());
+        WriteBoundaryTiming(writer, cpu);
+    }
+
+    private static void WriteRegisters(SnapshotModuleWriter writer, CPU cpu)
+    {
+        writer.WriteUInt16(cpu.PC);
+        writer.WriteByte(cpu.SP);
+        writer.WriteByte(cpu.A);
+        writer.WriteByte(cpu.X);
+        writer.WriteByte(cpu.Y);
+        writer.WriteByte(cpu.ProcessorStatus.Value);
+    }
+
+    private static void WriteBoundaryTiming(SnapshotModuleWriter writer, CPU cpu)
+    {
+        var timing = cpu.CaptureExecutionBoundaryState();
+        writer.WriteUInt64(timing.BusCycles);
+        writer.WriteUInt64(timing.InterruptPollBusCycle);
+        writer.WriteBool(timing.InterruptDisableAtPoll.HasValue);
+        writer.WriteBool(timing.InterruptDisableAtPoll ?? false);
+        writer.WriteBool(timing.HijackableEntryPending);
+        writer.WriteUInt64(timing.IrqAssertedAt);
+        writer.WriteUInt64(timing.IrqReleasedAt);
+        writer.WriteUInt64(timing.NmiPendingAt);
     }
 
     public void Restore(SnapshotModuleReader reader, SnapshotRestoreContext context)
@@ -144,10 +163,20 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
 
         RestoreInterrupts(reader, cpu);
 
-        if (capturedHalted && !cpu.IsHalted)
+        if (storedVersion < 4 && capturedHalted && !cpu.IsHalted)
             context.AddWarning("cpu-6502: snapshot CPU was halted; halted state cannot be restored and was ignored.");
 
         RestoreModelState(reader, cpu, storedVersion, capturedModelId, context);
+        if (storedVersion >= 4)
+        {
+            var busCycles = reader.ReadUInt64();
+            var poll = reader.ReadUInt64();
+            var hasDisable = reader.ReadBool();
+            var disable = reader.ReadBool();
+            var hijackable = reader.ReadBool();
+            cpu.RestoreExecutionBoundaryState(new(busCycles, poll, hasDisable ? disable : null,
+                hijackable, capturedHalted, reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64()));
+        }
     }
 
     /// <summary>
@@ -205,9 +234,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
             interrupts.SetNMISourceActive(source); // sets NMIPending = true as a side effect
         }
 
-        // SetNMISourceActive latches NMIPending whenever a new source is added. Reconcile with
-        // the captured pending flag (a real edge may have been serviced after the source was set).
-        if (!capturedNmiPending)
-            interrupts.ClearPendingNMI();
+        // A pulse may already have ended even though its edge still awaits service.
+        interrupts.RestorePendingNmi(capturedNmiPending);
     }
 }

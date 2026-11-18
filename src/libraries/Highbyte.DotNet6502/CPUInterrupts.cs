@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502;
 /// NMI until it has been cleared and asserted again.</item>
 /// </list>
 /// </summary>
-public sealed class CPUInterrupts
+public sealed partial class CPUInterrupts
 {
     /// <summary>Maximum number of distinct sources one CPU can register (one bit each).</summary>
     public const int MaxSources = 64;

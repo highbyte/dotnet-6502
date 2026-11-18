@@ -17,7 +17,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// The VIC 2 sees 16K of memory space, with different parts of CPU memory and ROM mapped at different locations.
 ///
 /// </summary>
-public class Vic2
+public partial class Vic2
 {
     public C64 C64 { get; private set; } = default!;
     private Vic2ModelBase _vic2Model = default!;
@@ -2056,36 +2056,6 @@ public class Vic2
         if ((_spriteEnableCache & ~SpriteDmaMask) == 0)
             return 0;
         return (byte)(SpriteYMatchMask(line) & ~SpriteDmaMask);
-    }
-
-    // --- Snapshot support (consumed by the c64-vic2 snapshot module in the same assembly) ---
-
-    /// <summary>
-    /// Restores the live raster position saved in a snapshot: how far into the current frame the
-    /// machine was. Without it a restored machine resumes at the top of a frame regardless of where
-    /// it was interrupted, which moves every raster interrupt relative to the game's timing for the
-    /// first frame — visible as a split-screen effect tearing on the frame after a load.
-    ///
-    /// <para>Only the cycle count is stored; the raster line is re-derived from it using the same
-    /// expression <see cref="AdvanceRaster"/> uses, so the pair cannot be restored inconsistent with
-    /// each other. The per-line side effects (raster IRQ, CIA timer stepping) are deliberately not
-    /// replayed — they already ran on the machine that was captured.</para>
-    /// </summary>
-    internal void RestoreSnapshotRasterPosition(ulong cyclesConsumedCurrentVblank)
-    {
-        CyclesConsumedCurrentVblank = cyclesConsumedCurrentVblank < Vic2Model.CyclesPerFrame
-            ? cyclesConsumedCurrentVblank
-            : 0;
-
-        var line = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
-        _currentRasterLineInternal = (ushort)Math.Clamp(line, 0, Vic2Model.TotalHeight - 1);
-        var offset = (int)(CyclesConsumedCurrentVblank % Vic2Model.CyclesPerLine);
-        _spriteEventIndex = 0;
-        while (_spriteEventIndex < SpriteEventOffsets.Length && SpriteEventOffsets[_spriteEventIndex] <= offset)
-            _spriteEventIndex++;
-        _nextSpriteEventOffset = _spriteEventIndex < SpriteEventOffsets.Length ? SpriteEventOffsets[_spriteEventIndex] : int.MaxValue;
-        RefreshSpriteRegisterCache();
-        ResyncToBusCycle();
     }
 
     // Compare the raster counter with the raster compare value, as the chip does in every cycle;

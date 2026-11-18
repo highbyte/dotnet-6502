@@ -19,8 +19,7 @@ public sealed class C64CiaSnapshotModule : ISnapshotModule
 {
     public const string ModuleName = "c64-cia";
 
-    // Interrupt sources whose enable/condition flags are persisted (the meaningful CIA sources;
-    // IRQSource.Any is a derived latch, recomputed by the CIA, so it is not persisted).
+    // The original v1 prefix. v2 appends the interrupt latch and timer pipelines.
     private static readonly IRQSource[] s_irqSources =
     {
         IRQSource.TimerA,
@@ -31,7 +30,7 @@ public sealed class C64CiaSnapshotModule : ISnapshotModule
     };
 
     public string Name => ModuleName;
-    public int Version => 1;
+    public int Version => 3;
     public bool Required => true;
 
     public void Capture(SnapshotModuleWriter writer, SnapshotCaptureContext context)
@@ -46,6 +45,9 @@ public sealed class C64CiaSnapshotModule : ISnapshotModule
         writer.WriteByte(portB);
         writer.WriteByte(ddra);
         writer.WriteByte(ddrb);
+        c64.Cia1.CaptureExecutionState(writer);
+        c64.Cia2.CaptureExecutionState(writer);
+        c64.IECBus.CaptureHostState(writer);
     }
 
     public void Restore(SnapshotModuleReader reader, SnapshotRestoreContext context)
@@ -61,6 +63,14 @@ public sealed class C64CiaSnapshotModule : ISnapshotModule
         var ddra = reader.ReadByte();
         var ddrb = reader.ReadByte();
         c64.Cia1.RestoreSnapshotPortState(portA, portB, ddra, ddrb);
+        var version = context.Manifest.Modules.First(m => m.Name == ModuleName).Version;
+        if (version >= 2)
+        {
+            c64.Cia1.RestoreExecutionState(reader);
+            c64.Cia2.RestoreExecutionState(reader);
+        }
+        if (version >= 3)
+            c64.IECBus.RestoreHostState(reader);
     }
 
     private static void CaptureCia(SnapshotModuleWriter writer, CiaBase cia)

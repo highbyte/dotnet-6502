@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// <summary>
 /// Manager for all VIC-II sprites.
 /// </summary>
-public class Vic2SpriteManager : IVic2SpriteManager
+public partial class Vic2SpriteManager : IVic2SpriteManager
 {
     public Vic2 Vic2 { get; private set; }
 

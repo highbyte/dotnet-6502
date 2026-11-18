@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 /// Internal storage of SID register values. The memory locations they are mapped are mostly write only, 
 /// so this class will contain the current state for the SID registers internally for use in audio playback. 
 /// </summary>
-public class InternalSidState
+public partial class InternalSidState
 {
     private HashSet<ushort> _changedSidRegisters = new();
 
@@ -33,10 +33,8 @@ public class InternalSidState
     }
 
     /// <summary>
-    /// Lazy getter for voice 3 waveform-output ($D41B). Set by the active audio provider during
-    /// its Init; invoked on each memory read so the value reflects live SID state and unread
-    /// registers cost nothing. Null when no audio provider supplies a value (e.g. the
-    /// command-stream path) — reads then return 0.
+    /// Machine-visible voice 3 waveform ($D41B), evaluated at the bus cycle of the read.
+    /// Fast SID mode leaves the getter unset and returns zero.
     /// </summary>
     public Func<byte>? Osc3ReadbackProvider { get; set; }
 
@@ -251,20 +249,6 @@ public class InternalSidState
     }
 
     public bool IsRawSidRegChanged(ushort address) => _changedSidRegisters.Contains(address);
-
-    /// <summary>
-    /// Marks all writable SID registers ($D400-$D418) as changed. Used by the snapshot c64-sid
-    /// module on restore: the register <em>values</em> are restored via the IO storage, but the
-    /// audio providers are edge-triggered on register changes (see <see cref="IsAudioChanged"/> and
-    /// <see cref="GetGateControl"/>). Flagging them changed makes the provider re-evaluate the
-    /// restored state on its next update and restart any voices whose gate was already on at
-    /// snapshot time (at the cost of a short attack transient).
-    /// </summary>
-    public void MarkAllRegistersChangedForSnapshotRestore()
-    {
-        for (ushort address = SidAddr.FRELO1; address <= SidAddr.SIGVOL; address++)
-            _changedSidRegisters.Add(address);
-    }
 
     public void SetSidRegValue(ushort address, byte value)
     {

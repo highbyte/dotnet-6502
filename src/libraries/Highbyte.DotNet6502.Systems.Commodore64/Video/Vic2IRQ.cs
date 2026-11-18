@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// representation as the CPU's <see cref="CPUInterrupts"/>. The IRQ line is driven while an
 /// enabled source is latched; each source is a separate, manually released line at the CPU.
 /// </summary>
-public class Vic2IRQ
+public partial class Vic2IRQ
 {
     // Indexed by IRQSource enum value, which is the corresponding bit position in the VIC-II interrupt register.
     // Bits 4, 5 and 6 are unused in the VIC-II register, so those entries are intentionally empty and should never be used.
@@ -71,22 +71,6 @@ public class Vic2IRQ
     {
         _enabledMask &= (byte)~Bit(source);
         cpu.CPUInterrupts.SetIRQInactive(Handle(source, cpu.CPUInterrupts), cpu.BusCycles);
-    }
-
-    // --- Snapshot support ---
-    // Sets the enable/trigger flags directly without touching the CPU interrupt line. The CPU's
-    // IRQ source state is restored separately by the cpu-6502 snapshot module, so re-raising it
-    // here (as Enable/Trigger would) is unnecessary and would risk double-restoring it.
-    internal void RestoreSnapshotState(IRQSource source, bool enabled, bool triggered)
-    {
-        if (enabled)
-            _enabledMask |= Bit(source);
-        else
-            _enabledMask &= (byte)~Bit(source);
-        if (triggered)
-            _latchedMask |= Bit(source);
-        else
-            _latchedMask &= (byte)~Bit(source);
     }
 
     /// <summary>

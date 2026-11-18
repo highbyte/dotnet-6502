@@ -22,8 +22,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
 /// The live raster position is restored too, so a machine captured mid-frame resumes mid-frame:
 /// <see cref="C64.ExecuteOneFrame"/> runs only the remainder of the frame, keeping raster
 /// interrupts where the running program expects them. Only the cycle count is written back — the
-/// raster line is re-derived from it inside <see cref="Vic2"/> so the two cannot disagree. The
-/// per-frame renderer state rebuilds itself once execution resumes.
+/// raster line is re-derived from it inside <see cref="Vic2"/> so the two cannot disagree. Version 3 also saves the
+/// display and sprite sequencers. Version 4 preserves the active bank across a pending bank
+/// switch and records whether execution stopped at a completed frame boundary.
 /// </para>
 /// </summary>
 public sealed class C64Vic2SnapshotModule : ISnapshotModule
@@ -41,7 +42,7 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
     };
 
     public string Name => ModuleName;
-    public int Version => 2;
+    public int Version => 4;
     public bool Required => true;
 
     public void Capture(SnapshotModuleWriter writer, SnapshotCaptureContext context)
@@ -64,6 +65,9 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
             writer.WriteBool(irq.IsEnabled(source));
             writer.WriteBool(irq.IsTriggered(source));
         }
+        writer.WriteBytes(vic2.CaptureExecutionState());
+        writer.WriteByte(vic2.CurrentVIC2Bank);
+        writer.WriteBool(vic2.C64.IsAtFrameBoundary);
     }
 
     public void Restore(SnapshotModuleReader reader, SnapshotRestoreContext context)
@@ -89,9 +93,27 @@ public sealed class C64Vic2SnapshotModule : ISnapshotModule
         // Order matters: the VIC bank (CIA2 $DD00) selects the 16 KB window and refreshes the
         // charset address; then $D018 sets the screen/charset/bitmap base addresses within it.
         vic2.SetVIC2Bank((byte)(c64.ReadIOStorage(CiaAddr.CIA2_DATAA) | (byte)~c64.ReadIOStorage(CiaAddr.CIA2_DDRA)));   // the port's pins: input bits float high
-        vic2.MemorySetupStore(Vic2Addr.MEMORY_SETUP, c64.ReadIOStorage(Vic2Addr.MEMORY_SETUP));
+        var memorySetup = c64.ReadIOStorage(Vic2Addr.MEMORY_SETUP);
+        vic2.MemorySetupStore(Vic2Addr.MEMORY_SETUP, memorySetup);
+        // Rebuilding cached pointers is not a CPU store. Preserve the captured register even
+        // when it predates the first store, which would force its unused low bit high.
+        c64.WriteIOStorage(Vic2Addr.MEMORY_SETUP, memorySetup);
 
         // Force the sprite manager to rebuild cached sprite state from the restored registers/RAM.
         vic2.SpriteManager.SetAllChanged(Vic2Sprite.Vic2SpriteChangeType.All);
+        var version = context.Manifest.Modules.First(m => m.Name == ModuleName).Version;
+        if (version >= 3)
+            vic2.RestoreExecutionState(reader.ReadBytes()
+                ?? throw new SnapshotException("c64-vic2: missing execution sequencer state."));
+        if (version >= 4)
+        {
+            vic2.RestoreActiveBank(reader.ReadByte());
+            c64.LastCompletedFrameBusCycle = reader.ReadBool() ? c64.CPU.BusCycles : null;
+        }
+        else
+        {
+            // Older snapshots do not distinguish a debugger stop on line zero from a frame end.
+            c64.LastCompletedFrameBusCycle = null;
+        }
     }
 }

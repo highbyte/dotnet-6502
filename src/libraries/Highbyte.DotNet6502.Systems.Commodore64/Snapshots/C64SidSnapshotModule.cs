@@ -16,8 +16,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
 /// </para>
 ///
 /// <para>
-/// Internal oscillator phase and envelope position are not preserved (v1), so a restored sustained
-/// note restarts from its attack phase — a brief audio transient, not silence.
+/// v2 preserves the emulated SID core and bus latch, including oscillator/noise/envelope state
+/// visible through CPU reads. Restoring v2 uses the saved SID emulation mode for this machine.
+/// Legacy v1 snapshots restart voices from their register values.
 /// </para>
 /// </summary>
 public sealed class C64SidSnapshotModule : ISnapshotModule
@@ -25,21 +26,36 @@ public sealed class C64SidSnapshotModule : ISnapshotModule
     public const string ModuleName = "c64-sid";
 
     public string Name => ModuleName;
-    public int Version => 1;
+    public int Version => 2;
     public bool Required => true;
 
     public void Capture(SnapshotModuleWriter writer, SnapshotCaptureContext context)
     {
-        // SID register values live in the IO array (captured by c64-core); nothing extra to store.
-        // A format-version byte keeps the module self-describing and lets the layout grow later.
+        var c64 = (C64)context.System;
         writer.WriteInt32(Version);
+        c64.Sid.InternalSidState.CaptureBusState(writer);
+        writer.WriteUInt64(c64.CPU.BusCycles);
+        writer.WriteBytes(c64.SidEmulation.Core.CaptureState());
     }
 
     public void Restore(SnapshotModuleReader reader, SnapshotRestoreContext context)
     {
-        _ = reader.ReadInt32(); // format version (reserved)
-
+        var version = reader.ReadInt32();
         var c64 = (C64)context.System;
-        c64.Sid.InternalSidState.MarkAllRegistersChangedForSnapshotRestore();
+        if (version >= 2)
+        {
+            c64.Sid.InternalSidState.RestoreBusState(reader);
+            var coreCycles = reader.ReadUInt64();
+            c64.SidEmulation.RestoreState(coreCycles, reader.ReadBytes()
+                ?? throw new SnapshotException("c64-sid: missing SID core state."));
+        }
+        else
+            c64.SidEmulation.RestoreLegacyRegisters();
+        // Command consumers (including ones attached after restore) use these notifications
+        // to restart sustained voices. The sample core already has their precise phases.
+        if (ReferenceEquals(c64.AudioProvider, c64.SidEmulation))
+            c64.Sid.InternalSidState.ClearAudioChanged();
+        else
+            c64.Sid.InternalSidState.MarkAllRegistersChangedForSnapshotRestore();
     }
 }

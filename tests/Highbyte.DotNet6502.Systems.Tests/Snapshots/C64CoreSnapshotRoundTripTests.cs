@@ -283,7 +283,7 @@ public class C64CoreSnapshotRoundTripTests
 
         // New-generation module versions: cpu-6502 v3 owns the port, c64-core v2 has no
         // port bytes.
-        Assert.Equal(3, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
+        Assert.Equal(4, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
         Assert.Equal(2, result.Manifest.Modules.First(m => m.Name == C64CoreSnapshotModule.ModuleName).Version);
         Assert.Equal(0x35, restored.Mem.Read(0x0001));
         Assert.Equal(source.CurrentBank, restored.CurrentBank);

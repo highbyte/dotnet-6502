@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502;
 
-public class CPU
+public partial class CPU
 {
     /// <summary>
     /// Program Counter

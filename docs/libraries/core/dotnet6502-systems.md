@@ -17,6 +17,14 @@ referenced by the Tier-2 system cores, the Tier-3 implementation libraries, and 
 | `SystemRunner` | Drives one frame of a system and dispatches its render/input/audio. |
 | `SystemList` | Registry of available `ISystemConfigurer`s; host apps populate it from discovered plugins. |
 
+## Snapshots
+
+Each `ISnapshotModule` owns a named, versioned part of the save file and reads older payloads.
+In the 6502 and C64 components, `<Type>.State.cs` sits beside the implementation and groups
+the methods that need private state for capture or restore. The emulator updates live fields
+in the main class. On the C64, `C64ResolvedInput` stores the resolved keyboard and joystick
+state so restoring held controls preserves the saved CPU interrupt latch.
+
 ## Host app
 
 `HostApp` is the base class for every front-end (`AvaloniaHostApp`, `SilkNetHostApp`,

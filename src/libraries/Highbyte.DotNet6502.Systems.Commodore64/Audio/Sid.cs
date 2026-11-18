@@ -115,11 +115,8 @@ public class Sid
         c64Mem.MapReader(SidAddr.POTX, _ => ReadAndLatch(0xff));
         c64Mem.MapReader(SidAddr.POTY, _ => ReadAndLatch(0xff));
 
-        // Voice 3 read-only registers. Tunes that read $D41B/$D41C for waveform- or
-        // envelope-driven effects (vibrato, sweeps, etc.) depend on these. The active audio
-        // provider installs a lazy getter so the value is computed only on read (currently only
-        // the SID sample provider does this; the command-stream path leaves the getter null →
-        // reads return 0).
+        // Auto mode exposes the machine oscillator and envelope with every output
+        // configuration, including headless execution. Fast mode leaves both getters empty.
         c64Mem.MapReader(SidAddr.OSC3, _ => ReadAndLatch(_internalSidState.Osc3ReadbackProvider?.Invoke() ?? 0));
         c64Mem.MapReader(SidAddr.ENV3, _ => ReadAndLatch(_internalSidState.Env3ReadbackProvider?.Invoke() ?? 0));
     }
