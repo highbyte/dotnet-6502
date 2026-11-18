@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Highbyte.DotNet6502.Systems.Configuration;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Services;
 
@@ -24,7 +25,8 @@ public sealed record AppFilePickerOpenOptions(
     string Title,
     bool AllowMultiple,
     IReadOnlyList<AppFilePickerFileType> FileTypes,
-    string? SuggestedStartDirectory = null)
+    string? SuggestedStartDirectory = null,
+    long? MaximumFileBytes = null)
 {
     public string ToBrowserAccept()
     {
@@ -101,7 +103,14 @@ public sealed class AvaloniaStorageAppFilePicker : IAppFilePicker
             {
                 await using var stream = await file.OpenReadAsync();
                 using var buffer = new MemoryStream();
-                await stream.CopyToAsync(buffer);
+                var bytes = new byte[81920];
+                int count;
+                while ((count = await stream.ReadAsync(bytes)) != 0)
+                {
+                    if (options.MaximumFileBytes is { } maximum && buffer.Length + count > maximum)
+                        throw new InvalidDataException($"Selected file exceeds the {maximum} byte limit.");
+                    await buffer.WriteAsync(bytes.AsMemory(0, count));
+                }
                 pickedFiles.Add(new AppPickedFile(file.Name, buffer.ToArray(), file.TryGetLocalPath()));
             }
 
@@ -167,8 +176,14 @@ public sealed class AvaloniaStorageAppFileSaver : IAppFileSaver
             if (file == null)
                 return false;
 
-            await using var stream = await file.OpenWriteAsync();
-            await stream.WriteAsync(data);
+            if (file.TryGetLocalPath() is { } localPath)
+                await AtomicFileWriter.WriteAsync(localPath, output => output.WriteAsync(data).AsTask(), overwrite: true);
+            else
+            {
+                await using var stream = await file.OpenWriteAsync();
+                await stream.WriteAsync(data);
+                if (stream.CanSeek) stream.SetLength(data.Length);
+            }
             return true;
         }
         catch (OperationCanceledException)

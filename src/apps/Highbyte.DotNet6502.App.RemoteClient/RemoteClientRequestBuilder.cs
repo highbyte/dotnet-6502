@@ -35,6 +35,9 @@ internal static class RemoteClientRequestBuilder
             case "emu.systems":
             case "emu.storagepaths":
             case "emu.variants":
+            case "demo.state":
+            case "demo.stop":
+            case "demo.restart":
             case "cpu.get":
             case "keyboard.releaseall":
             case "keyboard.getall":
@@ -55,6 +58,16 @@ internal static class RemoteClientRequestBuilder
             case "emu.selectsystem":
             case "emu.selectvariant":
                 if (parameters.TryGetValue("name", out var sysName)) request["name"] = sysName;
+                break;
+
+            case "demo.record":
+            case "demo.open":
+                if (!parameters.TryGetValue("path", out var demoPath) || string.IsNullOrWhiteSpace(demoPath))
+                    return new RemoteClientRequestBuildResult { Error = $"{cmd} requires --path <file.d6502demo>" };
+                request["path"] = demoPath;
+                break;
+            case "demo.save":
+                if (parameters.TryGetValue("path", out var saveDemoPath)) request["path"] = saveDemoPath;
                 break;
 
             case "emu.savesnapshot":

@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Impl.Avalonia.Monitor;
@@ -57,6 +58,7 @@ public class AvaloniaMonitor : MonitorBase, INotifyPropertyChanged
 
     public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
+        RecordingSystemGuards.EnsureMutationAllowed(SystemRunner.System);
         Reset();
 
         if (!_hasBeenInitialized)
@@ -96,6 +98,7 @@ public class AvaloniaMonitor : MonitorBase, INotifyPropertyChanged
 
     public CommandResult ProcessCommand(string command)
     {
+        RecordingSystemGuards.EnsureMutationAllowed(SystemRunner.System);
         if (string.IsNullOrWhiteSpace(command))
             return CommandResult.Ok;
 

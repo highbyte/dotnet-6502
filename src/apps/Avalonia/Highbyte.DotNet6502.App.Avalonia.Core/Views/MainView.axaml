@@ -142,11 +142,13 @@
                         <Button Grid.Column="0"
                             Content="Reset"
                             AutomationProperties.AutomationId="ResetButton"
+                            IsEnabled="{Binding CanMutateMachine}"
                             Classes="secondary grid"
                             Command="{Binding ResetCommand}"/>
                         <Button Grid.Column="2"
                             Content="Stop"
                             AutomationProperties.AutomationId="StopButton"
+                            IsEnabled="{Binding CanMutateMachine}"
                             Classes="danger grid"
                             Command="{Binding StopCommand}"/>
                     </Grid>
@@ -161,6 +163,7 @@
                         <Button Grid.Column="0"
                             Content="Monitor"
                             AutomationProperties.AutomationId="MonitorButton"
+                            IsEnabled="{Binding CanMutateMachine}"
                             Classes="grid"
                             Command="{Binding MonitorCommand}"
                             ToolTip.Tip="Toggle with F12"/>
@@ -240,6 +243,7 @@
                         <Button Grid.Column="0"
                                 Content="Settings"
                                 AutomationProperties.AutomationId="OptionsButton"
+                                IsEnabled="{Binding CanMutateMachine}"
                                 Command="{Binding EmulatorOptionsCommand}"
                                 Classes="small"
                                 ToolTip.Tip="Open general emulator settings"/>
@@ -342,12 +346,70 @@
                     </Border>
                 </StackPanel>
 
+                <StackPanel>
+                    <Button AutomationProperties.AutomationId="DemoSectionHeader"
+                            AutomationProperties.Name="Toggle recording and replay section"
+                            Classes="section-toggle"
+                            Click="ToggleDemoSection_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Grid Width="10" Height="10" VerticalAlignment="Center">
+                                <controls:SymbolIcon Width="8" Height="8"
+                                                     Kind="TriangleRight"
+                                                     IsVisible="{Binding !IsDemoSectionExpanded}"/>
+                                <controls:SymbolIcon Width="8" Height="8"
+                                                     Kind="TriangleDown"
+                                                     IsVisible="{Binding IsDemoSectionExpanded}"/>
+                            </Grid>
+                            <TextBlock Text="Recording / replay"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Border Classes="collapsible-content"
+                            AutomationProperties.AutomationId="DemoSectionContent"
+                            IsVisible="{Binding IsDemoSectionExpanded}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding DemoAvailabilityText}" TextWrapping="Wrap" Classes="small secondary-text"/>
+                            <UniformGrid Columns="2" Rows="4">
+                                <Button Content="Record" Classes="small grid" Margin="0,2,2,2"
+                                        AutomationProperties.AutomationId="StartDemoRecordingButton"
+                                        AutomationProperties.Name="Start recording"
+                                        IsEnabled="{Binding CanStartDemoRecording}" Click="StartDemoRecording_Click"/>
+                                <Button Content="Stop / save" Classes="small grid" Margin="2,2,0,2"
+                                        AutomationProperties.AutomationId="StopDemoRecordingButton"
+                                        AutomationProperties.Name="Stop and save recording"
+                                        IsEnabled="{Binding CanStopDemoRecording}" Click="StopDemoRecording_Click"/>
+                                <Button Content="Save demo" Classes="small grid" Margin="0,2,2,2"
+                                        AutomationProperties.AutomationId="SaveDemoButton"
+                                        IsEnabled="{Binding CanSaveDemo}" Click="SaveDemo_Click"
+                                        ToolTip.Tip="Save the completed recording after a cancelled or failed save"/>
+                                <Button Content="Open demo" Classes="small grid" Margin="2,2,0,2"
+                                        AutomationProperties.AutomationId="OpenDemoButton"
+                                        IsEnabled="{Binding CanOpenDemo}" Click="OpenDemo_Click"
+                                        ToolTip.Tip="Open a demo, replacing the current machine state"/>
+                                <Button Content="Stop replay" Classes="small grid" Margin="0,2,2,2"
+                                        AutomationProperties.AutomationId="StopDemoPlaybackButton"
+                                        IsEnabled="{Binding CanControlReplay}" Click="StopDemoPlayback_Click"/>
+                                <Button Content="Restart" Classes="small grid" Margin="2,2,0,2"
+                                        AutomationProperties.AutomationId="RestartDemoButton"
+                                        AutomationProperties.Name="Restart demo playback"
+                                        IsEnabled="{Binding CanRestartDemo}" Click="RestartDemo_Click"/>
+                                <Button Content="Step frame" Classes="small grid" Margin="0,2,2,2"
+                                        AutomationProperties.AutomationId="StepDemoFrameButton"
+                                        IsEnabled="{Binding CanStepDemo}" Click="StepDemoFrame_Click"/>
+                            </UniformGrid>
+                            <TextBlock Text="Use Start / Pause above to resume or pause replay."
+                                       TextWrapping="Wrap" Classes="small secondary-text"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- Separator -->
                 <Border Height="1" Background="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,8,0,8" />
 
                 <!-- Per-system menu — supplied by the active shell plug-in (e.g. C64). ViewLocator resolves
                      the matching View for the ViewModel type across all loaded assemblies. -->
                 <ContentControl Content="{Binding ActiveMenuContribution}"
+                                IsEnabled="{Binding CanMutateMachine}"
                                 IsVisible="{Binding IsSystemPluginActive}" />
 
             </StackPanel>

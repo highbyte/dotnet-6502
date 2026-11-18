@@ -281,6 +281,115 @@ Restores full emulator state from a `.d6502snap` snapshot file (read from the **
 {"id": 11, "ok": true}
 ```
 
+### `demo.record`
+
+Starts input recording from the current machine state. Requires a running or paused machine with recording support (currently C64). The host captures an initial snapshot and records resolved keyboard/joystick input. See [Input recording and replay](../recording-replay.md) for supported sessions and compatibility requirements.
+
+The recording is held in a host-owned temporary file and survives client disconnects. Use `demo.save` to complete and save it. An existing destination file is rejected.
+
+**Parameters**
+
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| `path`    | string | Required server-side destination path for the `.d6502demo` file. Absolute paths are used as-is; relative paths resolve from the server process's working directory. |
+
+```json
+{"id": 12, "cmd": "demo.record", "path": "/host/session.d6502demo"}
+```
+
+```json
+{"id": 12, "ok": true}
+```
+
+### `demo.save`
+
+Completes the remote recording and saves the `.d6502demo` file without overwriting an existing destination. If saving fails, the completed temporary file is retained so the client can retry with another path.
+
+**Parameters**
+
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| `path`    | string | Optional server-side destination path. Defaults to the path supplied to `demo.record`. Relative paths resolve from the server process's working directory. |
+
+```json
+{"id": 13, "cmd": "demo.save"}
+```
+
+```json
+{"id": 13, "ok": true}
+```
+
+### `demo.open`
+
+Validates a `.d6502demo` file and replaces the current machine state with its initial snapshot. Playback starts **paused**. Use `emu.start` to resume or `emu.runframes` to step through it.
+
+Live machine input and conflicting mutations are rejected throughout playback, including while paused. The required ROMs and compatible emulator configuration must already be available; see [Input recording and replay](../recording-replay.md).
+
+**Parameters**
+
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| `path`    | string | Required server-side path of the demo to open. Absolute paths are used as-is; relative paths resolve from the server process's working directory. |
+
+```json
+{"id": 14, "cmd": "demo.open", "path": "/host/session.d6502demo"}
+```
+
+```json
+{"id": 14, "ok": true}
+```
+
+### `demo.restart`
+
+Restores the loaded demo's initial snapshot and resets playback to frame zero. The emulator is left **paused**; use `emu.start` to resume or `emu.runframes` to step. A demo must have been opened with `demo.open` first.
+
+```json
+{"id": 15, "cmd": "demo.restart"}
+```
+
+```json
+{"id": 15, "ok": true}
+```
+
+### `demo.stop`
+
+Stops active demo playback, releases replay-owned input, and leaves the emulator **paused**. Use `demo.save` to finish a recording.
+
+```json
+{"id": 16, "cmd": "demo.stop"}
+```
+
+```json
+{"id": 16, "ok": true}
+```
+
+### `demo.state`
+
+Returns the recording/replay mode, frame progress, playback outcome, and any failure details.
+
+**Request**
+
+```json
+{"id": 17, "cmd": "demo.state"}
+```
+
+**Response fields**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `state` | string | Current emulator state: `Uninitialized`, `Running`, or `Paused`. |
+| `demoMode` | string | `Idle`, `Recording`, or `Playback`. |
+| `demoFrame` | integer | Number of completed frames in the recording or playback session. |
+| `demoTotalFrames` | integer | Total recorded frames for a loaded demo; the current frame count while recording. |
+| `demoOutcome` | string | `None`, `Completed`, `Stopped`, or `Failed`. |
+| `demoError` | string | Failure details, including checkpoint frame and expected/actual digests on divergence. Omitted when no error is present. |
+
+**Response example**
+
+```json
+{"id": 17, "ok": true, "state": "Paused", "demoMode": "Playback", "demoFrame": 100, "demoTotalFrames": 900, "demoOutcome": "None"}
+```
+
 ### `emu.runframes`
 
 Deterministically advances the emulator by a fixed number of frames and renders the result (so a following `screenshot` reflects it). Intended for automation: load a snapshot (paused), step a known number of frames, then screenshot. **The emulator must be stopped/paused** — stepping is rejected while it is `Running`, because the real-time run loop would make the step non-deterministic.

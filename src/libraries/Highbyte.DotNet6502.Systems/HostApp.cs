@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Snapshots;
+using Highbyte.DotNet6502.Systems.Recording;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems;
@@ -19,7 +20,7 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 /// through the neutral <see cref="Input.IHostInputState"/>, and audio is driven by an
 /// <see cref="Audio.IAudioCoordinator"/> wired up the same way the render pipeline is.
 /// </summary>
-public class HostApp : IHostApp, IManualRenderingProvider
+public partial class HostApp : IHostApp, IManualRenderingProvider
 {
     // Injected via constructor
     protected readonly ILogger _logger;
@@ -82,6 +83,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
     public TimedKeyboardInput KeyboardTextInput { get; } = new();
     public bool CanUseNativeKeyboard => EmulatorState == EmulatorState.Running
+        && !BlockScriptCallbacks
         && CurrentRunningSystem?.InputInjector is IKeyboardTextInput;
 
     public bool TryQueueKeyboardText(string text) => CanUseNativeKeyboard
@@ -283,6 +285,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     private async void ScriptingTickTimerElapsed(object? sender, EventArgs e)
     {
+        if (BlockScriptCallbacks) return;
         try
         {
             if (_scriptingEngine.IsEnabled)
@@ -301,6 +304,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     /// </summary>
     protected async Task DrainPendingScriptActionsAsync()
     {
+        if (BlockScriptCallbacks) return;
         await _scriptingEngine.DrainPendingActionsAsync().ConfigureAwait(false);
     }
 
@@ -437,6 +441,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     public async Task SelectSystem(string systemName)
     {
+        if (!IsPreparingPlayback) this.EnsureMachineMutationAllowed();
         if (EmulatorState != EmulatorState.Uninitialized)
             throw new DotNet6502Exception("Cannot change system while emulator is running.");
         if (!_systemList.Systems.Contains(systemName))
@@ -480,8 +485,8 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
         SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
         SelectedSystemChanged?.Invoke(this, EventArgs.Empty);
-        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
-        _scriptingEngine.InvokeEvent("on_system_selected", SelectedSystemName);
+        InvokeScriptEvent("on_variant_selected", SelectedSystemConfigurationVariant);
+        InvokeScriptEvent("on_system_selected", SelectedSystemName);
     }
 
     public virtual void OnAfterAllSystemConfigurationVariantsChanged() { }
@@ -495,6 +500,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     public async Task SelectSystemConfigurationVariant(string configurationVariant)
     {
+        if (!IsPreparingPlayback) this.EnsureMachineMutationAllowed();
         if (EmulatorState != EmulatorState.Uninitialized)
             throw new DotNet6502Exception("Cannot change system while emulator is running.");
         var configVariants = await _systemList.GetSystemConfigurationVariants(_selectedSystemName, CurrentHostSystemConfig);
@@ -507,7 +513,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         OnAfterSelectedSystemVariantChanged();
 
         SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
-        _scriptingEngine.InvokeEvent("on_variant_selected", SelectedSystemConfigurationVariant);
+        InvokeScriptEvent("on_variant_selected", SelectedSystemConfigurationVariant);
     }
 
     private async Task UpdateSelectedSystemTemporary()
@@ -598,8 +604,9 @@ public class HostApp : IHostApp, IManualRenderingProvider
         _audioCoordinator?.StartPlaying();
 
         OnAfterStart(emulatorStateBeforeStart);
-        _scriptingEngine.OnSystemStarted(CurrentRunningSystem!);
-        _scriptingEngine.InvokeEvent("on_started");
+        if (DemoSession?.Mode != RecordingMode.Recording)
+            _scriptingEngine.OnSystemStarted(CurrentRunningSystem!);
+        InvokeScriptEvent("on_started");
 
         EmulatorState = EmulatorState.Running;
         _logger.LogInformation($"System started: {_selectedSystemName} Variant: {_selectedSystemConfigurationVariant}");
@@ -616,7 +623,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         _audioCoordinator?.PausePlaying();
 
         OnAfterPause();
-        _scriptingEngine.InvokeEvent("on_paused");
+        InvokeScriptEvent("on_paused");
 
         EmulatorState = EmulatorState.Paused;
         _logger.LogInformation($"System paused: {_selectedSystemName}");
@@ -628,6 +635,9 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     public void Stop()
     {
+        if (DemoSession?.Mode == RecordingMode.Recording)
+            throw new InvalidOperationException("Stop and save the recording before stopping the machine.");
+        if (DemoSession?.OwnsInput == true) StopDemoPlayback();
         if (EmulatorState == EmulatorState.Running)
             Pause();
 
@@ -652,7 +662,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
         _selectedSystemTemporary = null; // Clear the temporary system, as it is no longer valid.
 
         OnAfterStop();
-        _scriptingEngine.InvokeEvent("on_stopped");
+        InvokeScriptEvent("on_stopped");
 
         _logger.LogInformation($"System stopped: {_selectedSystemName}");
     }
@@ -660,6 +670,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     public async Task Reset()
     {
+        this.EnsureMachineMutationAllowed();
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
 
@@ -727,6 +738,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
     /// </summary>
     public async Task<SnapshotRestoreResult> LoadSnapshotAsync(Stream input, bool applyConfig = false)
     {
+        this.EnsureMachineMutationAllowed();
         var manifest = SnapshotService.PeekManifest(input);
         input.Position = 0;
 
@@ -836,6 +848,12 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     public void Close()
     {
+        if (DemoSession?.Mode == RecordingMode.Recording)
+            DemoSession.Fail("Recording was cancelled when the host closed.");
+        StopDemoPlayback();
+        DemoSession?.Dispose();
+        _loadedDemo?.Dispose();
+        _loadedDemoStorage?.Dispose();
         if (EmulatorState != EmulatorState.Uninitialized)
             Stop();
 
@@ -877,6 +895,12 @@ public class HostApp : IHostApp, IManualRenderingProvider
         OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput);
         if (!shouldRun)
             return;
+
+        if (DemoSession?.Mode is RecordingMode.Recording or RecordingMode.Playback)
+        {
+            RunDemoFrame(shouldReceiveInput);
+            return;
+        }
 
         // Frame is definitely going to run
 
@@ -930,7 +954,14 @@ public class HostApp : IHostApp, IManualRenderingProvider
             throw new DotNet6502Exception("Cannot step frames while the emulator is running; deterministic stepping requires a stopped/paused emulator. Pause the emulator (or load a snapshot) first.");
 
         for (int i = 0; i < frameCount; i++)
-            _systemRunner.RunEmulatorOneFrame();
+        {
+            if (DemoSession?.Mode is RecordingMode.Recording or RecordingMode.Playback)
+            {
+                RunDemoFrame(receiveInput: true);
+                if (DemoSession.Mode == RecordingMode.Idle) break;
+            }
+            else _systemRunner.RunEmulatorOneFrame();
+        }
 
         // Draw the resulting frame to the render target so a subsequent screenshot reflects it.
         // Null on hosts without a renderer (e.g. headless) — stepping still advances emulation.
@@ -1004,10 +1035,9 @@ public class HostApp : IHostApp, IManualRenderingProvider
             return;
 
         // The host input context implements IHostInputState. Skip if no context was provided.
-        if (_getInputHandlerContext?.Invoke() is not IHostInputState hostInputState)
-            return;
-
-        inputConsumer.Init(hostInputState);
+        var hostInputState = _getInputHandlerContext?.Invoke() as IHostInputState ?? new EmptyHostInputState();
+        _freshHostInput = new FreshHostInputState(hostInputState);
+        inputConsumer.Init(_freshHostInput);
     }
 
     public async Task<bool> IsSystemConfigValid()
@@ -1048,6 +1078,7 @@ public class HostApp : IHostApp, IManualRenderingProvider
 
     public void UpdateHostSystemConfig(IHostSystemConfig newConfig)
     {
+        this.EnsureMachineMutationAllowed();
         // Note: Make sure to store a clone of the newConfig in the systemList, so it cannot be changed by the caller (bound to UI for example).
         CurrentHostSystemConfig = (IHostSystemConfig)newConfig.Clone();
         _systemList.ChangeCurrentHostSystemConfig(_selectedSystemName, CurrentHostSystemConfig);

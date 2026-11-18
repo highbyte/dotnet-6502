@@ -8,7 +8,7 @@ export function getLocalStorageKeys(prefix) {
     return JSON.stringify(keys);
 }
 
-export function pickLocalFilesAsBase64(accept, allowMultiple) {
+export function pickLocalFilesAsBase64(accept, allowMultiple, maximumFileBytes = 0) {
     return new Promise((resolve) => {
         const input = document.createElement("input");
         input.type = "file";
@@ -59,6 +59,10 @@ export function pickLocalFilesAsBase64(accept, allowMultiple) {
             }
 
             try {
+                if (maximumFileBytes > 0 && Array.from(input.files).some(file => file.size > maximumFileBytes)) {
+                    finish(JSON.stringify({ error: `Selected file exceeds the ${maximumFileBytes} byte limit.` }));
+                    return;
+                }
                 const files = await Promise.all(Array.from(input.files).map(async file => {
                     const bytes = new Uint8Array(await file.arrayBuffer());
                     return {

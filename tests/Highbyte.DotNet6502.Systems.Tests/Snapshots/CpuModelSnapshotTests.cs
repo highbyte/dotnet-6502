@@ -86,7 +86,7 @@ public class CpuModelSnapshotTests
         var result = new SnapshotService().Restore(restored, snapshotStream);
 
         Assert.Equal(source.CPU.PC, restored.CPU.PC);
-        Assert.Equal(3, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
+        Assert.Equal(4, result.Manifest.Modules.First(m => m.Name == Cpu6502SnapshotModule.ModuleName).Version);
     }
 
     [Fact]

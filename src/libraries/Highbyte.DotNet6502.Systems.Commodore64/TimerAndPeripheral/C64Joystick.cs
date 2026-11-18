@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
-public class C64Joystick
+public partial class C64Joystick
 {
     private readonly ILogger _logger;
     public Dictionary<int, HashSet<JoystickAction>> CurrentJoystickActions { get; private set; } = new()

@@ -4,12 +4,33 @@
     xmlns:converters="using:Avalonia.Data.Converters"
     x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.StatusBar"
     x:DataType="vm:MainViewModel">
+    <UserControl.Styles>
+        <!-- Free the right-hand slot after a connection indicator finishes fading out. -->
+        <Style Selector="StackPanel.connection[Opacity=0]">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="TextBlock.demoMode">
+            <Setter Property="Foreground" Value="#FF4CAF50"/>
+        </Style>
+        <Style Selector="TextBlock.demoMode.recording">
+            <Setter Property="Foreground" Value="#FFEF5350"/>
+        </Style>
+        <Style Selector="Ellipse.demoActivity">
+            <Style.Animations>
+                <Animation Duration="0:0:1.6" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                    <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </UserControl.Styles>
     <Border Padding="0,2,0,4"
             Background="{DynamicResource ViewDefaultBg}"
             BorderBrush="#4A5568"
             BorderThickness="1"
             CornerRadius="4">
-        <Grid>
+        <Grid Margin="0,0,8,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -69,21 +90,31 @@
                            IsVisible="{Binding StatusFpsText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
             </StackPanel>
 
-            <!-- Center zone: transient messages (placeholder) -->
-            <StackPanel Grid.Column="1"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Spacing="8"/>
+            <Grid Grid.Column="1" ColumnDefinitions="*,Auto" HorizontalAlignment="Right"
+                  AutomationProperties.AutomationId="StatusBarDemoIndicator"
+                  AutomationProperties.Name="{Binding DemoStatusText}" ToolTip.Tip="{Binding DemoStatusText}"
+                  IsVisible="{Binding DemoStatusText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding DemoDetailText}" TextTrimming="CharacterEllipsis"
+                           FontSize="11" VerticalAlignment="Center" TextAlignment="Right"
+                           Foreground="{DynamicResource SystemControlForegroundBaseMediumHighBrush}"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" Margin="8,0,0,0"
+                            IsVisible="{Binding IsDemoActive}" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" Margin="0,1,0,0" VerticalAlignment="Center"
+                             Fill="{Binding #DemoModeLabel.Foreground}" Classes.demoActivity="{Binding IsDemoRunning}"/>
+                    <TextBlock x:Name="DemoModeLabel" Text="{Binding DemoModeText}"
+                               Classes="demoMode" Classes.recording="{Binding IsDemoRecording}"
+                               FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
 
             <!-- Right zone: connection indicators -->
             <StackPanel Grid.Column="2"
                         Orientation="Horizontal"
-                        Margin="8,0"
-                        Spacing="12"
+                        Spacing="0"
                         VerticalAlignment="Center">
 
-                <StackPanel AutomationProperties.AutomationId="StatusBarDebuggerIndicator"
+                <StackPanel Classes="connection" Margin="12,0,0,0"
+                            AutomationProperties.AutomationId="StatusBarDebuggerIndicator"
                             AutomationProperties.Name="External debugger attached indicator"
                             Orientation="Horizontal"
                             Spacing="5"
@@ -102,7 +133,8 @@
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <StackPanel AutomationProperties.AutomationId="StatusBarRemoteClientIndicator"
+                <StackPanel Classes="connection" Margin="12,0,0,0"
+                            AutomationProperties.AutomationId="StatusBarRemoteClientIndicator"
                             AutomationProperties.Name="Remote client connected indicator"
                             Orientation="Horizontal"
                             Spacing="5"

@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 using Highbyte.DotNet6502.Utils;
@@ -70,6 +71,7 @@ public class LuaC64Proxy
     public void load_d64(string path)
     {
         if (_c64 == null) return;
+        RecordingSystemGuards.EnsureMutationAllowed(_c64);
         var expandedPath = PathHelper.ExpandOSEnvironmentVariables(path);
         var diskImage = D64Parser.ParseD64File(expandedPath);
         var diskDrive = _c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault()

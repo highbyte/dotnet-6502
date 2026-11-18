@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 /// The IECBus represents the IEC (serial bus) used for communication between the Commodore 64 and its serial peripherals, such as disk drives.
 /// The C64 is assumed to be the master (host) on the bus.
 /// </summary>
-public class IECBus
+public partial class IECBus
 {
     private readonly IECHost _iecHost;
     public IECHost Host => _iecHost;

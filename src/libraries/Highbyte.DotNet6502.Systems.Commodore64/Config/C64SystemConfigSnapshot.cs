@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Snapshots;
 
@@ -21,6 +22,7 @@ public partial class C64SystemConfig
         var settings = new C64SystemSnapshotSettings
         {
             AudioEnabled = AudioEnabled,
+            SidEmulationMode = SidEmulationMode,
             KeyboardJoystickEnabled = KeyboardJoystickEnabled,
             KeyboardJoystick = KeyboardJoystick,
         };
@@ -36,6 +38,8 @@ public partial class C64SystemConfig
         // up through the normal build/start path (e.g. audio is wired up when the audio pipeline is
         // initialized during Start, based on AudioEnabled).
         AudioEnabled = settings.AudioEnabled;
+        if (settings.SidEmulationMode is { } mode && Enum.IsDefined(mode))
+            SidEmulationMode = mode;
         KeyboardJoystickEnabled = settings.KeyboardJoystickEnabled;
         KeyboardJoystick = settings.KeyboardJoystick;
     }
@@ -45,6 +49,7 @@ public partial class C64SystemConfig
 internal sealed class C64SystemSnapshotSettings
 {
     public bool AudioEnabled { get; set; } = true;
+    public SidEmulationMode? SidEmulationMode { get; set; }
     public bool KeyboardJoystickEnabled { get; set; }
     public int KeyboardJoystick { get; set; } = 2;
 }

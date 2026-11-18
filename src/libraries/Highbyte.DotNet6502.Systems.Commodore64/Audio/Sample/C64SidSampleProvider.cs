@@ -10,13 +10,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 /// freshly generated PCM samples through the <see cref="AudioSampleWriteCallback"/> supplied by
 /// <see cref="AudioSampleCoordinator"/>, and applies any SID register writes the instruction did.
 ///
-/// Counterpart of <see cref="C64SidCommandStream"/> for the sample-style pipeline. Both can
-/// coexist as compiled types but only one is wired up per emulator session (the C64 audio config
-/// selects which provider to register).
+/// The machine also uses this core for SID register readbacks with command-stream or disabled
+/// audio. In that case register accesses advance chip state on demand and skip PCM generation.
 /// </summary>
 [DisplayName("SID sample emulation")]
 [HelpText("Pure-managed sample-accurate SID emulation. Ticks the chip per CPU cycle and emits PCM.\nHigher CPU than Synth commands, but reproduces real SID waveform shapes and ADSR behaviour.")]
-public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider, ISidRegisterWriteSink
+public sealed partial class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider, ISidRegisterWriteSink
 {
     private readonly C64 _c64;
     private readonly SidSampleCore _core;
@@ -28,6 +27,7 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider,
     // this one has been ticked into the core.
     private ulong _coreCycles;
     private bool _clockStarted;
+    private bool _machineOwned;
 
     public string Name => "C64SidSampleProvider";
 
@@ -35,7 +35,17 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider,
 
     public int ChannelCount => 1;
 
-    public SidSampleCore Core => _core;
+    public SidSampleCore Core
+    {
+        get
+        {
+            if (_machineOwned)
+                CatchUpTo(_c64.CPU.BusCycles);
+            return _core;
+        }
+    }
+
+    internal SidEmulationMode Mode => _core.Mode;
 
     public C64SidSampleProvider(
         C64 c64,
@@ -53,8 +63,27 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider,
 
     public void Init(AudioSampleWriteCallback writeSamples)
     {
+        if (_machineOwned)
+            CatchUpTo(_c64.CPU.BusCycles);
         _writeSamples = writeSamples;
+        if (!_machineOwned)
+            WireSidRegisters();
 
+        // Warm a separate core: attaching an output device must not reset machine-visible
+        // oscillator/envelope state, especially after restoring a recording snapshot.
+        new SidSampleCore(_core.SampleRateHz, _core.SidClockHz, _core.Mode).WarmUp();
+    }
+
+    internal void InitMachine()
+    {
+        _machineOwned = true;
+        _coreCycles = _c64.CPU.BusCycles;
+        _clockStarted = true;
+        WireSidRegisters();
+    }
+
+    private void WireSidRegisters()
+    {
         var sidState = _c64.Sid.InternalSidState;
 
         // Register writes reach the core on the bus cycle they happen, not at instruction end.
@@ -65,13 +94,25 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider,
         // cycle of the read. Fast mode skips wiring entirely — reads then return 0.
         if (_core.Mode == SidEmulationMode.Auto)
         {
-            sidState.Osc3ReadbackProvider = () => { CatchUpToCurrentAccess(); return _core.Osc3; };
+            sidState.Osc3ReadbackProvider = ReadOsc3;
             sidState.Env3ReadbackProvider = () => { CatchUpToCurrentAccess(); return _core.Env3; };
         }
+        else
+        {
+            sidState.Osc3ReadbackProvider = null;
+            sidState.Env3ReadbackProvider = null;
+        }
+    }
 
-        // Force JIT to compile the inner mixing / waveform paths now, so the first BASIC POKE
-        // that turns audio on doesn't pay a multi-millisecond JIT cost mid-frame and crackle.
-        _core.WarmUp();
+    private byte ReadOsc3()
+    {
+        ulong completed = CyclesBeforeAccess(_c64.CPU.BusCycles);
+        if (_writeSamples is null && completed > _coreCycles
+            && _core.TryPeekOsc3(completed - _coreCycles, out byte value))
+            return value;
+        if (_clockStarted)
+            CatchUpTo(completed);
+        return _core.Osc3;
     }
 
     /// <summary>
@@ -88,16 +129,17 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider,
         if ((uint)offset >= SidSampleCore.RegisterCount)
             return false;
 
-        CatchUpTo(busCycle - 1);
+        CatchUpTo(CyclesBeforeAccess(busCycle));
         _core.WriteRegister(offset, value);
-        return true;
+        // The command-stream output still needs its changed-register notifications. The
+        // emulated SID is clocked independently even when no audio output is attached.
+        return !_machineOwned || ReferenceEquals(_c64.AudioProvider, this);
     }
 
     public void OnAfterInstruction()
     {
         if (_writeSamples is null)
             return;
-
         ulong nowCycles = _c64.CPU.BusCycles;
 
         if (!_clockStarted)
@@ -125,16 +167,26 @@ public sealed class C64SidSampleProvider : IAudioProvider, IAudioSampleProvider,
     private void CatchUpToCurrentAccess()
     {
         if (_clockStarted)
-            CatchUpTo(_c64.CPU.BusCycles - 1);
+            CatchUpTo(CyclesBeforeAccess(_c64.CPU.BusCycles));
     }
+
+    // During a CPU access the bus counter already includes the current cycle.
+    // Host reads/writes between instructions see the fully completed cycle.
+    private ulong CyclesBeforeAccess(ulong busCycle)
+        => busCycle > _c64.Cia1.AdvancedToBusCycle ? busCycle - 1 : busCycle;
 
     private void CatchUpTo(ulong busCycles)
     {
-        if (busCycles <= _coreCycles || _writeSamples is null)
+        if (busCycles <= _coreCycles)
             return;
 
         var remaining = busCycles - _coreCycles;
         _coreCycles = busCycles;
+        if (_writeSamples is null)
+        {
+            _core.AdvanceWithoutOutput(remaining);
+            return;
+        }
         while (remaining > 0)
         {
             int chunk = (int)Math.Min(remaining, (ulong)_maxCyclesPerAdvance);

@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// the interrupt output still follows, so a handler then finds only the interrupt bit set.
 /// (VICE's cia-timer, reload0 and spritesteal test programs.)
 /// </summary>
-public class CiaTimer
+public partial class CiaTimer
 {
     // Cycles from a control write to the first decrement, less one: the counter holds its value
     // through write + 2 and shows the first decrement at write + 3.
@@ -199,34 +199,6 @@ public class CiaTimer
         _timerControlStartBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.StartTimerA : (int)CiaTimerBControl.StartTimerB;
         _timerControlForceLoadBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.ForceLoadTimerA : (int)CiaTimerBControl.ForceLoadTimerB;
         _readBeforeUnderflowLosesFlag = ciaTimerType == CiaTimerType.CiaB;
-    }
-
-    // --- Snapshot support ---
-    // Captures/restores the live timer state that is not held in the C64 IO register storage:
-    // the latch, the control byte, the current counter and the running flag. Restore sets the
-    // fields directly (bypassing the TimerControl setter) so the exact preserved state is applied
-    // without re-triggering force-load/start side effects. A load or stop still in the pipeline
-    // at the snapshot is not carried over.
-    internal (ushort Latch, byte Control, ushort Current, bool Running) GetSnapshotState()
-        => (_internalTimer_Latch, _timerControl, InternalTimer, StartBitSet);
-
-    internal void RestoreSnapshotState(ushort latch, byte control, ushort current, bool running)
-    {
-        _internalTimer_Latch = latch;
-        _timerControl = control;
-        if (running)
-            _timerControl.SetBit(_timerControlStartBit);
-        else
-            _timerControl.ClearBit(_timerControlStartBit);
-        _counter = current;
-        _armed = false;
-        _loadAt = ulong.MaxValue;
-        _stopAt = ulong.MaxValue;
-        _flagAt = ulong.MaxValue;
-        _irqAt = ulong.MaxValue;
-        _reloadedAt = ulong.MaxValue;
-        _flagLost = false;
-        Arm();
     }
 
     /// <summary>

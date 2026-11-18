@@ -19,3 +19,30 @@ Runtime-specific topics:
 
 - [Desktop automation](automation.md) — UI automation and accessibility.
 - [Desktop troubleshooting](troubleshooting.md) — platform-specific notes.
+
+## Input recording and replay
+
+Recording/replay controls are shared by Desktop and Browser and are currently available
+for C64. See [Input recording and replay](../../tools/recording-replay.md) for the demo
+format, shared input behavior, compatibility, and file limits.
+
+1. Start a C64 and load the program to record.
+2. Expand **Recording / replay** and click **Record**.
+3. Play normally, then click **Stop / save**. Desktop opens a save picker; Browser downloads
+   the file. If the picker is cancelled, **Save demo** retries the completed recording.
+4. Click **Open demo** to replace the current machine state and start playback.
+
+Use the ordinary **Pause** and **Start** controls to pause/resume. **Step frame** advances
+one emulated frame while paused, in either recording or playback. **Stop replay** ends
+playback early. **Restart** restores the demo's initial state and starts playback again.
+
+At the right of the bottom status bar, a red **Recording** or green **Replay** indicator
+shows the active mode. Its dot pulses while running and stays steady while paused. Frame
+progress appears immediately to its left. Completion and failure appear in the same area. While replay
+owns input it explicitly says **live input disabled**, including while paused, alongside
+the Desktop TCP Remote indicator. Machine-input and conflicting mutation controls are disabled.
+See [Playback and input](../../tools/recording-replay.md#playback-and-input) for the shared
+ownership and cleanup rules.
+
+Completed recordings are retained in memory until saved. Desktop and Browser exchange the
+same demo files with Headless; see its [playback and validation options](../headless/overview.md#demo-playback-and-validation).

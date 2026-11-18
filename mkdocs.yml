@@ -157,6 +157,7 @@ nav:
           - Libraries: systems/oric/libraries.md
           - ROMs: systems/oric/roms.md
   - Tools:
+      - Input recording and replay: tools/recording-replay.md
       - Overview: tools/overview.md
       - VSCode debugger extension:
           - Debugging: tools/vscode-debugger/debugging.md

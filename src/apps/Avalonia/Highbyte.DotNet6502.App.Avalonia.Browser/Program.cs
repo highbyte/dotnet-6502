@@ -1331,7 +1331,7 @@ internal sealed partial class Program
         public static partial void UnlockAudio();
 
         [JSImport("pickLocalFilesAsBase64", "BrowserScripting")]
-        public static partial Task<string?> PickLocalFilesAsBase64Async(string accept, bool allowMultiple);
+        public static partial Task<string?> PickLocalFilesAsBase64Async(string accept, bool allowMultiple, double maximumFileBytes);
 
         [JSImport("downloadFileFromBase64", "BrowserScripting")]
         public static partial void DownloadFileFromBase64(string name, string base64, string mime);
@@ -1373,11 +1373,14 @@ internal sealed partial class Program
         {
             var fileJson = await JSInterop.PickLocalFilesAsBase64Async(
                 options.ToBrowserAccept(),
-                options.AllowMultiple);
+                options.AllowMultiple, options.MaximumFileBytes ?? 0);
             if (string.IsNullOrWhiteSpace(fileJson))
                 return [];
 
             using var jsonDocument = JsonDocument.Parse(fileJson);
+            if (jsonDocument.RootElement.ValueKind == JsonValueKind.Object
+                && jsonDocument.RootElement.TryGetProperty("error", out var error))
+                throw new IOException(error.GetString());
             var files = new List<AppPickedFile>();
             foreach (var fileElement in jsonDocument.RootElement.EnumerateArray())
             {

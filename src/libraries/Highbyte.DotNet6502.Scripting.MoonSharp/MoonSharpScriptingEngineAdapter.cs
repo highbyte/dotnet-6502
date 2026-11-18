@@ -131,7 +131,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
 
         // cpu/mem proxies start with null references (safe defaults) until OnSystemStarted is called
         _cpuProxy = new LuaCpuProxy();
-        _memProxy = new LuaMemProxy();
+        _memProxy = new LuaMemProxy(hostApp);
         _script.Globals["cpu"] = _cpuProxy;
         _script.Globals["mem"] = _memProxy;
         _logProxy = new LuaLogProxy(_loggerFactory.CreateLogger(nameof(LuaLogProxy)));
@@ -678,6 +678,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
 
                 enqueueAction(CurrentScriptFileName(), () =>
                 {
+                    Highbyte.DotNet6502.Systems.Recording.RecordingHostGuards.EnsureMachineMutationAllowed(hostApp);
                     var path = fileProxyCapture.GetSafePath(filename);
                     if (path == null || !File.Exists(path)) return Task.CompletedTask;
                     var mem = hostApp.CurrentRunningSystem?.Mem;

@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.App.Headless;
 
 /// <summary>
 /// Headless implementation of <see cref="IRemoteControlEnvironment"/>.
-/// Actions run synchronously on the calling thread (no UI event loop).
+/// Actions run on the host's serial emulation thread.
 /// </summary>
 public class HeadlessRemoteControlEnvironment : IRemoteControlEnvironment
 {
@@ -22,7 +22,11 @@ public class HeadlessRemoteControlEnvironment : IRemoteControlEnvironment
 
     public IRemotableHostApp? GetHostApp() => HostApp;
 
-    public void RunOnUiThread(Action action) => action();
+    public void RunOnUiThread(Action action)
+    {
+        if (HostApp != null) HostApp.PostToEmulationThread(action);
+        else action();
+    }
 
     public bool SupportsQuit => _allowQuit;
 

@@ -40,7 +40,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio.Sample;
 /// only the published numeric constants are used here as facts about the 6581 chip.
 /// See <c>docs/home/references.md</c> "Credits" for the full attribution.
 /// </summary>
-public sealed class SidSampleCore
+public sealed partial class SidSampleCore
 {
     public const int VoiceCount = 3;
     public const int RegisterCount = 0x1D;          // $D400..$D41C — 29 registers
@@ -72,7 +72,7 @@ public sealed class SidSampleCore
 
     private readonly int _sampleRateHz;
     private readonly int _sidClockHz;
-    private readonly SidEmulationMode _mode;
+    private SidEmulationMode _mode;
     private readonly byte[] _registers = new byte[RegisterCount];
     private readonly Voice[] _voices = new Voice[VoiceCount];
 
@@ -128,6 +128,26 @@ public sealed class SidSampleCore
     /// Tunes use this for waveform-driven effects (e.g. accumulator-modulated vibrato).
     /// </summary>
     public byte Osc3 => (byte)(GetWaveformOutput(2) >> 4);
+
+    // Polling a free-running oscillator need not clock all envelopes or the mixer.
+    // Noise and hard sync require their history, so the caller clocks those normally.
+    internal bool TryPeekOsc3(ulong elapsed, out byte value)
+    {
+        ref var voice = ref _voices[2];
+        if (voice.SyncEnabled || (voice.WaveformBits & 8) != 0 || voice.RingModEnabled)
+        {
+            value = 0;
+            return false;
+        }
+        uint phase = voice.TestBit ? 0 : (voice.Accumulator + (uint)elapsed * voice.Frequency) & 0xffffff;
+        int bits = voice.WaveformBits;
+        int wave = bits == 0 ? 0 : 0xfff;
+        if ((bits & 2) != 0) wave &= (int)(phase >> 12);
+        if ((bits & 1) != 0) wave &= FoldTriangle(phase, phase);
+        if ((bits & 4) != 0 && (phase >> 12) < voice.PulseWidth) wave = 0;
+        value = (byte)(wave >> 4);
+        return true;
+    }
 
     /// <summary>
     /// Voice 3 envelope counter — the value real SID returns when software reads $D41C.
@@ -360,6 +380,85 @@ public sealed class SidSampleCore
         return Math.Min(written, output.Length);
     }
 
+    // With no sample sink only oscillators, noise and envelopes can affect the
+    // machine. Between register accesses advance free-running voices in bulk.
+    internal void AdvanceWithoutOutput(ulong cycles)
+    {
+        while (cycles > 0)
+        {
+            int span = (int)Math.Min(cycles, int.MaxValue);
+            if (_anyVoiceUsesSync)
+            {
+                // Hard sync depends on the order of same-cycle MSB transitions.
+                // Keep the ordinary clock for those individual cycles.
+                foreach (ref readonly var voice in _voices.AsSpan())
+                {
+                    if (voice.Frequency == 0 || voice.TestBit)
+                        continue;
+                    uint distance = ((0x7fffffu - voice.Accumulator) & 0xffffffu) + 1;
+                    span = Math.Min(span, (int)((distance - 1) / voice.Frequency));
+                }
+            }
+            if (span == 0)
+            {
+                TickAllVoices();
+                cycles--;
+                continue;
+            }
+            foreach (ref var voice in _voices.AsSpan())
+                AdvanceIndependentVoice(ref voice, span);
+            cycles -= (uint)span;
+        }
+    }
+
+    private static void AdvanceIndependentVoice(ref Voice voice, int cycles)
+    {
+        voice.MsbJustRose = false;
+        if (IsQuiescent(ref voice))
+            return;
+        if (!voice.TestBit && voice.Frequency != 0)
+        {
+            ulong start = voice.Accumulator;
+            ulong end = start + (ulong)voice.Frequency * (uint)cycles;
+            // One noise clock per rising edge of accumulator bit 19.
+            ulong edges = ((end + 0x80000) >> 20) - ((start + 0x80000) >> 20);
+            for (ulong i = 0; i < edges; i++)
+                ClockNoise(ref voice);
+            voice.Accumulator = (uint)end & 0xffffff;
+            voice.MsbJustRose = ((end - voice.Frequency) & 0x800000) == 0 && (end & 0x800000) != 0;
+        }
+        while (cycles > 0)
+        {
+            if (voice.AdsrPhase is AdsrPhase.Sustain or AdsrPhase.Off)
+            {
+                TickEnvelope(ref voice);
+                return;
+            }
+            int ticksBeforeEvent = Math.Max(0, s_adsrRatePeriods[EnvelopeRate(ref voice)] - voice.RateCounter - 1);
+            int skip = Math.Min(cycles, ticksBeforeEvent);
+            voice.RateCounter += (ushort)skip;
+            cycles -= skip;
+            if (cycles > 0)
+            {
+                TickEnvelope(ref voice);
+                cycles--;
+            }
+        }
+    }
+
+    private static void ClockNoise(ref Voice voice)
+    {
+        uint feedback = ((voice.NoiseLfsr >> 17) ^ (voice.NoiseLfsr >> 22)) & 1;
+        voice.NoiseLfsr = ((voice.NoiseLfsr << 1) | feedback) & 0x7fffff;
+    }
+
+    private static byte EnvelopeRate(ref Voice voice) => voice.AdsrPhase switch
+    {
+        AdsrPhase.Attack => voice.AttackRate,
+        AdsrPhase.Decay => voice.DecayRate,
+        _ => voice.ReleaseRate,
+    };
+
     private void DecodeVoiceRegister(int voice, int regOffset, byte value)
     {
         ref var v = ref _voices[voice];
@@ -537,10 +636,7 @@ public sealed class SidSampleCore
 
         // Noise LFSR clocks on a 0→1 transition of accumulator bit 19.
         if ((prevAcc & 0x080000) == 0 && (v.Accumulator & 0x080000) != 0)
-        {
-            uint feedback = ((v.NoiseLfsr >> 17) ^ (v.NoiseLfsr >> 22)) & 1;
-            v.NoiseLfsr = ((v.NoiseLfsr << 1) | feedback) & 0x7FFFFF;
-        }
+            ClockNoise(ref v);
     }
 
     private static void TickEnvelope(ref Voice v)
@@ -558,13 +654,7 @@ public sealed class SidSampleCore
             return;
         }
 
-        byte rateIdx = v.AdsrPhase switch
-        {
-            AdsrPhase.Attack => v.AttackRate,
-            AdsrPhase.Decay => v.DecayRate,
-            AdsrPhase.Release => v.ReleaseRate,
-            _ => (byte)0,
-        };
+        byte rateIdx = EnvelopeRate(ref v);
 
         v.RateCounter++;
         if (v.RateCounter < s_adsrRatePeriods[rateIdx])
@@ -769,7 +859,12 @@ public sealed class SidSampleCore
         {
             msbBit = a & 0x800000;
         }
-        uint folded = (msbBit != 0) ? ~a : a;
+        return FoldTriangle(a, msbBit);
+    }
+
+    private static int FoldTriangle(uint phase, uint sign)
+    {
+        uint folded = (sign & 0x800000) != 0 ? ~phase : phase;
         return (int)((folded >> 11) & 0xFFE); // 12-bit, LSB always 0 (real SID drops LSB)
     }
 

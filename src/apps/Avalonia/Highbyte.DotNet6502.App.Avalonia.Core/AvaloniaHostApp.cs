@@ -925,6 +925,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         }
         // If F12 is pressed without Ctrl or Shift modifier, toggle monitor
         else if (key == Key.F12 && (modifiers & KeyModifiers.Control) == 0 && (modifiers & KeyModifiers.Shift) == 0
+                 && DemoSession?.Mode is not (Highbyte.DotNet6502.Systems.Recording.RecordingMode.Recording or Highbyte.DotNet6502.Systems.Recording.RecordingMode.Playback)
                  && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
                  && !IsExternalDebuggerAttached)
         {

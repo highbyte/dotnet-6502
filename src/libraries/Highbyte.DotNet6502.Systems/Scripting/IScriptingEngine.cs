@@ -78,6 +78,9 @@ public interface IScriptingEngine
     /// </summary>
     Task DrainPendingActionsAsync();
 
+    /// <summary>Discard this machine's deferred script mutations when playback takes ownership.</summary>
+    void DiscardPendingActions() { }
+
     /// <summary>
     /// Returns a snapshot of all loaded scripts and their current status.
     /// Returns an empty list if scripting is disabled or no scripts are loaded.

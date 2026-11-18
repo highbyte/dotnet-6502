@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// <summary>
 /// C64 keyboard matrix with keys assigned to their position.
 /// </summary>
-public class C64Keyboard
+public partial class C64Keyboard
 {
     private const string RestoreNmiSource = "KeyboardReset";
     private readonly C64Key[,] _matrix;
@@ -18,6 +18,7 @@ public class C64Keyboard
     private bool _capsLockOn;
     private bool _restorePressedLastFrame;
     private bool _runStopPressedLastFrame;
+    private bool _restorePulseThisFrame;
     private readonly ILogger _logger;
 
     public C64Keyboard(C64 c64, ILoggerFactory loggerFactory)
@@ -56,6 +57,7 @@ public class C64Keyboard
     /// <param name="key"></param>
     public void SetKeysPressed(List<C64Key> keys, bool restorePressed, bool capsLockOn)
     {
+        _restorePulseThisFrame = false;
         bool runStopPressed = keys.Contains(C64Key.Stop);
 
         // Check for special key: Restore
@@ -115,6 +117,7 @@ public class C64Keyboard
 
     private void PulseRestoreKeyPressed()
     {
+        _restorePulseThisFrame = true;
         _c64.CPU.CPUInterrupts.SetNMISourceInactive(RestoreNmiSource);
         SetRestoreKeyPressed();
     }

@@ -178,6 +178,8 @@ public class C64SystemConfigurerCore : ISystemConfigurer
                 await transport.ConnectAsync();
         }
 
+        // Headless still consumes injected machine input even though it has no physical input.
+        c64.InputConsumer ??= new Input.C64InputHandler(c64, LoggerFactory, new Input.C64InputConfig());
         return new SystemRunner(c64);
     }
 

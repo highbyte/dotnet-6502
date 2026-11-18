@@ -10,4 +10,32 @@
                              Condition="'%(ResolvedFileToPublish.Filename)' == 'libSkiaSharp' and '%(ResolvedFileToPublish.Extension)' == '.pdb'" />
     </ItemGroup>
   </Target>
+
+  <!-- Source identity survives trimming/AOT and is identical across hosts and checkout paths.
+       Assembly MVIDs cannot serve this purpose because publish/link steps can rewrite them. -->
+  <Target Name="ComputeReplayEngineBuildId"
+          BeforeTargets="GetAssemblyAttributes"
+          Condition="'$(MSBuildProjectName)' == 'Highbyte.DotNet6502.Systems'">
+    <ItemGroup>
+      <ReplayEngineSource Include="$(MSBuildThisFileDirectory)src/libraries/**/*.cs"
+                          Exclude="$(MSBuildThisFileDirectory)src/libraries/**/obj/**;$(MSBuildThisFileDirectory)src/libraries/**/bin/**;$(MSBuildThisFileDirectory)src/libraries/**/publish/**" />
+      <ReplayEngineSource Include="$(MSBuildThisFileDirectory)Directory.Build.props;$(MSBuildThisFileDirectory)Directory.Packages.props;$(MSBuildThisFileDirectory)global.json;$(MSBuildThisFileFullPath)" />
+    </ItemGroup>
+    <GetFileHash Files="@(ReplayEngineSource)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="ReplaySourceHash" />
+    </GetFileHash>
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)replay-engine-sources.hashes"
+                      Lines="@(ReplaySourceHash->'%(FileHash)')"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <GetFileHash Files="$(IntermediateOutputPath)replay-engine-sources.hashes" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="ReplayEngineHash" />
+    </GetFileHash>
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>ReplayEngineBuildId</_Parameter1>
+        <_Parameter2>@(ReplayEngineHash->'%(FileHash)')</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
 </Project>

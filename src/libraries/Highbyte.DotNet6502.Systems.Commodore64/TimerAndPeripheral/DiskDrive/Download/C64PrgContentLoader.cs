@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Caching;
+using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -32,6 +33,8 @@ public class C64PrgContentLoader : IC64AutoLoadContentLoader
         try
         {
             var prgBytes = await GetPrgBytesAsync(programInfo, downloadUrl);
+
+            RecordingSystemGuards.EnsureMutationAllowed(c64);
 
             BinaryLoader.Load(
                 c64.Mem,

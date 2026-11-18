@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// Base class for Complex Interface Adapter (CIA) chip functionality.
 /// Contains common functionality shared between CIA 1 and CIA 2.
 /// </summary>
-public abstract class CiaBase
+public abstract partial class CiaBase
 {
     protected readonly C64 _c64;
 
@@ -41,13 +41,6 @@ public abstract class CiaBase
     }
 
     private CiaTimer Timer(CiaTimerType timerType) => timerType == CiaTimerType.CiaA ? _timerA : _timerB;
-
-    // --- Snapshot support ---
-    // Exposes the live timer and IRQ state (not held in IO register storage) to the c64-cia
-    // snapshot module, which lives in the same assembly.
-    internal CiaTimer SnapshotTimerA => _timerA;
-    internal CiaTimer SnapshotTimerB => _timerB;
-    internal CiaIRQ SnapshotIrq => _ciaIRQ;
 
     /// <summary>
     /// Advance the timers by a number of cycles from where they are, independent of the CPU

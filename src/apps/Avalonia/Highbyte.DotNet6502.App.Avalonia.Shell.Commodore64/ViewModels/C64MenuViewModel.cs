@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Recording;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -1020,6 +1021,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task ToggleDiskImageInternalAsync()
     {
+        HostApp.EnsureMachineMutationAllowed();
         var avaloniaHostApp = _avaloniaHostApp;
         if (avaloniaHostApp == null || avaloniaHostApp.EmulatorState == EmulatorState.Uninitialized || !IsC64System())
             return;
@@ -1053,6 +1055,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task AttachCartridgeImageInternalAsync()
     {
+        HostApp.EnsureMachineMutationAllowed();
         LatestCartridgeError = string.Empty;
 
         if (_avaloniaHostApp.CurrentRunningSystem is not C64 c64)
@@ -1121,6 +1124,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task DetachCartridgeInternalAsync()
     {
+        HostApp.EnsureMachineMutationAllowed();
         if (_avaloniaHostApp.CurrentRunningSystem is not C64 c64)
         {
             if (_pendingCartridgeImage != null)
@@ -1169,6 +1173,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task FreezeCartridgeInternalAsync()
     {
+        HostApp.EnsureMachineMutationAllowed();
         if (_avaloniaHostApp.CurrentRunningSystem is not C64 c64 ||
             !c64.CanFreezeAttachedCartridge)
             return;
@@ -1332,6 +1337,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
         {
             try
             {
+                HostApp.EnsureMachineMutationAllowed();
                 // Parse the D64 disk image
                 var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(fileBuffer);
 
@@ -1349,6 +1355,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task LoadPreloadedProgramAsync()
     {
+        HostApp.EnsureMachineMutationAllowed();
         var hostApp = HostApp;
         if (hostApp == null)
             return;
@@ -1390,6 +1397,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
                 programInfo,
                 setConfigCallback: async (programInfo) =>
                 {
+                    hostApp.EnsureMachineMutationAllowed();
                     if (hostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
                         return;
 
@@ -1456,6 +1464,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task LoadAssemblyExampleAsync()
     {
+        HostApp.EnsureMachineMutationAllowed();
         var hostApp = HostApp;
         if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -1482,6 +1491,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             }
 
             // Load file into memory
+            hostApp.EnsureMachineMutationAllowed();
             BinaryLoader.Load(
                 hostApp.CurrentRunningSystem!.Mem,
                 prgBytes,
@@ -1508,6 +1518,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task LoadBasicExampleAsync()
     {
+        HostApp.EnsureMachineMutationAllowed();
         var hostApp = HostApp;
         if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -1534,6 +1545,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
             }
 
             // Load file into memory
+            hostApp.EnsureMachineMutationAllowed();
             BinaryLoader.Load(
                 hostApp.CurrentRunningSystem!.Mem,
               prgBytes,
@@ -1570,6 +1582,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task LoadBasicFileAsync(byte[] fileBuffer)
     {
+        HostApp.EnsureMachineMutationAllowed();
         var hostApp = HostApp;
         if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -1580,6 +1593,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         try
         {
+            hostApp.EnsureMachineMutationAllowed();
             BinaryLoader.Load(
                 hostApp.CurrentRunningSystem!.Mem,
                 fileBuffer,
@@ -1639,6 +1653,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
     private async Task LoadBinaryFileAsync(byte[] fileBuffer)
     {
+        HostApp.EnsureMachineMutationAllowed();
         var hostApp = HostApp;
         if (hostApp == null || hostApp.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -1649,6 +1664,7 @@ public class C64MenuViewModel : ViewModelBase, ISystemMenuContributor
 
         try
         {
+            hostApp.EnsureMachineMutationAllowed();
             BinaryLoader.Load(
                 hostApp.CurrentRunningSystem!.Mem,
                 fileBuffer,

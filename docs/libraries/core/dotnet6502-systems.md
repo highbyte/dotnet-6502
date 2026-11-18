@@ -17,6 +17,24 @@ referenced by the Tier-2 system cores, the Tier-3 implementation libraries, and 
 | `SystemRunner` | Drives one frame of a system and dispatches its render/input/audio. |
 | `SystemList` | Registry of available `ISystemConfigurer`s; host apps populate it from discovered plugins. |
 
+## Snapshots and replay checkpoints
+
+Each `ISnapshotModule` owns a named, versioned part of the save file and reads older payloads.
+A recording starts with an ordinary snapshot. During playback, the system's `IRecordingAdapter`
+applies resolved input and compares a digest of machine state at frame boundaries. Only a
+snapshot can resume the machine from that point.
+
+In the 6502 and C64 components used by replay, `<Type>.State.cs` sits beside the implementation
+and groups the methods that need private state for capture, restore, or checkpoint comparison.
+The emulator updates live fields in the main class. When both formats need the same bytes, they
+call the same writer. For example, the VIC-II saves all line sequencers in a snapshot, while a
+frame checkpoint includes the current and following line that can still affect execution.
+The shared CPU checkpoint writer lives in the Systems library so other machines can use it.
+
+On the C64, `C64ResolvedInput` owns the byte layout for the keyboard and both joystick ports.
+Snapshot restore reinstates held controls and leaves the saved CPU interrupt latch intact.
+Applying a recorded input frame also delivers any RESTORE-key edge for that frame.
+
 ## Host app
 
 `HostApp` is the base class for every front-end (`AvaloniaHostApp`, `SilkNetHostApp`,

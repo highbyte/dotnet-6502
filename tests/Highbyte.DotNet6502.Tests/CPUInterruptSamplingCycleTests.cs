@@ -170,6 +170,62 @@ public class CPUInterruptSamplingCycleTests
     }
 
     [Fact]
+    public void Restoring_after_CLI_keeps_the_IRQ_mask_sampled_before_the_flag_changed()
+    {
+        var (source, memory) = NewCpu(0x58, 0xEA); // CLI ; NOP
+        source.ProcessorStatus.InterruptDisable = true;
+        source.CPUInterrupts.SetIRQSourceActive("timer", autoAcknowledge: true, assertedAtBusCycle: 1);
+        source.ExecuteOneInstructionMinimal(memory);
+
+        var (restored, restoredMemory) = NewCpu(0x58, 0xEA);
+        restored.PC = source.PC;
+        restored.ProcessorStatus = source.ProcessorStatus;
+        restored.CPUInterrupts.SetIRQSourceActive("timer", autoAcknowledge: true);
+        restored.RestoreExecutionBoundaryState(source.CaptureExecutionBoundaryState());
+
+        Assert.False(restored.ProcessorStatus.InterruptDisable);
+        Assert.Equal(0UL, restored.ProcessPendingInterrupts(restoredMemory));
+        var nop = restored.ExecuteOneInstructionMinimal(restoredMemory);
+        Assert.Equal(2 + CPU.InterruptEntryCycles, nop.CyclesConsumed);
+        Assert.Equal(IrqHandler, restored.PC);
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    public void Restoring_a_released_NMI_pulse_preserves_its_position_relative_to_the_poll(ulong edgeCycle, bool takenNow)
+    {
+        var (source, memory) = NewCpu(0xEA, 0xEA);
+        source.ExecuteOneInstructionMinimal(memory);
+        source.CPUInterrupts.SetNMISourceActive("pulse", edgeCycle);
+        source.CPUInterrupts.SetNMISourceInactive("pulse");
+
+        var (restored, restoredMemory) = NewCpu(0xEA, 0xEA);
+        restored.PC = source.PC;
+        restored.CPUInterrupts.RestorePendingNmi(source.CPUInterrupts.NMIPending);
+        restored.RestoreExecutionBoundaryState(source.CaptureExecutionBoundaryState());
+
+        Assert.Empty(restored.CPUInterrupts.ActiveNMISources);
+        Assert.Equal(takenNow ? CPU.InterruptEntryCycles : 0UL, restored.ProcessPendingInterrupts(restoredMemory));
+        if (!takenNow)
+            restored.ExecuteOneInstructionMinimal(restoredMemory);
+        Assert.Equal(NmiHandler, restored.PC);
+        Assert.False(restored.CPUInterrupts.NMIPending);
+    }
+
+    [Fact]
+    public void Invalid_restored_poll_cycle_leaves_the_running_boundary_intact()
+    {
+        var (cpu, memory) = NewCpu(0xEA);
+        cpu.ExecuteOneInstructionMinimal(memory);
+        var before = cpu.CaptureExecutionBoundaryState();
+        var invalid = before with { BusCycles = 7, InterruptPollBusCycle = 8 };
+
+        Assert.Throws<ArgumentException>(() => cpu.RestoreExecutionBoundaryState(invalid));
+        Assert.Equal(before, cpu.CaptureExecutionBoundaryState());
+    }
+
+    [Fact]
     public void CLI_takes_effect_one_instruction_late()
     {
         var (cpu, mem) = NewCpu(0x58, 0xEA, 0xEA);   // CLI ; NOP ; NOP
