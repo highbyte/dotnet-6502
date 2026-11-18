@@ -69,12 +69,14 @@
                            IsVisible="{Binding StatusFpsText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
             </StackPanel>
 
-            <!-- Center zone: transient messages (placeholder) -->
-            <StackPanel Grid.Column="1"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Spacing="8"/>
+            <StackPanel Grid.Column="1" Margin="8,0" VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="StatusBarDemoIndicator"
+                        AutomationProperties.Name="{Binding DemoStatusText}"
+                        IsVisible="{Binding DemoStatusText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding DemoStatusText}" ToolTip.Tip="{Binding DemoStatusText}"
+                           FontSize="11" FontWeight="Bold" TextTrimming="CharacterEllipsis"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
 
             <!-- Right zone: connection indicators -->
             <StackPanel Grid.Column="2"

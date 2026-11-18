@@ -12,12 +12,12 @@ public sealed class SnapshotModuleWriter
 {
     private readonly BinaryWriter _writer;
 
+    // SnapshotService owns the stream. Checkpoint writers can share their BinaryWriter
+    // so the common CPU fields go directly to the same digest stream.
     public SnapshotModuleWriter(Stream stream)
-    {
-        // BinaryWriter writes integers little-endian on all platforms. Leave the underlying
-        // stream open so the caller (SnapshotService) controls its lifetime.
-        _writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-    }
+        : this(new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true)) { }
+
+    internal SnapshotModuleWriter(BinaryWriter writer) => _writer = writer;
 
     public void WriteByte(byte value) => _writer.Write(value);
     public void WriteBool(bool value) => _writer.Write(value);

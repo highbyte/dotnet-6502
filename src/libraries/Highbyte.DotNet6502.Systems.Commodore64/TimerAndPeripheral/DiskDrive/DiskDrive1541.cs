@@ -21,6 +21,9 @@ public class DiskDrive1541 : IIECDevice
     public DeviceLineState SetDATALine => _setDATALine;
 
     public bool IsDisketteInserted => _d64DiskImage != null;
+    /// <summary>The snapshot format cannot yet preserve an in-flight IEC transfer.</summary>
+    public bool HasActiveTransfer => _currentDriveMode != Mode.Idle || _receivingCommand
+        || _setCLKLine != DeviceLineState.NotHolding || _setDATALine != DeviceLineState.NotHolding;
 
 
     /// <summary>

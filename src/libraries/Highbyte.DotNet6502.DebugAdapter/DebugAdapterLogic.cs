@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Debugger;
+using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -464,6 +465,15 @@ public class DebugAdapterLogic
 
             try
             {
+                if (RecordingSystemGuards.HasActiveSession(_system)
+                    && (command is "launch" or "configurationDone" or "writeMemory" or "setVariable"
+                        or "setExpression" or "evaluate" or "goto" or "restart" or "next" or "stepIn"
+                        or "stepOut" or "disassemble"
+                        || (command == "variables" && (arguments?["variablesReference"]?.GetValue<int>() ?? 0) >= 3)))
+                {
+                    await _protocol.SendErrorResponseAsync(seq, command ?? "unknown", "This debugger operation can mutate machine state and is disabled during recording/replay. Use CPU inspection or demo frame stepping.");
+                    return;
+                }
                 switch (command)
                 {
                     case "initialize":
@@ -2880,6 +2890,8 @@ public class DebugAdapterLogic
                 count = maxCount;
             }
 
+            if (_system != null)
+                RecordingSystemGuards.EnsureMemoryInspectionAllowed(_system, address, count);
             var data = new byte[count];
             for (int i = 0; i < count; i++)
             {

@@ -25,6 +25,14 @@ For manual installations, keep the included native Skia library beside the execu
 - **Oric Atmos 48K** — requires the Atmos BASIC 1.1b ROM. See [Systems / Oric / ROMs](../../systems/oric/roms.md).
 - **Generic computer** — built-in example 6502 programs (Snake, Scroll, HelloWorld).
 
+### Input recording and replay
+
+Headless supports demo playback, accelerated validation, and recording Lua/remote input
+through the [TCP demo commands](../../tools/remote-control/tcp-protocol.md#demorecord).
+See [Demo playback and validation](#demo-playback-and-validation) for CLI options and exit
+codes, and [Input recording and replay](../../tools/recording-replay.md) for shared behavior,
+compatibility, and file limits.
+
 ### Lua scripting
 
 The same Lua scripting API available in the Avalonia apps is fully supported here. Scripts are the primary way to control the emulator. Example scripts are included in the `scripts/` directory:
@@ -87,6 +95,30 @@ The headless app is driven entirely from the command line.
     helpers are host-agnostic, so adding equivalent flags to the headless app is possible but is out
     of scope for the initial release.
 
+### Demo playback and validation
+
+| Option | Description |
+|--------|-------------|
+| `--play-demo FILE` | Load a `.d6502demo` file and start real-time playback. |
+| `--validate-demo FILE` | Run accelerated validation and exit after completion or failure. |
+| `--demo-max-frames N` | Maximum demo frame count allowed for playback or validation. Must be positive; default: 10,000,000. |
+
+Use one of `--play-demo` or `--validate-demo`. Demo startup selects its own system and
+variant; do not combine it with other machine startup, program/snapshot load, script, or
+external-debugger flags. File paths refer to the machine running Headless.
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | Validation completed with matching state; or normal interactive shutdown. |
+| 1 | Invalid arguments or startup failure. |
+| 2 | Validation cancelled. |
+| 3 | Replay execution failed or diverged. |
+| 4 | Demo could not load, was incompatible, or exceeded the frame limit. |
+
+For remote recording, playback controls, and progress queries, see the
+[TCP command reference](../../tools/remote-control/tcp-protocol.md#demorecord) and
+[Remote Client examples](../../tools/remote-control/remote-client.md#usage-examples).
+
 ### Examples
 
 Examples below use `dotnet-6502-headless` as installed via Homebrew or Scoop.
@@ -146,6 +178,18 @@ Restore a snapshot but leave it paused, with remote control so an external proce
 
 ```sh
 dotnet-6502-headless --load-snapshot state.d6502snap --remote-port 6510
+```
+
+Play a demo in real time, with remote control available for pause, restart, and inspection:
+
+```sh
+dotnet-6502-headless --play-demo /path/session.d6502demo --remote-port 6510
+```
+
+Validate a demo without real-time pacing; exit successfully only when all checkpoints and the final digest match:
+
+```sh
+dotnet-6502-headless --validate-demo /path/session.d6502demo
 ```
 
 Example console output:

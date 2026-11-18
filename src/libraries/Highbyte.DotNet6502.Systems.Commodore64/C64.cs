@@ -24,12 +24,13 @@ using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Snapshots;
+using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public partial class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider, IDebugValueSource
+public partial class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup, ISystemSnapshotProvider, IDebugValueSource, IRecordingSystem
 {
     private const string CartridgeNmiSource = "CartridgeNmi";
     private const string CartridgeIrqSource = "CartridgeIrq";
@@ -90,7 +91,7 @@ public partial class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public List<IRenderProvider> RenderProviders { get; } = new();
 
     // CPU bus time advances even when the debugger executes individual instructions.
-    // Preserve whether the snapshot was taken at a completed frame boundary.
+    // A frame-completion stamp avoids adding recording checks to the instruction loop.
     internal ulong? LastCompletedFrameBusCycle { get; set; }
     internal bool IsAtFrameBoundary => LastCompletedFrameBusCycle == CPU.BusCycles;
 
@@ -804,6 +805,7 @@ public partial class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     public void AttachCartridge(IC64Cartridge cartridge)
     {
+        RecordingSystemGuards.EnsureMutationAllowed(this);
         CartridgeSlot.Attach(cartridge);
         AttachedCartridgeImage = null;
         _attachedCrtImageBytes = null;
@@ -811,19 +813,24 @@ public partial class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     public void DetachCartridge()
     {
+        RecordingSystemGuards.EnsureMutationAllowed(this);
         CartridgeSlot.Detach();
         AttachedCartridgeImage = null;
         _attachedCrtImageBytes = null;
     }
 
     public void ResetAttachedCartridge()
-        => CartridgeSlot.Reset();
+    {
+        RecordingSystemGuards.EnsureMutationAllowed(this);
+        CartridgeSlot.Reset();
+    }
 
     public bool CanFreezeAttachedCartridge
         => CartridgeSlot.AttachedCartridge is IC64FreezableCartridge;
 
     public bool FreezeAttachedCartridge()
     {
+        RecordingSystemGuards.EnsureMutationAllowed(this);
         _logger.LogDebug(
             "Activating cartridge Freeze. Cartridge={Cartridge}, Lines={Lines}, MemoryConfiguration={MemoryConfiguration}, PC={PC:X4}",
             CartridgeSlot.AttachedCartridge?.Name ?? "none",
@@ -856,7 +863,10 @@ public partial class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
     public C64CartridgeImageAttachResult AttachCrtImage(
         ReadOnlyMemory<byte> image,
         string? sourceName = null)
-        => AttachCrtImageInternal(image.ToArray(), sourceName, reset: true);
+    {
+        RecordingSystemGuards.EnsureMutationAllowed(this);
+        return AttachCrtImageInternal(image.ToArray(), sourceName, reset: true);
+    }
 
     // Raw .crt bytes of the currently attached cartridge image (null if none / not from a .crt).
     // Retained so the snapshot c64-cartridge module can embed them.
@@ -902,6 +912,7 @@ public partial class C64 : ISystem, ISystemMonitor, ISystemState, ISystemCleanup
 
     public void HardReset()
     {
+        RecordingSystemGuards.EnsureMutationAllowed(this);
         CartridgeSlot.Reset();
         Array.Clear(IO);
         SetStartupBank(this);

@@ -21,6 +21,10 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
     private readonly CancellationTokenSource _appCts;
 
     private FrameTimer? _updateTimer;
+    private readonly EmulationThread _emulationThread = new();
+    public Task RunOnEmulationThreadAsync(Func<Task> action) => _emulationThread.InvokeAsync(action);
+    public void PostToEmulationThread(Action action) => _emulationThread.Post(_ => action(), null);
+    public void DisposeEmulationThread() => _emulationThread.Dispose();
 
     // IDebuggableHostApp
     public bool WaitForExternalDebugger { get; set; }
@@ -115,7 +119,7 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
     // --- Scripting timer ---
 
     protected override IScriptingTickTimer CreateScriptingTickTimer(double intervalMs) =>
-        new FrameTimer { IntervalMilliseconds = intervalMs };
+        new FrameTimer(action => _emulationThread.InvokeAsync(action)) { IntervalMilliseconds = intervalMs };
 
     protected override void OnScriptingEngineSet()
     {
@@ -132,7 +136,7 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
     {
         shouldRun = true;
-        shouldReceiveInput = false; // No user input in headless mode
+        shouldReceiveInput = true; // The empty host input source still resolves Lua/TCP injection.
 
         if (EmulatorState != EmulatorState.Running)
         {
@@ -167,7 +171,7 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
     private FrameTimer CreateUpdateTimerForSystem(ISystem system)
     {
         double updateIntervalMS = (1 / system.Screen.RefreshFrequencyHz) * 1000;
-        var timer = new FrameTimer { IntervalMilliseconds = updateIntervalMS };
+        var timer = new FrameTimer(action => _emulationThread.InvokeAsync(action)) { IntervalMilliseconds = updateIntervalMS };
         timer.Elapsed += UpdateTimerElapsed;
         return timer;
     }

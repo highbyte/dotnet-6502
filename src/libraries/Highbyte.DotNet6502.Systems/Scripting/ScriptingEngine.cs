@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Systems.Recording;
 
 namespace Highbyte.DotNet6502.Systems;
 
@@ -73,6 +74,8 @@ public class ScriptingEngine : IScriptingEngine
 
     public void ReloadAllScripts() => LoadScripts();
 
+    public void DiscardPendingActions() => _pendingScriptActions.Clear();
+
     public async Task DrainPendingActionsAsync()
     {
         if (_pendingScriptActions.Count == 0) return;
@@ -105,6 +108,7 @@ public class ScriptingEngine : IScriptingEngine
 
     public void LoadScripts()
     {
+        _hostApp?.EnsureLiveInputAllowed();
         _handles.Clear();
         _coroutineStates.Clear();
         _lastYieldTypes.Clear();
@@ -262,6 +266,7 @@ public class ScriptingEngine : IScriptingEngine
 
     public void SetScriptEnabled(string fileName, bool enabled)
     {
+        if (enabled) _hostApp?.EnsureLiveInputAllowed();
         if (!_handles.Any(h => h.FileName == fileName))
             return;
 
@@ -308,6 +313,7 @@ public class ScriptingEngine : IScriptingEngine
 
     public void ReloadScript(string fileName)
     {
+        _hostApp?.EnsureLiveInputAllowed();
         // Determine content source: ScriptLoader (browser) or filesystem (desktop)
         string? filePath = null;
         string? loaderContent = null;
@@ -420,6 +426,7 @@ public class ScriptingEngine : IScriptingEngine
 
     public void UpsertScript(string fileName, string content)
     {
+        _hostApp?.EnsureLiveInputAllowed();
         // Don't replace a script that is actively running
         var existing = _handles.FirstOrDefault(h => h.FileName == fileName);
         if (existing != null

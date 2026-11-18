@@ -1,5 +1,7 @@
 using Highbyte.DotNet6502;
 using MoonSharp.Interpreter;
+using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Recording;
 
 namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 
@@ -18,8 +20,9 @@ namespace Highbyte.DotNet6502.Scripting.MoonSharp;
 public class LuaMemProxy
 {
     private Memory? _mem;
+    private readonly IHostApp? _host;
 
-    internal LuaMemProxy() { }
+    internal LuaMemProxy(IHostApp? host = null) => _host = host;
 
     /// <summary>Called by the engine when a system starts (or restarts after reset).</summary>
     internal void SetMem(Memory mem) => _mem = mem;
@@ -30,8 +33,12 @@ public class LuaMemProxy
     /// </summary>
     /// <param name="address">Memory address (0–65535). Values outside the range are masked.</param>
     /// <returns>Byte value at the address (0–255).</returns>
-    public int read(int address) =>
-        _mem?.Read((ushort)(address & 0xFFFF)) ?? 0;
+    public int read(int address)
+    {
+        if (_host?.CurrentRunningSystem is { } system)
+            RecordingSystemGuards.EnsureMemoryInspectionAllowed(system, (ushort)(address & 0xFFFF), 1);
+        return _mem?.Read((ushort)(address & 0xFFFF)) ?? 0;
+    }
 
     /// <summary>
     /// Writes a byte to the specified memory address. No-op if the system has not started yet.
@@ -40,6 +47,7 @@ public class LuaMemProxy
     /// <param name="value">Byte value to write (0–255). Values outside the range are masked.</param>
     public void write(int address, int value)
     {
+        _host?.EnsureMachineMutationAllowed();
         _mem?.Write((ushort)(address & 0xFFFF), (byte)(value & 0xFF));
     }
 }

@@ -98,7 +98,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         WriteBoundaryTiming(writer, cpu);
     }
 
-    private static void WriteRegisters(SnapshotModuleWriter writer, CPU cpu)
+    internal static void WriteRegisters(SnapshotModuleWriter writer, CPU cpu)
     {
         writer.WriteUInt16(cpu.PC);
         writer.WriteByte(cpu.SP);
@@ -108,7 +108,7 @@ public sealed class Cpu6502SnapshotModule : ISnapshotModule
         writer.WriteByte(cpu.ProcessorStatus.Value);
     }
 
-    private static void WriteBoundaryTiming(SnapshotModuleWriter writer, CPU cpu)
+    internal static void WriteBoundaryTiming(SnapshotModuleWriter writer, CPU cpu)
     {
         var timing = cpu.CaptureExecutionBoundaryState();
         writer.WriteUInt64(timing.BusCycles);

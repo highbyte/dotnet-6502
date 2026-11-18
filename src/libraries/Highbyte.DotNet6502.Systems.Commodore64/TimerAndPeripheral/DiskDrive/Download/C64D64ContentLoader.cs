@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Caching;
+using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 using Highbyte.DotNet6502.Utils;
@@ -34,6 +35,7 @@ public class C64D64ContentLoader : IC64AutoLoadContentLoader
         bool issueRunCommands,
         ILogger logger)
     {
+        RecordingSystemGuards.EnsureMutationAllowed(c64);
         var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
         logger.LogInformation("Parsed D64 disk image: {DiskName}", d64DiskImage.DiskName);
 

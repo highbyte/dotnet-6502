@@ -24,7 +24,7 @@ using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
-public class MainViewModel : ViewModelBase, IDisposable
+public partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly AvaloniaHostApp _hostApp;
     private readonly EmulatorConfig _emulatorConfig;
@@ -164,7 +164,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     // Load rebuilds the machine, so it only needs the selected system to support snapshots — enabled
     // regardless of run state, and consistent between a freshly launched app and a stopped one.
-    public bool CanLoadSnapshot => _hostApp.SelectedSystemSupportsSnapshots;
+    public bool CanLoadSnapshot => _hostApp.SelectedSystemSupportsSnapshots && CanMutateMachine;
 
     public string SnapshotDirectory => _emulatorConfig.ResolvedSnapshotDirectory();
 
@@ -761,6 +761,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                   this.RaisePropertyChanged(nameof(StatusEmulatorStateText));
                   this.RaisePropertyChanged(nameof(CanSaveSnapshot));
                   this.RaisePropertyChanged(nameof(CanLoadSnapshot));
+                  RefreshDemoState();
               });
 
         this.WhenAnyValue(x => x.SelectedSystemName, x => x.SelectedSystemVariant)
@@ -1007,7 +1008,8 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 x => x.IsExternalDebuggerAttached,
-                (state, isExternalDebuggerAttached) => state == EmulatorState.Running && !isExternalDebuggerAttached),
+                x => x.CanMutateMachine,
+                (state, isExternalDebuggerAttached, canMutate) => state == EmulatorState.Running && !isExternalDebuggerAttached && canMutate),
             RxSchedulers.MainThreadScheduler); // RxSchedulers.MainThreadScheduler required for it working in Browser app
 
         StatsCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -1595,6 +1597,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private void UpdateStatusFps()
     {
+        RefreshDemoState();
         if (EmulatorState != EmulatorState.Running)
         {
             StatusFpsText = string.Empty;

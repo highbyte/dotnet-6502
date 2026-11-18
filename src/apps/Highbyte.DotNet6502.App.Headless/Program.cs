@@ -8,6 +8,7 @@ using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Plugins;
+using Highbyte.DotNet6502.Systems.Recording;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -50,6 +51,18 @@ string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadP
 bool runLoadedProgram = args.Contains("--runLoadedProgram");
 string? loadSnapshotPath = AutomatedStartupHandler.ParseStringArgument(args, "--load-snapshot");
 bool showStoragePaths = args.Contains("--show-storage-paths");
+string? playDemoPath = AutomatedStartupHandler.ParseStringArgument(args, "--play-demo");
+string? validateDemoPath = AutomatedStartupHandler.ParseStringArgument(args, "--validate-demo");
+string? demoPath = playDemoPath ?? validateDemoPath;
+bool validateDemo = validateDemoPath != null;
+long demoFrameLimit = 10000000;
+var frameLimitText = AutomatedStartupHandler.ParseStringArgument(args, "--demo-max-frames");
+if ((frameLimitText != null && (!long.TryParse(frameLimitText, out demoFrameLimit) || demoFrameLimit < 1))
+    || (playDemoPath != null && validateDemoPath != null))
+{
+    Console.Error.WriteLine("Use one of --play-demo / --validate-demo, with a positive --demo-max-frames limit.");
+    return 1;
+}
 
 // Parse scripting override arguments
 List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
@@ -57,6 +70,12 @@ string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(ar
 
 // Validate automated startup arguments
 bool hasScripts = scriptFilePaths.Count > 0 || scriptDirectoryOverride != null;
+if (demoPath != null && (systemName != null || systemVariant != null || autoStart || waitForSystemReady
+    || loadPrgPath != null || runLoadedProgram || loadSnapshotPath != null || hasScripts || enableExternalDebug))
+{
+    Console.Error.WriteLine("Demo startup selects its own machine and initial state; do not combine it with other startup, script, or debugger arguments.");
+    return 1;
+}
 if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram, hasScripts, loadSnapshotPath))
 {
     return 1;
@@ -186,7 +205,7 @@ if (remotePort.HasValue && !showStoragePaths)
 // ----------
 // Initialize Lua scripting engine
 // ----------
-bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram || loadSnapshotPath != null;
+bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram || loadSnapshotPath != null || demoPath != null;
 var scriptingConfig = MoonSharpScriptingConfigurator.CreateEffectiveConfig(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode);
 var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "headless");
 
@@ -257,8 +276,11 @@ debugEnvironment.HostApp = hostApp;
 remoteEnvironment.HostApp = hostApp;
 
 // Set scripting engine
-hostApp.SetScriptingEngine(scriptingEngine ?? new NoScriptingEngine());
-await hostApp.DrainStartupScriptActionsAsync();
+await hostApp.RunOnEmulationThreadAsync(async () =>
+{
+    hostApp.SetScriptingEngine(scriptingEngine ?? new NoScriptingEngine());
+    await hostApp.DrainStartupScriptActionsAsync();
+});
 
 logger.LogInformation("Headless host app initialized.");
 
@@ -273,21 +295,51 @@ if (systemName != null || loadSnapshotPath != null)
     {
         LoadSnapshotPath = loadSnapshotPath,
     };
-    await AutomatedStartupHandler.ExecuteAsync(
+    await hostApp.RunOnEmulationThreadAsync(() => AutomatedStartupHandler.ExecuteAsync(
         hostApp,
         startupRequest,
         onStartupComplete: () => debugController.SignalProgramReady(),
         loggerFactory: loggerFactory,
-        prepareForExternalDebuggerStart: () => hostApp.WaitForExternalDebugger = true);
+        prepareForExternalDebuggerStart: () => hostApp.WaitForExternalDebugger = true));
 }
 
 // ----------
 // Block until shutdown
 // ----------
-logger.LogInformation("Headless emulator running. Press Ctrl+C to exit.");
+int demoExitCode = 0;
+if (demoPath != null)
+{
+    try
+    {
+        await using var demoFile = File.OpenRead(Path.GetFullPath(demoPath));
+        await hostApp.RunOnEmulationThreadAsync(() => hostApp.LoadDemoAsync(demoFile));
+        if (hostApp.DemoSession!.TotalFrames > demoFrameLimit)
+            throw new InvalidDataException($"Demo exceeds the {demoFrameLimit} frame execution limit; choose --demo-max-frames explicitly.");
+        if (validateDemo)
+        {
+            while (hostApp.DemoSession.Mode == RecordingMode.Playback && !appCts.IsCancellationRequested)
+                await hostApp.RunOnEmulationThreadAsync(() => hostApp.StepEmulatorFramesAsync(100));
+            demoExitCode = appCts.IsCancellationRequested ? 2
+                : hostApp.DemoSession.Outcome == PlaybackOutcome.Completed ? 0 : 3;
+            logger.LogInformation("Demo validation {Outcome} at frame {Frame}/{Total}. {Error}",
+                hostApp.DemoSession.Outcome, hostApp.DemoSession.Frame, hostApp.DemoSession.TotalFrames,
+                hostApp.DemoSession.Error);
+        }
+        else await hostApp.RunOnEmulationThreadAsync(() => hostApp.Start());
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Demo is incompatible or could not be loaded.");
+        demoExitCode = 4;
+    }
+}
 try
 {
-    await Task.Delay(Timeout.Infinite, appCts.Token);
+    if (!validateDemo && demoExitCode == 0)
+    {
+        logger.LogInformation("Headless emulator running. Press Ctrl+C to exit.");
+        await Task.Delay(Timeout.Infinite, appCts.Token);
+    }
 }
 catch (OperationCanceledException)
 {
@@ -298,14 +350,15 @@ catch (OperationCanceledException)
 // Cleanup
 // ----------
 logger.LogInformation("Shutting down.");
-hostApp.Close();
+await hostApp.RunOnEmulationThreadAsync(() => { hostApp.Close(); return Task.CompletedTask; });
 if (enableExternalDebug)
     await debugController.StopAsync();
 if (remotePort.HasValue)
     await remoteController.StopAsync();
 
 logger.LogInformation("Headless emulator exited.");
-return 0;
+hostApp.DisposeEmulationThread();
+return demoExitCode;
 
 // ----------
 // Helper methods

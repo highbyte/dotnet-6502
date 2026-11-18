@@ -141,6 +141,24 @@ dotnet-6502-remote oric.ejecttape
 dotnet-6502-remote emu.savesnapshot --path state.d6502snap
 dotnet-6502-remote emu.loadsnapshot --path state.d6502snap
 
+# Record one second of C64 joystick input and save a demo (paths refer to the emulator host)
+dotnet-6502-remote emu.start
+dotnet-6502-remote demo.record --path /path/to/session.d6502demo
+dotnet-6502-remote joystick.press --port 2 --right --fire
+sleep 1
+dotnet-6502-remote joystick.releaseall --port 2
+dotnet-6502-remote demo.save
+
+# Open a demo (paused), advance one frame, and inspect playback progress
+dotnet-6502-remote demo.open --path /path/to/session.d6502demo
+dotnet-6502-remote emu.runframes --count 1
+dotnet-6502-remote demo.state
+
+# Restart the loaded demo from frame zero (paused), resume, then stop playback
+dotnet-6502-remote demo.restart
+dotnet-6502-remote emu.start
+dotnet-6502-remote demo.stop
+
 # Step the (paused) emulator a fixed number of frames, then screenshot the result
 dotnet-6502-remote emu.runframes --count 1
 

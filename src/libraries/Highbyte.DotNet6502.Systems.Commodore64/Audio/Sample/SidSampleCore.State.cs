@@ -17,7 +17,7 @@ public sealed partial class SidSampleCore
         return stream.ToArray();
     }
 
-    private void WriteExecutionState(BinaryWriter writer)
+    internal void WriteExecutionState(BinaryWriter writer)
     {
         writer.Write((int)_mode);
         writer.Write(_sidClockHz);

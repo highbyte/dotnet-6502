@@ -8,6 +8,21 @@ namespace Highbyte.DotNet6502.Remoting.Protocol;
 /// </summary>
 public class RemoteCommandResult
 {
+    [JsonPropertyName("demoMode")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DemoMode { get; set; }
+    [JsonPropertyName("demoFrame")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DemoFrame { get; set; }
+    [JsonPropertyName("demoTotalFrames")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DemoTotalFrames { get; set; }
+    [JsonPropertyName("demoOutcome")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DemoOutcome { get; set; }
+    [JsonPropertyName("demoError")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DemoError { get; set; }
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Id { get; set; }

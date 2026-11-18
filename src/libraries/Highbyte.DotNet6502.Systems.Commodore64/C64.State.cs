@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Snapshots;
+using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Systems.Snapshots;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
@@ -42,6 +43,8 @@ public partial class C64
     public SnapshotMachineId MachineId => new(SystemName, SnapshotVersion);
 
     public IReadOnlyList<ISnapshotModule> GetSnapshotModules() => _snapshotModules;
+
+    public IRecordingAdapter CreateRecordingAdapter() => new Recording.C64RecordingAdapter(this);
 
     public SnapshotCompatibility ValidateSnapshot(SnapshotManifest manifest) => SnapshotCompatibility.Compatible();
 

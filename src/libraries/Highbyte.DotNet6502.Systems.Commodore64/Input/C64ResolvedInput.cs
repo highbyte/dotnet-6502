@@ -3,13 +3,14 @@ using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Input;
 
-/// <summary>Resolved machine input stored by the c64-input snapshot module.</summary>
+/// <summary>The input payload shared by c64-input snapshots and c64-resolved-input recordings.</summary>
 internal static class C64ResolvedInput
 {
     private const int Port1 = sizeof(ulong);
     private const int Port2 = Port1 + 1;
     private const int Flags = Port2 + 1;
     private const int Size = Flags + 1;
+    private static readonly byte[] Released = new byte[Size];
 
     internal static byte[] Capture(Cia1 cia)
     {
@@ -35,6 +36,8 @@ internal static class C64ResolvedInput
             throw new InvalidDataException("Invalid C64 resolved keyboard/joystick input.");
     }
 
+    internal static bool CanRepeat(ReadOnlySpan<byte> bytes) => (bytes[Flags] & (byte)C64KeyboardFlags.RestoreEdge) == 0;
+
     internal static void Restore(Cia1 cia, ReadOnlySpan<byte> bytes)
     {
         Validate(bytes);
@@ -42,4 +45,12 @@ internal static class C64ResolvedInput
         cia.Joystick.RestorePort(1, bytes[Port1]);
         cia.Joystick.RestorePort(2, bytes[Port2]);
     }
+
+    internal static void ApplyFrame(Cia1 cia, ReadOnlySpan<byte> bytes)
+    {
+        Restore(cia, bytes);
+        cia.Keyboard.ApplyRecordedRestoreLine();
+    }
+
+    internal static void Release(Cia1 cia) => ApplyFrame(cia, Released);
 }

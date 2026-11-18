@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Systems.Recording;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Utils;
 public class C64TextPaste
@@ -19,6 +20,7 @@ public class C64TextPaste
 
     public void Paste(string text)
     {
+        if (RecordingSystemGuards.TryRedirectRecordedText(_c64, text)) return;
         foreach (char c in text)
             _charQueue.Enqueue(c);
     }

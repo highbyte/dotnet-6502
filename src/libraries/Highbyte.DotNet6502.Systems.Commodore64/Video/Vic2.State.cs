@@ -9,11 +9,31 @@ public partial class Vic2
     {
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream);
-        WriteSequencers(writer);
+        WriteSequencers(writer, includeLookupCache: true);
         foreach (var line in _lineDisplayStates)
             WriteLineState(writer, line);
         ((Vic2SpriteManager)SpriteManager).CaptureExecutionState(writer);
         return stream.ToArray();
+    }
+
+    internal void WriteCheckpoint(BinaryWriter writer)
+    {
+        writer.Write(CyclesConsumedCurrentVblank);
+        writer.Write(CurrentVIC2Bank);
+        writer.Write(Vic2IRQ.EnabledMask);
+        writer.Write(Vic2IRQ.LatchedMask);
+        writer.Write((int?)Vic2IRQ.ConfiguredIRQRasterLine ?? -1);
+        WriteSequencers(writer, includeLookupCache: false);
+        // At a frame boundary earlier lines belong to completed output. The current
+        // and following line can still supply sprite data for in-flight fetches.
+        int line = _currentRasterLineInternal == ushort.MaxValue ? 0 : _currentRasterLineInternal;
+        int next = (line + 1) % _totalHeight;
+        WriteLineState(writer, _lineDisplayStates[line]);
+        WriteLineState(writer, _lineDisplayStates[next]);
+        var sprites = (Vic2SpriteManager)SpriteManager;
+        sprites.WriteCollisionState(writer);
+        sprites.WriteCheckpointLine(writer, line);
+        sprites.WriteCheckpointLine(writer, next);
     }
 
     private static void WriteLineState(BinaryWriter writer, Vic2LineDisplayState line)
@@ -24,14 +44,19 @@ public partial class Vic2
         writer.Write(line.RowCounter);
     }
 
-    private void WriteSequencers(BinaryWriter writer)
+    private void WriteSequencers(BinaryWriter writer, bool includeLookupCache)
     {
         writer.Write(_advancedToBusCycle);
         writer.Write(_currentRasterLineInternal);
         writer.Write(_spriteEnableCache);
         writer.Write(_spriteYExpandCache);
-        writer.Write(_spriteYMatchLine);
-        writer.Write(_spriteYMatchMask);
+        if (includeLookupCache)
+        {
+            // Bus-stall prediction can fill this lookup earlier after restoring a snapshot.
+            // The result is fully determined by the Y registers and enable mask.
+            writer.Write(_spriteYMatchLine);
+            writer.Write(_spriteYMatchMask);
+        }
         writer.Write(_spriteXJournalCount);
         writer.Write(SpriteFirstDataByteUnavailable);
         writer.Write(_spriteEventIndex);

@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Remoting.Protocol;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Configuration;
+using Highbyte.DotNet6502.Systems.Recording;
 using Microsoft.Extensions.Logging;
 using OricMachine = Highbyte.DotNet6502.Systems.Oric.Oric;
 
@@ -58,19 +59,31 @@ public class RemoteCommandDispatcher
                     ? Err(cmd.Id, "Missing 'path' parameter")
                     : await HandleUiAsync(cmd.Id, hostApp => LoadSnapshotFromFile(hostApp, cmd.Path!)),
                 "emu.runframes" => await HandleUiAsync(cmd.Id, hostApp => hostApp.StepEmulatorFramesAsync(cmd.Count ?? 1)),
+                "demo.state" => HandleDemoState(cmd.Id),
+                "demo.record" => string.IsNullOrWhiteSpace(cmd.Path) ? Err(cmd.Id, "Missing 'path' parameter")
+                    : await HandleUiAsync(cmd.Id, host => DemoRemoteFiles.StartAsync(GetRecordingHost(host), cmd.Path)),
+                "demo.save" => await HandleUiAsync(cmd.Id, host => DemoRemoteFiles.SaveAsync(GetRecordingHost(host), cmd.Path)),
+                "demo.open" => string.IsNullOrWhiteSpace(cmd.Path) ? Err(cmd.Id, "Missing 'path' parameter")
+                    : await HandleUiAsync(cmd.Id, async host =>
+                    {
+                        await using var stream = File.OpenRead(Path.GetFullPath(cmd.Path));
+                        await GetRecordingHost(host).LoadDemoAsync(stream);
+                    }),
+                "demo.stop" => await HandleUiAsync(cmd.Id, host => { GetRecordingHost(host).StopDemoPlayback(); return Task.CompletedTask; }),
+                "demo.restart" => await HandleUiAsync(cmd.Id, host => GetRecordingHost(host).RestartDemoAsync()),
                 "cpu.get"      => HandleCpuGet(cmd.Id),
                 "cpu.set"      => await HandleFrameAsync(cmd.Id, hostApp => CpuSetDirect(hostApp, cmd)),
                 "mem.read"     => HandleMemRead(cmd.Id, cmd),
                 "mem.write"    => await HandleFrameAsync(cmd.Id, hostApp => MemWriteDirect(hostApp, cmd)),
                 "mem.loadbin"  => await HandleFrameAsync(cmd.Id, hostApp => MemLoadBinDirect(hostApp, cmd)),
                 "c64.loadprg"        => await HandleFrameAsync(cmd.Id, hostApp => C64LoadPrgDirect(hostApp, cmd)),
-                "joystick.set"       => await HandleFrameAsync(cmd.Id, hostApp => JoystickSetDirect(hostApp, cmd)),
-                "joystick.press"     => await HandleFrameAsync(cmd.Id, hostApp => JoystickPressDirect(hostApp, cmd)),
-                "joystick.release"   => await HandleFrameAsync(cmd.Id, hostApp => JoystickReleaseDirect(hostApp, cmd)),
-                "joystick.releaseall"=> await HandleFrameAsync(cmd.Id, hostApp => JoystickReleaseAllDirect(hostApp, cmd)),
-                "keyboard.press"     => await HandleFrameAsync(cmd.Id, hostApp => KeyboardPressDirect(hostApp, cmd)),
-                "keyboard.release"   => await HandleFrameAsync(cmd.Id, hostApp => KeyboardReleaseDirect(hostApp, cmd)),
-                "keyboard.releaseall"=> await HandleFrameAsync(cmd.Id, hostApp => KeyboardReleaseAllDirect(hostApp)),
+                "joystick.set"       => await HandleFrameAsync(cmd.Id, hostApp => JoystickSetDirect(hostApp, cmd), inputOnly: true),
+                "joystick.press"     => await HandleFrameAsync(cmd.Id, hostApp => JoystickPressDirect(hostApp, cmd), inputOnly: true),
+                "joystick.release"   => await HandleFrameAsync(cmd.Id, hostApp => JoystickReleaseDirect(hostApp, cmd), inputOnly: true),
+                "joystick.releaseall"=> await HandleFrameAsync(cmd.Id, hostApp => JoystickReleaseAllDirect(hostApp, cmd), inputOnly: true),
+                "keyboard.press"     => await HandleFrameAsync(cmd.Id, hostApp => KeyboardPressDirect(hostApp, cmd), inputOnly: true),
+                "keyboard.release"   => await HandleFrameAsync(cmd.Id, hostApp => KeyboardReleaseDirect(hostApp, cmd), inputOnly: true),
+                "keyboard.releaseall"=> await HandleFrameAsync(cmd.Id, hostApp => KeyboardReleaseAllDirect(hostApp), inputOnly: true),
                 "keyboard.iskeydown" => HandleKeyIsDown(cmd.Id, cmd),
                 "keyboard.getall"    => HandleKeyGetAll(cmd.Id),
                 "c64.type"           => await HandleC64TypeAsync(cmd.Id, cmd),
@@ -171,6 +184,7 @@ public class RemoteCommandDispatcher
 
         int len = cmd.Len ?? 1;
         if (len < 1 || len > 4096) return Err(id, "len must be between 1 and 4096");
+        RecordingSystemGuards.EnsureMemoryInspectionAllowed(sys, addr, len);
 
         var bytes = new int[len];
         for (int i = 0; i < len; i++)
@@ -259,10 +273,12 @@ public class RemoteCommandDispatcher
 
     // --- Frame-boundary dispatch ---
 
-    private async Task<RemoteCommandResult> HandleFrameAsync(int? id, Action<IRemotableHostApp> action)
+    private async Task<RemoteCommandResult> HandleFrameAsync(int? id, Action<IRemotableHostApp> action, bool inputOnly = false)
     {
         var hostApp = _environment.GetHostApp();
         if (hostApp == null) return Err(id, "Emulator not initialized");
+        if (inputOnly) hostApp.EnsureLiveInputAllowed();
+        else hostApp.EnsureMachineMutationAllowed();
         if (hostApp.EmulatorState != EmulatorState.Running) return Err(id, $"Emulator is not running (state: {hostApp.EmulatorState})");
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -270,6 +286,8 @@ public class RemoteCommandDispatcher
         {
             try
             {
+                if (inputOnly) hostApp.EnsureLiveInputAllowed();
+                else hostApp.EnsureMachineMutationAllowed();
                 action(hostApp);
                 tcs.TrySetResult(true);
             }
@@ -490,7 +508,15 @@ public class RemoteCommandDispatcher
         if (string.IsNullOrEmpty(cmd.Text)) return Err(id, "Missing 'text' parameter");
         var c64 = GetC64System(id, out var err);
         if (c64 == null) return err!;
-        return await HandleFrameAsync(id, _ => c64.TextPaste.Paste(cmd.Text));
+        return await HandleFrameAsync(id, host =>
+        {
+            if (host is HostApp common && common.DemoSession?.Mode == RecordingMode.Recording)
+            {
+                if (!common.TryQueueKeyboardText(cmd.Text))
+                    throw new InvalidOperationException("Text cannot be represented by the recorded keyboard input.");
+            }
+            else c64.TextPaste.Paste(cmd.Text);
+        }, inputOnly: true);
     }
 
     private RemoteCommandResult HandleC64IsBasicStarted(int? id)
@@ -524,7 +550,7 @@ public class RemoteCommandDispatcher
         if (string.IsNullOrEmpty(cmd.Text)) return Err(id, "Missing 'text' parameter");
         var apple2 = GetApple2System(id, out var err);
         if (apple2 == null) return err!;
-        return await HandleFrameAsync(id, _ => apple2.TextPaste.Paste(cmd.Text));
+        return await HandleFrameAsync(id, _ => apple2.TextPaste.Paste(cmd.Text), inputOnly: true);
     }
 
     private RemoteCommandResult HandleApple2IsBasicStarted(int? id)
@@ -732,6 +758,22 @@ public class RemoteCommandDispatcher
     }
 
     // --- Helpers ---
+
+    private static IRecordingHost GetRecordingHost(IRemotableHostApp host) => host as IRecordingHost
+        ?? throw new InvalidOperationException("This host does not support recording/replay.");
+
+    private RemoteCommandResult HandleDemoState(int? id)
+    {
+        var host = _environment.GetHostApp() ?? throw new InvalidOperationException("Emulator not initialized.");
+        var session = GetRecordingHost(host).DemoSession;
+        return new RemoteCommandResult
+        {
+            Id = id, Ok = true, State = host.EmulatorState.ToString(),
+            DemoMode = session?.Mode.ToString() ?? "Idle", DemoFrame = session?.Frame ?? 0,
+            DemoTotalFrames = session?.TotalFrames ?? 0, DemoOutcome = session?.Outcome.ToString() ?? "None",
+            DemoError = session?.Error,
+        };
+    }
 
     // Snapshot save/load run on the UI thread (via HandleUiAsync) and read/write the .d6502snap on
     // the machine the emulator runs on. Exceptions (no provider, missing file, ...) propagate to

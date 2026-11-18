@@ -40,4 +40,14 @@ public partial class C64Keyboard
         _runStopPressedLastFrame = (flags & C64KeyboardFlags.RunStopHeld) != 0;
         _restorePulseThisFrame = (flags & C64KeyboardFlags.RestoreEdge) != 0;
     }
+
+    // During playback each recorded RESTORE edge must reach the CPU exactly once.
+    // Snapshot restore already installs the CPU's NMI state from the same instant.
+    internal void ApplyRecordedRestoreLine()
+    {
+        if (_restorePulseThisFrame)
+            PulseRestoreKeyPressed();
+        else if (!_restorePressedLastFrame)
+            _c64.CPU.CPUInterrupts.SetNMISourceInactive(RestoreNmiSource);
+    }
 }

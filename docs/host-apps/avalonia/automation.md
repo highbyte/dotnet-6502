@@ -61,6 +61,8 @@ A non-exhaustive list of the most useful AutomationIds, grouped by view. All of 
 - **Display/audio/settings**: `ScaleSlider`, `AudioCheckBox`, `AudioVolumeSlider`, settings button `OptionsButton`
 - **Snapshot section (collapsible, common)**: header `SnapshotSectionHeader`, content `SnapshotSectionContent`; buttons `SaveSnapshotButton`, `LoadSnapshotButton`, directory link `SnapshotFolderLink` (visible only when the section is expanded — collapsed by default; toggle it with the `Emulator` menu / `⌘⌥⇧S` shortcut)
 - **Status**: `EmulatorStateText`
+- **Recording/replay section**: `DemoSectionHeader`, `DemoSectionContent`, `StartDemoRecordingButton`, `StopDemoRecordingButton`, `SaveDemoButton`, `OpenDemoButton`, `StopDemoPlaybackButton`, `RestartDemoButton`, `StepDemoFrameButton`. Expand the section before locating its buttons. Playback disables live machine input and machine mutation controls, including while paused; Pause/Start, Stop replay, Restart, and paused frame stepping remain usable.
+- **Replay status**: `StatusBarDemoIndicator` has a dynamic accessible name with mode and frame progress. It stays visible while replay owns input, alongside the Remote indicator, and retains completion/failure status afterward.
 - **Bottom tab control**: `InformationTabControl` with tabs `InformationTab`, `ConfigStatusTab`, `LogTab`, `ScriptsTab`, `GeneralInfoTab`, `DebugAndRemotingTab`
 - **Log tab**: `ClearLogButton`
 - **Scripts tab**: `ScriptsBannerRefreshButton`, script directory link `ScriptFolderLink`, `AddScriptButton`, `LoadExamplesButton`, `ScriptsRefreshButton`; sort headers `SortByFileNameButton`, `SortByStatusButton`, `SortByYieldButton`, `SortByHooksButton`
