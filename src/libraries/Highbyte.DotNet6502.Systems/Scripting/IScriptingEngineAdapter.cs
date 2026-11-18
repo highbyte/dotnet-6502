@@ -61,6 +61,11 @@ public interface IScriptingEngineAdapter
 
     // --- Frame lifecycle ---
 
+    ScriptFrameHold? FrameHold { get; }
+    void ReleaseFrameHold();
+    void DiscardPendingHooks(string? scriptFile);
+    void PollFrameHold();
+
     /// <summary>
     /// Resume all coroutines that last yielded via emu.frameadvance().
     /// <paramref name="activeHandles"/> contains only non-disabled, non-failed handles —

@@ -31,6 +31,19 @@ public interface IScriptingEngine
     /// </summary>
     void InvokeBeforeFrame();
 
+    /// <summary>Prepare input and finish the before hook once, even across multiple host ticks.</summary>
+    bool TryBeginFrame(Action beginFrame)
+    {
+        beginFrame();
+        InvokeBeforeFrame();
+        return true;
+    }
+
+    ScriptFrameHold? FrameHold => null;
+    void CancelFrameHold() { }
+    void DiscardPendingHooks() => CancelFrameHold();
+    bool PollFrameHold() => true;
+
     /// <summary>
     /// Resumes only coroutines that last yielded via <c>emu.yield()</c>.
     /// These coroutines tick on every timer interval regardless of emulator state,
