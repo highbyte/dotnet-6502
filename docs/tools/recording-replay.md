@@ -28,11 +28,20 @@ changes are also rejected during an active session.
 
 ## Compatibility and limits
 
-Replay requires the same emulator source build, ROM hashes, CPU/model, SID mode, timing,
-collision/render implementation settings, and input schema. There is no cross-version
-compatibility guarantee. Desktop, Browser, and Headless built from the same sources can
-exchange demos; host audio output, display scale, keyboard layout, and pacing are excluded
-from the recorded input.
+Desktop, Browser, and Headless can exchange demos when the machine, input schema, ROMs,
+frame timing, and execution settings match. C64 checks the CPU model and profile, SID mode,
+collision handling, and rasterizer settings. Hosts may use different audio output, display
+scale, keyboard layout, or pacing.
+
+Version 2 records the producer build separately.
+A different build produces one Information log entry when the demo opens. Playback then
+verifies the restored state, periodic checkpoints, and final state. At the first checkpoint
+mismatch it stops, releases replay input, and pauses the machine. The Error log includes the frame and both state
+digests. The [demo status response](remote-control/tcp-protocol.md#demostate) also reports the failure.
+Headless validation returns exit code 3.
+
+Version 1 stored the build and machine configuration in a single hash. Its original
+compatibility check still applies because the ROMs cannot be verified separately.
 
 The initial scope is self-contained gameplay starting at a complete frame boundary. A
 debugger stop inside a frame must be resumed before recording. Finish pending buffer paste,
@@ -41,9 +50,7 @@ I/O cartridges and cartridges without snapshot support are rejected. A session t
 inside a frame or reaches a storage limit fails and cannot be saved as a complete demo.
 
 Packages and their expanded contents are limited to 128 MiB; the initial snapshot is limited
-to 32 MiB. Timeline output is streamed with bounded input-run buffers. On divergence,
-playback pauses, releases its input, and reports the failing checkpoint frame and
-expected/actual digests in the log and the [demo status response](remote-control/tcp-protocol.md#demostate).
+to 32 MiB. Timeline output is streamed with bounded input-run buffers.
 
 The embedded snapshot can contain program code, mounted media, and session data. Saving a
 demo is a local operation; review its contents before sharing it.

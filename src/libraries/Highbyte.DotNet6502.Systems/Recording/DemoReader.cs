@@ -30,11 +30,15 @@ public sealed class DemoReader : IDisposable
             using (var manifestStream = OpenEntry(manifestEntry))
                 Manifest = JsonSerializer.Deserialize(manifestStream, DemoJsonContext.Default.DemoManifest)
                     ?? throw new InvalidDataException("Demo manifest is missing.");
-            if (Manifest.FormatVersion != 1 || Manifest.TotalFrames < 0 || string.IsNullOrEmpty(Manifest.SystemName)
+            if (Manifest.FormatVersion is not (1 or DemoManifest.CurrentFormatVersion) || Manifest.TotalFrames < 0 || string.IsNullOrEmpty(Manifest.SystemName)
                 || string.IsNullOrEmpty(Manifest.Schema) || Manifest.SchemaVersion < 1
                 || string.IsNullOrEmpty(Manifest.CompatibilityId) || !double.IsFinite(Manifest.FramesPerSecond)
                 || Manifest.FramesPerSecond <= 0 || !IsDigest(Manifest.InitialStateDigest))
                 throw new InvalidDataException("Demo manifest is invalid or its format version is unsupported.");
+            if (Manifest.FormatVersion == DemoManifest.CurrentFormatVersion &&
+                (string.IsNullOrWhiteSpace(Manifest.RecordedBuildId) || Manifest.RecordedBuildId.Length > 512 ||
+                 Manifest.RecordedBuildId.Any(c => !char.IsAscii(c) || char.IsControl(c))))
+                throw new InvalidDataException("Demo producer build ID is missing or invalid.");
             VerifyHash(DemoWriter.SnapshotName, Manifest.SnapshotSha256);
             VerifyHash(DemoWriter.TimelineName, Manifest.TimelineSha256);
             ValidateSnapshot();
@@ -90,9 +94,17 @@ public sealed class DemoReader : IDisposable
     public void ValidateAdapter(IRecordingAdapter adapter)
     {
         if (Manifest.SystemName != adapter.SystemName || Manifest.Schema != adapter.Schema
-            || Manifest.SchemaVersion != adapter.SchemaVersion || Manifest.CompatibilityId != adapter.CompatibilityId
-            || Manifest.FramesPerSecond != adapter.FramesPerSecond)
-            throw new InvalidDataException("Demo requires a different machine, input schema, ROMs, configuration, or emulator build.");
+            || Manifest.SchemaVersion != adapter.SchemaVersion)
+            throw new InvalidDataException("Demo machine or input schema is incompatible.");
+        if (Manifest.FramesPerSecond != adapter.FramesPerSecond)
+            throw new InvalidDataException("Demo frame timing differs from the selected machine.");
+        if (Manifest.FormatVersion == 1)
+        {
+            if (Manifest.CompatibilityId != adapter.LegacyCompatibilityId)
+                throw new InvalidDataException("This version 1 demo combines its build, ROMs, and machine settings in one hash. Open it in its original build to verify compatibility.");
+        }
+        else if (Manifest.CompatibilityId != adapter.CompatibilityId)
+            throw new InvalidDataException("Demo ROMs or machine execution settings differ.");
         using var cursor = OpenTimeline();
         long frames = 0;
         long lastCheckpoint = -1;

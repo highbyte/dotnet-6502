@@ -16,7 +16,10 @@ public interface IRecordingAdapter
     string SystemName { get; }
     string Schema { get; }
     int SchemaVersion { get; }
+    /// <summary>Identifies the ROMs and execution configuration independently of the producer build.</summary>
     string CompatibilityId { get; }
+    /// <summary>Optional combined build/configuration hash used by version 1 recordings.</summary>
+    string? LegacyCompatibilityId => null;
     double FramesPerSecond { get; }
     void ValidateSession();
     void ValidateMemoryInspection(ushort address, int length);

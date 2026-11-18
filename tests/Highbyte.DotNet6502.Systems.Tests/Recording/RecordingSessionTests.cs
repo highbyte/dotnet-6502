@@ -89,7 +89,9 @@ public class RecordingSessionTests
         Assert.Contains("frame 1", error.Message);
         Assert.Equal(RecordingMode.Idle, session.Mode);
         Assert.Equal(PlaybackOutcome.Failed, session.Outcome);
+        Assert.True(session.CheckpointMismatch);
         Assert.Equal(1, target.ReleaseCount);
+        Assert.False(session.BeforeFrame());
     }
 
     [Fact]
@@ -101,6 +103,39 @@ public class RecordingSessionTests
         Assert.Throws<InvalidDataException>(() => demo.ValidateAdapter(target));
         Assert.Equal(0, target.State);
         Assert.Equal(0, target.ReleaseCount);
+    }
+
+    [Fact]
+    public void Build_difference_is_advisory_but_machine_configuration_is_required()
+    {
+        using var file = RecordOneFrame();
+        using var demo = new DemoReader(file);
+        Assert.Equal(2, demo.Manifest.FormatVersion);
+        Assert.False(string.IsNullOrWhiteSpace(demo.Manifest.RecordedBuildId));
+        demo.Manifest.RecordedBuildId = "another-build";
+        var adapter = new SyntheticAdapter();
+        using var session = new RecordingSession(adapter);
+        session.StartPlayback(demo);
+        Assert.True(session.BeforeFrame());
+        adapter.ExecuteFrame();
+        session.AfterFrame();
+        Assert.Equal(PlaybackOutcome.Completed, session.Outcome);
+
+        demo.Manifest.CompatibilityId = "different-machine";
+        Assert.Throws<InvalidDataException>(() => demo.ValidateAdapter(adapter));
+    }
+
+    [Fact]
+    public void Legacy_demos_require_the_original_combined_hash()
+    {
+        using var file = RecordOneFrame();
+        using var demo = new DemoReader(file);
+        demo.Manifest.FormatVersion = 1;
+        demo.Manifest.RecordedBuildId = null;
+        var adapter = new SyntheticAdapter();
+        Assert.Throws<InvalidDataException>(() => demo.ValidateAdapter(adapter));
+        demo.Manifest.CompatibilityId = adapter.LegacyCompatibilityId;
+        demo.ValidateAdapter(adapter);
     }
 
     [Fact]
@@ -245,7 +280,8 @@ public class RecordingSessionTests
         public string SystemName => "Synthetic";
         public string Schema => events ? "test-events" : "test-state";
         public int SchemaVersion => 1;
-        public string CompatibilityId => "test-build";
+        public string CompatibilityId => "test-machine";
+        public string LegacyCompatibilityId => "test-build-and-machine";
         public double FramesPerSecond => frameRate;
         public byte Input { get; set; }
         public long State { get; set; }

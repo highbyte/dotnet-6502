@@ -1,3 +1,7 @@
+using System.IO.Compression;
+using System.Text.Json.Nodes;
+using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Input;
@@ -85,6 +89,46 @@ public class HostRecordingTests
         Assert.Equal(5, host.DemoSession.Frame);
         Assert.Equal(expected, ((C64)host.CurrentRunningSystem!).RAM);
         Assert.Equal(EmulatorState.Paused, host.EmulatorState);
+        host.Close();
+    }
+
+    [Fact]
+    public async Task Different_build_logs_once_and_first_checkpoint_mismatch_pauses_the_host()
+    {
+        var logs = new DotNet6502InMemLogStore();
+        using var factory = LoggerFactory.Create(builder => builder.AddInMem(logs));
+        var (host, _) = await BuildHostAsync(factory);
+        using var file = new MemoryStream();
+        await host.Start();
+        await host.StartDemoRecordingAsync(file);
+        for (int i = 0; i < 301; i++) host.RunEmulatorOneFrame();
+        host.StopDemoRecording();
+
+        using (var archive = new ZipArchive(file, ZipArchiveMode.Update, leaveOpen: true))
+        using (var stream = archive.GetEntry("demo.json")!.Open())
+        {
+            var manifest = JsonNode.Parse(stream)!;
+            manifest["recordedBuildId"] = "test-producer-build";
+            stream.SetLength(0);
+            await using var writer = new StreamWriter(stream);
+            await writer.WriteAsync(manifest.ToJsonString());
+        }
+        file.Position = 0;
+        await host.LoadDemoAsync(file);
+        await host.RestartDemoAsync();
+        var info = Assert.Single(logs.GetFullLogMessages(), e => e.Message.Contains("Replay build differs"));
+        Assert.Equal(LogLevel.Information, info.LogLevel);
+        Assert.Contains("test-producer-build", info.Message);
+
+        // Force a different emulated state while leaving the recorded input and checkpoints intact.
+        ((C64)host.CurrentRunningSystem!).RAM[0x7000] ^= 1;
+        await host.StepEmulatorFramesAsync(301);
+        Assert.Equal(EmulatorState.Paused, host.EmulatorState);
+        Assert.Equal(PlaybackOutcome.Failed, host.DemoSession!.Outcome);
+        Assert.False(host.DemoSession.OwnsInput);
+        Assert.Equal(300, host.DemoSession.Frame);
+        var error = Assert.Single(logs.GetFullLogMessages(), e => e.LogLevel == LogLevel.Error);
+        Assert.Matches(@"Replay diverged at frame 300 of 301: expected [0-9a-f]{64}, actual [0-9a-f]{64}", error.Message);
         host.Close();
     }
 
@@ -187,16 +231,16 @@ public class HostRecordingTests
         public void DisplayRemoteMessage(string text, string level) { }
     }
 
-    private sealed class RecordingHost(SystemList systems) : HostApp("RecordingTest", systems, NullLoggerFactory.Instance), IRemotableHostApp
+    private sealed class RecordingHost(SystemList systems, ILoggerFactory loggerFactory) : HostApp("RecordingTest", systems, loggerFactory), IRemotableHostApp
     {
         public byte[]? CaptureScreenshotPng() => null;
     }
 
-    private static async Task<(RecordingHost Host, TestInput Input)> BuildHostAsync()
+    private static async Task<(RecordingHost Host, TestInput Input)> BuildHostAsync(ILoggerFactory? loggerFactory = null)
     {
         var systems = new SystemList();
         systems.AddSystem(new RecordingConfigurer());
-        var host = new RecordingHost(systems);
+        var host = new RecordingHost(systems, loggerFactory ?? NullLoggerFactory.Instance);
         var input = new TestInput();
         host.SetContexts(() => input);
         host.InitInputHandlerContext();

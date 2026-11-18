@@ -83,6 +83,9 @@ public partial class HostApp : IRecordingHost
             }
             storage.Position = 0;
             reader = new DemoReader(storage);
+            if (reader.Manifest.FormatVersion == DemoManifest.CurrentFormatVersion
+                && reader.Manifest.RecordedBuildId is { } recordedBuild && recordedBuild != DemoManifest.RunningBuildId)
+                _logger.LogInformation("Replay build differs. Recorded {RecordedBuild}, running {RunningBuild}.", recordedBuild, DemoManifest.RunningBuildId);
             await PrepareDemoAsync(reader);
             _loadedDemo?.Dispose();
             _loadedDemoStorage?.Dispose();
@@ -205,7 +208,10 @@ public partial class HostApp : IRecordingHost
         catch (Exception ex)
         {
             session.Fail(ex.Message);
-            _logger.LogError(ex, "Recording/replay failed at frame {Frame}.", session.Frame);
+            if (session.CheckpointMismatch)
+                _logger.LogError("{ReplayError}", session.Error);
+            else
+                _logger.LogError(ex, "Recording/replay failed at frame {Frame}.", session.Frame);
         }
         finally
         {

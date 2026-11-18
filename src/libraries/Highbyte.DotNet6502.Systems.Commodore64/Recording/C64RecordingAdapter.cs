@@ -16,32 +16,33 @@ public sealed class C64RecordingAdapter(C64 c64) : IRecordingAdapter
     public string Schema => "c64-resolved-input";
     public int SchemaVersion => 1;
     public double FramesPerSecond => (double)c64.CpuFrequencyHz / c64.Vic2.Vic2Model.CyclesPerFrame;
-    public string CompatibilityId
+    public string CompatibilityId => ComputeCompatibilityId(includeLegacyBuild: false);
+    public string LegacyCompatibilityId => ComputeCompatibilityId(includeLegacyBuild: true);
+
+    private string ComputeCompatibilityId(bool includeLegacyBuild)
     {
-        get
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream);
+        if (includeLegacyBuild)
         {
-            using var stream = new MemoryStream();
-            using var writer = new BinaryWriter(stream);
-            var buildId = typeof(IRecordingSystem).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-                .SingleOrDefault(a => a.Key == "ReplayEngineBuildId")?.Value
-                ?? throw new InvalidOperationException("The emulator build has no recording/replay source identity.");
-            writer.Write(buildId);
+            // Version 1 placed both strings before the machine data in the hash.
+            writer.Write(DemoManifest.EngineSourceId);
             writer.Write(typeof(C64).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown");
-            writer.Write(c64.Model.Name);
-            writer.Write(c64.CPU.CpuModelId);
-            writer.Write((int)c64.CPU.CompatibilityProfile);
-            writer.Write((int)c64.SidEmulation.Mode);
-            writer.Write(c64.Vic2.SpriteManager.PerLineCollisionEnabled);
-            writer.Write(c64.RenderProvider?.GetType().FullName ?? "none");
-            if (c64.RenderProvider is Render.Rasterizer.Vic2Rasterizer rasterizer)
-                writer.Write((int)rasterizer.PixelGeneratorType);
-            foreach (var rom in c64.ROMData.OrderBy(r => r.Key, StringComparer.Ordinal))
-            {
-                writer.Write(rom.Key);
-                writer.Write(SHA256.HashData(rom.Value));
-            }
-            return Convert.ToHexStringLower(SHA256.HashData(stream.ToArray()));
         }
+        writer.Write(c64.Model.Name);
+        writer.Write(c64.CPU.CpuModelId);
+        writer.Write((int)c64.CPU.CompatibilityProfile);
+        writer.Write((int)c64.SidEmulation.Mode);
+        writer.Write(c64.Vic2.SpriteManager.PerLineCollisionEnabled);
+        writer.Write(c64.RenderProvider?.GetType().FullName ?? "none");
+        if (c64.RenderProvider is Render.Rasterizer.Vic2Rasterizer rasterizer)
+            writer.Write((int)rasterizer.PixelGeneratorType);
+        foreach (var rom in c64.ROMData.OrderBy(r => r.Key, StringComparer.Ordinal))
+        {
+            writer.Write(rom.Key);
+            writer.Write(SHA256.HashData(rom.Value));
+        }
+        return Convert.ToHexStringLower(SHA256.HashData(stream.ToArray()));
     }
 
     public void ValidateSession()

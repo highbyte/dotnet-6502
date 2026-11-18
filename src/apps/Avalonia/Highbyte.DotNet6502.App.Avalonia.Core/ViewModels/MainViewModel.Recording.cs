@@ -34,6 +34,8 @@ public partial class MainViewModel
                 return $"Replay{(EmulatorState == EmulatorState.Paused ? " paused" : "")} — live input disabled · {session.Frame} / {session.TotalFrames}";
             if (session?.Mode == RecordingMode.Recording)
                 return $"Recording · frame {session.Frame}";
+            if (session?.CheckpointMismatch == true)
+                return $"Replay diverged at frame {session.Frame} of {session.TotalFrames}";
             if (session?.Outcome == PlaybackOutcome.Failed)
                 return $"Demo failed at frame {session.Frame} — see Log";
             if (_hasPendingDemoSave) return "Recording ready — save demo";

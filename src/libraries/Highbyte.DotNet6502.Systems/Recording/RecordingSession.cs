@@ -24,6 +24,7 @@ public sealed class RecordingSession : IDisposable
     public long Frame { get; private set; }
     public long TotalFrames => _reader?.Manifest.TotalFrames ?? Frame;
     public string? Error { get; private set; }
+    public bool CheckpointMismatch { get; private set; }
     public bool OwnsInput => Mode == RecordingMode.Playback;
     public const int CheckpointInterval = 300;
     public void ValidateMemoryInspection(ushort address, int length) => _adapter.ValidateMemoryInspection(address, length);
@@ -36,6 +37,7 @@ public sealed class RecordingSession : IDisposable
         _writer = new DemoWriter(output, initialSnapshot, _adapter, variant);
         Frame = 0;
         Error = null;
+        CheckpointMismatch = false;
         Outcome = PlaybackOutcome.None;
         Mode = RecordingMode.Recording;
     }
@@ -53,6 +55,7 @@ public sealed class RecordingSession : IDisposable
         _cursor = reader.OpenTimeline();
         Frame = 0;
         Error = null;
+        CheckpointMismatch = false;
         Outcome = PlaybackOutcome.None;
         _remaining = 0;
         Mode = RecordingMode.Playback;
@@ -136,7 +139,10 @@ public sealed class RecordingSession : IDisposable
             }
             var actual = _adapter.ComputeStateDigest();
             if (record.Frame != Frame || !CryptographicOperations.FixedTimeEquals(actual, record.Digest!))
-                throw new InvalidDataException($"Replay diverged at frame {Frame}: expected {Convert.ToHexStringLower(record.Digest!)}, actual {Convert.ToHexStringLower(actual)}.");
+            {
+                CheckpointMismatch = true;
+                throw new InvalidDataException($"Replay diverged at frame {Frame} of {TotalFrames}: expected {Convert.ToHexStringLower(record.Digest!)}, actual {Convert.ToHexStringLower(actual)}.");
+            }
         }
         if (Frame != TotalFrames)
             throw new InvalidDataException("Replay ended before its declared final frame.");

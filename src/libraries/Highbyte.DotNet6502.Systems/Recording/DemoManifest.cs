@@ -1,10 +1,20 @@
+using System.Reflection;
 using System.Text.Json.Serialization;
 
 namespace Highbyte.DotNet6502.Systems.Recording;
 
 public sealed class DemoManifest
 {
-    public int FormatVersion { get; set; } = 1;
+    public const int CurrentFormatVersion = 2;
+
+    // Source identity also distinguishes local builds with uncommitted engine changes.
+    public static readonly string EngineSourceId = typeof(DemoManifest).Assembly
+        .GetCustomAttributes<AssemblyMetadataAttribute>().Single(a => a.Key == "ReplayEngineBuildId").Value!;
+    internal static readonly string RunningBuildId =
+        $"{typeof(DemoManifest).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} ({EngineSourceId})";
+
+    public int FormatVersion { get; set; }
+    public string? RecordedBuildId { get; set; }
     public string SystemName { get; set; } = "";
     public string Schema { get; set; } = "";
     public int SchemaVersion { get; set; }

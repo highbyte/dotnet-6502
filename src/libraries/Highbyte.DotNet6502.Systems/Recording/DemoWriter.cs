@@ -37,6 +37,8 @@ public sealed class DemoWriter : IDisposable
             throw new InvalidDataException("The initial snapshot exceeds the demo storage limit or is not seekable.");
         _manifest = new DemoManifest
         {
+            FormatVersion = DemoManifest.CurrentFormatVersion,
+            RecordedBuildId = DemoManifest.RunningBuildId,
             SystemName = adapter.SystemName,
             Schema = adapter.Schema,
             SchemaVersion = adapter.SchemaVersion,
