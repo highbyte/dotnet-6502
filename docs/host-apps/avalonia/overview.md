@@ -36,7 +36,9 @@ Use the ordinary **Pause** and **Start** controls to pause/resume. **Step frame*
 one emulated frame while paused, in either recording or playback. **Stop replay** ends
 playback early. **Restart** restores the demo's initial state and starts playback again.
 
-The bottom status bar shows mode, frame progress, completion, and failure. While replay
+At the right of the bottom status bar, a red **Recording** or green **Replay** indicator
+shows the active mode. Its dot pulses while running and stays steady while paused. Frame
+progress appears immediately to its left. Completion and failure appear in the same area. While replay
 owns input it explicitly says **live input disabled**, including while paused, alongside
 the Desktop TCP Remote indicator. Machine-input and conflicting mutation controls are disabled.
 See [Playback and input](../../tools/recording-replay.md#playback-and-input) for the shared

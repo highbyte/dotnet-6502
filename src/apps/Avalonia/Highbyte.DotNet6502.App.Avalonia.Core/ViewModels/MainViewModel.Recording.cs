@@ -25,15 +25,26 @@ public partial class MainViewModel
         ? "Start a supported machine to record, or open a demo."
         : _hostApp.SupportsRecording ? "Record input and replay demo files."
         : "Recording is unavailable for this system.";
-    public string DemoStatusText
+    public bool IsDemoRecording => _hostApp.DemoSession?.Mode == RecordingMode.Recording;
+    public bool IsDemoRunning => IsDemoActive && IsEmulatorRunning;
+    public string DemoModeText => _hostApp.DemoSession?.Mode switch
+    {
+        RecordingMode.Recording => "Recording",
+        RecordingMode.Playback => "Replay",
+        _ => "",
+    };
+    public string DemoStatusText => IsDemoActive
+        ? $"{DemoModeText}{(IsEmulatorPaused ? " paused" : "")} · {DemoDetailText}"
+        : DemoDetailText;
+    public string DemoDetailText
     {
         get
         {
             var session = _hostApp.DemoSession;
             if (session?.OwnsInput == true)
-                return $"Replay{(EmulatorState == EmulatorState.Paused ? " paused" : "")} — live input disabled · {session.Frame} / {session.TotalFrames}";
+                return $"Live input disabled · {session.Frame} / {session.TotalFrames}";
             if (session?.Mode == RecordingMode.Recording)
-                return $"Recording · frame {session.Frame}";
+                return $"Frame {session.Frame}";
             if (session?.CheckpointMismatch == true)
                 return $"Replay diverged at frame {session.Frame} of {session.TotalFrames}";
             if (session?.Outcome == PlaybackOutcome.Failed)
@@ -65,6 +76,10 @@ public partial class MainViewModel
         this.RaisePropertyChanged(nameof(CanControlReplay));
         this.RaisePropertyChanged(nameof(CanRestartDemo));
         this.RaisePropertyChanged(nameof(CanStepDemo));
+        this.RaisePropertyChanged(nameof(IsDemoRecording));
+        this.RaisePropertyChanged(nameof(IsDemoRunning));
+        this.RaisePropertyChanged(nameof(DemoModeText));
+        this.RaisePropertyChanged(nameof(DemoDetailText));
         this.RaisePropertyChanged(nameof(DemoStatusText));
         this.RaisePropertyChanged(nameof(DemoAvailabilityText));
         this.RaisePropertyChanged(nameof(CanLoadSnapshot));
