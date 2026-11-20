@@ -241,7 +241,7 @@ public class InputInjectionLifecycleTests
 
         public List<KeyValuePair<string, Func<string>>> DebugInfo => new();
 
-        public CPU CPU => throw new NotImplementedException();
+        public CPU CPU { get; } = new();
 
         public Memory Mem => throw new NotImplementedException();
 

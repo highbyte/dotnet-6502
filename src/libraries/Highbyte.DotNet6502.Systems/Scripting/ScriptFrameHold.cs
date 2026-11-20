@@ -5,6 +5,8 @@ public sealed class ScriptFrameHold(string hookName, string scriptFile)
 {
     public string HookName { get; } = hookName;
     public string ScriptFile { get; } = scriptFile;
+    // A completion is only a wake signal. PollFrameHold consumes its result on the host thread.
+    public Task? PendingIO { get; set; }
     public bool Finished { get; private set; }
     public bool Failed { get; private set; }
     public void Complete() => Finished = true;

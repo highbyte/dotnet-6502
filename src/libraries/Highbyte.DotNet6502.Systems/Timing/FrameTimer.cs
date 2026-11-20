@@ -30,6 +30,8 @@ public class FrameTimer : IScriptingTickTimer, IAsyncDisposable
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private long _lastTick;
 
+    // Script ticks need no sub-millisecond precision while the emulator is idle.
+    public bool UseSpinWait { get; init; } = true;
     public double IntervalMilliseconds { get; set; }
     public long TimeSinceLastTickMilliseconds { get; private set; }
 
@@ -86,7 +88,9 @@ public class FrameTimer : IScriptingTickTimer, IAsyncDisposable
                 while ((now = Stopwatch.GetTimestamp()) < nextDeadline && !ct.IsCancellationRequested)
                 {
                     var remainingMs = (nextDeadline - now) * 1000.0 / Stopwatch.Frequency;
-                    if (remainingMs > 2.0)
+                    if (!UseSpinWait)
+                        await Task.Delay((int)Math.Clamp(Math.Ceiling(remainingMs), 1, int.MaxValue)).ConfigureAwait(false);
+                    else if (remainingMs > 2.0)
                         // No cancellation token passed to Task.Delay on purpose: cancelling a
                         // short delay throws TaskCanceledException, which under a debugger spams
                         // first-chance exceptions on every pause/stop. The IsCancellationRequested

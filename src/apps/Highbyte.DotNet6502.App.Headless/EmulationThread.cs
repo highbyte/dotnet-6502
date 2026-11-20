@@ -31,11 +31,14 @@ internal sealed class EmulationThread : SynchronizationContext, IDisposable
         foreach (var action in _queue.GetConsumingEnumerable()) action();
     }
     public override void Post(SendOrPostCallback callback, object? state)
+        => Post(() => callback(state));
+
+    public void Post(Action action)
     {
         lock (_gate)
         {
             // A disposed timer can still deliver its last callback during shutdown.
-            if (_acceptPosts) _queue.Add(() => callback(state));
+            if (_acceptPosts) _queue.Add(action);
         }
     }
     public Task InvokeAsync(Action action) => InvokeAsync(() => { action(); return Task.CompletedTask; });

@@ -889,28 +889,27 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
         shouldRun = true;
         shouldReceiveInput = true;
     }
-    public void RunEmulatorOneFrame()
+    public void RunEmulatorOneFrame() => TryRunEmulatorOneFrame();
+
+    private bool TryRunEmulatorOneFrame()
     {
         // Safety check to avoid running emulator if it's not in a running state.
         if (EmulatorState != EmulatorState.Running)
-            return;
+            return false;
 
         OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput);
         if (!shouldRun)
-            return;
+            return false;
 
         if (DemoSession?.Mode is RecordingMode.Recording or RecordingMode.Playback)
         {
-            RunDemoFrame(shouldReceiveInput);
-            return;
+            return RunDemoFrame(shouldReceiveInput);
         }
 
         _scriptTime!.Start();
         bool ready = _scriptingEngine.TryBeginFrame(_beginLiveFrame);
         _scriptTime.Stop(cont: ready);
-        if (!ready) return;
-
-        _updateFps.Update();
+        if (!ready) return false;
 
         if (shouldReceiveInput)
         {
@@ -921,12 +920,24 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
 
         _systemTime!.Start();
         var execEvaluatorTriggerResult = _systemRunner!.RunEmulatorOneFrame();
+        bool completed = !execEvaluatorTriggerResult.Triggered && !_systemRunner.System.CPU.IsHalted;
+        if (completed) CountCompletedFrame();
         OnAfterRunEmulatorOneFrame(execEvaluatorTriggerResult);
         _systemTime!.Stop();
 
         _scriptTime!.Start(cont: true); // continue accumulating from before-frame measurement
         FinishLiveFrame();
         _scriptTime!.Stop(); // record total script time for this frame
+        return completed;
+    }
+
+    private long _completedGuestFrames;
+    public long CompletedGuestFrames => Volatile.Read(ref _completedGuestFrames);
+
+    private void CountCompletedFrame()
+    {
+        _completedGuestFrames++;
+        _updateFps.Update();
     }
 
     private bool FinishLiveFrame()
@@ -976,7 +987,8 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
                     RunDemoFrame(receiveInput: true);
                 if (DemoSession.Mode == RecordingMode.Idle) break;
             }
-            else _systemRunner.RunEmulatorOneFrame();
+            else if (!_systemRunner.RunEmulatorOneFrame().Triggered && !_systemRunner.System.CPU.IsHalted)
+                CountCompletedFrame();
         }
 
         // Draw the resulting frame to the render target so a subsequent screenshot reflects it.

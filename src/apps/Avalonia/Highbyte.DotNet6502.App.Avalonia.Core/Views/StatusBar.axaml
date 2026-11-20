@@ -25,7 +25,7 @@
             </Style.Animations>
         </Style>
     </UserControl.Styles>
-    <Border Padding="0,2,0,4"
+    <Border Padding="0,2"
             Background="{DynamicResource ViewDefaultBg}"
             BorderBrush="#4A5568"
             BorderThickness="1"
@@ -75,6 +75,56 @@
                            VerticalAlignment="Center"
                            IsVisible="{Binding StatusSystemText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
 
+                <Button IsVisible="{Binding ShowEmulationSpeed}" Padding="5,1" MinHeight="20"
+                        Margin="0" VerticalAlignment="Center"
+                        ToolTip.Tip="Emulation speed"
+                        AutomationProperties.AutomationId="EmulationSpeedButton"
+                        AutomationProperties.Name="{Binding SpeedLabel, StringFormat='Emulation speed {0}'}">
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding SpeedLabel}" FontSize="11" Margin="0"/>
+                        <PathIcon Data="M0,0 L8,0 L4,4 Z" Width="7" Height="4"/>
+                    </StackPanel>
+                    <Button.Flyout>
+                        <Flyout Placement="Top" Opening="SpeedFlyoutOpening">
+                            <Flyout.FlyoutPresenterTheme>
+                                <ControlTheme TargetType="FlyoutPresenter" BasedOn="{StaticResource {x:Type FlyoutPresenter}}">
+                                    <Setter Property="Background" Value="{DynamicResource ViewDefaultBg}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+                                    <Setter Property="Padding" Value="12"/>
+                                </ControlTheme>
+                            </Flyout.FlyoutPresenterTheme>
+                            <StackPanel MinWidth="220" Spacing="8">
+                                <TextBlock Text="Emulation speed" Classes="h2" Margin="0"/>
+                                <StackPanel Spacing="4" IsEnabled="{Binding !IsUnthrottled}">
+                                    <Slider Classes="small" Minimum="{x:Static vm:MainViewModel.MinimumSliderSpeed}"
+                                            Maximum="{x:Static vm:MainViewModel.MaximumSliderSpeed}"
+                                            TickFrequency="0.25" SmallChange="0.25" LargeChange="1"
+                                            IsSnapToTickEnabled="True" Value="{Binding SliderSpeed, Mode=TwoWay}"
+                                            AutomationProperties.AutomationId="EmulationSpeedSlider"
+                                            AutomationProperties.Name="Emulation speed multiplier"/>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="0.25×" Classes="small"/>
+                                        <TextBlock Grid.Column="1" Text="4×" Classes="small"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6" Margin="0,4,0,0">
+                                        <TextBlock Text="Custom multiplier" Classes="secondary-text" Margin="0"/>
+                                        <TextBox Grid.Column="1" Classes="small" Width="58" MinWidth="0" Text="{Binding SpeedText, Mode=TwoWay}" KeyDown="SpeedTextKeyDown"
+                                                 AutomationProperties.AutomationId="EmulationSpeedTextBox"
+                                                 AutomationProperties.Name="Custom multiplier"/>
+                                        <Button Grid.Column="2" Classes="small" Margin="0" Height="24" MinHeight="0"
+                                                Content="Apply" Click="ApplySpeedClicked"
+                                                AutomationProperties.AutomationId="ApplyEmulationSpeedButton"/>
+                                    </Grid>
+                                    <TextBlock Text="{Binding SpeedError}" Classes="small error" MaxWidth="220" HorizontalAlignment="Left" TextWrapping="Wrap"
+                                               IsVisible="{Binding SpeedError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"/>
+                                </StackPanel>
+                                <CheckBox Classes="field-aligned" Content="Unthrottled" IsChecked="{Binding IsUnthrottled, Mode=TwoWay}"
+                                          AutomationProperties.AutomationId="UnthrottledSpeedCheckBox"/>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+
                 <Border Width="1"
                         Height="12"
                         Background="{DynamicResource SystemControlForegroundBaseLowBrush}"
@@ -83,7 +133,7 @@
 
                 <TextBlock Text="{Binding StatusFpsText}"
                            AutomationProperties.AutomationId="StatusBarFps"
-                           Width="55"
+                           MinWidth="55"
                            FontSize="11"
                            Foreground="{DynamicResource SystemControlForegroundBaseMediumHighBrush}"
                            VerticalAlignment="Center"

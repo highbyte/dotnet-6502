@@ -88,12 +88,16 @@ The headless app is driven entirely from the command line.
     - **C64 `.d64` startup**: `--loadD64` / `--loadD64Url` / `--loadD64ZipEntry` / `--d64Program` / `--diskMount`.
     - **C64 `.crt` startup**: `--loadCrt` / `--loadCrtUrl` / `--loadCrtZipEntry`.
     - **C64 runtime config**: `--keyboardJoystickEnabled` / `--keyboardJoystickNumber` / `--audioEnabled`.
-    - **Diagnostics & auto-exit**: `--stats-interval` / `--exit-after`.
+    - **Auto-exit**: `--exit-after`.
 
     The C64-specific flows need a C64 shell plugin (to apply C64-runtime config and run the
     disk-mount / direct-load / BASIC-paste flow), which the headless app does not host. The shared
     helpers are host-agnostic, so adding equivalent flags to the headless app is possible but is out
     of scope for the initial release.
+
+### Emulation speed
+
+Use `--speed 0.5` for half speed, `--speed 2` for double speed, or `--speed unthrottled` for maximum throughput. The default is 1×. Any positive finite multiplier targets that multiple of the selected system’s native frame rate. Lua frame holds wait for their controller at every speed. Add `--stats-interval 5` to log achieved guest frames per second every five seconds.
 
 ### Demo playback and validation
 

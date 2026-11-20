@@ -234,6 +234,11 @@ public partial class HostRecordingTests
     private sealed class RecordingHost(SystemList systems, ILoggerFactory loggerFactory) : HostApp("RecordingTest", systems, loggerFactory), IRemotableHostApp
     {
         public byte[]? CaptureScreenshotPng() => null;
+        public Action? FrameCompleted { get; set; }
+        public void SetSpeed(Timing.EmulationSpeed speed) => Speed = speed;
+        public void StartPacing(Action<Action> post) => StartFramePacing(post);
+        public override void OnAfterPause() => StopFramePacing();
+        public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult result) => FrameCompleted?.Invoke();
     }
 
     private static async Task<(RecordingHost Host, TestInput Input)> BuildHostAsync(ILoggerFactory? loggerFactory = null)

@@ -20,7 +20,6 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
     private new readonly ILogger _logger;
     private readonly CancellationTokenSource _appCts;
 
-    private FrameTimer? _updateTimer;
     private readonly EmulationThread _emulationThread = new();
     public Task RunOnEmulationThreadAsync(Func<Task> action) => _emulationThread.InvokeAsync(action);
     public void PostToEmulationThread(Action action) => _emulationThread.Post(_ => action(), null);
@@ -38,11 +37,13 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
     public HeadlessHostApp(
         SystemList systemList,
         ILoggerFactory loggerFactory,
-        CancellationTokenSource appCts)
+        CancellationTokenSource appCts,
+        EmulationSpeed? speed = null)
         : base("Headless", systemList, loggerFactory, useStatsNamePrefix: false)
     {
         _logger = loggerFactory.CreateLogger(typeof(HeadlessHostApp).Name);
         _appCts = appCts;
+        Speed = speed ?? EmulationSpeed.Normal;
 
         var inputHandlerContext = new NullInputHandlerContext();
 
@@ -92,34 +93,32 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
 
     public override void OnAfterStart(EmulatorState emulatorStateBeforeStart)
     {
-        StopAndDisposeUpdateTimer();
-        _updateTimer = CreateUpdateTimerForSystem(CurrentSystemRunner!.System);
-        _updateTimer.Start();
+        StartFramePacing(_emulationThread.Post);
         base.OnAfterStart(emulatorStateBeforeStart);
     }
 
     public override void OnAfterPause()
     {
         base.OnAfterPause();
-        _updateTimer?.Stop();
+        StopFramePacing();
     }
 
     public override void OnAfterStop()
     {
-        StopAndDisposeUpdateTimer();
+        StopFramePacing();
         base.OnAfterStop();
     }
 
     public override void OnAfterClose()
     {
         base.OnAfterClose();
-        StopAndDisposeUpdateTimer();
+        StopFramePacing();
     }
 
     // --- Scripting timer ---
 
     protected override IScriptingTickTimer CreateScriptingTickTimer(double intervalMs) =>
-        new FrameTimer(action => _emulationThread.InvokeAsync(action)) { IntervalMilliseconds = intervalMs };
+        new FrameTimer(action => _emulationThread.InvokeAsync(action)) { IntervalMilliseconds = intervalMs, UseSpinWait = false };
 
     protected override void OnScriptingEngineSet()
     {
@@ -163,67 +162,6 @@ public class HeadlessHostApp : HostApp, IDebuggableHostApp, IRemotableHostApp
         if (execEvaluatorTriggerResult.Triggered)
         {
             _logger.LogInformation("Breakpoint triggered at PC=0x{PC:X4}", CurrentRunningSystem?.CPU.PC);
-        }
-    }
-
-    // --- Timer helpers ---
-
-    private FrameTimer CreateUpdateTimerForSystem(ISystem system)
-    {
-        double updateIntervalMS = (1 / system.Screen.RefreshFrequencyHz) * 1000;
-        var timer = new FrameTimer(action => _emulationThread.InvokeAsync(action)) { IntervalMilliseconds = updateIntervalMS };
-        timer.Elapsed += UpdateTimerElapsed;
-        return timer;
-    }
-
-    private void StopAndDisposeUpdateTimer()
-    {
-        if (_updateTimer != null)
-        {
-            _updateTimer.Elapsed -= UpdateTimerElapsed;
-            _updateTimer.Stop();
-            _updateTimer.Dispose();
-            _updateTimer = null;
-        }
-    }
-
-    private void UpdateTimerElapsed(object? sender, EventArgs e)
-        => ObserveBackgroundTask(UpdateTimerElapsedAsync());
-
-    private async Task UpdateTimerElapsedAsync()
-    {
-        try
-        {
-            RunEmulatorOneFrame();
-            await DrainPendingScriptActionsAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unhandled exception in update timer.");
-        }
-    }
-
-    private void ObserveBackgroundTask(Task task)
-    {
-        if (task.IsCompleted)
-        {
-            LogBackgroundTaskFailure(task);
-            return;
-        }
-
-        _ = task.ContinueWith(
-            static (completedTask, state) => ((HeadlessHostApp)state!).LogBackgroundTaskFailure(completedTask),
-            this,
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-    }
-
-    private void LogBackgroundTaskFailure(Task task)
-    {
-        if (task.Exception is { } exception)
-        {
-            _logger.LogError(exception.GetBaseException(), "Unhandled exception in update timer.");
         }
     }
 
