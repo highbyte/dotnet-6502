@@ -178,7 +178,7 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext, IHostInputState
         return hostKey != HostKey.None;
     }
 
-    private static HostKey MapToHostKey(PhysicalKey key) => key switch
+    public static HostKey MapToHostKey(PhysicalKey key) => key switch
     {
         PhysicalKey.A => HostKey.KeyA, PhysicalKey.B => HostKey.KeyB, PhysicalKey.C => HostKey.KeyC,
         PhysicalKey.D => HostKey.KeyD, PhysicalKey.E => HostKey.KeyE, PhysicalKey.F => HostKey.KeyF,

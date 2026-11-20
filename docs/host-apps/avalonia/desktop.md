@@ -45,6 +45,10 @@ with desktop-specific differences called out inline:
 - [Oric Atmos in the Avalonia apps](oric.md)
 - [Generic computer in the Avalonia apps](generic.md)
 
+### Emulation speed
+
+Open the speed button in the status bar before starting or during play. The slider runs from 0.25× to 4× in quarter steps. For an exact speed, enter a positive number such as `1.34` under **Custom multiplier** and press Enter or **Apply**. Custom speeds can extend beyond the slider range. Select **Unthrottled** to run as fast as the host allows. Clearing it restores the previous multiplier. Audio plays at the default 1× and is muted at other speeds.
+
 ### Native virtual keyboard
 
 The desktop app uses its existing emulator keyboard input for physical keyboards and OS

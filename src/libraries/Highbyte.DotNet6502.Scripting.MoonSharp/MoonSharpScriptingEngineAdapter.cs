@@ -1218,6 +1218,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     {
         if (_heldWait is not { Task.IsCompleted: true } ready) return;
         _heldWait = null;
+        FrameHold!.PendingIO = null;
         ResumeWait(ready);
     }
 
@@ -1318,7 +1319,11 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         }
 
         var wait = new HookWait(hook, task, yield!.Value);
-        if (ExecutingHold != null) _heldWait = wait;
+        if (ExecutingHold is { } hold)
+        {
+            _heldWait = wait;
+            hold.PendingIO = yield == ScriptYieldType.Tick ? null : task;
+        }
         else _pendingHooks.Add(wait);
     }
 

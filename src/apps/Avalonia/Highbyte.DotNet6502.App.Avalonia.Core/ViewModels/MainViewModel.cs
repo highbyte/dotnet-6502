@@ -1,5 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Highbyte.DotNet6502.Systems.Timing;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -112,6 +115,77 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private readonly ObservableAsPropertyHelper<bool> _isExternalDebuggerAttached;
     public bool IsExternalDebuggerAttached => _isExternalDebuggerAttached.Value;
+
+    public bool ShowEmulationSpeed => AvaloniaHostApp.SupportsEmulationSpeed;
+
+    private EmulationSpeed _pacedSpeed = EmulationSpeed.Normal;
+    private bool _isUnthrottled;
+    public bool IsUnthrottled
+    {
+        get => _isUnthrottled;
+        set
+        {
+            if (value == _isUnthrottled) return;
+            this.RaiseAndSetIfChanged(ref _isUnthrottled, value);
+            RefreshSpeedEditor();
+            ApplySpeedToHost();
+        }
+    }
+
+    private string NumericSpeed => _pacedSpeed.Multiplier!.Value.ToString(CultureInfo.InvariantCulture);
+    public string SpeedLabel => IsUnthrottled ? "Unthrottled" : NumericSpeed + "×";
+
+    public const double MinimumSliderSpeed = 0.25;
+    public const double MaximumSliderSpeed = 4;
+    public double SliderSpeed
+    {
+        get => Math.Clamp(Math.Round(_pacedSpeed.Multiplier!.Value * 4) / 4, MinimumSliderSpeed, MaximumSliderSpeed);
+        set
+        {
+            if (value == SliderSpeed) return;
+            SpeedText = value.ToString(CultureInfo.InvariantCulture);
+            ApplyCustomSpeed();
+        }
+    }
+
+    private string _speedText = "1";
+    public string SpeedText
+    {
+        get => _speedText;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _speedText, value);
+            SpeedError = null;
+        }
+    }
+
+    public void ApplyCustomSpeed()
+    {
+        if (!EmulationSpeed.TryParse(SpeedText, out var speed) || speed.Multiplier == null)
+        {
+            SpeedError = "Enter a positive number, for example 1.34.";
+            return;
+        }
+        _pacedSpeed = speed;
+        RefreshSpeedEditor();
+        this.RaisePropertyChanged(nameof(SliderSpeed));
+        ApplySpeedToHost();
+    }
+
+    public void RefreshSpeedEditor() => SpeedText = NumericSpeed;
+
+    private void ApplySpeedToHost()
+    {
+        _hostApp.SetEmulationSpeed(IsUnthrottled ? EmulationSpeed.Unthrottled : _pacedSpeed);
+        this.RaisePropertyChanged(nameof(SpeedLabel));
+    }
+
+    private string? _speedError;
+    public string? SpeedError
+    {
+        get => _speedError;
+        private set => this.RaiseAndSetIfChanged(ref _speedError, value);
+    }
 
     private readonly ObservableAsPropertyHelper<double> _scale;
     public double Scale
@@ -1595,28 +1669,33 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         this.RaisePropertyChanged(toolTipPropertyName);
     }
 
+    private long _previousFrameSampleTime = Stopwatch.GetTimestamp();
+    private long _previousGuestFrames;
+
     private void UpdateStatusFps()
     {
         RefreshDemoState();
+        var now = Stopwatch.GetTimestamp();
+        long frames = _hostApp.CompletedGuestFrames;
+        double rate = (frames - _previousGuestFrames) / Stopwatch.GetElapsedTime(_previousFrameSampleTime, now).TotalSeconds;
+        _previousGuestFrames = frames;
+        _previousFrameSampleTime = now;
+
         if (EmulatorState != EmulatorState.Running)
         {
             StatusFpsText = string.Empty;
             return;
         }
 
-        try
+        if (!ShowEmulationSpeed)
         {
-            var fpsStat = _hostApp.GetStats()
-                .FirstOrDefault(s => s.name.EndsWith("OnUpdateFPS", StringComparison.OrdinalIgnoreCase));
-            if (fpsStat.stat is Highbyte.DotNet6502.Systems.Instrumentation.Stats.PerSecondTimedStat perSecond && perSecond.Value.HasValue)
-                StatusFpsText = $"{Math.Round(perSecond.Value.Value)} fps";
-            else
-                StatusFpsText = string.Empty;
+            StatusFpsText = $"{rate:F0} fps";
+            return;
         }
-        catch
-        {
-            StatusFpsText = string.Empty;
-        }
+        var render = _hostApp.GetStats().FirstOrDefault(s => s.name.EndsWith("Render-FPS", StringComparison.Ordinal)).stat;
+        StatusFpsText = render is PerSecondTimedStat { Value: double displayRate }
+            ? $"{rate:F0} guest fps · {displayRate:F0} display fps"
+            : $"{rate:F0} guest fps";
     }
 
     private async Task UpdateRemoteClientIndicatorAsync(bool isConnected)

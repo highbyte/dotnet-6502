@@ -22,6 +22,7 @@ using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Remoting;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Timing;
 using Highbyte.DotNet6502.Systems.Caching;
 using Highbyte.DotNet6502.Systems.Configuration;
 using Highbyte.DotNet6502.Systems.Input;
@@ -391,10 +392,21 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         base.OnAfterSelectedSystemVariantChanged();
     }
 
+    internal static bool SupportsEmulationSpeed =>
+        PlatformDetection.IsRunningOnDesktop() || OperatingSystem.IsBrowser();
+
+    internal void SetEmulationSpeed(EmulationSpeed speed)
+    {
+        Speed = speed;
+        SetVolumePercent(_defaultAudioVolumePercent);
+    }
+
+    private float PlaybackVolume => Speed == EmulationSpeed.Normal ? _defaultAudioVolumePercent : 0;
+
     public void SetVolumePercent(float volumePercent)
     {
         _defaultAudioVolumePercent = volumePercent;
-        _audioHandlerContext?.SetMasterVolumePercent(masterVolumePercent: volumePercent);
+        _audioHandlerContext?.SetMasterVolumePercent(masterVolumePercent: PlaybackVolume);
     }
 
     // --- Snapshot host-config block (host-app-specific settings) ---
@@ -424,13 +436,14 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         // Automatically adjust scale if emulator dimensions are too wide/tall.
         Scale = GetUsefulScaleBasedOnEmulatorScreenDimensions(screen, Scale, alwaysUseMaxScale: false);
 
-        // Stop and dispose any existing update timer
-        StopAndDisposeUpdateTimer();
-
-        // Create timer for current system on initial start. Assume Stop() sets _updateTimer to null.
-        _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
-
-        _updateTimer.Start();
+        if (SupportsEmulationSpeed)
+            StartFramePacing(action => Dispatcher.UIThread.Post(action, DispatcherPriority.Background), yieldToNativeEvents: true);
+        else
+        {
+            StopAndDisposeUpdateTimer();
+            _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
+            _updateTimer.Start();
+        }
 
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
         {
@@ -447,6 +460,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
     public override void OnAfterPause()
     {
         base.OnAfterPause();
+        StopFramePacing();
         _updateTimer?.Stop();
     }
 
@@ -465,12 +479,13 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
 
     public override void OnAfterStop()
     {
+        StopFramePacing();
         StopAndDisposeUpdateTimer();
         base.OnAfterStop();
     }
 
     protected override IScriptingTickTimer CreateScriptingTickTimer(double intervalMs) =>
-        new PeriodicAsyncTimer { IntervalMilliseconds = intervalMs };
+        new PeriodicAsyncTimer { IntervalMilliseconds = intervalMs, UseSpinWait = false };
 
     protected override void OnScriptingEngineSet()
     {
@@ -496,14 +511,8 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         _inputHandlerContext?.Cleanup();
         _audioHandlerContext?.Cleanup();
 
-        // Cleanup timer
-        _updateTimer?.Stop();
-        if (_updateTimer != null)
-        {
-            _updateTimer.Elapsed -= UpdateTimerElapsed;
-            _updateTimer.Dispose();
-            _updateTimer = null;
-        }
+        StopFramePacing();
+        StopAndDisposeUpdateTimer();
 
         if (_monitor != null)
         {
@@ -819,8 +828,6 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         bool useSilentAudio = (CurrentHostSystemConfig == null || !CurrentHostSystemConfig.SystemConfig.AudioEnabled)
                              || !(PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly());
 
-        float masterVolumePercent = _defaultAudioVolumePercent;
-
         // Check if already created
         if (_audioHandlerContext != null)
         {
@@ -834,8 +841,6 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
             {
                 // Audio settings changed, cleanup existing context
                 _logger.LogInformation("Audio settings changed, cleaning up existing audio handler context");
-                // Remember existing volume setting
-                masterVolumePercent = _audioHandlerContext == NAudioAudioHandlerContext.SilentAudioHandlerContext ? _defaultAudioVolumePercent : _audioHandlerContext.MasterVolumePercent; 
                 _audioHandlerContext.Cleanup();
                 _audioHandlerContext = default!;
             }
@@ -860,7 +865,7 @@ public class AvaloniaHostApp : HostApp, INotifyPropertyChanged, IDebuggableHostA
         // Create a new context
         _audioHandlerContext = new NAudioAudioHandlerContext(
                 wavePlayer,
-                initialVolumePercent: masterVolumePercent,
+                initialVolumePercent: PlaybackVolume,
                 _loggerFactory);
 
         _logger.LogInformation("Created new NAudioAudioHandlerContext with wave player: " + wavePlayer.GetType().Name);

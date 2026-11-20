@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
@@ -15,7 +14,7 @@ namespace Highbyte.DotNet6502.Impl.Avalonia.Generic.Input;
 public class AvaloniaGenericInputHandler : IInputConsumer
 {
     private readonly GenericComputer _genericComputer;
-    private AvaloniaInputHandlerContext _inputHandlerContext = default!;
+    private IHostInputState _hostInput = default!;
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private readonly ILogger _logger;
 
@@ -36,11 +35,12 @@ public class AvaloniaGenericInputHandler : IInputConsumer
 
     public void Init(IHostInputState hostInputState)
     {
-        _inputHandlerContext = (AvaloniaInputHandlerContext)hostInputState;
+        _hostInput = hostInputState;
     }
 
     public void BeforeFrame()
     {
+        _hostInput.UpdatePerFrame();
         CaptureKeyboard(_genericComputer);
         // TODO: Generating random number to send to generic computer should not be in input handler, because it'll not run if not in focus.
         CaptureRandomNumber(_genericComputer);
@@ -53,22 +53,23 @@ public class AvaloniaGenericInputHandler : IInputConsumer
 
     private void CaptureKeyboard(GenericComputer genericComputer)
     {
-        // Note: The simplistic "GenericComputer" don't have a Keyboard buffer, only can receive one character ...
-        if (_inputHandlerContext!.KeysDown.Count > 0)
+        // The Generic machine exposes one ASCII key at a time.
+        var keys = _hostInput.KeysDown;
+        if (keys.Count == 0)
         {
-            PhysicalKey key = _inputHandlerContext.KeysDown.First();
-            // TODO: Handle all kinds of keys
-            if (GenericComputerAvaloniaKeyboard.AvaloniaToGenericKeyMap.ContainsKey(key))
-            {
-                byte keyCode = (byte)GenericComputerAvaloniaKeyboard.AvaloniaToGenericKeyMap[key];
-                genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = keyCode;
-            }
-
+            genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0;
+            return;
         }
 
-        if (_inputHandlerContext.KeysDown.Count == 0)
-            // Only way to tell the "GenericComputer" that a Key is no longer pressed is to set KeyDownAddress to 0...
-            genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
+        var key = keys.First();
+        foreach (var (physicalKey, character) in GenericComputerAvaloniaKeyboard.AvaloniaToGenericKeyMap)
+        {
+            if (AvaloniaInputHandlerContext.MapToHostKey(physicalKey) == key)
+            {
+                genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)character;
+                return;
+            }
+        }
     }
 
     private void CaptureRandomNumber(GenericComputer system)

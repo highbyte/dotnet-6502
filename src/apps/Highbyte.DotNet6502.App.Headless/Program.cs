@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Highbyte.DotNet6502.Systems.Timing;
 using Highbyte.DotNet6502.App.Headless;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Remoting;
@@ -30,6 +32,21 @@ if (ConsoleUpdateCli.WantsHandling(args))
 LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Information);
 
 WriteBootstrapLog("Starting headless emulator.");
+
+var speed = EmulationSpeed.Normal;
+if (args.Contains("--speed") && !EmulationSpeed.TryParse(AutomatedStartupHandler.ParseStringArgument(args, "--speed"), out speed))
+{
+    Console.Error.WriteLine("--speed requires a positive finite multiplier or unthrottled.");
+    return 1;
+}
+
+int statsInterval = 0;
+if (args.Contains("--stats-interval") && (!int.TryParse(AutomatedStartupHandler.ParseStringArgument(args, "--stats-interval"), out statsInterval)
+    || statsInterval < 1 || statsInterval > int.MaxValue / 1000))
+{
+    Console.Error.WriteLine("--stats-interval requires a positive interval in seconds.");
+    return 1;
+}
 
 // Parse debug adapter arguments
 bool enableExternalDebug = args.Contains("--enableExternalDebug");
@@ -266,7 +283,7 @@ if (systemList.Systems.Count == 0)
     return 1;
 }
 
-var hostApp = new HeadlessHostApp(systemList, loggerFactory, appCts);
+var hostApp = new HeadlessHostApp(systemList, loggerFactory, appCts, speed);
 hostApp.SetStoragePathsContext(AppStoragePaths.GetUserSettingsFilePath("Headless"), scriptingConfig);
 
 // Wire the debug environment to the host app
@@ -338,7 +355,23 @@ try
     if (!validateDemo && demoExitCode == 0)
     {
         logger.LogInformation("Headless emulator running. Press Ctrl+C to exit.");
-        await Task.Delay(Timeout.Infinite, appCts.Token);
+        if (statsInterval == 0)
+            await Task.Delay(Timeout.Infinite, appCts.Token);
+        else
+        {
+            var previousTime = Stopwatch.GetTimestamp();
+            long previousFrames = hostApp.CompletedGuestFrames;
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(statsInterval));
+            while (await timer.WaitForNextTickAsync(appCts.Token))
+            {
+                var now = Stopwatch.GetTimestamp();
+                long frames = hostApp.CompletedGuestFrames;
+                var rate = (frames - previousFrames) / Stopwatch.GetElapsedTime(previousTime, now).TotalSeconds;
+                logger.LogInformation("{Rate:F1} guest frames/sec ({Frames} completed)", rate, frames);
+                previousTime = now;
+                previousFrames = frames;
+            }
+        }
     }
 }
 catch (OperationCanceledException)
@@ -350,7 +383,9 @@ catch (OperationCanceledException)
 // Cleanup
 // ----------
 logger.LogInformation("Shutting down.");
-await hostApp.RunOnEmulationThreadAsync(() => { hostApp.Close(); return Task.CompletedTask; });
+// Lua can cancel a pending statistics tick from the emulation thread. Join that thread
+// from the owner after the queued Close finishes.
+await hostApp.RunOnEmulationThreadAsync(() => { hostApp.Close(); return Task.CompletedTask; }).ConfigureAwait(false);
 if (enableExternalDebug)
     await debugController.StopAsync();
 if (remotePort.HasValue)

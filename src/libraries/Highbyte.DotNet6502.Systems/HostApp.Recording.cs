@@ -232,7 +232,9 @@ public partial class HostApp : IRecordingHost
             if (!session.BeforeFrame())
                 return false;
             var result = _systemRunner!.RunEmulatorOneFrame();
-            session.AfterFrame(!result.Triggered && CurrentRunningSystem?.CPU.IsHalted == false);
+            bool completed = !result.Triggered && CurrentRunningSystem?.CPU.IsHalted == false;
+            if (completed) CountCompletedFrame();
+            session.AfterFrame(completed);
             OnAfterRunEmulatorOneFrame(result);
             if (recording && session.Mode == RecordingMode.Recording)
                 return FinishLiveFrame();
