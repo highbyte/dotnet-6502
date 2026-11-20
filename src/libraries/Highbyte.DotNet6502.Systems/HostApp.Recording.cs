@@ -61,6 +61,11 @@ public partial class HostApp : IRecordingHost
     {
         if (DemoSession?.Mode != RecordingMode.Recording)
             throw new InvalidOperationException("No recording is active.");
+        if (_scriptingEngine.FrameHold != null)
+        {
+            _scriptingEngine.CancelFrameHold();
+            Pause();
+        }
         DemoSession.StopRecording();
     }
 
@@ -183,27 +188,55 @@ public partial class HostApp : IRecordingHost
         CurrentRunningSystem?.InputInjector?.Clear();
     }
 
-    private void RunDemoFrame(bool receiveInput)
+    private bool _steppingRecording;
+
+    // A paused recording still dispatches hooks. Yield to the host dispatcher while the
+    // controller thinks, and count the requested step only once the guest actually ran.
+    private async Task StepRecordingFrameAsync()
+    {
+        _steppingRecording = true;
+        try
+        {
+            while (!RunDemoFrame(receiveInput: true))
+                await WaitForRecordingHookAsync();
+            if (_scriptingEngine.FrameHold is { Finished: false })
+                await WaitForRecordingHookAsync();
+        }
+        finally { _steppingRecording = false; }
+    }
+
+    private async Task WaitForRecordingHookAsync()
+    {
+        var hold = _scriptingEngine.FrameHold;
+        while (hold != null && _scriptingEngine.FrameHold == hold && EmulatorState == EmulatorState.Paused
+            && DemoSession?.Mode == RecordingMode.Recording)
+        {
+            if (_scriptingEngine.PollFrameHold()) return;
+            await Task.Delay(TimeSpan.FromMilliseconds(ScriptingTickIntervalMs));
+        }
+        throw new InvalidOperationException("Recording frame step interrupted.");
+    }
+
+    private bool RunDemoFrame(bool receiveInput)
     {
         var session = DemoSession!;
         bool recording = session.Mode == RecordingMode.Recording;
         try
         {
-            if (recording) CurrentRunningSystem?.InputInjector?.BeginFrame();
-            DrainPendingRemoteActions();
             if (recording)
             {
-                KeyboardTextInput.BeforeFrame(CurrentRunningSystem?.InputInjector as IKeyboardTextInput);
-                _scriptingEngine.InvokeBeforeFrame();
+                if (!_scriptingEngine.TryBeginFrame(_beginLiveFrame)) return false;
                 if (receiveInput) _systemRunner!.ProcessInputBeforeFrame();
             }
+            else DrainPendingRemoteActions();
             if (!session.BeforeFrame())
-                return;
+                return false;
             var result = _systemRunner!.RunEmulatorOneFrame();
             session.AfterFrame(!result.Triggered && CurrentRunningSystem?.CPU.IsHalted == false);
             OnAfterRunEmulatorOneFrame(result);
             if (recording && session.Mode == RecordingMode.Recording)
-                _scriptingEngine.InvokeAfterFrame();
+                return FinishLiveFrame();
+            return true;
         }
         catch (Exception ex)
         {
@@ -212,6 +245,7 @@ public partial class HostApp : IRecordingHost
                 _logger.LogError("{ReplayError}", session.Error);
             else
                 _logger.LogError(ex, "Recording/replay failed at frame {Frame}.", session.Frame);
+            return false;
         }
         finally
         {

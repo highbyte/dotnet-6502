@@ -19,7 +19,7 @@ using static Highbyte.DotNet6502.Systems.Tests.SystemConfigurerTests;
 
 namespace Highbyte.DotNet6502.Systems.Tests.Recording;
 
-public class HostRecordingTests
+public partial class HostRecordingTests
 {
     [Fact]
     public async Task Active_recording_rejects_cartridge_images_and_resets_before_mutation()

@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Recording;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
@@ -24,10 +25,26 @@ public class LuaC64Proxy
 {
     private C64? _c64;
 
-    internal LuaC64Proxy() { }
+    private readonly IHostApp? _host;
+
+    internal LuaC64Proxy(IHostApp? host = null) => _host = host;
 
     /// <summary>Called by the engine when a C64 system starts (or restarts after reset).</summary>
     internal void SetC64(C64? c64) => _c64 = c64;
+
+    /// <summary>Read one byte from the C64 I/O backing storage without accessing the CPU bus.</summary>
+    public DynValue read_io_storage(DynValue address)
+    {
+        if (address?.Type != DataType.Number || address.Number is < 0xd000 or > 0xdfff
+            || address.Number != Math.Truncate(address.Number))
+            throw new ScriptRuntimeException("c64.read_io_storage expects an integer address from 0xD000 through 0xDFFF.");
+
+        var machine = _host == null ? _c64 : _host.CurrentRunningSystem as C64;
+        if (machine == null)
+            return DynValue.NewTuple(DynValue.Nil, DynValue.NewString("No C64 is loaded."));
+
+        return DynValue.NewNumber(machine.ReadIOStorage((ushort)address.Number));
+    }
 
     /// <summary>
     /// Returns true if C64 BASIC has completed initialization.

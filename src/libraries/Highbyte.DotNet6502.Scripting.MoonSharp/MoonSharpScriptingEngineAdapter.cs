@@ -43,27 +43,28 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     // Pending async HTTP tasks for main-body coroutines: coroutine → pending Task<DynValue>
     private readonly Dictionary<Coroutine, Task<DynValue>> _pendingHttpTasks = new();
 
-    // Pending hook-invocation coroutines waiting on HTTP: coroutine → (handle, task)
-    // Hook coroutines are not the same object as the main handle coroutine.
-    private readonly List<(Coroutine co, AdapterScriptHandle handle, Task<DynValue> task)> _pendingHookHttpTasks = new();
-
-    // Pending async TCP tasks for main-body coroutines: coroutine → pending Task<DynValue>
     private readonly Dictionary<Coroutine, Task<DynValue>> _pendingTcpTasks = new();
 
-    // Pending hook-invocation coroutines waiting on TCP: (coroutine, handle, task)
-    private readonly List<(Coroutine co, AdapterScriptHandle handle, Task<DynValue> task)> _pendingHookTcpTasks = new();
+    private readonly record struct Hook(Coroutine Coroutine, string Name, string File);
+    private sealed record HookWait(Hook Hook, Task<DynValue> Task, ScriptYieldType Yield);
+    private readonly List<HookWait> _pendingHooks = [];
+    private HookWait? _heldWait;
+    private Hook? _currentHook;
+    private Coroutine? _heldCoroutine;
+    private CancellationTokenSource? _holdCancellation;
+    private CancellationToken HoldToken => ExecutingHold == null ? default
+        : (_holdCancellation ??= new CancellationTokenSource()).Token;
+    private bool _firstHookResume;
+
+    public ScriptFrameHold? FrameHold { get; private set; }
+    private ScriptFrameHold? ExecutingHold =>
+        _heldCoroutine != null && _currentCoroutine == _heldCoroutine ? FrameHold : null;
 
     // Set during any coroutine resume so HTTP callbacks can identify the active coroutine
     private Coroutine? _currentCoroutine;
 
-    // All known script handles — kept in sync so InvokeHookCore can look up by file name
+    // Main coroutine handles used to attribute deferred host commands to their script.
     private IReadOnlyList<AdapterScriptHandle> _allHandles = Array.Empty<AdapterScriptHandle>();
-
-    /// <summary>Minimal AdapterScriptHandle used when a matching loaded handle is not found.</summary>
-    private sealed class SyntheticScriptHandle : AdapterScriptHandle
-    {
-        internal SyntheticScriptHandle(string fileName) : base(fileName) { }
-    }
 
     // Sentinel strings passed through DynValue.NewYieldReq to distinguish yield types
     private const string FrameAdvanceSentinel = "frameadvance";
@@ -111,9 +112,9 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _coroutineYieldType.Clear();
         _hookDynValueCache.Clear();
         _pendingHttpTasks.Clear();
-        _pendingHookHttpTasks.Clear();
+        _pendingHooks.Clear();
         _pendingTcpTasks.Clear();
-        _pendingHookTcpTasks.Clear();
+        ReleaseFrameHold();
         _tcpProxy?.Dispose();
         _tcpProxy = null;
         _currentCoroutine = null;
@@ -138,7 +139,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         _script.Globals["log"] = _logProxy;
 
         // c64 proxy starts with null reference (safe defaults) until OnSystemStarted is called with a C64 system
-        _c64Proxy = new LuaC64Proxy();
+        _c64Proxy = new LuaC64Proxy(hostApp);
         _script.Globals["c64"] = _c64Proxy;
 
         // Oric proxy starts with a null reference until an Oric system starts.
@@ -254,7 +255,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             {
                 var url = args.Count > 0 ? args[0].CastToString() : "";
                 var headers = args.Count > 1 ? ExtractHeaders(args[1]) : null;
-                var task = httpProxyCapture.GetStringAsync(url, headers)
+                var task = httpProxyCapture.GetStringAsync(url, headers, HoldToken)
                     .ContinueWith(t => BuildResponseTable(t.Result));
                 RegisterPendingHttpTask(task);
                 return s_httpPendingYield;
@@ -265,7 +266,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             {
                 var url = args.Count > 0 ? args[0].CastToString() : "";
                 var headers = args.Count > 1 ? ExtractHeaders(args[1]) : null;
-                var task = httpProxyCapture.GetBytesAsync(url, headers)
+                var task = httpProxyCapture.GetBytesAsync(url, headers, HoldToken)
                     .ContinueWith(t => BuildBytesResponseTable(t.Result));
                 RegisterPendingHttpTask(task);
                 return s_httpPendingYield;
@@ -278,7 +279,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                 var body = args.Count > 1 ? args[1].CastToString() ?? "" : "";
                 var contentType = args.Count > 2 ? args[2].CastToString() ?? "text/plain" : "text/plain";
                 var headers = args.Count > 3 ? ExtractHeaders(args[3]) : null;
-                var task = httpProxyCapture.PostAsync(url, body, contentType, headers)
+                var task = httpProxyCapture.PostAsync(url, body, contentType, headers, HoldToken)
                     .ContinueWith(t => BuildResponseTable(t.Result));
                 RegisterPendingHttpTask(task);
                 return s_httpPendingYield;
@@ -290,7 +291,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                 var url = args.Count > 0 ? args[0].CastToString() : "";
                 var body = args.Count > 1 ? args[1].CastToString() ?? "" : "";
                 var headers = args.Count > 2 ? ExtractHeaders(args[2]) : null;
-                var task = httpProxyCapture.PostAsync(url, body, "application/json", headers)
+                var task = httpProxyCapture.PostAsync(url, body, "application/json", headers, HoldToken)
                     .ContinueWith(t => BuildResponseTable(t.Result));
                 RegisterPendingHttpTask(task);
                 return s_httpPendingYield;
@@ -315,7 +316,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                     if (safePath == null)
                         throw new ScriptRuntimeException($"http.download(): unsafe or invalid filename: {filename}");
 
-                    var task = httpProxyCapture.DownloadToFileAsync(url, safePath, headers)
+                    var task = httpProxyCapture.DownloadToFileAsync(url, safePath, headers, HoldToken)
                         .ContinueWith(t => BuildResponseTable(t.Result));
                     RegisterPendingHttpTask(task);
                     return s_httpPendingYield;
@@ -434,6 +435,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                     var payload = ExtractBytes(data.Type == DataType.Table && ReferenceEquals(data.Table, t)
                         ? (args.Count > 1 ? args[1] : DynValue.Nil)
                         : data);
+                    var cancel = HoldToken;
+                    if (cancel.CanBeCanceled) cancel.Register(conn.Dispose);
                     var task = conn.SendAsync(payload)
                         .ContinueWith(r =>
                         {
@@ -462,6 +465,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                     else
                         patternArg = args.Count > 0 ? args[0] : DynValue.Nil;
 
+                    var cancel = HoldToken;
+                    if (cancel.CanBeCanceled) cancel.Register(conn.Dispose);
                     Task<DynValue> task;
                     if (patternArg.Type == DataType.Number)
                     {
@@ -530,12 +535,14 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
                 var port = args.Count > 1 ? (int)args[1].Number : 0;
                 var timeoutMs = args.Count > 2 ? (int)args[2].Number : 5000;
 
+                var cancel = HoldToken;
                 var task = tcpProxyCapture.ConnectAsync(host, port, timeoutMs)
                     .ContinueWith(t =>
                     {
                         if (t.Exception != null)
                             return BuildTcpErrorTable((t.Exception.InnerException ?? t.Exception).Message);
                         var conn = t.Result;
+                        if (cancel.CanBeCanceled) cancel.Register(conn.Dispose);
                         tcpProxyCapture.Track(conn);
                         var result = new Table(scriptCapture!);
                         result["ok"] = DynValue.NewBoolean(true);
@@ -552,7 +559,18 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
 
         // emu table: frame control + emulator control operations
         var emuTable = new Table(_script);
-        emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => s_frameAdvanceYield);
+        emuTable["hold_frame"] = DynValue.NewCallback((ctx, args) =>
+        {
+            if (_currentHook is not { Name: "on_before_frame" or "on_after_frame" } hook
+                || !_firstHookResume || ctx.GetCallingCoroutine() != hook.Coroutine)
+                throw new ScriptRuntimeException("emu.hold_frame() requires a frame hook before its first yield.");
+            _heldCoroutine = hook.Coroutine;
+            FrameHold ??= new ScriptFrameHold(hook.Name, hook.File);
+            return DynValue.Void;
+        });
+        emuTable["frameadvance"] = DynValue.NewCallback((ctx, args) => ExecutingHold == null
+            ? s_frameAdvanceYield
+            : throw new ScriptRuntimeException("emu.frameadvance() cannot advance a held frame."));
         emuTable["yield"] = DynValue.NewCallback((ctx, args) => s_tickYield);
         emuTable["framecount"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(getFrameCount()));
         emuTable["time"] = DynValue.NewCallback((ctx, args) => DynValue.NewNumber(getElapsedSeconds()));
@@ -791,18 +809,21 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         inputTable["key_press"] = DynValue.NewCallback((ctx, args) =>
         {
             var keyName = args.Count > 0 ? args[0].CastToString() : "";
-            _inputProvider?.KeyPress(keyName);
+            if (ExecutingHold is { } hold) hold.KeyPress(keyName);
+            else _inputProvider?.KeyPress(keyName);
             return DynValue.Void;
         });
         inputTable["key_release"] = DynValue.NewCallback((ctx, args) =>
         {
             var keyName = args.Count > 0 ? args[0].CastToString() : "";
-            _inputProvider?.KeyRelease(keyName);
+            if (ExecutingHold is { } hold) hold.KeyRelease(keyName);
+            else _inputProvider?.KeyRelease(keyName);
             return DynValue.Void;
         });
         inputTable["key_release_all"] = DynValue.NewCallback((ctx, args) =>
         {
-            _inputProvider?.KeyReleaseAll();
+            if (ExecutingHold is { } hold) hold.KeyReleaseAll();
+            else _inputProvider?.KeyReleaseAll();
             return DynValue.Void;
         });
         inputTable["is_key_down"] = DynValue.NewCallback((ctx, args) =>
@@ -826,7 +847,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
             var port = args.Count > 0 ? (int)args[0].Number : 1;
             var actionName = args.Count > 1 ? args[1].CastToString() : "";
             var pressed = args.Count > 2 && args[2].Boolean;
-            _inputProvider.SetJoystickAction(port, actionName, pressed);
+            if (ExecutingHold is { } hold) hold.SetJoystickAction(port, actionName, pressed);
+            else _inputProvider.SetJoystickAction(port, actionName, pressed);
             return DynValue.Void;
         });
         inputTable["joystick_action"] = DynValue.NewCallback((ctx, args) =>
@@ -1028,19 +1050,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         }
 
         // Resume hook coroutines whose HTTP task has completed
-        for (int i = _pendingHookHttpTasks.Count - 1; i >= 0; i--)
-        {
-            var (co, handle, task) = _pendingHookHttpTasks[i];
-            if (!task.IsCompleted) continue;
-
-            _pendingHookHttpTasks.RemoveAt(i);
-            var responseTable = task.Exception != null
-                ? BuildErrorTable(task.Exception.InnerException ?? task.Exception)
-                : task.Result;
-
-            // Resume hook coroutine; if it yields again (another HTTP call), register it again
-            RunHookCoroutineToCompletion(co, handle, responseTable);
-        }
+        ResumePendingHooks(ScriptYieldType.HttpPending);
     }
 
     public void ResumePendingTcpCoroutines(
@@ -1065,18 +1075,7 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         }
 
         // Resume hook coroutines whose TCP task has completed
-        for (int i = _pendingHookTcpTasks.Count - 1; i >= 0; i--)
-        {
-            var (co, handle, task) = _pendingHookTcpTasks[i];
-            if (!task.IsCompleted) continue;
-
-            _pendingHookTcpTasks.RemoveAt(i);
-            var responseTable = task.Exception != null
-                ? BuildErrorTableForTcp(task.Exception.InnerException ?? task.Exception)
-                : task.Result;
-
-            RunHookCoroutineToCompletion(co, handle, responseTable);
-        }
+        ResumePendingHooks(ScriptYieldType.TcpPending);
     }
 
     private DynValue BuildErrorTableForTcp(Exception ex)
@@ -1151,8 +1150,6 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     {
         if (_currentCoroutine != null)
             _pendingHttpTasks[_currentCoroutine] = task;
-        // If _currentCoroutine is null we're in a hook-invocation coroutine tracked separately;
-        // that case is handled by RunHookCoroutineToCompletion which sets _currentCoroutine too.
     }
 
     /// <summary>
@@ -1200,131 +1197,129 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         return DynValue.NewTable(t);
     }
 
-    /// <summary>
-    /// Runs a hook coroutine until it either completes or suspends on an HTTP task.
-    /// If it suspends, registers the pending HTTP task in _pendingHookHttpTasks for the given handle.
-    /// <paramref name="resumeValue"/> is passed as the return value of the last HTTP yield (or null for first run).
-    /// </summary>
-    private void RunHookCoroutineToCompletion(Coroutine co, AdapterScriptHandle handle, DynValue? resumeValue = null)
+    public void DiscardPendingHooks(string? scriptFile)
     {
-        _currentCoroutine = co;
-        try
-        {
-            var result = resumeValue != null ? co.Resume(resumeValue) : co.Resume();
+        if (scriptFile == null) _pendingHooks.Clear();
+        else _pendingHooks.RemoveAll(wait => wait.Hook.File == scriptFile);
+    }
 
-            if (co.State == CoroutineState.Suspended)
-            {
-                var yieldType = DetectYieldType(result);
-                if (yieldType == ScriptYieldType.HttpPending
-                    && _pendingHttpTasks.TryGetValue(co, out var httpTask))
-                {
-                    _pendingHttpTasks.Remove(co);
-                    _pendingHookHttpTasks.Add((co, handle, httpTask));
-                }
-                else if (yieldType == ScriptYieldType.TcpPending
-                    && _pendingTcpTasks.TryGetValue(co, out var tcpTask))
-                {
-                    _pendingTcpTasks.Remove(co);
-                    _pendingHookTcpTasks.Add((co, handle, tcpTask));
-                }
-                // Any other yield type from a hook is unexpected — just let it sit
-            }
-            // If Dead or ForceSuspended, hook finished (or errored) — nothing more to do
-        }
-        catch (ScriptRuntimeException ex)
+    public void ReleaseFrameHold()
+    {
+        // I/O may still complete, but its coroutine is no longer reachable by either pump.
+        if (FrameHold is { Finished: false }) _holdCancellation?.Cancel();
+        _holdCancellation?.Dispose();
+        _holdCancellation = null;
+        _heldWait = null;
+        _heldCoroutine = null;
+        FrameHold = null;
+    }
+
+    public void PollFrameHold()
+    {
+        if (_heldWait is not { Task.IsCompleted: true } ready) return;
+        _heldWait = null;
+        ResumeWait(ready);
+    }
+
+    private void ResumePendingHooks(ScriptYieldType type)
+    {
+        for (int i = _pendingHooks.Count - 1; i >= 0; i--)
         {
-            _logger!.LogError("[Scripting] Runtime error in hook for {File}: {Message}", handle.FileName, ex.DecoratedMessage);
-        }
-        catch (Exception ex)
-        {
-            _logger!.LogError(ex, "[Scripting] Unexpected error in hook for {File}", handle.FileName);
-        }
-        finally
-        {
-            _currentCoroutine = null;
+            var wait = _pendingHooks[i];
+            if (wait.Yield != type || !wait.Task.IsCompleted) continue;
+            _pendingHooks.RemoveAt(i);
+            ResumeWait(wait);
         }
     }
 
+    private void ResumeWait(HookWait wait)
+    {
+        DynValue response;
+        if (wait.Task.IsCompletedSuccessfully)
+            response = wait.Task.Result;
+        else
+        {
+            var error = wait.Task.Exception?.GetBaseException() ?? new TaskCanceledException(wait.Task);
+            response = wait.Yield == ScriptYieldType.HttpPending ? BuildErrorTable(error) : BuildErrorTableForTcp(error);
+        }
+        ResumeHook(wait.Hook, [response], firstResume: false);
+    }
+
     public bool InvokeHook(string hookName, string scriptFile)
-        => InvokeHookCore(hookName, scriptFile, Array.Empty<DynValue>());
+        => InvokeHookCore(hookName, scriptFile, []);
 
     public bool InvokeHookWithArgs(string hookName, string scriptFile, params object[] args)
-        => InvokeHookCore(hookName, scriptFile,
-               args.Select(a => DynValue.FromObject(_script, a)).ToArray());
+        => InvokeHookCore(hookName, scriptFile, args.Select(a => DynValue.FromObject(_script, a)).ToArray());
 
-    /// <summary>
-    /// Runs a hook as a per-invocation coroutine so it can yield on async HTTP calls.
-    /// If the hook suspends mid-execution (HTTP in-flight), it is queued in
-    /// _pendingHookHttpTasks and will be resumed by ResumePendingHttpCoroutines.
-    /// Returns false only if the hook threw a runtime error on its first run.
-    /// </summary>
     private bool InvokeHookCore(string hookName, string scriptFile, DynValue[] args)
     {
-        if (_script == null) return true;
-        if (!_hookDynValueCache.TryGetValue(hookName, out var fn))
+        if (_script == null || !_hookDynValueCache.TryGetValue(hookName, out var fn))
             return true;
 
-        _logProxy!.CurrentScriptFile = scriptFile;
+        var co = _script.CreateCoroutine(fn).Coroutine;
+        co.AutoYieldCounter = _config!.MaxInstructionsPerResume;
+        return ResumeHook(new Hook(co, hookName, scriptFile), args, firstResume: true);
+    }
 
-        // Find the handle whose FileName matches scriptFile so RunHookCoroutineToCompletion
-        // can associate the pending HTTP task with the right script.
-        // We use a synthetic handle carrying just the file name when no real handle is available.
-        var handle = _allHandles.FirstOrDefault(h => h.FileName == scriptFile)
-            ?? new SyntheticScriptHandle(scriptFile);
-
+    private bool ResumeHook(Hook hook, DynValue[] args, bool firstResume)
+    {
+        _currentHook = hook;
+        _currentCoroutine = hook.Coroutine;
+        _firstHookResume = firstResume;
+        _logProxy!.CurrentScriptFile = hook.File;
         var startTimestamp = Stopwatch.GetTimestamp();
         try
         {
-            // Create a fresh per-invocation coroutine for this hook call.
-            // This allows the hook to yield (e.g. on http.get) without blocking.
-            var co = _script.CreateCoroutine(fn).Coroutine;
-            _currentCoroutine = co;
-
-            DynValue result;
-            if (args.Length == 0)
-                result = co.Resume();
-            else
-                result = co.Resume(args);
-
-            if (co.State == CoroutineState.Suspended)
-            {
-                var yieldType = DetectYieldType(result);
-                if (yieldType == ScriptYieldType.HttpPending
-                    && _pendingHttpTasks.TryGetValue(co, out var httpTask))
-                {
-                    _pendingHttpTasks.Remove(co);
-                    _pendingHookHttpTasks.Add((co, handle, httpTask));
-                }
-                else if (yieldType == ScriptYieldType.TcpPending
-                    && _pendingTcpTasks.TryGetValue(co, out var tcpTask))
-                {
-                    _pendingTcpTasks.Remove(co);
-                    _pendingHookTcpTasks.Add((co, handle, tcpTask));
-                }
-            }
+            var result = hook.Coroutine.Resume(args);
+            if (hook.Coroutine.State == CoroutineState.ForceSuspended)
+                throw new ScriptRuntimeException("Hook exceeded the configured instruction limit.");
+            if (hook.Coroutine.State == CoroutineState.Suspended)
+                ScheduleHookWait(hook, DetectYieldType(result));
+            else if (ExecutingHold is { } hold)
+                hold.Complete();
             return true;
-        }
-        catch (ScriptRuntimeException ex)
-        {
-            _logger!.LogError("[Scripting] Runtime error in '{Hook}': {Message}", hookName, ex.DecoratedMessage);
-            return false;
         }
         catch (Exception ex)
         {
-            _logger!.LogError(ex, "[Scripting] Unexpected error invoking Lua hook '{Hook}'", hookName);
+            if (ExecutingHold is { } hold) hold.Fail();
+            _logger!.LogError(ex, "[Scripting] Error in {Hook} ({Script}): {Message}",
+                hook.Name, hook.File, ex is ScriptRuntimeException lua ? lua.DecoratedMessage : ex.Message);
             return false;
         }
         finally
         {
             _currentCoroutine = null;
+            _currentHook = null;
             if (_config!.MaxExecutionWarningMs > 0)
             {
                 var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
                 if (elapsedMs > _config.MaxExecutionWarningMs)
                     _logger!.LogWarning("[Scripting] '{Hook}' ({Script}) took {Ms:F1}ms (threshold: {Threshold}ms)",
-                        hookName, scriptFile, elapsedMs, _config.MaxExecutionWarningMs);
+                        hook.Name, hook.File, elapsedMs, _config.MaxExecutionWarningMs);
             }
         }
+    }
+
+    private void ScheduleHookWait(Hook hook, ScriptYieldType? yield)
+    {
+        Task<DynValue>? task = null;
+        if (yield == ScriptYieldType.HttpPending)
+            _pendingHttpTasks.Remove(hook.Coroutine, out task);
+        else if (yield == ScriptYieldType.TcpPending)
+            _pendingTcpTasks.Remove(hook.Coroutine, out task);
+        else if (yield == ScriptYieldType.Tick && ExecutingHold != null)
+            task = Task.FromResult(DynValue.Void);
+
+        if (task == null)
+        {
+            if (ExecutingHold != null)
+                throw new ScriptRuntimeException("Unsupported yield inside a held frame hook.");
+            return;
+        }
+
+        var wait = new HookWait(hook, task, yield!.Value);
+        if (ExecutingHold != null) _heldWait = wait;
+        else _pendingHooks.Add(wait);
     }
 
     public AdapterScriptState GetScriptState(AdapterScriptHandle handle)
@@ -1442,8 +1437,8 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
     /// Returns an empty string if no coroutine is currently active (e.g. called outside a resume).
     /// </summary>
     private string CurrentScriptFileName() =>
-        _currentCoroutine == null
+        _currentHook?.File ?? (_currentCoroutine == null
             ? string.Empty
             : _allHandles.OfType<MoonSharpScriptHandle>()
-                         .FirstOrDefault(h => h.Coroutine == _currentCoroutine)?.FileName ?? string.Empty;
+                         .FirstOrDefault(h => h.Coroutine == _currentCoroutine)?.FileName ?? string.Empty);
 }

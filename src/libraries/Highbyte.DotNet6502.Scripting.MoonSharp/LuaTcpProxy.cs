@@ -23,15 +23,25 @@ public sealed class LuaTcpProxy : IDisposable
     }
 
     /// <summary>Registers a connection so it is disposed when this proxy is disposed.</summary>
-    internal void Track(LuaTcpConnection connection) => _connections.Add(connection);
+    internal void Track(LuaTcpConnection connection)
+    {
+        // A connect completion can race a VM reload on the emulation thread.
+        lock (_connections)
+        {
+            if (_disposed) connection.Dispose();
+            else _connections.Add(connection);
+        }
+    }
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        foreach (var conn in _connections)
-            conn.Dispose();
-        _connections.Clear();
+        lock (_connections)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            foreach (var conn in _connections) conn.Dispose();
+            _connections.Clear();
+        }
     }
 }
 

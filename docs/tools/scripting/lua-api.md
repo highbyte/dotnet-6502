@@ -214,6 +214,33 @@ Define any of these as global functions in your script. The emulator calls them 
 | `on_system_selected(name)` | system name | System selection changed. |
 | `on_variant_selected(name)` | variant name | System variant changed. |
 
+### Hold a frame for a controller
+
+Call `emu.hold_frame()` in `on_before_frame()` or `on_after_frame()` before its first yield. The guest stays at that boundary across TCP or HTTP waits while the host continues to service controls. Each invocation opts in separately. Ordinary asynchronous hooks let the guest advance while they wait.
+
+A before hook supplies input for the frame about to run. An after hook observes the completed frame and can supply input for the following one. For example, this before hook sends sprite 0’s X low byte to a local TCP controller and waits for one byte indicating Fire on port 2.
+
+```lua
+local controller
+function on_before_frame()
+    emu.hold_frame()
+    if not controller then
+        local reply = tcp.connect("127.0.0.1", 9000)
+        assert(reply.ok, reply.error)
+        controller = reply.data
+    end
+    local sent = controller:send({assert(c64.read_io_storage(0xD000))})
+    assert(sent.ok, sent.error)
+    local reply = controller:receive(1)
+    assert(reply.ok, reply.error)
+    input.joystick_set(2, "fire", reply.data[1] == 1)
+end
+```
+
+Returning releases the hold. Calling `emu.frameadvance()` inside a hold raises a Lua error. An unhandled error in a held hook pauses the machine and logs the script and hook name. Disabling or reloading the held script also pauses the machine for explicit resume. Stopping, resetting or restoring the machine discards the outstanding invocation and its staged input.
+
+Recording captures the input on the frame that consumes it. Playback uses the recorded input and leaves scripts disabled. Ordinary paused stepping bypasses frame hooks.
+
 ## File I/O (`file`)
 
 Available when `AllowFileIO: true`. The `file` global is not registered when `AllowFileIO` is `false`, so scripts that use it will fail with a runtime error on platforms without filesystem access (e.g. WASM/browser).
@@ -258,10 +285,15 @@ The `c64` global is always registered. Query methods return safe defaults and `p
 
 | Function | Returns | Description |
 |----------|---------|-------------|
+| `c64.read_io_storage(address)` | byte or `nil, reason` | Read the stored byte at an absolute C64 I/O address (`0xD000` through `0xDFFF`), independently of CPU banking. |
 | `c64.basic_started()` | boolean | Whether C64 BASIC has initialized. |
 | `c64.get_basic_source()` | string | De-tokenizes the current BASIC program, or returns an empty string before BASIC is ready. |
 | `c64.print_text(text)` | — | Queues text into the C64 keyboard buffer. End each submitted BASIC line with `\n`. |
 | `c64.load_d64(path)` | — | Parses a `.d64` file and inserts it into the first attached 1541 drive. Supports `~`, `%HOME%`, and `%USERPROFILE%` expansion. Desktop only. |
+
+`c64.read_io_storage` requires an integer Lua number in the I/O range. An invalid argument raises a Lua error. With a C64 loaded, every address in that range returns its stored byte, including zero. With no C64 loaded, the call returns `nil, reason`.
+
+The read uses the exact storage slot and has no device side effects. For example, use `0xD000` for sprite 0’s X low byte. The CPU sees a mirror at `0xD040`, but the storage read uses a separate slot there. Use `mem.read(address)` when you want the byte the CPU would see through its current memory mapping.
 
 ## Oric-specific API (`oric`)
 
@@ -361,7 +393,7 @@ The optional `headers` argument is a Lua table of key-value string pairs, e.g. `
 
 ### Async behaviour
 
-All HTTP calls are **non-blocking and async**. When a script calls `http.get(url)`, the coroutine is suspended immediately and the emulator continues running. The script resumes automatically on the next frame once the response arrives, with the response table returned as the value of the `http.*` call. From the Lua script's point of view the call is still a simple synchronous expression:
+All HTTP calls are **non-blocking and async**. When a script calls `http.get(url)`, the coroutine is suspended immediately. The guest continues running unless the hook called `emu.hold_frame()`. The script resumes automatically on the next frame once the response arrives, with the response table returned as the value of the `http.*` call. From the Lua script's point of view the call is still a simple synchronous expression:
 
 ```lua
 local resp = http.get(url)   -- suspends until response arrives; script sees a normal return value

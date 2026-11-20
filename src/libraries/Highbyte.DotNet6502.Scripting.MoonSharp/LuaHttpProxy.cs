@@ -26,14 +26,14 @@ public sealed class LuaHttpProxy : IDisposable
         };
     }
 
-    public async Task<HttpProxyResponse> GetStringAsync(string url, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> GetStringAsync(string url, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ApplyHeaders(request, headers);
-            using var response = await _client.SendAsync(request);
-            var body = await response.Content.ReadAsStringAsync();
+            using var response = await _client.SendAsync(request, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var status = (int)response.StatusCode;
             return response.IsSuccessStatusCode
                 ? new HttpProxyResponse(true, status, body, null, null)
@@ -45,14 +45,14 @@ public sealed class LuaHttpProxy : IDisposable
         }
     }
 
-    public async Task<HttpProxyResponse> GetBytesAsync(string url, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> GetBytesAsync(string url, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ApplyHeaders(request, headers);
-            using var response = await _client.SendAsync(request);
-            var bytes = await response.Content.ReadAsByteArrayAsync();
+            using var response = await _client.SendAsync(request, cancellationToken);
+            var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             var status = (int)response.StatusCode;
             return response.IsSuccessStatusCode
                 ? new HttpProxyResponse(true, status, null, bytes, null)
@@ -64,7 +64,7 @@ public sealed class LuaHttpProxy : IDisposable
         }
     }
 
-    public async Task<HttpProxyResponse> PostAsync(string url, string body, string contentType, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> PostAsync(string url, string body, string contentType, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -73,8 +73,8 @@ public sealed class LuaHttpProxy : IDisposable
                 Content = new StringContent(body, System.Text.Encoding.UTF8, contentType)
             };
             ApplyHeaders(request, headers);
-            using var response = await _client.SendAsync(request);
-            var responseBody = await response.Content.ReadAsStringAsync();
+            using var response = await _client.SendAsync(request, cancellationToken);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
             var status = (int)response.StatusCode;
             return response.IsSuccessStatusCode
                 ? new HttpProxyResponse(true, status, responseBody, null, null)
@@ -86,19 +86,19 @@ public sealed class LuaHttpProxy : IDisposable
         }
     }
 
-    public async Task<HttpProxyResponse> DownloadToFileAsync(string url, string absoluteFilePath, Dictionary<string, string>? headers = null)
+    public async Task<HttpProxyResponse> DownloadToFileAsync(string url, string absoluteFilePath, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ApplyHeaders(request, headers);
-            using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             var status = (int)response.StatusCode;
             if (!response.IsSuccessStatusCode)
                 return new HttpProxyResponse(false, status, null, null, $"HTTP {status}");
-            using var stream = await response.Content.ReadAsStreamAsync();
+            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var file = File.Create(absoluteFilePath);
-            await stream.CopyToAsync(file);
+            await stream.CopyToAsync(file, cancellationToken);
             return new HttpProxyResponse(true, status, null, null, null);
         }
         catch (Exception ex)

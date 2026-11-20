@@ -109,6 +109,7 @@ public class ScriptingEngine : IScriptingEngine
     public void LoadScripts()
     {
         _hostApp?.EnsureLiveInputAllowed();
+        CancelScriptHooks();
         _handles.Clear();
         _coroutineStates.Clear();
         _lastYieldTypes.Clear();
@@ -129,6 +130,8 @@ public class ScriptingEngine : IScriptingEngine
             () => _frameCount,
             () => _wallClock.Elapsed.TotalSeconds);
 
+        if (_hostApp?.CurrentRunningSystem is { } machine)
+            OnSystemStarted(machine);
         LoadScriptFiles();
 
         if (_config.EnableScriptsAtStart)
@@ -230,6 +233,72 @@ public class ScriptingEngine : IScriptingEngine
         _frameCount = 0;
     }
 
+    public ScriptFrameHold? FrameHold => _adapter.FrameHold;
+
+    public void CancelFrameHold()
+    {
+        if (FrameHold is not { } hold) return;
+        _adapter.ReleaseFrameHold();
+        _pendingScriptActions.RemoveAll(action => action.FileName == hold.ScriptFile);
+        // A hook may inject transient input before opting in. The interrupted frame
+        // will be prepared again on resume; held keys and physical input survive.
+        _hostApp?.CurrentRunningSystem?.InputInjector?.BeginFrame();
+    }
+
+    public void DiscardPendingHooks()
+    {
+        CancelFrameHold();
+        _adapter.DiscardPendingHooks(null);
+    }
+
+    private void CancelScriptHooks(string? scriptFile = null)
+    {
+        _adapter.DiscardPendingHooks(scriptFile);
+        if (FrameHold is not { } hold || (scriptFile != null && hold.ScriptFile != scriptFile))
+            return;
+
+        CancelFrameHold();
+        if (!hold.Finished) _hostApp?.Pause();
+    }
+
+    public bool PollFrameHold()
+    {
+        if (FrameHold is not { } hold) return true;
+        _adapter.PollFrameHold();
+        if (!hold.Failed) return hold.Finished;
+
+        _runtimeErrorFiles.Add(hold.ScriptFile);
+        CancelFrameHold();
+        _hostApp?.Pause();
+        ScriptStatusChanged?.Invoke(this, EventArgs.Empty);
+        return false;
+    }
+
+    public bool TryBeginFrame(Action beginFrame)
+    {
+        // A before-hook continuation already owns a prepared frame. An after-hook's
+        // input belongs after the next BeginFrame, which clears transient input.
+        var pending = FrameHold;
+        if (pending != null && !PollFrameHold()) return false;
+        bool resumingBefore = pending?.HookName == "on_before_frame";
+        if (!resumingBefore) beginFrame();
+        if (pending != null) ApplyHeldInput(pending);
+        if (resumingBefore) return true;
+
+        InvokeBeforeFrame();
+        if (FrameHold is not { } started) return true;
+        if (started.Failed) return PollFrameHold();
+        if (!started.Finished) return false;
+        ApplyHeldInput(started);
+        return true;
+    }
+
+    private void ApplyHeldInput(ScriptFrameHold hold)
+    {
+        _adapter.ReleaseFrameHold();
+        hold.ApplyInput(_hostApp?.CurrentRunningSystem?.InputInjector);
+    }
+
     public void InvokeBeforeFrame()
     {
         _frameCount++;
@@ -266,6 +335,7 @@ public class ScriptingEngine : IScriptingEngine
 
     public void SetScriptEnabled(string fileName, bool enabled)
     {
+        if (!enabled) CancelScriptHooks(fileName);
         if (enabled) _hostApp?.EnsureLiveInputAllowed();
         if (!_handles.Any(h => h.FileName == fileName))
             return;
@@ -340,7 +410,7 @@ public class ScriptingEngine : IScriptingEngine
 
         // Don't reload scripts that are actively running
         var existing = _handles.FirstOrDefault(h => h.FileName == fileName);
-        if (existing != null
+        if (existing != null && FrameHold?.ScriptFile != fileName
             && _coroutineStates.GetValueOrDefault(existing) == AdapterCoroutineState.Suspended
             && !_userDisabledFiles.Contains(fileName)
             && !_runtimeErrorFiles.Contains(fileName))
@@ -349,6 +419,7 @@ public class ScriptingEngine : IScriptingEngine
             return;
         }
 
+        CancelScriptHooks(fileName);
         _logger.LogInformation("[Scripting] Reloading: {File}", fileName);
 
         // Remember insert position to preserve script order
@@ -429,7 +500,7 @@ public class ScriptingEngine : IScriptingEngine
         _hostApp?.EnsureLiveInputAllowed();
         // Don't replace a script that is actively running
         var existing = _handles.FirstOrDefault(h => h.FileName == fileName);
-        if (existing != null
+        if (existing != null && FrameHold?.ScriptFile != fileName
             && _coroutineStates.GetValueOrDefault(existing) == AdapterCoroutineState.Suspended
             && !_userDisabledFiles.Contains(fileName)
             && !_runtimeErrorFiles.Contains(fileName))
@@ -438,6 +509,7 @@ public class ScriptingEngine : IScriptingEngine
             return;
         }
 
+        CancelScriptHooks(fileName);
         _logger.LogInformation("[Scripting] Upserting: {File}", fileName);
 
         var insertIdx = existing != null ? _handles.IndexOf(existing) : -1;
@@ -498,6 +570,7 @@ public class ScriptingEngine : IScriptingEngine
 
     public void DeleteScript(string fileName)
     {
+        CancelScriptHooks(fileName);
         var existing = _handles.FirstOrDefault(h => h.FileName == fileName);
         if (existing == null && !_failedFiles.Contains(fileName))
         {
@@ -579,7 +652,7 @@ public class ScriptingEngine : IScriptingEngine
 
             var canToggle = state != ScriptExecutionState.Disabled
                          && state != ScriptExecutionState.Completed;
-            var canReload = state != ScriptExecutionState.Running;
+            var canReload = state != ScriptExecutionState.Running || FrameHold?.ScriptFile == handle.FileName;
 
             statuses.Add(new ScriptStatus(handle.FileName, state, yieldTypeDto, hooks, canToggle, canReload));
         }

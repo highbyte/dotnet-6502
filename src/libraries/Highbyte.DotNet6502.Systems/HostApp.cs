@@ -199,6 +199,7 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
         bool useStatsNamePrefix = true
         )
     {
+        _beginLiveFrame = BeginLiveFrame;
         _hostName = hostName;
         _updateFps = _instrumentations.Add($"{_statsPrefix}OnUpdateFPS", new PerSecondTimedStat());
         // (HostName exposes _hostName for snapshot host-config tagging; see HostName property.)
@@ -619,6 +620,7 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
         if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
             return;
 
+        _scriptingEngine.CancelFrameHold();
         KeyboardTextInput.Clear();
         _audioCoordinator?.PausePlaying();
 
@@ -641,6 +643,7 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
         if (EmulatorState == EmulatorState.Running)
             Pause();
 
+        _scriptingEngine.DiscardPendingHooks();
         KeyboardTextInput.Clear();
         OnBeforeStop();
 
@@ -902,17 +905,10 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
             return;
         }
 
-        // Frame is definitely going to run
-
-        // Handle remote control action
-        CurrentRunningSystem?.InputInjector?.BeginFrame();
-        DrainPendingRemoteActions();
-        KeyboardTextInput.BeforeFrame(CurrentRunningSystem?.InputInjector as IKeyboardTextInput);
-
-        // Invoke scripting before-frame hook
         _scriptTime!.Start();
-        _scriptingEngine.InvokeBeforeFrame();
-        _scriptTime!.Stop(cont: true); // accumulate; don't record until after-frame scripting completes
+        bool ready = _scriptingEngine.TryBeginFrame(_beginLiveFrame);
+        _scriptTime.Stop(cont: ready);
+        if (!ready) return;
 
         _updateFps.Update();
 
@@ -929,8 +925,22 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
         _systemTime!.Stop();
 
         _scriptTime!.Start(cont: true); // continue accumulating from before-frame measurement
-        _scriptingEngine.InvokeAfterFrame();
+        FinishLiveFrame();
         _scriptTime!.Stop(); // record total script time for this frame
+    }
+
+    private bool FinishLiveFrame()
+    {
+        _scriptingEngine.InvokeAfterFrame();
+        return _scriptingEngine.FrameHold?.Failed != true || _scriptingEngine.PollFrameHold();
+    }
+
+    private readonly Action _beginLiveFrame;
+    private void BeginLiveFrame()
+    {
+        CurrentRunningSystem?.InputInjector?.BeginFrame();
+        DrainPendingRemoteActions();
+        KeyboardTextInput.BeforeFrame(CurrentRunningSystem?.InputInjector as IKeyboardTextInput);
     }
 
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }
@@ -953,11 +963,17 @@ public partial class HostApp : IHostApp, IManualRenderingProvider
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot step frames while the emulator is running; deterministic stepping requires a stopped/paused emulator. Pause the emulator (or load a snapshot) first.");
 
+        if (_steppingRecording)
+            throw new InvalidOperationException("A recording frame step is already in progress.");
+
         for (int i = 0; i < frameCount; i++)
         {
             if (DemoSession?.Mode is RecordingMode.Recording or RecordingMode.Playback)
             {
-                RunDemoFrame(receiveInput: true);
+                if (DemoSession.Mode == RecordingMode.Recording)
+                    await StepRecordingFrameAsync();
+                else
+                    RunDemoFrame(receiveInput: true);
                 if (DemoSession.Mode == RecordingMode.Idle) break;
             }
             else _systemRunner.RunEmulatorOneFrame();
