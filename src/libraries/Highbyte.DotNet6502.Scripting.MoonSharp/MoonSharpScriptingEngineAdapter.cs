@@ -578,6 +578,9 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         // Host type
         emuTable["host"] = DynValue.NewCallback((ctx, args) => DynValue.NewString(_hostType));
 
+        var allowedEnvironmentVariables = config.AllowedEnvironmentVariables.ToHashSet(StringComparer.Ordinal);
+        emuTable["getenv"] = DynValue.NewCallback((_, args) => ReadEnvironmentVariable(args, allowedEnvironmentVariables));
+
         // Emulator state queries
         emuTable["storage_paths"] = DynValue.NewCallback((ctx, args) =>
         {
@@ -1432,6 +1435,22 @@ public class MoonSharpScriptingEngineAdapter : IScriptingEngineAdapter
         CoroutineState.ForceSuspended => AdapterCoroutineState.ForceSuspended,
         _ => AdapterCoroutineState.Dead
     };
+
+    private DynValue ReadEnvironmentVariable(CallbackArguments args, HashSet<string> allowedNames)
+    {
+        if (args.Count == 0 || args[0].Type != DataType.String)
+            throw new ScriptRuntimeException("emu.getenv() requires a string name.");
+
+        var name = args[0].String;
+        if (name.Length == 0 || name.Contains('=') || name.Contains('\0'))
+            throw new ScriptRuntimeException("emu.getenv() requires a nonempty name without '=' or NUL.");
+
+        if (OperatingSystem.IsBrowser() || _hostType == "browser" || !allowedNames.Contains(name))
+            return DynValue.Nil;
+
+        var value = Environment.GetEnvironmentVariable(name);
+        return value == null ? DynValue.Nil : DynValue.NewString(value);
+    }
 
     public void SetInputProvider(IInputInjector? provider) => _inputProvider = provider;
 

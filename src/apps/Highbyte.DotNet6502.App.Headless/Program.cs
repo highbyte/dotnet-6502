@@ -82,6 +82,7 @@ if ((frameLimitText != null && (!long.TryParse(frameLimitText, out demoFrameLimi
 }
 
 // Parse scripting override arguments
+var additionalEnvironmentVariables = ParseMultipleStringArgument(args, "--script-allow-env");
 List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
 string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(args, "--scriptDir");
 
@@ -224,7 +225,8 @@ if (remotePort.HasValue && !showStoragePaths)
 // ----------
 bool automatedStartupMode = autoStart || waitForSystemReady || loadPrgPath != null || runLoadedProgram || loadSnapshotPath != null || demoPath != null;
 var scriptingConfig = MoonSharpScriptingConfigurator.CreateEffectiveConfig(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode);
-var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "headless");
+scriptingConfig.AllowedEnvironmentVariables.AddRange(additionalEnvironmentVariables);
+var scriptingEngine = MoonSharpScriptingConfigurator.CreateForNativeHost(scriptingConfig, loggerFactory, "headless", suppressScripts: automatedStartupMode && !hasScripts);
 
 // ----------
 // Create system list and host app

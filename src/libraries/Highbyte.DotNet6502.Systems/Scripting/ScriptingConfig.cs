@@ -105,6 +105,11 @@ public class ScriptingConfig
     public bool AllowTcpClient { get; set; } = false;
 
     /// <summary>
+    /// Literal, case-sensitive process environment names exposed through emu.getenv on native hosts.
+    /// </summary>
+    public List<string> AllowedEnvironmentVariables { get; } = [];
+
+    /// <summary>
     /// Optional callback supplying (fileName, content) pairs directly, bypassing filesystem scanning.
     /// When non-null, <see cref="ScriptingEngine"/> calls this instead of reading from <see cref="ScriptDirectory"/>.
     /// Use in environments without filesystem access (e.g. WASM/browser — scripts from localStorage).

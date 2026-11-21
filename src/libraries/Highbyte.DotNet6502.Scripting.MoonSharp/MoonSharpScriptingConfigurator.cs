@@ -78,17 +78,22 @@ public static class MoonSharpScriptingConfigurator
         bool suppressConfigScripts = false,
         string hostType = "unknown")
     {
-        var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
         var config = CreateEffectiveConfig(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts);
+        var suppressScripts = suppressConfigScripts && scriptDirectoryOverride == null && scriptFilePaths is not { Count: > 0 };
+        return CreateForNativeHost(config, loggerFactory, hostType, suppressScripts);
+    }
 
+    public static IScriptingEngine CreateForNativeHost(
+        ScriptingConfig config, ILoggerFactory loggerFactory, string hostType, bool suppressScripts)
+    {
+        var logger = loggerFactory.CreateLogger(nameof(MoonSharpScriptingConfigurator));
         if (!config.Enabled)
         {
             logger.LogInformation("[Scripting] Disabled in configuration. Using NoScriptingEngine.");
             return new NoScriptingEngine();
         }
 
-        var hasScriptFilePaths = scriptFilePaths is { Count: > 0 };
-        if (suppressConfigScripts && scriptDirectoryOverride == null && !hasScriptFilePaths)
+        if (suppressScripts)
         {
             logger.LogInformation("[Scripting] Suppressing scripts from configuration (automated startup mode). Using NoScriptingEngine.");
             return new NoScriptingEngine();
