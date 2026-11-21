@@ -24,6 +24,7 @@ stdout. The **Remote Client** exposes the same flags (see its [Global options](.
 | Parameter | Description | Depends on | Example |
 |---|---|---|---|
 | `--script <path>` | Load and run a Lua script. Can be specified multiple times. | Exclusive with all automated-startup parameters. | `--script scripts/demo.lua` |
+| `--script-allow-env NAME` | Add one exact, case-sensitive environment variable name to the Lua allowlist for this launch. Repeat for additional names. | — | `--script-allow-env PARADROID_PORT` |
 | `--scriptDir <path>` | Override the effective script directory. When omitted, desktop hosts use the configured directory or `~/Documents/Highbyte/DotNet6502/scripts`. | Exclusive with all automated-startup parameters. | `--scriptDir ./scripts` |
 
 #### System selection & lifecycle

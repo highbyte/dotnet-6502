@@ -312,6 +312,10 @@ internal sealed partial class Program
     ///     </description>
     ///   </item>
     ///   <item>
+    ///     <term><c>--script-allow-env &lt;name&gt;</c></term>
+    ///     <description>Grant every Lua script access to this environment variable for this launch. Repeat for additional names.</description>
+    ///   </item>
+    ///   <item>
     ///     <term><c>--scriptDir &lt;path&gt;</c></term>
     ///     <description>
     ///       Override the Lua script directory from configuration. All .lua files in the directory are loaded and auto-enabled.
@@ -461,6 +465,7 @@ internal sealed partial class Program
             return 1;
 
         // Parse scripting override arguments
+        var additionalEnvironmentVariables = ParseMultipleStringArgument(args, "--script-allow-env");
         List<string> scriptFilePaths = ParseMultipleStringArgument(args, "--script");
         string? scriptDirectoryOverride = AutomatedStartupHandler.ParseStringArgument(args, "--scriptDir");
 
@@ -632,6 +637,7 @@ internal sealed partial class Program
 
         bool automatedStartupMode = autoStart || waitForSystemReady || effectiveLoadPrg != null || effectiveLoadD64 != null || effectiveLoadCrt != null || runLoadedProgram || basicTextEncoded != null || basicUrl != null;
         var scriptingConfig = MoonSharpScriptingConfigurator.CreateEffectiveConfig(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode);
+        scriptingConfig.AllowedEnvironmentVariables.AddRange(additionalEnvironmentVariables);
 
         if (showStoragePaths)
         {
@@ -711,7 +717,7 @@ internal sealed partial class Program
         // ----------
         // Initialize Lua scripting engine
         // ----------
-        var scriptingEngine = MoonSharpScriptingConfigurator.Create(configuration, loggerFactory, scriptFilePaths, scriptDirectoryOverride, suppressConfigScripts: automatedStartupMode, hostType: "desktop");
+        var scriptingEngine = MoonSharpScriptingConfigurator.CreateForNativeHost(scriptingConfig, loggerFactory, "desktop", suppressScripts: automatedStartupMode && !hasScripts);
 
         // HTTP-backed load sources for the URL variants (--loadPrgUrl / --loadD64Url / --loadCrtUrl). Desktop
         // downloads the bytes itself; the Browser host does the equivalent. Both stay null in the

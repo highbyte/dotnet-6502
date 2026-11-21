@@ -20,6 +20,7 @@ When `ScriptDirectory` is empty, desktop hosts use the shared user script direct
     "AllowStore": true,
     "StoreSubDirectory": ".store",
     "AllowTcpClient": false,
+    "AllowedEnvironmentVariables": [],
     "AllowUrlScripts": false
 }
 ```
@@ -38,4 +39,17 @@ When `ScriptDirectory` is empty, desktop hosts use the shared user script direct
 | `AllowStore` | bool | `true` | Whether the `store` global is available to Lua scripts. Provides a cross-platform key/value store. On desktop, backed by files in `StoreSubDirectory`. In browser, backed by `localStorage`. Default is `true`. |
 | `StoreSubDirectory` | string | `".store"` | Subdirectory within the effective script directory used for the filesystem store backend (desktop only). Default is `".store"`. |
 | `AllowTcpClient` | bool | `false` | Whether the `tcp` global is available to Lua scripts. Desktop only — forced `false` in browser/WASM builds. Default is `false`. |
+| `AllowedEnvironmentVariables` | string list | `[]` | Exact environment variable names available to every Lua script in this process through `emu.getenv(name)`. Matching is case-sensitive on all platforms. Browser/WASM ignores grants. |
 | `AllowUrlScripts` | bool | `false` | Browser-only. When `true`, the Avalonia Browser app honours the `script` and `scriptUrl` URL query parameters at startup. Disabled by default because a crafted link could otherwise execute Lua against the user's emulator session and `localStorage`. Takes effect on the next page load. |
+
+## Passing launcher settings to Lua
+
+On Headless and Avalonia Desktop, each `--script-allow-env NAME` adds one literal name to the configured list for that launch. Wildcards have no special meaning. Set the values in the environment that launches the emulator. For example, in a POSIX shell:
+
+```sh
+PARADROID_HOST=127.0.0.1 PARADROID_PORT=9000 \
+  dotnet-6502-headless --script controller.lua \
+  --script-allow-env PARADROID_HOST --script-allow-env PARADROID_PORT
+```
+
+The controller can use `local port = tonumber(emu.getenv("PARADROID_PORT") or "9000")`. Only grant values that every loaded script may access. Opening a TCP connection also requires `AllowTcpClient`.

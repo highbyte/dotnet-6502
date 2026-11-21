@@ -19,6 +19,7 @@ A script must call one of these in its main loop. Scripts that return without yi
 | `emu.time()` | number | Wall-clock seconds elapsed since scripts were loaded. |
 | `emu.state()` | string | Current emulator state: `"running"`, `"paused"`, `"stopped"`, or `"unknown"`. |
 | `emu.host()` | string | Host application type: `"headless"`, `"desktop"`, or `"browser"`. Use this to write scripts that behave differently per host — e.g. call `emu.quit()` only when headless. |
+| `emu.getenv(name)` | string or nil | Read an allowed process environment variable on Headless or Avalonia Desktop. An empty value stays `""`. An unset or ungranted name returns `nil`, as does any valid name on Browser/WASM. Omitting the name or passing a non-string, an empty string, or a name containing `=` or NUL raises a Lua argument error. |
 | `emu.storage_paths()` | table | Effective host storage paths, including user content root, scripts directory, snapshots directory, user settings file, cache directories, and per-system ROM directories. |
 | `emu.systems()` | table | List of available system names (e.g. `{"C64", "Generic"}`). |
 | `emu.selected_system()` | string | Currently selected system name. |
